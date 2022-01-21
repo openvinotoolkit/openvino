@@ -88,7 +88,7 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
     std::vector<MemLeaksTestCase> tests_cases;
     const pugi::xml_document &test_config = Environment::Instance().getTestConfig();
 
-    int numprocesses, numthreads, numiterations, api_versions;
+    int numprocesses, numthreads, numiterations;
     std::string device_name;
 
     pugi::xml_node cases;
@@ -99,7 +99,7 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
         numprocesses = device.attribute("processes").as_int(1);
         numthreads = device.attribute("threads").as_int(1);
         numiterations = device.attribute("iterations").as_int(1);
-        api_versions = device.attribute("api_versions").as_int(2);
+        std::vector<int> api_versions {1, 2};
 
         std::vector<std::map<std::string, std::string>> models;
 
@@ -117,7 +117,9 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
                                                          {"precision", precision}};
             models.push_back(model_map);
         }
-        tests_cases.emplace_back(numprocesses, numthreads, numiterations, api_versions, device_name, models);
+        for (auto api_version: api_versions) {
+            tests_cases.emplace_back(numprocesses, numthreads, numiterations, api_version, device_name, models);
+        }
     }
 
     return tests_cases;

@@ -68,41 +68,41 @@ void fillTensors(ov::runtime::InferRequest& infer_request, const std::vector<ov:
             input_image_sizes.emplace_back(input.get_shape()[2], input.get_shape()[3]);
         }
     }
-    for (const auto &input: inputs) {
+    for (size_t i = 0; i < inputs.size(); ++i) {
         ov::runtime::Tensor input_tensor;
-        if ((input.get_shape().size() == 2) && (input_image_sizes.size() == 1)) {
-            if (input.get_element_type() == ov::element::f32) {
+        if ((inputs[i].get_shape().size() == 2) && (input_image_sizes.size() == 1)) {
+            if (inputs[i].get_element_type() == ov::element::f32) {
                 std::vector<float> values{static_cast<float>(input_image_sizes[0].first), static_cast<float>(input_image_sizes[0].second), 1.0f};
-                input_tensor = ov::runtime::Tensor(ov::element::f32, input.get_shape(), values.data());
-            } else if (input.get_element_type() == ov::element::f16) {
+                input_tensor = ov::runtime::Tensor(ov::element::f32, inputs[i].get_shape(), values.data());
+            } else if (inputs[i].get_element_type() == ov::element::f16) {
                 std::vector<short> values{static_cast<short>(input_image_sizes[0].first), static_cast<short>(input_image_sizes[0].second), 1};
-                input_tensor = ov::runtime::Tensor(ov::element::f16, input.get_shape(), values.data());
-            } else if (input.get_element_type() == ov::element::i32) {
+                input_tensor = ov::runtime::Tensor(ov::element::f16, inputs[i].get_shape(), values.data());
+            } else if (inputs[i].get_element_type() == ov::element::i32) {
                 std::vector<int32_t> values{static_cast<int32_t>(input_image_sizes[0].first), static_cast<int32_t>(input_image_sizes[0].second), 1};
-                input_tensor = ov::runtime::Tensor(ov::element::i32, input.get_shape(), values.data());
+                input_tensor = ov::runtime::Tensor(ov::element::i32, inputs[i].get_shape(), values.data());
             } else {
                 throw std::logic_error("Input precision is not supported for image info!");
             }
         }
         else {
-            if (input.get_element_type() == ov::element::f32) {
-                input_tensor = fillTensorRandom<float>(input);
-            } else if (input.get_element_type() == ov::element::f16) {
-                input_tensor = fillTensorRandom<short>(input);
-            } else if (input.get_element_type() == ov::element::i32) {
-                input_tensor = fillTensorRandom<int32_t>(input);
-            } else if (input.get_element_type() == ov::element::u8) {
-                input_tensor = fillTensorRandom<uint8_t>(input);
-            } else if (input.get_element_type() == ov::element::i8) {
-                input_tensor = fillTensorRandom<int8_t>(input);
-            } else if (input.get_element_type() == ov::element::u16) {
-                input_tensor = fillTensorRandom<uint16_t>(input);
-            } else if (input.get_element_type() == ov::element::i16) {
-                input_tensor = fillTensorRandom<int16_t>(input);
+            if (inputs[i].get_element_type() == ov::element::f32) {
+                input_tensor = fillTensorRandom<float>(inputs[i]);
+            } else if (inputs[i].get_element_type() == ov::element::f16) {
+                input_tensor = fillTensorRandom<short>(inputs[i]);
+            } else if (inputs[i].get_element_type() == ov::element::i32) {
+                input_tensor = fillTensorRandom<int32_t>(inputs[i]);
+            } else if (inputs[i].get_element_type() == ov::element::u8) {
+                input_tensor = fillTensorRandom<uint8_t>(inputs[i]);
+            } else if (inputs[i].get_element_type() == ov::element::i8) {
+                input_tensor = fillTensorRandom<int8_t>(inputs[i]);
+            } else if (inputs[i].get_element_type() == ov::element::u16) {
+                input_tensor = fillTensorRandom<uint16_t>(inputs[i]);
+            } else if (inputs[i].get_element_type() == ov::element::i16) {
+                input_tensor = fillTensorRandom<int16_t>(inputs[i]);
             } else {
-                throw std::logic_error("Input precision is not supported for " + input.get_element_type().get_type_name());
+                throw std::logic_error("Input precision is not supported for " + inputs[i].get_element_type().get_type_name());
             }
         }
-        infer_request.set_input_tensor(input.get_index(), input_tensor);
+        infer_request.set_input_tensor(i, input_tensor);
     }
 }

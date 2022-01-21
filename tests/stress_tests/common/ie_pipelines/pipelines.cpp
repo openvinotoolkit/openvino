@@ -118,20 +118,20 @@ std::function<void()> set_input_params(const std::string &model, const int &api_
             std::shared_ptr<ov::Model> network = ie.read_model(model);
             std::vector<ov::Output<ov::Node>> inputs = network->inputs();
             ov::preprocess::PrePostProcessor ppp = ov::preprocess::PrePostProcessor(network);
-            for (auto &input: inputs) {
-                ov::preprocess::InputInfo& input_info = ppp.input(input.get_index());
-                if (input.get_shape().size() == 4) {
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                ov::preprocess::InputInfo& input_info = ppp.input(i);
+                if (inputs[i].get_shape().size() == 4) {
                     input_info.tensor().set_element_type(ov::element::u8).set_layout("NCHW");
                     input_info.model().set_layout("NCHW");
                 }
-                else if (input.get_shape().size() == 2) {
+                else if (inputs[i].get_shape().size() == 2) {
                     input_info.tensor().set_element_type(ov::element::u8).set_layout("NCHW");
                     input_info.model().set_layout("NC");
                 }
                 else {
                     throw std::logic_error("Setting of input parameters wasn't applied for a model.");
                 }
-                ppp.input(input.get_index()).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+                ppp.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
             }
             network = ppp.build();
         };
@@ -164,8 +164,9 @@ std::function<void()> recreate_exenetwork(InferenceEngine::Core &ie, const std::
 
 std::function<void()> recreate_compiled_model(ov::runtime::Core &ie, const std::string &model, const std::string &target_device) {
         return [&] {
-            std::shared_ptr<ov::Model> network = ie.read_model(model);
-            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
+            ie.get_versions(target_device);
+            auto network = ie.read_model(model);
+            auto compiled_model = ie.compile_model(network, target_device);
         };
 }
 
@@ -230,8 +231,8 @@ std::function<void()> infer_request_inference(const std::string &model, const st
             fillTensors(infer_request, inputs);
             infer_request.infer();
             auto outputs = network->outputs();
-            for (const auto &output: outputs) {
-                const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+            for (size_t i = 0; i < outputs.size(); ++i) {
+                const auto &output_tensor = infer_request.get_output_tensor(i);
             }
         };
     }
@@ -248,8 +249,8 @@ std::function<void()> reinfer_request_inference(InferenceEngine::InferRequest& i
 std::function<void()> reinfer_request_inference(ov::runtime::InferRequest& infer_request, std::vector<ov::Output<ov::Node>>& output_info) {
     return [&] {
         infer_request.infer();
-        for (auto &output : output_info)
-            const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+        for (size_t i = 0; i < output_info.size(); ++i)
+            const auto &output_tensor = infer_request.get_output_tensor(i);
     };
 }
 
@@ -312,8 +313,8 @@ std::function<void()> inference_with_streams(const std::string &model, const std
 
                 infer_request.infer();
                 auto outputs = network->outputs();
-                for (const auto &output: outputs) {
-                    const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+                for (size_t i = 0; i < outputs.size(); ++i) {
+                    const auto &output_tensor = infer_request.get_output_tensor(i);
                 }
             }
         };

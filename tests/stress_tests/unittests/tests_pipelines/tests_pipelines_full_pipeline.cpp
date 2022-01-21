@@ -91,8 +91,8 @@ void test_load_unload_plugin_full_pipeline(const std::string &model, const std::
         fillTensors(infer_request, inputs);
         infer_request.infer();
         auto outputs = network->outputs();
-        for (const auto &output: outputs) {
-            const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            const auto &output_tensor = infer_request.get_output_tensor(i);
         }
     }
 }
@@ -147,8 +147,8 @@ void test_read_network_full_pipeline(const std::string &model, const std::string
         fillTensors(infer_request, inputs);
         infer_request.infer();
         auto outputs = network->outputs();
-        for (const auto &output: outputs) {
-            const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            const auto &output_tensor = infer_request.get_output_tensor(i);
         }
     }
 }
@@ -197,20 +197,20 @@ void test_set_input_params_full_pipeline(const std::string &model, const std::st
             if (i == n / 2) {
                 log_info("Half of the test have already passed");
             }
-            for (auto &input: inputs) {
-                ov::preprocess::InputInfo& input_info = ppp.input(input.get_index());
-                if (input.get_shape().size() == 4) {
+            for (size_t input_index = 0; input_index < inputs.size(); ++input_index) {
+                ov::preprocess::InputInfo& input_info = ppp.input(input_index);
+                if (inputs[input_index].get_shape().size() == 4) {
                     input_info.tensor().set_element_type(ov::element::u8).set_layout("NCHW");
                     input_info.model().set_layout("NCHW");
                 }
-                else if (input.get_shape().size() == 2) {
+                else if (inputs[input_index].get_shape().size() == 2) {
                     input_info.tensor().set_element_type(ov::element::u8).set_layout("NCHW");
                     input_info.model().set_layout("NC");
                 }
                 else {
                     throw std::logic_error("Setting of input parameters wasn't applied for a model.");
                 }
-                ppp.input(input.get_index()).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+                ppp.input(input_index).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
             }
         }
         network = ppp.build();
@@ -220,8 +220,8 @@ void test_set_input_params_full_pipeline(const std::string &model, const std::st
         fillTensors(infer_request, network->inputs());
         infer_request.infer();
         auto outputs = network->outputs();
-        for (const auto &output: outputs) {
-            const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            const auto &output_tensor = infer_request.get_output_tensor(i);
         }
     }
 }
@@ -285,14 +285,14 @@ void test_cnnnetwork_reshape_batch_x2_full_pipeline(const std::string &model, co
             if (i == n / 2) {
                 log_info("Half of the test have already passed");
             }
-            for (auto &input: inputs) {
-                ov::Shape tensor_shape = input.get_shape();
+            for (size_t input_index = 0; input_index < inputs.size(); ++input_index) {
+                ov::Shape tensor_shape = inputs[input_index].get_shape();
                 if (i == 0) {
                     prev_batch = tensor_shape[0];
                 }
                 size_t new_batch = ((i % 2) == 0) ? prev_batch * 2 : prev_batch;
                 tensor_shape[0] = new_batch;
-                network->reshape({{input.get_index(), tensor_shape}});
+                network->reshape({{input_index, tensor_shape}});
             }
         }
         ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
@@ -301,8 +301,8 @@ void test_cnnnetwork_reshape_batch_x2_full_pipeline(const std::string &model, co
         fillTensors(infer_request, network->inputs());
         infer_request.infer();
         auto outputs = network->outputs();
-        for (const auto &output: outputs) {
-            const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            const auto &output_tensor = infer_request.get_output_tensor(i);
         }
     }
 }
@@ -361,8 +361,8 @@ void test_create_exenetwork_full_pipeline(const std::string &model, const std::s
         fillTensors(infer_request, network->inputs());
         infer_request.infer();
         auto outputs = network->outputs();
-        for (const auto &output: outputs) {
-            const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            const auto &output_tensor = infer_request.get_output_tensor(i);
         }
     }
 }
@@ -419,8 +419,8 @@ void test_create_infer_request_full_pipeline(const std::string &model, const std
         fillTensors(infer_request, network->inputs());
         infer_request.infer();
         auto outputs = network->outputs();
-        for (const auto &output: outputs) {
-            const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            const auto &output_tensor = infer_request.get_output_tensor(i);
         }
     }
 }
@@ -476,8 +476,8 @@ void test_infer_request_inference_full_pipeline(const std::string &model, const 
             }
             infer_request.infer();
             auto outputs = network->outputs();
-            for (const auto &output: outputs) {
-                const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+            for (size_t output_index = 0; output_index < outputs.size(); ++output_index) {
+                const auto &output_tensor = infer_request.get_output_tensor(output_index);
             }
         }
     }

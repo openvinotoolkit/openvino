@@ -122,8 +122,8 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
 
             infer_request.infer();
             auto outputs = network->outputs();
-            for (const auto &output: outputs) {
-                const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+            for (size_t i = 0; i < outputs.size(); ++i) {
+                const auto &output_tensor = infer_request.get_output_tensor(i);
             }
             log_info("Memory consumption after Inference:");
             memCheckPipeline.record_measures(test_name);
@@ -210,8 +210,8 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
 
                 infer_request.infer();
                 auto outputs = network->outputs();
-                for (const auto &output: outputs) {
-                    const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+                for (size_t i = 0; i < outputs.size(); ++i) {
+                    const auto &output_tensor = infer_request.get_output_tensor(i);
                 }
             }
         }
