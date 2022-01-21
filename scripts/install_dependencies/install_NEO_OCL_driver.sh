@@ -251,18 +251,6 @@ uninstall_user_mode()
     fi
 }
 
-_is_package_installed()
-{
-    if [[ $DISTRO == "redhat" ]]; then
-        cmd="rpm -qa | grep $1"
-    else
-        cmd="dpkg-query -W -f='${binary:Package}\n' $pkg"
-    fi
-    echo "$cmd"
-    eval "$cmd"
-}
-
-
 _download_packages_ubuntu()
 {
     case $INSTALL_DRIVER_VERSION in
