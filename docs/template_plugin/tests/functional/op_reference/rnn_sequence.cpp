@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,14 +35,14 @@ struct RNNSequenceParams {
             Shape YShape = Shape{batchSize, numDirections, seqLength, hiddenSize};
             Shape HoShape = Shape{batchSize, numDirections, hiddenSize};
 
-            X = Tensor(XShape, iType, XValues);
-            H_t = Tensor(H_tShape, iType, H_tValues);
-            S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
-            W = Tensor(WShape, iType, WValues);
-            R = Tensor(RShape, iType, RValues);
-            B = Tensor(BShape, iType, BValues);
-            Y = Tensor(YShape, oType, YValues);
-            Ho = Tensor(HoShape, oType, HoValues);
+            X = reference_tests::Tensor(XShape, iType, XValues);
+            H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
+            S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+            W = reference_tests::Tensor(WShape, iType, WValues);
+            R = reference_tests::Tensor(RShape, iType, RValues);
+            B = reference_tests::Tensor(BShape, iType, BValues);
+            Y = reference_tests::Tensor(YShape, oType, YValues);
+            Ho = reference_tests::Tensor(HoShape, oType, HoValues);
         }
 
     size_t batchSize;
@@ -55,14 +55,14 @@ struct RNNSequenceParams {
     element::Type_t iType;
     element::Type_t oType;
 
-    Tensor X;
-    Tensor H_t;
-    Tensor S_t;
-    Tensor W;
-    Tensor R;
-    Tensor B;
-    Tensor Y;
-    Tensor Ho;
+    reference_tests::Tensor X;
+    reference_tests::Tensor H_t;
+    reference_tests::Tensor S_t;
+    reference_tests::Tensor W;
+    reference_tests::Tensor R;
+    reference_tests::Tensor B;
+    reference_tests::Tensor Y;
+    reference_tests::Tensor Ho;
     std::string testcaseName;
 };
 
