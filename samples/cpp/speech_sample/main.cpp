@@ -85,6 +85,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
+        // ------------------------------ Preprocessing ------------------------------------------------------
         // if 'm' flag is empty in command line in this case we load model using 'rg' flag
         if (!FLAGS_m.empty()) {
             model = core.read_model(FLAGS_m);
