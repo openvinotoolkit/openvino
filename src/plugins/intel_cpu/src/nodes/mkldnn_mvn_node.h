@@ -102,15 +102,16 @@ public:
         OUTSIDE_SQRT
     };
     struct MVNAttrs {
+        bool planar_layout;
         std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
         bool initAcrossChannels_;
         bool execAcrossChannels_;
         bool normalizeVariance_;
         float epsValue_;
         MVNEpsMode epsMode_;
-        size_t src_data_size = 0;
-        size_t dst_data_size = 0;
         bool is_nhwc;
+        InferenceEngine::Precision src_prc;
+        InferenceEngine::Precision dst_prc;
     };
 
 private:
@@ -146,7 +147,6 @@ private:
     class MVNJitExecutor : public MVNExecutor {
         public:
             MVNJitExecutor(const MVNAttrs& mvnAttrs,
-                           const jit_mvn_config_params &jcp,
                            const mkldnn::primitive_attr &attr);
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
