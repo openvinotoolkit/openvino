@@ -25,7 +25,7 @@ std::function<void()> load_unload_plugin(const std::string &target_device, const
     }
     else {
         return [&] {
-            ov::runtime::Core ie;
+            ov::Core ie;
             // get_versions silently register plugin in `plugins` through `GetCPPPluginByName`
             ie.get_versions(target_device);
             // Remove plugin for target_device from `plugins`
@@ -43,7 +43,7 @@ std::function<void()> read_cnnnetwork(const std::string &model, const int &api_v
     }
     else {
         return [&] {
-            ov::runtime::Core ie;
+            ov::Core ie;
             std::shared_ptr<ov::Model> network = ie.read_model(model);
         };
     }
@@ -80,12 +80,12 @@ std::function<void()> cnnnetwork_reshape_batch_x2(const std::string &model, cons
     }
     else {
         return [&] {
-            ov::runtime::Core ie;
-            std::shared_ptr<ov::Model> network = ie.read_model(model);
-            std::vector<ov::Output<ov::Node>> inputs = network->inputs();
+            ov::Core ie;
+            auto network = ie.read_model(model);
+            auto inputs = network->inputs();
 
             for (auto &input: inputs) {
-                ov::Shape tensor_shape = input.get_shape();
+                auto tensor_shape = input.get_shape();
                 auto model_layout = ov::layout::get_layout(input);
                 tensor_shape[0] *= 2;
                 network->reshape({{input.get_any_name(), tensor_shape}});
@@ -114,12 +114,12 @@ std::function<void()> set_input_params(const std::string &model, const int &api_
     }
     else {
         return [&] {
-            ov::runtime::Core ie;
-            std::shared_ptr<ov::Model> network = ie.read_model(model);
-            std::vector<ov::Output<ov::Node>> inputs = network->inputs();
-            ov::preprocess::PrePostProcessor ppp = ov::preprocess::PrePostProcessor(network);
+            ov::Core ie;
+            auto network = ie.read_model(model);
+            auto inputs = network->inputs();
+            auto ppp = ov::preprocess::PrePostProcessor(network);
             for (size_t i = 0; i < inputs.size(); ++i) {
-                ov::preprocess::InputInfo& input_info = ppp.input(i);
+                auto &input_info = ppp.input(i);
                 if (inputs[i].get_shape().size() == 4) {
                     input_info.tensor().set_element_type(ov::element::u8).set_layout("NCHW");
                     input_info.model().set_layout("NCHW");
@@ -148,9 +148,9 @@ std::function<void()> create_compiled_model(const std::string &model, const std:
     }
     else {
         return [&] {
-            ov::runtime::Core ie;
+            ov::Core ie;
             std::shared_ptr<ov::Model> network = ie.read_model(model);
-            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
+            auto compiled_model = ie.compile_model(network, target_device);
         };
     }
 }
@@ -162,7 +162,7 @@ std::function<void()> recreate_exenetwork(InferenceEngine::Core &ie, const std::
         };
 }
 
-std::function<void()> recreate_compiled_model(ov::runtime::Core &ie, const std::string &model, const std::string &target_device) {
+std::function<void()> recreate_compiled_model(ov::Core &ie, const std::string &model, const std::string &target_device) {
         return [&] {
             ie.get_versions(target_device);
             auto network = ie.read_model(model);
@@ -181,10 +181,10 @@ std::function<void()> create_infer_request(const std::string &model, const std::
     }
     else {
         return [&] {
-            ov::runtime::Core ie;
-            std::shared_ptr<ov::Model> network = ie.read_model(model);
-            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
-            ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+            ov::Core ie;
+            auto network = ie.read_model(model);
+            auto compiled_model = ie.compile_model(network, target_device);
+            auto infer_request = compiled_model.create_infer_request();
         };
     }
 }
@@ -195,9 +195,9 @@ std::function<void()> recreate_infer_request(InferenceEngine::ExecutableNetwork&
     };
 }
 
-std::function<void()> recreate_infer_request(ov::runtime::CompiledModel& compiled_model) {
+std::function<void()> recreate_infer_request(ov::CompiledModel& compiled_model) {
     return [&] {
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        auto infer_request = compiled_model.create_infer_request();
     };
 }
 
@@ -222,11 +222,11 @@ std::function<void()> infer_request_inference(const std::string &model, const st
     }
     else {
         return [&] {
-            ov::runtime::Core ie;
-            std::shared_ptr<ov::Model> network = ie.read_model(model);
-            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
-            ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
-            std::vector<ov::Output<ov::Node>> inputs = network->inputs();
+            ov::Core ie;
+            auto network = ie.read_model(model);
+            auto compiled_model = ie.compile_model(network, target_device);
+            auto infer_request = compiled_model.create_infer_request();
+            auto inputs = network->inputs();
 
             fillTensors(infer_request, inputs);
             infer_request.infer();
@@ -246,7 +246,7 @@ std::function<void()> reinfer_request_inference(InferenceEngine::InferRequest& i
     };
 }
 
-std::function<void()> reinfer_request_inference(ov::runtime::InferRequest& infer_request, std::vector<ov::Output<ov::Node>>& output_info) {
+std::function<void()> reinfer_request_inference(ov::InferRequest& infer_request, std::vector<ov::Output<ov::Node>>& output_info) {
     return [&] {
         infer_request.infer();
         for (size_t i = 0; i < output_info.size(); ++i)
@@ -293,13 +293,13 @@ std::function<void()> inference_with_streams(const std::string &model, const std
         return [&] {
             std::map<std::string, std::string> config;
             config[target_device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
-            ov::runtime::Core ie;
+            ov::Core ie;
             ie.get_versions(target_device);
             ie.set_config(config, target_device);
             std::shared_ptr<ov::Model> network = ie.read_model(model);
-            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
-            ov::runtime::InferRequest infer_request;
-            std::vector<ov::Output<ov::Node>> inputs = network->inputs();
+            auto compiled_model = ie.compile_model(network, target_device);
+            ov::InferRequest infer_request;
+            auto inputs = network->inputs();
 
             unsigned int nireq = nstreams;
             try {

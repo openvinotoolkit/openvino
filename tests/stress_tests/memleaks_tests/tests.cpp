@@ -105,7 +105,7 @@ TEST_P(MemLeaksTestSuite, recreate_exenetwork) {
             }
     }
     else {
-        ov::runtime::Core ie;
+        ov::Core ie;
         for (int i = 0; i < test_params.models.size(); i++) {
             pipeline.push_back(recreate_compiled_model(ie, test_params.models[i]["full_path"], test_params.device));
         }
@@ -137,15 +137,15 @@ TEST_P(MemLeaksTestSuite, recreate_infer_request) {
         }
     }
     else {
-        ov::runtime::Core ie;
-        std::vector<ov::runtime::CompiledModel> compiled_models;
+        ov::Core ie;
+        std::vector<ov::CompiledModel> compiled_models;
 
         size_t n_models = test_params.models.size();
         compiled_models.reserve(n_models);
 
         for (int i = 0; i < n_models; i++) {
-            std::shared_ptr<ov::Model> network = ie.read_model(test_params.models[i]["full_path"]);
-            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, test_params.device);
+            auto network = ie.read_model(test_params.models[i]["full_path"]);
+            auto compiled_model = ie.compile_model(network, test_params.device);
             compiled_models.push_back(compiled_model);
             pipeline.push_back(recreate_infer_request(compiled_models[i]));
         }
@@ -186,9 +186,9 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
         }
     }
     else {
-        ov::runtime::Core ie;
+        ov::Core ie;
 
-        std::vector<ov::runtime::InferRequest> infer_requests;
+        std::vector<ov::InferRequest> infer_requests;
         std::vector<std::vector<ov::Output<ov::Node>>> outputs_info;
 
         size_t n_models = test_params.models.size();
@@ -196,13 +196,13 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
         outputs_info.reserve(n_models);
 
         for (int i = 0; i < n_models; i++) {
-            std::shared_ptr<ov::Model> network = ie.read_model(test_params.models[i]["full_path"]);
-            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, test_params.device);
-            ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+            auto network = ie.read_model(test_params.models[i]["full_path"]);
+            auto compiled_model = ie.compile_model(network, test_params.device);
+            auto infer_request = compiled_model.create_infer_request();
             infer_requests.push_back(infer_request);
             auto outputs = network->outputs();
             outputs_info.push_back(outputs);
-            const std::vector<ov::Output<ov::Node>> &inputs = network->inputs();
+            const auto &inputs = network->inputs();
             fillTensors(infer_requests[i], inputs);
             pipeline.push_back(reinfer_request_inference(infer_requests[i], outputs_info[i]));
         }

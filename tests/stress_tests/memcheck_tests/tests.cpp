@@ -63,10 +63,10 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
                 return memCheckPipeline.measure();
             }
             else {
-                ov::runtime::Core ie;
+                ov::Core ie;
                 ie.get_versions(device);
                 std::shared_ptr<ov::Model> network = ie.read_model(model);
-                ov::runtime::CompiledModel compiled_model = ie.compile_model(network, device);
+                ov::CompiledModel compiled_model = ie.compile_model(network, device);
 
                 log_info("Memory consumption after compile_model:");
                 memCheckPipeline.record_measures(test_name);
@@ -112,11 +112,11 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
             return memCheckPipeline.measure();
         }
         else {
-            ov::runtime::Core ie;
+            ov::Core ie;
             ie.get_versions(device);
             std::shared_ptr<ov::Model> network = ie.read_model(model);
-            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, device);
-            ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+            ov::CompiledModel compiled_model = ie.compile_model(network, device);
+            ov::InferRequest infer_request = compiled_model.create_infer_request();
             const std::vector<ov::Output<ov::Node>> inputs = network->inputs();
             fillTensors(infer_request, inputs);
 
@@ -191,12 +191,12 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
             }
         }
         else {
-            ov::runtime::Core ie;
+            ov::Core ie;
             ie.get_versions(device);
             ie.set_config(config, device);
-            std::shared_ptr<ov::Model> network = ie.read_model(model);
-            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, device);
-            ov::runtime::InferRequest infer_request;
+            auto network = ie.read_model(model);
+            auto compiled_model = ie.compile_model(network, device);
+            ov::InferRequest infer_request;
             std::vector<ov::Output<ov::Node>> inputs = network->inputs();
 
             try {

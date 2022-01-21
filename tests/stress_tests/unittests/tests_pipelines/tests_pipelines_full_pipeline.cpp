@@ -73,7 +73,7 @@ void test_load_unload_plugin_full_pipeline(const std::string &model, const std::
     }
     else {
         log_info("Load/unload plugin for device: " << target_device << " for " << n << " times");
-        ov::runtime::Core ie;
+        ov::Core ie;
         for (int i = 0; i < n; i++) {
             if (i == n / 2) {
                 log_info("Half of the test have already passed");
@@ -83,10 +83,10 @@ void test_load_unload_plugin_full_pipeline(const std::string &model, const std::
             // Remove plugin for target_device from `plugins`
             ie.unload_plugin(target_device);
         }
-        std::shared_ptr<ov::Model> network = ie.read_model(model);
-        ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
-        std::vector<ov::Output<ov::Node>> inputs = network->inputs();
+        auto network = ie.read_model(model);
+        auto compiled_model = ie.compile_model(network, target_device);
+        auto infer_request = compiled_model.create_infer_request();
+        auto inputs = network->inputs();
 
         fillTensors(infer_request, inputs);
         infer_request.infer();
@@ -132,7 +132,7 @@ void test_read_network_full_pipeline(const std::string &model, const std::string
     }
     else {
         log_info("Read network: \"" << model << "\" for " << n << " times");
-        ov::runtime::Core ie;
+        ov::Core ie;
         std::shared_ptr<ov::Model> network;
         for (int i = 0; i < n; i++) {
             if (i == n / 2) {
@@ -140,8 +140,8 @@ void test_read_network_full_pipeline(const std::string &model, const std::string
             }
             network = ie.read_model(model);
         }
-        ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        auto compiled_model = ie.compile_model(network, target_device);
+        auto infer_request = compiled_model.create_infer_request();
         std::vector<ov::Output<ov::Node>> inputs = network->inputs();
 
         fillTensors(infer_request, inputs);
@@ -188,7 +188,7 @@ void test_set_input_params_full_pipeline(const std::string &model, const std::st
     }
     else {
         log_info("Apply preprocessing for CNNNetwork from network: \"" << model << "\" for " << n << " times");
-        ov::runtime::Core ie;
+        ov::Core ie;
         std::shared_ptr<ov::Model> network = ie.read_model(model);
 
         std::vector<ov::Output<ov::Node>> inputs = network->inputs();
@@ -214,8 +214,8 @@ void test_set_input_params_full_pipeline(const std::string &model, const std::st
             }
         }
         network = ppp.build();
-        ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        auto compiled_model = ie.compile_model(network, target_device);
+        auto infer_request = compiled_model.create_infer_request();
 
         fillTensors(infer_request, network->inputs());
         infer_request.infer();
@@ -277,7 +277,7 @@ void test_cnnnetwork_reshape_batch_x2_full_pipeline(const std::string &model, co
     }
     else {
         log_info("Reshape to batch*=2 of CNNNetwork created from network: \"" << model << "\" for " << n << " times");
-        ov::runtime::Core ie;
+        ov::Core ie;
         std::shared_ptr<ov::Model> network = ie.read_model(model);
         std::vector<ov::Output<ov::Node>> inputs = network->inputs();
         size_t prev_batch;
@@ -295,8 +295,8 @@ void test_cnnnetwork_reshape_batch_x2_full_pipeline(const std::string &model, co
                 network->reshape({{input_index, tensor_shape}});
             }
         }
-        ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        auto compiled_model = ie.compile_model(network, target_device);
+        auto infer_request = compiled_model.create_infer_request();
 
         fillTensors(infer_request, network->inputs());
         infer_request.infer();
@@ -346,17 +346,17 @@ void test_create_exenetwork_full_pipeline(const std::string &model, const std::s
         log_info("Create ExecutableNetwork from network: \"" << model
                                                              << "\" for device: \"" << target_device << "\" for " << n
                                                              << " times");
-        ov::runtime::Core ie;
-        std::shared_ptr<ov::Model> network = ie.read_model(model);
-        std::vector<ov::Output<ov::Node>> inputs = network->inputs();
-        ov::runtime::CompiledModel compiled_model;
+        ov::Core ie;
+        auto network = ie.read_model(model);
+        auto inputs = network->inputs();
+        ov::CompiledModel compiled_model;
         for (int i = 0; i < n; i++) {
             if (i == n / 2) {
                 log_info("Half of the test have already passed");
             }
             compiled_model = ie.compile_model(network, target_device);
         }
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        auto infer_request = compiled_model.create_infer_request();
 
         fillTensors(infer_request, network->inputs());
         infer_request.infer();
@@ -404,11 +404,11 @@ void test_create_infer_request_full_pipeline(const std::string &model, const std
         log_info("Create InferRequest from network: \"" << model
                                                         << "\" for device: \"" << target_device << "\" for " << n
                                                         << " times");
-        ov::runtime::Core ie;
-        std::shared_ptr<ov::Model> network = ie.read_model(model);
-        std::vector<ov::Output<ov::Node>> inputs = network->inputs();
-        ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
-        ov::runtime::InferRequest infer_request;
+        ov::Core ie;
+        auto network = ie.read_model(model);
+        auto inputs = network->inputs();
+        auto compiled_model = ie.compile_model(network, target_device);
+        ov::InferRequest infer_request;
         for (int i = 0; i < n; i++) {
             if (i == n / 2) {
                 log_info("Half of the test have already passed");
@@ -464,11 +464,11 @@ void test_infer_request_inference_full_pipeline(const std::string &model, const 
         log_info("Inference of InferRequest from network: \"" << model
                                                               << "\" for device: \"" << target_device << "\" for " << n
                                                               << " times");
-        ov::runtime::Core ie;
-        std::shared_ptr<ov::Model> network = ie.read_model(model);
-        std::vector<ov::Output<ov::Node>> inputs = network->inputs();
-        ov::runtime::CompiledModel compiled_model = ie.compile_model(network, target_device);
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        ov::Core ie;
+        auto network = ie.read_model(model);
+        auto inputs = network->inputs();
+        auto compiled_model = ie.compile_model(network, target_device);
+        auto infer_request = compiled_model.create_infer_request();
         fillTensors(infer_request, network->inputs());
         for (int i = 0; i < n; i++) {
             if (i == n / 2) {

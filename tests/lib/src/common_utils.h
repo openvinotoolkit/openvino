@@ -82,8 +82,8 @@ void fillBlobRandom(Blob::Ptr& inputBlob) {
  * @brief Fill InferenceEngine tensor with random values
  */
 template<typename T>
-ov::runtime::Tensor fillTensorRandom(const ov::Output<ov::Node>& input) {
-    ov::runtime::Tensor tensor { input.get_element_type(), input.get_shape() };
+ov::Tensor fillTensorRandom(const ov::Output<ov::Node>& input) {
+    ov::Tensor tensor { input.get_element_type(), input.get_shape() };
     std::vector<T>values(ov::shape_size(input.get_shape()));
     for (size_t i = 0; i < values.size(); ++i) {
         auto rand_max = RAND_MAX;
@@ -131,5 +131,5 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
 /**
  * @brief Fill InferRequest tensors with random values or image information
  */
-void fillTensors(ov::runtime::InferRequest &infer_request,
+void fillTensors(ov::InferRequest &infer_request,
                  const std::vector<ov::Output<ov::Node>>& inputs);
