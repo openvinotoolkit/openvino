@@ -63,14 +63,14 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
     if (version < b.version)
         return true;
     if (version == b.version && name != nullptr && b.name != nullptr) {
-        int cmp_status = strcmp(name, b.name);
+        int cmp_status = (name == b.name) ? 0 : strcmp(name, b.name);
         if (cmp_status < 0)
             return true;
         if (cmp_status == 0) {
-            std::string v_id(version_id == nullptr ? "" : version_id);
-            std::string bv_id(b.version_id == nullptr ? "" : b.version_id);
-            if (v_id < bv_id)
-                return true;
+            return (!version_id && b.version_id) ? true
+                                                 : (version_id && b.version_id && version_id != b.version_id)
+                                                       ? strcmp(version_id, b.version_id) < 0
+                                                       : false;
         }
     }
 
@@ -79,7 +79,7 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
     if (hash_value != 0 && b.hash_value != 0)
         return hash() == b.hash();
-    return version == b.version && strcmp(name, b.name) == 0;
+    return version == b.version && (name == b.name || strcmp(name, b.name) == 0);
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;
