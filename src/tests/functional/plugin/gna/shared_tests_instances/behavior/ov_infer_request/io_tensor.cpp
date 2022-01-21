@@ -45,7 +45,7 @@ public:
         try {
             OVInferRequestCheckTensorPrecision::SetUp();
             if (std::count(supported_input_prcs.begin(), supported_input_prcs.end(), element_type) == 0) {
-                FAIL() << "GNA's unsupported layers were not detected during LoadNetwork()";
+                FAIL() << "Precision " << element_type.c_type_string() << " is marked as unsupported but the network was loaded successfully";
             }
         }
         catch (std::runtime_error& e) {
@@ -55,7 +55,11 @@ public:
             EXPECT_TRUE(errorMsg.find(expectedMsg) != std::string::npos)
             << "Wrong error message, actual error message: " << errorMsg
             << ", expected: " << expectedMsg;
-            GTEST_SKIP_(expectedMsg.c_str());
+            if (std::count(supported_input_prcs.begin(), supported_input_prcs.end(), element_type) == 0) {
+                GTEST_SKIP_(expectedMsg.c_str());
+            } else {
+                FAIL() << "Precision " << element_type.c_type_string() << " is marked as supported but the network was not loaded";
+            }
         }
     }
 
