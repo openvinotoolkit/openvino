@@ -1249,7 +1249,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     if (in_4b_total_size != in_2b_total_size) {
         THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs size mismatch "
-            << "(note: For Multiply, Add and Subtract layers auto broadcasting is only supported for inputs which are constant) "
+            << "(note: For Multiply, Add and Subtract layers, auto broadcasting is only supported for constant inputs) "
             << in_4b_total_size << " != " << in_2b_total_size;
     }
 
