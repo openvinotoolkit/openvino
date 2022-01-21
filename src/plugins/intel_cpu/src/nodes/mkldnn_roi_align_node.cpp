@@ -1008,6 +1008,10 @@ void MKLDNNROIAlignNode::executeSpecified() {
         }
     });
 
+    if (realRois == 0) {
+        IE_THROW() << "[Division by zero] realRois must be greater than 0";
+    }
+
     if (roi_align_kernel) {
         if (!isPlainFmt) {
             std::vector<float> workingBuf;

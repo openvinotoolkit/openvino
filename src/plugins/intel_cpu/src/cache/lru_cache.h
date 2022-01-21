@@ -31,7 +31,7 @@ public:
      * @param value
      */
 
-    void put(Key key, Value val) {
+    void put(const Key &key, const Value &val) {
         if (0 == _capacity) {
             return;
         }
