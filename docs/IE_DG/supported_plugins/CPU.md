@@ -127,3 +127,17 @@ CPU-specific settings:
 [conv_depth_01]: ../img/conv_depth_01.png
 [group_convolutions_01]: ../img/group_convolutions_01.png
 [conv_sum_relu_01]: ../img/conv_sum_relu_01.png
+
+
+
+
+@sphinxdirective
++------------------------+------------+----------+----------+
+| Header row, column 1   | Header 2   | Header 3 | Header 4 |
+| (header rows optional) |            |          |          |
++========================+============+==========+==========+
+| body row 1, column 1   | column 2   | column 3 | column 4 |
++------------------------+------------+----------+----------+
+| body row 2             | ...        | ...      |          |
++------------------------+------------+----------+----------+
+@endsphinxdirective
