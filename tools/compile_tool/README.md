@@ -80,10 +80,10 @@ For example, to compile a blob for inference on an Intel® Neural Compute Stick 
 ### Import a Compiled Blob File to Your Application
 
 To import a blob with the network from a generated file into your application, use the
-`ov::runtime::Core::import_model` method:
+`ov::Core::import_model` method:
 
 ```cpp
-ov::runtime::Core ie;
+ov::Core ie;
 std::ifstream file{"model_name.blob"};
-ov::runtime::CompiledModel compiled_model = ie.import_model(file, "MYRIAD", {});
+ov::CompiledModel compiled_model = ie.import_model(file, "MYRIAD", {});
 ```

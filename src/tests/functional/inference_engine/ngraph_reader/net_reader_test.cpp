@@ -55,7 +55,7 @@ protected:
 };
 
 TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
-    ov::runtime::Core ie;
+    ov::Core ie;
 
     auto network = ie.read_model(_modelPath, _weightsPath);
     auto network2 = ie.read_model(_modelPath, _weightsPath);

@@ -23,8 +23,8 @@ struct RoundParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inputData;
-    runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
  };
 
 class ReferenceRoundHalfToEvenLayerTest : public testing::TestWithParam<RoundParams>, public CommonReferenceTest {
