@@ -398,7 +398,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             auto& permute_order = next.as<permute>().get_primitive()->permute_order;
             if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
                 fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
-                && permute_order[1] == 2
+                && (permute_order[1] == (permute_order.size() - 1))
                 && (!is_rotating_except_batch(permute_order))) {
                     return false;
             }
@@ -459,10 +459,14 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
             return true;
         };
 
+        // permute [fsv -> fsv] + reorder [fsv -> bfyx]
+        // prevent reorder for following cases for performance
+        // (1) moving f axis to last dim, because f is already continuous
+        // (2) permute is not rotating case, because rotating cases are good to fuse reorder since it can be mapped to tiled kernel
         auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
         if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
-         && permute_order[1] == 2
+         && (permute_order[1] == (permute_order.size() - 1))
          && (!is_rotating_except_batch(permute_order))) {
             return false;
         }
