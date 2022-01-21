@@ -9,13 +9,12 @@
 #include "api_conformance_helpers.hpp"
 
 namespace {
-using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
-                                ::testing::ValuesIn(emptyConfig)),
+                                ::testing::ValuesIn(std::vector<std::map<std::string, std::string>>{})),
                          InferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestWaitTests,
