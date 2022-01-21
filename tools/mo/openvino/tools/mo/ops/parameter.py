@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import unmask_shape, clarify_partial_shape
+from openvino.tools.mo.front.common.partial_infer.utils import unmask_shape
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
@@ -75,17 +75,5 @@ class Parameter(Op):
         # update node 'shape' attribute (if it is not defined) from the output port shape which was calculated
         # during the reverse_infer phase
         shape = node.soft_get('shape', None)
-        if shape is not None:
-            return
-
-        # build most precise input shape from all output partial shapes
-        shapes = []
-        for i, out_port in node.out_ports().items():
-            out_shape = out_port.data.get_shape()
-            if out_shape is not None:
-                shapes.append(out_shape)
-
-        if len(shapes) == 0:
-            return
-
-        node['shape'] = clarify_partial_shape(shapes)
+        if shape is None and node.out_port(0).data.get_shape() is not None:
+            node['shape'] = node.out_port(0).data.get_shape()
