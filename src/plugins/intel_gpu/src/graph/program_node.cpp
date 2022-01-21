@@ -308,9 +308,18 @@ bool program_node::need_lockable_memory() const {
     return need_lockable_mem;
 }
 
-    /* ----------------------------------------- */
-    /* Onednn fused operations integration logic */
-    /* ----------------------------------------- */
+bool program_node::is_dynamic() const {
+    for (auto& input : get_dependencies()) {
+        if (input->get_output_layout().is_dynamic())
+            return true;
+    }
+
+    return get_output_layout().is_dynamic();
+}
+
+/* ----------------------------------------- */
+/* Onednn fused operations integration logic */
+/* ----------------------------------------- */
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 

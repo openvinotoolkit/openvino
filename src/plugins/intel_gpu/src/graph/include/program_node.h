@@ -352,6 +352,7 @@ public:
 
     std::string get_unique_id() const { return unique_id; }
     void set_unique_id(std::string id) { unique_id = id; }
+    bool is_dynamic() const;
 
 protected:
     std::string unique_id;

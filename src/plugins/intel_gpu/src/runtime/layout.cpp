@@ -170,4 +170,8 @@ std::string layout::to_string() const {
     // TODO: Extend with format/data-type info
     return size.to_string();
 }
+
+bool layout::is_dynamic() const {
+    return false;
+}
 }  // namespace cldnn
