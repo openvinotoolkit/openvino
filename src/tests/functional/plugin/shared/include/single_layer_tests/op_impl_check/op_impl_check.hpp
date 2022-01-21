@@ -19,7 +19,7 @@ namespace subgraph {
 using OpImplParams = std::tuple<
         std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>,       // Function to check
         std::string,                         // Target Device
-        ov::AnyMap>; // Plugin Config
+        std::map<std::string, std::string>>; // Plugin Config
 
 class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
                         public CommonTestUtils::TestsCommon {
@@ -28,7 +28,7 @@ protected:
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function;
     std::string targetDevice;
-    ov::AnyMap configuration;
+    std::map<std::string, std::string> configuration;
 
 public:
     void run();
