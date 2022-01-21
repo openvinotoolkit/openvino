@@ -17,10 +17,11 @@
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/function.hpp>
 #include <openvino/core/any.hpp>
-#include <openvino/runtime/common.hpp>
 
 namespace ov {
+namespace test {
     static void PrintTo(const Any& any, std::ostream* os) {
         any.print(*os);
     }
+}  // namespace test
 }  // namespace ov
