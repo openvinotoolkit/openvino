@@ -415,6 +415,8 @@ def add_meta_data(net: Element, meta_info: dict):
         meta = SubElement(net, 'meta_data')
         SubElement(meta, 'MO_version').set('value', get_version())
         parameters = SubElement(meta, 'cli_parameters')
+        if 'inputs_list' in meta_info:
+            del meta_info['inputs_list']
         [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
          key not in ('unset', 'quantization_parameters')]
         if 'unset' in meta_info:
