@@ -215,4 +215,118 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool8_ExplicitPad_CeilRounding, MaxPoolingV8La
                                  ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
+const size_t max_batch_value = 256;
+
+std::vector<InferenceEngine::SizeVector> generateInputShapesSmall() {
+        std::vector<InferenceEngine::SizeVector> inputShapes;
+        for (size_t i = 2; i < max_batch_value; i *= 2) {
+                inputShapes.push_back({i, 3, 30, 30});
+                inputShapes.push_back({i, 5, 30, 30});
+                inputShapes.push_back({i, 15, 30, 30});
+                inputShapes.push_back({i, 16, 30, 30});
+                inputShapes.push_back({i, 17, 30, 30});
+        }
+        return inputShapes;
+}
+
+std::vector<InferenceEngine::SizeVector> generateInputShapesLarge() {
+        std::vector<InferenceEngine::SizeVector> inputShapes;
+        for (size_t i = 2; i < max_batch_value; i *= 2) {
+                inputShapes.push_back({i, 3, 50, 50});
+                inputShapes.push_back({i, 5, 50, 50});
+                inputShapes.push_back({i, 15, 50, 50});
+                inputShapes.push_back({i, 16, 50, 50});
+                inputShapes.push_back({i, 17, 50, 50});
+        }
+        return inputShapes;
+}
+
+const std::vector<InferenceEngine::SizeVector> nightlyInputShapesSmall(generateInputShapesSmall());
+const std::vector<InferenceEngine::SizeVector> nightlyInputShapesLarge(generateInputShapesLarge());
+
+INSTANTIATE_TEST_SUITE_P(nightly_MaxPool_ExplicitPad_FloorRounding, PoolingLayerTest,
+                        ::testing::Combine(
+                                maxPool_ExplicitPad_FloorRounding_Params,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapesLarge),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        PoolingLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_MaxPool_ExplicitPad_CeilRounding, PoolingLayerTest,
+                        ::testing::Combine(
+                                maxPool_ExplicitPad_CeilRounding_Params,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapesLarge),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        PoolingLayerTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(nightly_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
+                       ::testing::Combine(
+                               avgPoolExplicitPadCeilRoundingParams,
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                               ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                               ::testing::Values(InferenceEngine::Layout::ANY),
+                               ::testing::Values(InferenceEngine::Layout::ANY),
+                               ::testing::ValuesIn(nightlyInputShapesSmall),
+                               ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                       PoolingLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
+                        ::testing::Combine(
+                                avgPoolExplicitPadFloorRoundingParams,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapesSmall),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        PoolingLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
+                        ::testing::Combine(
+                                allPools_ValidPad_Params,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapesLarge),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        PoolingLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_MaxPool8_ExplicitPad_FloorRounding, MaxPoolingV8LayerTest,
+                        ::testing::Combine(
+                                maxPool8_ExplicitPad_FloorRounding_Params,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapesSmall),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         MaxPoolingV8LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_MaxPool8_ExplicitPad_CeilRounding, MaxPoolingV8LayerTest,
+                         ::testing::Combine(
+                                 maxPool8_ExplicitPad_CeilRounding_Params,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::ValuesIn(nightlyInputShapesSmall),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         MaxPoolingV8LayerTest::getTestCaseName);
+
 }  // namespace

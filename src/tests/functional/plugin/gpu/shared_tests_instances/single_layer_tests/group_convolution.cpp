@@ -117,7 +117,82 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D_AutoPadValid, GroupConvolution
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 4, 10, 10, 10})),
+                               ::testing::Values(std::vector<size_t >({1, 4, 10, 10, 10})),
+                               ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                       GroupConvolutionLayerTest::getTestCaseName);
+
+const size_t max_batch_value = 256;
+
+std::vector<InferenceEngine::SizeVector> generateInputShapes2D() {
+        std::vector<InferenceEngine::SizeVector> inputShapes;
+        for (size_t i = 2; i < max_batch_value; i *= 2) {
+                inputShapes.push_back({i, 4, 30, 30});
+                inputShapes.push_back({i, 8, 30, 30});
+                inputShapes.push_back({i, 16, 30, 30});
+                inputShapes.push_back({i, 32, 30, 30});
+        }
+        return inputShapes;
+}
+
+std::vector<InferenceEngine::SizeVector> generateInputShapes3D() {
+        std::vector<InferenceEngine::SizeVector> inputShapes;
+        for (size_t i = 2; i < max_batch_value; i *= 2) {
+                inputShapes.push_back({i, 4, 10, 10, 10});
+                inputShapes.push_back({i, 8, 10, 10, 10});
+                inputShapes.push_back({i, 16, 10, 10, 10});
+                inputShapes.push_back({i, 32, 10, 10, 10});
+        }
+        return inputShapes;
+}
+
+const std::vector<InferenceEngine::SizeVector> nightlyInputShapes2D(generateInputShapes2D());
+const std::vector<InferenceEngine::SizeVector> nightlyInputShapes3D(generateInputShapes3D());
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest,
+                        ::testing::Combine(
+                                groupConv2DParams_ExplicitPadding,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapes2D),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        GroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConvolution2D_AutoPadValid, GroupConvolutionLayerTest,
+                        ::testing::Combine(
+                                groupConv2DParams_AutoPadValid,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapes2D),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        GroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerTest,
+                        ::testing::Combine(
+                                groupConv3DParams_ExplicitPadding,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapes3D),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        GroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConvolution3D_AutoPadValid, GroupConvolutionLayerTest,
+                        ::testing::Combine(
+                                groupConv3DParams_AutoPadValid,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapes3D),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
 

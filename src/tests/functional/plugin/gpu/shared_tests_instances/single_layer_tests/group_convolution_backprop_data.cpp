@@ -136,4 +136,81 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBa
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
+
+const size_t max_batch_value = 256;
+
+std::vector<InferenceEngine::SizeVector> generateInputShapes2D() {
+        std::vector<InferenceEngine::SizeVector> inputShapes;
+        for (size_t i = 2; i < max_batch_value; i *= 2) {
+                inputShapes.push_back({i, 8, 10, 10});
+                inputShapes.push_back({i, 16, 10, 10});
+                inputShapes.push_back({i, 32, 10, 10});
+        }
+        return inputShapes;
+}
+
+std::vector<InferenceEngine::SizeVector> generateInputShapes3D() {
+        std::vector<InferenceEngine::SizeVector> inputShapes;
+        for (size_t i = 2; i < max_batch_value; i *= 2) {
+                inputShapes.push_back({i, 8, 5, 5, 5});
+                inputShapes.push_back({i, 16, 5, 5, 5});
+                inputShapes.push_back({i, 32, 5, 5, 5});
+        }
+        return inputShapes;
+}
+
+const std::vector<InferenceEngine::SizeVector> nightlyInputShapes2D(generateInputShapes2D());
+const std::vector<InferenceEngine::SizeVector> nightlyInputShapes3D(generateInputShapes3D());
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConvBackpropData2D_ExplicitPadding, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData2DParams_ExplicitPadding,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapes2D),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConvBackpropData2D_AutoPadValid, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData2DParams_AutoPadValid,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapes2D),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConvBackpropData3D_ExplicitPadding, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData3DParams_ExplicitPadding,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapes3D),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConvBackpropData3D_AutoPadValid, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData3DParams_AutoPadValid,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(nightlyInputShapes3D),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
 }  // namespace
