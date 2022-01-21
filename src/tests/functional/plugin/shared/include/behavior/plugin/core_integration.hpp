@@ -895,6 +895,12 @@ TEST(IEClassBasicTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));
 }
 
+TEST_P(IEClassNetworkTestP, LoadNetworkToDeviceGPUNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, "GPU"));
+}
+
 TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
