@@ -296,11 +296,11 @@ PyAny from_ov_any(const ov::Any& any) {
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     try {
-        auto parameter_value = actual.get_metric(METRIC_KEY(SUPPORTED_METRICS));
+        auto parameter_value = actual.get_property(METRIC_KEY(SUPPORTED_METRICS));
         auto supported_metrics = parameter_value.as<std::vector<std::string>>();
         const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
         if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
-            parameter_value = actual.get_metric(key);
+            parameter_value = actual.get_property(key);
             if (parameter_value.is<unsigned int>())
                 return parameter_value.as<unsigned int>();
             else
@@ -322,27 +322,22 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
         switch (t.get_element_type()) {
         case ov::element::Type_t::i8: {
             res[py::cast(out)] = py::array_t<int8_t>(t.get_shape(), t.data<int8_t>());
-            ;
             break;
         }
         case ov::element::Type_t::i16: {
             res[py::cast(out)] = py::array_t<int16_t>(t.get_shape(), t.data<int16_t>());
-            ;
             break;
         }
         case ov::element::Type_t::i32: {
             res[py::cast(out)] = py::array_t<int32_t>(t.get_shape(), t.data<int32_t>());
-            ;
             break;
         }
         case ov::element::Type_t::i64: {
             res[py::cast(out)] = py::array_t<int64_t>(t.get_shape(), t.data<int64_t>());
-            ;
             break;
         }
         case ov::element::Type_t::u8: {
             res[py::cast(out)] = py::array_t<uint8_t>(t.get_shape(), t.data<uint8_t>());
-            ;
             break;
         }
         case ov::element::Type_t::u16: {
@@ -351,7 +346,6 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
         }
         case ov::element::Type_t::u32: {
             res[py::cast(out)] = py::array_t<uint32_t>(t.get_shape(), t.data<uint32_t>());
-            ;
             break;
         }
         case ov::element::Type_t::u64: {
@@ -368,17 +362,14 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
         }
         case ov::element::Type_t::f32: {
             res[py::cast(out)] = py::array_t<float>(t.get_shape(), t.data<float>());
-            ;
             break;
         }
         case ov::element::Type_t::f64: {
             res[py::cast(out)] = py::array_t<double>(t.get_shape(), t.data<double>());
-            ;
             break;
         }
         case ov::element::Type_t::boolean: {
             res[py::cast(out)] = py::array_t<bool>(t.get_shape(), t.data<bool>());
-            ;
             break;
         }
         default: {

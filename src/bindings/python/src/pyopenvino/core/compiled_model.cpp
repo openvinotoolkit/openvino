@@ -24,7 +24,7 @@ void regclass_CompiledModel(py::module m) {
             py::arg("other"));
 
     cls.def("create_infer_request", [](ov::CompiledModel& self) {
-        return InferRequestWrapper(self.create_infer_request(), self.inputs(), self.outputs());
+        return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
     });
 
     cls.def(
@@ -43,14 +43,14 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "get_config",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_config(name)).as<py::object>();
+            return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },
         py::arg("name"));
 
     cls.def(
         "get_metric",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_metric(name)).as<py::object>();
+            return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },
         py::arg("name"));
 
