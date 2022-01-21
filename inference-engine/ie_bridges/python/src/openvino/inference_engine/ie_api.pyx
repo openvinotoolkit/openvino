@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #distutils: language=c++
@@ -414,14 +414,14 @@ cdef class IECore:
                 net.impl = self.impl.readNetwork(model_, weights_)
         return net
 
-    cpdef ExecutableNetwork load_network(self, network: [IENetwork, str], str device_name, config=None, int num_requests=1):
+    cpdef ExecutableNetwork load_network(self, network: [IENetwork, str], device_name=None, config=None, int num_requests=1):
         """Loads a network that was read from the Intermediate Representation (IR) to the plugin with specified device name
         and creates an :class:`ExecutableNetwork` object of the :class:`IENetwork` class.
         You can create as many networks as you need and use them simultaneously (up to the limitation of the hardware
         resources).
         
         :param network: A valid :class:`IENetwork` instance. Model file name .xml, .onnx can also be passed as argument
-        :param device_name: A device name of a target plugin
+        :param device_name: A device name of a target plugin, if no device_name is set then it will use AUTO device as default.
         :param config: A dictionary of plugin configuration keys and their values
         :param num_requests: A positive integer value of infer requests to be created.
         Number of infer requests is limited by device capabilities. Value `0` indicates that optimal number of infer requests will be created.
@@ -445,14 +445,23 @@ cdef class IECore:
                              "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
-        c_device_name = device_name.encode()
+        if device_name:
+            c_device_name = device_name.encode()
         if isinstance(network, str):
             c_network_path = network.encode()
-            with nogil:
-                exec_net.impl = move(self.impl.loadNetworkFromFile(c_network_path, c_device_name, c_config, num_requests))
+            if device_name:
+                with nogil:
+                    exec_net.impl = move(self.impl.loadNetworkFromFile(c_network_path, c_device_name, c_config, num_requests))
+            else:
+                with nogil:
+                    exec_net.impl = move(self.impl.loadNetworkFromFile(c_network_path, c_config, num_requests))
         else:
-            with nogil:
-                exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, c_device_name, c_config, num_requests))
+            if device_name:
+                with nogil:
+                    exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, c_device_name, c_config, num_requests))
+            else:
+                with nogil:
+                    exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, c_config, num_requests))
         return exec_net
 
     cpdef ExecutableNetwork import_network(self, str model_file, str device_name, config=None, int num_requests=1):

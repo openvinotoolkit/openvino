@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     }
 
     protected:
-    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     ov::element::Type_t elementType;
@@ -70,7 +70,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
 // Create simple function
     {
@@ -99,7 +99,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
@@ -199,13 +199,13 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     </edges>
 </net>
 )V0G0N";
-    function = core->read_model(model, ov::runtime::Tensor());
+    function = core->read_model(model, ov::Tensor());
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_NO_THROW(function->input("in1"));     // remove if read_model does not change function names
     EXPECT_NO_THROW(function->output("round"));  // remove if read_model does not change function names
 
-    ov::runtime::CompiledModel execNet = core->compile_model(function, targetDevice, configuration);
+    ov::CompiledModel execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(execNet.inputs().size(), 1);
     EXPECT_EQ(execNet.outputs().size(), 1);
     EXPECT_NO_THROW(execNet.input("in1"));
@@ -218,7 +218,7 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(importedExecNet.inputs().size(), 1);
     EXPECT_EQ(importedExecNet.outputs().size(), 1);
     EXPECT_NO_THROW(importedExecNet.input("in1"));
@@ -263,7 +263,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     std::stringstream strm;
     execNet.Export(strm);
 
-    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
@@ -282,7 +282,9 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     EXPECT_NO_THROW(importedExecNet.output("concat_op").get_node());
 
     const auto outputType = elementType == ngraph::element::i32 ||
-                            elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
+                            elementType == ngraph::element::u32 ||
+                            elementType == ngraph::element::i64 ||
+                            elementType == ngraph::element::u64 ? ngraph::element::i32 : ngraph::element::f32;
     const auto inputType = elementType == ngraph::element::f16 ? ngraph::element::Type_t::f32 : elementType;
 
     EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
@@ -297,7 +299,7 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     // Create simple function
     {

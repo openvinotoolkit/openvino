@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,6 +119,10 @@ void MKLDNNEmbeddingSegmentsSumNode::getIndices(int embIndex, const int*& indice
             indices = defaultIndices_;
         return;
     }
+}
+
+std::vector<VectorDims> MKLDNNEmbeddingSegmentsSumNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(NUM_SEGMENTS_IDX));
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::executeDynamicImpl(mkldnn::stream strm) {

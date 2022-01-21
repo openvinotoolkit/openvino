@@ -11,7 +11,7 @@ nGraph Function Creation C++ Sample demonstrates the following Inference Engine 
 | Feature    | API  | Description |
 |:---        |:---  |:---
 |OpenVINO Runtime Version| `ov::get_openvino_versio` | Get Openvino API version
-|Available Devices|`ov::runtime::Core::get_available_devices`| Get version information of the devices for inference
+|Available Devices|`ov::Core::get_available_devices`| Get version information of the devices for inference
 | Model Operations | `ov::set_batch`, `ov::get_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count.
 |nGraph Functions| `ov::op`, `ov::Node`, `ov::Shape::Shape`, `ov::Strides::Strides`, `ov::CoordinateDiff::CoordinateDiff`, `ov::Node::set_friendly_name`, `ov::shape_size`, `ov::ParameterVector::vector`  |  Illustrates how to construct an nGraph function
 

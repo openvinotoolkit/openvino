@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,15 +14,15 @@ using namespace ov;
 
 namespace {
 struct TransposeParams {
-    TransposeParams(const PartialShape& dynamicDataShape, const Tensor& dataTensor, const Tensor& axisTensor,
-                const Tensor& expectedTensor, const std::string& testcaseName = "") :
+    TransposeParams(const PartialShape& dynamicDataShape, const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& axisTensor,
+                const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
                 dynamicDataShape(dynamicDataShape), dataTensor(dataTensor), axisTensor(axisTensor),
                 expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
     PartialShape dynamicDataShape;
-    Tensor dataTensor;
-    Tensor axisTensor;
-    Tensor expectedTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor axisTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -88,58 +88,58 @@ std::vector<TransposeParams> generateTransposeParams() {
     std::vector<TransposeParams> transposeParams {
         // transpose_basic
         TransposeParams(PartialShape::dynamic(),
-                        Tensor(IN_ET, {2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(element::i64, {2}, std::vector<int64_t>{0, 1}),
-                        Tensor(IN_ET, {2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        reference_tests::Tensor(IN_ET, {2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 1}),
+                        reference_tests::Tensor(IN_ET, {2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6}),
                         "transpose_basic_1"),
         TransposeParams(PartialShape::dynamic(),
-                        Tensor(IN_ET, {2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
-                        Tensor(IN_ET, {3, 2}, std::vector<T>{1, 4, 2, 5, 3, 6}),
+                        reference_tests::Tensor(IN_ET, {2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(IN_ET, {3, 2}, std::vector<T>{1, 4, 2, 5, 3, 6}),
                         "transpose_basic_2"),
         TransposeParams(PartialShape::dynamic(),
-                        Tensor(IN_ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
-                        Tensor(element::i64, {3}, std::vector<int64_t>{2, 1, 0}),
-                        Tensor(IN_ET, {3, 2, 2}, std::vector<T>{1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12}),
+                        reference_tests::Tensor(IN_ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+                        reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{2, 1, 0}),
+                        reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12}),
                         "transpose_basic_3"),
         // transpose_axes_constant
         TransposeParams({},
-                        Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                                    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
-                        Tensor(IN_ET, {3, 4, 2, 1}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                        reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
+                        reference_tests::Tensor(IN_ET, {3, 4, 2, 1}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
                                                                    7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
                         "transpose_axes_constant"),
         // transpose_axes_empty_constant
         TransposeParams({},
-                        Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                                    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        Tensor(element::i64, {0}, std::vector<int64_t>{}),
-                        Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 5, 17, 9,  21, 2, 14, 6, 18, 10, 22,
+                        reference_tests::Tensor(element::i64, {0}, std::vector<int64_t>{}),
+                        reference_tests::Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 5, 17, 9,  21, 2, 14, 6, 18, 10, 22,
                                                                    3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24}),
                         "transpose_axes_empty_constant"),
         // transpose_axes_parameter_static_shapes
         TransposeParams({},
-                        Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                                    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
-                        Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                        reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
+                        reference_tests::Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
                                                                    7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
                         "transpose_axes_parameter_static_shapes"),
         // transpose_axes_parameter_dynamic_shapes
         TransposeParams(PartialShape::dynamic(),
-                        Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                                    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
-                        Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                        reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
+                        reference_tests::Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
                                                                    7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
                         "transpose_axes_parameter_dynamic_shapes"),
         // transpose_int_data_axes_constant
         TransposeParams({},
-                        Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                                    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
-                        Tensor(IN_ET, {3, 4, 2, 1}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                        reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
+                        reference_tests::Tensor(IN_ET, {3, 4, 2, 1}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
                                                                    7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
                         "transpose_int_data_axes_constant"),
     };

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "pyopenvino/core/infer_request.hpp"
@@ -172,7 +172,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_tensor",
-        [](InferRequestWrapper& self, const std::string& name, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const std::string& name, const ov::Tensor& tensor) {
             self._request.set_tensor(name, tensor);
         },
         py::arg("name"),
@@ -180,7 +180,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_tensor",
-        [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
             self._request.set_tensor(port, tensor);
         },
         py::arg("port"),
@@ -188,7 +188,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_tensor",
-        [](InferRequestWrapper& self, const ov::Output<ov::Node>& port, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const ov::Output<ov::Node>& port, const ov::Tensor& tensor) {
             self._request.set_tensor(port, tensor);
         },
         py::arg("port"),
@@ -196,7 +196,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_input_tensor",
-        [](InferRequestWrapper& self, size_t idx, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, size_t idx, const ov::Tensor& tensor) {
             self._request.set_input_tensor(idx, tensor);
         },
         py::arg("index"),
@@ -204,14 +204,14 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_input_tensor",
-        [](InferRequestWrapper& self, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const ov::Tensor& tensor) {
             self._request.set_input_tensor(tensor);
         },
         py::arg("tensor"));
 
     cls.def(
         "set_output_tensor",
-        [](InferRequestWrapper& self, size_t idx, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, size_t idx, const ov::Tensor& tensor) {
             self._request.set_output_tensor(idx, tensor);
         },
         py::arg("index"),
@@ -219,7 +219,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_output_tensor",
-        [](InferRequestWrapper& self, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const ov::Tensor& tensor) {
             self._request.set_output_tensor(tensor);
         },
         py::arg("tensor"));
@@ -236,29 +236,21 @@ void regclass_InferRequest(py::module m) {
         return self.userdata;
     });
 
-    cls.def_property_readonly("inputs", [](InferRequestWrapper& self) {
+    cls.def_property_readonly("model_inputs", [](InferRequestWrapper& self) {
         return self._inputs;
     });
 
-    cls.def_property_readonly("outputs", [](InferRequestWrapper& self) {
+    cls.def_property_readonly("model_outputs", [](InferRequestWrapper& self) {
         return self._outputs;
     });
 
-    cls.def_property_readonly("input_tensors", [](InferRequestWrapper& self) {
-        std::vector<ov::runtime::Tensor> tensors;
-        for (auto&& node : self._inputs) {
-            tensors.push_back(self._request.get_tensor(node));
-        }
-        return tensors;
-    });
+    cls.def_property_readonly("inputs", &InferRequestWrapper::get_input_tensors);
 
-    cls.def_property_readonly("output_tensors", [](InferRequestWrapper& self) {
-        std::vector<ov::runtime::Tensor> tensors;
-        for (auto&& node : self._outputs) {
-            tensors.push_back(self._request.get_tensor(node));
-        }
-        return tensors;
-    });
+    cls.def_property_readonly("outputs", &InferRequestWrapper::get_output_tensors);
+
+    cls.def_property_readonly("input_tensors", &InferRequestWrapper::get_input_tensors);
+
+    cls.def_property_readonly("output_tensors", &InferRequestWrapper::get_output_tensors);
 
     cls.def_property_readonly("latency", [](InferRequestWrapper& self) {
         return self.get_latency();

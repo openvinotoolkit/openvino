@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,7 +123,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
     CheckPluginRelatedResultsImpl(function, std::move(nodeType));
 }
 
-void CPUTestsBase::CheckPluginRelatedResults(ov::runtime::CompiledModel &execNet, std::string nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResults(ov::CompiledModel &execNet, std::string nodeType) const {
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";

@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- * @brief A header file that provides ov::runtime::VariableState
+ * @brief A header file that provides ov::VariableState
  * @file openvino/runtime/variable_state.hpp
  */
 
@@ -20,7 +20,6 @@ class IVariableStateInternal;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 class InferRequest;
 
@@ -40,7 +39,7 @@ class OPENVINO_RUNTIME_API VariableState {
     VariableState(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& impl,
                   const std::shared_ptr<void>& so);
 
-    friend class ov::runtime::InferRequest;
+    friend class ov::InferRequest;
 
 public:
     /**
@@ -78,5 +77,9 @@ public:
      */
     void set_state(const Tensor& state);
 };
+
+namespace runtime {
+using ov::VariableState;
 }  // namespace runtime
+
 }  // namespace ov
