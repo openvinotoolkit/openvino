@@ -3,6 +3,7 @@
 
 from collections import defaultdict
 import numpy as np
+import re
 
 from ..statistics.statistics import compute_statistic, Statistic, TensorStatistic
 from ..statistics.function_selector import get_stats_function, ACTIVATIONS
@@ -144,7 +145,7 @@ def process_raw_output(raw_output):
     result = {}
     for result_node, result_data in raw_output.items():
         for name in result_node.get_tensor().get_names():
-            result_name = name.replace('/sink_port_0', '')
+            result_name = get_clean_name(name)
             result[result_name] = result_data
     return result
 
@@ -172,3 +173,6 @@ def collect_model_outputs(ng_model):
     for ng_output in ng_model.outputs:
         model_output_names.extend(list(ng_output.get_tensor().get_names()))
     return model_output_names
+
+def get_clean_name(name):
+    return re.sub(r'/sink_port_\d+', '', name)

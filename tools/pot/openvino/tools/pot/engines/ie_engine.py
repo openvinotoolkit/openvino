@@ -11,7 +11,8 @@ from openvino.runtime import Core, AsyncInferQueue   # pylint: disable=E0611,E04
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    add_tensor_names, cast_friendly_names, collect_model_outputs, process_raw_output
+    add_tensor_names, cast_friendly_names, collect_model_outputs, \
+    process_raw_output, get_clean_name
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -44,8 +45,7 @@ class IEEngine(Engine):
 
         # save NetworkX graph to IR and use it to initialize IE Network
         self._model = self._set_model(model)[0]['model']
-        self._output_layers = [output.get_node().friendly_name.replace('/sink_port_0', '')
-                               for output in self._model.outputs]
+        self._output_layers = [get_clean_name(output.get_node().friendly_name) for output in self._model.outputs]
 
     def _set_model(self, model):
         """Creates IENetwork instances from NetworkX models in NXModel.
