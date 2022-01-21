@@ -26,8 +26,8 @@ struct NegativeParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inputData;
-    runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
 };
 
 class ReferenceNegativeLayerTest : public testing::TestWithParam<NegativeParams>, public CommonReferenceTest {

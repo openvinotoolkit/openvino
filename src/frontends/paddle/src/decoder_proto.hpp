@@ -9,14 +9,14 @@
 #include <fstream>
 #include <map>
 #include <memory>
-#include <openvino/core/any.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "framework.pb.h"
-#include "node_context.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/frontend/paddle/frontend.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "place.hpp"
 
 namespace ov {
@@ -28,7 +28,9 @@ class DecoderProto : public paddle::DecoderBase {
 public:
     explicit DecoderProto(const std::shared_ptr<OpPlace>& op) : op_place(op) {}
 
-    ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const override;
+    ov::Any get_attribute(const std::string& name) const override;
+
+    ov::Any convert_attribute(const ov::Any& data, const std::type_info& type_info) const override;
 
     std::vector<paddle::OutPortName> get_output_names() const override;
 

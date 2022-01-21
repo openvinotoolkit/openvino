@@ -8,7 +8,7 @@ file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes)
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes ov_onnx_frontend frontend_common)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
