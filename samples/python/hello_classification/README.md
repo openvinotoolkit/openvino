@@ -28,16 +28,8 @@ each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_custo
 
 ## Running
 
-Run the application with the `-h` option to see the usage message:
-
 ```
-python hello_classification.py -h
-```
-
-Usage message:
-
-```
-[ INFO ] Usage: hello_classification.py <path_to_model> <path_to_image> <device_name>
+python hello_classification.py <path_to_model> <path_to_image> <device_name>
 ```
 
 To run the sample, you need specify a model and image:
