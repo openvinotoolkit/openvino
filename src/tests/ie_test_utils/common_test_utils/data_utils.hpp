@@ -142,7 +142,7 @@ fill_data_roi(InferenceEngine::Blob::Ptr &blob, const uint32_t range, const int 
 
 template<InferenceEngine::Precision::ePrecision PRC>
 inline void
-fill_data_roi(ov::runtime::Tensor& tensor, const uint32_t range, const int height, const int width, const float omega,
+fill_data_roi(ov::Tensor& tensor, const uint32_t range, const int height, const int width, const float omega,
     const bool is_roi_max_mode, const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     auto* data = static_cast<dataType*>(tensor.data());
@@ -424,13 +424,13 @@ void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::
 }
 
 template <class T>
-static ov::runtime::Tensor create_tensor(
+static ov::Tensor create_tensor(
         const ov::element::Type& element_type,
         const ov::Shape& shape,
         const std::vector<T>& values,
         const size_t size = 0) {
     const size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
-    ov::runtime::Tensor tensor { element_type, shape };
+    ov::Tensor tensor { element_type, shape };
     std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
     return tensor;
 }

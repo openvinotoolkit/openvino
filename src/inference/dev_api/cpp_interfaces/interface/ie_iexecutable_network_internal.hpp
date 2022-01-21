@@ -188,6 +188,6 @@ protected:
 /**
  * @brief SoPtr to IExecutableNetworkInternal.
  */
-using SoExecutableNetworkInternal = ov::runtime::SoPtr<IExecutableNetworkInternal>;
+using SoExecutableNetworkInternal = ov::SoPtr<IExecutableNetworkInternal>;
 
 }  // namespace InferenceEngine

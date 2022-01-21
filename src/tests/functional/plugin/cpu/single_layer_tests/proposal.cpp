@@ -173,10 +173,10 @@ protected:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
 
             if (i == 2) {
-                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
 
                 auto *dataPtr = tensor.data<float>();
                 dataPtr[0] = dataPtr[1] = 225.0f;
