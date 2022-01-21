@@ -4,7 +4,7 @@
 
 #include "place.hpp"
 
-#include "decoder.hpp"
+#include "decoder_proto.hpp"
 #include "framework.pb.h"
 
 namespace ov {
