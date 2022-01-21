@@ -128,14 +128,18 @@ def compute_stats_layouts(config, model, qscheme=None):
     # get all fake quantize nodes
     fq_nodes = get_nodes_by_type(model, ['FakeQuantize'])
 
+    primary_bitwidth = hardware_config[1]['primary_bitwidth']
+
     fake_quantize_config = {}
     for fq in fq_nodes:
         node_input = get_node_input(fq, 0)
+        fq_group = fq['fq_group']
         is_weights = node_input.type == 'Const'
-        if is_weights:
-            fq_config = copy(fq_configuration[fq.fullname]['weights'])
-        else:
-            fq_config = copy(fq_configuration[fq.fullname]['activations'])
+        fq_config = copy(fq_configuration[fq.name][fq_group])
+        for merged_configs in fq['fq_configs']:
+            if merged_configs['bits'] == primary_bitwidth and not is_weights:
+                for field, value in merged_configs.items():
+                    fq_config[field] = value
         fake_quantize_config[fq.fullname] = fq_config
         if fq.fullname in config.layerwise_configs[0]:
             fq_config = Dict(merge_nested_dicts(fq_config, config.layerwise_configs[0][fq.fullname]))

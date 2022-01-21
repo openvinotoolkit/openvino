@@ -25,6 +25,8 @@ HARDWARE_AWARE_IGNORED_PATTERNS = {
 
 DEFAULT_PATH = 'PATH'
 
+HARDWARE_SPECIAL_FIELDS = ['target_device', 'primary_bitwidth']
+
 
 # pylint: disable=method-hidden
 class PathEncoder(json.JSONEncoder):
@@ -110,7 +112,7 @@ def find_operation_matches(src_ops, dst_ops):
 def get_operation_list(hardware_config):
     hw_ops = []
     for item in hardware_config:
-        if 'target_device' in item:
+        if any([special_value in item for special_value in HARDWARE_SPECIAL_FIELDS]):
             continue
 
         op = {}
@@ -121,6 +123,14 @@ def get_operation_list(hardware_config):
             hw_ops.append(op)
     return hw_ops
 
+def get_operation_list_with_outputs(hardware_config):
+    hw_ops = []
+    for item in hardware_config:
+        if any([special_value in item for special_value in HARDWARE_SPECIAL_FIELDS]):
+            continue
+        if 'quantization' in item and 'outputs' in item['quantization']:
+            hw_ops.append(item['type'])
+    return hw_ops
 
 def create_quantization_info_for_mo(config):
     quantization_section = {}

@@ -25,13 +25,16 @@ QUANTIZATION_PARAMETERS = [
     'bits'
 ]
 
+ACTIVATION_QUANTIZATION_MODES = ['activations', 'outputs']
+QUANTIZATION_MODES = ['weights'] + ACTIVATION_QUANTIZATION_MODES
+
 
 def get_fake_quantize_configuration(config):
     """ Create fake quantization configuration from the tool configuration
     :param config: dictionary with compression section from toolkit config file
     :return dictionary with fake quantization configuration
      """
-    q_config = {'weights': {}, 'activations': {}}
+    q_config = {mode: {} for mode in QUANTIZATION_MODES}
     for op_type, q_params in q_config.items():
         op_type_config = config.get(op_type, {})
         for param_name, param_value in op_type_config.items():
@@ -141,15 +144,14 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
     q_config = get_fake_quantize_configuration(config)
 
     res_fq_to_hw_conf = {}
-    for fq_name, (types, is_weights) in _fake_quantize_to_types(model, hardware_config).items():
-        fq_type = 'weights' if is_weights else 'activations'
-        res_fq_to_hw_conf[fq_name] = {fq_type: []}
+    for fq_name, (types, fq_group) in _fake_quantize_to_types(model, hardware_config).items():
+        res_fq_to_hw_conf[fq_name] = {fq_group: []}
         for type_ in types:
             child_name, op_type = type_
             ops = [op for op in hardware_config if op_type == op['type']]
-            conf = _find_configurations(fq_name, fq_type)
+            conf = _find_configurations(fq_name, fq_group)
             if conf:
-                res_fq_to_hw_conf[fq_name][fq_type].append((child_name, conf))
+                res_fq_to_hw_conf[fq_name][fq_group].append((child_name, conf))
     return res_fq_to_hw_conf
 
 
@@ -200,21 +202,25 @@ def get_configurations_by_preset(config, model, fq_to_hw_confs):
                 bridge_input_shapes = [get_input_shape(layer, i) for layer in bridge_layers for i in layer.in_ports()]
                 broadcasting = _test_shapes(bridge_input_shapes)
                 for fq in fqs:
-                    if with_concat or unclear_layout or broadcasting:
-                        configuration = [c for c in cur_conf[fq]['activations'] if c['granularity'] == 'pertensor']
-                    else:
-                        configuration = cur_conf[fq]['activations']
+                    for key in cur_conf[fq]:
+                        if key in ACTIVATION_QUANTIZATION_MODES:
+                            if with_concat or unclear_layout or broadcasting:
+                                configuration = [c for c in cur_conf[fq][key] if c['granularity'] == 'pertensor']
+                            else:
+                                configuration = cur_conf[fq][key]
                     res_conf = intersect_configs(res_conf, configuration) if res_conf else configuration
                 if not res_conf:
                     raise Exception('Fake quantize nodes {} cannot be unified'.format(fqs))
                 for fq in fqs:
-                    cur_conf[fq]['activations'] = _apply_preset_rule(preset_, fq, 'activations', res_conf)
+                    for key in cur_conf[fq]:
+                        if key in ACTIVATION_QUANTIZATION_MODES:
+                            cur_conf[fq][key] = _apply_preset_rule(preset_, fq, key, res_conf)
             return cur_conf
 
         res = {}
         for key, value in fq_to_hw_confs_.items():
             conf = dict()
-            for i_type in ['activations', 'weights']:
+            for i_type in QUANTIZATION_MODES:
                 if i_type in value:
                     res_conf = []
                     for _, configuration in value[i_type]:
@@ -413,8 +419,12 @@ def _fake_quantize_to_types(model, hardware_config):
     out = {}
     available_types = [layer['type'] for layer in hardware_config]
     for fq in get_nodes_by_type(model, ['FakeQuantize']):
-        node_input = get_node_input(fq, 0)
-        out[fq.fullname] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
+        if fq['fq_group'] == 'outputs':
+            fq_input = get_node_input(fq, 0)
+            hw_node_types = get_hardware_config_operation_type(fq_input, available_types)
+            out[fq.name] = ([(fq_input.name, hw_node_types)], fq['fq_group'])
+        else:
+            out[fq.name] = (_get_node_valuable_descendant(fq), fq['fq_group'])
 
     return out
 
