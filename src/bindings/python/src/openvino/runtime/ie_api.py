@@ -3,14 +3,14 @@
 
 import numpy as np
 import copy
-from typing import Any, List, Union
+from typing import Any, List, Type, Union
 
 from openvino.pyopenvino import Model
 from openvino.pyopenvino import Core as CoreBase
 from openvino.pyopenvino import CompiledModel as CompiledModelBase
 from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino.pyopenvino import Output
+from openvino.pyopenvino import Output, ConstOutput
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import OVAny as OVAnyBase
 
@@ -27,12 +27,12 @@ def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
     if isinstance(inputs, list):
         inputs = {index: input for index, input in enumerate(inputs)}
     for k, val in inputs.items():
-        if not isinstance(k, (str, int)):
-            raise TypeError("Incompatible key type for tensor named: {}".format(k))
+        if not isinstance(k, (str, int, Output, ConstOutput)):
+            raise TypeError("Incompatible key type for tensor: {}".format(k))
         try:
             ov_type = py_types[k]
         except KeyError:
-            raise KeyError("Port for tensor named {} was not found!".format(k))
+            raise KeyError("Port for tensor {} was not found!".format(k))
         inputs[k] = (
             val
             if isinstance(val, Tensor)
@@ -52,8 +52,13 @@ def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
 
     input_types: dict = {}
     for idx, input in enumerate(get_inputs(obj)):
-        input_types.update(map_tensor_names_to_types(input))
+        # Add all possible "accessing aliases" to dictionary
+        # Key as a ConstOutput/Output port
+        input_types[input] = input.get_element_type()
+        # Key as an integer
         input_types[idx] = input.get_element_type()
+        # Multiple possible keys as Tensor names
+        input_types.update(map_tensor_names_to_types(input))
     return input_types
 
 

@@ -162,10 +162,17 @@ const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
     if (!inputs.empty()) {
         for (auto&& input : inputs) {
-            if (py::isinstance<py::str>(input.first)) {
-                request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
+            // Cast second argument to tensor
+            auto tensor = Common::cast_to_tensor(input.second);
+            // Check if key is compatible, should be port/string/integer
+            if (py::isinstance<ov::Output<const ov::Node>>(input.first)) {
+                request.set_tensor(input.first.cast<ov::Output<const ov::Node>>(), tensor);
+            } else if (py::isinstance<ov::Output<ov::Node>>(input.first)) {
+                request.set_tensor(input.first.cast<ov::Output<ov::Node>>(), tensor);
+            } else if (py::isinstance<py::str>(input.first)) {
+                request.set_tensor(input.first.cast<std::string>(), tensor);
             } else if (py::isinstance<py::int_>(input.first)) {
-                request.set_input_tensor(input.first.cast<size_t>(), Common::cast_to_tensor(input.second));
+                request.set_input_tensor(input.first.cast<size_t>(), tensor);
             } else {
                 throw py::type_error("Incompatible key type for tensor named: " + input.first.cast<std::string>());
             }

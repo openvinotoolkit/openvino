@@ -474,3 +474,20 @@ def test_infer_float16(device):
     outputs = request.infer({0: input_data, 1: input_data})
     assert np.allclose(list(outputs.values()), list(request.results.values()))
     assert np.allclose(list(outputs.values()), input_data + input_data)
+
+
+def test_ports_as_inputs(device):
+    input_shape = [2, 2]
+    param_a = ops.parameter(input_shape, np.float32)
+    param_b = ops.parameter(input_shape, np.float32)
+    model = Model(ops.add(param_a, param_b), [param_a, param_b])
+
+    core = Core()
+    compiled = core.compile_model(model, device)
+    request = compiled.create_infer_request()
+
+    tensor1 = Tensor(np.array([[1, 2], [3, 4]], dtype=np.float32))
+    tensor2 = Tensor(np.array([[3, 4], [1, 2]], dtype=np.float32))
+
+    res = request.infer({request.model_inputs[0]: tensor1, request.model_inputs[1]: tensor2})
+    assert np.array_equal(res[request.model_outputs[0]], tensor1.data + tensor2.data)
