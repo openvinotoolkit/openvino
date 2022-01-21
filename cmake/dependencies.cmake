@@ -51,8 +51,8 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
     update_deps_cache(SYSTEM_PROTOC "${SYSTEM_PROTOC}" "Path to host protoc for ONNX Importer")
 endif()
 
-if(ENABLE_INTEL_VPU)
-    include(${IE_MAIN_SOURCE_DIR}/cmake/vpu_dependencies.cmake)
+if(ENABLE_INTEL_MYRIAD)
+    include(${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/vpu_dependencies.cmake)
 endif()
 
 ## Intel OMP package
