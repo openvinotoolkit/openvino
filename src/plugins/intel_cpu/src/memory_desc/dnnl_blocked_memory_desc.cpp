@@ -263,7 +263,8 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, uint3
         return false;
 
     int stride_start = 0;
-    while ((cmpMask & (1u << stride_start)) && stride_start < wrappedThis.ndims()) {
+    auto invertCmpMask = ~cmpMask;
+    while ((invertCmpMask & (1u << stride_start)) && stride_start <= wrappedThis.ndims()) {
         ++stride_start;
     }
 
