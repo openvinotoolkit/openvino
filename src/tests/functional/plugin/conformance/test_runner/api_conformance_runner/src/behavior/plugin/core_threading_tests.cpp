@@ -5,8 +5,9 @@
 #include <behavior/plugin/core_threading.hpp>
 #include "api_conformance_helpers.hpp"
 
+using namespace BehaviorTestsDefinitions;
+
 namespace {
-using namespace ov::test::conformance;
 
 const Params coreThreadingParams[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, generateConfigs(CommonTestUtils::DEVICE_HETERO).front() },

@@ -336,6 +336,16 @@ TEST_F(AnyTests, PrintToIntAny) {
     ASSERT_EQ(stream.str(), std::to_string(value));
 }
 
+TEST_F(AnyTests, ReadToIntAny) {
+    int value = -5;
+    std::stringstream strm;
+    strm << value;
+    Any p = int{};
+    ASSERT_NO_THROW(p.read(strm));
+    ASSERT_FALSE(strm.fail());
+    ASSERT_EQ(value, p.as<int>());
+}
+
 TEST_F(AnyTests, PrintToUIntAny) {
     unsigned int value = 5;
     Any p = value;

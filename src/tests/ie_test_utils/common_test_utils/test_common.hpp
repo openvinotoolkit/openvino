@@ -8,6 +8,7 @@
 
 #include <string>
 #include "test_assertions.hpp"
+#include "ov_common_utils.hpp"
 
 namespace CommonTestUtils {
 

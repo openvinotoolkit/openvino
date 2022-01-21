@@ -51,7 +51,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::MOD
 };
 
-std::map<std::string, std::string> additionalConfig = {};
+ov::AnyMap additionalConfig = {};
 
 const auto elementiwiseParams = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes)),

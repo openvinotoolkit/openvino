@@ -7,7 +7,7 @@
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
         {},
 };
 
