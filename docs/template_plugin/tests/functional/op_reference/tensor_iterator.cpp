@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,18 +8,23 @@
 #include "base_reference_test.hpp"
 #include <ngraph/op/util/attr_types.hpp>
 #include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 using namespace reference_tests;
 using namespace ov;
 
 namespace {
+enum TensorIteratorBodyType {
+    RNN,
+    GRU,
+    LSTM,
+};
+
 struct TensorIteratorParams {
     template <class T>
     TensorIteratorParams(
         const size_t batchSize, const size_t inputSize, const size_t hiddenSize, const size_t seqLength,
         const float clip, const ngraph::op::RecurrentSequenceDirection& direction,
-        const ngraph::helpers::TensorIteratorBody& body_type,
+        const TensorIteratorBodyType& body_type,
         const element::Type_t& iType,
         const std::vector<T>& XValues, const std::vector<T>& H_tValues,  const std::vector<T>& C_tValues, const std::vector<int64_t>& S_tValues,
         const std::vector<T>& WValues, const std::vector<T>& RValues, const std::vector<T>& BValues,
@@ -29,7 +34,7 @@ struct TensorIteratorParams {
         clip(clip), body_type(body_type), direction(direction), iType(iType), oType(iType),
         testcaseName(testcaseName) {
             switch (body_type) {
-                case ngraph::helpers::TensorIteratorBody::LSTM: {
+                case TensorIteratorBodyType::LSTM: {
                     Shape XShape = Shape{batchSize, seqLength, inputSize};
                     Shape H_tShape = Shape{batchSize, hiddenSize};
                     Shape C_tShape = Shape{batchSize, hiddenSize};
@@ -41,19 +46,19 @@ struct TensorIteratorParams {
                     Shape HoShape = Shape{batchSize, hiddenSize};
                     Shape CoShape = Shape{batchSize, hiddenSize};
 
-                    X = Tensor(XShape, iType, XValues);
-                    H_t = Tensor(H_tShape, iType, H_tValues);
-                    C_t = Tensor(C_tShape, iType, C_tValues);
-                    S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
-                    W = Tensor(WShape, iType, WValues);
-                    R = Tensor(RShape, iType, RValues);
-                    B = Tensor(BShape, iType, BValues);
-                    Y = Tensor(YShape, oType, YValues);
-                    Ho = Tensor(HoShape, oType, HoValues);
-                    Co = Tensor(CoShape, oType, CoValues);
+                    X = reference_tests::Tensor(XShape, iType, XValues);
+                    H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
+                    C_t = reference_tests::Tensor(C_tShape, iType, C_tValues);
+                    S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+                    W = reference_tests::Tensor(WShape, iType, WValues);
+                    R = reference_tests::Tensor(RShape, iType, RValues);
+                    B = reference_tests::Tensor(BShape, iType, BValues);
+                    Y = reference_tests::Tensor(YShape, oType, YValues);
+                    Ho = reference_tests::Tensor(HoShape, oType, HoValues);
+                    Co = reference_tests::Tensor(CoShape, oType, CoValues);
                     break;
                 }
-                case ngraph::helpers::TensorIteratorBody::GRU: {
+                case TensorIteratorBodyType::GRU: {
                     Shape XShape = Shape{batchSize, seqLength, inputSize};
                     Shape H_tShape = Shape{batchSize, hiddenSize};
                     Shape S_tShape = Shape{batchSize};
@@ -63,17 +68,17 @@ struct TensorIteratorParams {
                     Shape YShape = Shape{batchSize, seqLength, hiddenSize};
                     Shape HoShape = Shape{batchSize, hiddenSize};
 
-                    X = Tensor(XShape, iType, XValues);
-                    H_t = Tensor(H_tShape, iType, H_tValues);
-                    S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
-                    W = Tensor(WShape, iType, WValues);
-                    R = Tensor(RShape, iType, RValues);
-                    B = Tensor(BShape, iType, BValues);
-                    Y = Tensor(YShape, oType, YValues);
-                    Ho = Tensor(HoShape, oType, HoValues);
+                    X = reference_tests::Tensor(XShape, iType, XValues);
+                    H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
+                    S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+                    W = reference_tests::Tensor(WShape, iType, WValues);
+                    R = reference_tests::Tensor(RShape, iType, RValues);
+                    B = reference_tests::Tensor(BShape, iType, BValues);
+                    Y = reference_tests::Tensor(YShape, oType, YValues);
+                    Ho = reference_tests::Tensor(HoShape, oType, HoValues);
                     break;
                 }
-                case ngraph::helpers::TensorIteratorBody::RNN: {
+                case TensorIteratorBodyType::RNN: {
                     Shape XShape = Shape{batchSize, seqLength, inputSize};
                     Shape H_tShape = Shape{batchSize, hiddenSize};
                     Shape S_tShape = Shape{batchSize};
@@ -83,14 +88,14 @@ struct TensorIteratorParams {
                     Shape YShape = Shape{batchSize, seqLength, hiddenSize};
                     Shape HoShape = Shape{batchSize, hiddenSize};
 
-                    X = Tensor(XShape, iType, XValues);
-                    H_t = Tensor(H_tShape, iType, H_tValues);
-                    S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
-                    W = Tensor(WShape, iType, WValues);
-                    R = Tensor(RShape, iType, RValues);
-                    B = Tensor(BShape, iType, BValues);
-                    Y = Tensor(YShape, oType, YValues);
-                    Ho = Tensor(HoShape, oType, HoValues);
+                    X = reference_tests::Tensor(XShape, iType, XValues);
+                    H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
+                    S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+                    W = reference_tests::Tensor(WShape, iType, WValues);
+                    R = reference_tests::Tensor(RShape, iType, RValues);
+                    B = reference_tests::Tensor(BShape, iType, BValues);
+                    Y = reference_tests::Tensor(YShape, oType, YValues);
+                    Ho = reference_tests::Tensor(HoShape, oType, HoValues);
                     break;
                 }
             }
@@ -102,22 +107,22 @@ struct TensorIteratorParams {
     size_t seqLength;
     size_t sequenceAxis = 1;
     float clip;
-    ngraph::helpers::TensorIteratorBody body_type;
+    TensorIteratorBodyType body_type;
     ngraph::op::RecurrentSequenceDirection direction;
 
     element::Type_t iType;
     element::Type_t oType;
 
-    Tensor X;
-    Tensor H_t;
-    Tensor C_t;
-    Tensor S_t;
-    Tensor W;
-    Tensor R;
-    Tensor B;
-    Tensor Y;
-    Tensor Ho;
-    Tensor Co;
+    reference_tests::Tensor X;
+    reference_tests::Tensor H_t;
+    reference_tests::Tensor C_t;
+    reference_tests::Tensor S_t;
+    reference_tests::Tensor W;
+    reference_tests::Tensor R;
+    reference_tests::Tensor B;
+    reference_tests::Tensor Y;
+    reference_tests::Tensor Ho;
+    reference_tests::Tensor Co;
     std::string testcaseName;
 };
 
@@ -126,7 +131,7 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        if (params.body_type == ngraph::helpers::TensorIteratorBody::LSTM) {
+        if (params.body_type == TensorIteratorBodyType::LSTM) {
             inputData = {params.X.data, params.H_t.data, params.C_t.data};
             refOutData = {params.Y.data, params.Ho.data, params.Co.data};
         } else {
@@ -168,7 +173,7 @@ private:
         auto axis = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1},
                                                                std::vector<int64_t>{static_cast<int64_t>(params.sequenceAxis)});
         switch (params.body_type) {
-            case ngraph::helpers::TensorIteratorBody::LSTM: {
+            case TensorIteratorBodyType::LSTM: {
                 inputShapes = {
                         {{params.batchSize, params.seqLength, params.inputSize}, // X
                          {params.batchSize, params.hiddenSize},                  // H_i
@@ -232,7 +237,7 @@ private:
                                                                                    tensor_iterator->output(2)}, outer_params);
                 break;
             }
-            case ngraph::helpers::TensorIteratorBody::GRU: {
+            case TensorIteratorBodyType::GRU: {
                 inputShapes = {
                         {{params.batchSize, params.seqLength, params.inputSize}, // X
                          {params.batchSize, params.inputSize},                   // H_i
@@ -291,7 +296,7 @@ private:
                 function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
             }
-            case ngraph::helpers::TensorIteratorBody::RNN: {
+            case TensorIteratorBodyType::RNN: {
                 inputShapes = {
                         {{params.batchSize, params.seqLength, params.inputSize}, // X
                          {params.batchSize, params.inputSize},                   // H_i
@@ -365,7 +370,7 @@ std::vector<TensorIteratorParams> generateParams() {
     std::vector<TensorIteratorParams> params {
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::FORWARD, ngraph::helpers::TensorIteratorBody::LSTM,
+            0.7f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::LSTM,
             ET,
             std::vector<T>{
                 1, 9.97466, 9.39302, 2.15312, 9.99136, 3.1248, 4.56923, 4.4912, 7.02771, 9.41985,
@@ -583,7 +588,7 @@ std::vector<TensorIteratorParams> generateParams() {
                 1.31284, 1.31868, 1.26086, 1.28443, 1.24866, 1.22491, 1.28812, 1.22855, 1.35744, 1.37287}),
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::REVERSE, ngraph::helpers::TensorIteratorBody::LSTM,
+            0.7f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::LSTM,
             ET,
             std::vector<T>{
                 1, 9.97466, 9.39302, 2.15312, 9.99136, 3.1248, 4.56923, 4.4912, 7.02771, 9.41985,
@@ -801,7 +806,7 @@ std::vector<TensorIteratorParams> generateParams() {
                 1.31284, 1.31868, 1.26086, 1.28443, 1.24866, 1.22491, 1.28812, 1.22855, 1.35744, 1.37287}),
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::FORWARD, ngraph::helpers::TensorIteratorBody::GRU,
+            0.7f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::GRU,
             ET,
             std::vector<T>{
                 1, 9.97466, 9.39302, 2.15312, 9.99136, 3.1248, 4.56923, 4.4912, 7.02771, 9.41985,
@@ -988,7 +993,7 @@ std::vector<TensorIteratorParams> generateParams() {
             std::vector<T>{0}),
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::REVERSE, ngraph::helpers::TensorIteratorBody::GRU,
+            0.7f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::GRU,
             ET,
             std::vector<T>{
                 1, 9.97466, 9.39302, 2.15312, 9.99136, 3.1248, 4.56923, 4.4912, 7.02771, 9.41985,
@@ -1175,7 +1180,7 @@ std::vector<TensorIteratorParams> generateParams() {
             std::vector<T>{0}),
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.f, op::RecurrentSequenceDirection::FORWARD, ngraph::helpers::TensorIteratorBody::RNN,
+            0.f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::RNN,
             ET,
             std::vector<T>{
                 -1, 0.780309, -0.738585, -0.920481, 0.652872, 0.0641558, 0.91262, -0.0761474, 0.847476, -0.252158,
@@ -1320,7 +1325,7 @@ std::vector<TensorIteratorParams> generateParams() {
             std::vector<T>{0}),
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.f, op::RecurrentSequenceDirection::REVERSE, ngraph::helpers::TensorIteratorBody::RNN,
+            0.f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::RNN,
             ET,
             std::vector<T>{
                 -1, 0.780309, -0.738585, -0.920481, 0.652872, 0.0641558, 0.91262, -0.0761474, 0.847476, -0.252158,
@@ -1474,7 +1479,7 @@ std::vector<TensorIteratorParams> generateParamsBF16() {
     std::vector<TensorIteratorParams> params {
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::FORWARD, ngraph::helpers::TensorIteratorBody::LSTM,
+            0.7f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::LSTM,
             ET,
             std::vector<T>{
                 1, 4.75, 10, 7.46875, 9.375, 1, 2.15625, 3.71875, 10, 2.3125,
@@ -1692,7 +1697,7 @@ std::vector<TensorIteratorParams> generateParamsBF16() {
                 1.32812, 1.32812, 1.32031, 1.35938, 1.32812, 1.25781, 1.21875, 1.32031, 1.28906, 1.375}),
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::REVERSE, ngraph::helpers::TensorIteratorBody::LSTM,
+            0.7f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::LSTM,
             ET,
             std::vector<T>{
                 1, 4.75, 10, 7.46875, 9.375, 1, 2.15625, 3.71875, 10, 2.3125,
@@ -1910,7 +1915,7 @@ std::vector<TensorIteratorParams> generateParamsBF16() {
                 1.32812, 1.32812, 1.32031, 1.35938, 1.32812, 1.25781, 1.21875, 1.32031, 1.28906, 1.375}),
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::FORWARD, ngraph::helpers::TensorIteratorBody::GRU,
+            0.7f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::GRU,
             ET,
             std::vector<T>{
                 1, 4.75, 10, 7.46875, 9.375, 1, 2.15625, 3.71875, 10, 2.3125,
@@ -2097,7 +2102,7 @@ std::vector<TensorIteratorParams> generateParamsBF16() {
             std::vector<T>{0}),
         TensorIteratorParams(
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::REVERSE, ngraph::helpers::TensorIteratorBody::GRU,
+            0.7f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::GRU,
             ET,
             std::vector<T>{
                 1, 4.75, 10, 7.46875, 9.375, 1, 2.15625, 3.71875, 10, 2.3125,
