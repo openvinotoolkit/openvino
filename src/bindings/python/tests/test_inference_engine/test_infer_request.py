@@ -17,24 +17,24 @@ is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
 
 
-def create_function_with_memory(input_shape, data_type):
+def create_model_with_memory(input_shape, data_type):
     input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
     rv = ops.read_value(input_data, "var_id_667")
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    func = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
-    return func
+    model = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
+    return model
 
 
 def test_get_profiling_info(device):
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
+    model = core.read_model(test_net_xml, test_net_bin)
     core.set_config({"PERF_COUNT": "YES"}, device)
-    exec_net = core.compile_model(func, device)
+    compiled = core.compile_model(model, device)
     img = read_image()
-    request = exec_net.create_infer_request()
-    tensor_name = exec_net.input("data").any_name
+    request = compiled.create_infer_request()
+    tensor_name = compiled.input("data").any_name
     request.infer({tensor_name: img})
     assert request.latency > 0
     prof_info = request.get_profiling_info()
@@ -48,14 +48,14 @@ def test_get_profiling_info(device):
 
 def test_tensor_setter(device):
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    exec_net_1 = core.compile_model(model=func, device_name=device)
-    exec_net_2 = core.compile_model(model=func, device_name=device)
+    model = core.read_model(test_net_xml, test_net_bin)
+    compiled_1 = core.compile_model(model=model, device_name=device)
+    compiled_2 = core.compile_model(model=model, device_name=device)
 
     img = read_image()
     tensor = Tensor(img)
 
-    request1 = exec_net_1.create_infer_request()
+    request1 = compiled_1.create_infer_request()
     request1.set_tensor("data", tensor)
     t1 = request1.get_tensor("data")
 
@@ -67,7 +67,7 @@ def test_tensor_setter(device):
     t2 = request1.get_tensor("fc_out")
     assert np.allclose(t2.data, res[k].data, atol=1e-2, rtol=1e-2)
 
-    request = exec_net_2.create_infer_request()
+    request = compiled_2.create_infer_request()
     res = request.infer({"data": tensor})
     res_2 = np.sort(request.get_tensor("fc_out").data)
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
@@ -79,8 +79,8 @@ def test_tensor_setter(device):
 
 def test_set_tensors(device):
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    exec_net = core.compile_model(func, device)
+    model = core.read_model(test_net_xml, test_net_bin)
+    compiled = core.compile_model(model, device)
 
     data1 = read_image()
     tensor1 = Tensor(data1)
@@ -91,7 +91,7 @@ def test_set_tensors(device):
     data4 = np.zeros(shape=(1, 10), dtype=np.float32)
     tensor4 = Tensor(data4)
 
-    request = exec_net.create_infer_request()
+    request = compiled.create_infer_request()
     request.set_tensors({"data": tensor1, "fc_out": tensor2})
     t1 = request.get_tensor("data")
     t2 = request.get_tensor("fc_out")
@@ -99,16 +99,16 @@ def test_set_tensors(device):
     assert np.allclose(tensor2.data, t2.data, atol=1e-2, rtol=1e-2)
 
     request.set_output_tensors({0: tensor2})
-    output_node = exec_net.outputs[0]
+    output_node = compiled.outputs[0]
     t3 = request.get_tensor(output_node)
     assert np.allclose(tensor2.data, t3.data, atol=1e-2, rtol=1e-2)
 
     request.set_input_tensors({0: tensor1})
-    output_node = exec_net.inputs[0]
+    output_node = compiled.inputs[0]
     t4 = request.get_tensor(output_node)
     assert np.allclose(tensor1.data, t4.data, atol=1e-2, rtol=1e-2)
 
-    output_node = exec_net.inputs[0]
+    output_node = compiled.inputs[0]
     request.set_tensor(output_node, tensor3)
     t5 = request.get_tensor(output_node)
     assert np.allclose(tensor3.data, t5.data, atol=1e-2, rtol=1e-2)
@@ -148,10 +148,10 @@ def test_inputs_outputs_property(device):
 
 def test_cancel(device):
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    exec_net = core.compile_model(func, device)
+    model = core.read_model(test_net_xml, test_net_bin)
+    compiled = core.compile_model(model, device)
     img = read_image()
-    request = exec_net.create_infer_request()
+    request = compiled.create_infer_request()
 
     request.start_async({0: img})
     request.cancel()
@@ -168,13 +168,13 @@ def test_cancel(device):
 
 def test_start_async(device):
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    exec_net = core.compile_model(func, device)
+    model = core.read_model(test_net_xml, test_net_bin)
+    compiled = core.compile_model(model, device)
     img = read_image()
     jobs = 3
     requests = []
     for _ in range(jobs):
-        requests.append(exec_net.create_infer_request())
+        requests.append(compiled.create_infer_request())
 
     def callback(callbacks_info):
         time.sleep(0.01)
@@ -217,9 +217,9 @@ def test_infer_list_as_inputs(device):
 
 def test_infer_mixed_keys(device):
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
+    model = core.read_model(test_net_xml, test_net_bin)
     core.set_config({"PERF_COUNT": "YES"}, device)
-    model = core.compile_model(func, device)
+    model = core.compile_model(model, device)
 
     img = read_image()
     tensor = Tensor(img)
@@ -236,9 +236,9 @@ def test_infer_queue(device):
     jobs = 8
     num_request = 4
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    exec_net = core.compile_model(func, device)
-    infer_queue = AsyncInferQueue(exec_net, num_request)
+    model = core.read_model(test_net_xml, test_net_bin)
+    compiled = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled, num_request)
     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
 
     def callback(request, job_id):
@@ -255,13 +255,13 @@ def test_infer_queue(device):
     assert all(job["latency"] > 0 for job in jobs_done)
 
 
-def test_infer_queue_fail_on_cpp_func(device):
+def test_infer_queue_fail_on_cpp_model(device):
     jobs = 6
     num_request = 4
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    exec_net = core.compile_model(func, device)
-    infer_queue = AsyncInferQueue(exec_net, num_request)
+    model = core.read_model(test_net_xml, test_net_bin)
+    compiled = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled, num_request)
 
     def callback(request, _):
         request.get_tensor("Unknown")
@@ -278,13 +278,13 @@ def test_infer_queue_fail_on_cpp_func(device):
     assert "Port for tensor name Unknown was not found" in str(e.value)
 
 
-def test_infer_queue_fail_on_py_func(device):
+def test_infer_queue_fail_on_py_model(device):
     jobs = 1
     num_request = 1
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    exec_net = core.compile_model(func, device)
-    infer_queue = AsyncInferQueue(exec_net, num_request)
+    model = core.read_model(test_net_xml, test_net_bin)
+    compiled = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled, num_request)
 
     def callback(request, _):
         request = request + 21
@@ -321,9 +321,9 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
     from openvino.runtime import Tensor
     from openvino.runtime.utils.types import get_dtype
 
-    function = create_function_with_memory(input_shape, data_type)
-    exec_net = core.compile_model(model=function, device_name=device)
-    request = exec_net.create_infer_request()
+    model = create_model_with_memory(input_shape, data_type)
+    compiled = core.compile_model(model=model, device_name=device)
+    request = compiled.create_infer_request()
     mem_states = request.query_state()
     mem_state = mem_states[0]
 
@@ -372,9 +372,9 @@ def test_results_async_infer(device):
     jobs = 8
     num_request = 4
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    exec_net = core.compile_model(func, device)
-    infer_queue = AsyncInferQueue(exec_net, num_request)
+    model = core.read_model(test_net_xml, test_net_bin)
+    compiled = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled, num_request)
     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
 
     def callback(request, job_id):
@@ -388,7 +388,7 @@ def test_results_async_infer(device):
         infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()
 
-    request = exec_net.create_infer_request()
+    request = compiled.create_infer_request()
     outputs = request.infer({0: img})
 
     for i in range(num_request):
@@ -458,8 +458,8 @@ def test_infer_float16(device):
     </edges>
 </net>""")
     core = Core()
-    func = core.read_model(model=model)
-    p = PrePostProcessor(func)
+    model = core.read_model(model=model)
+    p = PrePostProcessor(model)
     p.input(0).tensor().set_element_type(Type.f16)
     p.input(0).preprocess().convert_element_type(Type.f16)
     p.input(1).tensor().set_element_type(Type.f16)
@@ -467,10 +467,10 @@ def test_infer_float16(device):
     p.output(0).tensor().set_element_type(Type.f16)
     p.output(0).postprocess().convert_element_type(Type.f16)
 
-    func = p.build()
-    exec_net = core.compile_model(func, device)
+    model = p.build()
+    compiled = core.compile_model(model, device)
     input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
-    request = exec_net.create_infer_request()
+    request = compiled.create_infer_request()
     outputs = request.infer({0: input_data, 1: input_data})
     assert np.allclose(list(outputs.values()), list(request.results.values()))
     assert np.allclose(list(outputs.values()), input_data + input_data)
