@@ -6,7 +6,6 @@
 
 #include <exception>
 
-#include "any_copy.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/core/except.hpp"
@@ -61,10 +60,12 @@ std::string RemoteContext::get_device_name() const {
     OV_REMOTE_CONTEXT_STATEMENT(return _impl->getDeviceName());
 }
 
-RemoteTensor RemoteContext::create_tensor(const element::Type& type, const Shape& shape, const AnyMap& params) {
+RemoteTensor RemoteContext::create_tensor(const element::Type& element_type,
+                                          const Shape& shape,
+                                          const ParamMap& params) {
     OV_REMOTE_CONTEXT_STATEMENT({
         auto blob = _impl->CreateBlob(
-            {ie::details::convertPrecision(type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
+            {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
             params);
         blob->allocate();
         return {blob, _so};
@@ -80,8 +81,8 @@ Tensor RemoteContext::create_host_tensor(const element::Type element_type, const
     });
 }
 
-AnyMap RemoteContext::get_params() const {
-    AnyMap paramMap;
+ParamMap RemoteContext::get_params() const {
+    ParamMap paramMap;
     OV_REMOTE_CONTEXT_STATEMENT({
         for (auto&& param : _impl->getParams()) {
             paramMap.emplace(param.first, Any{param.second, _so});

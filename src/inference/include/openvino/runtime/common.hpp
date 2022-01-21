@@ -9,10 +9,10 @@
  */
 #pragma once
 
+#include <chrono>
 #include <map>
 #include <string>
 
-#include "openvino/core/any.hpp"
 #include "openvino/core/visibility.hpp"
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE)
@@ -43,6 +43,10 @@ namespace InferenceEngine {}
 
 namespace ov {
 namespace ie = InferenceEngine;
+/**
+ * @brief This type of map is commonly used to pass set of device configuration parameters
+ */
+using ConfigMap = std::map<std::string, std::string>;
 
 /**
  * @brief This type of map is used for result of Core::query_model
@@ -52,6 +56,7 @@ namespace ie = InferenceEngine;
 using SupportedOpsMap = std::map<std::string, std::string>;
 
 namespace runtime {
+using ov::ConfigMap;
 using ov::SupportedOpsMap;
 }  // namespace runtime
 

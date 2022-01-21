@@ -10,6 +10,7 @@
 #pragma once
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -52,7 +53,7 @@ public:
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    ov::AnyMap get_params() const;
+    runtime::ParamMap get_params() const;
 
     /**
      * @brief Returns name of the device on which underlying object is allocated.

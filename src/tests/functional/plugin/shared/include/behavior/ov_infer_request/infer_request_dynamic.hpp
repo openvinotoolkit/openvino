@@ -38,7 +38,7 @@ using OVInferRequestDynamicParams = std::tuple<
         std::shared_ptr<Model>,                                         // ov Model
         std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>,  // input/expected output shapes per inference
         std::string,                                                       // Device name
-        ov::AnyMap                                                  // Config
+        std::map<std::string, std::string>                                 // Config
 >;
 
 class OVInferRequestDynamicTests : public testing::WithParamInterface<OVInferRequestDynamicParams>,
@@ -54,7 +54,7 @@ protected:
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     std::shared_ptr<Model> function;
     std::string targetDevice;
-    ov::AnyMap configuration;
+    std::map<std::string, std::string> configuration;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
 };
 using OVNotSupportRequestDynamicTests = OVInferRequestDynamicTests;

@@ -17,7 +17,7 @@ using InputShape = std::pair<ov::PartialShape, std::vector<ov::Shape>>;
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape);
 
 using ElementType = ov::element::Type_t;
-using Config = ov::AnyMap;
+using Config = std::map<std::string, std::string>;
 using TargetDevice = std::string;
 
 class SubgraphBaseTest : public CommonTestUtils::TestsCommon {
