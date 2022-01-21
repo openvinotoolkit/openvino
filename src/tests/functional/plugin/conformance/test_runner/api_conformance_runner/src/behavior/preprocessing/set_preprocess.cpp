@@ -8,6 +8,7 @@
 namespace {
 
 using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
 
 const std::vector<InferenceEngine::Precision> netPrecisionsPreprocess = {
         InferenceEngine::Precision::FP32,
