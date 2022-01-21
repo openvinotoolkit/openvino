@@ -149,7 +149,7 @@ protected:
         auto roialign = std::make_shared<ngraph::opset3::ROIAlign>(float_params[0], float_params[1], int_params[0], pooledH, pooledW,
                                                                    samplingRatio, spatialScale, mode);
 
-        selectedType = makeSelectedTypeStr("ref", inputPrecision);
+        selectedType = makeSelectedTypeStr(selectedType, inputPrecision);
         if (inputPrecision == ElementType::bf16) {
             rel_threshold = 1e-2;
         }
@@ -170,12 +170,20 @@ namespace {
 /* CPU PARAMS */
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     std::vector<CPUSpecificParams> resCPUParams;
-    resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {}, {}});
-    resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {}, {}});
-    if (with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw16c, nc, x}, {nChw16c}, {}, {}});
-    } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc, x}, {nChw8c}, {}, {}});
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"jit_avx512"}, {"jit_avx512"}});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {"jit_avx512"}, {"jit_avx512"}});
+        resCPUParams.push_back(CPUSpecificParams{{nChw16c, nc, x}, {nChw16c}, {"jit_avx512"}, {"jit_avx512"}});
+    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"jit_avx2"}, {"jit_avx2"}});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {"jit_avx2"}, {"jit_avx2"}});
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc, x}, {nChw8c}, {"jit_avx2"}, {"jit_avx2"}});
+    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"jit_sse42"}, {"jit_sse42"}});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {"jit_sse42"}, {"jit_sse42"}});
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc, x}, {nChw8c}, {"jit_sse42"}, {"jit_sse42"}});
+    } else {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"ref"}, {"ref"}});
     }
     return resCPUParams;
 }
@@ -199,6 +207,7 @@ const std::vector<std::string> modeVector = {
 };
 
 const std::vector<ROIAlignShapes> inputShapeVector = {
+    ROIAlignShapes{{{}, {{ 2, 22, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
     ROIAlignShapes{{{}, {{ 2, 18, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
     ROIAlignShapes{{{}, {{ 2, 4, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
     ROIAlignShapes{{{}, {{ 2, 4, 20, 40 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
