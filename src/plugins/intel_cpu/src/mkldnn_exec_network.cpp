@@ -43,7 +43,7 @@ MKLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<cons
 InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                           InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+    return std::make_shared<MKLDNNLegacyInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
 
 struct ImmediateSerialExecutor : public ITaskExecutor {

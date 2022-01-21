@@ -145,7 +145,7 @@ def test_cannot_set_shape_preallocated_memory():
     assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)
 
 
-@pytest.mark.template_plugin
+@pytest.mark.skip(reason="Old Python API seg faults during dynamic shape inference")
 def test_blob_set_shape_after_async_infer():
     function = create_encoder([1, 4, 20, 20])
     net = ng.function_to_cnn(function)

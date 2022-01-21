@@ -72,7 +72,7 @@ private:
 /// @brief Responsible for collecting of statistics and dumping to .csv file
 class StatisticsReport {
 public:
-    typedef std::vector<ov::runtime::ProfilingInfo> PerformaceCounters;
+    typedef std::vector<ov::ProfilingInfo> PerformaceCounters;
     typedef std::vector<std::pair<std::string, std::string>> Parameters;
 
     struct Config {
