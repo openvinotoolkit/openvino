@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/remote_tensor.hpp"
 
+#include "any_copy.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 
 namespace ov {
-namespace runtime {
 
 void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info) {
     OPENVINO_ASSERT(tensor, "Could not check empty tensor type");
@@ -33,12 +33,12 @@ void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, 
     }
 }
 
-ie::ParamMap RemoteTensor::get_params() const {
+AnyMap RemoteTensor::get_params() const {
     OPENVINO_ASSERT(_impl != nullptr, "Remote tensor was not initialized.");
     type_check(*this);
     auto remote_impl = static_cast<ie::RemoteBlob*>(_impl.get());
     try {
-        ParamMap paramMap;
+        AnyMap paramMap;
         for (auto&& param : remote_impl->getParams()) {
             paramMap.emplace(param.first, Any{param.second, _so});
         }
@@ -52,8 +52,8 @@ ie::ParamMap RemoteTensor::get_params() const {
 
 std::string RemoteTensor::get_device_name() const {
     OPENVINO_ASSERT(_impl != nullptr, "Remote tensor was not initialized.");
-    type_check(*this);
     auto remote_impl = static_cast<ie::RemoteBlob*>(_impl.get());
+    type_check(*this);
     try {
         return remote_impl->getDeviceName();
     } catch (const std::exception& ex) {
@@ -62,5 +62,4 @@ std::string RemoteTensor::get_device_name() const {
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
 }
-}  // namespace runtime
 }  // namespace ov

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_infer_request/inference_chaining.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "api_conformance_helpers.hpp"
+#include "ov_api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;

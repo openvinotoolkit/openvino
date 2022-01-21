@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,7 @@
 #include "ie_remote_context.hpp"
 
 namespace ov {
-namespace runtime {
 class Core;
-}  // namespace runtime
 }  // namespace ov
 
 namespace InferenceEngine {
@@ -46,7 +44,7 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
      */
     ExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>& impl, const std::shared_ptr<void>& so);
     friend class Core;
-    friend class ov::runtime::Core;
+    friend class ov::Core;
 
 public:
     /// @brief Default constructor

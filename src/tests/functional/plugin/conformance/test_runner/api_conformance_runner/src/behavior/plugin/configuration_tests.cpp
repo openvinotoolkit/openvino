@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include "api_conformance_helpers.hpp"
 
 using namespace BehaviorTestsDefinitions;
-using namespace ov::test::conformance;
+
 
 namespace {
     #if (defined(__APPLE__) || defined(_WIN32))

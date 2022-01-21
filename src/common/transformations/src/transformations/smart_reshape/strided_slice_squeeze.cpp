@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,10 +106,8 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             shrink_axis_mask,
             ellipsis_mask);
 
-        replace_node(squeeze, new_slice);
-        new_slice->set_friendly_name(slice->get_friendly_name());
-        copy_runtime_info(slice, new_slice);
-        return true;
+        return replace_output_update_name(squeeze->output(0),
+                                          new_slice->output(squeeze->input_value(0).get_index()));
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label /*, matcher_name */);
     register_matcher(m, callback);

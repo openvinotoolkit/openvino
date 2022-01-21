@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gtest/gtest.h"
 
+#include "common_test_utils/ov_common_utils.hpp"
 #include "functional_test_utils/layer_test_utils/environment.hpp"
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"

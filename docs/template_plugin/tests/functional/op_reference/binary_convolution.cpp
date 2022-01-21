@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,9 +47,9 @@ struct BinaryConvolutionParams {
     PartialShape outputShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
+    ov::Tensor inputData;
     std::vector<uint8_t> filterData;
-    ov::runtime::Tensor refData;
+    ov::Tensor refData;
     ov::Strides strides;
     ov::CoordinateDiff padBegin;
     ov::CoordinateDiff padEnd;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 // NOTE: WILL BE REWORKED (31905)
@@ -20,7 +20,7 @@ typedef std::tuple<
     ElementType,                       // In precision
     ElementType,                       // Out precision
     TargetDevice,                      // Device name
-    Config                             // Additional network configuration
+    ov::AnyMap                  // Additional network configuration
 > EltwiseTestParams;
 
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,

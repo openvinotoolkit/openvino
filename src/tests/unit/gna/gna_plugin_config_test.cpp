@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,7 +105,9 @@ TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW_WITH_SW_FBACK);
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardwareWithSoftwareFallback);
     EXPECT_EQ(config.swExactMode, false);
+    IE_SUPPRESS_DEPRECATED_START
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW);
+    IE_SUPPRESS_DEPRECATED_END
 
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
     EXPECT_EQ(config.swExactMode, false);

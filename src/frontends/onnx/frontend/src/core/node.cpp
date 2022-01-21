@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,6 +160,11 @@ T Node::Impl::get_attribute_value(const std::string& name) const {
 template <>
 Subgraph Node::Impl::get_attribute_value(const std::string& name) const {
     return get_subgraph_from_attribute(name);
+}
+
+template <>
+ov::Any Node::get_attribute_value(const std::string& name) const {
+    return get_attribute(name).get_any();
 }
 
 OutputVector Node::Impl::get_ng_inputs() const {
