@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from .cimport ie_api_impl_defs as C
@@ -57,7 +57,7 @@ cdef class IECore:
     cpdef IENetwork read_network(self, model : [str, bytes, os.PathLike],
                                  weights : [str, bytes, os.PathLike] = ?, bool init_from_buffer = ?)
     cpdef ExecutableNetwork load_network(self, network: [IENetwork, str],
-                                         str device_name, config = ?, int num_requests = ?)
+                                         device_name = ?, config = ?, int num_requests = ?)
     cpdef ExecutableNetwork import_network(self, str model_file, str device_name, config = ?, int num_requests = ?)
 
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,6 @@
 // clang-format on
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 namespace ocl {
 
@@ -148,5 +147,4 @@ public:
 };
 }  // namespace ocl
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

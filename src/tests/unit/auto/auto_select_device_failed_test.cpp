@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ public:
 
     //mock exeNetwork
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
     MockIInferencePlugin*                           mockIPlugin;
     InferenceEngine::InferencePlugin                mockPlugin;
     // config for Auto device

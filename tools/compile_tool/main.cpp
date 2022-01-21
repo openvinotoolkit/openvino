@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -744,7 +744,7 @@ int main(int argc, char* argv[]) {
                 executableNetwork.Export(outputFile);
             }
         } else {
-            ov::runtime::Core core;
+            ov::Core core;
             if (!FLAGS_log_level.empty()) {
                 core.set_config({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
             }

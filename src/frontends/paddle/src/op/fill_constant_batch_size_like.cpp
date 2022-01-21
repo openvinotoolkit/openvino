@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <limits.h>
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -104,7 +104,7 @@ NamedOutputs fill_constant_batch_size_like(const NodeContext& node) {
     auto input_dim_idx = node.get_attribute<int32_t>("input_dim_idx");
     auto output_dim_idx = node.get_attribute<int32_t>("output_dim_idx");
     auto shapes = node.get_attribute<std::vector<int32_t>>("shape");
-    auto input = node.get_ng_input("Input");
+    auto input = node.get_input("Input");
     auto input_shape = std::make_shared<ov::opset6::ShapeOf>(input, element::i32);
     // 1, cat the array:
     //   shape[0, shape[output_dim_idx]) + input_shape[input_dim_idx] +
