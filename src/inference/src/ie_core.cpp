@@ -1117,7 +1117,7 @@ public:
             auto parsed = parseDeviceNameIntoConfig(config.first);
             auto devices = GetListOfDevicesInRegistry();
             auto config_is_device_name_in_regestry =
-                std::any_of(devices.begin(), devices.end(), [&] (const std::string& device) {
+                std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
                     return device == parsed._deviceName;
                 });
             if (config_is_device_name_in_regestry) {
