@@ -1,7 +1,6 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 from argparse import Namespace
 
 import numpy as np
@@ -11,14 +10,21 @@ from openvino.tools.mo.middle.ScaleInput import ScaleInput
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.utils.cli_parser import get_mean_scale_dictionary, parse_tuple_pairs
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, result, connect, connect_data, \
     valued_const_with_data
 
 nodes = {
     **regular_op_with_shaped_data('parameter', [1, 3, 227, 227],
-                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+                                  {'type': 'Parameter',
+                                   'op': 'Parameter',
+                                   'shape': [1, 3, 227, 227],
+                                   'data_type': np.float32}),
     **regular_op_with_shaped_data('parameter_2', [1, 3, 227, 227],
-                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+                                  {'type': 'Parameter',
+                                   'op': 'Parameter',
+                                   'shape': [1, 3, 227, 227],
+                                   'data_type': np.float32}),
 
     **regular_op_with_shaped_data('mul_scale', [1, 3, 227, 227], {'type': 'Multiply', 'op': 'Mul'}),
     **regular_op_with_shaped_data('add_mean', [1, 3, 227, 227], {'type': 'Add', 'op': 'Add'}),
@@ -36,7 +42,7 @@ nodes = {
 }
 
 
-class AddMeanScaleValuesTest(unittest.TestCase):
+class AddMeanScaleValuesTest(UnitTestWithMockedTelemetry):
     def check_graph_attrs(self, graph: Graph, graph_ref: Graph, parameter_node_names: list):
         for node in graph.get_op_nodes():
             if node.soft_get('name') in parameter_node_names:
@@ -45,6 +51,9 @@ class AddMeanScaleValuesTest(unittest.TestCase):
                 out_node_ref = Node(graph_ref, node.id).out_node(0)
                 self.assertTrue(out_node['fw_tensor_debug_info'] == out_node_ref['fw_tensor_debug_info'])
             else:
+                if node.soft_get('type') == 'Const':
+                    value = node.out_port(0).data.get_value()
+                    self.assertTrue(value.dtype == np.float32)
                 if 0 in node.out_nodes():
                     out_node = node.out_node(0)
                     self.assertFalse('fw_tensor_debug_info' in out_node)

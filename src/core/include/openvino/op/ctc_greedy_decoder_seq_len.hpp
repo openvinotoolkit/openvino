@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,7 +92,7 @@ public:
     }
 
 private:
-    bool m_merge_repeated;
+    bool m_merge_repeated{true};
     element::Type m_classes_index_type{element::i32};
     element::Type m_sequence_length_type{element::i32};
 };

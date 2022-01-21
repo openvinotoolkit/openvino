@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -349,7 +349,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                     layout == DataLayout::bs_fs_yx_bsv4_fsv4  ||
                     layout == DataLayout::bs_fs_yx_bsv8_fsv4  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv2  ||
-                    layout == DataLayout::bs_fs_yx_bsv16_fsv16)
+                    layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                    layout == DataLayout::fs_b_yx_fsv32)
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
                 else
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
@@ -1019,7 +1020,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(atanh(input))"));
             break;
         case ActivationFunction::FLOOR:
-            jitConstants.AddConstant(MakeJitConstant(macro_def, "(floor(input))"));
+            if (out_dt == Datatype::F32 || out_dt == Datatype::F16)
+                jitConstants.AddConstant(MakeJitConstant(macro_def, "(floor(input))"));
+            else
+                jitConstants.AddConstant(MakeJitConstant(macro_def, "(input)"));
             break;
         case ActivationFunction::CEIL:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(ceil(input))"));

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -75,12 +75,12 @@ endif()
 
 #
 # ov_ncc_naming_style(FOR_TARGET target_name
-#                     INCLUDE_DIRECTORY dir
+#                     SOURCE_DIRECTORY dir
 #                     [ADDITIONAL_INCLUDE_DIRECTORIES dir1 dir2 ..]
 #                     [DEFINITIONS def1 def2 ..])
 #
 # FOR_TARGET - name of the target
-# INCLUDE_DIRECTORY - directory to check headers from
+# SOURCE_DIRECTORY - directory to check sources from
 # ADDITIONAL_INCLUDE_DIRECTORIES - additional include directories used in checked headers
 # DEFINITIONS - additional definitions passed to preprocessor stage
 #
@@ -90,23 +90,24 @@ function(ov_ncc_naming_style)
     endif()
 
     cmake_parse_arguments(NCC_STYLE "FAIL"
-        "FOR_TARGET;INCLUDE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES;DEFINITIONS" ${ARGN})
+        "FOR_TARGET;SOURCE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES;DEFINITIONS" ${ARGN})
 
-    foreach(var FOR_TARGET INCLUDE_DIRECTORY)
+    foreach(var FOR_TARGET SOURCE_DIRECTORY)
         if(NOT DEFINED NCC_STYLE_${var})
             message(FATAL_ERROR "${var} is not defined in ov_ncc_naming_style function")
         endif()
     endforeach()
 
-    file(GLOB_RECURSE headers
-         RELATIVE "${NCC_STYLE_INCLUDE_DIRECTORY}"
-         "${NCC_STYLE_INCLUDE_DIRECTORY}/*.hpp")
+    file(GLOB_RECURSE sources
+         RELATIVE "${NCC_STYLE_SOURCE_DIRECTORY}"
+         "${NCC_STYLE_SOURCE_DIRECTORY}/*.hpp"
+         "${NCC_STYLE_SOURCE_DIRECTORY}/*.cpp")
 
-    list(APPEND NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_INCLUDE_DIRECTORY}")
+    list(APPEND NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_SOURCE_DIRECTORY}")
 
-    foreach(header IN LISTS headers)
-        set(output_file "${ncc_style_bin_dir}/${header}.ncc_style")
-        set(full_header_path "${NCC_STYLE_INCLUDE_DIRECTORY}/${header}")
+    foreach(source IN LISTS sources)
+        set(output_file "${ncc_style_bin_dir}/${source}.ncc_style")
+        set(full_source_path "${NCC_STYLE_SOURCE_DIRECTORY}/${source}")
 
         add_custom_command(
             OUTPUT
@@ -115,7 +116,7 @@ function(ov_ncc_naming_style)
                 "${CMAKE_COMMAND}"
                 -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
                 -D "NCC_PY_SCRIPT=${ncc_script_py}"
-                -D "INPUT_FILE=${full_header_path}"
+                -D "INPUT_FILE=${full_source_path}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "DEFINITIONS=${NCC_STYLE_DEFINITIONS}"
                 -D "CLANG_LIB_PATH=${libclang_location}"
@@ -124,12 +125,12 @@ function(ov_ncc_naming_style)
                 -D "EXPECTED_FAIL=${NCC_STYLE_FAIL}"
                 -P "${ncc_style_dir}/ncc_run.cmake"
             DEPENDS
-                "${full_header_path}"
+                "${full_source_path}"
                 "${ncc_style_dir}/openvino.style"
                 "${ncc_script_py}"
                 "${ncc_style_dir}/ncc_run.cmake"
             COMMENT
-                "[ncc naming style] ${header}"
+                "[ncc naming style] ${source}"
             VERBATIM)
         list(APPEND output_files ${output_file})
     endforeach()
@@ -145,6 +146,6 @@ endfunction()
 
 if(TARGET ncc_all)
     ov_ncc_naming_style(FOR_TARGET ncc_all
-                        INCLUDE_DIRECTORY "${ncc_style_dir}/self_check"
+                        SOURCE_DIRECTORY "${ncc_style_dir}/self_check"
                         FAIL)
 endif()

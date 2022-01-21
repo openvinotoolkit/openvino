@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "behavior/ov_executable_network/exec_graph_info.hpp"
@@ -13,7 +13,7 @@ const std::vector<ov::element::Type_t> netPrecisions = {
         ov::element::u8,
         ov::element::f32
 };
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}
 };
 

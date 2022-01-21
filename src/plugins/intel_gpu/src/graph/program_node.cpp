@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -214,7 +214,7 @@ layout program_node::get_output_layout(bool invalidate_users_if_changed) {
 
 layout program_node::get_output_layout() const {
     if (!valid_output_layout)
-        throw std::runtime_error("Output layout not calculated");
+        throw std::runtime_error("Output layout not calculated for " + id() + " node");
 
     return output_layout;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ class MatrixNmsLayerTest : public testing::WithParamInterface<NmsParams>,
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
+    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
 
 protected:
     void SetUp() override;

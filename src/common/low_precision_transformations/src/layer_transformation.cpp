@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -384,6 +384,17 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     const bool moveSubtract) const {
     const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision, moveSubtract);
     updateOutput(context, result.lastDequantization, result.newOperation);
+    return result.newOperation;
+}
+
+std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationBefore(
+    TransformationContext& context,
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization,
+    const bool updatePrecision,
+    const bool moveSubtract) const {
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation, dequantization, updatePrecision, moveSubtract);
+    updateOutput(context, result.newOperation, result.lastDequantization);
     return result.newOperation;
 }
 

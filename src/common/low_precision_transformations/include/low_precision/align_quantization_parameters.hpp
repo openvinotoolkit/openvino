@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,15 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief AlignQuantizationParameters transformation marks precision preserved operations subgraph by `QuantizationAlignmentAttribute`
+ * attribute after FakeQuantize operations.
+ *
+ * For more details about the transformation, refer to
+ * [AlignQuantizationParameters](@ref openvino_docs_IE_DG_lpt_AlignQuantizationParameters) page
+ * in the Inference Engine Developer Guide.
+ */
 class ngraph::pass::low_precision::AlignQuantizationParameters : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;

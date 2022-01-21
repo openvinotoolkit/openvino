@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,6 +114,10 @@ struct data_type_traits {
 
     static bool is_floating_point(data_types data_type) {
         return (static_cast<uint32_t>(data_type) & float_type_mask) != 0;
+    }
+
+    static bool is_i8_u8(data_types data_type) {
+        return data_type == data_types::i8 || data_type == data_types::u8;
     }
 
     static size_t align_of(data_types data_type) {
@@ -493,13 +497,35 @@ struct layout {
     /// Number of bytes needed to store this layout
     size_t bytes_count() const { return data_type_traits::size_of(data_type) * get_linear_size(); }
 
-    bool has_fused_format(data_types const& dt, cldnn::format const& fmt) const {
-        return (data_type == dt && format == fmt);
-    }
+    size_t get_rank() const;
 
-    auto fused_format() const -> decltype(fuse(data_type, format)) {
-        return fuse(data_type, format);
-    }
+    size_t get_spatial_rank() const;
+
+    tensor::value_type get_dim(size_t idx) const;
+
+    tensor::value_type batch() const;
+
+    tensor::value_type feature() const;
+
+    tensor::value_type spatial(size_t spatial_idx) const;
+
+    tensor::value_type group() const;
+
+    tensor::value_type ofm() const;
+
+    tensor::value_type ifm() const;
+
+    std::vector<tensor::value_type> get_dims() const;
+
+    std::vector<tensor::value_type> get_padded_dims() const;
+
+    std::vector<tensor::value_type> get_ordered_dims() const;
+
+    std::vector<size_t> get_dims_order() const;
+
+    layout convert_to_weights_layout(bool is_grouped) const;
+
+    std::string to_string() const;
 };
 
 /// @}

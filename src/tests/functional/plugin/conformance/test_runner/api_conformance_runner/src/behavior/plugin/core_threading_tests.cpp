@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <behavior/plugin/core_threading.hpp>
 #include "api_conformance_helpers.hpp"
 
+using namespace BehaviorTestsDefinitions;
+
 namespace {
-using namespace ov::test::conformance;
 
 const Params coreThreadingParams[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, generateConfigs(CommonTestUtils::DEVICE_HETERO).front() },

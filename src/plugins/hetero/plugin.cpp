@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,18 +73,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     return std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this);
 }
 
-Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string& deviceName) const {
-    std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-    Engine::Configs supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = config.find(key);
-        if (config.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    return supportedConfig;
-}
-
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
                                                           const Configs& localConfig) const {
     auto getDeviceConfig = [&](const std::string& deviceWithID) {
@@ -98,7 +86,7 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
             tconfig[KEY_DEVICE_ID] = deviceIDLocal;
         }
 
-        return GetSupportedConfig(tconfig, deviceName);
+        return GetCore()->GetSupportedConfig(deviceName, tconfig);
     };
 
     auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,6 +53,10 @@ public:
     std::shared_ptr<cldnn::engine> GetEngine() const { return getContextImpl(m_context)->GetEngine(); }
     int GetMaxDynamicBatchSize() const { return getConfig().max_dynamic_batch; }
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->GetInputLayouts(); }
+    const InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_program->GetNetworkInputs(); }
+    const InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_program->GetNetworkOutputs(); }
+    std::map<std::string, std::pair<int64_t, int64_t>> GetInputDynBatchDims() { return m_program->m_input_batch_dim; }
+    std::map<std::string, int64_t> GetOutputDynBatchDims() { return m_program->m_output_batch_dim; }
     size_t GetNetworksCount() const { return m_networks.size(); }
     std::shared_ptr<cldnn::network> GetNetwork(size_t idx = 0) const;
     InferenceEngine::SizeVector GetOutputSize(std::string outName) const;

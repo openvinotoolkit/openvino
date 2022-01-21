@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief EltwiseBaseTransformation is base class for element-wise LPT transformations.
+ */
 class LP_TRANSFORMATIONS_API EltwiseBaseTransformation : public LayerTransformation {
 public:
     EltwiseBaseTransformation(const Params& params) : LayerTransformation(params) {}

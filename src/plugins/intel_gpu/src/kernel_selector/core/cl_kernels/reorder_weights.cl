@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,6 +205,8 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
     return GET_FILTER_OS_IS_YX_OSA2_ISA8_OSV8_ISV2_INDEX(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_IS_OS_YX_ISA2_OSA8_ISV8_OSV2
     return GET_FILTER_IS_OS_YX_ISA2_OSA8_ISV8_OSV2_INDEX(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_IS_OS_YX_ISA4_OSA8_ISV8_OSV4
+    return GET_FILTER_IS_OS_YX_ISA4_OSA8_ISV8_OSV4_INDEX(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_YX_OSA4_ISA8_OSV8_ISV2
     return GET_FILTER_OS_IS_YX_OSA4_ISA8_OSV8_ISV2_INDEX(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV2

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,10 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <cpp/ie_cnn_network.h>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
+
 using namespace ngraph;
+
 
 TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
     std::shared_ptr<ngraph::Function> f(nullptr);
@@ -17,9 +20,6 @@ TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
         auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
         auto M = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        X->set_friendly_name("X");
-        Y->set_friendly_name("Y");
-        M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
@@ -60,7 +60,13 @@ TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
 
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
+        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+        {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
@@ -76,9 +82,6 @@ TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
         auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
         auto M = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        X->set_friendly_name("X");
-        Y->set_friendly_name("Y");
-        M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
@@ -119,7 +122,13 @@ TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
 
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
+        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+        {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
@@ -135,9 +144,6 @@ TEST(SmartReshapeTests, LoopStaticParameters) {
         auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        X->set_friendly_name("X");
-        Y->set_friendly_name("Y");
-        M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
@@ -184,7 +190,13 @@ TEST(SmartReshapeTests, LoopStaticParameters) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
+        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+        {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
@@ -200,9 +212,6 @@ TEST(SmartReshapeTests, LoopDynamicParameters) {
         auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        X->set_friendly_name("X");
-        Y->set_friendly_name("Y");
-        M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
@@ -249,7 +258,13 @@ TEST(SmartReshapeTests, LoopDynamicParameters) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
+        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+        {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
@@ -267,9 +282,6 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
         auto add_Y = std::make_shared<opset5::Add>(Y,
                 std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
         auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        X->set_friendly_name("X");
-        Y->set_friendly_name("Y");
-        M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, add_Y) -> (Zo)
         // Body parameters
@@ -317,7 +329,13 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {4, 3, 2}}, {"Y", {4, 3, 2}}, {"M", {4, 3, 2}}}));
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
+        {f->get_parameters()[0]->get_friendly_name(), {4, 3, 2}},
+        {f->get_parameters()[1]->get_friendly_name(), {4, 3, 2}},
+        {f->get_parameters()[2]->get_friendly_name(), {4, 3, 2}}}));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({4, 3, 2}));
@@ -335,9 +353,6 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
         auto add_Y = std::make_shared<opset5::Add>(Y,
                 std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
         auto M = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        X->set_friendly_name("X");
-        Y->set_friendly_name("Y");
-        M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, add_Y) -> (Zo)
         // Body parameters
@@ -379,7 +394,13 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
 
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {1, 1, 1}}, {"M", {32, 1, 10}}}));
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
+        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+        {f->get_parameters()[1]->get_friendly_name(), {1, 1, 1}},
+        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));

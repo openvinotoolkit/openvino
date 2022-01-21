@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -844,13 +844,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                  input_data.as<binary_convolution>().get_primitive()->dilation.spatial[0] == 1 &&
                                  input_data.as<binary_convolution>().get_primitive()->dilation.spatial[1] == 1;
 
+            auto expected_format = _lo.get_preferred_format(input_data);
+
             should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>()) &&
                            quantize_node.get_scale_shift_opt() &&
                            ((out_layout.data_type == data_types::f32 || out_layout.data_type == data_types::f16)  ||
                             input_data.get_output_layout().format == format::b_fs_yx_fsv16 ||
+                            input_data.get_output_layout().format == format::bs_fs_yx_bsv32_fsv16 ||
                             (_lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_dependency(1).get_output_layout()) &&
                              !is_grouped_conv(input_data.as<convolution>())) ||
                            // Avoid fusing to b_fs_yx_fsv16 (and similar) kernels
+                           expected_format == cldnn::format::bs_fs_yx_bsv32_fsv16 /* Allow quantization fusing for onednn */ ||
                            ((input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
                            input_data.get_dependency(0).get_output_layout().data_type == data_types::i8) &&
                            (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8)));

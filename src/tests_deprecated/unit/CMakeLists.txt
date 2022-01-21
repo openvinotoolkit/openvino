@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -53,7 +53,7 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
     endif()
 endif()
 
-if (ENABLE_MYRIAD)
+if (ENABLE_INTEL_VPU)
     include(${XLINK_DIR}/XLink.cmake)
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -72,12 +72,12 @@ if (ENABLE_MYRIAD)
             engines/vpu/myriad_tests/*cpp
             engines/vpu/myriad_tests/helpers/*cpp
             engines/vpu/myriad_tests/helpers/*h
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/*.cpp
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/configuration/*.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/myriad_plugin/*.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/myriad_plugin/configuration/*.cpp
             )
     include_directories(
             engines/vpu/myriad_tests/helpers
-            $<TARGET_PROPERTY:myriadPlugin,SOURCE_DIR>
+            $<TARGET_PROPERTY:ov_intel_vpu_plugin,SOURCE_DIR>
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 
@@ -107,7 +107,7 @@ endif()
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-error=inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-error=inconsistent-missing-override >)
 
-if (ENABLE_MYRIAD)
+if (ENABLE_INTEL_VPU)
     target_compile_definitions(${TARGET_NAME} PRIVATE __PC__)
     target_link_libraries(${TARGET_NAME} PRIVATE mvnc vpu_graph_transformer_test_static)
 endif ()
@@ -124,7 +124,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine_lp_transformations
     )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
+    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
 endif()

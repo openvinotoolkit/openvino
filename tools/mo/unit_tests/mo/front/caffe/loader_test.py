@@ -1,7 +1,5 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import unittest
 
 import numpy as np
 from google.protobuf import text_format
@@ -10,6 +8,7 @@ from openvino.tools.mo.front.caffe.loader import caffe_pb_to_nx
 from openvino.tools.mo.front.caffe.proto import caffe_pb2
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 proto_str_one_input = 'name: "network" ' \
                       'layer { ' \
@@ -89,7 +88,7 @@ proto_same_name_layers = 'layer { ' \
                          'top: "conv1_2" ' \
                          '}'
 
-class TestLoader(unittest.TestCase):
+class TestLoader(UnitTestWithMockedTelemetry):
     def test_caffe_pb_to_nx_one_input(self):
         proto = caffe_pb2.NetParameter()
         text_format.Merge(proto_str_one_input, proto)

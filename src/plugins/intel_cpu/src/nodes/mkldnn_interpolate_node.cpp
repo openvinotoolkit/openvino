@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,8 +80,10 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
 
         this->preamble();
 
-        if (attr_.post_ops_.len() != 0)
+        if (attr_.post_ops_.len() != 0) {
+            mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
+        }
         if (isa == cpu::x64::avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
@@ -183,7 +185,8 @@ private:
     Reg64 reg_tmp_64 = r10;
 
     Xbyak::Reg64 reg_oc_off = rax;
-    Xbyak::Reg64 reg_d_weights = rbx;
+    Xbyak::Reg64 reg_post_ops_data = rbx;
+    Xbyak::Reg64 reg_d_weights = reg_tmp_64;
     Xbyak::Reg64 reg_d_bias = rcx;
     Xbyak::Reg32 reg_index_offset = edx;
 
@@ -1569,16 +1572,20 @@ private:
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
+        int post_ops_data_offset = 0;
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
+                mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
+                post_ops_data_offset += sizeof(float*);
+                mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_bias, reg_oc_off);
+                post_ops_data_offset += sizeof(float*);
+
                 // weight and bias is padded. scalar as vector.
                 depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
                 depthwise_inj_idx++;
@@ -1588,22 +1595,101 @@ private:
 
                 int s_idx = vmm_val.getIdx();
 
-                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_post_ops_data + post_ops_data_offset, reg_oc_off);
                 quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0, 0, is_broadcast);
 
-                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_post_ops_data + post_ops_data_offset, reg_oc_off);
                 quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding, 0, is_broadcast);
 
                 if (do_dequantization) {
-                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_post_ops_data + post_ops_data_offset, reg_oc_off);
                     quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0, 0, is_broadcast);
                 }
 
+                post_ops_data_offset += quantization_injectors[quantization_inj_idx]->memoryStep();
                 quantization_inj_idx++;
             }
         }
     }
 };
+
+namespace {
+struct InterpolateKey {
+    MKLDNNInterpolateNode::InterpolateAttrs nodeAttrs;
+    VectorDims srcDims;
+    VectorDims dstDims;
+    std::vector<float> dataScales;
+    mkldnn::primitive_attr attr;
+
+    size_t hash() const;
+    bool operator==(const InterpolateKey& rhs) const;
+};
+
+size_t InterpolateKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+
+    seed = hash_combine(seed, nodeAttrs.mode);
+    seed = hash_combine(seed, nodeAttrs.coordTransMode);
+    seed = hash_combine(seed, nodeAttrs.nearestMode);
+    seed = hash_combine(seed, nodeAttrs.layout);
+
+    seed = hash_combine(seed, nodeAttrs.antialias);
+    seed = hash_combine(seed, nodeAttrs.cubeCoeff);
+
+    seed = get_vector_hash(seed, nodeAttrs.padBegin);
+    seed = get_vector_hash(seed, nodeAttrs.padEnd);
+
+    seed = hash_combine(seed, nodeAttrs.inPrc.getPrecVal());
+    seed = hash_combine(seed, nodeAttrs.outPrc.getPrecVal());
+
+    seed = get_vector_hash(seed, srcDims);
+    seed = get_vector_hash(seed, dstDims);
+    seed = get_vector_hash(seed, dataScales);
+
+    seed = hash_combine(seed, get_attr_hash(*attr.get()));
+    return seed;
+}
+
+bool InterpolateKey::operator==(const InterpolateKey &rhs) const {
+    if (nodeAttrs.mode != rhs.nodeAttrs.mode)
+        return false;
+    if (nodeAttrs.coordTransMode != rhs.nodeAttrs.coordTransMode)
+        return false;
+    if (nodeAttrs.nearestMode != rhs.nodeAttrs.nearestMode)
+        return false;
+    if (nodeAttrs.layout != rhs.nodeAttrs.layout)
+        return false;
+    if (nodeAttrs.antialias != rhs.nodeAttrs.antialias)
+        return false;
+    if (nodeAttrs.cubeCoeff != rhs.nodeAttrs.cubeCoeff)
+        return false;
+    if (nodeAttrs.padBegin != rhs.nodeAttrs.padBegin)
+        return false;
+    if (nodeAttrs.padEnd != rhs.nodeAttrs.padEnd)
+        return false;
+    if (nodeAttrs.inPrc != rhs.nodeAttrs.inPrc)
+        return false;
+    if (nodeAttrs.outPrc != rhs.nodeAttrs.outPrc)
+        return false;
+    if (nodeAttrs.layout != rhs.nodeAttrs.layout)
+        return false;
+
+    if (srcDims != rhs.srcDims)
+        return false;
+    if (dstDims != rhs.dstDims)
+        return false;
+    if (dataScales != rhs.dataScales)
+        return false;
+    if (!(*attr.get() == *rhs.attr.get()))
+        return false;
+
+    return true;
+}
+
+} // namespace
 
 // shapeND: n     c     d     h    w
 // blockND: ncdhw cdhw  dhw   hw   w    1
@@ -1958,33 +2044,8 @@ bool MKLDNNInterpolateNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
-    std::vector<ov::StaticShape> input_shapes = {
-            getParentEdgesAtPort(DATA_ID)[0]->getMemory().GetShape().getStaticDims(),
-            getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().GetShape().getStaticDims(),
-            getParentEdgesAtPort(SCALES_ID)[0]->getMemory().GetShape().getStaticDims()
-    };
-
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
-    const auto &memory = getParentEdgesAtPort(port)[0]->getMemory();
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values = {
-            {port, std::make_shared<ngraph::runtime::HostTensor>(InferenceEngine::details::convertPrecision(memory.getDesc().getPrecision()),
-                                                                 memory.getStaticDims(), memory.GetPtr())}
-    };
-
-    if (getParentEdges().size() > AXES_ID) {
-        const auto &memory = getParentEdgesAtPort(AXES_ID)[0]->getMemory();
-        input_shapes.push_back(memory.getStaticDims());
-        input_values.insert({3, std::make_shared<ngraph::runtime::HostTensor>(InferenceEngine::details::convertPrecision(memory.getDesc().getPrecision()),
-                                                                              memory.getStaticDims(), memory.GetPtr())});
-    }
-
-    std::vector<ov::StaticShape> output_shapes = {{}};
-    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
-
-    std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s){ return s.to_shape(); });
-
-    return result;
+    return shapeInferGeneric(PortMask(port, AXES_ID));
 }
 
 void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {
@@ -2027,31 +2088,63 @@ void MKLDNNInterpolateNode::prepareParams() {
         IE_THROW() << errorPrefix << " did not allocate target shape memory";
     if (!scaleMemPtr || !scaleMemPtr->GetPrimitivePtr())
         IE_THROW() << errorPrefix << " did not allocate scales memory";
-    if (getSelectedPrimitiveDescriptor() == nullptr)
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
         IE_THROW() << errorPrefix << " did not set preferable primitive descriptor";
 
     const auto &srcDims = srcMemPtr->getStaticDims();
     const auto &dstDims = dstMemPtr->getStaticDims();
-    setPostOps(attr, dstDims, true);
 
     std::vector<float> dataScales = getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
         IE_THROW() << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
-    if ((interpAttrs.mode == InterpolateMode::nearest || interpAttrs.mode == InterpolateMode::linear_onnx || interpAttrs.mode == InterpolateMode::cubic) &&
-        ((interpAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
-            (mayiuse(cpu::x64::avx2) && interpAttrs.inPrc == Precision::FP32))) {
-        execPtr = std::make_shared<InterpolateJitExecutor>(interpAttrs,
-                                                           srcDims,
-                                                           dstDims,
-                                                           dataScales,
-                                                           attr);
-    } else {
-        execPtr = std::make_shared<InterpolateRefExecutor>(interpAttrs,
-                                                           srcDims,
-                                                           dstDims,
-                                                           dataScales);
+
+    InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, mkldnn::primitive_attr()};
+    setPostOps(key.attr, dstDims, true);
+
+    postOpsDataPtrs.clear();
+    auto &postOps = (*key.attr.get()).post_ops_;
+    for (int i = 0; i < postOps.len(); ++i) {
+        auto &postOp = postOps.entry_[i];
+        if (postOp.is_quantization()) {
+            auto &data = postOp.quantization.data;
+            postOpsDataPtrs.insert(postOpsDataPtrs.end(), std::begin(data), std::end(data));
+            memset(data, 0, sizeof(data));
+        } else if (postOp.is_depthwise()) {
+            auto &weights = postOp.depthwise.weights_data;
+            auto &biases = postOp.depthwise.biases_data;
+            postOpsDataPtrs.push_back(weights);
+            postOpsDataPtrs.push_back(biases);
+            weights = 0;
+            biases = 0;
+        }
     }
+
+    auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutor> {
+        std::shared_ptr<InterpolateExecutor> executor;
+        if ((key.nodeAttrs.mode == InterpolateMode::nearest || key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
+            key.nodeAttrs.mode == InterpolateMode::cubic) &&
+            ((key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
+                (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == Precision::FP32))) {
+            executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
+                                                               key.srcDims,
+                                                               key.dstDims,
+                                                               key.dataScales,
+                                                               key.attr);
+        } else {
+            executor = std::make_shared<InterpolateRefExecutor>(key.nodeAttrs,
+                                                               key.srcDims,
+                                                               key.dstDims,
+                                                               key.dataScales);
+        }
+        return executor;
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, buildExecutor);
+    execPtr = result.first;
+
     lastOutputDims = dstDims;
 }
 
@@ -2223,13 +2316,13 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         src_data = src_data_origin;
     }
 
-    execPtr->exec(src_data, dst_data);
+    execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
 }
 
 // for ndhwc and nCdhw8c[16c]
 // input may be f32/bf16/int8, fused->output varies
-void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C,
-                                                                int ID, int IH, int IW, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                                                                int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
@@ -2254,6 +2347,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *i
                 arg.index = static_cast<int*>(&(index_w_kernel[0]));
                 arg.work_amount = C;
                 arg.oc_off = 0;
+                arg.post_op_data = post_ops_data_;
                 (*interpolateKernel)(&arg);
             });
         } else {  // for blk
@@ -2275,6 +2369,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *i
                     arg.index = static_cast<int*>(&(index_w_kernel[0]));
                     arg.work_amount = static_cast<size_t>(OW);
                     arg.oc_off = cb * blk_size * sizeof(float);
+                    arg.post_op_data = post_ops_data_;
                     (*interpolateKernel)(&arg);
                 }
             });
@@ -2282,8 +2377,8 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *i
     }  // batch end
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
-                                                             int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                                                             int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
@@ -2308,11 +2403,12 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_p
         arg.index = static_cast<int*>(&index_kernel[0]);  // need index_h and index_w in kernel, it's in continous memory so one param
         arg.oc_off = static_cast<size_t>(c * sizeof(float));
         // work_amount is OH(out loop) and OW(inner loop), can get in kernel from jcp.
+        arg.post_op_data = post_ops_data_;
         (*interpolateKernel)(&arg);
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C,
+void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, int B, int C,
                                                                      int ID, int IH, int IW, int OD, int OH, int OW) {
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3, EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
     // weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
@@ -2331,12 +2427,13 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8
         arg.dst = out_ptr_nc;
         arg.work_amount = OW * OH * OD;
         arg.oc_off = static_cast<size_t>(c * sizeof(float));
+        arg.post_op_data = post_ops_data_;
         (*interpolateKernel)(&arg);
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
-                                                                        int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                                                                        int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     // left:OW right:OW Top:OH Bottom:OH Front:OD End:OD
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, 0);
@@ -2401,12 +2498,14 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const ui
             arg.dst = out_ptr_ndhw;
             arg.work_amount = workAmount;
             arg.oc_off = 0;
+            arg.post_op_data = post_ops_data_;
             (*interpolateKernel)(&arg);
         }
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                                                                   int B, int C, int IH, int IW, int OH, int OW) {
     const int idxNum = 1;
     int *xOrigin = static_cast<int*>(&indexTable[0]);
     float *xFactor = reinterpret_cast<float*>(&indexTable[OW]);
@@ -2447,11 +2546,13 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicCGathered(const uint8_t
             // for blk, src + IW*IH*blkSize, dst + OW*OH*blkSize, process the blkSize on next CB
             arg.work_amount = workAmount;
             arg.oc_off = 0;
+            arg.post_op_data = post_ops_data_;
             (*interpolateKernel)(&arg);
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                                                                int B, int C, int IH, int IW, int OH, int OW) {
     int tblAdvance = 0;
     int *xOrigin = static_cast<int*>(&indexTable[tblAdvance]);
     tblAdvance += OW;
@@ -2481,6 +2582,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicPlanar(const uint8_t *i
         arg.weight_ptr[1] = yFactor;
         arg.work_amount = static_cast<size_t>(OW * OH);
         arg.oc_off = static_cast<size_t>(c * sizeof(float));
+        arg.post_op_data = post_ops_data_;
         (*interpolateKernel)(&arg);
     });
 }
@@ -3284,7 +3386,7 @@ MKLDNNInterpolateNode::InterpolateJitExecutor::InterpolateJitExecutor(const Inte
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
@@ -3294,25 +3396,25 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::exec(const uint8_t *in_ptr_,
     switch (mode) {
         case InterpolateMode::nearest: {
             if (configured_for_layout == InterpolateLayoutType::planar) {
-                NNPlanar(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+                NNPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
             } else {
-                NNCGathered(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+                NNCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
             }
             break;
         }
         case InterpolateMode::linear_onnx: {
             if (configured_for_layout == InterpolateLayoutType::planar) {
-                linearOnnxPlanar(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+                linearOnnxPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
             } else {
-                linearOnnxCGathered(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+                linearOnnxCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
             }
             break;
         }
         case InterpolateMode::cubic: {
             if (configured_for_layout == InterpolateLayoutType::planar) {
-                cubicPlanar(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+                cubicPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
             } else {
-                cubicCGathered(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+                cubicCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
             }
             break;
         }
@@ -3322,7 +3424,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::exec(const uint8_t *in_ptr_,
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) {
+void MKLDNNInterpolateNode::InterpolateRefExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
