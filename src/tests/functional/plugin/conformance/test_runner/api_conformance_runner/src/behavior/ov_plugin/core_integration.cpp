@@ -4,7 +4,7 @@
 
 #include "behavior/ov_plugin/core_integration.hpp"
 #include "openvino/runtime/core.hpp"
-#include "api_conformance_helpers.hpp"
+#include "ov_api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;

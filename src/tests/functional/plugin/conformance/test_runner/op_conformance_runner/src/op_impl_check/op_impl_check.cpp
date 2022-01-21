@@ -15,7 +15,7 @@ INSTANTIATE_TEST_SUITE_P(conformance,
                          ::testing::Combine(
                                  ::testing::ValuesIn(createFunctions()),
                                  ::testing::Values(targetDevice),
-                                 ::testing::Values(std::map<std::string, std::string>())),
+                                 ::testing::Values(ov::AnyMap())),
                          OpImplCheckTest::getTestCaseName);
 } // namespace
 } // namespace ConformanceTests
