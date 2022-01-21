@@ -14,102 +14,102 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
 
+#include <transformations/serialize.hpp>
+
 namespace {
 using namespace ngraph;
-Output<Node> getClonedSubgraph(Output<Node> parent,
-                               const std::shared_ptr<ngraph::Node> end,
-                               std::set<ov::Input<ov::Node>> consumers) {
-    auto check_add = [](const std::shared_ptr<Node>& add) {
-        return is_type<opset1::Add>(add) &&
-              !is_type<opset1::Constant>(add->get_input_node_shared_ptr(0)) &&
-              !is_type<opset1::Constant>(add->get_input_node_shared_ptr(1));
-    };
 
-    std::shared_ptr<Node> node;
-    while (parent.get_node_shared_ptr() != end) {
-        if (consumers.size() == 1) {
-            node = consumers.begin()->get_node()->shared_from_this();
-            if (check_add(node)) {
+void serialize(const std::shared_ptr<ngraph::Function> func, std::string name) {
+    std::string path = "C://models//" + name;
+    ngraph::pass::Serialize(path + ".xml", path + ".bin").run_on_function(func);
+}
+
+void fillCandidatesOutsToConcatenateFromOriginalFunc(const std::shared_ptr<ngraph::Function>& main_function,
+                                     const NodeMap& cloned_nodes,
+                                     std::map<Output<Node>, OutputVector>& candidates_to_concatenate,
+                                     const size_t batch_size) {
+    for (const auto& node : main_function->get_ops()) {
+        if (ov::is_type<opset1::Parameter>(node))
+            continue;
+
+        auto outputs = node->outputs();
+        for (const auto& output : outputs) {
+            auto target_inputs = output.get_target_inputs();
+            if (std::any_of(target_inputs.begin(), target_inputs.end(), [&](const ov::Input<Node>& input) {
+                    return cloned_nodes.count(input.get_node()) == 0;
+                })) {
+                candidates_to_concatenate[output] = OutputVector(batch_size);
                 break;
             }
-
-            auto inputs = node->input_values();
-            inputs[0] = parent;
-            const auto new_node = node->clone_with_new_inputs(inputs);
-            new_node->set_friendly_name("");
-            parent = new_node->output(0);
-            consumers = node->get_output_target_inputs(0);
-            if (node == end) {
-                break;
-            }
-        } else {
-            auto next_node = consumers.begin()->get_node()->shared_from_this();
-            while (!check_add(next_node)) {
-                next_node = next_node->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-            }
-
-            OutputVector new_add_inputs;
-            for (const auto& consumer : consumers) {
-                const auto consumer_node = consumer.get_node()->shared_from_this();
-
-                if (consumer_node == next_node) {
-                    new_add_inputs.push_back(parent);
-                } else {
-                    auto inputs = consumer_node->input_values();
-                    inputs[0] = parent;
-                    const auto new_node = consumer_node->clone_with_new_inputs(inputs);
-                    new_node->set_friendly_name("");
-
-                    auto new_parent = new_node->output(0);
-                    auto old_consumers = consumer.get_node()->output(0).get_target_inputs();
-
-                    auto new_input = getClonedSubgraph(new_parent, next_node, old_consumers);
-                    new_add_inputs.push_back(new_input);
-                }
-            }
-            const auto new_node = next_node->clone_with_new_inputs(new_add_inputs);
-            new_node->set_friendly_name("");
-            parent = new_node->output(0);
-            consumers = next_node->get_output_target_inputs(0);
         }
     }
-
-    return parent;
 }
 
-Output<Node> clone(const std::shared_ptr<ngraph::Node> start, const std::shared_ptr<opset1::Split>& split,
-    const std::shared_ptr<ngraph::Node> end, size_t idx, std::set<ov::Input<ov::Node>> consumers_original) {
-    auto consumers = consumers_original;
-    Output<Node> parent = split->output(idx);
-    std::shared_ptr<Node> node;
-    return getClonedSubgraph(parent, end, consumers);
+void addOutToConcatenate(const std::shared_ptr<ngraph::Function>& clone_function,
+                         const NodeMap& cloned_nodes,
+                         std::map<Output<Node>, OutputVector>& concatenate_map,
+                         const size_t idx) {
+    for (auto& elem : concatenate_map) {
+        const auto& orig_out = elem.first;
+        const auto& candidate = cloned_nodes.find(orig_out.get_node());
+        // TODO: exception if not found
+
+        auto cloned_out = (*candidate).second->output(orig_out.get_index());
+        elem.second[idx] = cloned_out;
+    }
 }
 
-// switch to image affinity
-bool switchToImageAffinity(std::shared_ptr<ngraph::Node> start, std::shared_ptr<ngraph::Node> end) {
-    const size_t batchSize = end->get_input_shape(0)[0];
-    OutputVector newNodes;
+void setBatch(const std::shared_ptr<ngraph::Function> func, size_t batch) {
+    for (auto&& param : func->get_parameters()) {
+        auto param_shape = param->get_partial_shape();
+        param_shape[0] = batch;
+        param->set_partial_shape(param_shape);
+    }
+    func->validate_nodes_and_infer_types();
+}
 
-    const auto consumers = start->get_output_target_inputs(0);
-
-    const size_t batch_size = start->get_output_partial_shape(0)[0].get_length();
-    const auto axis = opset1::Constant::create(element::i32, {}, { 0 });
+bool switchToImageAffinity(std::shared_ptr<ngraph::Node> start,
+                           std::shared_ptr<ngraph::Node> end,
+                           const NodeMap& constants = {}) {
+    const size_t batch_size = end->get_input_partial_shape(0)[0].get_length();
+    const auto axis = opset1::Constant::create(element::i32, {}, {0});
     const auto split = std::make_shared<opset1::Split>(start, axis, batch_size);
 
-    for (size_t i = 0; i < batchSize; ++i) {
-        auto cloned = clone(start, split, end, i, consumers);
-        newNodes.push_back(cloned);
+    const auto main_function = std::make_shared<ngraph::Function>(NodeVector{end},
+        ParameterVector{ngraph::as_type_ptr<ngraph::opset1::Parameter>(start)});
+
+    // TODO: input_shape if not parameter
+    auto single_batch_shape = start->get_output_partial_shape(0);
+    const size_t reduced_batch_size = 1;
+    single_batch_shape[0] = reduced_batch_size;
+
+    // original_node -- shared_ptr on clone
+    NodeMap cloned_nodes;
+    const auto cur_function = ngraph::clone_function(*main_function, cloned_nodes);
+    setBatch(cur_function, reduced_batch_size);
+
+    replace_output_update_name(cur_function->get_parameters()[0]->output(0), split->output(0));
+
+    std::map<Output<Node>, OutputVector> concatenate_map;
+    fillCandidatesOutsToConcatenateFromOriginalFunc(main_function, cloned_nodes, concatenate_map, batch_size);
+    addOutToConcatenate(cur_function, cloned_nodes, concatenate_map, 0);
+
+    // insert per-batch graphs after split
+    for (size_t i = 1; i < batch_size; ++i) {
+        cloned_nodes.clear();
+        const auto cur_function = ngraph::clone_function(*main_function, cloned_nodes);
+        setBatch(cur_function, reduced_batch_size);
+        addOutToConcatenate(cur_function, cloned_nodes, concatenate_map, i);
+        replace_output_update_name(cur_function->get_parameters()[0]->output(0), split->output(i));
     }
 
-    const auto concat = std::make_shared<ngraph::opset1::Concat>(newNodes, 0);
-    replace_node(end, concat);
-    copy_runtime_info(end, concat);
-
-    return true;
-}
-
-// switch to layer affinity
-bool switchToLayerAffinity(std::shared_ptr<ngraph::Node> start, std::shared_ptr<ngraph::Node> end) {
+    // concatenate per-batch graphs
+    for (const auto& elem : concatenate_map) {
+        const auto original_node = elem.first.get_node_shared_ptr();
+        const auto concat = std::make_shared<ngraph::opset1::Concat>(elem.second, 0);
+        copy_runtime_info(original_node, concat);
+        replace_node(original_node, concat);
+    }
     return true;
 }
 } // namespace
@@ -118,9 +118,9 @@ NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::AffinitySwitcher, "AffinitySwitcher", 0);
 
 bool MKLDNNPlugin::AffinitySwitcher::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool rewritten = false;
-
     std::shared_ptr<Node> start = f->get_parameters()[0];
     std::shared_ptr<Node> end;
+
     for (const auto& node : f->get_ordered_ops()) {
         for (const auto& input : node->input_values()) {
             const auto pShape = input.get_partial_shape();
