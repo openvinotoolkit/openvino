@@ -32,7 +32,7 @@ The table below lists supported operating systems and Python* versions required 
 
 > **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel CPUs only
 
-## Install the Runtime Package
+## Install the OpenVINO™ Runtime Package
 
 ### Step 1. Set Up Python Virtual Environment
 
