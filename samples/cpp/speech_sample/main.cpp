@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <time.h>
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments ---------------------------------
-        if (!ParseAndCheckCommandLine(argc, argv)) {
+        if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
         BaseFile* file;
@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 
         // --------------------------- Step 1. Initialize inference engine core and read model
         // -------------------------------------
-        ov::runtime::Core core;
+        ov::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
         check_number_of_inputs(model->inputs().size(), numInputFiles);
@@ -215,7 +215,7 @@ int main(int argc, char* argv[]) {
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
-        ov::runtime::CompiledModel executableNet;
+        ov::CompiledModel executableNet;
         if (!FLAGS_m.empty()) {
             slog::info << "Loading model to the device" << slog::endl;
             executableNet = core.compile_model(model, deviceStr, genericPluginConfig);
@@ -247,7 +247,7 @@ int main(int argc, char* argv[]) {
         }
         // --------------------------- Step 4. Configure input & output
         // --------------------------------------------------
-        std::vector<ov::runtime::Tensor> ptrInputBlobs;
+        std::vector<ov::Tensor> ptrInputBlobs;
         auto cInputInfo = executableNet.inputs();
         check_number_of_inputs(cInputInfo.size(), numInputFiles);
         if (!FLAGS_iname.empty()) {
@@ -259,7 +259,7 @@ int main(int argc, char* argv[]) {
                 throw std::logic_error(errMessage);
             }
             for (const auto& input : inputNameBlobs) {
-                ov::runtime::Tensor blob = inferRequests.begin()->inferRequest.get_tensor(input);
+                ov::Tensor blob = inferRequests.begin()->inferRequest.get_tensor(input);
                 if (!blob) {
                     std::string errMessage("No blob with name : " + input);
                     throw std::logic_error(errMessage);
@@ -302,7 +302,7 @@ int main(int argc, char* argv[]) {
             }
             /** Work with each utterance **/
             for (uint32_t utteranceIndex = 0; utteranceIndex < numUtterances; ++utteranceIndex) {
-                std::map<std::string, ov::runtime::ProfilingInfo> utterancePerfMap;
+                std::map<std::string, ov::ProfilingInfo> utterancePerfMap;
                 uint64_t totalNumberOfRunsOnHw = 0;
                 std::string uttName;
                 uint32_t numFrames(0), n(0);
@@ -381,7 +381,7 @@ int main(int argc, char* argv[]) {
                 for (auto& ut : ptrUtterances) {
                     inputFrame.push_back(&ut.front());
                 }
-                std::map<std::string, ov::runtime::ProfilingInfo> callPerfMap;
+                std::map<std::string, ov::ProfilingInfo> callPerfMap;
                 size_t frameIndex = 0;
                 uint32_t numFramesFile = numFrames;
                 numFrames += FLAGS_cw_l + FLAGS_cw_r;
@@ -415,7 +415,7 @@ int main(int argc, char* argv[]) {
                                     outputFrame = &ptrScores.front() +
                                                   numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
 
-                                    ov::runtime::Tensor outputBlob =
+                                    ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
                                     if (!FLAGS_oname.empty())
                                         outputBlob =
@@ -426,7 +426,7 @@ int main(int argc, char* argv[]) {
                                 }
                                 if (!FLAGS_r.empty()) {
                                     /** Compare output data with reference scores **/
-                                    ov::runtime::Tensor outputBlob =
+                                    ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
                                     if (!FLAGS_oname.empty())
                                         outputBlob =
@@ -458,7 +458,7 @@ int main(int argc, char* argv[]) {
                         for (int i = 0; i < model->inputs().size(); i++) {
                             inferRequest.inferRequest.set_input_tensor(
                                 i,
-                                ov::runtime::Tensor(ov::element::f32, model->inputs()[i].get_shape(), inputFrame[0]));
+                                ov::Tensor(ov::element::f32, model->inputs()[i].get_shape(), inputFrame[0]));
                         }
                         /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.start_async();

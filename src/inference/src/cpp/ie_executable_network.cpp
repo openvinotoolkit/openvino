@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,7 +115,6 @@ ExecutableNetwork::operator bool() const noexcept {
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 CompiledModel::~CompiledModel() {
     _impl = {};
@@ -230,5 +229,5 @@ bool CompiledModel::operator!() const noexcept {
 CompiledModel::operator bool() const noexcept {
     return !!_impl;
 }
-}  // namespace runtime
+
 }  // namespace ov

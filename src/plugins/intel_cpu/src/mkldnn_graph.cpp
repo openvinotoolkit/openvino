@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -847,7 +847,7 @@ inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::st
     }
 }
 
-void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
+void MKLDNNGraph::Infer(MKLDNNInferRequestBase* request, int batch) {
     if (!IsReady()) {
         IE_THROW() << "Wrong state. Topology is not ready.";
     }

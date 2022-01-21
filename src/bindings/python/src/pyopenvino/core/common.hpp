@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,25 +26,25 @@ namespace py = pybind11;
 namespace Common {
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
-const std::map<py::str, ov::element::Type>& dtype_to_ov_type();
+const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
 
-ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
+ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
 
-const ov::runtime::Tensor& cast_to_tensor(const py::handle& tensor);
+const ov::Tensor& cast_to_tensor(const py::handle& tensor);
 
 const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs);
 
 const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
 
-void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inputs);
+void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
 
 PyAny from_ov_any(const ov::Any& any);
 
-uint32_t get_optimal_number_of_requests(const ov::runtime::CompiledModel& actual);
+uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
-py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::runtime::InferRequest& request);
+py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::InferRequest& request);
 
 // Use only with classes that are not creatable by users on Python's side, because
 // Objects created in Python that are wrapped with such wrapper will cause memory leaks.

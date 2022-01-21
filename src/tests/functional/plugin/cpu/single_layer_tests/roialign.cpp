@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,13 +83,13 @@ protected:
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
-        ov::runtime::Tensor data_tensor;
+        ov::Tensor data_tensor;
         const auto& dataPrecision = funcInputs[0].get_element_type();
         const auto& dataShape = targetInputStaticShapes.front();
         data_tensor = ov::test::utils::create_and_fill_tensor(dataPrecision, dataShape, 10, 0, 1000);
 
         const auto& coordsET = funcInputs[1].get_element_type();
-        auto coordsTensor = ov::runtime::Tensor{ coordsET, targetInputStaticShapes[1] };
+        auto coordsTensor = ov::Tensor{ coordsET, targetInputStaticShapes[1] };
         if (coordsET == ElementType::f32) {
             auto coordsTensorData = static_cast<float*>(coordsTensor.data());
             for (size_t i = 0; i < coordsTensor.get_size(); i += 4) {
@@ -110,7 +110,7 @@ protected:
             IE_THROW() << "roi align. Unsupported precision: " << coordsET;
         }
 
-        auto roisIdxTensor = ov::runtime::Tensor{ funcInputs[2].get_element_type(), targetInputStaticShapes[2] };
+        auto roisIdxTensor = ov::Tensor{ funcInputs[2].get_element_type(), targetInputStaticShapes[2] };
         auto roisIdxTensorData = static_cast<std::int32_t*>(roisIdxTensor.data());
         std::int32_t batchIdx = 0;
         for (int i = 0; i < roisIdxTensor.get_size(); i++) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ TEST_P(OVRemoteTest, remoteTensorAsTensor) {
 
     auto remote_tensor = context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters);
 
-    runtime::Tensor tensor;
+    ov::Tensor tensor;
     ASSERT_NO_THROW(tensor = remote_tensor);
     ASSERT_THROW(tensor.data(), ov::Exception);
     ASSERT_NO_THROW(tensor.get_element_type());
@@ -107,7 +107,7 @@ TEST_P(OVRemoteTest, inferWithRemoteNoThrow) {
     }
     auto output = function->get_results().front();
     {// Host accessable output if input is remote by default
-        runtime::Tensor tensor;
+        ov::Tensor tensor;
         ASSERT_NO_THROW(tensor = infer_request.get_tensor(
             ngraph::op::util::create_ie_output_name(output->input_value(0))));
         ASSERT_NO_THROW(tensor.data());

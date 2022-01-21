@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ public:
 protected:
     bool isBias = false;
 
-    void checkBiasFusing(ov::runtime::CompiledModel &execNet) const {
+    void checkBiasFusing(ov::CompiledModel &execNet) const {
         auto execGraph = execNet.get_runtime_model();
         ASSERT_NE(nullptr, execGraph);
 

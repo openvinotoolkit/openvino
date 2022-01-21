@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
 }
 
 void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    static const std::vector<ov::runtime::Tensor> inputTensors = {
+    static const std::vector<ov::Tensor> inputTensors = {
         // 16 x 4 = 64
         CommonTestUtils::create_tensor<float>(ov::element::f32, Shape{16, 4}, {
             1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,

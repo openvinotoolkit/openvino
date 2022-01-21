@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 
 namespace ov {
@@ -14,8 +13,8 @@ using namespace opset8;
 using namespace element;
 
 NamedOutputs embedding(const NodeContext& node) {
-    auto data_ids = node.get_ng_input("Ids");
-    auto data_w = node.get_ng_input("W");
+    auto data_ids = node.get_input("Ids");
+    auto data_w = node.get_input("W");
 
     auto padding_idx = node.get_attribute<int64_t>("padding_idx");
 
