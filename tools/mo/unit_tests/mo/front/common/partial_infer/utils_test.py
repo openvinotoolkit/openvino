@@ -149,7 +149,7 @@ class mo_array_test(unittest.TestCase):
 class clarify_partial_shape_test(unittest.TestCase):
 
     def test_clarify_1(self):
-        actual_result = clarify_partial_shape(shape_array([dynamic_dimension, 10, dynamic_dimension]),
-                                              shape_array([4, dynamic_dimension, dynamic_dimension]))
+        actual_result = clarify_partial_shape([shape_array([dynamic_dimension, 10, dynamic_dimension]),
+                                              shape_array([4, dynamic_dimension, dynamic_dimension])])
         ref_result = shape_array([4, 10, dynamic_dimension])
         assert strict_compare_tensors(actual_result, ref_result)
