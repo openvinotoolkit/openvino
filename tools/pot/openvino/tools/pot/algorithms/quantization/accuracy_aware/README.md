@@ -25,7 +25,7 @@ without a need to wait until it finishes.
 
 The figure below shows the diagram of the algorithm.
 
-![](../../../../docs/images/aa_quantization_pipeline.png)
+![](../../../../../../docs/images/aa_quantization_pipeline.png)
 
 ## Parameters
 Since the [DefaultQuantization](../default/README.md) algorithm is used as an initialization, all its parameters are also valid and can be specified. Here we
