@@ -37,7 +37,7 @@ The table below lists the supported operating systems and Python* versions requi
 
 > **NOTE**: This package can be installed on other versions of macOS, Linux and Windows, but only the specific versions above are fully validated.
 
-> **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel CPUs only
+> **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel® CPUs only.
 
 ## Install the OpenVINO™ Development Tools Package
 
