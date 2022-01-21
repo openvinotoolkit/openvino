@@ -9,7 +9,7 @@
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
     {{"GNA_DEVICE_MODE", "GNA_SW_FP32"},
      {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}
 };

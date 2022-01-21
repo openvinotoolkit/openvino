@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <openvino/frontend/extension/telemetry.hpp>
-#include <openvino/frontend/paddle/frontend.hpp>
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/paddle/frontend.hpp"
 
 namespace ov {
 namespace frontend {
