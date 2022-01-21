@@ -454,17 +454,6 @@ def get_tensor_names_of_result_node(graph):
     return result_names_to_tensor_names
 
 
-def find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_names):
-    for res_node in result_nodes:
-        res_name = res_node.soft_get('name')
-        tensor_names = result_names_to_tensor_names[res_name]
-        if output_name in tensor_names:
-            # In this case output tensor name is in tensor names list of previous op
-            return res_name
-
-    return None
-
-
 def serialize_network(graph, net_element, unsupported):
     layers = SubElement(net_element, 'layers')
     edges = SubElement(net_element, 'edges')
@@ -503,16 +492,17 @@ def serialize_network(graph, net_element, unsupported):
 
         # After port renumbering port/connection API is not applicable, and output port numbering
         # starts from len(node.in_nodes()).
-        data_node = node.out_node(len(node.in_nodes()))
-
-        found_result = False
-        for op_node in data_node.out_nodes():
-            if op_node.soft_get('type') == 'Result':
-                found_result = True
-                ordered_results.append(op_node.soft_get('name'))
+        found_tensor_name = False
+        for res_node in result_nodes:
+            res_name = res_node.soft_get('name')
+            tensor_names = result_names_to_tensor_names[res_name]
+            if output_name in tensor_names:
+                # In this case output tensor name is in tensor names list of previous op
+                ordered_results.append(res_name)
+                found_tensor_name = True
                 break
 
-        if not found_result:
+        if not found_tensor_name:
             log.warning("Node that expected to be output with name {} is not connected with Result node.".format(output_name))
 
     param_nodes = graph.get_op_nodes(type='Parameter')
