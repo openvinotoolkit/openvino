@@ -123,6 +123,9 @@ void op::v1::StridedSlice::validate_and_infer_types() {
             std::all_of(m_ellipsis_mask.begin(), m_ellipsis_mask.end(), are_mask_elem_in_range),
         "All masks of StridedSlice must have be 0 or 1");
 
+    NODE_VALIDATION_CHECK(this, m_begin_mask.size() > 0, "begin_mask attribute must not be empty");
+    NODE_VALIDATION_CHECK(this, m_end_mask.size() > 0, "end_mask attribute must not be empty");
+
     const vector<size_t> attr_sizes = {m_begin_mask.size(),
                                        m_end_mask.size(),
                                        m_new_axis_mask.size(),
