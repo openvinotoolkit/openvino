@@ -994,9 +994,8 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
         for (size_t i = 0; i < config.outConfs.size(); i++) {
             config.outConfs[i].setMemDesc(getDefinedOutputDesc(config, i));
         }
-
-        initDescriptor(config);
-    } else if (getType() != RNNSeq && getType() != RNNCell) {
+    }
+    if (getType() != RNNSeq && getType() != RNNCell) {
         initDescriptor(config);
     }
 }
