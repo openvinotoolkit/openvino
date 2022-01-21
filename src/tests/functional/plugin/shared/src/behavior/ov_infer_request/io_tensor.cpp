@@ -182,7 +182,7 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithGetOut) {
 std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
     element::Type type;
     std::string targetDevice;
-    ov::AnyMap configuration;
+    std::map<std::string, std::string> configuration;
     std::tie(type, targetDevice, configuration) = obj.param;
     std::ostringstream result;
     result << "type=" << type << "_";
@@ -190,9 +190,7 @@ std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testin
     if (!configuration.empty()) {
         using namespace CommonTestUtils;
         for (auto &configItem : configuration) {
-            result << "configItem=" << configItem.first << "_";
-            configItem.second.print(result);
-            result << "_";
+            result << "configItem=" << configItem.first << "_" << configItem.second << "_";
         }
     }
     return result.str();
@@ -236,7 +234,7 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecisi
 std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj) {
     element::Type type;
     std::string targetDevice;
-    AnyMap configuration;
+    std::map<std::string, std::string> configuration;
     std::tie(type, targetDevice, configuration) = obj.param;
     std::ostringstream result;
     result << "type=" << type << "_";
@@ -244,9 +242,7 @@ std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::T
     if (!configuration.empty()) {
         using namespace CommonTestUtils;
         for (auto &configItem : configuration) {
-            result << "configItem=" << configItem.first << "_";
-            configItem.second.print(result);
-            result << "_";
+            result << "configItem=" << configItem.first << "_" << configItem.second << "_";
         }
     }
     return result.str();

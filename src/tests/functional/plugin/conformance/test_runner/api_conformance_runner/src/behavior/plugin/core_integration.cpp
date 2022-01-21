@@ -6,6 +6,7 @@
 #include "api_conformance_helpers.hpp"
 
 using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
 using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
