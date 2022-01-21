@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
 #include "default_opset.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs fill_any_like(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
+    const auto x = node.get_input("X");
     auto dtype = node.get_attribute<ov::element::Type>("dtype", element::undefined);
     const auto value = node.get_attribute<float>("value");
     if (dtype == element::undefined) {
