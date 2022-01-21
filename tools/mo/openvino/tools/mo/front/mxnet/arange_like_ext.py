@@ -21,6 +21,5 @@ class ArangeLikeExt(FrontExtractorOp):
             'repeat': attrs.int('repeat', 1),
             'step': attrs.float('step', 1),
             'axis': attrs.int('axis', None),
-            'dtype': np.dtype(attrs.str('dtype ', 'float32'))
         })
         return cls.enabled

@@ -148,9 +148,8 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             nodes_attrs={
                 **shaped_parameter('input', int64_array([1, 3, 5, 5])),
                 **regular_op_with_empty_data('shape_of', {'op': 'ShapeOf', 'type': 'ShapeOf'}),
-                **shaped_const_with_data('reshape_forward_const', None),
-                **regular_op_with_empty_data('reshape_forward', {'op': 'Reshape', 'type': 'Reshape'}),
-                **regular_op_with_empty_data('reshaped_shape_of', {'op': 'ShapeOf', 'type': 'ShapeOf'}),
+                **regular_op_with_empty_data('reduce_prod', {'op': 'ReduceProd', 'type': 'ReduceProd'}),
+                **shaped_const_with_data('reduce_prod_const', None),
                 **shaped_const_with_data('squeeze_const', None),
                 **regular_op_with_empty_data('squeeze', {'op': 'Squeeze', 'type': 'Squeeze'}),
                 **shaped_const_with_data('range_start', None),
@@ -161,21 +160,21 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             },
             edges=[
                 *connect('input', 'shape_of'),
-                *connect_data('input', '0:reshape_forward'),
-                *connect('reshape_forward_const', '1:reshape_forward'),
+                *connect('shape_of', '0:reduce_prod'),
+                *connect('reduce_prod_const', '1:reduce_prod'),
                 *connect('squeeze_const', '1:squeeze'),
-                *connect('reshape_forward', 'reshaped_shape_of'),
-                *connect('reshaped_shape_of', '0:squeeze'),
+                *connect('reduce_prod', '0:squeeze'),
                 *connect('range_start', '0:range'),
                 *connect('range_step', '2:range'),
                 *connect('squeeze', '1:range'),
                 *connect('range', '0:reshape_backward'),
-                *connect('shape_of', '1:reshape_backward'),
+                *connect_data('shape_of', '1:reshape_backward'),
                 *connect('reshape_backward', 'result')
             ],
             update_attributes={
                 'range_start': {'value': 0},
-                'range_step': {'value': 1}
+                'range_step': {'value': 1},
+                'reduce_prod_const': {'value': int64_array([0])}
             }
         )
 
@@ -200,9 +199,8 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             nodes_attrs={
                 **shaped_parameter('input', int64_array([1, 3, 5, 5])),
                 **regular_op_with_empty_data('shape_of', {'op': 'ShapeOf', 'type': 'ShapeOf'}),
-                **shaped_const_with_data('reshape_forward_const', None),
-                **regular_op_with_empty_data('reshape_forward', {'op': 'Reshape', 'type': 'Reshape'}),
-                **regular_op_with_empty_data('reshaped_shape_of', {'op': 'ShapeOf', 'type': 'ShapeOf'}),
+                **regular_op_with_empty_data('reduce_prod', {'op': 'ReduceProd', 'type': 'ReduceProd'}),
+                **shaped_const_with_data('reduce_prod_const', None),
                 **shaped_const_with_data('squeeze_const', None),
                 **regular_op_with_empty_data('squeeze', {'op': 'Squeeze', 'type': 'Squeeze'}),
                 **shaped_const_with_data('add_const', None),
@@ -215,24 +213,24 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             },
             edges=[
                 *connect('input', 'shape_of'),
-                *connect_data('input', '0:reshape_forward'),
-                *connect('reshape_forward_const', '1:reshape_forward'),
+                *connect('shape_of', '0:reduce_prod'),
+                *connect('reduce_prod_const', '1:reduce_prod'),
                 *connect('squeeze_const', '1:squeeze'),
                 *connect('add_const', '1:add'),
-                *connect('reshape_forward', 'reshaped_shape_of'),
-                *connect('reshaped_shape_of', '0:add'),
+                *connect('reduce_prod', '0:add'),
                 *connect('add', '0:squeeze'),
                 *connect('range_start', '0:range'),
                 *connect('range_step', '2:range'),
                 *connect('squeeze', '1:range'),
                 *connect('range', '0:reshape_backward'),
-                *connect('shape_of', '1:reshape_backward'),
+                *connect_data('shape_of', '1:reshape_backward'),
                 *connect('reshape_backward', 'result')
             ],
             update_attributes={
                 'range_start': {'value': 1},
                 'range_step': {'value': 1},
-                'add_const': {'value': 1}
+                'add_const': {'value': 1},
+                'reduce_prod_const': {'value': int64_array([0])}
             }
         )
         ArangeLikeReplacer().find_and_replace_pattern(graph)

@@ -7,6 +7,7 @@ from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.ReduceOps import ReduceProd
 from openvino.tools.mo.ops.elementwise import Add, Div, Mul
 from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.range import Range
@@ -15,6 +16,7 @@ from openvino.tools.mo.ops.shape import Shape
 from openvino.tools.mo.ops.slice import Slice
 from openvino.tools.mo.ops.squeeze import Squeeze
 from openvino.tools.mo.ops.tile import Tile
+from openvino.tools.mo.utils.error import Error
 
 
 class ArangeLikeReplacer(FrontReplacementOp):
@@ -25,12 +27,10 @@ class ArangeLikeReplacer(FrontReplacementOp):
         node = match['op']
         name = node.soft_get('name', node.id)
         axis = node.axis
-        data_out_port = node.in_port(0).get_source()
         input_shape_node = Shape(graph, {'name': name + '/ShapeOf'}).create_node()
         range_node = create_op_with_const_inputs(graph, Range, {0: mo_array(node.start),
                                                                 2: mo_array(node.step)}, {'name': name + '/Range'})
-        node.in_port(0).disconnect()
-        input_shape_node.in_port(0).connect(data_out_port)
+        node.in_port(0).get_connection().set_destination(input_shape_node.in_port(0))
 
         if axis is not None:
             '''
@@ -48,11 +48,9 @@ class ArangeLikeReplacer(FrontReplacementOp):
             r'''
             Replace arange_like op to subgraph:
                     |
-                    | -------------- |
+                 ShapeOf ----------- | 
                     |                |
-                 Reshape             |
-                    |                 |
-                 ShapeOf           ShapeOf  
+                 ReduceProd          |
                     |                |
                   Range              |
                     |                |
@@ -60,15 +58,12 @@ class ArangeLikeReplacer(FrontReplacementOp):
                     |
             '''
 
-            reshape_forward_node = create_op_with_const_inputs(graph, Reshape, {1: int64_array([-1])},
-                                                               {'name': name + '/Reshape_forward'})
-
+            flattened_shape_node = create_op_with_const_inputs(graph, ReduceProd, {1: int64_array([0])},
+                                                               {'name': input_shape_node.name + '/ReduceProd'})
             reshape_backward_node = Reshape(graph, {'name': name + '/Reshape_backward'}).create_node()
-            shape_of_node = Shape(graph, {'name': reshape_forward_node.name + '/ShapeOf'}).create_node()
 
-            reshape_forward_node.in_port(0).connect(data_out_port)
-            reshape_forward_node.out_port(0).connect(shape_of_node.in_port(0))
-            shape_of_node.out_port(0).connect(range_node.in_port(1))
+            input_shape_node.out_port(0).connect(flattened_shape_node.in_port(0))
+            flattened_shape_node.out_port(0).connect(range_node.in_port(1))
             range_node.out_port(0).connect(reshape_backward_node.in_port(0))
             input_shape_node.out_port(0).connect(reshape_backward_node.in_port(1))
             node.out_port(0).get_connection().set_source(reshape_backward_node.out_port(0))
@@ -85,6 +80,10 @@ class ArangeLikeReplacer(FrontReplacementOp):
             Range - Reshape([-1, 1]) - Tile([1, repeat]) - Reshape(-1) - Slice
             
             """
+
+            if node.repeat < 1:
+                raise Error("Unexpected value {} of the attribute 'repeat' for the node {}". format(node.repeat, name))
+
             div_node = create_op_with_const_inputs(graph, Div, {1: int64_array([node.repeat])},
                                                    {'name': name + '/Divide'})
             add_node = create_op_with_const_inputs(graph, Add, {1: int64_array([1])},
