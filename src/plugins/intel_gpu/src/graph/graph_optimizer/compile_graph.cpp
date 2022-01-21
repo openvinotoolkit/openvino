@@ -35,7 +35,7 @@ void compile_graph::run(program& p) {
     //            node->selected_impl = node->type()->choose_impl(*node);
     //        }
     //    }
-    //} else 
+    // } else
     {
         auto task_executor = p.get_engine().get_task_executor();
         auto& proc_order = p.get_processing_order();
