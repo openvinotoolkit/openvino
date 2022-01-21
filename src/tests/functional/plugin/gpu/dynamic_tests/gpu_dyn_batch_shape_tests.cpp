@@ -16,7 +16,7 @@ using OVDynamicBatchParams = std::tuple<
     std::vector<InputShape>,                                           // dynamic and static case sizes
     ElementType,                                                       // Network precision
     std::string,                                                       // Device name
-    ov::AnyMap                                                         // Config
+    std::map<std::string, std::string>                                 // Config
 >;
 
 class OVDynamicBatchShape_Tests : public WithParamInterface<OVDynamicBatchParams>,
@@ -26,7 +26,7 @@ public:
         std::vector<InputShape> inputShapes;
         ElementType netPrecision;
         std::string targetDevice;
-        ov::AnyMap configuration;
+        std::map<std::string, std::string> configuration;
         std::tie(inputShapes, netPrecision, targetDevice, configuration) = obj.param;
 
         std::ostringstream result;
@@ -48,9 +48,7 @@ public:
         result << "targetDevice=" << targetDevice;
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_";
-                configItem.second.print(result);
-                result << "_";
+                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
             }
         }
         return result.str();
@@ -87,9 +85,9 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound) {
 }
 
 namespace {
-const ov::AnyMap config = {};
+const std::map<std::string, std::string> config = {};
 
-const ov::AnyMap hetero_config = {
+const std::map<std::string, std::string> hetero_config = {
     {"TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU}
 };
 
