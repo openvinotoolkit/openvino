@@ -38,16 +38,16 @@ struct LSTMSequenceParams {
             Shape HoShape = Shape{batchSize, numDirections, hiddenSize};
             Shape CoShape = Shape{batchSize, numDirections, hiddenSize};
 
-            X = Tensor(XShape, iType, XValues);
-            H_t = Tensor(H_tShape, iType, H_tValues);
-            C_t = Tensor(C_tShape, iType, C_tValues);
-            S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
-            W = Tensor(WShape, iType, WValues);
-            R = Tensor(RShape, iType, RValues);
-            B = Tensor(BShape, iType, BValues);
-            Y = Tensor(YShape, oType, YValues);
-            Ho = Tensor(HoShape, oType, HoValues);
-            Co = Tensor(CoShape, oType, CoValues);
+            X = reference_tests::Tensor(XShape, iType, XValues);
+            H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
+            C_t = reference_tests::Tensor(C_tShape, iType, C_tValues);
+            S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+            W = reference_tests::Tensor(WShape, iType, WValues);
+            R = reference_tests::Tensor(RShape, iType, RValues);
+            B = reference_tests::Tensor(BShape, iType, BValues);
+            Y = reference_tests::Tensor(YShape, oType, YValues);
+            Ho = reference_tests::Tensor(HoShape, oType, HoValues);
+            Co = reference_tests::Tensor(CoShape, oType, CoValues);
         }
 
     size_t batchSize;
@@ -60,16 +60,16 @@ struct LSTMSequenceParams {
     element::Type_t iType;
     element::Type_t oType;
 
-    Tensor X;
-    Tensor H_t;
-    Tensor C_t;
-    Tensor S_t;
-    Tensor W;
-    Tensor R;
-    Tensor B;
-    Tensor Y;
-    Tensor Ho;
-    Tensor Co;
+    reference_tests::Tensor X;
+    reference_tests::Tensor H_t;
+    reference_tests::Tensor C_t;
+    reference_tests::Tensor S_t;
+    reference_tests::Tensor W;
+    reference_tests::Tensor R;
+    reference_tests::Tensor B;
+    reference_tests::Tensor Y;
+    reference_tests::Tensor Ho;
+    reference_tests::Tensor Co;
     std::string testcaseName;
 };
 
@@ -101,17 +101,17 @@ struct LSTMSequenceV1Params {
             Shape HoShape = Shape{batchSize, numDirections, hiddenSize};
             Shape CoShape = Shape{batchSize, numDirections, hiddenSize};
 
-            X = Tensor(XShape, iType, XValues);
-            H_t = Tensor(H_tShape, iType, H_tValues);
-            C_t = Tensor(C_tShape, iType, C_tValues);
-            S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
-            W = Tensor(WShape, iType, WValues);
-            R = Tensor(RShape, iType, RValues);
-            B = Tensor(BShape, iType, BValues);
-            P = Tensor(PShape, iType, PValues);
-            Y = Tensor(YShape, oType, YValues);
-            Ho = Tensor(HoShape, oType, HoValues);
-            Co = Tensor(CoShape, oType, CoValues);
+            X = reference_tests::Tensor(XShape, iType, XValues);
+            H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
+            C_t = reference_tests::Tensor(C_tShape, iType, C_tValues);
+            S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+            W = reference_tests::Tensor(WShape, iType, WValues);
+            R = reference_tests::Tensor(RShape, iType, RValues);
+            B = reference_tests::Tensor(BShape, iType, BValues);
+            P = reference_tests::Tensor(PShape, iType, PValues);
+            Y = reference_tests::Tensor(YShape, oType, YValues);
+            Ho = reference_tests::Tensor(HoShape, oType, HoValues);
+            Co = reference_tests::Tensor(CoShape, oType, CoValues);
         }
 
     size_t batchSize;
@@ -125,17 +125,17 @@ struct LSTMSequenceV1Params {
     element::Type_t iType;
     element::Type_t oType;
 
-    Tensor X;
-    Tensor H_t;
-    Tensor C_t;
-    Tensor S_t;
-    Tensor W;
-    Tensor R;
-    Tensor B;
-    Tensor P;
-    Tensor Y;
-    Tensor Ho;
-    Tensor Co;
+    reference_tests::Tensor X;
+    reference_tests::Tensor H_t;
+    reference_tests::Tensor C_t;
+    reference_tests::Tensor S_t;
+    reference_tests::Tensor W;
+    reference_tests::Tensor R;
+    reference_tests::Tensor B;
+    reference_tests::Tensor P;
+    reference_tests::Tensor Y;
+    reference_tests::Tensor Ho;
+    reference_tests::Tensor Co;
     std::string testcaseName;
 };
 
