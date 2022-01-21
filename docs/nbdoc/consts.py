@@ -8,7 +8,12 @@ repo_owner = "openvinotoolkit"
 
 repo_name = "openvino_notebooks"
 
-section_names = ["Getting Started", "Convert & Optimize", "Model Demos", "Model Training", "Live Demos"]
+artifacts_link = "https://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/latest/dist/rst_files/"
+
+blacklisted_extensions = ['.xml', '.bin']
+
+section_names = ["Getting Started", "Convert & Optimize",
+                 "Model Demos", "Model Training", "Live Demos"]
 
 # Templates
 
