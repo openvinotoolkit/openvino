@@ -134,7 +134,7 @@ protected:
         const auto& funcInputs = function->inputs();
         ASSERT_EQ(funcInputs.size(), 1);
         const auto& funcInput = funcInputs[0];
-        ov::runtime::Tensor tensor;
+        ov::Tensor tensor;
         tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                          targetInputStaticShapes[0],
                                                          inDataHighBounds - inDataLowBounds,
