@@ -29,13 +29,14 @@ void compile_graph::run(program& p) {
     }
 
     // allowing parallel compilation with oneDNN
-    /*if (p.get_engine().get_device_info().supports_immad) {
-        for (auto& node : p.get_processing_order()) {
-            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
-                node->selected_impl = node->type()->choose_impl(*node);
-            }
-        }
-    } else */{
+    // if (p.get_engine().get_device_info().supports_immad) {
+    //    for (auto& node : p.get_processing_order()) {
+    //        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+    //            node->selected_impl = node->type()->choose_impl(*node);
+    //        }
+    //    }
+    //} else 
+    {
         auto task_executor = p.get_engine().get_task_executor();
         auto& proc_order = p.get_processing_order();
         std::vector<InferenceEngine::Task> tasks;
