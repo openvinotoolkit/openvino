@@ -130,14 +130,7 @@ private:
         virtual ~MVNExecutor() = default;
 
     protected:
-        std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
-        bool initAcrossChannels_ = false;
-        bool execAcrossChannels_ = false;
-        bool normalizeVariance_ = true;
-        float epsValue_ = 1e-9f;
-        bool is_ncsp = true;
-        bool is_nhwc = true;
-        MVNEpsMode epsMode_;
+        MVNAttrs mvnAttrs;
         size_t src_data_size = 0;
         size_t dst_data_size = 0;
     };

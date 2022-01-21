@@ -835,16 +835,9 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 }
 
 MKLDNNMVNNode::MVNExecutor::MVNExecutor(const MVNAttrs& mvnAttrs)
-    : shape5D(mvnAttrs.shape5D),
-      initAcrossChannels_(mvnAttrs.initAcrossChannels_),
-      execAcrossChannels_(mvnAttrs.execAcrossChannels_),
-      normalizeVariance_(mvnAttrs.normalizeVariance_),
-      epsValue_(mvnAttrs.epsValue_),
-      epsMode_(mvnAttrs.epsMode_),
+    : mvnAttrs(mvnAttrs),
       src_data_size(mvnAttrs.src_prc.size()),
-      dst_data_size(mvnAttrs.dst_prc.size()),
-      is_ncsp(mvnAttrs.planar_layout),
-      is_nhwc(mvnAttrs.is_nhwc) {}
+      dst_data_size(mvnAttrs.dst_prc.size()) {}
 
 MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
                                               const mkldnn::primitive_attr& attr):
@@ -863,7 +856,7 @@ MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
         mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
         jcp.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
-        if (normalizeVariance_) {
+        if (mvnAttrs.normalizeVariance_) {
             jcp.normalize_variance = true;
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
         }
@@ -871,7 +864,7 @@ MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
         mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
         jcp.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
-        if (normalizeVariance_) {
+        if (mvnAttrs.normalizeVariance_) {
             jcp.normalize_variance = true;
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
         }
@@ -879,7 +872,7 @@ MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
         mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
         jcp.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
-        if (normalizeVariance_) {
+        if (mvnAttrs.normalizeVariance_) {
             jcp.normalize_variance = true;
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
         }
@@ -896,10 +889,10 @@ MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
 }
 
 void MKLDNNMVNNode::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_) {
-    if (!mvn_mean_kernel || (normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
+    if (!mvn_mean_kernel || (mvnAttrs.normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
         IE_THROW() << "MVN layer doesn't create kernel to execute on sse41 above platform.";
     }
-    if (is_ncsp) {
+    if (mvnAttrs.planar_layout) {
         mvn_pln(src_data, dst_data, post_ops_data_);
     } else {
         mvn_blk(src_data, dst_data, post_ops_data_);
@@ -1046,7 +1039,7 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* ds
     }
 
     size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
-    std::tie(N, C, D, H, W) = shape5D;
+    std::tie(N, C, D, H, W) = mvnAttrs.shape5D;
 
     size_t C1 = H * W;
     size_t C2 = C1 * D;
@@ -1057,7 +1050,7 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* ds
 
     for (size_t b = 0lu; b < N; b++) {
         size_t cb = b * C3;
-        if (execAcrossChannels_) {
+        if (mvnAttrs.execAcrossChannels_) {
             // Calculate mean value for one instance in batch
             // Parallel sum for each channel
             float C3inv = 1.f / static_cast<float>(C3);
@@ -1079,7 +1072,7 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* ds
 
             // calculate variance value for one instance in batch
             // parallel sum for each channel
-            if (normalizeVariance_) {
+            if (mvnAttrs.normalizeVariance_) {
                 float variance_temp = 0.0f;
                 variance_temp = parallel_sum(C, variance_temp, [&](size_t c)->float {
                     float variance_internal = 0.0f;
@@ -1096,10 +1089,10 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* ds
                 });
 
                 float variance = 1.f;
-                if (epsMode_ == INSIDE_SQRT)
-                    variance /= sqrtf(variance_temp * C3inv + epsValue_);
-                else if (epsMode_ == OUTSIDE_SQRT)
-                    variance /= sqrtf(variance_temp * C3inv) + epsValue_;
+                if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                    variance /= sqrtf(variance_temp * C3inv + mvnAttrs.epsValue_);
+                else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                    variance /= sqrtf(variance_temp * C3inv) + mvnAttrs.epsValue_;
                 // mvn for one instance in batch
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
@@ -1151,17 +1144,17 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* ds
 
                 mean *= C2inv;
 
-                if (normalizeVariance_) {
+                if (mvnAttrs.normalizeVariance_) {
                     // variance for this channel
                     float variance = 0.f;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance);
                     (*mvn_variance_kernel)(&arg);
 
-                    if (epsMode_ == INSIDE_SQRT)
-                        variance = 1.f / sqrtf(variance * C2inv + epsValue_);
-                    else if (epsMode_ == OUTSIDE_SQRT)
-                        variance = 1.f / (sqrtf(variance * C2inv) + epsValue_);
+                    if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                        variance = 1.f / sqrtf(variance * C2inv + mvnAttrs.epsValue_);
+                    else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                        variance = 1.f / (sqrtf(variance * C2inv) + mvnAttrs.epsValue_);
 
                     // mvn for this channel
                     (*mvn_kernel)(&arg);
@@ -1179,7 +1172,7 @@ void MKLDNNMVNNode::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* ds
     const float *src_data_ptr = reinterpret_cast<const float *>(src_data);
     float *dst_data_ptr = reinterpret_cast<float *>(dst_data);
     size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
-    std::tie(N, C, D, H, W) = shape5D;
+    std::tie(N, C, D, H, W) = mvnAttrs.shape5D;
 
     size_t C1 = H * W;
     size_t C2 = C1 * D;
@@ -1187,7 +1180,7 @@ void MKLDNNMVNNode::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* ds
 
     for (size_t b = 0lu; b < N; b++) {
         size_t cb = b * C3;
-        if (execAcrossChannels_) {
+        if (mvnAttrs.execAcrossChannels_) {
             // Parallel sum for each channel for mean
             float C3inv = 1.f / static_cast<float>(C3);
             float mean_temp = 0.0f;
@@ -1203,7 +1196,7 @@ void MKLDNNMVNNode::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* ds
 
             float mean = mean_temp * C3inv;
 
-            if (normalizeVariance_) {
+            if (mvnAttrs.normalizeVariance_) {
                 // parallel sum for each channel for variance
                 float variance_temp = 0.0f;
                 variance_temp = parallel_sum(C, variance_temp, [&](size_t c)->float {
@@ -1216,10 +1209,10 @@ void MKLDNNMVNNode::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* ds
                 });
 
                 float variance = 1.f;
-                if (epsMode_ == INSIDE_SQRT)
-                    variance = 1.f / sqrtf(variance_temp * C3inv + epsValue_);
-                else if (epsMode_ == OUTSIDE_SQRT)
-                    variance = 1.f / (sqrtf(variance_temp * C3inv) + epsValue_);
+                if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                    variance = 1.f / sqrtf(variance_temp * C3inv + mvnAttrs.epsValue_);
+                else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                    variance = 1.f / (sqrtf(variance_temp * C3inv) + mvnAttrs.epsValue_);
 
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
@@ -1246,17 +1239,17 @@ void MKLDNNMVNNode::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* ds
                 }
                 mean *= C2inv;
 
-                if (normalizeVariance_) {
+                if (mvnAttrs.normalizeVariance_) {
                     // variance for this channel
                     float variance = 0.f;
                     for (size_t sp = 0lu; sp < C2; sp++) {
                         variance += (src_data_ptr[cc + sp] - mean) * (src_data_ptr[cc + sp] - mean);
                     }
 
-                    if (epsMode_ == INSIDE_SQRT)
-                        variance = 1.f / sqrtf(variance * C2inv + epsValue_);
-                    else if (epsMode_ == OUTSIDE_SQRT)
-                        variance = 1.f / (sqrtf(variance * C2inv) + epsValue_);
+                    if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                        variance = 1.f / sqrtf(variance * C2inv + mvnAttrs.epsValue_);
+                    else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                        variance = 1.f / (sqrtf(variance * C2inv) + mvnAttrs.epsValue_);
 
                     // mvn for this channel
                     for (size_t sp = 0lu; sp < C2; sp++) {
@@ -1282,32 +1275,32 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* ds
     }
 
     size_t N = 1; size_t C = 1; size_t D = 1; size_t H = 1; size_t W = 1;
-    std::tie(N, C, D, H, W) = shape5D;
+    std::tie(N, C, D, H, W) = mvnAttrs.shape5D;
 
     size_t CB = div_up(C, blk_size);
 
-    size_t C0 = is_nhwc ? W * C : W * blk_size;
+    size_t C0 = mvnAttrs.is_nhwc ? W * C : W * blk_size;
     size_t C1 = C0 * H;
     size_t C2 = C1 * D;
     size_t C3 = C2 * CB;
     size_t C5 = C * D * H * W;
 
     size_t threads_num = parallel_get_num_threads();
-    size_t aux_buffer_size = execAcrossChannels_ ? blk_size : rnd_up(C, blk_size);
+    size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? blk_size : rnd_up(C, blk_size);
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
 
-    size_t src_stride_size = is_nhwc ? static_cast<size_t>(C * src_data_size) : static_cast<size_t>(blk_size * src_data_size);
-    size_t dst_stride_size = is_nhwc ? static_cast<size_t>(C * dst_data_size) : static_cast<size_t>(blk_size * dst_data_size);
+    size_t src_stride_size = mvnAttrs.is_nhwc ? static_cast<size_t>(C * src_data_size) : static_cast<size_t>(blk_size * src_data_size);
+    size_t dst_stride_size = mvnAttrs.is_nhwc ? static_cast<size_t>(C * dst_data_size) : static_cast<size_t>(blk_size * dst_data_size);
 
     for (size_t b = 0lu; b < N; b++) {
-        size_t b_offset = is_nhwc ? b * C5 : b * C3;
-        if (execAcrossChannels_) {
+        size_t b_offset = mvnAttrs.is_nhwc ? b * C5 : b * C3;
+        if (mvnAttrs.execAcrossChannels_) {
             // mean for this instance in batch
             float C5inv = 1.f / static_cast<float>(C5);
             float mean_temp = 0.0f;
             mean_temp = parallel_sum3d(CB, D, H, mean_temp, [&](size_t cb, size_t d, size_t h)->float {
-                size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
+                size_t src_offset = mvnAttrs.is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                             : b_offset + cb * C2 + d * C1 + h * C0;
 
                 float mean_internal = 0.0f;
@@ -1339,11 +1332,11 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* ds
             });
             float mean = mean_temp * C5inv;
 
-            if (normalizeVariance_) {
+            if (mvnAttrs.normalizeVariance_) {
                 // variance: sum((x-mean)*(x-mean)) for one instance in batch
                 float variance_temp = 0.0f;
                 variance_temp = parallel_sum3d(CB, D, H, variance_temp, [&](size_t cb, size_t d, size_t h)->float {
-                    size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
+                    size_t src_offset = mvnAttrs.is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                                 : b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0f;
@@ -1368,13 +1361,13 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* ds
                 });
 
                 float variance = 1.f;
-                if (epsMode_ == INSIDE_SQRT)
-                    variance /= sqrtf(variance_temp * C5inv + epsValue_);
-                else if (epsMode_ == OUTSIDE_SQRT)
-                    variance /= sqrtf(variance_temp * C5inv) + epsValue_;
+                if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                    variance /= sqrtf(variance_temp * C5inv + mvnAttrs.epsValue_);
+                else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                    variance /= sqrtf(variance_temp * C5inv) + mvnAttrs.epsValue_;
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
-                    size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
+                    size_t src_offset = mvnAttrs.is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                                 : b_offset + cb * C2 + d * C1 + h * C0;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
@@ -1391,7 +1384,7 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* ds
             } else {
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
-                    size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
+                    size_t src_offset = mvnAttrs.is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                                 : b_offset + cb * C2 + d * C1 + h * C0;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
@@ -1414,7 +1407,7 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* ds
             // keep the compute order the same as planar
             parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
                 for (size_t cb = 0; cb < CB; cb++) {
-                    size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
+                    size_t src_offset = mvnAttrs.is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                                 : b_offset + cb * C2 + d * C1 + h * C0;
                     auto mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
@@ -1436,13 +1429,13 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* ds
             for (size_t c = 0; c < C; c++)
                 mean_buffer[c] *= size_inv;
 
-            if (normalizeVariance_) {
+            if (mvnAttrs.normalizeVariance_) {
                 for (int i = 0; i < variance_buffer.size(); i++)
                     variance_buffer[i] = 0.f;
 
                 parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
-                        size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
+                        size_t src_offset = mvnAttrs.is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                                     : b_offset + cb * C2 + d * C1 + h * C0;
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
                         auto variance_buffer_ptr = &variance_buffer[blk_size * cb + aux_buffer_size * thr_idx];
@@ -1463,15 +1456,15 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* ds
                         variance_buffer[c] += variance_buffer[c + aux_buffer_size * i];
                 }
                 for (size_t c = 0; c < C; c++) {
-                    if (epsMode_ == INSIDE_SQRT)
-                        variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + epsValue_);
-                    else if (epsMode_ == OUTSIDE_SQRT)
-                        variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + epsValue_);
+                    if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                        variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + mvnAttrs.epsValue_);
+                    else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                        variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + mvnAttrs.epsValue_);
                 }
 
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
-                        size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
+                        size_t src_offset = mvnAttrs.is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                                     : b_offset + cb * C2 + d * C1 + h * C0;
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
                         auto variance_buffer_ptr = &variance_buffer[blk_size * cb];
@@ -1493,7 +1486,7 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* ds
                 // normalizeVariance_ == false
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
-                        size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
+                        size_t src_offset = mvnAttrs.is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                                     : b_offset + cb * C2 + d * C1 + h * C0;
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
 
