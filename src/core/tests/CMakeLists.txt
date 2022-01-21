@@ -204,6 +204,7 @@ set(SRC
     type_prop/reduce_min.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/region_yolo.cpp
     type_prop/relu.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
@@ -461,7 +462,6 @@ endif()
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/interpolate.in.cpp
-    backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
 )
 
@@ -476,6 +476,7 @@ set(OP_EVAL_TEST_SRC
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
+    op_eval/loop.cpp
     op_eval/matmul.cpp
     op_eval/memory.cpp
     op_eval/mish.cpp
