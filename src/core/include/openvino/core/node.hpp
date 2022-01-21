@@ -55,6 +55,9 @@ class Result;
 struct AutoBroadcastSpec;
 }  // namespace op
 namespace pass {
+
+class ResolveGeneratedNameCollisions;
+
 namespace pattern {
 class Matcher;
 }  // namespace pattern
@@ -122,6 +125,8 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class Output;
 
     friend class Model;
+    // To fix collisions in generated friendly name
+    friend class pass::ResolveGeneratedNameCollisions;
 
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
