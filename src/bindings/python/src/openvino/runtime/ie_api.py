@@ -89,6 +89,10 @@ class CompiledModel(CompiledModelBase):
         )
         return super().infer_new_request(inputs)
 
+    def __call__(self, inputs: Union[dict, list] = None) -> dict:
+        """Callable infer wrapper for CompiledModel."""
+        return self.infer_new_request(inputs)
+
 
 class AsyncInferQueue(AsyncInferQueueBase):
     """AsyncInferQueue wrapper."""
