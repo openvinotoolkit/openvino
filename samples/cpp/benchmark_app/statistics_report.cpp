@@ -24,7 +24,10 @@ void StatisticsReport::dump() {
 
     auto dump_parameters = [&dumper](const Parameters& parameters) {
         for (auto& parameter : parameters) {
-            dumper << parameter.first << parameter.second;
+            if (parameter.type != StatisticsVariant::METRICS) {
+                dumper << parameter.csv_name;
+            }
+            dumper << parameter.to_string();
             dumper.endLine();
         }
     };
@@ -49,6 +52,16 @@ void StatisticsReport::dump() {
         dumper.endLine();
 
         dump_parameters(_parameters.at(Category::EXECUTION_RESULTS));
+        dumper.endLine();
+    }
+
+    if (_parameters.count(Category::EXECUTION_RESULTS_GROUPPED)) {
+        dumper << "Group Latencies";
+        dumper.endLine();
+        dumper << "Data shape;Median;Average;Min;Max";
+        dumper.endLine();
+
+        dump_parameters(_parameters.at(Category::EXECUTION_RESULTS_GROUPPED));
         dumper.endLine();
     }
 
@@ -144,4 +157,150 @@ void StatisticsReport::dump_performance_counters(const std::vector<PerformaceCou
         throw std::logic_error("PM data can only be collected for average or detailed report types");
     }
     slog::info << "Performance counters report is stored to " << dumper.getFilename() << slog::endl;
+}
+
+void StatisticsReportJSON::dump_parameters(nlohmann::json& js,
+                                           const StatisticsReport::Parameters& parameters) {
+    for (auto& parameter : parameters) {        
+        parameter.write_to_json(js);
+    }
+};
+
+void StatisticsReportJSON::dump() {
+    nlohmann::json js;
+    std::string name = _config.report_folder + _separator + "benchmark_report.json";
+
+    dump_parameters(js["cmd_options"], _parameters.at(Category::COMMAND_LINE_PARAMETERS));
+    dump_parameters(js["configuration_setup"],_parameters.at(Category::RUNTIME_CONFIG));
+    dump_parameters(js["execution_results"],_parameters.at(Category::EXECUTION_RESULTS));
+    dump_parameters(js["execution_results"], _parameters.at(Category::EXECUTION_RESULTS_GROUPPED));
+    std::ofstream out_stream(name);
+    out_stream << std::setw(4) << js << std::endl;
+    slog::info << "Statistics report is stored to " << name << slog::endl;
+}
+
+void StatisticsReportJSON::dump_performance_counters(const std::vector<PerformaceCounters>& perfCounts) {
+}
+
+/* void StatisticsReportJSON::dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformaceCounters& perfCounts) {
+    std::chrono::microseconds total = std::chrono::microseconds::zero();
+    std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
+
+    dumper << "layerName"
+           << "execStatus"
+           << "layerType"
+           << "execType";
+    dumper << "realTime (ms)"
+           << "cpuTime (ms)";
+    dumper.endLine();
+
+    for (const auto& layer : perfCounts) {
+        dumper << layer.node_name;  // layer name
+
+        switch (layer.status) {
+        case ov::runtime::ProfilingInfo::Status::EXECUTED:
+            dumper << "EXECUTED";
+            break;
+        case ov::runtime::ProfilingInfo::Status::NOT_RUN:
+            dumper << "NOT_RUN";
+            break;
+        case ov::runtime::ProfilingInfo::Status::OPTIMIZED_OUT:
+            dumper << "OPTIMIZED_OUT";
+            break;
+        }
+        dumper << layer.node_type << layer.exec_type;
+        dumper << std::to_string(layer.real_time.count() / 1000.0) << std::to_string(layer.cpu_time.count() / 1000.0);
+        total += layer.real_time;
+        total_cpu += layer.cpu_time;
+        dumper.endLine();
+    }
+    dumper << "Total"
+           << ""
+           << ""
+           << "";
+    dumper << total.count() / 1000.0 << total_cpu.count() / 1000.0;
+    dumper.endLine();
+    dumper.endLine();
++}*/
+
+
+void LatencyMetrics::write_to_stream(std::ostream& stream) const {
+    stream << data_shape << ";" << std::fixed << std::setprecision(2) << median_or_percentile << ";" << avg << ";"
+           << min << ";" << max;
+}
+
+void LatencyMetrics::write_to_slog() const {
+    std::string percentileStr = (percentile_boundary == 50)
+                                    ? "\tMedian:     "
+                                    : "\t" + std::to_string(percentile_boundary) + " percentile:    ";
+    slog::info << "\tData shape: " << data_shape << slog::endl;
+    slog::info << percentileStr << double_to_string(median_or_percentile) << " ms" << slog::endl;
+    slog::info << "\tAverage:    " << double_to_string(avg) << " ms" << slog::endl;
+    slog::info << "\tMin:        " << double_to_string(min) << " ms" << slog::endl;
+    slog::info << "\tMax:        " << double_to_string(max) << " ms" << slog::endl;
+}
+
+const nlohmann::json LatencyMetrics::to_json() const {
+    nlohmann::json stat;
+    stat["data_shape"] = data_shape;
+    stat["latency_median"] = median_or_percentile;
+    stat["latency_average"] = avg;
+    stat["latency_min"] = min;
+    stat["latency_max"] = max;
+    return stat;
+}
+
+void LatencyMetrics::fill_data(std::vector<double> latencies, size_t percentile_boundary) {
+    if (latencies.empty()) {
+        throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");
+    }
+    std::sort(latencies.begin(), latencies.end());
+    min = latencies[0];
+    avg = std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
+    median_or_percentile = latencies[size_t(latencies.size() / 100.0 * percentile_boundary)];
+    max = latencies.back();
+};
+
+std::string StatisticsVariant::to_string() const {
+    switch (type) {
+    case INT:
+        return std::to_string(i_val);
+    case DOUBLE:
+        return std::to_string(d_val);
+    case STRING:
+        return s_val;
+    case ULONGLONG:
+        return std::to_string(ull_val);
+    case METRICS:
+        std::ostringstream str;
+        metrics_val.write_to_stream(str);
+        return str.str();
+    }
+    throw std::invalid_argument("StatisticsVariant::to_string : invalid type is provided");
+}
+
+void StatisticsVariant::write_to_json(nlohmann::json& js) const {
+    switch (type) {
+    case INT:
+        js[json_name] = i_val;
+        break;
+    case DOUBLE:
+        js[json_name] = d_val;
+        break;
+    case STRING:
+        js[json_name] = s_val;
+        break;
+    case ULONGLONG:
+        js[json_name] = ull_val;
+        break;
+    case METRICS: {
+        auto& arr = js[json_name];
+        if (arr.empty()) {
+            arr = nlohmann::json::array();
+        }
+        arr.insert(arr.end(), metrics_val.to_json());
+    } break;
+    default:
+        throw std::invalid_argument("StatisticsVariant:: json conversion : invalid type is provided");
+    }
 }
