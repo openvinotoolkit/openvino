@@ -359,6 +359,20 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     ASSERT_EQ(tensor.get_shape(), refOutShape2);
 }
 
+TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
+    const std::string tensor_name = "input_tensor";
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refShape2 = inOutShapes[1].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    const ov::Shape refOutShape2 = inOutShapes[1].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    const std::string outputName = function->outputs().back().get_any_name();
+    // Load ov::Function to target plugins
+    ov::runtime::CompiledModel execNet;
+    ASSERT_THROW((execNet = ie->compile_model(function, targetDevice, configuration)), ov::Exception);
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

@@ -13,7 +13,6 @@ from tests.test_onnx.utils.model_importer import ModelImportRunner
 from tests import (
     xfail_issue_67415,
     xfail_issue_38701,
-    xfail_issue_45457,
     xfail_issue_37957,
     xfail_issue_39669,
     xfail_issue_37973,
@@ -54,6 +53,7 @@ tolerance_map = {
     "fp16_inception_v1": {"atol": 0.001, "rtol": 0.001},
     "mobilenet_opset7": {"atol": 0.001, "rtol": 0.001},
     "resnet50_v2_opset7": {"atol": 0.001, "rtol": 0.001},
+    "resnet50-v2-7": {"atol": 0.001, "rtol": 0.001},
     "test_mobilenetv2-1.0": {"atol": 0.001, "rtol": 0.001},
     "test_resnet101v2": {"atol": 0.001, "rtol": 0.001},
     "test_resnet18v2": {"atol": 0.001, "rtol": 0.001},
@@ -97,7 +97,7 @@ tolerance_map = {
     "tiny_yolov2": {"atol": 1e-05, "rtol": 0.001},
     "mobilenetv2-1": {"atol": 1e-04, "rtol": 0.001},
     "resnet101v1": {"atol": 1e-04, "rtol": 0.001},
-    "resnet101v2": {"atol": 1e-06, "rtol": 0.001},
+    "resnet101v2": {"atol": 1e-5, "rtol": 0.001},
     "resnet152v2": {"atol": 1e-05, "rtol": 0.001},
     "resnet18v2": {"atol": 1e-05, "rtol": 0.001},
     "resnet34v2": {"atol": 1e-05, "rtol": 0.001},
@@ -192,7 +192,6 @@ if len(zoo_models) > 0:
 
             (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
             (xfail_issue_47495, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
-            (xfail_issue_45457, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
             (xfail_issue_63643, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
         ]
         for test_case in import_xfail_list + execution_xfail_list:

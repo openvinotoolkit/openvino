@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 OutputVector translate_batch_nd_and_space_nd_op(const NodeContext& node) {
     auto input = node.get_input(0);
@@ -32,7 +32,7 @@ OutputVector translate_batch_nd_and_space_nd_op(const NodeContext& node) {
             return {input};
     } else {
         // TODO: support dynamic rank
-        TF_OP_VALIDATION_CHECK(node, false, "Dynamic rank is not supported.");
+        TENSORFLOW_OP_VALIDATION(node, false, "Dynamic rank is not supported.");
     }
 
     auto N = input_pshape.rank().get_length();
@@ -72,10 +72,10 @@ OutputVector translate_batch_nd_and_space_nd_op(const NodeContext& node) {
         set_node_name(node.get_name(), res);
         return res->outputs();
     }
-    TF_OP_VALIDATION_CHECK(node, false, "No translator found.");
+    TENSORFLOW_OP_VALIDATION(node, false, "No translator found.");
 }
 
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

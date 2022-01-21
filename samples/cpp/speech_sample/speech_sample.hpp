@@ -99,13 +99,13 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
 static const char context_window_message_l[] =
     "Optional. Number of frames for left context windows (default is 0). "
     "Works only with context window networks."
-    " If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.";
+    " If you use the cw_l or cw_r flag, then batch size argument is ignored.";
 
 /// @brief message for right context window argument
 static const char context_window_message_r[] =
     "Optional. Number of frames for right context windows (default is 0). "
     "Works only with context window networks."
-    " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
+    " If you use the cw_r or cw_l flag, then batch size argument is ignored.";
 
 /// @brief message for output layer names
 static const char output_layer_names_message[] = "Optional. Layer names for output blobs. "
@@ -162,9 +162,6 @@ DEFINE_string(wg, "", write_gna_model_message);
 /// @brief Write GNA embedded model to file (model.bin)
 DEFINE_string(we, "", write_embedded_model_message);
 
-/// @brief Optional GNA embedded device generation (default GNA1 aka Sue Creek) - hide option
-DEFINE_string(we_gen, "GNA1", write_embedded_model_generation_message);
-
 /// @brief Input quantization mode (default static)
 DEFINE_string(q, "static", quantization_message);
 
@@ -203,26 +200,27 @@ static void showUsage() {
     std::cout << "speech_sample [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
-    std::cout << "    -h                      " << help_message << std::endl;
-    std::cout << "    -i \"<path>\"             " << input_message << std::endl;
-    std::cout << "    -m \"<path>\"             " << model_message << std::endl;
-    std::cout << "    -o \"<path>\"             " << output_message << std::endl;
-    std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
-    std::cout << "    -pc                     " << performance_counter_message << std::endl;
-    std::cout << "    -q \"<mode>\"             " << quantization_message << std::endl;
-    std::cout << "    -qb \"<integer>\"         " << quantization_bits_message << std::endl;
-    std::cout << "    -sf \"<double>\"          " << scale_factor_message << std::endl;
-    std::cout << "    -bs \"<integer>\"         " << batch_size_message << std::endl;
-    std::cout << "    -r \"<path>\"             " << reference_score_message << std::endl;
-    std::cout << "    -rg \"<path>\"            " << read_gna_model_message << std::endl;
-    std::cout << "    -wg \"<path>\"            " << write_gna_model_message << std::endl;
-    std::cout << "    -we \"<path>\"            " << write_embedded_model_message << std::endl;
-    std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
-    std::cout << "    -cw_l \"<integer>\"       " << context_window_message_l << std::endl;
-    std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;
-    std::cout << "    -oname \"<string>\"       " << output_layer_names_message << std::endl;
-    std::cout << "    -iname \"<string>\"       " << input_layer_names_message << std::endl;
-    std::cout << "    -pwl_me \"<double>\"      " << pwl_max_error_percent_message << std::endl;
+    std::cout << "    -h                         " << help_message << std::endl;
+    std::cout << "    -i \"<path>\"                " << input_message << std::endl;
+    std::cout << "    -m \"<path>\"                " << model_message << std::endl;
+    std::cout << "    -o \"<path>\"                " << output_message << std::endl;
+    std::cout << "    -d \"<device>\"              " << target_device_message << std::endl;
+    std::cout << "    -pc                        " << performance_counter_message << std::endl;
+    std::cout << "    -q \"<mode>\"                " << quantization_message << std::endl;
+    std::cout << "    -qb \"<integer>\"            " << quantization_bits_message << std::endl;
+    std::cout << "    -sf \"<double>\"             " << scale_factor_message << std::endl;
+    std::cout << "    -bs \"<integer>\"            " << batch_size_message << std::endl;
+    std::cout << "    -r \"<path>\"                " << reference_score_message << std::endl;
+    std::cout << "    -rg \"<path>\"               " << read_gna_model_message << std::endl;
+    std::cout << "    -wg \"<path>\"               " << write_gna_model_message << std::endl;
+    std::cout << "    -we \"<path>\"               " << write_embedded_model_message << std::endl;
+    std::cout << "    -cw_l \"<integer>\"          " << context_window_message_l << std::endl;
+    std::cout << "    -cw_r \"<integer>\"          " << context_window_message_r << std::endl;
+    std::cout << "    -oname \"<string>\"          " << output_layer_names_message << std::endl;
+    std::cout << "    -iname \"<string>\"          " << input_layer_names_message << std::endl;
+    std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
+    std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
+    std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
 }
 
 /**
@@ -296,10 +294,6 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 
     if (FLAGS_qb != 16 && FLAGS_qb != 8) {
         throw std::logic_error("Only 8 or 16 bits supported.");
-    }
-
-    if (FLAGS_nthreads <= 0) {
-        throw std::logic_error("Invalid value for 'nthreads' argument. It must be greater that or equal to 0");
     }
 
     if (FLAGS_cw_r < 0) {

@@ -153,7 +153,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self, size_t idx) {
             return self._request.get_input_tensor(idx);
         },
-        py::arg("idx"));
+        py::arg("index"));
 
     cls.def("get_input_tensor", [](InferRequestWrapper& self) {
         return self._request.get_input_tensor();
@@ -164,7 +164,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self, size_t idx) {
             return self._request.get_output_tensor(idx);
         },
-        py::arg("idx"));
+        py::arg("index"));
 
     cls.def("get_output_tensor", [](InferRequestWrapper& self) {
         return self._request.get_output_tensor();
@@ -199,7 +199,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self, size_t idx, const ov::runtime::Tensor& tensor) {
             self._request.set_input_tensor(idx, tensor);
         },
-        py::arg("idx"),
+        py::arg("index"),
         py::arg("tensor"));
 
     cls.def(
@@ -214,7 +214,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self, size_t idx, const ov::runtime::Tensor& tensor) {
             self._request.set_output_tensor(idx, tensor);
         },
-        py::arg("idx"),
+        py::arg("index"),
         py::arg("tensor"));
 
     cls.def(

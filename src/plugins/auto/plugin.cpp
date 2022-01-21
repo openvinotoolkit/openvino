@@ -217,7 +217,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
     } else {
-        IE_THROW() << "Unsupported metric key " << name;
+        IE_THROW() << "Unsupported metric key: " << name;
     }
 }
 
@@ -269,10 +269,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
-        auto supportDevices = FilterDevice(metaDevices, filterConfig);
-        if (supportDevices.size() == 0) {
-             IE_THROW() << "there is no device support the configure";
+        auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
+        if (supportDevicesByConfig.size() == 0) {
+             IE_THROW() << "There is no device support the configure";
         }
+        auto supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
         // replace the configure with configure that auto want to pass to device
         // and reset the strDevices to support devices
         auto validConfigKey = PerfHintsConfig::SupportedKeys();
@@ -441,10 +442,16 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
 
     // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
     std::list<DeviceInformation>  devices;
-    devices.splice(devices.end(), dGPU);
-    devices.splice(devices.end(), VPUX);
+    if (networkPrecision == "INT8") {
+        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), dGPU);
+    } else {
+        devices.splice(devices.end(), dGPU);
+        devices.splice(devices.end(), VPUX);
+    }
     devices.splice(devices.end(), iGPU);
     devices.splice(devices.end(), MYRIAD);
+    devices.splice(devices.end(), CPU);
 
     std::list<DeviceInformation> validDevices;
 
@@ -466,8 +473,6 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
        const std::string f16 = "FP16";
        selectSupportDev(f16);
     }
-    // add cpu devices if exist.
-    validDevices.splice(validDevices.end(), CPU);
 
     if (validDevices.empty()) {
          IE_THROW() << "Cannot select any device";
@@ -484,7 +489,7 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
                 continue;
             }
             auto& filterDevices = kvp.second;
-            auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](DeviceInformation device) {
+            auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](const DeviceInformation& device) {
                     auto iter = std::find_if(filterDevices.begin(), filterDevices.end(), [&device](std::string uniqueName) {
                             return (uniqueName == device.uniqueName);
                             });
@@ -636,5 +641,22 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDevice(const st
         }
     }
     return filterDevice;
+}
+std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
+                                                InferenceEngine::CNNNetwork network) {
+    std::vector<DeviceInformation> filterDevice;
+    auto model = network.getFunction();
+    if (model->is_dynamic()) {
+        for (auto& iter : metaDevices) {
+            if (iter.deviceName.find("CPU") != std::string::npos) {
+                filterDevice.push_back(iter);
+                break;
+            }
+        }
+        if (filterDevice.size() == 0)
+            IE_THROW(NotFound) << "No available device for dynamic shape network !";
+        return filterDevice;
+    }
+    return metaDevices;
 }
 }  // namespace MultiDevicePlugin

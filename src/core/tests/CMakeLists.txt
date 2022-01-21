@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
+    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
 endif()
@@ -53,7 +54,7 @@ set(SRC
     file_util.cpp
     float16.cpp
     framework_node.cpp
-    function.cpp
+    model.cpp
     graph_rewrite.cpp
     input_output_assign.cpp
     int4.cpp
@@ -409,26 +410,22 @@ set(SRC
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
-
-# Add include path to so_extension.hpp
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
-                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
+list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_extension)
 
-if (ENABLE_MKL_DNN AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_cpu_plugin)
     endif()
 endif()
 
@@ -446,7 +443,7 @@ if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
-        list(APPEND UNIT_TESTS_DEPENDENCIES templatePlugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_plugin)
     endif()
 endif()
 
@@ -467,7 +464,7 @@ set(MULTI_TEST_SRC
     backend/sqrt.in.cpp
 )
 
-set(OP_EVAL_TEST_SRC 
+set(OP_EVAL_TEST_SRC
     # It should be a part of template plugin
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
@@ -518,7 +515,8 @@ endif()
 
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
-                             ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/progress_reporter.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)
@@ -559,7 +557,7 @@ add_dependencies(ov_core_unit_tests template_extension)
 target_include_directories(ov_core_unit_tests PRIVATE ".")
 target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
-get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
+get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
 target_include_directories(ov_core_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
 
 target_compile_definitions(ov_core_unit_tests
@@ -580,8 +578,7 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads
                                         openvino::conditional_compilation
-                                        openvino::util
-                                        frontend_common)
+                                        openvino::runtime::dev)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled

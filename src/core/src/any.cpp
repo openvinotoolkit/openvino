@@ -40,7 +40,12 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
     return const_cast<Any::Base*>(this)->visit_attributes(visitor);
 }
 
-Any::Any(const std::shared_ptr<void>& so, const Any& other) : _so{so}, _impl{other._impl} {}
+Any::~Any() {
+    _runtime_attribute_impl = {};
+    _impl = {};
+}
+
+Any::Any(const Any& other, const std::shared_ptr<void>& so) : _impl{other._impl}, _so{so} {}
 
 Any::Any(const char* str) : Any(std::string{str}) {}
 

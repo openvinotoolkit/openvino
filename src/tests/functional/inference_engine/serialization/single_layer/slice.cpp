@@ -111,12 +111,10 @@ std::vector<Slice8SpecificParams> dynamicParams = {
                 std::numeric_limits<std::int64_t>::max(),
                 std::numeric_limits<std::int64_t>::max(),
                 std::numeric_limits<std::int64_t>::max() }, { 1, 1, 1, 1, 16 }, {} },
-
-        // Shapes mismatch because of missing lower bounds serialization support (ticket: 69092)
-        // Slice8SpecificParams{ {{{ov::Dimension(1, 5), ov::Dimension(1, 7), ov::Dimension(1, 35), ov::Dimension(1, 35)},
-        //     {{ 1, 5, 32, 32 }, { 2, 5, 32, 20 }, { 2, 5, 32, 32 }}}}, { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-        // Slice8SpecificParams{ {{{ov::Dimension(1, 5), ov::Dimension(10, 20), ov::Dimension(20, 30), 16, ov::Dimension(30, 40)},
-        //     {{ 4, 15, 30, 16, 39 }}}}, { 0, 2, 10, 0, 35 }, { 1, 8, 25, 16, 40 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } }
+        Slice8SpecificParams{ {{{ov::Dimension(1, 5), ov::Dimension(1, 7), ov::Dimension(1, 35), ov::Dimension(1, 35)},
+            {{ 1, 5, 32, 32 }, { 2, 5, 32, 20 }, { 2, 5, 32, 32 }}}}, { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
+        Slice8SpecificParams{ {{{ov::Dimension(1, 5), ov::Dimension(10, 20), ov::Dimension(20, 30), 16, ov::Dimension(30, 40)},
+            {{ 4, 15, 30, 16, 39 }}}}, { 0, 2, 10, 0, 35 }, { 1, 8, 25, 16, 40 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Slice8Serialization_dynamic, Slice8LayerTest,

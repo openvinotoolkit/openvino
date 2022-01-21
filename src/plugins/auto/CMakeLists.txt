@@ -29,8 +29,6 @@ elseif(ENABLE_MULTI)
                   VERSION_DEFINES_FOR plugin.cpp)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph inference_engine_transformations)
-
 set_ie_threading_interface_for(${TARGET_NAME})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

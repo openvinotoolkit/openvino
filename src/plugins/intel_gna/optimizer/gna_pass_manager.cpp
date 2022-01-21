@@ -633,11 +633,11 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 
         if (prev == nullptr || next == nullptr) continue;
 
-        if (LayerInfo(prev).isPermute()) {
+        if (LayerInfo(prev).isPermute() || LayerInfo(prev).isPermuteViaReshape()) {
             permutations_to_remove.insert(prev);
         }
 
-        if (LayerInfo(next).isPermute()) {
+        if (LayerInfo(next).isPermute() || LayerInfo(prev).isPermuteViaReshape()) {
             permutations_to_remove.insert(next);
         }
 
@@ -699,7 +699,8 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         };
         propogateNHWCOrderRecursive(current_layer);
 
-        if (LayerInfo(pattern_start).isPermute() && !getInputTo(pattern_start->outData.front()).empty()) {
+        if ((LayerInfo(pattern_start).isPermute() || LayerInfo(pattern_start).isPermuteViaReshape()) &&
+         !getInputTo(pattern_start->outData.front()).empty()) {
             auto layer_before_permute = CNNNetPrevLayer(pattern_start);
             DataPtr output = nullptr;
             for (auto before_output : layer_before_permute->outData) {
@@ -1655,9 +1656,6 @@ void BroadcastConstPass::run() {
 
 void BreakFusingOfOutputLayersPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BreakFusingOfOutputLayersPass");
-#if GNA_LIB_VER == 1
-    return;
-#endif
     OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
     for (auto layer : *pLayers) {
         /* Inserion of the second activation after pooling will break Conv - Pooling - Activation component
@@ -2020,11 +2018,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
     };
 
     auto allowFQFuse = [](CNNLayerPtr layer) -> bool {
-        auto doNotSkup = [](CNNLayerPtr layer) {
+        auto doNotSkip = [](CNNLayerPtr layer) {
             return false;
         };
 
-        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkup).empty()) {
+        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkip).empty()) {
             return false;
         }
 
@@ -2145,7 +2143,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 
         // Before FQ layer is removed, the previous functional layer has to be updated with its quantization data
         auto prevFuncLayer = CNNNetPrevLayerSkipCertain(*fqLayer, 0, [](CNNLayerPtr layer) {
-            return LayerInfo(layer).isNonFunctional();
+            return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isPooling();
         });
         auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevFuncLayer);
         quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);

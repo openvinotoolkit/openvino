@@ -1483,8 +1483,9 @@ static void printfOverXLinkOpen(struct _devicePrivate_t *d) {
 
     int portNum = 7788;
     int connfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (connfd != 0) {
+    if (connfd == -1) {
         fprintf(stderr,"ERROR in socket function, return value is : %d\n", connfd);
+        close(connfd);
         return;
     }
     bzero((char *) &serv_addr, sizeof(serv_addr));

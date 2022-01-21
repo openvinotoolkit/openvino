@@ -40,7 +40,7 @@ class Benchmark:
             logger.info(f'CPU extensions is loaded {path_to_extension}')
 
     def get_version_info(self) -> str:
-        logger.info(f"InferenceEngine:\n{'': <9}{'API version':.<24} {get_version()}")
+        logger.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
         version_string = 'Device info\n'
         for device, version in self.core.get_versions(self.device).items():
             version_string += f"{'': <9}{device}\n"
@@ -61,11 +61,11 @@ class Benchmark:
         weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
         return self.core.read_model(model_filename, weights_filename)
 
-    def create_infer_requests(self, exe_network):
+    def create_infer_requests(self, compiled_model):
         if self.api_type == 'sync':
-            requests = [exe_network.create_infer_request()]
+            requests = [compiled_model.create_infer_request()]
         else:
-            requests = AsyncInferQueue(exe_network, self.nireq)
+            requests = AsyncInferQueue(compiled_model, self.nireq)
             self.nireq = len(requests)
         return requests
 

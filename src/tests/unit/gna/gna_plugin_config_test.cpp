@@ -11,6 +11,7 @@
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
 
+IE_SUPPRESS_DEPRECATED_START
 const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
@@ -29,6 +30,7 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
     {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE}
 };
+IE_SUPPRESS_DEPRECATED_END
 
 class GNAPluginConfigTest : public ::testing::Test {
 protected:
@@ -96,45 +98,26 @@ TEST_F(GNAPluginConfigTest, GnaConfigFirmwareModelImageTest) {
     EXPECT_EQ(config.dumpXNNPath, "abc");
 }
 
-TEST_F(GNAPluginConfigTest, GnaConfigFirmwareModelImageGeneratorTest) {
-    SetAndCompare(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), "def");
-    EXPECT_EQ(config.dumpXNNGeneration, "def");
-}
-
 TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW);
-#if GNA_LIB_VER == 1
-    EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_HARDWARE));
-#else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardware);
     EXPECT_EQ(config.swExactMode, false);
-#endif
-#if GNA_LIB_VER == 2
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW_WITH_SW_FBACK);
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardwareWithSoftwareFallback);
     EXPECT_EQ(config.swExactMode, false);
-#endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW);
-#if GNA_LIB_VER == 1
-    EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_SOFTWARE));
-#else
+
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
     EXPECT_EQ(config.swExactMode, false);
-#endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT);
-#if GNA_LIB_VER == 1
-    EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE));
-#else
+
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
     EXPECT_EQ(config.swExactMode, true);
-#endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_AUTO);
-#if GNA_LIB_VER == 1
-    EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_AUTO));
-#else
+
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeAuto);
     EXPECT_EQ(config.swExactMode, false);
-#endif
+
     ExpectThrow(GNA_CONFIG_KEY(DEVICE_MODE), "");
     ExpectThrow(GNA_CONFIG_KEY(DEVICE_MODE), "abc");
 }
@@ -159,11 +142,14 @@ TEST_F(GNAPluginConfigTest, GnaConfigPrecisionTest) {
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPwlUniformDesignTest) {
+    IE_SUPPRESS_DEPRECATED_START
     SetAndCheckFlag(GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN),
                     config.gnaFlags.uniformPwlDesign);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPwlMaxErrorPercentTest) {
+    IE_SUPPRESS_DEPRECATED_START
     SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("0.100000"));
     EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 0.1f);
     SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("1.000000"));
@@ -172,12 +158,15 @@ TEST_F(GNAPluginConfigTest, GnaConfigPwlMaxErrorPercentTest) {
     EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 5);
     ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "-1");
     ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "100.1");
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPerfCountTest) {
     SetAndCheckFlag(CONFIG_KEY(PERF_COUNT),
                     config.gnaFlags.performance_counting);
 }
+
+IE_SUPPRESS_DEPRECATED_START
 
 TEST_F(GNAPluginConfigTest, GnaConfigLibNThreadsTest) {
     SetAndCompare(GNA_CONFIG_KEY(LIB_N_THREADS), "2");
@@ -195,6 +184,8 @@ TEST_F(GNAPluginConfigTest, GnaConfigSingleThreadTest) {
                     config.gnaFlags.gna_openmp_multithreading,
                     true);
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_2_0");
