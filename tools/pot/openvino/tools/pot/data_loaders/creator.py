@@ -31,9 +31,9 @@ def create_data_loader(config, model):
                 data_loader.shape = in_node.shape
                 data_loader.get_layout(in_node)
             elif config.type == 'data_free':
-                if config.shape is None:
+                if not config.shape:
                     config.shape = in_node.shape
-                if config.layout is None:
+                if not config.layout:
                     config.layout = in_node.graph.graph.get('layout', None)
                 data_loader = SyntheticImageLoader(config)
             return data_loader

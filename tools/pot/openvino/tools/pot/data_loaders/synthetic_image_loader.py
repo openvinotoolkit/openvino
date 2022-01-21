@@ -101,10 +101,10 @@ class SyntheticImageLoader(ImageLoader):
         super().__init__(config)
 
         np.random.seed(seed=1)
-        self.subset_size = config.subset_size
+        self.subset_size = config.get('subset_size', 300)
         self._cpu_count = min(os.cpu_count(), self.subset_size)
-        self._shape = config.shape
-        self.data_source = config.data_source
+        self._shape = config.get('shape', None)
+        self.data_source = config.get('data_source', None)
         self._weights = np.array([
             0.2, 1, 1, 1, 1, 1,
             0.6, 1, 1, 1, 1, 1,
@@ -180,6 +180,9 @@ class SyntheticImageLoader(ImageLoader):
 
     def generate_dataset(self):
         super().get_layout()
+        if self._shape is None or len(self._shape) < 2:
+            raise ValueError('Input shape should be specified. Please, use `--shape')
+
         height = self._shape[self._layout.get_index_by_name('H')]
         width = self._shape[self._layout.get_index_by_name('W')]
         self.initialize_params(height, width)
