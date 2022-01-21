@@ -89,3 +89,8 @@ def legacy_transformations_config_used(argv: argparse.Namespace):
     if path != None:
         return not is_new_json_config(path)
     return False
+
+
+def input_freezig_used(argv):
+    return hasattr(argv, 'freeze_placeholder_with_value') and argv.freeze_placeholder_with_value is not None \
+        and len(argv.freeze_placeholder_with_value) > 0
