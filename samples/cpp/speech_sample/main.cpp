@@ -86,7 +86,8 @@ int main(int argc, char* argv[]) {
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
         // ------------------------------ Preprocessing ------------------------------------------------------
-        // the preprocessing steps can be done only for loaded network and are not applicable for the imported network (already compiled)
+        // the preprocessing steps can be done only for loaded network and are not applicable for the imported network
+        // (already compiled)
         if (!FLAGS_m.empty()) {
             model = core.read_model(FLAGS_m);
             check_number_of_inputs(model->inputs().size(), numInputFiles);
