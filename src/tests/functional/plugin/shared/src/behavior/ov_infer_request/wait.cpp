@@ -57,8 +57,8 @@ TEST_P(OVInferRequestWaitTests, throwExceptionOnSetTensorAfterAsyncInfer) {
     auto&& config = configuration;
     auto itConfig = config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
     if (itConfig != config.end()) {
-        if (itConfig->second != "CPU_THROUGHPUT_AUTO") {
-            if (std::stoi(itConfig->second) == 0) {
+        if (itConfig->second.as<std::string>() != "CPU_THROUGHPUT_AUTO") {
+            if (std::stoi(itConfig->second.as<std::string>()) == 0) {
                 GTEST_SKIP() << "Not applicable with disabled streams";
             }
         }

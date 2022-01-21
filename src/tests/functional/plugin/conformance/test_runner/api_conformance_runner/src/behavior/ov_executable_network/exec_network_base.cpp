@@ -4,7 +4,7 @@
 
 #include "behavior/ov_executable_network/exec_network_base.hpp"
 #include "ie_plugin_config.hpp"
-#include "api_conformance_helpers.hpp"
+#include "ov_api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;

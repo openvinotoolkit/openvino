@@ -5,7 +5,6 @@
 #include "behavior/executable_network/get_metric.hpp"
 #include "api_conformance_helpers.hpp"
 
-using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
 using namespace InferenceEngine::PluginConfigParams;
 

@@ -9,7 +9,7 @@ namespace {
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
         {{GNA_CONFIG_KEY(LIB_N_THREADS), "3"}}
 };
 
