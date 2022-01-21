@@ -14,7 +14,7 @@ namespace conformance {
 inline const std::string getPluginLibNameByDevice(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
             { "AUTO", "ov_multi_plugin" },
-            { "HDDL", "HDDLPlugin" },
+            { "HDDL", "ov_intel_hddl_plugin" },
             { "VPUX", "ov_intel_vpux_plugin" },
             { "AUTO", "ov_auto_plugin" },
             { "CPU", "ov_intel_cpu_plugin" },

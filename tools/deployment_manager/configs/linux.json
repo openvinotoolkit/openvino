@@ -81,7 +81,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libHDDLPlugin.so",
+        "runtime/lib/intel64/libov_intel_hddl_plugin.so",
         "runtime/3rdparty/hddl"
       ]
     },
