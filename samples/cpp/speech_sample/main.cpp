@@ -106,8 +106,8 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Set parameters and scale factors -------------------------------------
         /** Setting parameter for per layer metrics **/
-        ov::AnyMap gnaPluginConfig;
-        ov::AnyMap genericPluginConfig;
+        std::map<std::string, std::string> gnaPluginConfig;
+        std::map<std::string, std::string> genericPluginConfig;
         if (useGna) {
             std::string gnaDevice =
                 useHetero ? FLAGS_d.substr(FLAGS_d.find("GNA"), FLAGS_d.find(",") - FLAGS_d.find("GNA")) : FLAGS_d;
