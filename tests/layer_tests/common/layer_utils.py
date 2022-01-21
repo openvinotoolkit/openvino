@@ -5,6 +5,8 @@ import subprocess
 import sys
 
 from common.utils.multiprocessing_utils import multiprocessing_run
+from openvino.inference_engine import IECore, get_version as ie_get_version
+from openvino.runtime import Core, get_version as ie2_get_version
 
 
 def shell(cmd, env=None, cwd=None):
@@ -26,11 +28,6 @@ class BaseInfer:
         raise RuntimeError("This is base class, please implement infer function for the specific framework")
 
     def get_inputs_info(self, precision) -> dict:
-        # TODO: need to update ref graphs or get rid of this comparison
-        # if ref_net is not None:
-        #     ir = IREngine(path_to_xml, path_to_bin, precision=precision)
-        #     (flag, resp) = ir.compare(ref_net)
-        #     assert flag, '\n'.join(resp)
         raise RuntimeError("This is base class, please implement get_inputs_info function for the specific framework")
 
     def infer(self, input_data, infer_timeout=10):
@@ -46,7 +43,6 @@ class IEInfer(BaseInfer):
         self.weights = weights
 
     def fw_infer(self, input_data):
-        from openvino.inference_engine import IECore, get_version as ie_get_version
 
         print("Inference Engine version: {}".format(ie_get_version()))
         print("Creating IE Core Engine...")
@@ -66,8 +62,6 @@ class IEInfer(BaseInfer):
         return result
 
     def get_inputs_info(self, precision) -> dict:
-
-        from openvino.inference_engine import IECore
         core = IECore()
         net = core.read_network(self.model, self.weights)
         inputs_info = {}
@@ -85,9 +79,7 @@ class InferAPI20(BaseInfer):
         self.weights = weights
 
     def fw_infer(self, input_data):
-        from openvino.runtime import Core, get_version as ie_get_version
-
-        print("Inference Engine version: {}".format(ie_get_version()))
+        print("Inference Engine version: {}".format(ie2_get_version()))
         print("Creating IE Core Engine...")
         ie = Core()
         print("Reading network files")
@@ -114,8 +106,6 @@ class InferAPI20(BaseInfer):
         return result
 
     def get_inputs_info(self, precision) -> dict:
-
-        from openvino.runtime import Core
         core = Core()
         net = core.read_model(self.model, self.weights)
         inputs_info = {}
