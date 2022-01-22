@@ -1067,7 +1067,8 @@ def dict_includes(big: dict, sub_dict: dict, skip_attr_names=[]):
     )
 
 
-def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port: bool = False, user_defined_name = None):
+def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port: bool = False,
+                 user_defined_name=None):
     """
     Creates and connects Result node to node_name port. Cuts existing port if requested.
     :param graph: graph to operate with
@@ -1075,6 +1076,7 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
     :param port: output port of node to connect Result to
     :param cut: determines way of operating with edge specified by node_name and port
     :param keep_output_port: special attribute determines if this operation is saved in IR or not
+    :param user_defined_name: User defined operation name, which should be added to tensor names list
     """
     # we import it here because Op imports add_attrs_props and update_ie_fields from this file
     from openvino.tools.mo.ops.result import Result
@@ -1087,13 +1089,16 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
                                                                    'keep_output_port': keep_output_port})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
 
-    if user_defined_name is not None:
+    if user_defined_name is not None and (graph.stage == 'front' or graph.stage is None):
+        # Following code adds user_defined_name to tensor names list
+        # Not applicable for middle stage
         prev_op_tensor_names = set()
         in_edge_attrs = opoutput_node.in_edge()
         if 'fw_tensor_debug_info' in in_edge_attrs:
             for _, tensor_name in opoutput_node.in_edge()['fw_tensor_debug_info']:
                 prev_op_tensor_names.add(tensor_name)
         if user_defined_name not in prev_op_tensor_names:
+            # TODO: This can be optimized. Tensor names can be stored as set, which is initialized after model loading.
             graph_tensor_names = graph.get_tensor_names_set()
             if user_defined_name in graph_tensor_names:
                 log.warning('Could not add user defined output name {} to tensor names list of {} node as '

@@ -921,6 +921,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     :param user_shape: shape provided by user which may contain boundaries of dynamic dimension.
     :param data_type: data type of input node.
     :param is_out_port: flag that define whether port is output port or not.
+    :param user_defined_name: User defined operation name, which should be added to tensor names list.
     :return: id of new Input operation
     """
     # We import it here because Op imports add_attrs_props and update_ie_fields from this file
@@ -930,14 +931,22 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     input_op = Parameter(graph, dict(shape=shape, user_shape=user_shape, data_type=data_type, initial_node_name=node_id,
                                      name=get_new_placeholder_name(node_id, is_out_port, port)))
 
-    if user_defined_name is not None:
-        fw_name = user_defined_name
-    else:
-        fw_name = Node(graph, node_id).soft_get('name')
+    node_name = input_op.attrs['name']
+    tensor_name = node_name + ":" + str(port)
+    if user_defined_name is not None and (graph.stage == 'front' or graph.stage is None):
+        if user_defined_name != tensor_name:
+            # TODO: This can be optimized. Tensor names can be stored as set, which is initialized after model loading.
+            graph_tensor_names = graph.get_tensor_names_set()
+            if user_defined_name in graph_tensor_names:
+                log.warning('Could not add user defined input name {} to tensor names list of {} node as '
+                            'graph contains tensor name with same name.'.format(user_defined_name, node_name))
+            else:
+                tensor_name = user_defined_name
 
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
-                  'fw_tensor_debug_info': [(fw_name, fw_name)],
+                  'fw_tensor_debug_info': [(tensor_name, tensor_name)],
                   'data_attrs': ['fw_tensor_debug_info']}
+
     if not data:
         if is_out_port:
             new_input_id = add_input_op_output_port_without_data(graph=graph, node_id=node_id, input_op=input_op,
@@ -967,7 +976,8 @@ def add_input_ops_helper_before_infer_input_port(graph: Graph, smart_node: Node,
     port = port if port is not None else 0
     edges_to_remove.append((smart_node.in_node(port).id, smart_node.id))
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False,
-                               shape=shape, user_shape=user_shape, data_type=data_type))
+                               shape=shape, user_shape=user_shape, data_type=data_type,
+                               user_defined_name=node_id))
 
 
 def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, port:int, node_id: str,
@@ -985,7 +995,8 @@ def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, 
         raise Error('Shape for tensor "{}" is not defined. Can not proceed.' + refer_to_faq_msg(41),
                     in_node.soft_get('name'))
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True,
-                               shape=shape.copy(), data_type=in_node.soft_get('data_type', None)))
+                               shape=shape.copy(), data_type=in_node.soft_get('data_type', None),
+                               user_defined_name=node_id))
     edges_to_remove.append((in_node.id, node_id))
 
 
@@ -996,7 +1007,8 @@ def add_input_ops_helper_before_infer_output_port(graph: Graph, port: int, node_
         if edge_attrs['out'] == port:
             edges_to_remove.append((u, v))  # we need to remove all edges from this port
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False,
-                               shape=shape, user_shape=user_shape, data_type=data_type, is_out_port=True))
+                               shape=shape, user_shape=user_shape, data_type=data_type, is_out_port=True,
+                               user_defined_name=node_id))
 
 
 def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node, port:int, node_id: str,
@@ -1007,7 +1019,8 @@ def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node,
         raise Error('Shape for tensor "{}" is not defined. Can not proceed.' + refer_to_faq_msg(41),
                     out_node.soft_get('name'))
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True,
-                               shape=shape.copy(), data_type=out_node.soft_get('data_type', None), is_out_port=True))
+                               shape=shape.copy(), data_type=out_node.soft_get('data_type', None), is_out_port=True,
+                               user_defined_name=node_id))
     edges_to_remove.append((node_id, out_node.id))
 
 
