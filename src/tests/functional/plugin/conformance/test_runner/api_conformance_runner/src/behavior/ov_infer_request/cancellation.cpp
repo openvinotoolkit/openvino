@@ -12,6 +12,6 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTests,
         ::testing::Combine(
             ::testing::Values(ConformanceTests::targetDevice),
-            ::testing::ValuesIn(emptyConfig)),
+            ::testing::ValuesIn(ov::test::conformance::emptyConfig)),
         OVInferRequestCancellationTests::getTestCaseName);
 }  // namespace

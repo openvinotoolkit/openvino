@@ -19,7 +19,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassImportExportTestP, OVClassImportExportTestP,
-        ::testing::Values(generateComplexDeviceName(CommonTestUtils::DEVICE_HETERO)));
+        ::testing::Values(ov::test::conformance::generateComplexDeviceName(CommonTestUtils::DEVICE_HETERO)));
 
 //
 // Executable Network GetMetric
@@ -27,23 +27,23 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(ov::test::conformance::returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(ov::test::conformance::returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(ov::test::conformance::returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(ov::test::conformance::returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(ov::test::conformance::returnAllPossibleDeviceCombination()));
 
 //
 // Executable Network GetConfig / SetConfig
