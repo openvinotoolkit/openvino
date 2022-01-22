@@ -162,38 +162,3 @@ TEST(type_prop, strided_slice_reverse_out_of_bounds) {
     Shape expected{3, 4, 5};
     EXPECT_EQ(ss->get_output_shape(0), expected);
 }
-
-TEST(type_prop, strided_slice_empty_begin_mask_end_mask) {
-    auto data = std::make_shared<op::Parameter>(ngraph::element::f32, ngraph::Shape{3, 4, 5});
-    auto begin = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0});
-    auto end = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1});
-    auto stride = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1});
-
-    try {
-        auto ss = std::make_shared<op::v1::StridedSlice>(data,
-                                                         begin,
-                                                         end,
-                                                         stride,
-                                                         vector<int64_t>{},
-                                                         vector<int64_t>{0, 0, 0});
-        FAIL() << "Exception expected, got nothing";
-    } catch (const CheckFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("begin_mask attribute must not be empty"));
-    } catch (...) {
-        FAIL() << "Got different exception than 'begin_mask attribute must not be empty'";
-    }
-
-    try {
-        auto ss = std::make_shared<op::v1::StridedSlice>(data,
-                                                         begin,
-                                                         end,
-                                                         stride,
-                                                         vector<int64_t>{0, 0, 0},
-                                                         vector<int64_t>{});
-        FAIL() << "Exception expected, got nothing";
-    } catch (const CheckFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("end_mask attribute must not be empty"));
-    } catch (...) {
-        FAIL() << "Got different exception than 'end_mask attribute must not be empty'";
-    }
-}
