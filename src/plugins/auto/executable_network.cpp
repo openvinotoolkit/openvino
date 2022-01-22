@@ -158,7 +158,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _context(context)
                                                            , _workModeIsAUTO(true)
                                                            , _network(network) {
-    LOG_DEBUG("[AUTOPLUGIN]ExecutableNetwork start");
+    LOG_INFO("[AUTOPLUGIN]ExecutableNetwork start");
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
@@ -524,16 +524,16 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
              count += request._inferCount;
          }
          if (_workerRequest.first == "CPU_HELP") {
-             LOG_DEBUG("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
+             LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
          } else {
-             LOG_DEBUG("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
+             LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
          }
     }
     {
         std::lock_guard<std::mutex> lock(_confMutex);
         _workerRequests.clear();
     }
-    LOG_DEBUG("[AUTOPLUGIN]ExecutableNetwork end");
+    LOG_INFO("[AUTOPLUGIN]ExecutableNetwork end");
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
