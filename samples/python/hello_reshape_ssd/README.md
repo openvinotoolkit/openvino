@@ -5,19 +5,18 @@ Models with only 1 input and output are supported.
 
 The following Inference Engine Python API is used in the application:
 
-| Feature                  | API                                                                                                             | Description                                           |
-| :----------------------- | :-------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
-| Network Operations       | [IENetwork.reshape] | Managing of network: configure input and output blobs |
-| Custom Extension Kernels | [IECore.add_extension], [IECore.set_config]                                                                     | Load extension library and config to the device       |
+| Feature          | API                                                                                                                                       | Description       |
+| :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :---------------- |
+| Model Operations | [openvino.runtime.Model.reshape], [openvino.runtime.Model.input], [openvino.runtime.Output.get_any_name], [openvino.runtime.PartialShape] | Managing of model |
 
 Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
-| Options                    | Values                                                                                                                      |
-| :------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| Validated Models           | [mobilenet-ssd](@ref omz_models_model_mobilenet_ssd) |
+| Options                    | Values                                                                   |
+| :------------------------- | :----------------------------------------------------------------------- |
+| Validated Models           | [ssdlite_mobilenet_v2](@ref omz_models_model_ssdlite_mobilenet_v2)       |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx) |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization | [C++](../../../samples/cpp/hello_reshape_ssd/README.md) |
+| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md)        |
+| Other language realization | [C++](../../../samples/cpp/hello_reshape_ssd/README.md)                  |
 
 ## How It Works
 
@@ -29,39 +28,8 @@ each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_custo
 
 ## Running
 
-Run the application with the `-h` option to see the usage message:
-
 ```
-python <path_to_sample>/hello_reshape_ssd.py -h
-```
-
-Usage message:
-
-```
-usage: hello_reshape_ssd.py [-h] -m MODEL -i INPUT [-l EXTENSION] [-c CONFIG]
-                            [-d DEVICE] [--labels LABELS]
-
-Options:
-  -h, --help            Show this help message and exit.
-  -m MODEL, --model MODEL
-                        Required. Path to an .xml or .onnx file with a trained
-                        model.
-  -i INPUT, --input INPUT
-                        Required. Path to an image file.
-  -l EXTENSION, --extension EXTENSION
-                        Optional. Required by the CPU Plugin for executing the
-                        custom operation on a CPU. Absolute path to a shared
-                        library with the kernels implementations.
-  -c CONFIG, --config CONFIG
-                        Optional. Required by GPU or VPU Plugins for the
-                        custom operation kernel. Absolute path to operation
-                        description file (.xml).
-  -d DEVICE, --device DEVICE
-                        Optional. Specify the target device to infer on; CPU,
-                        GPU, MYRIAD, HDDL or HETERO: is acceptable. The sample
-                        will look for a suitable plugin for device specified.
-                        Default value is CPU.
-  --labels LABELS       Optional. Path to a labels mapping file.
+python hello_reshape_ssd.py <path_to_model> <path_to_image> <device_name>
 ```
 
 To run the sample, you need specify a model and image:
@@ -79,19 +47,19 @@ To run the sample, you need specify a model and image:
 ### Example
 1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
 ```
-python <path_to_omz_tools>/downloader.py --name mobilenet-ssd
+python <path_to_omz_tools>/downloader.py --name ssdlite_mobilenet_v2
 ```
 
 2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
 
 ```
-python <path_to_omz_tools>/converter.py --name mobilenet-ssd
+python <path_to_omz_tools>/converter.py --name ssdlite_mobilenet_v2
 ```
 
-3. Perform inference of `car.bmp` using `mobilenet-ssd` model on a `GPU`, for example:
+3. Perform inference of `banana.jpg` using `ssdlite_mobilenet_v2` model on a `GPU`, for example:
 
 ```
-python <path_to_sample>/hello_reshape_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/car.bmp -d GPU
+python hello_reshape_ssd.py -m ssdlite_mobilenet_v2.xml -i banana.jpg -d GPU
 ```
 
 ## Sample Output
@@ -99,15 +67,12 @@ python <path_to_sample>/hello_reshape_ssd.py -m <path_to_model>/mobilenet-ssd.xm
 The sample application logs each step in a standard output stream and creates an output image, drawing bounding boxes for inference results with an over 50% confidence.
 
 ```
-[ INFO ] Creating Inference Engine
-[ INFO ] Reading the network: c:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\mobilenet-ssd\FP32\mobilenet-ssd.xml        
-[ INFO ] Configuring input and output blobs
+[ INFO ] Creating OpenVINO Runtime Core
+[ INFO ] Reading the network: C:/test_data/models/ssdlite_mobilenet_v2.xml
 [ INFO ] Reshaping the network to the height and width of the input image
-[ INFO ] Input shape before reshape: [1, 3, 300, 300]
-[ INFO ] Input shape after reshape: [1, 3, 637, 749]
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
-[ INFO ] Found: label = 7, confidence = 0.99, coords = (283, 166), (541, 472)
+[ INFO ] Found: class_id = 52, confidence = 0.98, coords = (21, 98), (276, 210)
 [ INFO ] Image out.bmp was created!
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
@@ -119,14 +84,7 @@ The sample application logs each step in a standard output stream and creates an
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-[IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
-[IECore.add_extension]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a8a4b671a9928c7c059bd1e76d2333967
-[IECore.set_config]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a2c738cee90fca27146e629825c039a05
-[IECore.read_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a0d69c298618fab3a08b855442dca430f
-[IENetwork.input_info]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
-[IENetwork.outputs]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
-[InputInfoPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
-[DataPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1DataPtr.html#data_fields
-[IECore.load_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc
-[IENetwork.reshape]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#a6683f0291db25f908f8d6720ab2f221a
-[ExecutableNetwork.infer]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1ExecutableNetwork.html#aea96e8e534c8e23d8b257bad11063519
+<!-- [openvino.runtime.Model.reshape]:
+[openvino.runtime.Model.input]:
+[openvino.runtime.Output.get_any_name]:
+[openvino.runtime.PartialShape]: -->

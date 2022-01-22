@@ -18,7 +18,7 @@ def main():
 
     # Parsing and validation of input arguments
     if len(sys.argv) != 4:
-        log.info('Usage: <path_to_model> <path_to_image> <device_name>')
+        log.info(f'Usage: {sys.argv[0]} <path_to_model> <path_to_image> <device_name>')
         return 1
 
     model_path = sys.argv[1]
