@@ -33,6 +33,7 @@ class FakeOutputResolver(BackReplacementPattern):
 
                 # Get tensor names incoming to FakeOutput
                 in_data_node = fake_output.in_node()
+                debug_info = None
                 if 'fw_tensor_debug_info' in in_data_node:
                     debug_info = in_data_node['fw_tensor_debug_info']
                     del in_data_node['fw_tensor_debug_info']
@@ -41,7 +42,8 @@ class FakeOutputResolver(BackReplacementPattern):
                 fake_output.out_port(0).get_connection().set_source(add.out_port(0))
 
                 # Move tensor names to Add op, which replaces FakeOutput
-                add.out_node(0)['fw_tensor_debug_info'] = debug_info
+                if debug_info is not None:
+                    add.out_node(0)['fw_tensor_debug_info'] = debug_info
 
             else:
                 result_in_port = fake_output.out_port(0).get_destination()

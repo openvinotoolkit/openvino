@@ -55,11 +55,7 @@ def align_frame_time(graph: Graph, node: Node, frame_time_max):
                 if in_node.op == 'Parameter':
                     memory_align['element_size'] = in_node.shape
 
-                attrs_save_mode = "merge"
-                if in_node_out_port.node.soft_get('type') == 'Parameter':
-                    attrs_save_mode = "source"
-
-                memory_align.in_port(0).get_connection().set_source(in_node_out_port, attrs_save_mode)
+                memory_align.in_port(0).get_connection().set_source(in_node_out_port)
                 in_port.get_connection().set_source(memory_align.out_port(0))
                 memory_align['frame_time'] = memory_align.t
         # remove MemoryOffset with maximum delay
