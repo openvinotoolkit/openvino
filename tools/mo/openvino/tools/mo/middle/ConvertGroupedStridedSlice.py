@@ -167,7 +167,6 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                     shape[split_channel_dim] = l - prev_r
                     data_node = Op._create_data_node(graph, 'fake_data_'+out_nodes[0].name, {'shape': shape})
                     add_opoutput(graph, data_node.id, 0, False, keep_output_port=True)
-                    data_node['fw_tensor_debug_info'] = [(out_nodes[0].name, data_node.id + ":0")]
                     final_data_nodes_list.append(data_node)
 
                 prev_r = r
@@ -181,7 +180,6 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                 size_splits.append(input_shape[split_channel_dim] - prev_r)
                 data_node = Op._create_data_node(graph, 'fake_data_'+out_nodes[0].name, {'shape': shape})
                 add_opoutput(graph, data_node.id, 0, False, keep_output_port=True)
-                data_node['fw_tensor_debug_info'] = [(out_nodes[0].name, data_node.id + ":0")]
                 final_data_nodes_list.append(data_node)
 
             for node in out_nodes:

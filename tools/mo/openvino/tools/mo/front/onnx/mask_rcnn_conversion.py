@@ -49,8 +49,7 @@ def insert_do(graph: Graph, replacement_descriptions: dict):
                                                             dict(name='box_regressions'), box_regressions_input_node)
 
     class_predicitons_node = Node(graph, replacement_descriptions['class_predicitons_node'])
-    im_info_node_name = 'im_info'
-    im_info_node = Parameter(graph, {'name': im_info_node_name, 'shape': int64_array([1, 3])}).create_node()
+    im_info_node = Parameter(graph, {"name": 'im_info', 'shape': int64_array([1, 3])}).create_node()
 
     do_node = ExperimentalDetectronDetectionOutput(graph, {'name': 'DetectionOutput',
                                                            'class_agnostic_box_regression': 0,
@@ -69,9 +68,6 @@ def insert_do(graph: Graph, replacement_descriptions: dict):
     box_regressions_node.out_port(0).connect(do_node.in_port(1))
     class_predicitons_node.out_port(0).connect(do_node.in_port(2))
     im_info_node.out_port(0).connect(do_node.in_port(3))
-    debug_info = [(im_info_node_name, im_info_node_name)]
-    im_info_node.out_edge(0)['fw_tensor_debug_info'] = debug_info
-    im_info_node.out_edge(0)['data_attrs'] = ['fw_tensor_debug_info']
 
     do_output_ports = [do_node.out_port(0), do_node.out_port(1), do_node.out_port(2)]
     old_do_output_nodes = [Node(graph, node_id) for node_id in do_outputs]

@@ -888,6 +888,7 @@ def add_input_op_output_port_without_data(graph: Graph, node_id: str, input_op, 
             attrs = attrs.copy()
             attrs['out'] = 0
             attrs['fw_tensor_debug_info'] = fw_info
+            attrs['data_attrs'] = ['fw_tensor_debug_info']
             graph.add_edge(input_node.id, out_node, **attrs)
             log.debug('Input: {} for node {} output port {}'.format(input_node.id, node_id, port))
             log.debug("Add edge from {} to {}".format(input_node.id, out_node))

@@ -140,7 +140,4 @@ class SsdPatternDetectionOutputReplacer(FrontReplacementSubgraph):
         ssd_concats['ssd_concat1'].out_port(0).get_connection().set_destination(detection_output_node.in_port(0))
         ssd_concats['ssd_concat2'].out_port(0).get_connection().set_destination(detection_output_node.in_port(2))
 
-        tensor_name = detection_output_node.soft_get('name') + ":0"
-        edge_attrs = {'fw_tensor_debug_info': [(tensor_name, tensor_name)], 'data_attrs': ['fw_tensor_debug_info']}
-        Result(graph, {'name': detection_output_node.id + '/Result'}).create_node([detection_output_node],
-                                                                                  edge_attrs=edge_attrs)
+        Result(graph, {'name': detection_output_node.id + '/Result'}).create_node([detection_output_node])

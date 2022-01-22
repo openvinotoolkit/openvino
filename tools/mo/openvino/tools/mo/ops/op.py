@@ -345,9 +345,6 @@ class Op(object):
                     res_node = Result(node.graph, {'name': node.name + '/Fake_output_{}/'.format(p),
                                                    'keep_output_port': True}).create_node()
                     node.out_port(p).connect(res_node.in_port(0))
-                    tensor_name = node.name + ":" + str(p)
-                    data_node = node.out_node(p)
-                    data_node['fw_tensor_debug_info'] = [(tensor_name, tensor_name)]
 
 
 class PermuteAttrs:

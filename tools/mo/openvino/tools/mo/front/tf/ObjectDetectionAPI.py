@@ -1080,10 +1080,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
             insert_weights_swap_xy_sub_graph(graph, detection_output.in_port(2).get_connection())
 
         # create Result since after the transformation other Results are removed
-        detection_output_tensor_name = detection_output.soft_get('name') + ":0"
-        edge_attrs = {'fw_tensor_debug_info': [(detection_output_tensor_name, detection_output_tensor_name)],
-                      'data_attrs': ['fw_tensor_debug_info']}
-        Result(graph, dict(name='do_OutputOp')).create_node([detection_output], edge_attrs=edge_attrs)
+        Result(graph, dict(name='do_OutputOp')).create_node([detection_output])
 
         log.error('The graph output nodes have been replaced with a single layer of type "DetectionOutput". Refer to '
                   'the operation set specification documentation for more information about the operation.',
@@ -1141,10 +1138,8 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
                                                       detection_output)
         mark_as_correct_data_layout(flatten_do)
 
-        tensor_name = flatten_do.soft_get('name') + ":0"
-        edge_attrs = {'fw_tensor_debug_info': [(tensor_name, tensor_name)], 'data_attrs': ['fw_tensor_debug_info']}
         # adds "Result" node so this output is returned by IE by default for the backward compatibility
-        do_result = Result(graph, dict(name='do_reshaped_OutputOp')).create_node([flatten_do], edge_attrs=edge_attrs)
+        do_result = Result(graph, dict(name='do_reshaped_OutputOp')).create_node([flatten_do])
 
         # add attribute 'output_sort_order' so it will be used as a key to sort output nodes before generation of IR
         do_result.in_edge()['data_attrs'].append('output_sort_order')
@@ -1339,10 +1334,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         im_info = Parameter(graph, dict(shape=int64_array([1, 3]), fixed_batch=True)).create_node(
             [], dict(name='image_info'))
 
-        node_name = im_info.soft_get('name')
-        edge_attrs = {'fw_tensor_debug_info': [(node_name, node_name)], 'data_attrs': ['fw_tensor_debug_info']}
-        proposal = proposal_op.create_node([reshape_conf_initial, bboxes_offsets, im_info], dict(name='proposals'),
-                                           edge_attrs=edge_attrs)
+        proposal = proposal_op.create_node([reshape_conf_initial, bboxes_offsets, im_info], dict(name='proposals'))
         return {'proposal_node': ObjectDetectionAPIProposalReplacement.ie_to_tf_proposals(graph, proposal, match,
                                                                                           pipeline_config,
                                                                                           max_proposals)}
@@ -1693,12 +1685,6 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         # As outputs are replaced with a postprocessing node, outgoing tensor names are no longer correspond to the
         # original tensors and should be removed from output->Result edges
         clear_tensor_names_info([match.output_node(out)[0] for out in range(match.outputs_count())])
-
-        node_name = detection_output_node.soft_get('name')
-        if detection_output_node.out_edges():
-            tensor_name = node_name + ":0"
-            detection_output_node.out_edge(0)['fw_tensor_debug_info'] = [(tensor_name, tensor_name)]
-            detection_output_node.out_edge(0)['data_attrs'] = ['fw_tensor_debug_info']
 
         # return dictionary with mapping of nodes that is used in the `output_edges_match` function to finish sub-graph
         # replacement by re-connecting output from the original matched output node to the DetectionOutput node

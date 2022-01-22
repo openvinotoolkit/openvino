@@ -32,18 +32,19 @@ class FakeOutputResolver(BackReplacementPattern):
                 rename_nodes([(fake_output, name + '/TBD'), (add, name)])
 
                 # Get tensor names incoming to FakeOutput
+                tensor_names = fake_output.in_port(0).get_connection().source.get_tensor_names()
+
+                # Remove tensor info from data node
                 in_data_node = fake_output.in_node()
-                debug_info = None
                 if 'fw_tensor_debug_info' in in_data_node:
-                    debug_info = in_data_node['fw_tensor_debug_info']
                     del in_data_node['fw_tensor_debug_info']
 
                 fake_output.in_port(0).get_connection().set_destination(add.in_port(0))
                 fake_output.out_port(0).get_connection().set_source(add.out_port(0))
 
                 # Move tensor names to Add op, which replaces FakeOutput
-                if debug_info is not None:
-                    add.out_node(0)['fw_tensor_debug_info'] = debug_info
+                if len(tensor_names) > 0:
+                    add.out_port(0).set_tensor_names([add.soft_get('name')], [tensor_names])
 
             else:
                 result_in_port = fake_output.out_port(0).get_destination()
