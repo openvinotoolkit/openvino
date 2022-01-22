@@ -170,17 +170,23 @@ def convert_inputs_of_specific_ops(graph: Graph):
                     else:
                         in_port.get_connection().insert_node(Cast(graph, {'dst_type': np_type}).create_node())
 
+
 def tensor_names_check(graph: Graph):
     for node in graph.get_op_nodes():
         if node.soft_get('type') == 'Result' and node.is_in_port_connected(0):
-            prev_node_out_port = node.in_port(0).get_connection().get_source()
-            tensor_names = prev_node_out_port.get_tensor_names()
-            assert tensor_names is not None and isinstance(tensor_names, list) and len(tensor_names) > 0, \
-                "Missing tensor names for Result node {}.".format(node.soft_get('name', node.id))
-        if node.soft_get('type') == 'Parameter' and node.is_out_port_connected(0):
-            tensor_names = node.out_port(0).get_tensor_names()
-            assert tensor_names is not None and isinstance(tensor_names, list) and len(tensor_names) > 0, \
-                "Missing tensor names for Parameter node {}.".format(node.soft_get('name', node.id))
+            port = node.in_port(0).get_connection().get_source()
+        elif node.soft_get('type') == 'Parameter' and node.is_out_port_connected(0):
+            port = node.out_port(0)
+        else:
+            continue
+
+        tensor_names = port.get_tensor_names()
+        if tensor_names is not None and isinstance(tensor_names, list) and len(tensor_names) > 0:
+            continue
+        new_tensor_name = port.get_default_tensor_name()
+        op_name = port.node.soft_get('name')
+        port.set_tensor_names([op_name], [[new_tensor_name]])
+
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
                     mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None,
