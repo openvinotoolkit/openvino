@@ -11,12 +11,12 @@ using namespace ov::test::behavior;
 
 namespace {
 
-const std::vector<std::map<std::string, std::string>> AutoConfigs = {
+const std::vector<ov::AnyMap> AutoConfigs = {
     {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
     CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}},
     {}
 };
-const std::vector<std::map<std::string, std::string>> AutoNotSupportConfigs = {
+const std::vector<ov::AnyMap> AutoNotSupportConfigs = {
     {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}
 };
 
