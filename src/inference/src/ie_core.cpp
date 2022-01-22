@@ -55,6 +55,12 @@ namespace ov {
 // Specify the default device when no device name is provided.
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
+template <typename T>
+struct Parsed {
+    std::string _deviceName;
+    std::map<std::string, T> _config;
+};
+
 namespace {
 
 #ifndef OPENVINO_STATIC_LIBRARY
@@ -71,12 +77,6 @@ std::string parseXmlConfig(const std::string& xmlFile) {
 }
 
 #endif
-
-template <typename T>
-struct Parsed {
-    std::string _deviceName;
-    std::map<std::string, T> _config;
-};
 
 template <typename T = ie::Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
