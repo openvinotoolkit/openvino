@@ -215,6 +215,7 @@ void ov::Model::validate_nodes_and_infer_types() const {
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
     std::unordered_set<const ov::descriptor::Tensor*> tensors;
+
     for (auto& node : get_ordered_ops()) {
         node->revalidate_and_infer_types();
         for (const auto& output : node->outputs()) {
@@ -239,6 +240,7 @@ void ov::Model::validate_nodes_and_infer_types() const {
             pair_checker[read_value->get_variable().get()].cnt_read_val++;
         }
     }
+
     if (!unregistered_parameters.str().empty())
         throw ov::Exception("Model references undeclared parameters: " + unregistered_parameters.str());
 

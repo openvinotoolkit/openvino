@@ -70,6 +70,12 @@ void Any::print(std::ostream& ostream) const {
     }
 }
 
+void Any::read(std::istream& istream) {
+    if (_impl != nullptr) {
+        _impl->read(istream);
+    }
+}
+
 bool Any::operator==(const Any& other) const {
     if (_impl == nullptr && other._impl == nullptr) {
         return false;
