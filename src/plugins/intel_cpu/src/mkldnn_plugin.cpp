@@ -105,6 +105,7 @@
 #include <low_precision/low_precision.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
+#include <low_precision/reduce_mean.hpp>
 #include "openvino/runtime/core.hpp"
 
 #include <ie_algorithm.hpp>
@@ -469,6 +470,30 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         });
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
             return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
+        });
+        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ReduceMeanTransformation>([](const_node_ptr& node) -> bool {
+            // ReduceMean 3D -> 2D workaround
+            const auto input_rank = node->get_input_partial_shape(0).rank();
+            if (input_rank.is_dynamic() || (input_rank.get_length() != 3)) {
+                return false;
+            }
+
+            const auto output_rank = node->get_output_partial_shape(0).rank();
+            if (output_rank.is_dynamic() || (output_rank.get_length() != 2)) {
+                return false;
+            }
+
+            const auto reduction_axis_const = ngraph::as_type_ptr<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1));
+            if (reduction_axis_const == nullptr) {
+                return false;
+            }
+
+            const auto reduction_axis = reduction_axis_const->cast_vector<int>();
+            if ((reduction_axis.size() != 1) || (reduction_axis[0] != 2)) {
+                return false;
+            }
+
+            return true;
         });
         lptManager.run_passes(nGraphFunc);
     }
