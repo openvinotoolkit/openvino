@@ -80,7 +80,7 @@ private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
     bool is_correct_place(const ov::frontend::Place::Ptr& place) const;
 
-    std::unordered_map<std::string, std::vector<std::string>> m_additional_tensor_names;
+    std::unordered_map<std::string, std::list<std::string>> m_additional_tensor_names;
     void add_tensor_names(std::shared_ptr<Model>& model);
 
     std::unordered_map<std::string, ov::PartialShape> m_inputs_to_reshape;

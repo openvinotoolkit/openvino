@@ -34,7 +34,7 @@ TEST(model, get_output_by_tensor_name) {
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
-    const std::vector<std::string> out_names = {"relu_t", "identity"};
+    const std::list<std::string> out_names = {"relu_t", "identity"};
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names(out_names);
@@ -309,7 +309,7 @@ TEST(model, get_output_by_tensor_name_from_const_model) {
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
-    const std::vector<std::string> out_names = {"relu_t", "identity"};
+    const std::list<std::string> out_names = {"relu_t", "identity"};
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names(out_names);

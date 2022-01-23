@@ -91,7 +91,7 @@ const std::string& ov::descriptor::Tensor::get_name() const {
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
-const std::vector<std::string>& ov::descriptor::Tensor::get_names() const {
+const std::list<std::string>& ov::descriptor::Tensor::get_names() const {
     return m_names;
 }
 
@@ -105,11 +105,11 @@ std::string ov::descriptor::Tensor::get_main_name() const {
     return *sorted_names.begin();
 }
 
-void ov::descriptor::Tensor::set_names(const std::vector<std::string>& names) {
+void ov::descriptor::Tensor::set_names(const std::list<std::string>& names) {
     m_names = names;
 }
 
-void ov::descriptor::Tensor::add_names(const std::vector<std::string>& names) {
+void ov::descriptor::Tensor::add_names(const std::list<std::string>& names) {
     for (const auto& name : names) {
         m_names.emplace_back(name);
     }

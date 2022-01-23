@@ -9,7 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <unordered_set>
+#include <list>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
@@ -42,9 +42,9 @@ public:
     void set_name(const std::string& name);
 
     std::string get_main_name() const;
-    const std::vector<std::string>& get_names() const;
-    void set_names(const std::vector<std::string>& names);
-    void add_names(const std::vector<std::string>& names);
+    const std::list<std::string>& get_names() const;
+    void set_names(const std::list<std::string>& names);
+    void add_names(const std::list<std::string>& names);
 
     OPENVINO_DEPRECATED("set_tensor_type() is deprecated. To change Tensor type please change the Parameter type")
     void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
@@ -112,7 +112,7 @@ protected:
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
     std::string m_name;
 
-    std::vector<std::string> m_names;
+    std::list<std::string> m_names;
     RTMap m_rt_info;
     mutable std::atomic_bool m_shape_changed;
 };

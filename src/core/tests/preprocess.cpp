@@ -1354,11 +1354,11 @@ TEST(pre_post_process, preprocess_keep_params_order) {
     EXPECT_EQ(f->input(3).get_partial_shape(), (PartialShape{1, 2, 2, 1}));
     EXPECT_EQ(f->input(4).get_partial_shape(), (PartialShape{1, 1, 1, 2}));
 
-    EXPECT_EQ(f->input(0).get_tensor().get_names(), std::vector<std::string>{"tensor_input0"});
-    EXPECT_EQ(f->input(1).get_tensor().get_names(), std::vector<std::string>{"tensor_input1/Y"});
-    EXPECT_EQ(f->input(2).get_tensor().get_names(), std::vector<std::string>{"tensor_input1/UV"});
-    EXPECT_EQ(f->input(3).get_tensor().get_names(), std::vector<std::string>{"tensor_input2/Y"});
-    EXPECT_EQ(f->input(4).get_tensor().get_names(), std::vector<std::string>{"tensor_input2/UV"});
+    EXPECT_EQ(f->input(0).get_tensor().get_names(), std::list<std::string>{"tensor_input0"});
+    EXPECT_EQ(f->input(1).get_tensor().get_names(), std::list<std::string>{"tensor_input1/Y"});
+    EXPECT_EQ(f->input(2).get_tensor().get_names(), std::list<std::string>{"tensor_input1/UV"});
+    EXPECT_EQ(f->input(3).get_tensor().get_names(), std::list<std::string>{"tensor_input2/Y"});
+    EXPECT_EQ(f->input(4).get_tensor().get_names(), std::list<std::string>{"tensor_input2/UV"});
 }
 
 // --- PostProcess - set/convert layout ---

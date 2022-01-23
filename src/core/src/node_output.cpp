@@ -82,7 +82,7 @@ const RTMap& Output<const Node>::get_rt_info() const {
     return m_node->m_outputs.at(m_index).get_rt_info();
 }
 
-const std::vector<std::string>& Output<Node>::get_names() const {
+const std::list<std::string>& Output<Node>::get_names() const {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
 }
 
@@ -90,15 +90,15 @@ std::string Output<Node>::get_main_name() const {
     return get_tensor().get_main_name();
 }
 
-void Output<Node>::set_names(const std::vector<std::string>& names) {
+void Output<Node>::set_names(const std::list<std::string>& names) {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->set_names(names);
 }
 
-void Output<Node>::add_names(const std::vector<std::string>& names) {
+void Output<Node>::add_names(const std::list<std::string>& names) {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->add_names(names);
 }
 
-const std::vector<std::string>& Output<const Node>::get_names() const {
+const std::list<std::string>& Output<const Node>::get_names() const {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
 }
 

@@ -98,7 +98,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
         auto plane_shape = color_info->shape(plane, new_param_shape);
         auto plane_param = std::make_shared<opset8::Parameter>(tensor_elem_type, plane_shape);
         if (plane < get_tensor_data()->planes_sub_names().size()) {
-            std::vector<std::string> plane_tensor_names;
+            std::list<std::string> plane_tensor_names;
             std::string sub_name;
             sub_name = std::string("/") + get_tensor_data()->planes_sub_names()[plane];
             if (!std::get<1>(existing_names)) {
