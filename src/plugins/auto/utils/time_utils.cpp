@@ -43,16 +43,6 @@ std::string putTime(std::chrono::system_clock::time_point tp, const char* format
     return ss.str();
 }
 
-std::string formatTimeMilli(std::chrono::system_clock::time_point tp) {
-    std::stringstream ss;
-
-    auto milliseconds = (std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count() % 1000);
-
-    ss << putTime(tp, "%T") << '.' << std::setfill('0') << std::setw(3) << milliseconds;
-
-    return ss.str();
-}
-
 std::string getCurrentTime() {
     std::stringstream ss;
 
