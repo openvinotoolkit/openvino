@@ -96,7 +96,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
     ov::InferRequest req;
     ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
 }
 
 TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
@@ -111,10 +111,10 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     // Create InferRequest
     ov::InferRequest req;
     ov::Tensor tensor, otensor;
-    const std::string outputname = function->outputs().back().get_any_name();
+    const std::string outputname = function->outputs().back().get_main_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     // OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
@@ -140,13 +140,13 @@ TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     // Create InferRequest
     ov::InferRequest req;
     ov::Tensor tensor, otensor;
-    const std::string outputname = function->outputs().back().get_any_name();
+    const std::string outputname = function->outputs().back().get_main_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     // OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     ASSERT_EQ(0, otensor.get_size());                                               // output tensor is not allocated
     ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type());  // by it has type
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(req.infer());
@@ -167,10 +167,10 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
     // Create InferRequest
     ov::InferRequest req;
     ov::Tensor tensor, otensor;
-    const std::string outputName = function->outputs().back().get_any_name();
+    const std::string outputName = function->outputs().back().get_main_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     // OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputName));
@@ -196,7 +196,7 @@ TEST_P(OVInferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower
     ov::InferRequest req;
     ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     // Plugin may or may not throw in case if input tensor has dimensions that are out of bounds
     // ASSERT_THROW(req.infer(), ov::Exception);
@@ -215,7 +215,7 @@ TEST_P(OVInferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorUpper
     ov::InferRequest req;
     ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({3, 4, 20, 20}));
     // Plugin may or may not throw in case if input tensor has dimensions that are out of bounds
     // ASSERT_THROW(req.infer(), ov::Exception);
@@ -236,17 +236,17 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     ov::InferRequest req;
     ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape(refShape));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     req.wait();
-    const std::string outputName = function->outputs().back().get_any_name();
+    const std::string outputName = function->outputs().back().get_main_name();
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape);
 
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape(refShape2));
     ASSERT_EQ(tensor.get_shape(), refShape2);
     OV_ASSERT_NO_THROW(req.infer());
@@ -268,10 +268,10 @@ TEST_P(OVInferRequestDynamicTests, GetSameTensor2times) {
     ov::InferRequest req;
     ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape(refShape));
     ASSERT_EQ(tensor.get_shape(), refShape);
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
     ASSERT_EQ(tensor.get_shape(), refShape);
 }
 
@@ -288,12 +288,12 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
     ov::InferRequest req;
     ov::Tensor tensor(ov::element::f32, refShape);
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
+    OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_main_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
-    const std::string outputName = function->outputs().back().get_any_name();
+    const std::string outputName = function->outputs().back().get_main_name();
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape);
 }
@@ -310,9 +310,9 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
     // Create InferRequest
     ov::InferRequest req;
     ov::Tensor tensor(ov::element::f32, refShape), otensor;
-    const std::string outputName = function->outputs().back().get_any_name();
+    const std::string outputName = function->outputs().back().get_main_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
+    OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_main_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputName));
     ASSERT_EQ(0, otensor.get_size());                                               // output tensor is not allocated
@@ -336,7 +336,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    const std::string outputName = function->outputs().back().get_any_name();
+    const std::string outputName = function->outputs().back().get_main_name();
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
@@ -344,7 +344,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     ov::Tensor tensor(ov::element::f32, refShape);
 
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
+    OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_main_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
@@ -353,7 +353,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     ASSERT_EQ(tensor.get_shape(), refOutShape);
 
     tensor = ov::Tensor(ov::element::f32, refShape2);
-    OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
+    OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_main_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape2);
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
@@ -371,7 +371,7 @@ TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    const std::string outputName = function->outputs().back().get_any_name();
+    const std::string outputName = function->outputs().back().get_main_name();
     // Load ov::Function to target plugins
     ov::CompiledModel execNet;
     ASSERT_THROW((execNet = ie->compile_model(function, targetDevice, configuration)), ov::Exception);

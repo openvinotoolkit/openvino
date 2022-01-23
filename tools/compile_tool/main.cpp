@@ -404,7 +404,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
 
             bool tensorFound = false;
             for (size_t i = 0; i < inputs.size(); i++) {
-                if (inputs[i].get_names().count(tensor_name)) {
+                if (std::find(inputs[i].get_names().begin(), inputs[i].get_names().end(), tensor_name) != inputs[i].get_names().end()) {
                     preprocessor.input(i).tensor().set_element_type(type);
                     tensorFound = true;
                     break;
@@ -412,7 +412,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
             }
             if (!tensorFound) {
                 for (size_t i = 0; i < outputs.size(); i++) {
-                    if (outputs[i].get_names().count(tensor_name)) {
+                    if (std::find(outputs[i].get_names().begin(), outputs[i].get_names().end(), tensor_name) != outputs[i].get_names().end()) {
                         preprocessor.output(i).tensor().set_element_type(type);
                         tensorFound = true;
                         break;
@@ -441,7 +441,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
 
             bool tensorFound = false;
             for (size_t i = 0; i < inputs.size(); i++) {
-                if (inputs[i].get_names().count(tensor_name)) {
+                if (std::find(inputs[i].get_names().begin(), inputs[i].get_names().end(), tensor_name) != inputs[i].get_names().end()) {
                     preprocessor.input(i).tensor().set_layout(ov::Layout(item.second));
                     tensorFound = true;
                     break;
@@ -449,7 +449,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
             }
             if (!tensorFound) {
                 for (size_t i = 0; i < outputs.size(); i++) {
-                    if (outputs[i].get_names().count(tensor_name)) {
+                    if (std::find(outputs[i].get_names().begin(), outputs[i].get_names().end(), tensor_name) != outputs[i].get_names().end()) {
                         preprocessor.output(i).tensor().set_layout(ov::Layout(item.second));
                         tensorFound = true;
                         break;
@@ -479,7 +479,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
 
             bool tensorFound = false;
             for (size_t i = 0; i < inputs.size(); i++) {
-                if (inputs[i].get_names().count(tensor_name)) {
+                if (std::find(inputs[i].get_names().begin(), inputs[i].get_names().end(), tensor_name) != inputs[i].get_names().end()) {
                     preprocessor.input(i).model().set_layout(ov::Layout(item.second));
                     tensorFound = true;
                     break;
@@ -487,7 +487,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
             }
             if (!tensorFound) {
                 for (size_t i = 0; i < outputs.size(); i++) {
-                    if (outputs[i].get_names().count(tensor_name)) {
+                    if (std::find(outputs[i].get_names().begin(), outputs[i].get_names().end(), tensor_name) != outputs[i].get_names().end()) {
                         preprocessor.output(i).model().set_layout(ov::Layout(item.second));
                         tensorFound = true;
                         break;

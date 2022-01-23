@@ -625,9 +625,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         }
 
         pugi::xml_node tensorNamesNode = xml_node.child("tensor_names");
-        std::unordered_set<std::string> tensorNames;
+        std::list<std::string> tensorNames;
         FOREACH_CHILD (tensorNameNode, tensorNamesNode, "tensor_name") {
-            tensorNames.insert(GetStrAttr(tensorNameNode, "value"));
+            tensorNames.emplace_back(GetStrAttr(tensorNameNode, "value"));
         }
 
         std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::Parameter>(elementType, partialShape);

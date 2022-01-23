@@ -341,17 +341,17 @@ TEST(NetworkContext_CNNNetwork, HashWithTensorNames) {
     auto fun1 = create_simple_function();
     auto fun2 = create_simple_function();
     auto fun3 = create_simple_function();
-    std::unordered_set<std::string> names1, names2;
+    std::list<std::string> names1, names2;
     std::vector<std::string> testNames;
     testNames.reserve(100);
     for (int i = 0; i < 100; i++) {
         testNames.push_back("test" + std::to_string(i));
     }
     std::for_each(testNames.begin(), testNames.end(), [&names1](const std::string& name) {
-        names1.insert(name);
+        names1.emplace_back(name);
     });
     std::for_each(testNames.rbegin(), testNames.rend(), [&names2](const std::string& name) {
-        names2.insert(name);
+        names2.emplace_back(name);
     });
 
     fun1->input().set_names(names1);

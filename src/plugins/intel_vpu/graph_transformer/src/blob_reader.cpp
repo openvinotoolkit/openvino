@@ -137,14 +137,14 @@ void BlobReader::parse(const std::vector<char>& blob) {
                 std::make_shared<ov::op::v0::Parameter>(parameterType,
                                                         parameterShape);
 
-            std::unordered_set<std::string> tensorNames;
+            std::list<std::string> tensorNames;
             for (auto idx = 0; idx < nph.output_tensor_names_size; ++idx) {
                 const auto nameLenght = readFromBlob<size_t>(blob, networkInfoOffset);
                 std::string tensorName;
                 for (auto nameSymbolIdx = 0; nameSymbolIdx < nameLenght; ++nameSymbolIdx) {
                     tensorName += readFromBlob<char>(blob, networkInfoOffset);
                 }
-                tensorNames.insert(tensorName);
+                tensorNames.emplace_back(tensorName);
             }
             if (isResult) {
                 auto fakeParameter = parameter;
