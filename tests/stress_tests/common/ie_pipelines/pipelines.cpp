@@ -291,11 +291,11 @@ std::function<void()> inference_with_streams(const std::string &model, const std
     }
     else {
         return [&] {
-            std::map<std::string, std::string> config;
+            std::map<std::string, ov::Any> config;
             config[target_device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
             ov::Core ie;
             ie.get_versions(target_device);
-            ie.set_config(config, target_device);
+            ie.set_property(target_device, config);
             std::shared_ptr<ov::Model> network = ie.read_model(model);
             auto compiled_model = ie.compile_model(network, target_device);
             ov::InferRequest infer_request;
@@ -303,7 +303,7 @@ std::function<void()> inference_with_streams(const std::string &model, const std
 
             unsigned int nireq = nstreams;
             try {
-                nireq = compiled_model.get_metric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+                nireq = compiled_model.get_property(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
             } catch (const std::exception &ex) {
                 log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
             }

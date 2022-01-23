@@ -155,13 +155,11 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
 
     auto test_pipeline = [&] {
         MemCheckPipeline memCheckPipeline;
-
-        std::map<std::string, std::string> config;
-        const std::string key = device + "_THROUGHPUT_STREAMS";
-        config[device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
         unsigned int nireq = nstreams;
 
         if (test_params.api_version == 1) {
+            std::map<std::string, std::string> config;
+            config[device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
             InferenceEngine::Core ie;
             ie.GetVersions(device);
             ie.SetConfig(config, device);
@@ -191,16 +189,18 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
             }
         }
         else {
+            std::map<std::string, ov::Any> config;
+            config[device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
             ov::Core ie;
             ie.get_versions(device);
-            ie.set_config(config, device);
+            ie.set_property(device, config);
             auto network = ie.read_model(model);
             auto compiled_model = ie.compile_model(network, device);
             ov::InferRequest infer_request;
             std::vector<ov::Output<ov::Node>> inputs = network->inputs();
 
             try {
-                nireq = compiled_model.get_metric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+                nireq = compiled_model.get_property(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
             } catch (const std::exception &ex) {
                 log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
             }
