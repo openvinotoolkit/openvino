@@ -63,7 +63,7 @@ public:
 
     //mock actual exeNetwork
     std::shared_ptr<MockIExecutableNetworkInternal> actualMockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  actualMockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  actualMockExeNetwork;
     MockIInferencePlugin*                           actualMockIPlugin;
     InferenceEngine::InferencePlugin                actualMockPlugin;
 

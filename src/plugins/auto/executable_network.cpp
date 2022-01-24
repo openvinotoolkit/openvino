@@ -698,76 +698,27 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 std::unique_lock<std::mutex> lock(_confMutex);
                 auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
                 lock.unlock();
-                bool bthroughput = false;
                 const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
                 if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
-                    bthroughput = true;
-                }
-                if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
-                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
-                    if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
-                        // THROUGHPUT mode
+                    if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
                         try {
                             std::map<std::string, InferenceEngine::Parameter> options;
                             options["MODEL_PTR"] = _network.getFunction();
                             auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
                                     METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
-                            if (std::get<1>(rangeOfStreams) > 0) {
-                                real = 2 * std::get<1>(rangeOfStreams);
-                            } else {
-                                real = defaultNumForTPUT;
-                            }
+                            real = 2 * std::get<1>(rangeOfStreams);
                         } catch (const std::exception&) {
                             LOG_WARNING("[AUTOPLUGIN] GetMetric RANGE_FOR_STREAMS failed");
                             LOG_WARNING("[AUTOPLUGIN] use default value %u for THROUGHPUT", defaultNumForTPUT);
                             real = defaultNumForTPUT;
                         }
-                        // if enable auto-batch, use below code
-                        // std::map<std::string, InferenceEngine::Parameter> options;
-                        // options["MODEL_PTR"] = _network.getFunction(); // CNNntework
-                        // try {
-                        //     auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
-                        //             METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-                        //     auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
-                        //             METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
-                        //     real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);
-                        // } catch (const InferenceEngine::Exception &iie) {
-                        //     LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
-                        // }
-                    } else {
-                        // if it is not THROUGHPUT mode, we think it's LATENCY mode
-                        real = defaultNumForLatency;
-                    }
-                } else if (deviceInfo.deviceName.find("VPUX") != std::string::npos) {
-                    if (bthroughput) {
+                    } else if (deviceInfo.deviceName.find("VPUX") != std::string::npos) {
                         real = 8u;
                     } else {
-                        real = defaultNumForLatency;
-                    }
-                } else if (deviceInfo.deviceName.find("MYRIAD") != std::string::npos) {
-                    if (bthroughput) {
                         real = defaultNumForTPUT;
-                    } else {
-                        real = defaultNumForLatency;
-                    }
-                } else if (deviceInfo.deviceName.find("CPU") != std::string::npos) {
-                    LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for CPU_HELP,CPU case");
-                    LOG_WARNING("[AUTOPLUGIN] use default value %u for THROUGHPUT, %u for else",
-                            defaultNumForTPUT, defaultNumForLatency);
-                    if (bthroughput) {
-                        real = defaultNumForTPUT;
-                    } else {
-                        real = defaultNumForLatency;
                     }
                 } else {
-                    LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for device:%s,", deviceInfo.deviceName.c_str());
-                    LOG_WARNING("[AUTOPLUGIN] use default value %u for THROUGHPUT, %u for else",
-                            defaultNumForTPUT, defaultNumForLatency);
-                    if (bthroughput) {
-                        real = defaultNumForTPUT;
-                    } else {
-                        real = defaultNumForLatency;
-                    }
+                    real = defaultNumForLatency;
                 }
             }
             IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, real);
