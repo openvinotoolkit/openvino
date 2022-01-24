@@ -38,7 +38,7 @@ std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<O
     std::shared_ptr<Model> func;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
     std::string targetDevice;
-    ov::AnyMap configuration;
+    std::map<std::string, std::string> configuration;
     std::tie(func, inOutShapes, targetDevice, configuration) = obj.param;
     std::ostringstream result;
     result << "function=" << func->get_friendly_name() << "_";
@@ -51,9 +51,7 @@ std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<O
     result << "targetDevice=" << targetDevice;
     if (!configuration.empty()) {
         for (auto& configItem : configuration) {
-            result << "configItem=" << configItem.first << "_";
-            configItem.second.print(result);
-            result << "_";
+            result << "configItem=" << configItem.first << "_" << configItem.second << "_";
         }
     }
     return result.str();

@@ -21,15 +21,13 @@ class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequ
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
-        ov::AnyMap configuration;
+        std::map<std::string, std::string> configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_";
-                configItem.second.print(result);
-                result << "_";
+                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
             }
         }
         return result.str();
@@ -71,7 +69,7 @@ public:
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
-    ov::AnyMap configuration;
+    std::map<std::string, std::string> configuration;
     std::shared_ptr<ov::Model> function;
 };
 
@@ -87,7 +85,7 @@ TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
-    ov::AnyMap incorrectConfig = {{"abc", "def"}};
+    std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
     EXPECT_ANY_THROW(auto execNet = core->compile_model(function, targetDevice, incorrectConfig));
 }
 
@@ -104,14 +102,14 @@ TEST_P(OVExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
 
 TEST_P(OVExecutableNetworkBaseTest, checkGetMetric) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    EXPECT_NO_THROW(execNet.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    EXPECT_NO_THROW(execNet.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
-        EXPECT_NO_THROW(param = execNet.get_property(configItem.first));
+        EXPECT_NO_THROW(param = execNet.get_config(configItem.first));
         EXPECT_FALSE(param.empty());
         EXPECT_EQ(param, InferenceEngine::Parameter(configItem.second));
     }
@@ -123,7 +121,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
     for (const auto& confItem : configuration) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
     }
-    EXPECT_NO_THROW(execNet.set_property(config));
+    EXPECT_NO_THROW(execNet.set_config(config));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
@@ -133,7 +131,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
     for (const auto& confItem : incorrectConfig) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
     }
-    EXPECT_ANY_THROW(execNet.set_property(config));
+    EXPECT_ANY_THROW(execNet.set_config(config));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck) {
@@ -142,10 +140,10 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck)
     for (const auto& confItem : configuration) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
     }
-    execNet.set_property(config);
+    execNet.set_config(config);
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
-        EXPECT_NO_THROW(param = execNet.get_property(configItem.first));
+        EXPECT_NO_THROW(param = execNet.get_config(configItem.first));
         EXPECT_FALSE(param.empty());
         EXPECT_EQ(param, InferenceEngine::Parameter(configItem.second));
     }
