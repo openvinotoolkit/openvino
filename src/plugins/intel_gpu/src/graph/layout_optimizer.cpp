@@ -201,7 +201,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
                 auto eltw_in_layout = next.get_dependency(fused_op.dep_start_idx).get_output_layout();
                 auto out_layout = next.get_output_layout();
-                if (fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout) &&
+                if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout) &&
                     program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout) &&
                     prev.get_output_layout().format != out_layout.format)
                     return false;
@@ -945,7 +945,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                 auto out_dt = out_layout.data_type;
                 if ((out_layout.count() == in_layout.count()) &&
                     (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
-                    fo.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(in_layout)) {
+                    program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
                     onednn_valid_post_ops = false;
                     break;
                 }
@@ -1379,7 +1379,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 if (fused_op.node->is_type<eltwise>() && node.get_dependencies().size() > fused_op.dep_start_idx && fused_op.deps.size() == 1)  {
                     auto& eltw_in = node.get_dependency(fused_op.dep_start_idx);
                     if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in.get_output_layout(), node.get_output_layout()) &&
-                        fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in.get_output_layout())) {
+                        program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in.get_output_layout())) {
                         if (sum_post_op_cnt > 0)
                             return impl_types::ocl;
 
@@ -1435,7 +1435,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 auto out_layout = node.get_output_layout();
                 auto in_dt = in_layout.data_type;
                 auto out_dt = out_layout.data_type;
-                if (fo.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(in_layout)) {
+                if (program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
                     if ((out_layout.count() == in_layout.count()) &&
                         (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt) {
                         impl_candidate = impl_types::ocl;
@@ -1469,7 +1469,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             for (auto& fused_op : node.get_fused_primitives()) {
                 if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
                     auto eltw_in_layout = node.get_dependency(fused_op.dep_start_idx).get_output_layout();
-                    if (fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout)) {
+                    if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout)) {
                         impl_candidate = impl_types::ocl;
                         break;
                     }
@@ -1509,7 +1509,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                     auto out_dt = out_layout.data_type;
                     if ((out_layout.count() == in_layout.count()) &&
                         (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
-                        fo.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(in_layout)) {
+                        program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
                         impl_candidate = impl_types::ocl;
                         break;
                     }
