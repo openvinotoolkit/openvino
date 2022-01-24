@@ -122,7 +122,7 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
 //    } else if (config.outConfs[0].getMemDesc()->isDefined()) {
 //        config.inConfs[0].setMemDesc(config.outConfs[0].getMemDesc());
 //    } else {
-        config.inConfs[0].setMemDesc(getDefinedInputDesc(config, 0));
+        config.inConfs[0].setMemDesc(getConsistentInputDesc(config, 0));
         config.outConfs[0].setMemDesc(config.inConfs[0].getMemDesc());
 //    }
 
