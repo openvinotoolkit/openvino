@@ -9,7 +9,7 @@
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<ov::AnyMap> configs = {
+const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
@@ -38,12 +38,12 @@ std::vector<ov::element::Type> prcs = {
     ov::element::u64,
 };
 
-const std::vector<ov::AnyMap> emptyConfigs = {{}};
+const std::vector<std::map<std::string, std::string>> emptyConfigs = {{}};
 
-const std::vector<ov::AnyMap> HeteroConfigs = {
+const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
             {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE}}};
 
-const std::vector<ov::AnyMap> Multiconfigs = {
+const std::vector<std::map<std::string, std::string>> Multiconfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_TEMPLATE}}
 };
 

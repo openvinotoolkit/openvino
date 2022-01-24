@@ -647,7 +647,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 }
 
 #ifdef USE_OPENCV
-void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
+void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
     slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
     auto plugin_to_opencv_format = [](const std::string& str) -> std::string {
         if (str.find("_") != std::string::npos) {
@@ -668,18 +668,14 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
         throw std::runtime_error("Error: Can't open config file : " + filename);
     for (auto device_it = config.begin(); device_it != config.end(); ++device_it) {
         fs << plugin_to_opencv_format(device_it->first) << "{:";
-        std::stringstream strm;
-        for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it) {
-            strm << param_it->first;
-            param_it->second.print(strm);
-        }
-        fs << strm.str();
+        for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it)
+            fs << param_it->first << param_it->second;
         fs << "}";
     }
     fs.release();
 }
 
-void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config) {
+void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
     slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
     auto opencv_to_plugin_format = [](const std::string& str) -> std::string {
         std::string new_str(str);
@@ -705,14 +701,12 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
     }
 }
 #else
-void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
+void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
         std::string deviceName = item.first;
         for (const auto& option : item.second) {
-            std::stringstream strm;
-            option.second.print(strm);
-            jsonConfig[deviceName][option.first] = strm.str();
+            jsonConfig[deviceName][option.first] = option.second;
         }
     }
 
@@ -724,7 +718,7 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
     ofs << jsonConfig;
 }
 
-void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config) {
+void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
     std::ifstream ifs(filename);
     if (!ifs.is_open()) {
         throw std::runtime_error("Can't load config file \"" + filename + "\".");

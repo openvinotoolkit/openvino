@@ -20,8 +20,7 @@
 #include <vector>
 
 #include "ie_blob.h"
-#include "openvino/core/any.hpp"
-#include "openvino/core/except.hpp"
+#include "openvino/runtime/parameter.hpp"
 
 namespace InferenceEngine {
 
@@ -29,6 +28,6 @@ namespace InferenceEngine {
  * @brief Alias for type that can store any value
  */
 using Parameter = ov::Any;
-using ParamMap = ov::AnyMap;
+using ov::ParamMap;
 
 }  // namespace InferenceEngine
