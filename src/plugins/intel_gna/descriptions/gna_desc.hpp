@@ -7,7 +7,7 @@
 #include <vector>
 #include <numeric>
 #include <functional>
-#include <unordered_set>
+#include <list>
 
 #include "ie_precision.hpp"
 #include "ie_input_info.hpp"
@@ -24,7 +24,7 @@ namespace GNAPluginNS {
 struct GnaDesc {
     // common OV properties
     std::string name = "";
-    std::unordered_set<std::string> tensor_names = {};
+    std::list<std::string> tensor_names = {};
     InferenceEngine::Layout model_layout = InferenceEngine::Layout::ANY;
     InferenceEngine::SizeVector dims = {};
     InferenceEngine::Precision model_precision  = InferenceEngine::Precision::UNSPECIFIED;
