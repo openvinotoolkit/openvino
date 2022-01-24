@@ -60,6 +60,8 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
 
 // parent is commented to fix type relaxed operations
 bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
+    if (hash_value != 0 && b.hash_value != 0 && hash_value == b.hash_value)
+        return false;
     if (version < b.version)
         return true;
     if (version == b.version && name != nullptr && b.name != nullptr) {
