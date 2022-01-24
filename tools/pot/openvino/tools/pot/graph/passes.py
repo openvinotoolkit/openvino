@@ -27,7 +27,7 @@ from . import editor as ge
 from . import node_utils as nu
 from .editor import get_nodes_by_type
 from .pattern_utils import get_fq_result_pattern
-from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, SPLIT_OPERATIONS, is_eltwise
+from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, SPLIT_OPERATIONS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
 from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, get_weights_for_node
 from ..graph.special_patterns import get_ignored_patterns
@@ -505,12 +505,13 @@ class RemoveFakeQuantize:
                     return True
 
         def _check_const_input(node):
-            input = get_node_inputs(node)[0]
-            return nu.check_const_input(input)
+            input_node = get_node_inputs(node)[0]
+            return nu.check_const_input(input_node)
 
         def delete_one_fq(inputs_node):
             fq_1, fq_2 = inputs_node
-            if len(get_all_node_outputs(fq_1)) > 1 and len(get_all_node_outputs(fq_2)) == 1 and _check_const_input(fq_2):
+            if len(get_all_node_outputs(fq_1)) > 1 \
+                and len(get_all_node_outputs(fq_2)) == 1 and _check_const_input(fq_2):
                 self.disconnect_fq_node(fq_2)
                 return
             if _walk_for_branch(fq_1) and _walk_for_branch(fq_2):
