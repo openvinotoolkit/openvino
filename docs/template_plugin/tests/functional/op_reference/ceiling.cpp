@@ -26,8 +26,8 @@ struct CeilingParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inputData;
-    runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
 };
 
 class ReferenceCeilingLayerTest : public testing::TestWithParam<CeilingParams>, public CommonReferenceTest {

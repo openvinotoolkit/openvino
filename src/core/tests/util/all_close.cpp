@@ -4,10 +4,7 @@
 
 #include "all_close.hpp"
 
-::testing::AssertionResult ov::test::all_close(const ov::runtime::Tensor& a,
-                                               const ov::runtime::Tensor& b,
-                                               float rtol,
-                                               float atol) {
+::testing::AssertionResult ov::test::all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol, float atol) {
     if (a.get_element_type() != b.get_element_type()) {
         return ::testing::AssertionFailure() << "Cannot compare tensors with different element types";
     }
