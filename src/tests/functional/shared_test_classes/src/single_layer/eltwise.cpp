@@ -19,7 +19,7 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
-    std::map<std::string, std::string> additional_config;
+    ov::AnyMap additional_config;
     std::tie(shapes, eltwiseOpType, secondaryInputType, opType, netType, inType, outType, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
@@ -41,7 +41,8 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     results << "OutType=" << outType << "_";
     results << "trgDev=" << targetName;
     for (auto const& configItem : additional_config) {
-        results << "_configItem=" << configItem.first << "_" << configItem.second;
+        results << "_configItem=" << configItem.first << "_";
+        configItem.second.print(results);
     }
     return results.str();
 }
@@ -52,7 +53,7 @@ void EltwiseLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetI
     const auto& funcInputs = function->inputs();
     for (int i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        ov::runtime::Tensor tensor;
+        ov::Tensor tensor;
         bool isReal = funcInput.get_element_type().is_real();
         switch (opType) {
             case ngraph::helpers::EltwiseTypes::POWER:
