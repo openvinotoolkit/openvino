@@ -29,7 +29,7 @@ void fillCandidatesOutsToConcatenateFromOriginalFunc(const std::shared_ptr<ngrap
                                      std::map<Output<Node>, OutputVector>& candidates_to_concatenate,
                                      const size_t batch_size) {
     for (const auto& node : main_function->get_ops()) {
-        if (ov::is_type<opset1::Parameter>(node))
+        if (ov::is_type<opset1::Parameter>(node) || ov::is_type<opset1::Constant>(node))
             continue;
 
         auto outputs = node->outputs();
@@ -84,7 +84,7 @@ bool switchToImageAffinity(std::shared_ptr<ngraph::Node> start,
     single_batch_shape[0] = reduced_batch_size;
 
     // original_node -- shared_ptr on clone
-    NodeMap cloned_nodes;
+    NodeMap cloned_nodes = constants;
     const auto cur_function = ngraph::clone_function(*main_function, cloned_nodes);
     setBatch(cur_function, reduced_batch_size);
 
@@ -96,7 +96,7 @@ bool switchToImageAffinity(std::shared_ptr<ngraph::Node> start,
 
     // insert per-batch graphs after split
     for (size_t i = 1; i < batch_size; ++i) {
-        cloned_nodes.clear();
+        cloned_nodes = constants;
         const auto cur_function = ngraph::clone_function(*main_function, cloned_nodes);
         setBatch(cur_function, reduced_batch_size);
         addOutToConcatenate(cur_function, cloned_nodes, concatenate_map, i);
@@ -121,10 +121,16 @@ bool MKLDNNPlugin::AffinitySwitcher::run_on_function(std::shared_ptr<ngraph::Fun
     std::shared_ptr<Node> start = f->get_parameters()[0];
     std::shared_ptr<Node> end;
 
+    NodeMap constants;
     for (const auto& node : f->get_ordered_ops()) {
+        if (share_constants && ov::is_type<opset1::Constant>(node)) {
+            constants[node.get()] = node;
+        }
+
         for (const auto& input : node->input_values()) {
             const auto pShape = input.get_partial_shape();
             const auto rank = pShape.rank();
+
             if (rank.is_dynamic() || rank.get_length() == 0 || pShape[0].is_dynamic() || pShape[0].get_length() == 1)
                 continue;
 
@@ -134,7 +140,11 @@ bool MKLDNNPlugin::AffinitySwitcher::run_on_function(std::shared_ptr<ngraph::Fun
         }
     }
     if (start && end) {
-        rewritten |= switchToImageAffinity(start, end);
+        rewritten |= switchToImageAffinity(start, end, constants);
     }
     return rewritten;
 }
+
+MKLDNNPlugin::AffinitySwitcher::AffinitySwitcher(const bool share_constants)
+    : ngraph::pass::FunctionPass(),
+      share_constants(share_constants) {}

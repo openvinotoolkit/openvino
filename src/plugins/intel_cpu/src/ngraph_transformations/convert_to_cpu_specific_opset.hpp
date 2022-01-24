@@ -19,6 +19,9 @@
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "affinity_switcher.hpp"
+
+#include <transformations/serialize.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -40,6 +43,13 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ngraph::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+    // TODO: remove 'share_constants' parameter
+    manager.register_pass<AffinitySwitcher>(false);
+    manager.register_pass<ngraph::pass::Serialize>("C://models//affinity.xml",
+                                                   "C://models//affinity.bin");
+    manager.get_pass_config()->set_callback<AffinitySwitcher>([](const std::shared_ptr<const ov::Node>& n) -> bool {
+        return n->get_friendly_name() == "resnet_model/conv2d_2/Conv2D";
+    });
 
     manager.run_passes(nGraphFunc);
 }

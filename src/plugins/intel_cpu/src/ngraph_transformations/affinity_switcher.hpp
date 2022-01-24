@@ -10,6 +10,10 @@ namespace MKLDNNPlugin {
 class AffinitySwitcher: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
+    AffinitySwitcher(const bool share_constants = true);
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
+private:
+    bool share_constants;
 };
 }  // namespace MKLDNNPlugin
