@@ -49,6 +49,7 @@ struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<O
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj);
     void SetUp() override;
     void TearDown() override;
+    void Run();
 
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> model;
