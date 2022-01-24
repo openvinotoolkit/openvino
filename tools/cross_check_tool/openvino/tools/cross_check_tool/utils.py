@@ -503,7 +503,12 @@ def manage_user_outputs_with_mapping(mapping, reference_mapping, user_layers):
 def get_layers_list(all_layers: list, inputs: list, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
-            return [output for output in [layer.outputs() for layer in all_layers if layer.get_type_name() not in ['Constant', 'Result']]]
+            all_outputs = []
+            for layer in all_layers:
+                if layer.get_type_name() not in ['Constant', 'Result']:
+                    all_outputs += layer.outputs()
+            return all_outputs
+            #return [output for output in [layer.outputs() for layer in all_layers if layer.get_type_name() not in ['Constant', 'Result']]]
         else:
             all_node_names = {node.friendly_name: node.outputs() for node in all_layers}
             user_layers = [layer.strip() for layer in layers.split(',')]

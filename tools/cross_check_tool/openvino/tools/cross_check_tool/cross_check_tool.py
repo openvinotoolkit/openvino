@@ -153,7 +153,7 @@ def one_ir_mode(args):
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
     for out_layer in out_layers:
-        log.info(f'Layer {out_layer} statistics')
+        log.info(f'Layer {out_layer.node.friendly_name} statistics')
         model_copy = get_model_copy_with_output(model=args.model, output=out_layer, core=core)
         results = infer(model=model_copy, core=core, device=args.device, inputs=inputs, outputs=[out_layer])
         if out_layer not in results:
