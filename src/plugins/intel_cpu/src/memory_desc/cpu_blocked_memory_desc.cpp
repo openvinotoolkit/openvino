@@ -309,20 +309,6 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
     return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
 }
 
-MemoryDescPtr CpuBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
-    const auto orderSize = getOrder().size();
-    CpuBlockedMemoryDescPtr newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
-    newDesc->strides = VectorDims(orderSize, Shape::UNDEFINED_DIM);
-    newDesc->offsetPadding = Shape::UNDEFINED_DIM;
-    newDesc->offsetPaddingToData =  VectorDims(orderSize, 0);
-    newDesc->status = descStatus::Undefined;
-    return newDesc;
-}
-
-MemoryDescPtr CpuBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
-    return std::make_shared<CpuBlockedMemoryDesc>(getPrecision(), getShape(), getBlockDims(), getOrder());
-}
-
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
     auto newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
     newDesc->setPrecision(prec);

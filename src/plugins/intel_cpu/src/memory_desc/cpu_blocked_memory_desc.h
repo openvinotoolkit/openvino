@@ -77,10 +77,6 @@ public:
 
     size_t getPaddedElementsCount() const override;
 
-    MemoryDescPtr cloneWithUndefStridesAndOffset() const override;
-
-    MemoryDescPtr cloneWithDefaultStridesAndOffset() const override;
-
     MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
 
 private:
