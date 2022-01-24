@@ -14,7 +14,7 @@ using namespace ov::test::conformance;
 namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
                         ::testing::Combine(
-                                ::testing::Values(ConformanceTests::targetDevice),
+                                ::testing::Values(ov::test::conformance::targetDevice),
                                 ::testing::ValuesIn(empty_config)),
                         OVInferRequestIOTensorTest::getTestCaseName);
 

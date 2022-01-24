@@ -12,7 +12,7 @@ using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferenceChaining,
                         ::testing::Combine(
-                                ::testing::Values(ConformanceTests::targetDevice),
+                                ::testing::Values(ov::test::conformance::targetDevice),
                                 ::testing::ValuesIn(empty_config)),
                         OVInferenceChaining::getTestCaseName);
 

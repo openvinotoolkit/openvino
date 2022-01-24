@@ -14,8 +14,13 @@ using namespace ov::test::conformance;
 namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestWaitTests,
                         ::testing::Combine(
+<<<<<<< HEAD
                                 ::testing::Values(ConformanceTests::targetDevice),
                                 ::testing::ValuesIn(empty_config)),
+=======
+                                ::testing::Values(ov::test::conformance::targetDevice),
+                                ::testing::ValuesIn(emptyConfig)),
+>>>>>>> master
                             OVInferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestWaitTests,

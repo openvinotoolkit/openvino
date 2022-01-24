@@ -21,7 +21,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisionsPreprocess),
-                                ::testing::Values(ConformanceTests::targetDevice),
+                                ::testing::Values(ov::test::conformance::targetDevice),
                                 ::testing::ValuesIn(configs)),
                          InferRequestPreprocessTest::getTestCaseName);
 
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessConversionTe
                             ::testing::ValuesIn(ioLayoutsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
-                            ::testing::Values(ConformanceTests::targetDevice),
+                            ::testing::Values(ov::test::conformance::targetDevice),
                             ::testing::ValuesIn(configs)),
                     InferRequestPreprocessConversionTest::getTestCaseName);
 
@@ -85,7 +85,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessDynamicallyI
                             ::testing::Bool(),
                             ::testing::Values(true), // only SetBlob
                             ::testing::Values(true), // only SetBlob
-                            ::testing::Values(ConformanceTests::targetDevice),
+                            ::testing::Values(ov::test::conformance::targetDevice),
                             ::testing::ValuesIn(configs)),
                     InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 

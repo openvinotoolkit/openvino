@@ -12,7 +12,7 @@ using namespace BehaviorTestsDefinitions;
 namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
-                                    ::testing::Values(ConformanceTests::targetDevice),
+                                    ::testing::Values(ov::test::conformance::targetDevice),
                                     ::testing::ValuesIn(emptyConfig)),
                             ExecutableNetworkBaseTest::getTestCaseName);
 
@@ -38,7 +38,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
                             ::testing::Combine(
                                     ::testing::ValuesIn(execNetBaseElemTypes),
-                                    ::testing::Values(ConformanceTests::targetDevice),
+                                    ::testing::Values(ov::test::conformance::targetDevice),
                                     ::testing::ValuesIn(emptyConfig)),
                             ExecNetSetPrecision::getTestCaseName);
 
