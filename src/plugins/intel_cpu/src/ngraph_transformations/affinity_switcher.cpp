@@ -71,12 +71,15 @@ void setBatch(const std::shared_ptr<ngraph::Function> func, size_t batch) {
 bool switchToImageAffinity(std::shared_ptr<ngraph::Node> start,
                            std::shared_ptr<ngraph::Node> end,
                            const NodeMap& constants = {}) {
+    // split original function
     const size_t batch_size = end->get_input_partial_shape(0)[0].get_length();
     const auto axis = opset1::Constant::create(element::i32, {}, {0});
-    const auto split = std::make_shared<opset1::Split>(start, axis, batch_size);
+    const auto split = std::make_shared<opset1::Split>(start->input_value(0), axis, batch_size);
 
-    const auto main_function = std::make_shared<ngraph::Function>(NodeVector{end},
-        ParameterVector{ngraph::as_type_ptr<ngraph::opset1::Parameter>(start)});
+    const auto main_param = std::make_shared<ngraph::opset1::Parameter>(start->get_input_element_type(0),
+                                                                        start->get_input_partial_shape(0));
+    start->set_argument(0, main_param);
+    const auto main_function = std::make_shared<ngraph::Function>(NodeVector{end}, ParameterVector{main_param});
 
     // TODO: input_shape if not parameter
     auto single_batch_shape = start->get_output_partial_shape(0);
@@ -119,14 +122,18 @@ bool switchToImageAffinity(std::shared_ptr<ngraph::Node> start,
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::AffinitySwitcher, "AffinitySwitcher", 0);
 
 bool MKLDNNPlugin::AffinitySwitcher::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    bool rewritten = false;
-    std::shared_ptr<Node> start = f->get_parameters()[0];
-    std::shared_ptr<Node> end;
-
     NodeMap constants;
+    bool rewritten = false;
+    std::shared_ptr<Node> start, end;
+
     for (const auto& node : f->get_ordered_ops()) {
         if (share_constants && ov::is_type<opset1::Constant>(node)) {
             constants[node.get()] = node;
+        }
+
+        // TODO: remove after markup pass implementation
+        if (node->get_friendly_name() == "resnet_model/conv2d/Conv2D") {
+            start = node;
         }
 
         for (const auto& input : node->input_values()) {
