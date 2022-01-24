@@ -21,13 +21,35 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 bool has_valid_pattern(const std::shared_ptr<ngraph::Node> & node) {
     auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node);
     if (!const_node) {
-        // if (!std::dynamic_pointer_cast<ngraph::opset8::ShapeOf>(node)) return false;
+        // Lower bound of the value
         ngraph::HostTensorPtr lb = std::make_shared<ngraph::HostTensor>(node->output(0));
-        const bool is_evaluated = node->evaluate_lower({lb});
-        if (!is_evaluated && !lb) return false;
+        const bool is_lb_evaluated = node->evaluate_lower({lb});
+        if (!is_lb_evaluated || !lb) return false;
+        const auto lb_const_node = std::make_shared<ngraph::opset8::Constant>(lb);
+        if (!lb_const_node) return false;
 
-        const_node = std::make_shared<ngraph::opset8::Constant>(lb);
-        if (!const_node) return false;
+        const auto & lb_values = lb_const_node->cast_vector<int64_t>();
+        bool is_valid = std::all_of(lb_values.cbegin(), lb_values.cend(), [](int64_t value) { return value > 0;});
+        if (is_valid) {
+            return true;
+        }
+
+        // Upper bound of the value
+        ngraph::HostTensorPtr ub = std::make_shared<ngraph::HostTensor>(node->output(0));
+        const bool is_ub_evaluated = node->evaluate_upper({ub});
+        if (!is_ub_evaluated || !ub) return false;
+        const auto ub_const_node = std::make_shared<ngraph::opset8::Constant>(ub);
+        if (!ub_const_node) return false;
+
+        const auto & ub_values = ub_const_node->cast_vector<int64_t>();
+        if (lb_values.size() != ub_values.size()) return false;
+
+        is_valid = std::all_of(lb_values.cbegin(), lb_values.cend(), [](int64_t value) { return value == 0;});
+
+        int64_t ub_max = node->get_output_element_type(0) == ov::element::i32 ? std::numeric_limits<int32_t>::max() : std::numeric_limits<int64_t>::max();
+        is_valid = is_valid && std::all_of(ub_values.cbegin(), ub_values.cend(), [ub_max](int64_t value) { return value == ub_max;});
+
+        return is_valid;
     }
     const auto & values = const_node->cast_vector<int64_t>();
     // We can not fuse Reshapes if their pattern values have special numbers like -1 and 0
