@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
-import numpy as np
 import re
+import numpy as np
 
 from ..statistics.statistics import compute_statistic, Statistic, TensorStatistic
 from ..statistics.function_selector import get_stats_function, ACTIVATIONS
