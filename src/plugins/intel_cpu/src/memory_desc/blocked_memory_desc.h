@@ -62,20 +62,14 @@ public:
     virtual size_t getPaddedElementsCount() const = 0;
 
     /**
-     * @brief Creates MemoryDesc with offsetPadding and strides of UNDEFINED_DIM size
+     * @brief Performs masked compatibility check, where the mask defines which strides to check,
+     * the most significant bit defines whether to check offset compatibility.
+     * @param rhs - desc to compare to
+     * @param cmpMask - a bit mask that defines compatibility check rules
      *
-     * @return pointer to the new MemoryDesc
+     * @return the result of the compatibility check
      */
-    virtual MemoryDescPtr cloneWithUndefStridesAndOffset() const = 0;
-
-    /**
-     * @brief Creates MemoryDesc with offsetPadding of 0 size and default strides
-     *
-     * @return pointer to the new MemoryDesc
-     */
-    virtual MemoryDescPtr cloneWithDefaultStridesAndOffset() const = 0;
-
-    virtual bool isCompatible(const BlockedMemoryDesc &rhs, uint32_t compMask) const = 0;
+    virtual bool isCompatible(const BlockedMemoryDesc &rhs, uint32_t cmpMask) const = 0;
 
     virtual ~BlockedMemoryDesc() = default;
 

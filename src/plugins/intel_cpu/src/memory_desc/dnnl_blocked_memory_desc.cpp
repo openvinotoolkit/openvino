@@ -617,24 +617,6 @@ void DnnlBlockedMemoryDesc::initOffsetPadding() {
     offsetPaddingToData = VectorDims(std::begin(desc.data.padded_offsets), std::begin(desc.data.padded_offsets) + getOrder().size());
 }
 
-MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
-    DnnlBlockedMemoryDescPtr newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
-    auto &dnnlBlkDesc = newDesc->desc.data.format_desc.blocking;
-    std::fill(std::begin(dnnlBlkDesc.strides), std::begin(dnnlBlkDesc.strides) + getShape().getRank(), DNNL_RUNTIME_DIM_VAL);
-    newDesc->initStrides();
-    newDesc->desc.data.offset0 = DNNL_RUNTIME_DIM_VAL;
-    newDesc->status = descStatus::Undefined;
-    return newDesc;
-}
-
-MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
-    DnnlBlockedMemoryDescPtr newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
-    newDesc->recomputeDefaultStrides();
-    newDesc->desc.data.offset0 = 0;
-    newDesc->status = descStatus::Unknown;
-    return newDesc;
-}
-
 MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
     auto newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
     newDesc->setPrecision(prec);
