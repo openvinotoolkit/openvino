@@ -185,8 +185,8 @@ def set_default_tensor_names_for_parameters_results(graph: Graph):
         if node.has_and_set('keep_output_port'):
             continue
 
-        tensor_names = port.get_tensor_names()
-        if tensor_names is not None and isinstance(tensor_names, list) and len(tensor_names) > 0:
+        tensors = port.get_tensor_names()
+        if tensors is not None and isinstance(tensors, list) and len(tensors) > 0:
             continue
         new_tensor_name = port.get_default_tensor_name()
         op_name = port.node.soft_get('name')
