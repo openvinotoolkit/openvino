@@ -545,17 +545,25 @@ static edge_clusters_t findEdgeClusters(const std::vector<MKLDNNEdgePtr> & graph
 
         size_t cluster_idx = edge_clusters.size();
         MKLDNNEdgePtr last_shared_edge = nullptr;
+        //has_defined_max_path means all the edges on path from current to the actual shared edge
+        //have defined max memory size so they can be added to the clusters and resolved by mem solver
+        bool has_defined_max_path = true;
 
         // find cluster index
         for (auto shared_edge = edge->getSharedEdge(std::nothrow);
             shared_edge;
             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
+            has_defined_max_path = has_defined_max_path && shared_edge->hasDefinedMaxSize();
             auto shared_edge_it = edge_cluster_indices.find(shared_edge);
             if (shared_edge_it != edge_cluster_indices.end()) {
                 cluster_idx = shared_edge_it->second;
                 last_shared_edge = shared_edge;
                 break;
             }
+        }
+
+        if (!has_defined_max_path) {
+            continue;
         }
 
         // add shared edges to cluster
