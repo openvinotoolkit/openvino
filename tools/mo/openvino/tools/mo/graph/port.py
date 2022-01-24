@@ -470,4 +470,6 @@ class Port:
         Gets default_tensor_name
         :return: tensor name
         """
+        if self.type == 'in':
+            return None
         return self.node.soft_get('name', self.node.id) + ":" + str(self.idx)
