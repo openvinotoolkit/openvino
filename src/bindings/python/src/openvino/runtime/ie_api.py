@@ -50,9 +50,15 @@ def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
         return convert_dict_items(inputs, py_types)
     elif isinstance(inputs, list):
         # Lists are required to be represented as dictionaries with int keys
-        return convert_dict_items({index: input for index, input in enumerate(inputs)}, py_types)
+        return convert_dict_items(
+            {index: input for index, input in enumerate(inputs)}, py_types
+        )
     else:
-        raise TypeError("Inputs should be either list or dict! Current type: {}".format(type(inputs)))
+        raise TypeError(
+            "Inputs should be either list or dict! Current type: {}".format(
+                type(inputs)
+            )
+        )
 
 
 def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
@@ -81,17 +87,18 @@ class InferRequest(InferRequestBase):
 
     def infer(self, inputs: Union[dict, list] = None) -> dict:
         """Infer wrapper for InferRequest."""
-        inputs = (
+        return super().infer(
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
         )
-        return super().infer(inputs)
 
-    def start_async(self, inputs: Union[dict, list] = None, userdata: Any = None) -> None:
+    def start_async(
+        self, inputs: Union[dict, list] = None, userdata: Any = None
+    ) -> None:
         """Asynchronous infer wrapper for InferRequest."""
-        inputs = (
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        super().start_async(
+            {} if inputs is None else normalize_inputs(inputs, get_input_types(self)),
+            userdata,
         )
-        super().start_async(inputs, userdata)
 
 
 class CompiledModel(CompiledModelBase):
@@ -103,10 +110,9 @@ class CompiledModel(CompiledModelBase):
 
     def infer_new_request(self, inputs: Union[dict, list] = None) -> dict:
         """Infer wrapper for CompiledModel."""
-        inputs = (
+        return super().infer_new_request(
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
         )
-        return super().infer_new_request(inputs)
 
     def __call__(self, inputs: Union[dict, list] = None) -> dict:
         """Callable infer wrapper for CompiledModel."""
@@ -120,16 +126,18 @@ class AsyncInferQueue(AsyncInferQueueBase):
         """Return i-th InferRequest from AsyncInferQueue."""
         return InferRequest(super().__getitem__(i))
 
-    def start_async(self, inputs: Union[dict, list] = None, userdata: Any = None) -> None:
+    def start_async(
+        self, inputs: Union[dict, list] = None, userdata: Any = None
+    ) -> None:
         """Asynchronous infer wrapper for AsyncInferQueue."""
-        inputs = (
+        super().start_async(
             {}
             if inputs is None
             else normalize_inputs(
                 inputs, get_input_types(self[self.get_idle_request_id()])
-            )
+            ),
+            userdata,
         )
-        super().start_async(inputs, userdata)
 
 
 class Core(CoreBase):

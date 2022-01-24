@@ -167,8 +167,6 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
             // Check if key is compatible, should be port/string/integer
             if (py::isinstance<ov::Output<const ov::Node>>(input.first)) {
                 request.set_tensor(input.first.cast<ov::Output<const ov::Node>>(), tensor);
-            } else if (py::isinstance<ov::Output<ov::Node>>(input.first)) {
-                request.set_tensor(input.first.cast<ov::Output<ov::Node>>(), tensor);
             } else if (py::isinstance<py::str>(input.first)) {
                 request.set_tensor(input.first.cast<std::string>(), tensor);
             } else if (py::isinstance<py::int_>(input.first)) {
