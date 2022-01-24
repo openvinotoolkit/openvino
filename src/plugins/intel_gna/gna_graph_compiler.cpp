@@ -1747,7 +1747,6 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         {"neglog", kActNegLog},
         {"neghalflog", kActNegHalfLog},
         {"identity", kActIdentity},
-        {"softsign", kActSoftSign},
         {"fakequantize", kActFakeQuantize},
         {"Pwl", kActPwl}
     };
@@ -1814,7 +1813,6 @@ case name:\
         GET_ACTIVATION_NAME(kActLeakyRelu);
         GET_ACTIVATION_NAME(kActKaldiLstmClipping);
         GET_ACTIVATION_NAME(kActIdentity);
-        GET_ACTIVATION_NAME(kActSoftSign);
         GET_ACTIVATION_NAME(kActCustom);
         GET_ACTIVATION_NAME(kActSign);
         GET_ACTIVATION_NAME(kActAbs);
@@ -1838,8 +1836,6 @@ case name:\
                 break;
             case kActKaldiLstmClipping:
             case kActIdentity:ptr_pwl_segments.resize(IDENTITY_NUM_SEGMENTS);
-                break;
-            case kActSoftSign:ptr_pwl_segments.resize(SOFTSIGN_NUM_SEGMENTS);
                 break;
             case kActCustom:
             default:
@@ -1984,7 +1980,6 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"clamp",
           "relu",
           "identity",
-          "softsign",
           "sign",
           "abs",
           "neglog",

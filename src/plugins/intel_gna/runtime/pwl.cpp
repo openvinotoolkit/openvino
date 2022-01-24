@@ -33,8 +33,6 @@ inline double neglog(const double x) { return(-1.0*log(x)); }
 inline double neghalflog(const double x) { return(-0.5*log(x)); }
 inline double first_deriv_neglog(const double x) { return(-1.0 / x); }
 inline double first_deriv_neghalflog(const double x) { return(-0.5 / x); }
-double softsign(const double x) { return(x / (1.0 + fabs(x))); }
-double first_deriv_softsign(const double x) { return(1.0 / ((1.0 + fabs(x)) * (1.0 + fabs(x)))); }
 double relu(const double x) { if (x < 0) { return(0.0); } else { return(x); } }
 double leaky_relu(const double x) { if (x < 0.0) { return(LEAKYRELU_SLOPE*x); } else { return(x); } }
 double clipping(const double x, const double lbound, const double ubound) { return((x < lbound)?lbound:((x > ubound)?ubound:x)); }
@@ -200,9 +198,6 @@ double calculate_error_pct(const DnnActivation& activation_type,
         case kActNegHalfLog:
             min_val = max_val = neghalflog(l_bound);
             break;
-        case kActSoftSign:
-            min_val = max_val = softsign(l_bound);
-            break;
         default:
             break;
     }
@@ -211,9 +206,6 @@ double calculate_error_pct(const DnnActivation& activation_type,
         double arg = l_bound + i * delta;
         double val = 0.0;
         switch (activation_type) {
-            case kActSoftSign:
-                val = softsign(arg);
-                break;
             case kActNegLog:
                 val = neglog(arg);
                 break;
@@ -228,24 +220,6 @@ double calculate_error_pct(const DnnActivation& activation_type,
     }
 
     return(100.0 * fabs(offset) / (max_val - min_val));
-}
-
-inline bool split_search(const DnnActivation& activation_type,
-                    const double l_bound,
-                    const double u_bound) {
-    bool is_split = false;
-    if (l_bound > u_bound) {
-        return is_split;
-    }
-    double break_bound = 0;
-    switch (activation_type) {
-        case kActSoftSign:
-            is_split = ((l_bound < break_bound) && (u_bound > break_bound));
-            break;
-        default:
-            is_split = false;
-    }
-    return is_split;
 }
 
 inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl) {
@@ -276,35 +250,34 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
         return pwl;
     }
 
-    if (split_search(activation_type, l_bound, u_bound)) {
-        std::vector<pwl_t> pwl2;
-        double err_pct1 = 0.0, err_pct2 = 0.0;
-        double break_bound = 0;
+    bool negative = false;
+    switch (activation_type) {
+        case kActNegLog:
+            negative = true;  // make function convex
+            err = pivot_search(pwl, neglog, first_deriv_neglog, n_segments, l_bound, u_bound,
+                threshold, negative, PWL_MAX_ITERATIONS_LOG);
+            pwl = negative_pwl(pwl);
+            break;
+        case kActNegHalfLog:
+            negative = true;  // make function convex
+            err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound,
+                threshold, negative, PWL_MAX_ITERATIONS_LOG);
+            pwl = negative_pwl(pwl);
+            break;
+        default:
+            break;
+    }
+    err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
 
-        pwl = pwl_search(activation_type, l_bound, break_bound, threshold, allowed_err_pct, samples, err_pct1);
-        pwl = negative_pwl(pwl);
-        pwl2 = pwl_search(activation_type, break_bound, u_bound, threshold, allowed_err_pct, samples, err_pct2);
-
-        // merge
-        pwl.pop_back();  // remove final alpha and beta from first half
-        pwl.insert(pwl.end(), pwl2.begin(), pwl2.end());  // concatenate the two halves
-        err_pct = (err_pct1 + err_pct2) / 2;  // this is not quite correct but should give an indication
-    } else {
-        bool negative = false;
+    while ((n_segments < PWL_MAX_NUM_SEGMENTS) && (allowed_err_pct < err_pct)) {
+        n_segments += 1;
         switch (activation_type) {
-            case kActSoftSign:
-                if (u_bound == 0) negative = true;  // make left half convex
-                err = pivot_search(pwl, softsign, first_deriv_softsign, n_segments, l_bound, u_bound,
-                    threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                break;
             case kActNegLog:
-                negative = true;  // make function convex
                 err = pivot_search(pwl, neglog, first_deriv_neglog, n_segments, l_bound, u_bound,
                     threshold, negative, PWL_MAX_ITERATIONS_LOG);
                 pwl = negative_pwl(pwl);
                 break;
             case kActNegHalfLog:
-                negative = true;  // make function convex
                 err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound,
                     threshold, negative, PWL_MAX_ITERATIONS_LOG);
                 pwl = negative_pwl(pwl);
@@ -313,33 +286,10 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                 break;
         }
         err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
+    }
 
-        while ((n_segments < PWL_MAX_NUM_SEGMENTS) && (allowed_err_pct < err_pct)) {
-            n_segments += 1;
-            switch (activation_type) {
-                case kActSoftSign:
-                    err = pivot_search(pwl, softsign, first_deriv_softsign, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                        break;
-                case kActNegLog:
-                    err = pivot_search(pwl, neglog, first_deriv_neglog, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_LOG);
-                    pwl = negative_pwl(pwl);
-                    break;
-                case kActNegHalfLog:
-                    err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_LOG);
-                    pwl = negative_pwl(pwl);
-                    break;
-                default:
-                    break;
-            }
-            err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
-        }
-
-        if (n_segments >= PWL_MAX_NUM_SEGMENTS) {
-            THROW_GNA_EXCEPTION << "Failed to converge in pwl_search!";
-        }
+    if (n_segments >= PWL_MAX_NUM_SEGMENTS) {
+        THROW_GNA_EXCEPTION << "Failed to converge in pwl_search!";
     }
     return(pwl);
 }
@@ -413,50 +363,6 @@ void PwlDesign(const DnnActivation& activation_type,
                  const float scale_out,
                  const bool low_precision) {
     switch (activation_type) {
-        case kActSoftSign:
-            {
-                gnalog() << "=========================== SoftSign Segments===========================\n";
-                uint32_t num_segment_size = 0;
-                int32_t offset = 0;
-                ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
-                num_segment_size = static_cast<int32_t>(SOFTSIGN_DOMAIN * scale_in / ((num_segments - 2) / 2) + 0.5);
-                offset = -static_cast<int32_t>(num_segment_size * (num_segments - 2) / 2);
-                for (uint32_t i = 1; i < num_segments; i++) {
-                    ptr_segment[i].xBase = static_cast<int32_t>(offset & XBASEMASK);  // zero out the 2 lsb
-                    offset += num_segment_size;
-                }
-                for (uint32_t i = 0; i < num_segments; i++) {
-                    int32_t xbase = static_cast<int32_t>(ptr_segment[i].xBase & XBASEMASK);
-                    int32_t xbasenext = (i < num_segments - 1) ? static_cast<int32_t>(ptr_segment[i + 1].xBase & XBASEMASK) : INT32_MAX;
-                    float floatarg = static_cast<float>(xbase / (2 * scale_in));
-                    float floatargnext = static_cast<float>(xbasenext / (2 * scale_in));
-                    float floatval, floatvalnext, slope;
-                    floatval = softsign(floatarg);
-                    floatvalnext = softsign(floatargnext);
-                    slope = scale_out * (floatvalnext - floatval) / static_cast<float>(xbasenext - xbase);
-                    {
-                        // find best scale factor
-                        uint64_t slope_scale;
-                        uint32_t slope_scale_index;
-                        for (slope_scale_index = 3; slope_scale_index > 0; slope_scale_index--) {
-                            slope_scale = static_cast<uint64_t>(1) << (8 * (1 + slope_scale_index));
-                            if (((slope * slope_scale) <= 32767.0) && ((slope * slope_scale) >= -32768.0))
-                                break;
-                        }
-                        slope_scale = static_cast<uint64_t>(1) << (8 * (1 + slope_scale_index));
-                        ptr_segment[i].slope = FLOAT_TO_INT16(slope * slope_scale);
-                        ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
-                    }
-                    ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
-                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
-                        << " "
-                        << (static_cast<float>((ptr_segment[i].yBase)) / scale_out)
-                        << " "
-                        << (slope / scale_out)
-                        << "\n";
-                }
-            }
-            break;
         case kActRelu:
             THROW_GNA_EXCEPTION << "Rectilinear activation function design not yet implemented!";
         case kActIdentity:

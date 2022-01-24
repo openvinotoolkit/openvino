@@ -17,6 +17,8 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <legacy/ngraph_ops/power.hpp>
 
+#include "ops/softsign.hpp"
+
 namespace GNAPluginNS {
 /**
  * @ingroup ie_transformation_common_api
@@ -30,10 +32,16 @@ public:
 
 namespace details {
 struct Pwl {
+    Pwl() = default;
+    Pwl(double im, double ib, double ialpha) : m(im), b(ib), alpha(ialpha) {}
     double m;
     double b;
     double alpha;
 }; // struct Pwl
+
+inline bool are_floats_equal(float p1, float p2) {
+    return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+}
 
 template<typename T>
 struct Function;
@@ -53,22 +61,12 @@ struct Function<ngraph::opset8::Sigmoid> {
     }
 
     static double lower_bound() {
-        return -SigmoidDomain;
+        return -10;
     }
 
     static double upper_bound() {
-        return SigmoidDomain;
+        return 10;
     }
-
-    static double threshold() {
-        return 0.1;
-    }
-
-    static int samples() {
-        return 500;
-    }
-
-    static constexpr double SigmoidDomain = 10;
 }; // struct Function<ngraph::opset8::Sigmoid>
 
 template<>
@@ -86,22 +84,12 @@ struct Function<ngraph::opset8::Tanh> {
     }
 
     static double lower_bound() {
-        return -TanhDomain;
+        return -5;
     }
 
     static double upper_bound() {
-        return TanhDomain;
+        return 5;
     }
-
-    static double threshold() {
-        return 0.1;
-    }
-
-    static int samples() {
-        return 500;
-    }
-
-    static constexpr double TanhDomain = 5;
 }; // struct Function<ngraph::opset8::Tanh>
 
 template<>
@@ -119,19 +107,11 @@ struct Function<ngraph::opset8::Exp> {
     }
 
     static double lower_bound() {
-        return -log(INT16_MAX);
+        return -std::log2(INT16_MAX);
     }
 
     static double upper_bound() {
-        return log(INT16_MAX);
-    }
-
-    static double threshold() {
-        return 0.1;
-    }
-
-    static int samples() {
-        return 500;
+        return std::log10(INT16_MAX);
     }
 }; // struct Function<ngraph::opset8::Exp>
 
@@ -150,28 +130,41 @@ struct Function<ngraph::opset8::Log> {
     }
 
     static double lower_bound() {
-        return 0;
+        return 0.001;
     }
 
     static double upper_bound() {
-        return LogDomain;
+        return 2981;
     }
-
-    static double threshold() {
-        return 0.1;
-    }
-
-    static int samples() {
-        return 500;
-    }
-
-    static constexpr double LogDomain = 2981;
 }; // struct Function<ngraph::opset8::Log>
 
 template<>
+struct Function<SoftSign> {
+    static const char* name() {
+        return "SoftSign";
+    }
+
+    double get_value(double x) const {
+        return x / (1.0 + std::abs(x));
+    }
+
+    double first_derivative(double x) const {
+        return 1.0 / ((1.0 + std::abs(x)) * (1.0 + std::abs(x)));
+    }
+
+    static double lower_bound() {
+        return -10;
+    }
+
+    static double upper_bound() {
+        return 10;
+    }
+}; // struct Function<SoftSign>
+
+template<>
 struct Function<ngraph::opset8::Power> {
-    Function(double power, double scale, double shift) :
-        m_power(power), m_scale(scale), m_shift(shift) {
+    Function(double exponent, double scale, double shift) :
+        m_exponent(exponent), m_scale(scale), m_shift(shift) {
     }
 
     static const char* name() {
@@ -179,32 +172,22 @@ struct Function<ngraph::opset8::Power> {
     }
 
     double get_value(double x) const {
-        return pow(x * m_scale + m_shift, m_power);
+        return pow(x * m_scale + m_shift, m_exponent);
     }
 
     double first_derivative(double x) const {
-        return m_power * m_scale * pow(m_shift + x * m_scale, m_power - 1);
+        return m_exponent * m_scale * pow(m_shift + x * m_scale, m_exponent - 1);
     }
 
-    static double lower_bound() {
-        return -PowerDomain;
+    static double lower_bound(double exponent) {
+        return std::max(are_floats_equal(std::fmod(exponent, 1.0), 0.0) ? static_cast<double>(std::numeric_limits<int32_t>::min()) : 0., -16.);
     }
 
     static double upper_bound() {
-        return PowerDomain;
+        return std::min(static_cast<double>(std::numeric_limits<int32_t>::max()), 16.);
     }
 
-    static double threshold() {
-        return 0.1;
-    }
-
-    static int samples() {
-        return 500;
-    }
-
-    static constexpr double PowerDomain = 16.0;
-
-    const double m_power;
+    const double m_exponent;
     const double m_scale;
     const double m_shift;
 }; // struct Function<ngraph::opset8::Power>
@@ -225,9 +208,25 @@ double lower_bound() {
         std::is_same<T, ngraph::opset8::Log>::value ||
         std::is_same<T, ngraph::opset8::Exp>::value ||
         std::is_same<T, ngraph::opset8::Tanh>::value ||
+        std::is_same<T, ngraph::opset8::Sigmoid>::value ||
+        std::is_same<T, SoftSign>::value>());
+}
+
+template<typename T>
+double lower_bound(std::true_type, double exponent) {
+    return Function<ngraph::opset8::Power>::lower_bound(exponent);
+}
+
+template<typename T>
+double lower_bound(std::false_type, double exponent) {
+    throw std::runtime_error("Not supported");
+}
+
+template<typename T>
+double lower_bound(double exponent) {
+    return lower_bound<T>(std::integral_constant<bool,
         std::is_same<T, ngraph::opset8::Power>::value ||
-        std::is_same<T, ngraph::op::PowerIE>::value ||
-        std::is_same<T, ngraph::opset8::Sigmoid>::value>());
+        std::is_same<T, ngraph::op::PowerIE>::value>(), exponent);
 }
 
 template<typename T>
@@ -248,49 +247,8 @@ double upper_bound() {
         std::is_same<T, ngraph::opset8::Tanh>::value ||
         std::is_same<T, ngraph::opset8::Power>::value ||
         std::is_same<T, ngraph::op::PowerIE>::value ||
-        std::is_same<T, ngraph::opset8::Sigmoid>::value>());
-}
-
-template<typename T>
-double threshold(std::true_type) {
-    return Function<T>::threshold();
-}
-
-template<typename T>
-double threshold(std::false_type) {
-    throw std::runtime_error("Not supported");
-}
-
-template<typename T>
-double threshold() {
-    return threshold<T>(std::integral_constant<bool,
-        std::is_same<T, ngraph::opset8::Log>::value ||
-        std::is_same<T, ngraph::opset8::Exp>::value ||
-        std::is_same<T, ngraph::opset8::Tanh>::value ||
-        std::is_same<T, ngraph::opset8::Power>::value ||
-        std::is_same<T, ngraph::op::PowerIE>::value ||
-        std::is_same<T, ngraph::opset8::Sigmoid>::value>());
-}
-
-template<typename T>
-int samples(std::true_type) {
-    return Function<T>::samples();
-}
-
-template<typename T>
-int samples(std::false_type) {
-    throw std::runtime_error("Not supported");
-}
-
-template<typename T>
-int samples() {
-    return samples<T>(std::integral_constant<bool,
-        std::is_same<T, ngraph::opset8::Exp>::value ||
-        std::is_same<T, ngraph::opset8::Tanh>::value ||
         std::is_same<T, ngraph::opset8::Sigmoid>::value ||
-        std::is_same<T, ngraph::opset8::Power>::value ||
-        std::is_same<T, ngraph::op::PowerIE>::value ||
-        std::is_same<T, ngraph::opset8::Log>::value>());
+        std::is_same<T, SoftSign>::value>());
 }
 
 template<typename T>
@@ -311,7 +269,8 @@ const char* name() {
         std::is_same<T, ngraph::opset8::Sigmoid>::value ||
         std::is_same<T, ngraph::opset8::Power>::value ||
         std::is_same<T, ngraph::op::PowerIE>::value ||
-        std::is_same<T, ngraph::opset8::Log>::value>());
+        std::is_same<T, ngraph::opset8::Log>::value ||
+        std::is_same<T, SoftSign>::value>());
 }
 
 template<typename T>

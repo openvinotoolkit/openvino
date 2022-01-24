@@ -11,8 +11,6 @@
 #include "backend/dnn_types.h"
 #include "backend/gna_types.h"
 
-#define SOFTSIGN_NUM_SEGMENTS 65
-#define SOFTSIGN_DOMAIN 10.0f  // portion of input to be approximated (-10,10)
 #define RELU_NUM_SEGMENTS 2
 #define LEAKYRELU_SLOPE 0.01
 #define IDENTITY_NUM_SEGMENTS 3
@@ -38,8 +36,6 @@ typedef struct {
     double b;
 } pwl_t;
 
-double softsign(const double x);
-double first_deriv_softsign(const double x);
 double relu(const double x);
 double leaky_relu(const double x);
 
