@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,20 +25,16 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
   }
 
   if (FLAGS_m.empty())
-    throw std::logic_error(
-        "Model is required but not set. Please set -m option.");
+    throw std::logic_error("Model is required but not set. Please set -m option.");
 
   if (FLAGS_d.empty())
-    throw std::logic_error(
-        "Device is required but not set. Please set -d option.");
+    throw std::logic_error("Device is required but not set. Please set -d option.");
 
   if (FLAGS_s.empty())
-    throw std::logic_error(
-        "Statistics file path is required but not set. Please set -s option.");
+    throw std::logic_error("Statistics file path is required but not set. Please set -s option.");
 
   if (!FLAGS_reshape_shapes.empty() && FLAGS_data_shapes.empty())
-    throw std::logic_error(
-        "Data shapes is required for reshape shapes argument. Please set -data_shapes option.");
+    throw std::logic_error("Data shapes is required for reshape shapes argument. Please set -data_shapes option.");
 
   return true;
 }
@@ -63,6 +59,7 @@ int main(int argc, char **argv) {
   auto staticShapes = parseDataShapes(FLAGS_data_shapes);
 
   auto status =  _runPipeline(dynamicShapes, staticShapes);
+
   StatisticsWriter::Instance().setFile(FLAGS_s);
   StatisticsWriter::Instance().write();
   return status;
