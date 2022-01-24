@@ -374,8 +374,7 @@ void GNAPlugin::InitGNADevice() {
                 config.gnaCompileTarget,
                 config.swExactMode,
                 gnaFlags->performance_counting,
-                !config.dumpXNNPath.empty(),
-                GetDeviceVersionFromString(config.dumpXNNGeneration));
+                !config.dumpXNNPath.empty());
     size_t page_size_bytes = 4096;
     gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
     graphCompiler.setGNAMemoryPtr(gnamem);
@@ -1154,16 +1153,6 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
     }
 }
 
-int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
-    if (deviceString == "GNA35") {
-        return static_cast<int>(Gna2DeviceVersionEmbedded3_5);
-    }
-    constexpr uint32_t embeddedSuffix = 0xE;
-    if (deviceString.empty())
-        return static_cast<int>(Gna2DeviceVersionEmbedded1_0);
-    THROW_GNA_EXCEPTION << "Wrong GNA generation for embedded model dump: " << deviceString;
-}
-
 void GNAPlugin::DumpXNNToFile() const {
     // TODO: output  precision as well as pointer might be incorrect, LSTM for sure
     // gna looks automatically set layer 0 as output and adjust it's pointer / precision/ size respectively
@@ -1174,6 +1163,7 @@ void GNAPlugin::DumpXNNToFile() const {
     if (!gnadevice) {
         THROW_GNA_EXCEPTION << "Cannot generate XNNDump for float network";
     }
+    const auto compileTarget = gnadevice->GetCompileTarget();
     std::ofstream dumpStream(config.dumpXNNPath, std::ios::out | std::ios::binary);
 
     auto const modelId = gnadevice->createModel(std::get<0>(gnaModels.front())->obj);
@@ -1196,7 +1186,7 @@ void GNAPlugin::DumpXNNToFile() const {
             output_size += o.get_required_size();
         auto inSF = inputsDesc.begin()->scale_factor;
         auto outSF = outputsDesc.front().scale_factor;
-        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream, Gna2DeviceVersionEmbedded3_5,
+        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream,
             input_size, output_size, inSF, outSF);
     }
     gnadevice->releaseModel(modelId);

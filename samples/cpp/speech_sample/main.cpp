@@ -245,6 +245,9 @@ int main(int argc, char* argv[]) {
         }
         if (!FLAGS_we.empty()) {
             slog::info << "Exported GNA embedded model to file " << FLAGS_we << slog::endl;
+            if (!FLAGS_compile_target.empty()) {
+                slog::info << "GNA embedded model export done for GNA generation: " << FLAGS_compile_target << slog::endl;
+            }
             return 0;
         }
         // ---------------------------------------------------------------------------------------------------------
