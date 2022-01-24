@@ -108,4 +108,4 @@ class TestTFRandomUniform(CommonTFLayerTest):
             *self.create_tf_random_uniform_net(**params, precision=precision, ir_version=ir_version,
                                                use_new_frontend=use_new_frontend), ie_device,
             precision, temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-            **params)
+            api_2=api_2, **params)

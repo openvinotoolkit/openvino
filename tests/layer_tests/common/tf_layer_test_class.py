@@ -70,12 +70,12 @@ class CommonTFLayerTest(CommonLayerTest):
                         if not self.api_2:
                             key += ':0'
                         input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.api_2)
-                        # input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend)
 
                 tf_res = sess.run([out + ":0" for out in outputs_list], input)
 
                 result = dict()
                 for i, output in enumerate(outputs_list):
                     _tf_res = tf_res[i]
-                    result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend, self.api_2)
+                    result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend,
+                                                            self.api_2)
                 return result

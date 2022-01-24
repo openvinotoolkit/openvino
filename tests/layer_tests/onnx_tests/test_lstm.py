@@ -146,8 +146,7 @@ class TestLSTM(Caffe2OnnxLayerTest):
     def test_lstm_simple_precommit(self, direction, cell_type, ie_device, precision, ir_version,
                                    temp_dir, api_2):
         self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
-                   temp_dir=temp_dir,
-                   infer_timeout=150)
+                   temp_dir=temp_dir, infer_timeout=150, api_2=api_2)
 
     # LSTM/RNN/GRU Sequence Generation
     @pytest.mark.parametrize('direction', ["forward", "bidirectional", "reverse"])
