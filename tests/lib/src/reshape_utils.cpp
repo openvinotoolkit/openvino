@@ -85,62 +85,20 @@ std::vector<std::string> split(const std::string& s, char delim) {
 
 
 /**
- * @brief Fill InferRequest blobs with random values or image information.
-          Blobs with dynamic shapes are filled based on static information from data shape
+ * @brief  Reshape blobs with dynamic shapes with static information from data shape
  */
-void fillBlobsDynamic(InferenceEngine::InferRequest inferRequest,
-                      const InferenceEngine::ConstInputsDataMap& inputsInfo,
-                      std::map<std::string, std::vector<size_t>> dataShape,
-                      const size_t& batchSize) {
-  std::vector<std::pair<size_t, size_t>> input_image_sizes;
-
+void setStaticShapesBlobs(InferenceEngine::InferRequest inferRequest,
+                          const InferenceEngine::ConstInputsDataMap& inputsInfo,
+                          std::map<std::string, std::vector<size_t>> dataShape) {
   for (const ConstInputsDataMap::value_type& item : inputsInfo) {
     Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
 
-    size_t nodeBatchSize = batchSize;
     if (dataShape.count(item.first)) {
       SizeVector newInputShape;
       for (size_t i = 0; i < dataShape[item.first].size(); i++) {
         newInputShape.emplace_back(dataShape[item.first][i]);
       }
       inputBlob->setShape(newInputShape);
-      size_t nodeBatchSize = newInputShape[0];
-    }
-
-    if (isImage(item.second))
-      input_image_sizes.push_back(getTensorHeightWidth(item.second->getTensorDesc()));
-
-    if (isImageInfo(inputBlob) && (input_image_sizes.size() == 1)) {
-      // Fill image information
-      auto image_size = input_image_sizes.at(0);
-      if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
-        fillBlobImInfo<float>(inputBlob, nodeBatchSize, image_size);
-      } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
-        fillBlobImInfo<short>(inputBlob, nodeBatchSize, image_size);
-      } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
-        fillBlobImInfo<int32_t>(inputBlob, nodeBatchSize, image_size);
-      } else {
-        throw std::logic_error("Input precision is not supported for image info!");
-      }
-      continue;
-    }
-    // Fill random
-    if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
-      fillBlobRandom<float>(inputBlob);
-    } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
-      fillBlobRandom<short>(inputBlob);
-    } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
-      fillBlobRandom<int32_t>(inputBlob);
-    } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
-      fillBlobRandom<uint8_t>(inputBlob);
-    } else if (item.second->getPrecision() == InferenceEngine::Precision::I8) {
-      fillBlobRandom<int8_t>(inputBlob);
-    } else if (item.second->getPrecision() == InferenceEngine::Precision::U16) {
-      fillBlobRandom<uint16_t>(inputBlob);
-    } else if (item.second->getPrecision() == InferenceEngine::Precision::I16) {
-      fillBlobRandom<int16_t>(inputBlob);
-    } else {
-      throw std::logic_error("Input precision is not supported for " + item.first);
     }
   }
 }

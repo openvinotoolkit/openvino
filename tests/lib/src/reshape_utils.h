@@ -29,10 +29,8 @@ std::map<std::string, std::vector<size_t>> parseDataShapes(const std::string& sh
 
 
 /**
- * @brief Fill InferRequest blobs with random values or image information.
-          Blobs with dynamic shapes are filled based on static information from data shape
+ * @brief  Reshape blobs with dynamic shapes with static information from data shape
  */
-void fillBlobsDynamic(InferenceEngine::InferRequest inferRequest,
-                      const InferenceEngine::ConstInputsDataMap& inputsInfo,
-                      std::map<std::string, std::vector<size_t>> dataShape,
-                      const size_t& batchSize);
+void setStaticShapesBlobs(InferenceEngine::InferRequest inferRequest,
+                          const InferenceEngine::ConstInputsDataMap& inputsInfo,
+                          std::map<std::string, std::vector<size_t>> dataShape);

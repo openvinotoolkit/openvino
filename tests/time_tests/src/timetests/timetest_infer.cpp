@@ -82,12 +82,14 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
       SCOPED_TIMER(first_inference);
       {
         SCOPED_TIMER(fill_inputs);
+
         const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+        batchSize = batchSize != 0 ? batchSize : 1;
 
         if (reshape) {
-          fillBlobsDynamic(inferRequest, inputsInfo, dataShapes, batchSize);
+          setStaticShapesBlobs(inferRequest, inputsInfo, dataShapes);
+          fillBlobs(inferRequest, inputsInfo, batchSize);
         } else {
-          batchSize = batchSize != 0 ? batchSize : 1;
           fillBlobs(inferRequest, inputsInfo, batchSize);
         }
       }
