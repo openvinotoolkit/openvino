@@ -95,12 +95,11 @@ class GNADeviceHelper {
     std::string executionTarget;
     std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
-    Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
-        Gna2InstrumentationPointHwTotalCycles,
-        Gna2InstrumentationPointHwStallCycles };
+        Gna2InstrumentationPointHwTotal,
+        Gna2InstrumentationPointHwStall };
 
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
@@ -122,8 +121,7 @@ public:
          compileTarget(compileTargetIn),
          isPerformanceMeasuring(isPerformanceMeasuring),
          nGnaDeviceIndex{selectGnaDevice()},
-         useDeviceEmbeddedExport(deviceEmbedded),
-         exportGeneration(static_cast<Gna2DeviceVersion>(deviceVersionParsed)) {
+         useDeviceEmbeddedExport(deviceEmbedded) {
         open();
         initGnaPerfCounters();
 
@@ -180,7 +178,7 @@ public:
         Gna2DeviceVersion targetDeviceVersion);
 
     void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-        Gna2DeviceVersion targetDeviceVersion, uint32_t input_size, uint32_t output_size,
+        uint32_t input_size, uint32_t output_size,
         float inSF, float outSF);
 
     void free(void * ptr);

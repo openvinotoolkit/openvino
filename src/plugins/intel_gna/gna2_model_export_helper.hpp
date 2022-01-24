@@ -20,10 +20,12 @@ void ExportLdForDeviceVersion(
     std::ostream & outStream,
     Gna2DeviceVersion deviceVersionToExport);
 
+Gna2DeviceVersion getEmbeddedTargetFromCompileTarget(const std::string compileTarget);
+
 void ExportTlvModel(uint32_t modelId,
     uint32_t deviceIndex,
     std::ostream& outStream,
-    Gna2DeviceVersion deviceVersionToExport,
+    std::string compileTarget,
     uint32_t input_size,
     uint32_t output_size,
     float inputSF,

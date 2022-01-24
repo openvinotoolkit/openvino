@@ -9,6 +9,7 @@
 #include "gna2-model-suecreek-header.h"
 #include "gna_api_wrapper.hpp"
 #include "gna2-device-api.h"
+#include "gna/gna_config.hpp"
 
 #include <gna2-tlv-writer.h>
 
@@ -67,14 +68,40 @@ TlvFloatRecord GetFloatInTLV(Gna2TlvType type, float value) {
     return r;
 }
 
+Gna2DeviceVersion getEmbeddedTargetFromCompileTarget(const std::string compileTarget) {
+    const std::map<std::string, Gna2DeviceVersion> targetMap = {
+        {InferenceEngine::GNAConfigParams::GNA_TARGET_3_1, Gna2DeviceVersionEmbedded3_1},
+        {InferenceEngine::GNAConfigParams::GNA_TARGET_3_5, Gna2DeviceVersionEmbedded3_5},
+    };
+    auto found = targetMap.find(compileTarget);
+    if (found == targetMap.end()) {
+        return Gna2DeviceVersionEmbedded1_0;
+    }
+    return found->second;
+}
+
+Gna2DeviceVersion getTlvTargetFromCompileTarget(const std::string compileTarget) {
+    const auto target = getEmbeddedTargetFromCompileTarget(compileTarget);
+    const std::set<Gna2DeviceVersion> supportedTargets = {
+        Gna2DeviceVersionEmbedded3_1,
+        Gna2DeviceVersionEmbedded3_5,
+    };
+    const auto found = supportedTargets.count(target) > 0;
+    if (!found) {
+        THROW_GNA_EXCEPTION << "Unsupported compile target fot TLV export: " << compileTarget << "\n";
+    }
+    return target;
+}
+
 void ExportTlvModel(uint32_t modelId,
     uint32_t deviceIndex,
     std::ostream& outStream,
-    Gna2DeviceVersion deviceVersionToExport,
+    std::string compileTarget,
     uint32_t input_size,
     uint32_t output_size,
     float inputSF,
     float outputSF) {
+    const auto deviceVersionToExport = getTlvTargetFromCompileTarget(compileTarget);
 
     uint32_t exportConfig;
     auto status = Gna2ModelExportConfigCreate(gnaUserAllocatorAlignedPage, &exportConfig);
@@ -173,6 +200,7 @@ void ExportTlvModel(uint32_t modelId,
         outStream.write(tlvInSF.data(), tlvInSF.size());
         outStream.write(tlvOutSF.data(), tlvOutSF.size());
     }
+
     gnaUserFree(outTlv);
 
     gnaUserFree(bufferLayerDescriptors);
@@ -183,9 +211,11 @@ void ExportTlvModel(uint32_t modelId,
     gnaUserFree(bufferInputRWData);
     gnaUserFree(bufferOutputRWData);
 
-    GNADeviceHelper::checkGna2Status((Gna2Status)status, "ExportTlvModel");
     status = Gna2ModelExportConfigRelease(exportConfig);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigRelease");
+    if (Gna2TlvStatusSuccess != tlv_status) {
+        THROW_GNA_EXCEPTION << "Not succesfull status returned: " << tlv_status << ", from Gna2ExportTlv() function\n";
+    }
 }
 
 void ExportLdForDeviceVersion(

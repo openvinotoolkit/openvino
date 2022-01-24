@@ -230,6 +230,7 @@ Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
     const std::map<std::string, Gna2DeviceVersion> targetMap {
         {InferenceEngine::GNAConfigParams::GNA_TARGET_2_0, Gna2DeviceVersion2_0},
         {InferenceEngine::GNAConfigParams::GNA_TARGET_3_0, Gna2DeviceVersion3_0},
+        {InferenceEngine::GNAConfigParams::GNA_TARGET_3_1, Gna2DeviceVersionEmbedded3_1},
         {InferenceEngine::GNAConfigParams::GNA_TARGET_3_5, Gna2DeviceVersion3_5},
         {"", Gna2DeviceVersionSoftwareEmulation},
     };
@@ -250,6 +251,11 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
         if (!isGnaLibVersionSupportGna3())
             throwUnsupportedGnaTarget(", when GNA Library version is " + GetGnaLibraryVersion());
         parsed = Gna2DeviceVersion3_0;
+    }
+    else if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_1) {
+        if (!isGnaLibVersionSupportGna3())
+            throwUnsupportedGnaTarget(", when GNA Library version is " + GetGnaLibraryVersion());
+        parsed = Gna2DeviceVersionEmbedded3_1;
     } else if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_5) {
         if (!isGnaLibVersionSupportGna3())
             throwUnsupportedGnaTarget(", when GNA Library version is " + GetGnaLibraryVersion());
@@ -539,9 +545,10 @@ void GNADeviceHelper::dumpXnnForDeviceVersion(
 }
 
 void GNADeviceHelper::dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-    Gna2DeviceVersion targetDeviceVersion, uint32_t input_size, uint32_t output_size,
+    uint32_t input_size, uint32_t output_size,
     float inSF, float outSF) {
-    ExportTlvModel(modelId, nGnaDeviceIndex, outStream, targetDeviceVersion, input_size, output_size, inSF, outSF);
+    const auto compileTarget = GetCompileTarget();
+    ExportTlvModel(modelId, nGnaDeviceIndex, outStream, compileTarget, input_size, output_size, inSF, outSF);
 }
 
 void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose) {
@@ -560,6 +567,8 @@ void GNADeviceHelper::open() {
     updateGnaDeviceVersion();
     const auto gnaExecTarget = parseTarget(executionTarget);
     if (useDeviceEmbeddedExport) {
+        const auto gnaCompileTarget = GetCompileTarget();
+        const auto exportGeneration = getEmbeddedTargetFromCompileTarget(gnaCompileTarget);
         createVirtualDevice(exportGeneration, "export");
         updateGnaDeviceVersion();
     } else if (!executionTarget.empty() && gnaExecTarget != detectedGnaDevVersion) {
@@ -627,6 +636,7 @@ std::string GNADeviceHelper::GetCompileTarget() const {
     const std::map<Gna2DeviceVersion, std::string> targetMap = {
         {Gna2DeviceVersion2_0, InferenceEngine::GNAConfigParams::GNA_TARGET_2_0},
         {Gna2DeviceVersion3_0, InferenceEngine::GNAConfigParams::GNA_TARGET_3_0},
+        {Gna2DeviceVersionEmbedded3_1, InferenceEngine::GNAConfigParams::GNA_TARGET_3_1},
         {Gna2DeviceVersion3_5, InferenceEngine::GNAConfigParams::GNA_TARGET_3_5},
     };
     const auto target = getTargetDevice(false);

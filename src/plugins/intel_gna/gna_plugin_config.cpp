@@ -39,6 +39,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 static const std::set<std::string> supportedTargets = {
     GNAConfigParams::GNA_TARGET_2_0,
     GNAConfigParams::GNA_TARGET_3_0,
+    GNAConfigParams::GNA_TARGET_3_1,
     GNAConfigParams::GNA_TARGET_3_5,
     ""
 };
