@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 
-#include "node_context.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
