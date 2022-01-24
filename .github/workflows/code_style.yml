@@ -82,7 +82,7 @@ jobs:
       - name: Install Clang dependency
         run: |
           sudo apt update
-          sudo apt --assume-yes install libclang-11-dev
+          sudo apt --assume-yes install libclang-12-dev
 
       - name: Install Python-based dependencies
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
