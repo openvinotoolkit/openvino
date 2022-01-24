@@ -89,9 +89,6 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
                        << std::string((input.second.is_image() ? "image" : "some binary data")) << " is expected)"
                        << slog::endl;
 
-            auto tensor = oclContext.create_usm_device_tensor(input.second.type, input.second.dataShape);
-            remoteTensors[input.first].push_back(tensor);
-
             // Creating and filling shared buffers
             cl_int err;
             auto elementsNum = std::accumulate(begin(input.second.dataShape),
@@ -101,13 +98,18 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
             auto inputSize = elementsNum * input.second.type.bitwidth() / 8;
 
             clBuffer.push_back(
-                cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
+                cl::Buffer(oclInstance->_context, CL_MEM_READ_ONLY, (cl::size_type)inputSize, NULL, &err));
 
             void* mappedPtr = oclInstance->_queue.enqueueMapBuffer(clBuffer.back(),
                                                                    CL_TRUE,
-                                                                   CL_MEM_READ_WRITE,
+                                                                   CL_MEM_READ_ONLY,
                                                                    0,
                                                                    (cl::size_type)inputSize);
+
+
+            auto tensor = oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
+            remoteTensors[input.first].push_back(tensor);
+
             if (inputFiles.empty()) {
                 // Filling in random data
                 fill_buffer(mappedPtr, elementsNum, input.second.type);
@@ -141,12 +143,12 @@ std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledMo
         cl::size_type bufferSize = 0;
         if (clBuffer.find(output.get_any_name()) == clBuffer.end()) {
             clBuffer[output.get_any_name()] =
-                cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
+                cl::Buffer(oclInstance->_context, CL_MEM_WRITE_ONLY, (cl::size_type)inputSize, NULL, &err);
         } else {
             auto& buff = clBuffer[output.get_any_name()];
             buff.getInfo(CL_MEM_SIZE, &bufferSize);
             if (inputSize != bufferSize) {
-                buff = cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
+                buff = cl::Buffer(oclInstance->_context, CL_MEM_WRITE_ONLY, (cl::size_type)inputSize, NULL, &err);
             }
         }
         outputTensors[output.get_any_name()] = oclContext.create_tensor(output.get_element_type(),
