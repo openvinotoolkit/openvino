@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,18 +139,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, RNNCellCPUTest,
         RNNCellCPUTest::getTestCaseName);
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
-    { { { {-1}, 1 },                      // Dynamic shape 0
-        { {1, 1}, {3, 1}, {5, 1} } },     // Target shapes
-      { { {-1}, 1 },                      // Dynamic shape 1
-        { {1, 1}, {3, 1}, {5, 1} } } },   // Target shapes
-    { { { {1, 10}, 30 },                  // Dynamic shape 0
-        { {2, 30}, {5, 30}, {8, 30} } },  // Target shapes
-      { { {1, 10}, 10 },                  // Dynamic shape 1
-        { {2, 10}, {5, 10}, {8, 10} } } }, // Target shapes
-    { { { {1, 10}, -1 },                  // Dynamic shape 0
-        { {2, 30}, {5, 30}, {8, 30} } },  // Target shapes
-      { { {1, 10}, {1, 11} },             // Dynamic shape 1
-        { {2, 10}, {5, 10}, {8, 10} } } } // Target shapes
+    { { { {-1}, 1 },                           // Dynamic shape 0
+        { {1, 1}, {3, 1}, {5, 1} } },          // Target shapes
+      { { {-1}, 1 },                           // Dynamic shape 1
+        { {1, 1}, {3, 1}, {5, 1} } } },        // Target shapes
+    { { { {1, 10}, 30 },                       // Dynamic shape 0
+        { {2, 30}, {5, 30}, {8, 30} } },       // Target shapes
+      { { {1, 10}, 10 },                       // Dynamic shape 1
+        { {2, 10}, {5, 10}, {8, 10} } } },     // Target shapes
+    { { { {1, 10}, -1 },                       // Dynamic shape 0
+        { {2, 30}, {5, 30}, {8, 30} } },       // Target shapes
+      { { {1, 10}, {1, 11} },                  // Dynamic shape 1
+        { {2, 10}, {5, 10}, {8, 10} } } },     // Target shapes
+    { { { {1, 10}, -1 },                       // Dynamic shape 0
+        { {2, 30}, {5, 30}, {2, 30}, {8, 30}, {5, 30}, {8, 30} } },  // Target shapes
+      { { {1, 10}, {1, 11} },                  // Dynamic shape 1
+        { {2, 10}, {5, 10}, {2, 10}, {8, 10}, {5, 10}, {8, 10} } } } // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, RNNCellCPUTest,

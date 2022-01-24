@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,10 @@ bool evaluate_subtract(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1);
     switch (arg0->get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_subtract, i8, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_subtract, i32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_subtract, i64, arg0, arg1, out, broadcast_spec);
+        NGRAPH_TYPE_CASE(evaluate_subtract, u8, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_subtract, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_subtract, u64, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_subtract, f16, arg0, arg1, out, broadcast_spec);

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 namespace ov {
 namespace test {
 namespace utils {
-ov::runtime::Tensor create_and_fill_tensor(
+ov::Tensor create_and_fill_tensor(
         const ov::element::Type element_type,
         const ov::Shape &shape,
         const uint32_t range = 10,
@@ -17,7 +17,7 @@ ov::runtime::Tensor create_and_fill_tensor(
         const int32_t resolution = 1,
         const int seed = 1);
 
-ov::runtime::Tensor create_and_fill_tensor_unique_sequence(
+ov::Tensor create_and_fill_tensor_unique_sequence(
         const ov::element::Type element_type,
         const ov::Shape& shape,
         const int32_t start_from = 0,
@@ -25,8 +25,8 @@ ov::runtime::Tensor create_and_fill_tensor_unique_sequence(
         const int seed = 1);
 
 void compare(
-        const ov::runtime::Tensor &expected,
-        const ov::runtime::Tensor &actual,
+        const ov::Tensor &expected,
+        const ov::Tensor &actual,
         const double abs_threshold,
         const double rel_threshold);
 }  // namespace utils

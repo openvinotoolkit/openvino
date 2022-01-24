@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ INSTANTIATE_TEST_SUITE_P(conformance,
                          ::testing::Combine(
                                  ::testing::ValuesIn(createFunctions()),
                                  ::testing::Values(targetDevice),
-                                 ::testing::Values(std::map<std::string, std::string>())),
+                                 ::testing::Values(ov::AnyMap())),
                          OpImplCheckTest::getTestCaseName);
 } // namespace
 } // namespace ConformanceTests

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,10 @@ namespace {
     static std::shared_ptr<ngraph::Function> simple_function_matrix_nms_internal(ngraph::element::Type, size_t) {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>>(boxes, scores, ov::op::v8::MatrixNms::Attributes());
+        ov::op::v8::MatrixNms::Attributes attr;
+        // convert_precision does not support internal op 'NmsStaticShapeIE'
+        attr.output_type = element::i32;
+        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>>(boxes, scores, attr);
         auto res = std::make_shared<ngraph::opset6::Result>(nms);
         auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;
@@ -58,7 +61,9 @@ namespace {
     static std::shared_ptr<ngraph::Function> simple_function_multiclass_nms_internal(ngraph::element::Type, size_t) {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MulticlassNms>>(boxes, scores, ov::op::v8::MulticlassNms::Attributes());
+        ov::op::v8::MulticlassNms::Attributes attr;
+        attr.output_type = element::i32;
+        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MulticlassNms>>(boxes, scores, attr);
         auto res = std::make_shared<ngraph::opset6::Result>(nms);
         auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;

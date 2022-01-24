@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,13 +54,18 @@ public:
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "CreatePrecisionsDependentAttribute");
                 auto &rt = node->get_rt_info();
 
+                // The goal is definition if an operation precision preserved or not. As result here we should make 3 steps:
+                // Step #1: create PrecisionPreservedAttribute instance obviously,
+                // which will be used as result (will be used for future precision propagation)
                 const auto precisionPreservedAttribute = PrecisionPreservedAttribute(false);
                 rt[PrecisionPreservedAttribute::get_type_info_static()] = precisionPreservedAttribute;
                 const auto &targetSharedValue = precisionPreservedAttribute.attribute->sharedValue;
 
+                // Step #2: create AttributeType attribute instance for OperationType operation to propagate the instance
                 const auto attribute = AttributeType{};
                 rt[AttributeType::get_type_info_static()] = attribute;
 
+                // Step #3: assign the same shared value to enable PrecisionPreservedAttribute update during AttributeType propagation
                 ngraph::pass::low_precision::NetworkHelper::reassign<AttributeType>(
                     targetSharedValue,
                     {

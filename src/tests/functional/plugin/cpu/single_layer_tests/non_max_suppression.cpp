@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,10 +95,10 @@ public:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
 
             if (i == 1) {
-                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
 
                 const size_t range = 1;
                 const size_t startFrom = 0;
@@ -113,7 +113,7 @@ public:
                     dataPtr[i] = value / static_cast<float>(k);
                 }
             } else if (i == 2) {
-                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &maxOutBoxesPerClass);
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &maxOutBoxesPerClass);
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             }
@@ -121,7 +121,7 @@ public:
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
+    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
         CompareBBoxes(expected, actual);
         inferRequestNum++;
     }
@@ -222,7 +222,7 @@ private:
      *    [batch_index, class_index, box_score].
      * 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
      */
-    void CompareBBoxes(const std::vector<ov::runtime::Tensor> &expectedOutputs, const std::vector<ov::runtime::Tensor> &actualOutputs) {
+    void CompareBBoxes(const std::vector<ov::Tensor> &expectedOutputs, const std::vector<ov::Tensor> &actualOutputs) {
         size_t numBatches, numBoxes, numClasses;
         std::tie(numBatches, numBoxes, numClasses) = targetInDims[inferRequestNum];
 
@@ -252,7 +252,7 @@ private:
         // Get input bboxes' coords
         std::vector<std::vector<Rect>> coordList(numBatches, std::vector<Rect>(numBoxes));
         {
-            std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> bboxes = *inputs.begin();
+            std::pair<std::shared_ptr<ov::Node>, ov::Tensor> bboxes = *inputs.begin();
             for (const auto &input : inputs) {
                 if (input.first->get_name() < bboxes.first->get_name()) {
                     bboxes = input;
@@ -333,19 +333,32 @@ private:
             const auto indeces_iter = actualOutputs.begin();
             const auto scores_iter = actualOutputs.begin() + 1;
             size_t selected_indices_size = indeces_iter->get_size();
-            const auto selected_indices_data = indeces_iter->data<int32_t>();
-
             const auto selected_scores_data = scores_iter->data<float>();
 
-            for (size_t i = 0; i < selected_indices_size; i += 3) {
-                const int32_t batchId = selected_indices_data[i+0];
-                const int32_t classId = selected_indices_data[i+1];
-                const int32_t boxId   = selected_indices_data[i+2];
-                const float score = selected_scores_data[i+2];
-                if (batchId == -1 || classId == -1 || boxId == -1)
-                    break;
+            if (indeces_iter->get_element_type() == ov::element::i32) {
+                const auto selected_indices_data = indeces_iter->data<int32_t>();
+                for (size_t i = 0; i < selected_indices_size; i += 3) {
+                    const int32_t batchId = selected_indices_data[i+0];
+                    const int32_t classId = selected_indices_data[i+1];
+                    const int32_t boxId   = selected_indices_data[i+2];
+                    const float score = selected_scores_data[i+2];
+                    if (batchId == -1 || classId == -1 || boxId == -1)
+                        break;
 
-                actualList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
+                    actualList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
+                }
+            } else {
+                const auto selected_indices_data = indeces_iter->data<int64_t>();
+                for (size_t i = 0; i < selected_indices_size; i += 3) {
+                    const int32_t batchId = selected_indices_data[i+0];
+                    const int32_t classId = selected_indices_data[i+1];
+                    const int32_t boxId   = selected_indices_data[i+2];
+                    const float score = selected_scores_data[i+2];
+                    if (batchId == -1 || classId == -1 || boxId == -1)
+                        break;
+
+                    actualList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
+                }
             }
             std::sort(actualList.begin(), actualList.end(), compareBox);
         }

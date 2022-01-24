@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,38 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include "mkldnn_convert_node.h"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+
+namespace {
+struct ReorderKey {
+    mkldnn::memory::desc src;
+    mkldnn::memory::desc dest;
+    size_t hash() const;
+    bool operator==(const ReorderKey& rhs) const;
+};
+
+size_t ReorderKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, get_md_hash(src.data));
+    seed = hash_combine(seed, get_md_hash(dest.data));
+
+    return seed;
+}
+
+bool ReorderKey::operator==(const ReorderKey& rhs) const {
+    bool retVal = true;
+    retVal = src == rhs.src && dest == rhs.dest;
+    return retVal;
+}
+
+}  // namespace
 
 bool MKLDNNReorderNode::isExecutable() const {
     return MKLDNNNode::isExecutable() && !isOptimized;
@@ -172,57 +200,67 @@ void MKLDNNReorderNode::prepareParams() {
     }
 }
 
-void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr) {
-    src_blocked = std::make_shared<MKLDNNMemory>(getEngine());
+void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDesc,
+                                               void* srcPtr,
+                                               const mkldnn::memory::desc& dstDesc,
+                                               void* dstPtr) {
+    const auto engine = getEngine();
+    src_blocked = std::make_shared<MKLDNNMemory>(engine);
     src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
 
-    dst_blocked = std::make_shared<MKLDNNMemory>(getEngine());
+    dst_blocked = std::make_shared<MKLDNNMemory>(engine);
     dst_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
-    mkldnn::primitive_attr attr;
-    auto createReorder = [&]() -> bool {
-        // No autoblocking. Reorder can be applied as is
-        reorder::primitive_desc pd = mkldnn::reorder::primitive_desc(src_blocked->GetPrimitive(), dst_blocked->GetPrimitive(), attr, true);
+    impl_desc_type impl_type;
+    ReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
+
+    auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<mkldnn::primitive> {
+        mkldnn::primitive_attr attr;
+        reorder::primitive_desc pd = mkldnn::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
 
         if (!pd)
-            return false;
-
+            return nullptr;
         auto info = pd.impl_info_str();
-        supportedPrimitiveDescriptors[0].setImplementationType(parse_impl_name(info));
-
-        prim.reset(new mkldnn::reorder(pd));
-        return true;
+        impl_type = parse_impl_name(info);
+        return std::make_shared<mkldnn::reorder>(pd);
     };
 
-    auto success = createReorder();
-    if (!success) {
-        // TODO: We should keep shape consistency for const and expected shape for node.
-        //       If it requires reshape operation it should explicitly injected into graph.
-        //
-        // There is a limitation for IE representing of weights for grouped convolutions. IE doesn't
-        // split group dimension in separate shape dimension. IE use OIHW, but mkldnn expect GOIHW.
-        // So we will perform implicit reshape to dst shape.
-        //
-        // MKLDNN doesn't support direct reorders for tensors of different rank. The code below tries to
-        // perform such conversion if the source tensor can be reshaped to the destination rank. This is
-        // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
-        // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
-        if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
-            src_blocked->GetShape().getRank() != dst_blocked->GetShape().getRank()) {
-            const auto newDims = dst_blocked->getStaticDims();
-            const auto newFormat = MKLDNNExtensionUtils::GetPlainFormatByRank(newDims.size());
+    auto cache = getRuntimeCache();
+    std::pair<std::shared_ptr<mkldnn::primitive>, CacheEntryBase::LookUpStatus> result{
+        nullptr,
+        CacheEntryBase::LookUpStatus::Miss};
+    // TODO: We should keep shape consistency for const and expected shape for node.
+    //       If it requires reshape operation it should explicitly injected into graph.
+    //
+    // There is a limitation for IE representing of weights for grouped convolutions. IE doesn't
+    // split group dimension in separate shape dimension. IE use OIHW, but mkldnn expect GOIHW.
+    // So we will perform implicit reshape to dst shape.
+    //
+    // MKLDNN doesn't support direct reorders for tensors of different rank. The code below tries to
+    // perform such conversion if the source tensor can be reshaped to the destination rank. This is
+    // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
+    // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
+    if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
+        src_blocked->GetShape().getRank() != dst_blocked->GetShape().getRank()) {
+        const auto newDims = dst_blocked->getStaticDims();
+        const auto newFormat = MKLDNNExtensionUtils::GetPlainFormatByRank(newDims.size());
 
-            auto newDesc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(newDims), src_blocked->GetDataType(), newFormat);
-            src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
+        auto newDesc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(newDims),
+                                            src_blocked->GetDataType(),
+                                            newFormat);
+        src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
 
-            success = createReorder();
-        }
+        key.src = src_blocked->GetPrimitive().get_desc();
+        result = cache->getOrCreate(key, builder);
+    } else {
+        result = cache->getOrCreate(key, builder);
     }
 
-    if (!success) {
+    if (!result.first) {
         IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
     }
-
+    prim = result.first;
+    supportedPrimitiveDescriptors[0].setImplementationType(impl_type);
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};

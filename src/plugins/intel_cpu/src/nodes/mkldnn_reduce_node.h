@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,7 @@ struct jit_reduce_post_call_args {
     size_t oc_off;          // offset in byte along channel on output tensor
     size_t channel_size;    // only for post ops fusion of nspc layout
     const float *divisor;   // mean = sum / divisor
+    const void** post_op_data;
 };
 
 struct jit_uni_reduce_kernel {
@@ -90,6 +91,7 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(mkldnn::stream strm) override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
     bool canBeInPlace() const override {
@@ -145,6 +147,8 @@ private:
     jit_reduce_config_params jcp;
 
     mkldnn::primitive_attr attr;
+
+    std::vector<const void*> postOpsDataPtrs;
 
     std::shared_ptr<mkldnn::memory> prc_mem;
 

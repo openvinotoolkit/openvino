@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,10 @@ void ov::op::util::NmsBase::validate() {
     NODE_VALIDATION_CHECK(this,
                           is_float_type_admissible(get_input_element_type(1)),
                           "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).compatible(get_input_element_type(1)),
+                          "Expected 'boxes', 'scores' type is same.");
 
     NODE_VALIDATION_CHECK(this,
                           boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
@@ -128,7 +132,7 @@ void ov::op::util::NmsBase::validate_and_infer_types() {
 
     // 'selected_outputs' have the following format:
     //      [number of selected boxes, [class_id, box_score, xmin, ymin, xmax, ymax]]
-    set_output_type(0, element::f32, {first_dim_shape, 6});
+    set_output_type(0, get_input_element_type(0), {first_dim_shape, 6});
     // 'selected_indices' have the following format:
     //      [number of selected boxes, ]
     set_output_type(1, m_output_type, {first_dim_shape, 1});

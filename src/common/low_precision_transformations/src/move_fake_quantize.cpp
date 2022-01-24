@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,9 +62,8 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     auto operation = fq->get_input_node_shared_ptr(0);
     std::shared_ptr<ngraph::Node> concat;
     bool without_operation = true;
-    std::string fq_original_name = fq->get_friendly_name(),
-        operation_original_name,
-        convert_q_original_name;
+    const std::string fq_original_name = fq->get_friendly_name();
+    std::string operation_original_name;
     if (is_type<opset1::Concat>(operation)) {
         concat = operation;
     } else {
@@ -75,7 +74,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     if (!ConcatTransformation::isQuantizedStatic(concat)) {
         return false;
     }
-    auto convert_q = (*fq->output(0).get_target_inputs().begin()).get_node()->shared_from_this();
+    const auto convert_q = fq->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
     bool q_dq = is_type<opset1::Convert>(convert_q);
     std::vector<std::shared_ptr<opset1::Constant>> currConstants(4);
     bool multi_chanels = false;
@@ -84,13 +83,13 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     const auto concat_axis = concatNode->get_concatenation_axis();
     for (size_t i = 0; i < 4; i++) {
         currConstants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
-        if (!multi_chanels && currConstants[i]->get_shape().size() > 1 && currConstants[i]->get_shape()[concat_axis] != 1) {
+        if (!multi_chanels && currConstants[i]->get_shape().size() > (concat_axis + 1ul) && currConstants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
         }
     }
     std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> newConstants;
     if (multi_chanels) {
-        newConstants = NetworkHelper::split_consts_before_concat(concat, currConstants);
+        newConstants = NetworkHelper::splitConstantsBeforeConcat(concat, currConstants);
     }
     std::vector<std::shared_ptr<ngraph::Node>> newNodes;
     for (size_t i{ 0 }; i < number_of_concat_inputs; ++i) {
@@ -152,7 +151,11 @@ bool MoveFakeQuantize::canBeTransformed(const TransformationContext& context, st
     if (!ConcatTransformation::isQuantizedStatic(concat)) {
         return false;
     }
-    auto convert_q = (*layer->output(0).get_target_inputs().begin()).get_node()->shared_from_this();
+    const auto convert_q_target_inputs = layer->output(0).get_target_inputs();
+    if (convert_q_target_inputs.empty()) {
+        return false;
+    }
+    const auto convert_q = convert_q_target_inputs.begin()->get_node()->shared_from_this();
     bool q_dq = is_type<opset1::Convert>(convert_q);
     if (q_dq && (convert_q->get_output_size() != 1 || layer->get_output_size() != 1)) {
         return false;

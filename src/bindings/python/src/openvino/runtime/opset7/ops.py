@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -17,14 +17,6 @@ from openvino.runtime.utils.input_validation import (
     is_positive_value,
 )
 from openvino.runtime.utils.node_factory import NodeFactory
-from openvino.runtime.utils.tensor_iterator_types import (
-    GraphBody,
-    TensorIteratorSliceInputDesc,
-    TensorIteratorMergedInputDesc,
-    TensorIteratorInvariantInputDesc,
-    TensorIteratorBodyOutputDesc,
-    TensorIteratorConcatOutputDesc,
-)
 from openvino.runtime.utils.types import (
     NodeInput,
     NumericData,

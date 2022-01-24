@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,8 @@
 #include "openvino/core/interval.hpp"
 
 namespace ov {
+class TableOfEquivalence;
+
 /// \brief Class representing a dimension, which may be dynamic (undetermined until runtime),
 ///        in a shape or shape-like object.
 ///
@@ -82,11 +84,11 @@ public:
     /// \li If `d1` and `d2` are static and equal, writes `d1` to `dst` and returns `true`.
     /// \li If `d1` and `d2` are both static and unequal, leaves `dst` unchanged and
     ///     returns `false`.
-    static bool merge(Dimension& dst, const Dimension d1, const Dimension d2);
+    static bool merge(Dimension& dst, const Dimension& d1, const Dimension& d2);
 
     /// \brief Try to merge two Dimension objects together with implicit broadcasting
     ///        of unit-sized dimension to non unit-sized dimension
-    static bool broadcast_merge(Dimension& dst, const Dimension d1, const Dimension d2);
+    static bool broadcast_merge(Dimension& dst, const Dimension& d1, const Dimension& d2);
 
     /// \brief Check whether this dimension is capable of being merged with the argument
     ///        dimension.
@@ -172,6 +174,11 @@ private:
 
     // The actual numerical value of the dimension.
     Interval m_dimension{};
+
+    // private fields for dimension tracking
+    friend class DimensionTracker;
+    size_t m_label{0};
+    std::shared_ptr<TableOfEquivalence> m_table_of_equivalence = nullptr;
 };
 
 /// \brief Insert a human-readable representation of a dimension into an output stream.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,5 +95,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
             R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
             R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+            // need dynamic shapes
+            R"(.*RangeLayerTest.*)",
     };
 }

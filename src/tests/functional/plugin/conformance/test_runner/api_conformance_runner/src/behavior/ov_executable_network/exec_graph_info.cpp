@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "behavior/ov_executable_network/exec_graph_info.hpp"
-#include "api_conformance_helpers.hpp"
+#include "ov_api_conformance_helpers.hpp"
 
 #include "ie_plugin_config.hpp"
 #include <common_test_utils/test_constants.hpp>
