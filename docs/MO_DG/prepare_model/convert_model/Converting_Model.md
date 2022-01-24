@@ -108,7 +108,8 @@ Framework-agnostic parameters:
   --log_level {CRITICAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
                         Logger level
   --input INPUT         Quoted list of comma-separated input nodes names with shapes, 
-                        data types, and values for freezing. The shape and value are 
+                        data types, and values for freezing. The order of inputs in converted 
+                        model is the same as order of specified operation names. The shape and value are 
                         specified as space-separated lists. The data type of input 
                         node is specified in braces and can have one of the values: 
                         f64 (float64), f32 (float32), f16 (float16), i64 (int64), 
@@ -127,6 +128,8 @@ Framework-agnostic parameters:
                         "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".
   --output OUTPUT       The name of the output operation of the model. For
                         TensorFlow*, do not add :0 to this name.
+                        The order of outputs in converted model is the same as order of
+                        specified operation names.
   --mean_values MEAN_VALUES, -ms MEAN_VALUES
                         Mean values to be used for the input image per
                         channel. Values to be provided in the (R,G,B) or

@@ -32,6 +32,11 @@ class UserDataRepack(FrontReplacementPattern):
         graph.graph['packed_outputs'] = packed_outputs
         graph.graph['freeze_placeholder'] = freeze_placeholder
 
+        if argv.inputs_list is not None and isinstance(argv.inputs_list, list) and len(argv.inputs_list) > 0:
+            graph.inputs_order = argv.inputs_list
+        if argv.output is not None and isinstance(argv.output, list) and len(argv.output) > 0:
+            graph.outputs_order = argv.output
+
         inputs = list(packed_user_shapes.keys()) \
             if packed_user_shapes is not None and isinstance(packed_user_shapes, dict) else None
         graph.graph['inputs'] = inputs  # save user defined inputs for other extensions
