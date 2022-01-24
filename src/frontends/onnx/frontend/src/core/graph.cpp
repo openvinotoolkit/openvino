@@ -234,10 +234,17 @@ void Graph::decode_to_framework_nodes() {
 std::shared_ptr<Function> Graph::create_function() {
     auto function = std::make_shared<Function>(get_ng_outputs(), m_parameters, get_name());
     const auto& onnx_outputs = m_model->get_graph().output();
-    for (std::size_t i{0}; i < function->get_output_size(); ++i) {
+    std::unordered_set<std::string> used_names;
+    std::size_t out_idx = 0;
+    for (std::size_t i{0}; i < onnx_outputs.size(); ++i) {
+        const auto name = onnx_outputs.Get(i).name();
+        if (used_names.count(name) > 0)
+            continue;
+        used_names.insert(name);
+        OPENVINO_ASSERT(out_idx <= function->get_output_size(), "Converted model contains more outputs than original.");
+        auto ov_result = function->get_output_op(out_idx++);
         // the suffix makes the Result's name unique in case the nodes in the model don't have a name
-        auto ov_result = function->get_output_op(i);
-        ov_result->set_friendly_name(detail::generate_result_name(onnx_outputs.Get(i).name(), ov_result));
+        ov_result->set_friendly_name(detail::generate_result_name(name, ov_result));
     }
     return function;
 }
@@ -260,7 +267,11 @@ Output<ngraph::Node> Graph::get_ng_node_from_cache(const std::string& name) cons
 
 OutputVector Graph::get_ng_outputs() const {
     OutputVector results;
+    std::unordered_set<std::string> used_names;
     for (const auto& output : m_model->get_graph().output()) {
+        if (used_names.count(output.name()) > 0)
+            continue;
+        used_names.insert(output.name());
         const auto& ng_output = get_ng_node_from_cache(output.name());
         if (!ngraph::op::is_null(ng_output))  // ignore optional outputs
         {
