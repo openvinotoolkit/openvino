@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,7 +155,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpOVExtensions) {
     const std::string model =
         CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_identity.xml");
 
-    ov::runtime::Core core;
+    ov::Core core;
     core.add_extension(get_ov_extension_path());
     auto expected = core.read_model(model);
     ngraph::pass::Manager manager;

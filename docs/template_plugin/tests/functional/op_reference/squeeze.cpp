@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,11 +54,11 @@ struct SqueezeParams {
     Shape m_output_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
     Shape m_axes_shape;
     element::Type m_axes_type;
-    runtime::Tensor m_axes_value;
+    ov::Tensor m_axes_value;
     bool m_axes_node;
 };
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -182,7 +182,8 @@ macro(ov_add_frontend)
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${OV_FRONTEND_LINK_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
 
     # WA for TF frontends which always requires protobuf (not protobuf-lite)
     # if TF FE is built in static mode, use protobuf for all other FEs

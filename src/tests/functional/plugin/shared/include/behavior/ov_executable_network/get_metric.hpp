@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,9 +87,9 @@ using OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK = OVClassHeter
 //
 
 TEST_P(OVClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     std::stringstream strm;
-    ov::runtime::CompiledModel executableNetwork;
+    ov::CompiledModel executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.compile_model(actualNetwork, deviceName));
     ASSERT_NO_THROW(executableNetwork.export_model(strm));
     ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, deviceName));
@@ -100,7 +100,7 @@ TEST_P(OVClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
 // ExecutableNetwork GetMetric / GetConfig
 //
 TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
@@ -118,7 +118,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoT
 }
 
 TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
@@ -136,7 +136,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow
 }
 
 TEST_P(OVClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
@@ -150,7 +150,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
 }
 
 TEST_P(OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, GetMetricNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
@@ -164,7 +164,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, G
 }
 
 TEST_P(OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
@@ -173,7 +173,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) 
 }
 
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
@@ -189,7 +189,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
 }
 
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigThrows) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
@@ -198,7 +198,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigThrows) {
 }
 
 TEST_P(OVClassExecutableNetworkSetConfigTest, SetConfigThrows) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
@@ -207,7 +207,7 @@ TEST_P(OVClassExecutableNetworkSetConfigTest, SetConfigThrows) {
 }
 
 TEST_P(OVClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
@@ -218,7 +218,7 @@ TEST_P(OVClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
 }
 
 TEST_P(OVClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -226,7 +226,7 @@ TEST_P(OVClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
 }
 
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -248,7 +248,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
 }
 
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any pHetero, pDevice;
 
     auto heteroExeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
@@ -281,7 +281,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
 }
 
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any pHetero, pDevice;
 
     auto heteroExeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
@@ -317,7 +317,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
 }
 
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     auto exeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
@@ -329,7 +329,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThro
 }
 
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow) {
-    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Core ie = createCoreWithTemplate();
     ov::Any p;
 
     setHeteroNetworkAffinity(deviceName);

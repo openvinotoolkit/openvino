@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,14 +29,10 @@ namespace ov {
 
 class Node;
 class RuntimeAttribute;
-class ParamMap;
-
-namespace runtime {
 class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
 class InferencePlugin;
-}  // namespace runtime
 
 /**
  * @brief This class represents an object to work with different types
@@ -336,13 +332,12 @@ class OPENVINO_API Any {
     };
 
     friend class ::ov::RuntimeAttribute;
-    friend class ::ov::ParamMap;
     friend class ::InferenceEngine::InferencePlugin;
     friend class ::InferenceEngine::ExecutableNetwork;
-    friend class ::ov::runtime::CompiledModel;
-    friend class ::ov::runtime::RemoteContext;
-    friend class ::ov::runtime::RemoteTensor;
-    friend class ::ov::runtime::InferencePlugin;
+    friend class ::ov::CompiledModel;
+    friend class ::ov::RemoteContext;
+    friend class ::ov::RemoteTensor;
+    friend class ::ov::InferencePlugin;
 
     Any(const Any& other, const std::shared_ptr<void>& so);
 
