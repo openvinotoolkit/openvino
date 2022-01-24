@@ -52,7 +52,7 @@ TEST_MODELS_DEFAULT = [
 TEST_MODELS_ACC_AWARE = [
     ('efficientnet-b0-pytorch', 'pytorch', 'CPU', {'performance': {'accuracy@top1': 0.7663,
                                                                    'accuracy@top5': 0.9294}}),
-    ('mobilenet-ssd', 'caffe', 'CPU', {'performance': {'map': 0.7222}}),
+    ('mobilenet-ssd', 'caffe', 'CPU', {'performance': {'map': 0.67}}),
     ('ssd512', 'caffe', 'CPU', {'performance': {'map': 0.7917}}),
     ('mobilenet-v1-0.25-128', 'tf', 'GNA', {'performance': {'accuracy@top1': 0.4133, 'accuracy@top5': 0.6626}})
 ]
@@ -121,7 +121,7 @@ def test_accuracy_aware_quantization(model_params, tmp_path, models, algorithm, 
 
 
 def run_quantization(models, model_name, model_framework, algorithm_config,
-                     expected_accuracy, tmp_path, tolerance=0.001, model_precision='FP32'):
+                     expected_accuracy, tmp_path, tolerance=0.0015, model_precision='FP32'):
     model = models.get(model_name, model_framework, tmp_path, model_precision)
     engine_config = get_engine_config(model_name)
 

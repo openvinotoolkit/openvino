@@ -566,6 +566,8 @@ class Graph(nx.MultiDiGraph):
 
     unique_id_count = 0
     op_names_statistic = collections.Counter()
+    inputs_order = []
+    outputs_order = []
 
     # SAFE API DESCRIPTION
     # all provided methods below are designed to be more safe and convenient
