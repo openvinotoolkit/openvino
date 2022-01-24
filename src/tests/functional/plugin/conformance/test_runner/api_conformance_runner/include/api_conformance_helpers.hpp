@@ -10,9 +10,7 @@
 // TODO: fix namespaces
 using namespace ConformanceTests;
 
-namespace ov {
-namespace test {
-namespace conformance {
+namespace BehaviorTestsDefinitions {
 
 inline const std::string getPluginLibNameByDevice(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
@@ -90,6 +88,4 @@ const std::vector<std::map<std::string, std::string>> emptyConfig = {
         {},
 };
 
-}  // namespace conformance
-}  // namespace test
-}  // namespace ov
+}  // namespace BehaviorTestsDefinitions
