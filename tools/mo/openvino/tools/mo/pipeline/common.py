@@ -182,6 +182,8 @@ def set_default_tensor_names_for_parameters_results(graph: Graph):
             port = node.out_port(0)
         else:
             continue
+        if node.has_and_set('keep_output_port'):
+            continue
 
         tensor_names = port.get_tensor_names()
         if tensor_names is not None and isinstance(tensor_names, list) and len(tensor_names) > 0:
@@ -189,18 +191,6 @@ def set_default_tensor_names_for_parameters_results(graph: Graph):
         new_tensor_name = port.get_default_tensor_name()
         op_name = port.node.soft_get('name')
         port.set_tensor_names([op_name], [[new_tensor_name]])
-
-
-def set_default_tensor_names_for_inputs_outputs(graph: Graph):
-    # set output ports and fake Results for not connected output ports
-    for op in graph.get_op_nodes():
-        Op.normalize_outputs(op)
-
-    # run shape inference, as shape attribute is required for port serializing
-    shape_inference(graph)
-
-    # set default tensor names for Parameters/Results which do not have them
-    set_default_tensor_names_for_parameters_results(graph)
 
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
@@ -231,7 +221,7 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
     for_graph_and_each_sub_graph_recursively(graph, RemoveUselessConvert().find_and_replace_pattern)
 
     ResultRename().find_and_replace_pattern(graph)
-    set_default_tensor_names_for_inputs_outputs(graph)
+    set_default_tensor_names_for_parameters_results(graph)
 
     for sub_graph in [graph] + collect_sub_graphs(graph):
         op_order, data_order = determined_sort(get_sorted_outputs(sub_graph))
