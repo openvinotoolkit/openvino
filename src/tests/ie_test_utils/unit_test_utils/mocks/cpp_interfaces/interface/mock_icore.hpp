@@ -37,6 +37,7 @@ public:
     MOCK_CONST_METHOD0(GetAvailableDevices, std::vector<std::string>());
     MOCK_CONST_METHOD1(DeviceSupportsImportExport, bool(const std::string&)); // NOLINT not a cast to bool
     MOCK_CONST_METHOD0(isNewAPI, bool());
+    MOCK_METHOD1(GetDefaultContext, InferenceEngine::RemoteContext::Ptr(const std::string&));
 
     ~MockICore() = default;
 };
