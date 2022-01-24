@@ -28,6 +28,7 @@ class TopKLayerTest : public testing::WithParamInterface<TopKParams>,
                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TopKParams>& obj);
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;
