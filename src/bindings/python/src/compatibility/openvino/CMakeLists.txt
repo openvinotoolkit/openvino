@@ -31,13 +31,7 @@ else()
     message(STATUS "Found Cython version ${CYTHON_VERSION}")
 endif()
 
-if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
-    set(PYTHON_VERSION_MAJOR ${CMAKE_MATCH_1})
-    set(PYTHON_VERSION_MINOR ${CMAKE_MATCH_2})
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-else()
-    message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
-endif()
+set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 
 if(ENABLE_CONDA_FOLDER)
     set(PYTHON_COMPONENT conda_${PYTHON_VERSION})
@@ -63,7 +57,7 @@ function(ov_python_disable_intel_warnings target)
 endfunction()
 
 set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-add_subdirectory (src/openvino/inference_engine)
+add_subdirectory (inference_engine)
 
 if(TARGET _pyngraph)
     add_dependencies(ie_api _pyngraph)
@@ -77,10 +71,6 @@ install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
         COMPONENT ${PYTHON_COMPONENT})
 
-install(PROGRAMS ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/__init__.py
+install(PROGRAMS ${PYTHON_BRIDGE_SRC_ROOT}/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_COMPONENT})
-
-# package Python samples
-
-ie_cpack(${PYTHON_COMPONENT})
