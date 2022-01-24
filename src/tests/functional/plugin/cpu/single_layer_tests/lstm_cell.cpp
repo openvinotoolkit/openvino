@@ -87,11 +87,10 @@ protected:
         const size_t inputSize = targetStaticShapes.front()[0][1];
 
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType = outType = ElementType::bf16;
+            selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
-            inType = outType = netPrecision;
+            selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
-        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
