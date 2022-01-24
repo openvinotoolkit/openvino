@@ -252,7 +252,16 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     const auto outputs = layer->outData.front();
     assertConvolutionLayoutProper(inputs);
 
-#ifndef DEBUG_USE_NEW_PASS
+#ifdef DEBUG_USE_NEW_PASS
+    const auto in_batch = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::N);
+    const auto in_channels = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::C);
+    auto in_height = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::H);
+    auto in_width = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::W);
+    const auto out_batch = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::N);
+    const auto out_channels = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::C);
+    auto out_height = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::H);
+    auto out_width = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::W);
+#else
     const auto in_batch = GetDataDimSize(inputs, InferenceEngine::DataDimName::N);
     const auto in_channels = GetDataDimSize(inputs, InferenceEngine::DataDimName::C);
     auto in_height = GetDataDimSize(inputs, InferenceEngine::DataDimName::H);
@@ -262,16 +271,6 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     const auto out_channels = GetDataDimSize(outputs, InferenceEngine::DataDimName::C);
     auto out_height = GetDataDimSize(outputs, InferenceEngine::DataDimName::H);
     auto out_width = GetDataDimSize(outputs, InferenceEngine::DataDimName::W);
-#else
-    const auto in_batch = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::N);
-    const auto in_channels = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::C);
-    auto in_height = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::H);
-    auto in_width = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::W);
-
-    const auto out_batch = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::N);
-    const auto out_channels = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::C);
-    auto out_height = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::H);
-    auto out_width = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::W);
 #endif
 
     if (in_height > 1 && in_width == 1) {

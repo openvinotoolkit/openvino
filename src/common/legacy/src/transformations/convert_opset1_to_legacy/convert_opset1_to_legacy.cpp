@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/pass/visualize_tree.hpp" // DEBUG
+
 #include "legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp"
@@ -57,6 +59,8 @@
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     ngraph::pass::Manager manager(get_pass_config());
 
+    
+
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Some passes before ConvertOpSet1ToLegacy can produce some of this
@@ -81,6 +85,8 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngr
     // Convolution/Deconvolution/FullyConnected fusions
     manager.register_pass<ngraph::pass::ConvertConvolutions>();
 
+    manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_start.png"); // DEBUG
+
     // Convolution/Deconvolution/FullyConnected fusions
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
     fusion->add_matcher<ngraph::pass::ConvAddFusion>();
@@ -91,14 +97,18 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngr
     // CF is required after fusions
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
+    manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_end.png"); // DEBUG
+
     // List of passes that convert opset1 operations to legacy
     // plus transformations that are required by InferenceEngine
     // All this transformations can be executed simultaneously
     auto anchor = manager.register_pass<ngraph::pass::GraphRewrite>();
+    
     anchor->add_matcher<ngraph::pass::ReshapeFullyConnected>();
     anchor->add_matcher<ngraph::pass::Reshape1DConvolution>();
     anchor->add_matcher<ngraph::pass::Reshape1DAvgPool>();
     anchor->add_matcher<ngraph::pass::Reshape1DMaxPool>();
+    
     anchor->add_matcher<ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE>();
     anchor->add_matcher<ngraph::pass::ConvertHardSigmoidToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertProposalToLegacyMatcher>();

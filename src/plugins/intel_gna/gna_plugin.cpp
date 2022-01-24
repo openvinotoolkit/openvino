@@ -88,6 +88,9 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ops/gna_convolution.hpp>
 
+#include "ngraph/pass/visualize_tree.hpp" // DEBUG 
+#include "transformations/serialize.hpp" // DEBUG
+
 #include "debug_use_new_pass.hpp"
 
 #include <gna2-model-api.h>
@@ -663,6 +666,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/start.png"); // DEBUG
         manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
         manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
         manager.register_pass<DecomposeMVN>();
@@ -705,13 +709,20 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SubstituteSoftsign>();
 
 #ifdef DEBUG_USE_NEW_PASS
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/before_transpose_nchw.png"); // DEBUG
         manager.register_pass<TransposeNCHW>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/after_transpose_nchw.png"); // DEBUG
         manager.register_pass<ngraph::pass::TransposeSinking>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/after_transpose_sinking.png"); // DEBUG
 #endif // DEBUG_USE_NEW_PASS
 
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_1.png"); // DEBUG
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_2.png"); // DEBUG
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_3.png"); // DEBUG
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_4.png"); // DEBUG
         manager.register_pass<RemoveExtraReshapes>();
         /*
           Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
@@ -745,6 +756,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::TransposeReduction>();
         // Operations Max and Min aren't supported
         pass_config->disable<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/finish.png"); // DEBUG
         manager.run_passes(graph);
 
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
