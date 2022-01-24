@@ -2063,7 +2063,7 @@ void MKLDNNTopKNode::createPrimitive() {
         // will be used. These params are: top_k, axis_dim, sort_stride, work_amount
         auto jcp = jit_topk_config_params();
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        jcp.precision = selectedPD->getConfig().inConfs[TOPK_DATA].desc->getPrecision();
+        jcp.precision = selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision();
         jcp.data_size = data_size;
         jcp.blk_size = blk_size;
         jcp.layout = layout;
