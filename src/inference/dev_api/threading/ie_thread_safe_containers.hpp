@@ -9,6 +9,7 @@
 #include <mutex>
 #include <queue>
 #include <type_traits>
+#include <atomic>
 
 #include "ie_parallel.hpp"
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
@@ -53,28 +54,23 @@ template <typename T>
 class ThreadSafeBoundedPriorityQueue {
 public:
     ThreadSafeBoundedPriorityQueue() = default;
-    bool try_push(T value) {
-        _mutex.lock();
+    bool try_push(T&& value) {
         if (_capacity) {
-            _mutex.unlock();
             _pqueue.push(std::move(value));
-        } else {
-            _mutex.unlock();
+            return true;
         }
-        return _capacity;
+        return false;
     }
     bool try_pop(T& value) {
         return _pqueue.try_pop(value);
     }
     void set_capacity(std::size_t newCapacity) {
-        std::lock_guard<std::mutex> lock(_mutex);
         _capacity = newCapacity;
     }
 
 protected:
     tbb::concurrent_priority_queue<T, std::greater<T>> _pqueue;
-    std::mutex _mutex;
-    bool _capacity = false;
+    std::atomic_bool _capacity{false};
 };
 #else
 template <typename T>
