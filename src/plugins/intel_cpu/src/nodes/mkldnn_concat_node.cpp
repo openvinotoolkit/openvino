@@ -415,11 +415,11 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         if (!isConfigDefined(config)) {
             for (size_t i = 0; i < config.inConfs.size(); i++) {
                 // Concat doesn't support different precision on inputs
-                config.inConfs[i].setMemDesc(getDefinedInputDesc(config, i)->cloneWithNewPrecision(inputPrecision));
+                config.inConfs[i].setMemDesc(getConsistentInputDesc(config, i)->cloneWithNewPrecision(inputPrecision));
             }
 
             for (size_t i = 0; i < config.outConfs.size(); i++) {
-                config.outConfs[i].setMemDesc(getDefinedOutputDesc(config, i)->cloneWithNewPrecision(outputPrecision));
+                config.outConfs[i].setMemDesc(getConsistentOutputDesc(config, i)->cloneWithNewPrecision(outputPrecision));
             }
 
             initDescriptor(config);

@@ -1951,11 +1951,11 @@ void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (!isDynamicNode()) { //isConfigDefined(config)
         for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].setMemDesc(getDefinedInputDesc(config, i));
+            config.inConfs[i].setMemDesc(getConsistentInputDesc(config, i));
         }
 
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].setMemDesc(getDefinedOutputDesc(config, i));
+            config.outConfs[i].setMemDesc(getConsistentOutputDesc(config, i));
         }
 
         initDescriptor(config);
