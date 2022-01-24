@@ -101,6 +101,7 @@ test_multiple_out_with_identity = [
          ),
 ]
 
+
 class TestSplitConcat(Caffe2OnnxLayerTest):
     # TODO Add test with default values (axis=0)
     def create_split_concat_net(self, input_shape, output_shapes, axis, ir_version):
@@ -262,46 +263,40 @@ class TestSplitConcat(Caffe2OnnxLayerTest):
     @pytest.mark.nightly
     def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     def test_split_3D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
-            precision, ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_split_4D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
-            precision, ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_split_5D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
-            precision, ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
 
 class TestSplit(Caffe2OnnxLayerTest):
@@ -367,8 +362,8 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         return onnx_net, ref_net
 
-
-    def create_split_net_ordered_outputs(self, input_shape, output_shapes, axis, output_names, ir_version):
+    def create_split_net_ordered_outputs(self, input_shape, output_shapes, axis, output_names,
+                                         ir_version):
         """
             ONNX net                             IR net
 
@@ -390,7 +385,8 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         output_list = []
         for i, output_name in enumerate(output_names):
-            output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
+            output_list.append(
+                helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
 
         node = onnx.helper.make_node('Split', inputs=['input'], outputs=output_names, axis=axis)
 
@@ -409,7 +405,8 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         return onnx_net, ref_net
 
-    def create_split_net_ordered_outputs_with_add(self, input_shape, output_shapes, axis, output_names, ir_version):
+    def create_split_net_ordered_outputs_with_add(self, input_shape, output_shapes, axis,
+                                                  output_names, ir_version):
         """
         This test checks the case when graph has a node that is connected with Result and some other operation
         from single output port.
@@ -438,15 +435,17 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
 
-        add_output_name1 = output_names[len(output_names)-2]
-        add_output_name2 = output_names[len(output_names)-1]
-        outputs_without_add = output_names[:len(output_names)-2]
+        add_output_name1 = output_names[len(output_names) - 2]
+        add_output_name2 = output_names[len(output_names) - 1]
+        outputs_without_add = output_names[:len(output_names) - 2]
 
         output_list = []
         for i, output_name in enumerate(outputs_without_add):
-            output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
+            output_list.append(
+                helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
 
-        node = onnx.helper.make_node('Split', inputs=['input'], outputs=outputs_without_add, axis=axis)
+        node = onnx.helper.make_node('Split', inputs=['input'], outputs=outputs_without_add,
+                                     axis=axis)
         node_add1 = helper.make_node(
             'Add',
             inputs=[outputs_without_add[1], outputs_without_add[2]],
@@ -458,7 +457,11 @@ class TestSplit(Caffe2OnnxLayerTest):
             outputs=[add_output_name2]
         )
 
-        output_list = output_list + [helper.make_tensor_value_info(add_output_name1, TensorProto.FLOAT, output_shapes[0])] + [helper.make_tensor_value_info(add_output_name2, TensorProto.FLOAT, output_shapes[0])]
+        output_list = output_list + [
+            helper.make_tensor_value_info(add_output_name1, TensorProto.FLOAT,
+                                          output_shapes[0])] + [
+                          helper.make_tensor_value_info(add_output_name2, TensorProto.FLOAT,
+                                                        output_shapes[0])]
 
         # Create the graph (GraphProto)
         graph_def = helper.make_graph(
@@ -475,7 +478,10 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         return onnx_net, ref_net
 
-    def create_split_net_ordered_outputs_multiple_tensor_names(self, input_shape, output_shapes, axis, split_out_names, identity_names, output_names, ir_version):
+    def create_split_net_ordered_outputs_multiple_tensor_names(self, input_shape, output_shapes,
+                                                               axis, split_out_names,
+                                                               identity_names, output_names,
+                                                               ir_version):
         """
         This test checks the case of multiple tensor names on connection incoming to Result. In this case
         Result name is equal to one of tensor names from the list.
@@ -507,13 +513,18 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         output_list = []
         for i, output_name in enumerate(split_out_names):
-            output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
-        output_list.append(helper.make_tensor_value_info(identity_names[2], TensorProto.FLOAT, output_shapes[i]))
+            output_list.append(
+                helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
+        output_list.append(
+            helper.make_tensor_value_info(identity_names[2], TensorProto.FLOAT, output_shapes[i]))
 
         node = onnx.helper.make_node('Split', inputs=['input'], outputs=split_out_names, axis=axis)
-        identity1 = onnx.helper.make_node('Identity', inputs=[split_out_names[0]], outputs=[identity_names[0]])
-        identity2 = onnx.helper.make_node('Identity', inputs=[identity_names[0]], outputs=[identity_names[1]])
-        identity3 = onnx.helper.make_node('Identity', inputs=[identity_names[1]], outputs=[identity_names[2]])
+        identity1 = onnx.helper.make_node('Identity', inputs=[split_out_names[0]],
+                                          outputs=[identity_names[0]])
+        identity2 = onnx.helper.make_node('Identity', inputs=[identity_names[0]],
+                                          outputs=[identity_names[1]])
+        identity3 = onnx.helper.make_node('Identity', inputs=[identity_names[1]],
+                                          outputs=[identity_names[2]])
 
         # Create the graph (GraphProto)
         graph_def = helper.make_graph(
@@ -534,37 +545,33 @@ class TestSplit(Caffe2OnnxLayerTest):
     @pytest.mark.nightly
     def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_multiple_out)
-    def test_split_outputs_order(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_split_net_ordered_outputs(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, output_names=params['output_names'])
+    def test_split_outputs_order(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_split_net_ordered_outputs(**params, ir_version=ir_version),
+                   ie_device, precision,
+                   ir_version, temp_dir=temp_dir, output_names=params['output_names'], api_2=api_2)
 
     @pytest.mark.parametrize("params", test_multiple_out_with_add)
-    def test_split_outputs_order_multiple_connection_before_result_case(self,
-                                                                        params,
-                                                                        ie_device,
-                                                                        precision,
-                                                                        ir_version,
-                                                                        temp_dir):
-        self._test(*self.create_split_net_ordered_outputs_with_add(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, output_names=params['output_names'])
+    def test_split_outputs_order_multiple_connection_before_result_case(self, params, ie_device,
+                                                                        precision, ir_version,
+                                                                        temp_dir, api_2):
+        self._test(*self.create_split_net_ordered_outputs_with_add(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   output_names=params['output_names'])
 
     @pytest.mark.parametrize("params", test_multiple_out_with_identity)
     def test_split_outputs_order_multiple_tensors_before_result_case(self,
@@ -572,6 +579,8 @@ class TestSplit(Caffe2OnnxLayerTest):
                                                                      ie_device,
                                                                      precision,
                                                                      ir_version,
-                                                                     temp_dir):
-        self._test(*self.create_split_net_ordered_outputs_multiple_tensor_names(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, output_names=params['output_names'])
+                                                                     temp_dir, api_2):
+        self._test(*self.create_split_net_ordered_outputs_multiple_tensor_names(**params,
+                                                                                ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   output_names=params['output_names'], api_2=api_2)
