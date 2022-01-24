@@ -441,7 +441,7 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
                     if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
                         getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
 
-                    if (childConf.getMemDesc()->isDefined() && config.outConfs[i].getPortDesc()->compare(*childConf.getPortDesc())) {
+                    if (childConf.getMemDesc()->isDefined() && config.outConfs[i].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
                         config.outConfs[i].setMemDesc(childConf.getMemDesc());
                         continue;
                     }

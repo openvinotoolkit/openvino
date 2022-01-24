@@ -220,7 +220,7 @@ MKLDNNEdge::ReorderStatus MKLDNNEdge::needReorder() {
     bool optimized = false;
     auto inputPortDesc = getInputPortDesc();
     auto outPortDesc = getOutputPortDesc();
-    if (!outPortDesc->compare(*inputPortDesc)) {
+    if (!outPortDesc->isCompatible(*inputPortDesc)) {
         if (isPhycicalMemCompatible(*inputPortDesc->getMemDesc(), *outPortDesc->getMemDesc()) && !getParent()->isConstant()) {
             optimized = true;
         } else {

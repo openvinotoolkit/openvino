@@ -15,11 +15,11 @@ public:
     /**
      * @brief Check if the port desc can be accepted.
      *
-     * @warning This operation is not commutative desc1.compare(desc2) != desc2.compare(desc1) in general case
+     * @warning This operation is not commutative desc1.isCompatible(desc2) != desc2.isCompatible(desc1) in general case
      *
      * @return True if the port desc may be accepted false otherwise
      */
-    bool compare(const PortDescBase& rhs) const {
+    bool isCompatible(const PortDescBase& rhs) const {
         return typeid(*this) == typeid(rhs) && this->compareImpl(rhs);
     }
     virtual MemoryDescPtr getMemDesc() const = 0;
@@ -35,7 +35,7 @@ class PortDescBase_ : public PortDescBase {
 protected:
     PortDescBase_() = default;
     bool compareImpl(const PortDescBase& rhs) const override /*final*/ {
-        return static_cast<const T&>(*this).compare(static_cast<const T&>(rhs));
+        return static_cast<const T&>(*this).isCompatible(static_cast<const T&>(rhs));
     }
 };
 
@@ -46,7 +46,7 @@ public:
             IE_THROW(ParameterMismatch) << "PortDescGeneric constructor got nullptr";
         }
     }
-    bool compare(const PortDescGeneric& rhs) const {
+    bool isCompatible(const PortDescGeneric& rhs) const {
         return _memDesc->isCompatible(*rhs._memDesc);
     }
     MemoryDescPtr getMemDesc() const override {
@@ -64,7 +64,7 @@ public:
             IE_THROW(ParameterMismatch) << "PortDescBlocked constructor got nullptr";
         }
     }
-    bool compare(const PortDescBlocked& rhs) const {
+    bool isCompatible(const PortDescBlocked& rhs) const {
         return _memDesc->isCompatible(*rhs._memDesc, _cmpMask) /*&& mask comparison*/;
     }
     MemoryDescPtr getMemDesc() const override {
