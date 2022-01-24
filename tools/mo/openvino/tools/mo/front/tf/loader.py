@@ -10,7 +10,6 @@ from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.versions_checker import get_environment_setup
-from tensorflow.python.tools import saved_model_utils
 
 try:
     import tensorflow.compat.v1 as tf_v1
