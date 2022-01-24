@@ -147,7 +147,7 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
     };
     Shape baseShape;
     AxisVector baseOrder;
-    std::tie(baseShape, baseOrder, std::ignore) = getMaxRankBlockedShape(outputShapes);
+    std::tie(baseShape, baseOrder, std::ignore) = getMaxRankBlockedShape(inputShapes);
     const auto baseRank = baseShape.size();
     const bool baseIsBlocked = baseOrder.size() != std::set<size_t>(baseOrder.begin(), baseOrder.end()).size();
     for (size_t i = 0; i < inputShapes.size(); i++) {
@@ -163,7 +163,11 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
             // todo: more complicated logics is needed if we want to merge smth else than blocked and planar
             // could be done by PartialShape::broadcast_merge_into, but this way is faster
             size_t startOffset = baseRank - inRank;
-            startOffset -= baseIsBlocked && baseOrder.back() != inOrder.back() ? 1 : 0;
+            if (baseIsBlocked) {
+                const bool inIsNotBlocked = inOrder.size() == std::set<size_t>(inOrder.begin(), inOrder.end()).size();
+                NODE_VALIDATION_CHECK(this, inIsNotBlocked, "Snippets don't support conversion between blocked layouts of different ranks");
+                startOffset--;
+            }
             std::copy(inShape.begin(), inShape.end(), &newShape[startOffset]);
             inShape = move(newShape);
         } else {
