@@ -49,7 +49,6 @@ def set_time_dim(graph):
         if node.time_dim >= 0:
             continue
 
-        # MemoryOffset with default value does not change time delay
         if node.op == "MemoryOffset":
             # MemoryOffset can be splitted already and can be without input, time_dim = t in this case
             node.time_dim = node.in_port(0).get_source().node.time_dim + abs(node.t) if not node.in_port(0).disconnected() else abs(node.t)
