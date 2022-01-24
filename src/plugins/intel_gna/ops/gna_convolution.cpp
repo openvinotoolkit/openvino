@@ -198,6 +198,10 @@ void shape_infer(const GNAConvolution* op,
     if (filters_shape.rank().is_dynamic())
         filters_shape.resize(num_spatial + 2);
 
+    std::cout << __FILE__ << ":" << __LINE__ << ":" << " num_spatial " << num_spatial << std::endl;
+    std::cout << __FILE__ << ":" << __LINE__ << ":" << " input_shape.size() " << input_shape.size() << std::endl;
+    std::cout << __FILE__ << ":" << __LINE__ << ":" << " filters_shape.size() " << filters_shape.size() << std::endl;
+
     NODE_VALIDATION_CHECK(op,
                           (static_cast<int64_t>(input_shape.size()) == (num_spatial + 2)) &&
                           (static_cast<int64_t>(filters_shape.size()) == (num_spatial + 2)),
