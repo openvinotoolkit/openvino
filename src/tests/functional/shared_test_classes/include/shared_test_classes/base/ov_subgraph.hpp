@@ -47,7 +47,7 @@ protected:
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
-    Config configuration;
+    ov::AnyMap configuration;
 
     std::shared_ptr<ov::Model> function, functionRefs = nullptr;
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;

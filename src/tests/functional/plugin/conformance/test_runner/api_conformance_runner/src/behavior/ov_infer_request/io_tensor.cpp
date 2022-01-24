@@ -58,7 +58,7 @@ std::vector<ov::element::Type> ovIOTensorElemTypes = {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypes),
-                                 ::testing::Values(ConformanceTests::targetDevice),
+                                 ::testing::Values(ov::test::conformance::targetDevice),
                                  ::testing::ValuesIn(empty_config)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 

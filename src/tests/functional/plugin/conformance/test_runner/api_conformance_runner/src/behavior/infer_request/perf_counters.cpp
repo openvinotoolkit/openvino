@@ -6,11 +6,7 @@
 #include "api_conformance_helpers.hpp"
 
 namespace {
-<<<<<<< HEAD
-using namespace ConformanceTests;
-=======
 using namespace ov::test::conformance;
->>>>>>> master
 using namespace BehaviorTestsDefinitions;
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPerfCountersTest,

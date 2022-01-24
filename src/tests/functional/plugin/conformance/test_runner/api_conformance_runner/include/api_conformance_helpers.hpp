@@ -7,16 +7,9 @@
 #include "conformance.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-<<<<<<< HEAD
-// TODO: fix namespaces
-using namespace ConformanceTests;
-
-namespace BehaviorTestsDefinitions {
-=======
 namespace ov {
 namespace test {
 namespace conformance {
->>>>>>> master
 
 inline const std::string getPluginLibNameByDevice(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
@@ -94,4 +87,6 @@ const std::vector<std::map<std::string, std::string>> emptyConfig = {
         {},
 };
 
-}  // namespace BehaviorTestsDefinitions
+}  // namespace conformance
+}  // namespace test
+}  // namespace ov

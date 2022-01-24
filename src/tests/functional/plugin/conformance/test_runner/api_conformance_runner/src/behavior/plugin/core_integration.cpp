@@ -7,6 +7,7 @@
 
 using namespace BehaviorTestsDefinitions;
 using namespace InferenceEngine::PluginConfigParams;
+using namespace ov::test::conformance;
 
 namespace {
 //

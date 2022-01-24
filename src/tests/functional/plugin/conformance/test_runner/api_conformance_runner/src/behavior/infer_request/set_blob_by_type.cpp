@@ -7,11 +7,7 @@
 #include "api_conformance_helpers.hpp"
 
 namespace {
-<<<<<<< HEAD
-using namespace ConformanceTests;
-=======
 using namespace ov::test::conformance;
->>>>>>> master
 using namespace BehaviorTestsDefinitions;
 
 const std::vector<FuncTestUtils::BlobType> setBlobTypes = {

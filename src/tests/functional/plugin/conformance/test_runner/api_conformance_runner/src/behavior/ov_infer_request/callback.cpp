@@ -13,13 +13,8 @@ using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCallbackTests,
         ::testing::Combine(
-<<<<<<< HEAD
-            ::testing::Values(ConformanceTests::targetDevice),
-            ::testing::ValuesIn(empty_config)),
-=======
             ::testing::Values(ov::test::conformance::targetDevice),
-            ::testing::ValuesIn(emptyConfig)),
->>>>>>> master
+            ::testing::ValuesIn(empty_config)),
         OVInferRequestCallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCallbackTests,

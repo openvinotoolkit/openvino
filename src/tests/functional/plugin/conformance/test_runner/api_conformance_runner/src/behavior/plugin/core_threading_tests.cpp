@@ -5,7 +5,7 @@
 #include <behavior/plugin/core_threading.hpp>
 #include "api_conformance_helpers.hpp"
 
-using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
 
 namespace {
 

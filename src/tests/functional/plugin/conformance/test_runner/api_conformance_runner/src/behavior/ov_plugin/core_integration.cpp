@@ -17,7 +17,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassCommon, OVClassBasicTestP,
-        ::testing::Values(std::make_pair(getPluginLibNameByDevice(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
+        ::testing::Values(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassNetworkTestP, OVClassNetworkTestP,
