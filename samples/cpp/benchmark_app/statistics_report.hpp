@@ -108,7 +108,7 @@ public:
 /// @brief Responsible for collecting of statistics and dumping to .csv file
 class StatisticsReport {
 public:
-    typedef std::vector<ov::ProfilingInfo> PerformaceCounters;
+    typedef std::vector<ov::ProfilingInfo> PerformanceCounters;
     typedef std::vector<StatisticsVariant> Parameters;
 
     struct Config {
@@ -142,11 +142,10 @@ public:
 
     virtual void dump();
 
-    virtual void dump_performance_counters(const std::vector<PerformaceCounters>& perfCounts);
+    virtual void dump_performance_counters(const std::vector<PerformanceCounters>& perfCounts);
 
 private:
-    void dump_performance_counters_request(CsvDumper& dumper, const PerformaceCounters& perfCounts);
-
+    void dump_performance_counters_request(CsvDumper& dumper, const PerformanceCounters& perfCounts);
 
 protected:
     // configuration of current benchmark execution
@@ -157,6 +156,9 @@ protected:
 
     // csv separator
     std::string _separator;
+
+    StatisticsReport::PerformanceCounters get_average_performance_counters(
+        const std::vector<PerformanceCounters>& perfCounts);
 };
 
 class StatisticsReportJSON : public StatisticsReport {
@@ -165,8 +167,10 @@ public:
     }
 
     void dump() override;
-    void dump_performance_counters(const std::vector<PerformaceCounters>& perfCounts) override;
+    void dump_performance_counters(const std::vector<PerformanceCounters>& perfCounts) override;
 
 private:
     void dump_parameters(nlohmann::json& js, const StatisticsReport::Parameters& parameters);
+    const nlohmann::json StatisticsReportJSON::perf_counters_to_json(
+        const StatisticsReport::PerformanceCounters& perfCounts);
 };

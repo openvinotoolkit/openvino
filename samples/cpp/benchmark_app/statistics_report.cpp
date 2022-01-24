@@ -12,6 +12,8 @@
 #include "statistics_report.hpp"
 // clang-format on
 
+static const char* status_names[] = {"NOT_RUN", "OPTIMIZED_OUT", "EXECUTED"};
+
 void StatisticsReport::add_parameters(const Category& category, const Parameters& parameters) {
     if (_parameters.count(category) == 0)
         _parameters[category] = parameters;
@@ -68,7 +70,7 @@ void StatisticsReport::dump() {
     slog::info << "Statistics report is stored to " << dumper.getFilename() << slog::endl;
 }
 
-void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, const PerformaceCounters& perfCounts) {
+void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, const PerformanceCounters& perfCounts) {
     std::chrono::microseconds total = std::chrono::microseconds::zero();
     std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
 
@@ -82,18 +84,8 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
 
     for (const auto& layer : perfCounts) {
         dumper << layer.node_name;  // layer name
-
-        switch (layer.status) {
-        case ov::ProfilingInfo::Status::EXECUTED:
-            dumper << "EXECUTED";
-            break;
-        case ov::ProfilingInfo::Status::NOT_RUN:
-            dumper << "NOT_RUN";
-            break;
-        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
-            dumper << "OPTIMIZED_OUT";
-            break;
-        }
+        dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+                                                                                : "INVALID_STATUS");
         dumper << layer.node_type << layer.exec_type;
         dumper << std::to_string(layer.real_time.count() / 1000.0) << std::to_string(layer.cpu_time.count() / 1000.0);
         total += layer.real_time;
@@ -109,7 +101,34 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
     dumper.endLine();
 }
 
-void StatisticsReport::dump_performance_counters(const std::vector<PerformaceCounters>& perfCounts) {
+StatisticsReport::PerformanceCounters StatisticsReport::get_average_performance_counters(const std::vector<PerformanceCounters>& perfCounts) {
+    StatisticsReport::PerformanceCounters performanceCountersAvg;
+    // iterate over each processed infer request and handle its PM data
+    for (size_t i = 0; i < perfCounts.size(); i++) {
+        // iterate over each layer from sorted vector and add required PM data
+        // to the per-layer maps
+        for (const auto& pm : perfCounts[i]) {
+            int idx = 0;
+            for (; idx < performanceCountersAvg.size(); idx++) {
+                if (performanceCountersAvg[idx].node_name == pm.node_name) {
+                    performanceCountersAvg[idx].real_time += pm.real_time;
+                    performanceCountersAvg[idx].cpu_time += pm.cpu_time;
+                    break;
+                }
+            }
+            if (idx == performanceCountersAvg.size()) {
+                performanceCountersAvg.push_back(pm);
+            }
+        }
+    }
+    for (auto& pm : performanceCountersAvg) {
+        pm.real_time /= perfCounts.size();
+        pm.cpu_time /= perfCounts.size();
+    }
+    return performanceCountersAvg;
+};
+
+void StatisticsReport::dump_performance_counters(const std::vector<PerformanceCounters>& perfCounts) {
     if ((_config.report_type.empty()) || (_config.report_type == noCntReport)) {
         slog::info << "Statistics collecting for performance counters was not "
                       "requested. No reports are dumped."
@@ -126,33 +145,7 @@ void StatisticsReport::dump_performance_counters(const std::vector<PerformaceCou
             dump_performance_counters_request(dumper, pc);
         }
     } else if (_config.report_type == averageCntReport) {
-        auto getAveragePerformanceCounters = [&perfCounts]() {
-            std::vector<ov::ProfilingInfo> performanceCountersAvg;
-            // iterate over each processed infer request and handle its PM data
-            for (size_t i = 0; i < perfCounts.size(); i++) {
-                // iterate over each layer from sorted vector and add required PM data
-                // to the per-layer maps
-                for (const auto& pm : perfCounts[i]) {
-                    int idx = 0;
-                    for (; idx < performanceCountersAvg.size(); idx++) {
-                        if (performanceCountersAvg[idx].node_name == pm.node_name) {
-                            performanceCountersAvg[idx].real_time += pm.real_time;
-                            performanceCountersAvg[idx].cpu_time += pm.cpu_time;
-                            break;
-                        }
-                    }
-                    if (idx == performanceCountersAvg.size()) {
-                        performanceCountersAvg.push_back(pm);
-                    }
-                }
-            }
-            for (auto& pm : performanceCountersAvg) {
-                pm.real_time /= perfCounts.size();
-                pm.cpu_time /= perfCounts.size();
-            }
-            return performanceCountersAvg;
-        };
-        dump_performance_counters_request(dumper, getAveragePerformanceCounters());
+        dump_performance_counters_request(dumper, get_average_performance_counters(perfCounts));
     } else {
         throw std::logic_error("PM data can only be collected for average or detailed report types");
     }
@@ -174,55 +167,71 @@ void StatisticsReportJSON::dump() {
     dump_parameters(js["configuration_setup"],_parameters.at(Category::RUNTIME_CONFIG));
     dump_parameters(js["execution_results"],_parameters.at(Category::EXECUTION_RESULTS));
     dump_parameters(js["execution_results"], _parameters.at(Category::EXECUTION_RESULTS_GROUPPED));
+
     std::ofstream out_stream(name);
     out_stream << std::setw(4) << js << std::endl;
     slog::info << "Statistics report is stored to " << name << slog::endl;
 }
 
-void StatisticsReportJSON::dump_performance_counters(const std::vector<PerformaceCounters>& perfCounts) {
+void StatisticsReportJSON::dump_performance_counters(const std::vector<PerformanceCounters>& perfCounts) {
+    if ((_config.report_type.empty()) || (_config.report_type == noCntReport)) {
+        slog::info << "Statistics collecting for performance counters was not "
+                      "requested. No reports are dumped."
+                   << slog::endl;
+        return;
+    }
+    if (perfCounts.empty()) {
+        slog::info << "Performance counters are empty. No reports are dumped." << slog::endl;
+        return;
+    }
+
+    nlohmann::json js;
+    std::string name = _config.report_folder + _separator + "benchmark_" + _config.report_type + "_report.json";
+
+    if (_config.report_type == detailedCntReport) {
+        js["report_type"] = "detailed";
+        js["detailed_performance"] = nlohmann::json::array();
+        for (auto& pc : perfCounts) {
+            js["detailed_performance"].push_back(perf_counters_to_json(pc));
+        }
+    } else if (_config.report_type == averageCntReport) {
+        js["report_type"] = "average";
+        js["avg_performance"] = perf_counters_to_json(get_average_performance_counters(perfCounts));
+    } else {
+        throw std::logic_error("PM data can only be collected for average or detailed report types");
+    }
+
+    std::ofstream out_stream(name);
+    out_stream << std::setw(4) << js << std::endl;
+    slog::info << "Performance counters report is stored to " << name << slog::endl;
 }
 
-/* void StatisticsReportJSON::dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformaceCounters& perfCounts) {
+const nlohmann::json StatisticsReportJSON::perf_counters_to_json(const StatisticsReport::PerformanceCounters& perfCounts) {
     std::chrono::microseconds total = std::chrono::microseconds::zero();
     std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
 
-    dumper << "layerName"
-           << "execStatus"
-           << "layerType"
-           << "execType";
-    dumper << "realTime (ms)"
-           << "cpuTime (ms)";
-    dumper.endLine();
-
+    nlohmann::json js;
+    js["nodes"] = nlohmann::json::array();
     for (const auto& layer : perfCounts) {
-        dumper << layer.node_name;  // layer name
+        nlohmann::json item;
 
-        switch (layer.status) {
-        case ov::runtime::ProfilingInfo::Status::EXECUTED:
-            dumper << "EXECUTED";
-            break;
-        case ov::runtime::ProfilingInfo::Status::NOT_RUN:
-            dumper << "NOT_RUN";
-            break;
-        case ov::runtime::ProfilingInfo::Status::OPTIMIZED_OUT:
-            dumper << "OPTIMIZED_OUT";
-            break;
-        }
-        dumper << layer.node_type << layer.exec_type;
-        dumper << std::to_string(layer.real_time.count() / 1000.0) << std::to_string(layer.cpu_time.count() / 1000.0);
+        item["name"] = layer.node_name;  // layer name
+        item["status"] =
+            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
+                       ? status_names[(int)layer.status]
+                       : "INVALID_STATUS");
+        item["node_type"] = layer.node_type;
+        item["exec_type"] = layer.exec_type;
+        item["real_time"] = layer.real_time.count() / 1000.0;
+        item["cpu_time"] = layer.cpu_time.count() / 1000.0;
         total += layer.real_time;
         total_cpu += layer.cpu_time;
-        dumper.endLine();
+        js["nodes"].push_back(item);
     }
-    dumper << "Total"
-           << ""
-           << ""
-           << "";
-    dumper << total.count() / 1000.0 << total_cpu.count() / 1000.0;
-    dumper.endLine();
-    dumper.endLine();
-+}*/
-
+    js["total_real_time"] = total.count() / 1000.0;
+    js["total_cpu_time"] = total_cpu.count() / 1000.0;
+    return js;
+}
 
 void LatencyMetrics::write_to_stream(std::ostream& stream) const {
     stream << data_shape << ";" << std::fixed << std::setprecision(2) << median_or_percentile << ";" << avg << ";"
@@ -298,7 +307,7 @@ void StatisticsVariant::write_to_json(nlohmann::json& js) const {
         if (arr.empty()) {
             arr = nlohmann::json::array();
         }
-        arr.insert(arr.end(), metrics_val.to_json());
+        arr.push_back(metrics_val.to_json());
     } break;
     default:
         throw std::invalid_argument("StatisticsVariant:: json conversion : invalid type is provided");
