@@ -42,7 +42,7 @@ inline const std::pair<std::string, ov::Any> generateDefaultHeteroConfig() {
     return { "TARGET_FALLBACK" , ConformanceTests::targetDevice };
 }
 
-inline const std::vector<ov::AnyMap> generateConfigs(const std::string& targetDevice,
+inline const std::vector<ov::AnyMap> generate_configs(const std::string& targetDevice,
                                                                          const std::vector<ov::AnyMap>& config = {}) {
     std::pair<std::string, ov::Any> defaultConfig;
     if (targetDevice ==  std::string(CommonTestUtils::DEVICE_MULTI) || targetDevice ==  std::string(CommonTestUtils::DEVICE_AUTO)) {
@@ -64,20 +64,20 @@ inline const std::vector<ov::AnyMap> generateConfigs(const std::string& targetDe
     return resultConfig;
 }
 
-inline const std::string generateComplexDeviceName(const std::string& deviceName) {
+inline const std::string generate_complex_device_name(const std::string& deviceName) {
     return deviceName + ":" + ConformanceTests::targetDevice;
 }
 
-inline const std::vector<std::string> returnAllPossibleDeviceCombination() {
+inline const std::vector<std::string> return_all_possible_device_combination() {
     std::vector<std::string> res{ConformanceTests::targetDevice};
     std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI};
     for (const auto& device : devices) {
-        res.emplace_back(generateComplexDeviceName(device));
+        res.emplace_back(generate_complex_device_name(device));
     }
     return res;
 }
 
-const std::vector<ov::AnyMap> emptyConfig = {
+const std::vector<ov::AnyMap> empty_config = {
         {},
 };
 

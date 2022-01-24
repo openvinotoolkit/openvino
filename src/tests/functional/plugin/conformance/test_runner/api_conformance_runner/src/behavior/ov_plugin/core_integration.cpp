@@ -25,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassImportExportTestP, OVClassImportExportTestP,
-        ::testing::Values(generateComplexDeviceName(ConformanceTests::targetDevice)));
+        ::testing::Values(generate_complex_device_name(ConformanceTests::targetDevice)));
 
 //
 // IE Class GetMetric
@@ -33,11 +33,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_AVAILABLE_DEVICES,
@@ -45,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
@@ -61,11 +61,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_ThrowUnsupported,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetConfigTest, OVClassGetConfigTest_ThrowUnsupported,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,

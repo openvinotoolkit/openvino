@@ -7,10 +7,10 @@
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "ov_api_conformance_helpers.hpp"
 
-using namespace ov::test::behavior;
-using namespace ov::test::conformance;
 
 namespace {
+using namespace ov::test::behavior;
+using namespace ov::test::conformance;
 
 std::shared_ptr<ngraph::Function> ovGetFunction1() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
                                 ::testing::Values(ConformanceTests::targetDevice),
-                                ::testing::ValuesIn(emptyConfig)),
+                                ::testing::ValuesIn(empty_config)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, OVInferRequestDynamicTests,
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, OVInferRequestDynamicTests,
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(ConformanceTests::targetDevice),
-                                ::testing::ValuesIn(emptyConfig)),
+                                ::testing::ValuesIn(empty_config)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
+                                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_HETERO))),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestDynamicTests,
@@ -91,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestDynamicTests,
                                          {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                          {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                  ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI))),
                          OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
@@ -101,6 +101,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
                                          {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                          {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO))),
                          OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace
