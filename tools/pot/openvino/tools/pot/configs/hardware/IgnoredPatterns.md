@@ -363,6 +363,20 @@ graph TB
 
 ---
 
+**Name:** softmax_reshape_transpose_matmul<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    softmax(SoftMax) --> matmul(MatMul)
+    add(Add) --> reshape(Reshape)
+    reshape_const(Const) --> reshape(Reshape)
+    reshape(Reshape) --> transpose(Transpose)
+    transpose(Transpose) --> matmul(MatMul)
+```
+
+---
+
 **Name:** swish_activation<br/>
 **Pattern:** <br/>
 

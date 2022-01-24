@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
 
@@ -16,7 +16,7 @@ namespace util {
 ///
 class OPENVINO_API MultiSubGraphOp : public Op {
 public:
-    OPENVINO_RTTI("MultiSubGraphOp", "util");
+    OPENVINO_OP("MultiSubGraphOp", "util");
     BWDCMP_RTTI_DECLARATION;
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.
@@ -200,15 +200,15 @@ public:
     /// \brief     Gets internal sub-graph by index in MultiSubGraphOp
     ///
     /// \param     index sub-graph's index in op
-    /// \return pointer to Function with sub-graph
-    virtual const std::shared_ptr<Function>& get_function(int index) const {
+    /// \return pointer to Model with sub-graph
+    virtual const std::shared_ptr<Model>& get_function(int index) const {
         return m_bodies[index];
     };
     /// \brief     Adds sub-graph to MultiSubGraphOp
     ///
     /// \param index   index of new sub-graph
-    /// \param func    func new sub_graph as Function
-    virtual void set_function(int index, const std::shared_ptr<Function>& func) {
+    /// \param func    func new sub_graph as Model
+    virtual void set_function(int index, const std::shared_ptr<Model>& func) {
         m_bodies[index] = func;
     }
     /// \brief     Gets vector with connections beewtwen operation inputs
@@ -310,7 +310,7 @@ protected:
     MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies);
     explicit MultiSubGraphOp(const OutputVector& args);
 
-    std::vector<std::shared_ptr<Function>> m_bodies;
+    std::vector<std::shared_ptr<Model>> m_bodies;
     std::vector<MultiSubgraphInputDescriptionVector> m_input_descriptions;
     std::vector<MultiSubgraphOutputDescriptionVector> m_output_descriptions;
 };

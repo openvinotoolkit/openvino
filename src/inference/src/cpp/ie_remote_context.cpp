@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@
     }
 
 namespace ov {
-namespace runtime {
 
 void RemoteContext::type_check(const RemoteContext& tensor,
                                const std::map<std::string, std::vector<std::string>>& type_info) {
@@ -47,9 +46,13 @@ void RemoteContext::type_check(const RemoteContext& tensor,
     }
 }
 
-RemoteContext::RemoteContext(const std::shared_ptr<void>& so, const ie::RemoteContext::Ptr& impl)
-    : _so{so},
-      _impl{impl} {
+RemoteContext::~RemoteContext() {
+    _impl = {};
+}
+
+RemoteContext::RemoteContext(const ie::RemoteContext::Ptr& impl, const std::shared_ptr<void>& so)
+    : _impl{impl},
+      _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "RemoteContext was not initialized.");
 }
 
@@ -65,7 +68,7 @@ RemoteTensor RemoteContext::create_tensor(const element::Type& element_type,
             {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
             params);
         blob->allocate();
-        return {_so, blob};
+        return {blob, _so};
     });
 }
 
@@ -74,7 +77,7 @@ Tensor RemoteContext::create_host_tensor(const element::Type element_type, const
         auto blob = _impl->CreateHostBlob(
             {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())});
         blob->allocate();
-        return {_so, blob};
+        return {blob, _so};
     });
 }
 
@@ -82,11 +85,10 @@ ParamMap RemoteContext::get_params() const {
     ParamMap paramMap;
     OV_REMOTE_CONTEXT_STATEMENT({
         for (auto&& param : _impl->getParams()) {
-            paramMap.emplace(param.first, Any{_so, param.second});
+            paramMap.emplace(param.first, Any{param.second, _so});
         }
     });
     return paramMap;
 }
 
-}  // namespace runtime
 }  // namespace ov

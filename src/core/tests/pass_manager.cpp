@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,8 @@
 using namespace ngraph;
 using namespace std;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(pass_manager, add) {
     pass::Manager pass_manager;
 
@@ -34,7 +36,7 @@ TEST(pass_manager, add) {
 namespace {
 class DummyPass : public pass::FunctionPass {
 public:
-    DummyPass() : FunctionPass() {}
+    DummyPass() {}
     bool run_on_function(std::shared_ptr<ngraph::Function> /* f */) override {
         return false;
     }

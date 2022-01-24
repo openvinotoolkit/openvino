@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,11 +6,8 @@ import numpy as np
 from addict import Dict
 from cv2 import imread, resize as cv2_resize
 
-from openvino.tools.pot.api import Metric, DataLoader
-from openvino.tools.pot.graph import load_model, save_model
-from openvino.tools.pot.graph.model_utils import compress_model_weights
-from openvino.tools.pot.engines.ie_engine import IEEngine
-from openvino.tools.pot.pipeline.initializer import create_pipeline
+from openvino.tools.pot import Metric, DataLoader, IEEngine, \
+    load_model, save_model, compress_model_weights, create_pipeline
 from openvino.tools.pot.utils.logger import init_logger
 from openvino.tools.pot.api.samples.utils.argument_parser import get_common_argparser
 

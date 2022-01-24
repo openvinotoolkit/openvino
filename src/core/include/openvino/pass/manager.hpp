@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ public:
         return rc;
     }
 
-    void run_passes(std::shared_ptr<Function>);
+    void run_passes(std::shared_ptr<Model>);
 
     void set_pass_visualization(bool new_state) {
         m_visualize = new_state;

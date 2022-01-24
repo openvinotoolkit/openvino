@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
     std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(
         fakeQuantize,
         false,
-        (constantShape.rank().get_length() < 2) || constantShape[1] != 1ul ? 1ul : 0ul);
+        ((constantShape.rank().get_length() >= 2) && (constantShape[1] != 1ul)) ? 1ul : 0ul);
     if (ov::is_type<opset1::Constant>(resultConstant)) {
         replace_node(fakeQuantize, resultConstant);
         return true;

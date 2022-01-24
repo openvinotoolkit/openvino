@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/gather_tree.hpp"
+
+#include <gather_tree_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/shape.hpp"
@@ -63,38 +65,9 @@ void op::v1::GatherTree::validate_and_infer_types() {
     const auto& parent_idx_pshape = get_input_partial_shape(1);
     const auto& max_seq_len_pshape = get_input_partial_shape(2);
     const auto& end_token_pshape = get_input_partial_shape(3);
+    std::vector<PartialShape> input_shapes = {step_ids_pshape, parent_idx_pshape, max_seq_len_pshape, end_token_pshape},
+                              output_shapes = {PartialShape{}};
+    shape_infer(this, input_shapes, output_shapes);
 
-    PartialShape result_pshape{PartialShape::dynamic()};
-    NODE_VALIDATION_CHECK(this,
-                          PartialShape::merge_into(result_pshape, step_ids_pshape) &&
-                              PartialShape::merge_into(result_pshape, parent_idx_pshape) &&
-                              result_pshape.rank().compatible(3),
-                          "step_ids and parent_idx inputs must have the same shape with rank 3. Got: ",
-                          step_ids_pshape,
-                          " and ",
-                          parent_idx_pshape,
-                          ", respectively");
-
-    NODE_VALIDATION_CHECK(this,
-                          max_seq_len_pshape.rank().compatible(1),
-                          "max_seq_len input must have rank 1. Got: ",
-                          max_seq_len_pshape);
-
-    if (result_pshape.rank().is_static() && max_seq_len_pshape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              Dimension::merge(result_pshape[1], result_pshape[1], max_seq_len_pshape[0]),
-                              "Number of elements of max_seq_len input must match BATCH_SIZE dimension of "
-                              "step_ids/parent_idx inputs. Got: ",
-                              result_pshape[1],
-                              " and ",
-                              max_seq_len_pshape[0],
-                              ", respectively");
-    }
-
-    NODE_VALIDATION_CHECK(this,
-                          end_token_pshape.rank().compatible(0),
-                          "end_token input must be scalar. Got: ",
-                          end_token_pshape);
-
-    set_output_type(0, result_et, result_pshape);
+    set_output_type(0, result_et, output_shapes[0]);
 }

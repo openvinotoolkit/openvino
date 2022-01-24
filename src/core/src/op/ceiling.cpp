@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,6 @@ bool evaluate_ceiling(const HostTensorPtr& arg0, const HostTensorPtr& out, const
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_COPY_TENSOR(evaluate_ceiling, boolean, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_ceiling, i8, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_ceiling, i16, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_ceiling, i32, arg0, out, count);
@@ -75,7 +74,6 @@ bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVect
 bool op::Ceiling::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Ceiling_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:

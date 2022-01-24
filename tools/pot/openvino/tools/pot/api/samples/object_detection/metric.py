@@ -1,9 +1,9 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from openvino.tools.pot.api import Metric
+from openvino.tools.pot import Metric
 
 
 class MAP(Metric):

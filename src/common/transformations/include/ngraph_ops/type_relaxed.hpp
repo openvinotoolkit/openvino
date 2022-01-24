@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,7 +136,7 @@ protected:
     typedef struct {} init_rt_result;
 
     init_rt_result init_rt_info(Node &node) const {
-        node.get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("type_relaxed_opset");
+        node.get_rt_info()["opset"] = "type_relaxed_opset";
         return {};
     }
 

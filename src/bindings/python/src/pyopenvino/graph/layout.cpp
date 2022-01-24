@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "openvino/core/layout.hpp"
 
 #include <pybind11/operators.h>
@@ -9,7 +13,7 @@ namespace py = pybind11;
 
 void regclass_graph_Layout(py::module m) {
     py::class_<ov::Layout, std::shared_ptr<ov::Layout>> layout(m, "Layout");
-    layout.doc() = "openvino.impl.Layout wraps ov::Layout";
+    layout.doc() = "openvino.runtime.Layout wraps ov::Layout";
 
     layout.def(py::init<>());
     layout.def(py::init<const std::string&>(), py::arg("layout_str"));
@@ -39,4 +43,5 @@ void regclass_graph_Layout(py::module m) {
     layout.def("__str__", [](const ov::Layout& self) {
         return self.to_string();
     });
+    layout.def_property_readonly("empty", &ov::Layout::empty);
 }

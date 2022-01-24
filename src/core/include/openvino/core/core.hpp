@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,10 @@
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/enum_names.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/function.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/interval.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
@@ -29,11 +29,11 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/core/variant.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/core/visibility.hpp"
 
@@ -45,10 +45,10 @@
 // Preprocessing
 #include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/preprocess/input_info.hpp"
-#include "openvino/core/preprocess/input_network_info.hpp"
+#include "openvino/core/preprocess/input_model_info.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/output_info.hpp"
-#include "openvino/core/preprocess/output_network_info.hpp"
+#include "openvino/core/preprocess/output_model_info.hpp"
 #include "openvino/core/preprocess/output_tensor_info.hpp"
 #include "openvino/core/preprocess/postprocess_steps.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"

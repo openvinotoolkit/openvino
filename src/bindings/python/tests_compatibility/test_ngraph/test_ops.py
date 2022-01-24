@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -9,8 +9,6 @@ import ngraph as ng
 from ngraph.impl import AxisSet, Function, Shape, Type
 from ngraph.impl.op import Constant, Parameter
 from tests_compatibility.runtime import get_runtime
-
-from tests_compatibility import xfail_issue_54663
 
 
 def binary_op(op_str, a, b):
@@ -543,7 +541,6 @@ def test_select():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_54663
 def test_max_pool():
     # test 1d
     element_type = Type.f32

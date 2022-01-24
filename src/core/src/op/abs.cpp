@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,6 @@ bool evaluate_abs(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_abs, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_abs, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_abs, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_abs, u32, arg0, out, count);
@@ -68,7 +67,6 @@ bool ov::op::v0::Abs::has_evaluate() const {
     case ngraph::element::f16:
     case ngraph::element::f32:
     case ngraph::element::bf16:
-    case ngraph::element::boolean:
         return true;
     default:
         break;

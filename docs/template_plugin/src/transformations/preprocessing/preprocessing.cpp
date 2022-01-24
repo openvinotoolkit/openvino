@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::AddPreprocessing, "AddPreprocessing", 0);
 ngraph::pass::AddPreprocessing::AddPreprocessing(const InferenceEngine::InputsDataMap& inputInfoMap)
     : m_inputInfoMap(inputInfoMap) {}
 
-bool ngraph::pass::AddPreprocessing::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     ngraph::pass::AddMeanSubtract::MeanMap meanMap;
     ngraph::pass::AddStdScale::ScaleMap scaleMap;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,7 @@
 #include "ie_api.h"
 
 /**
+ * @ingroup ie_cpp_api
  * @brief Inference Engine C++ API
  */
 namespace InferenceEngine {

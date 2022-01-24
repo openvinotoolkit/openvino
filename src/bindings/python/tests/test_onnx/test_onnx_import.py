@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,7 +6,7 @@ import os
 import numpy as np
 import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
-from openvino import Core
+from openvino.runtime import Core
 
 from tests.runtime import get_runtime
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model

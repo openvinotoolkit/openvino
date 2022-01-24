@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 #include "openvino/core/node_vector.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_value.hpp"
 
@@ -73,16 +73,4 @@ private:
 };
 }  // namespace util
 }  // namespace op
-template <>
-class OPENVINO_API VariantWrapper<op::util::VariableContext> : public VariantImpl<op::util::VariableContext> {
-public:
-    OPENVINO_RTTI("VariantWrapper<op::util::VariableContext>");
-    BWDCMP_RTTI_DECLARATION;
-
-    explicit VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-
-private:
-    using Variant::init;
-    using Variant::merge;
-};
 }  // namespace ov

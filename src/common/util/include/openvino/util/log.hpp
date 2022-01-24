@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ void default_logger_handler_func(const std::string& s);
                           ::ov::util::default_logger_handler_func)                \
         .stream()
 
-#ifdef OPENVINO_DEBUG_ENABLE
+#ifdef ENABLE_OPENVINO_DEBUG
 #    define OPENVINO_DEBUG                                                            \
         ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
                               ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \

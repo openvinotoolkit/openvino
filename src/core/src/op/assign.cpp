@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/assign.hpp"
+
+#include <assign_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/read_value.hpp"
@@ -26,7 +28,7 @@ void op::v3::Assign::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_Assign_validate_and_infer_types);
     auto value = input_value(0);
     auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    const auto& input_shape = get_input_partial_shape(0);
     if (!m_variable) {
         NodeVector start_nodes;
         for (const auto& input : inputs()) {
@@ -41,20 +43,10 @@ void op::v3::Assign::validate_and_infer_types() {
         }
         NODE_VALIDATION_CHECK(this, m_variable != nullptr, "Can't find variable with id = ", m_variable_id);
     }
-
-    auto variable_info = m_variable->get_info();
-    NODE_VALIDATION_CHECK(this, m_variable_id == variable_info.variable_id, "Variables identifiers are inconsistent.");
-    NODE_VALIDATION_CHECK(this, arg_t == variable_info.data_type, "Variables types are inconsistent.");
-
-    if (output_shape.is_static() && variable_info.data_shape.is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              output_shape == variable_info.data_shape,
-                              "Variables output shapes are inconsistent.");
-
-        set_output_type(0, arg_t, output_shape);
-    } else {
-        set_output_type(0, arg_t, ov::PartialShape::dynamic());
-    }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {input_shape};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, arg_t, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -78,7 +70,10 @@ op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Vari
 void op::v6::Assign::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_Assign_validate_and_infer_types);
     m_variable->update({get_input_partial_shape(0), get_input_element_type(0), m_variable->get_info().variable_id});
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -100,15 +95,15 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 
-    auto variable_context = std::dynamic_pointer_cast<VariantWrapper<VariableContext>>(found_context->second);
-    NODE_VALIDATION_CHECK(this, variable_context != nullptr, "Cannot cast found Context to VariableContext.");
-    const auto& variable_values = variable_context->get().get_variable_values();
+    auto& variable_context = const_cast<VariableContext&>(found_context->second.as<VariableContext>());
+
+    const auto& variable_values = variable_context.get_variable_values();
 
     // automatically allocate memory if not provided by user
     if (variable_values.find(m_variable) == variable_values.end()) {
         auto host_tensor =
             std::make_shared<ngraph::HostTensor>(m_variable->get_info().data_type, m_variable->get_info().data_shape);
-        variable_context->get().set_variable_value(m_variable, make_shared<VariableValue>(host_tensor));
+        variable_context.set_variable_value(m_variable, make_shared<VariableValue>(host_tensor));
     }
 
     const auto var_value = variable_values.find(m_variable)->second;

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,56 +13,29 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/variant.hpp>
 
-#include "low_precision/layer_transformation.hpp"
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
 namespace ngraph {
-
-class PrecisionsAttribute;
-
-class LP_TRANSFORMATIONS_API PrecisionsSharedValue : public SharedValue<PrecisionsAttribute> {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PrecisionsAttribute defines precision which is required for input/output port or an operation.
+ *
+ * For more details about the attribute, refer to
+ * [PrecisionsAttribute](@ref openvino_docs_IE_DG_lpt_Precisions) page in the Inference Engine Developer Guide.
+ */
+class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedAttribute<std::vector<ngraph::element::Type>> {
 public:
-    std::vector<ngraph::element::Type> precisions;
-};
+    OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute, 0);
+    PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions);
 
-using PrecisionsAttributePtr = std::shared_ptr<PrecisionsAttribute>;
-
-class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedValueAttribute<PrecisionsSharedValue> {
-public:
-    static std::vector<ngraph::element::Type> defaultPrecisions;
-    PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions = defaultPrecisions);
-};
-} // namespace ngraph
-
-namespace ov {
-
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<std::shared_ptr<ngraph::PrecisionsAttribute>>;
-
-template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<ngraph::PrecisionsAttribute>> : public VariantImpl<std::shared_ptr<ngraph::PrecisionsAttribute>> {
-public:
-    static constexpr VariantTypeInfo type_info{ "LowPrecision::Precisions", 0 };
-
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-
-    ov::Any init(const std::shared_ptr<ngraph::Node>& node) override;
-
-    std::shared_ptr<ngraph::PrecisionsAttribute> get() { return this->m_value; }
-
-    // create attribute instance for node
-    static std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::PrecisionsAttribute>>> create(
+    static ov::Any create(
         const std::shared_ptr<ngraph::Node>& node,
         const AttributeParameters& params);
     // merge attribute instances which can be got from different sources: node, input port or output port
-    void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::PrecisionsAttribute>>>>& attributes);
+    void merge(std::vector<ov::Any>& attributes);
     // vizualize shared attributes details in VizualizeTree pass
-    std::string to_string() override;
+    std::string to_string() const override;
 };
-
-}  // namespace ov
+} // namespace ngraph

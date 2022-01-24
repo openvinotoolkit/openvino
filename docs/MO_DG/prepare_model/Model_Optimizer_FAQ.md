@@ -28,7 +28,7 @@ For example, to add the description of the `CustomReshape` layer, which is an ar
     
 2.  Generate a new parser:
 ```shell
-cd <INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto
+cd <SITE_PACKAGES_WITH_INSTALLED_OPENVINO>/openvino/tools/mo/front/caffe/proto
 python3 generate_caffe_pb2.py --input_proto <PATH_TO_CUSTOM_CAFFE>/src/caffe/proto/caffe.proto
 ```
 where `PATH_TO_CUSTOM_CAFFE` is the path to the root directory of custom Caffe\*.
@@ -66,7 +66,7 @@ The mean file that you provide for the Model Optimizer must be in a `.binaryprot
 
 #### 7. What does the message "Invalid proto file: there is neither 'layer' nor 'layers' top-level messages" mean? <a name="question-7"></a>
 
-The structure of any Caffe\* topology is described in the `caffe.proto` file of any Caffe version. For example, in the Model Optimizer, you can find the following proto file, used by default: `<INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
+The structure of any Caffe\* topology is described in the `caffe.proto` file of any Caffe version. For example, in the Model Optimizer, you can find the following proto file, used by default: `mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
 ```
 message NetParameter {
   // ... some other parameters
@@ -81,7 +81,7 @@ This means that any topology should contain layers as top-level structures in `p
 
 #### 8. What does the message "Old-style inputs (via 'input_dims') are not supported. Please specify inputs via 'input_shape'" mean? <a name="question-8"></a>
 
-The structure of any Caffe\* topology is described in the `caffe.proto` file for any Caffe version. For example, in the Model Optimizer you can find the following `.proto` file, used by default: `<INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
+The structure of any Caffe\* topology is described in the `caffe.proto` file for any Caffe version. For example, in the Model Optimizer you can find the following `.proto` file, used by default: `mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
 ```sh
 message NetParameter {
 
@@ -350,15 +350,15 @@ The specified input shape cannot be parsed. Please, define it in one of the foll
 
 *   
 ```shell
-python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
+ mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
 ```
 *
 ```shell
-python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
+ mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
 ```
 *   In case of multi input topology you should also specify inputs:
 ```shell
-python3 mo.py --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
+ mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
 ```
 
 Keep in mind that there is no space between and inside the brackets for input shapes.
@@ -616,19 +616,6 @@ You need to specify values for each input of the model. For more information, re
 
 It means that you trying to convert the topology which contains '_contrib_box_nms' operation which is not supported directly. However the sub-graph of operations including the '_contrib_box_nms' could be replaced with DetectionOutput layer if your topology is one of the gluoncv topologies. Specify '--enable_ssd_gluoncv' command line parameter for the Model Optimizer to enable this transformation.
 
-\htmlonly
-
-<script>
-  window.addEventListener('load', function(){
-    var questionID = getURLParameter('question'); /* this function is defined in openvino-layout.js */
-    if (questionID) {
-      window.location = window.location.pathname + '#' + encodeURI(questionID);
-    }
-  });
-</script>
-
-\endhtmlonly
-
 #### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-103"></a>
 
 If a '*.caffemodel' file exists and it is correct, the error possibly occured due to the use of Python protobuf implementation. In some cases, it shows error message during model parsing, for example: "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.6/3.7 or build 'cpp' implementation of protobuf yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
@@ -640,3 +627,13 @@ The following workarounds are suggested to resolve this issue:
 1. Use Python 3.6/3.7 to convert MXNet\* models on Windows
 2. Update MXNet: pip install mxnet=1.7.0.post2
 Note that you might have conflicts between previously installed PyPI dependencies.
+
+#### 105. What does the message "The IR preparation was executed by the legacy MO path. ..." mean? <a name="question-105"></a>
+
+For the models in ONNX* format, there are two available paths of IR conversion. 
+The old one is handled by the old Python* implementation, while the new one uses new C++ frontends. 
+Starting from the 2022.1 version, the default IR conversion path for ONNX models is processed using the new ONNX frontend. 
+Certain features, such as `--extensions` and `--transformations_config`, are not yet fully supported on the new frontends. 
+For `--extensions`, the new frontends support only paths to shared libraries (.dll and .so). For `--transformations_config`, they support JSON configurations with defined library fields. 
+Inputs freezing (enabled by `--freeze_placeholder_with_value` or `--input` arguments) is not supported on the new frontends. 
+The IR conversion falls back to the old path if a user does not select any expected path of conversion explicitly (by `--use_new_frontend` or `--use_legacy_frontend` MO arguments) and unsupported pre-defined scenario is detected on the new frontend path.

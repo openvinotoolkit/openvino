@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -72,7 +72,7 @@ if(NOT WIN32)
             ${LIBUSB_LIBRARY})
 endif()
 
-openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT vpu TARGETS ${TARGET_NAME})
 ov_install_static_lib(${TARGET_NAME} myriad)
 
 if(ENABLE_TESTS AND ENABLE_MYRIAD_MVNC_TESTS)

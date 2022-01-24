@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,7 @@ Plugin::Plugin() {
     _pluginName = "TEMPLATE";
 
     // create ngraph backend which performs inference using ngraph reference implementations
-    ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
-    _backend = ngraph::runtime::Backend::create("INTERPRETER");
+    _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
     _waitExecutor =
@@ -152,14 +151,24 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
     // So we need store as supported either unsupported node sets
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
-    auto opset = ngraph::get_opset4();
+    ngraph::OpSet op_super_set;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) op_super_set.insert<NAMESPACE::NAME>();
+#include "openvino/opsets/opset1_tbl.hpp"
+#include "openvino/opsets/opset2_tbl.hpp"
+#include "openvino/opsets/opset3_tbl.hpp"
+#include "openvino/opsets/opset4_tbl.hpp"
+#include "openvino/opsets/opset5_tbl.hpp"
+#include "openvino/opsets/opset6_tbl.hpp"
+#include "openvino/opsets/opset7_tbl.hpp"
+#include "openvino/opsets/opset8_tbl.hpp"
+#undef _OPENVINO_OP_REG
     for (auto&& node : transformedFunction->get_ops()) {
         // Extract transformation history from transformed node as list of nodes
         for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (opset.contains_type(friendlyNameToType[fusedLayerName])) {
+                if (op_super_set.contains_type(friendlyNameToType[fusedLayerName])) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
@@ -289,6 +298,6 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
 // ! [plugin:get_metric]
 
 // ! [plugin:create_plugin_engine]
-static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "templatePlugin"};
+static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "ov_template_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 // ! [plugin:create_plugin_engine]

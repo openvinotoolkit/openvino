@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 
+#include "dimension_tracker.hpp"
 #include "ngraph/check.hpp"
 
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
@@ -130,12 +131,14 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             if (!first) {
                 str << ",";
             }
+            if (const auto& l = ov::DimensionTracker::get_label(d))
+                str << "l<" << l << ">";
             str << d;
             first = false;
         }
         return (str << "}");
     } else {
-        return (str << "?");
+        return (str << "...");
     }
 }
 
@@ -298,6 +301,9 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
             // Ranks are both static.
             auto dst_rank = dst.rank().get_length();
             auto src_rank = src.rank().get_length();
+            // source rank can't be bigger than destination rank according to PDPD broadcast rule.
+            if (src_rank > dst_rank)
+                return false;
             if (dst_rank == src_rank && dst.compatible(src))
                 return true;
 
@@ -353,37 +359,6 @@ ov::Dimension& ov::PartialShape::operator[](size_t i) {
     }
     m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];
-}
-
-const std::vector<int64_t>& ov::AttributeAdapter<ov::PartialShape>::get() {
-    if (!m_buffer_valid) {
-        m_buffer.clear();
-        if (m_ref.rank().is_dynamic()) {
-            m_buffer.push_back(-2);
-        } else {
-            for (int64_t i = 0; i < m_ref.rank().get_length(); ++i) {
-                const auto& elt = static_cast<const ov::PartialShape&>(m_ref)[i];
-                m_buffer.push_back(elt.is_dynamic() ? -1 : elt.get_length());
-            }
-        }
-        m_buffer_valid = true;
-    }
-    return m_buffer;
-}
-
-void ov::AttributeAdapter<ov::PartialShape>::set(const std::vector<int64_t>& value) {
-    m_ref = ov::PartialShape();
-    if (value.size() == 1 && value[0] == -2) {
-        m_ref = ov::PartialShape::dynamic();
-    } else {
-        std::vector<Dimension> dims;
-        dims.reserve(value.size());
-        for (auto elt : value) {
-            dims.push_back(elt == -1 ? Dimension::dynamic() : elt);
-        }
-        m_ref = ov::PartialShape(dims);
-    }
-    m_buffer_valid = false;
 }
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::PartialShape>);

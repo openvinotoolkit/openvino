@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,6 @@
 #include "pyngraph/coordinate_diff.hpp"
 #include "pyngraph/dimension.hpp"
 #include "pyngraph/discrete_type_info.hpp"
-#include "pyngraph/frontend/frontend.hpp"
-#include "pyngraph/frontend/frontend_manager.hpp"
-#include "pyngraph/frontend/inputmodel.hpp"
-#include "pyngraph/frontend/place.hpp"
 #include "pyngraph/function.hpp"
 #include "pyngraph/node.hpp"
 #include "pyngraph/node_factory.hpp"
@@ -42,15 +38,6 @@ PYBIND11_MODULE(_pyngraph, m) {
     regclass_pyngraph_Shape(m);
     regclass_pyngraph_PartialShape(m);
     regclass_pyngraph_Node(m);
-    regclass_pyngraph_Place(m);
-    regclass_pyngraph_InitializationFailureFrontEnd(m);
-    regclass_pyngraph_GeneralFailureFrontEnd(m);
-    regclass_pyngraph_OpConversionFailureFrontEnd(m);
-    regclass_pyngraph_OpValidationFailureFrontEnd(m);
-    regclass_pyngraph_NotImplementedFailureFrontEnd(m);
-    regclass_pyngraph_FrontEndManager(m);
-    regclass_pyngraph_FrontEnd(m);
-    regclass_pyngraph_InputModel(m);
     regclass_pyngraph_Input(m);
     regclass_pyngraph_Output(m);
     regclass_pyngraph_NodeFactory(m);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ public:
     DepthToSpace(const Output<Node>& data, const std::string& mode, std::size_t block_size = 1);
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    std::size_t get_block_size() const {
+    const std::size_t& get_block_size() const {
         return m_blocksize;
     }
     DepthToSpaceMode get_mode() const {

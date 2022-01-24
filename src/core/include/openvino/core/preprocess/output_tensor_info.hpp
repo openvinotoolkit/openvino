@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace ov {
 namespace preprocess {
 
 /// \brief Information about user's desired output tensor. By default, it will be initialized to same data
-/// (type/shape/etc) as network's output parameter. User application can override particular parameters (like
+/// (type/shape/etc) as model's output parameter. User application can override particular parameters (like
 /// 'element_type') according to application's data and specify appropriate conversions in post-processing steps
 ///
 /// \code{.cpp}
@@ -27,52 +27,26 @@ class OPENVINO_API OutputTensorInfo final {
     std::unique_ptr<OutputTensorInfoImpl> m_impl;
     friend class OutputInfo;
 
-public:
-    /// \brief Default empty constructor
-    ///
-    /// \todo Consider making this private to not allow user to create standalone object
+    /// \brief Default empty internal constructor
     OutputTensorInfo();
 
-    /// \brief Default move constructor
-    OutputTensorInfo(OutputTensorInfo&&) noexcept;
-
-    /// \brief Default move assignment
-    OutputTensorInfo& operator=(OutputTensorInfo&&) noexcept;
-
+public:
     /// \brief Default destructor
     ~OutputTensorInfo();
 
     /// \brief Set element type for user's desired output tensor.
-    /// This version allows chaining for Lvalue objects.
     ///
     /// \param type Element type for user's output tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
-    OutputTensorInfo& set_element_type(const ov::element::Type& type) &;
-
-    /// \brief Set element type for user's desired output tensor.
-    /// This version allows chaining for Rvalue objects.
-    ///
-    /// \param type Element type for user's output tensor.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
-    OutputTensorInfo&& set_element_type(const ov::element::Type& type) &&;
+    OutputTensorInfo& set_element_type(const ov::element::Type& type);
 
     /// \brief Set layout for user's output tensor.
-    /// This version allows chaining for Lvalue objects
     ///
     /// \param layout Layout for user's output tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    OutputTensorInfo& set_layout(const ov::Layout& layout) &;
-
-    /// \brief Set layout for user's output tensor.
-    /// This version allows chaining for Rvalue objects
-    ///
-    /// \param layout Layout for user's output tensor.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    OutputTensorInfo&& set_layout(const ov::Layout& layout) &&;
+    OutputTensorInfo& set_layout(const ov::Layout& layout);
 };
 
 }  // namespace preprocess

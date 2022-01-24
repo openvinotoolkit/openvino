@@ -1,27 +1,16 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 
-#include "transformations/convert_precision.hpp"
-#include "transformations/utils/utils.hpp"
+#include "itt.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "itt.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
-
-bool ov::pass::ConvertPrecisionCompressedOnly::run_on_function(std::shared_ptr<ov::Function> f) {
-    if (ngraph::op::util::has_decompression_converts(f)) {
-        const precisions_array convert_precision_list{
-            {ov::element::f32, ov::element::f16}
-        };
-        auto convert_precision = ngraph::pass::ConvertPrecision(convert_precision_list);
-        return convert_precision.run_on_function(f);
-    }
-    return false;
-}
 
 ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertConstantFolding() {
     MATCHER_SCOPE(EnableDecompressionConvertConstantFolding);
@@ -39,14 +28,16 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
     this->register_matcher(m, callback);
 }
 
-bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_function(std::shared_ptr<ov::Function> f) {
-    Manager manager(get_pass_config());
+bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    if (ngraph::op::util::has_decompression_converts(f)) {
+        Manager manager(get_pass_config());
 
-    manager.register_pass<ov::pass::ConvertPrecisionCompressedOnly>();
-    manager.register_pass<ov::pass::EnableDecompressionConvertConstantFolding>();
-    manager.register_pass<ov::pass::ConstantFolding>();
+        const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
+        manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
+        manager.register_pass<ov::pass::EnableDecompressionConvertConstantFolding>();
+        manager.register_pass<ov::pass::ConstantFolding>();
 
-    manager.run_passes(f);
-
+        manager.run_passes(f);
+    }
     return false;
 }

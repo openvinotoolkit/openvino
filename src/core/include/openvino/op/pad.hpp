@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ public:
     bool has_evaluate() const override;
 
 private:
-    PadMode m_pad_mode;
+    PadMode m_pad_mode{PadMode::CONSTANT};
     bool evaluate_pad(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v1

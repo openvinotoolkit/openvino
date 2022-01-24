@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import mo
+from openvino.tools.mo import mo
 import numpy as np
 
 logger = logging.getLogger(__name__)

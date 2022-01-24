@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -195,11 +195,11 @@ public:
     IE_SUPPRESS_DEPRECATED_END
 
     /**
-     * @deprecated Use ov::Function::reshape for dynamic shapes
+     * @deprecated Use ov::Model::reshape for dynamic shapes
      * @brief Run shape inference with new input partial shapes for the network
      * @param inputShapes A map of pairs: name of corresponding data and its dimension.
      */
-    INFERENCE_ENGINE_DEPRECATED("Use ov::Function::reshape for dynamic shapes")
+    INFERENCE_ENGINE_DEPRECATED("Use ov::Model::reshape for dynamic shapes")
     void reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes);
 
     /**

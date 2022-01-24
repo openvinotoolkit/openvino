@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/validation_util.hpp"
-#include "runtime/backend.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"

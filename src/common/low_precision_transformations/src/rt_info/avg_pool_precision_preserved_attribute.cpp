@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,18 +11,13 @@
 using namespace ngraph;
 using namespace ov;
 
-template class ngraph::VariantImpl<AvgPoolPrecisionPreservedAttributePtr>;
 
-constexpr VariantTypeInfo VariantWrapper<AvgPoolPrecisionPreservedAttributePtr>::type_info;
-
-void VariantWrapper<AvgPoolPrecisionPreservedAttributePtr>::merge(
-    std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AvgPoolPrecisionPreservedAttribute>>>>& attributes) {
+void AvgPoolPrecisionPreservedAttribute::merge(std::vector<ov::Any>& attributes) {
 }
 
-std::string VariantWrapper<AvgPoolPrecisionPreservedAttributePtr>::to_string() {
-    auto value = this->m_value;
+std::string AvgPoolPrecisionPreservedAttribute::to_string() const {
     std::stringstream ss;
-    ss << m_value->get_string();
-    ss << "value: " << (value->sharedValue->value ? "true" : "false");
+    ss << attribute->get_string();
+    ss << "value: " << (value() ? "true" : "false");
     return ss.str();
 }

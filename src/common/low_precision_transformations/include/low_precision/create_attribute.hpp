@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,13 @@ enum class AttributeSource {
     OutputPort
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief CreateAttribute transformation marks OperationType operations by AttributeType attribute.
+ *
+ * For more details about the transformation, refer to
+ * [CreateAttribute](@ref openvino_docs_IE_DG_lpt_CreateAttribute) page in the Inference Engine Developer Guide.
+ */
 template <typename AttributeType, typename OperationType = ngraph::pattern::op::Label>
 class ngraph::pass::low_precision::CreateAttribute : public ngraph::pass::low_precision::BaseMatcherPass {
 public:
@@ -47,8 +54,8 @@ public:
             }
             {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "CreateAttribute");
-                const auto attribute = ngraph::VariantWrapper<AttributeType>::create(op, params);
-                if (attribute == nullptr) {
+                const auto attribute = AttributeType::create(op, params);
+                if (attribute.empty()) {
                     return false;
                 }
             }

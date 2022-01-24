@@ -1,0 +1,172 @@
+import argparse
+from pathlib import Path
+from utils import (
+    create_content,
+    add_content_below,
+    process_notebook_name,
+    verify_notebook_name,
+    split_notebooks_into_sections,
+)
+from consts import (
+    artifacts_link,
+    binder_template,
+    blacklisted_extensions,
+    notebooks_docs,
+    notebooks_path,
+    no_binder_template,
+    repo_directory,
+    repo_name,
+    repo_owner,
+    rst_template,
+    section_names,
+)
+from notebook import Notebook
+from section import Section
+from glob import glob
+from lxml import html
+from jinja2 import Template
+from urllib.request import urlretrieve
+from requests import get
+import os
+
+
+class NbTravisDownloader:
+    @staticmethod
+    def download_from_jenkins(path: str = notebooks_path, artifact_link: str = artifacts_link):
+        """Function for downloading files from jenkins artifacts
+
+        :param path: path where notebooks files will be placed, defaults to notebooks_path
+        :type path: str, optional
+        :param artifact_link: link of notebooks artifacts rst files, defaults to artifacts_link
+        :type artifact_link: str, optional
+        """
+        def is_directory(path: str) -> bool:
+            """Helper fuction for checking whether path leads to subdirectory
+
+            :param path: Path to traversed file or directory
+            :type path: str
+            :return: Returns True if path leads to directory, otherwise False
+            :rtype: bool
+            """
+            return path[-1] == '/' and path != '../'
+
+        def traverse(path: Path, link: str, blacklisted_extensions: list = blacklisted_extensions):
+            """Traverse recursively to download all directories with their subfolders, within given link.
+
+            :param path: Path to directory that file will be saved to.
+            :type path: Path
+            :param link: Link to hosted resources
+            :type link: str
+            """
+            path.mkdir(exist_ok=True)
+            page = get(link, verify=False).content
+            tree = html.fromstring(page)
+            # retrieve all links on page returning their content
+            tree = tree.xpath('//a[@*]/@href')
+            files = map(str, tree)
+            for file in files:
+                if is_directory(file):
+                    traverse(path.joinpath(file), link + file)
+                elif len(Path(file).suffix) > 0 and Path(file).suffix not in blacklisted_extensions:
+                    urlretrieve(link + file, path.joinpath(file))
+
+        traverse(Path(path), artifact_link)
+
+
+class NbProcessor:
+    def __init__(self, nb_path: str = notebooks_path):
+        self.nb_path = nb_path
+        notebooks = [
+            Notebook(
+                name=process_notebook_name(notebook),
+                path=notebook,
+            )
+            for notebook in os.listdir(self.nb_path)
+            if verify_notebook_name(notebook)
+        ]
+        notebooks = split_notebooks_into_sections(notebooks)
+        self.rst_data = {
+            "sections": [
+                Section(name=section_name, notebooks=section_notebooks)
+                for section_name, section_notebooks in zip(section_names, notebooks)
+            ]
+
+        }
+        self.binder_data = {
+            "owner": repo_owner,
+            "repo": repo_name,
+            "folder": repo_directory,
+        }
+
+    def fetch_binder_list(self, file_format: str = 'txt') -> list:
+        """Funtion that fetches list of notebooks with binder buttons
+
+        :param file_format: Format of file containing list of notebooks with button. Defaults to 'txt'
+        :type file_format: str
+        :return: List of notebooks conaining binder buttons
+        :rtype: list
+        """
+        list_of_buttons = glob(f"{self.nb_path}/*.{file_format}")
+        if list_of_buttons:
+            with open(list_of_buttons[0]) as file:
+                list_of_buttons = file.read().splitlines()
+            return list_of_buttons
+        else:
+            return []
+
+    def add_binder(self, buttons_list: list,  template_with_binder: str = binder_template, template_without_binder: str = no_binder_template):
+        """Function working as an example how to add binder button to existing rst files
+
+        :param buttons_list: List of notebooks that work on Binder.
+        :type buttons_list: list
+        :param template_with_binder: Template of button added to rst file if Binder is available. Defaults to binder_template.
+        :type template_with_binder: str
+        :param template_without_binder: Template of button added to rst file if Binder isn't available. Defaults to no_binder_template.
+        :type template_without_binder: str
+        :raises FileNotFoundError: In case of failure of adding content, error will appear
+
+        """
+        for notebook in [
+            nb for nb in os.listdir(self.nb_path) if verify_notebook_name(nb)
+        ]:
+            if '-'.join(notebook.split('-')[:-2]) in buttons_list:
+                button_text = create_content(
+                    template_with_binder, self.binder_data, notebook)
+                if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
+                    raise FileNotFoundError("Unable to modify file")
+            else:
+                button_text = create_content(
+                    template_without_binder, self.binder_data, notebook)
+                if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
+                    raise FileNotFoundError("Unable to modify file")
+
+    def render_rst(self, path: str = notebooks_docs, template: str = rst_template):
+        """Rendering rst file for all notebooks
+
+        :param path: Path to notebook main rst file. Defaults to notebooks_docs.
+        :type path: str
+        :param template: Template for default rst page. Defaults to rst_template.
+        :type template: str
+
+        """
+        with open(path, "w+") as nb_file:
+            nb_file.writelines(Template(template).render(self.rst_data))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('outdir', type=Path)
+    args = parser.parse_args()
+    outdir = args.outdir
+    outdir.mkdir(parents=True, exist_ok=True)
+    # Step 2. Run default pipeline for downloading
+    NbTravisDownloader.download_from_jenkins(outdir)
+    # Step 3. Run processing on downloaded file
+    nbp = NbProcessor(outdir)
+    buttons_list = nbp.fetch_binder_list('txt')
+    nbp.add_binder(buttons_list)
+    nbp.render_rst(outdir.joinpath(notebooks_docs))
+
+
+if __name__ == '__main__':
+    main()

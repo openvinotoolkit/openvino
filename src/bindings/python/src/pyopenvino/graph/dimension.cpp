@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ void regclass_graph_Dimension(py::module m) {
     using value_type = ov::Dimension::value_type;
 
     py::class_<ov::Dimension, std::shared_ptr<ov::Dimension>> dim(m, "Dimension");
-    dim.doc() = "openvino.impl.Dimension wraps ov::Dimension";
+    dim.doc() = "openvino.runtime.Dimension wraps ov::Dimension";
     dim.def(py::init<>());
     dim.def(py::init<value_type&>(),
             py::arg("dimension"),
@@ -137,14 +137,14 @@ void regclass_graph_Dimension(py::module m) {
             )");
     dim.def("compatible",
             &ov::Dimension::compatible,
-            py::arg("d"),
+            py::arg("dim"),
             R"(
-                Check whether this dimension is capable of being merged 
+                Check whether this dimension is capable of being merged
                 with the argument dimension.
 
                 Parameters
                 ----------
-                d : Dimension
+                dim : Dimension
                     The dimension to compare this dimension with.
 
                 Returns
@@ -154,7 +154,7 @@ void regclass_graph_Dimension(py::module m) {
             )");
     dim.def("relaxes",
             &ov::Dimension::relaxes,
-            py::arg("d"),
+            py::arg("dim"),
             R"(
                 Check whether this dimension is a relaxation of the argument.
                 This dimension relaxes (or is a relaxation of) d if:
@@ -166,7 +166,7 @@ void regclass_graph_Dimension(py::module m) {
 
                 Parameters
                 ----------
-                d : Dimension
+                dim : Dimension
                     The dimension to compare this dimension with.
 
                 Returns
@@ -176,7 +176,7 @@ void regclass_graph_Dimension(py::module m) {
             )");
     dim.def("refines",
             &ov::Dimension::refines,
-            py::arg("d"),
+            py::arg("dim"),
             R"(
                 Check whether this dimension is a refinement of the argument.
                 This dimension refines (or is a refinement of) d if:
@@ -188,7 +188,7 @@ void regclass_graph_Dimension(py::module m) {
 
                 Parameters
                 ----------
-                d : Dimension
+                dim : Dimension
                     The dimension to compare this dimension with.
 
                 Returns

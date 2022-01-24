@@ -1,10 +1,10 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import partial
 
-from mo.graph.graph import Graph, Node
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 
 from .ops import OPERATIONS
 

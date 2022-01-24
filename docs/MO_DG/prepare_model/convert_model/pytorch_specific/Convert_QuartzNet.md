@@ -29,12 +29,12 @@ They are `decoder`, `encoder` and a combined `decoder(encoder(x))` models, respe
 
 If using a combined model:
 ```sh
-./mo.py --input_model <MODEL_DIR>/qt.onnx --input_shape [B,64,X]
+mo --input_model <MODEL_DIR>/qt.onnx --input_shape [B,64,X]
 ```
 If using separate models:
 ```sh
-./mo.py --input_model <MODEL_DIR>/encoder_qt.onnx --input_shape [B,64,X]
-./mo.py --input_model <MODEL_DIR>/decoder_qt.onnx --input_shape [B,1024,Y]
+mo --input_model <MODEL_DIR>/encoder_qt.onnx --input_shape [B,64,X]
+mo --input_model <MODEL_DIR>/decoder_qt.onnx --input_shape [B,1024,Y]
 ```
 
 Where shape is determined by the audio file Mel-Spectrogram length: B - batch dimension, X - dimension based on the input length, Y - determined by encoder output, usually `X / 2`.

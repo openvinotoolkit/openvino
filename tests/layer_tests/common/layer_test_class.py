@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer
-from mo.utils.ir_engine.ir_engine import IREngine
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 
 from common.utils.common_utils import generate_ir
 from common.utils.parsers import mapping_parser

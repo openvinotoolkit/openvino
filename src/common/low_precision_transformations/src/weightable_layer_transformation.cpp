@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -298,10 +298,10 @@ bool WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const st
     }
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
-    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fq);
-    const auto precisions = precisionsAttribute == nullptr ?
-        PrecisionsAttribute::defaultPrecisions :
-        precisionsAttribute->get()->sharedValue->precisions;
+    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fq);
+    const auto precisions = precisionsAttribute.empty() ?
+        getDefaultPrecisions() :
+        precisionsAttribute.as<PrecisionsAttribute>().value();
 
     const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
 
@@ -365,10 +365,10 @@ DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std
         return DataPrecision();
     }
 
-    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fq);
-    const auto precisions = precisionsAttribute == nullptr ?
-        PrecisionsAttribute::defaultPrecisions :
-        precisionsAttribute->get()->sharedValue->precisions;
+    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fq);
+    const auto precisions = precisionsAttribute.empty() ?
+        getDefaultPrecisions() :
+        precisionsAttribute.as<PrecisionsAttribute>().value();
 
     return getDataPrecision(fq, quantizationDetails, precisions);
 }

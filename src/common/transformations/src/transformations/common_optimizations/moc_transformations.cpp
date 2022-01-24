@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,15 +48,20 @@
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
+#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
 #include <transformations/common_optimizations/subtract_fusion.hpp>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
+#include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
+#include <transformations/common_optimizations/ric_fusion.hpp>
+#include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
-bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
     // transformations we restore original shapes to the nGraph Function back
     std::unordered_map<ngraph::op::Parameter*, PartialShape> input_shapes;
@@ -79,6 +84,15 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     if (!m_use_shapes) {
         manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
     }
+    // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams
+    // should be performed before first ConstantFolding call.
+    // The passes can deteach graph branches where zero dimesion is calculated.
+    // Zero dimensions in shape causes creation empty tensors, which are incorrect during CF.
+    // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
+    // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
+    manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+    manager.register_pass<ov::pass::Validate>();
+    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::Validate>();
@@ -133,6 +147,9 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
+    if (m_use_shapes) {
+        common_fusions->add_matcher<ngraph::pass::NearestNeighborUpsamplingFusion>();
+    }
     common_fusions->add_matcher<ngraph::pass::DivideFusion>();
     common_fusions->add_matcher<ngraph::pass::SubtractFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
@@ -148,16 +165,19 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
-    auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
-    conv_fusions->set_name("ngraph::pass::ConvFusions");
+    auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    multiply_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MatMulMultiplyFusion>();
+    multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
+
+    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 

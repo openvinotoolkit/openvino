@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,8 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
     return ov_type_to_dtype_mapping;
 }
 
-const std::map<py::str, ov::element::Type>& dtype_to_ov_type() {
-    static const std::map<py::str, ov::element::Type> dtype_to_ov_type_mapping = {
+const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
+    static const std::map<std::string, ov::element::Type> dtype_to_ov_type_mapping = {
         {"float16", ov::element::f16},
         {"float32", ov::element::f32},
         {"float64", ov::element::f64},
@@ -47,7 +47,7 @@ const std::map<py::str, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
-ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
+ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
     // Check if passed array has C-style contiguous memory layout.
     bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
     auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
@@ -59,7 +59,7 @@ ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
     if (shared_memory) {
         if (is_contiguous) {
             std::vector<size_t> strides(array.strides(), array.strides() + array.ndim());
-            return ov::runtime::Tensor(type, shape, const_cast<void*>(array.data(0)), strides);
+            return ov::Tensor(type, shape, const_cast<void*>(array.data(0)), strides);
         } else {
             throw ov::Exception("Tensor with shared memory must be C contiguous!");
         }
@@ -69,7 +69,7 @@ ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
         array = Common::as_contiguous(array, type);
     }
     // Create actual Tensor and copy data.
-    auto tensor = ov::runtime::Tensor(type, shape);
+    auto tensor = ov::Tensor(type, shape);
     // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
     // To gain access to actual raw/low-level data, it is needed to use buffer protocol.
     py::buffer_info buf = array.request();
@@ -117,8 +117,8 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     }
 }
 
-const ov::runtime::Tensor& cast_to_tensor(const py::handle& tensor) {
-    return tensor.cast<const ov::runtime::Tensor&>();
+const ov::Tensor& cast_to_tensor(const py::handle& tensor) {
+    return tensor.cast<const ov::Tensor&>();
 }
 
 const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs) {
@@ -130,7 +130,7 @@ const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs) 
         } else {
             throw py::type_error("incompatible function arguments!");
         }
-        if (py::isinstance<ov::runtime::Tensor>(input.second)) {
+        if (py::isinstance<ov::Tensor>(input.second)) {
             auto tensor = Common::cast_to_tensor(input.second);
             result_map[name] = tensor;
         } else {
@@ -149,7 +149,7 @@ const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs
         } else {
             throw py::type_error("incompatible function arguments!");
         }
-        if (py::isinstance<ov::runtime::Tensor>(input.second)) {
+        if (py::isinstance<ov::Tensor>(input.second)) {
             auto tensor = Common::cast_to_tensor(input.second);
             result_map[idx] = tensor;
         } else {
@@ -159,7 +159,7 @@ const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs
     return result_map;
 }
 
-void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inputs) {
+void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
     if (!inputs.empty()) {
         for (auto&& input : inputs) {
             if (py::isinstance<py::str>(input.first)) {
@@ -173,34 +173,44 @@ void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inp
     }
 }
 
-PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
+PyAny from_ov_any(const ov::Any& any) {
+    // Check for py::object
+    if (any.is<py::object>()) {
+        return any.as<py::object>();
+    }
     // Check for std::string
-    if (param.is<std::string>()) {
-        return PyUnicode_FromString(param.as<std::string>().c_str());
+    else if (any.is<std::string>()) {
+        return PyUnicode_FromString(any.as<std::string>().c_str());
     }
     // Check for int
-    else if (param.is<int>()) {
-        auto val = param.as<int>();
+    else if (any.is<int>()) {
+        auto val = any.as<int>();
+        return PyLong_FromLong((long)val);
+    } else if (any.is<int64_t>()) {
+        auto val = any.as<int64_t>();
         return PyLong_FromLong((long)val);
     }
     // Check for unsinged int
-    else if (param.is<unsigned int>()) {
-        auto val = param.as<unsigned int>();
+    else if (any.is<unsigned int>()) {
+        auto val = any.as<unsigned int>();
         return PyLong_FromLong((unsigned long)val);
     }
     // Check for float
-    else if (param.is<float>()) {
-        auto val = param.as<float>();
+    else if (any.is<float>()) {
+        auto val = any.as<float>();
         return PyFloat_FromDouble((double)val);
+    } else if (any.is<double>()) {
+        auto val = any.as<double>();
+        return PyFloat_FromDouble(val);
     }
     // Check for bool
-    else if (param.is<bool>()) {
-        auto val = param.as<bool>();
+    else if (any.is<bool>()) {
+        auto val = any.as<bool>();
         return val ? Py_True : Py_False;
     }
     // Check for std::vector<std::string>
-    else if (param.is<std::vector<std::string>>()) {
-        auto val = param.as<std::vector<std::string>>();
+    else if (any.is<std::vector<std::string>>()) {
+        auto val = any.as<std::vector<std::string>>();
         PyObject* list = PyList_New(0);
         for (const auto& it : val) {
             PyObject* str_val = PyUnicode_FromString(it.c_str());
@@ -209,8 +219,17 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
         return list;
     }
     // Check for std::vector<int>
-    else if (param.is<std::vector<int>>()) {
-        auto val = param.as<std::vector<int>>();
+    else if (any.is<std::vector<int>>()) {
+        auto val = any.as<std::vector<int>>();
+        PyObject* list = PyList_New(0);
+        for (const auto& it : val) {
+            PyList_Append(list, PyLong_FromLong(it));
+        }
+        return list;
+    }
+    // Check for std::vector<int64_t>
+    else if (any.is<std::vector<int64_t>>()) {
+        auto val = any.as<std::vector<int64_t>>();
         PyObject* list = PyList_New(0);
         for (const auto& it : val) {
             PyList_Append(list, PyLong_FromLong(it));
@@ -218,8 +237,8 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
         return list;
     }
     // Check for std::vector<unsigned int>
-    else if (param.is<std::vector<unsigned int>>()) {
-        auto val = param.as<std::vector<unsigned int>>();
+    else if (any.is<std::vector<unsigned int>>()) {
+        auto val = any.as<std::vector<unsigned int>>();
         PyObject* list = PyList_New(0);
         for (const auto& it : val) {
             PyList_Append(list, PyLong_FromLong(it));
@@ -227,8 +246,8 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
         return list;
     }
     // Check for std::vector<float>
-    else if (param.is<std::vector<float>>()) {
-        auto val = param.as<std::vector<float>>();
+    else if (any.is<std::vector<float>>()) {
+        auto val = any.as<std::vector<float>>();
         PyObject* list = PyList_New(0);
         for (const auto& it : val) {
             PyList_Append(list, PyFloat_FromDouble((double)it));
@@ -236,16 +255,16 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
         return list;
     }
     // Check for std::tuple<unsigned int, unsigned int>
-    else if (param.is<std::tuple<unsigned int, unsigned int>>()) {
-        auto val = param.as<std::tuple<unsigned int, unsigned int>>();
+    else if (any.is<std::tuple<unsigned int, unsigned int>>()) {
+        auto val = any.as<std::tuple<unsigned int, unsigned int>>();
         PyObject* tuple = PyTuple_New(2);
         PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
         PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
         return tuple;
     }
     // Check for std::tuple<unsigned int, unsigned int, unsigned int>
-    else if (param.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
-        auto val = param.as<std::tuple<unsigned int, unsigned int, unsigned int>>();
+    else if (any.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
+        auto val = any.as<std::tuple<unsigned int, unsigned int, unsigned int>>();
         PyObject* tuple = PyTuple_New(3);
         PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
         PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
@@ -253,8 +272,8 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
         return tuple;
     }
     // Check for std::map<std::string, std::string>
-    else if (param.is<std::map<std::string, std::string>>()) {
-        auto val = param.as<std::map<std::string, std::string>>();
+    else if (any.is<std::map<std::string, std::string>>()) {
+        auto val = any.as<std::map<std::string, std::string>>();
         PyObject* dict = PyDict_New();
         for (const auto& it : val) {
             PyDict_SetItemString(dict, it.first.c_str(), PyUnicode_FromString(it.second.c_str()));
@@ -262,8 +281,8 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
         return dict;
     }
     // Check for std::map<std::string, int>
-    else if (param.is<std::map<std::string, int>>()) {
-        auto val = param.as<std::map<std::string, int>>();
+    else if (any.is<std::map<std::string, int>>()) {
+        auto val = any.as<std::map<std::string, int>>();
         PyObject* dict = PyDict_New();
         for (const auto& it : val) {
             PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
@@ -275,7 +294,7 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
     }
 }
 
-uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual) {
+uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     try {
         auto parameter_value = actual.get_metric(METRIC_KEY(SUPPORTED_METRICS));
         auto supported_metrics = parameter_value.as<std::vector<std::string>>();
@@ -294,6 +313,71 @@ uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& ac
     } catch (const std::exception& ex) {
         IE_THROW() << "Can't load network: " << ex.what() << " Please specify number of infer requests directly!";
     }
+}
+
+py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::InferRequest& request) {
+    py::dict res;
+    for (const auto& out : outputs) {
+        ov::Tensor t{request.get_tensor(out)};
+        switch (t.get_element_type()) {
+        case ov::element::Type_t::i8: {
+            res[py::cast(out)] = py::array_t<int8_t>(t.get_shape(), t.data<int8_t>());
+            break;
+        }
+        case ov::element::Type_t::i16: {
+            res[py::cast(out)] = py::array_t<int16_t>(t.get_shape(), t.data<int16_t>());
+            break;
+        }
+        case ov::element::Type_t::i32: {
+            res[py::cast(out)] = py::array_t<int32_t>(t.get_shape(), t.data<int32_t>());
+            break;
+        }
+        case ov::element::Type_t::i64: {
+            res[py::cast(out)] = py::array_t<int64_t>(t.get_shape(), t.data<int64_t>());
+            break;
+        }
+        case ov::element::Type_t::u8: {
+            res[py::cast(out)] = py::array_t<uint8_t>(t.get_shape(), t.data<uint8_t>());
+            break;
+        }
+        case ov::element::Type_t::u16: {
+            res[py::cast(out)] = py::array_t<uint16_t>(t.get_shape(), t.data<uint16_t>());
+            break;
+        }
+        case ov::element::Type_t::u32: {
+            res[py::cast(out)] = py::array_t<uint32_t>(t.get_shape(), t.data<uint32_t>());
+            break;
+        }
+        case ov::element::Type_t::u64: {
+            res[py::cast(out)] = py::array_t<uint64_t>(t.get_shape(), t.data<uint64_t>());
+            break;
+        }
+        case ov::element::Type_t::bf16: {
+            res[py::cast(out)] = py::array(py::dtype("float16"), t.get_shape(), t.data<ov::bfloat16>());
+            break;
+        }
+        case ov::element::Type_t::f16: {
+            res[py::cast(out)] = py::array(py::dtype("float16"), t.get_shape(), t.data<ov::float16>());
+            break;
+        }
+        case ov::element::Type_t::f32: {
+            res[py::cast(out)] = py::array_t<float>(t.get_shape(), t.data<float>());
+            break;
+        }
+        case ov::element::Type_t::f64: {
+            res[py::cast(out)] = py::array_t<double>(t.get_shape(), t.data<double>());
+            break;
+        }
+        case ov::element::Type_t::boolean: {
+            res[py::cast(out)] = py::array_t<bool>(t.get_shape(), t.data<bool>());
+            break;
+        }
+        default: {
+            break;
+        }
+        }
+    }
+    return res;
 }
 
 };  // namespace Common

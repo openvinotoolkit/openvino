@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2021 Intel Corporation
+ Copyright (C) 2018-2022 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -26,15 +26,13 @@ import shutil
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1',
-                                                          'caffe_squeezenet_v1_1_FP32_batch_1_seqlen_[1]_v10.xml')],
+                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                        'd': ['CPU'],
                                        'sample_type': ['C++', 'C']},
                            use_device=['d'])
 
 test_data_fp32_unicode = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                               'm': [os.path.join('squeezenet1.1',
-                                                                  'caffe_squeezenet_v1_1_FP32_batch_1_seqlen_[1]_v10.xml')],
+                                               'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                                'd': ['CPU'],
                                                'sample_type': ['C++', 'C']},
                                    use_device=['d'])
@@ -58,17 +56,20 @@ class TestHello(SamplesCommonTestClass):
         stdout = self._test(param, use_preffix=False, get_cmd_func=self.get_hello_cmd_line)
         if not stdout:
             return 0
+
         stdout = stdout.split('\n')
-        is_ok = 0
-        for line in stdout:
-            if re.match(r"\d+ +\d+.\d+$", line.strip()) is not None:
-                is_ok = True
-                top1 = line.strip().split(' ')[0]
-                top1 = re.sub(r"\D", "", top1)
-                assert '215' in top1, "Wrong top1 class"
-                log.info('Accuracy passed')
+
+        is_ok = True
+        for line in range(len(stdout)):
+            if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
+                top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
+                top1 = re.sub('\\D', '', top1)
+                if '215' not in top1:
+                    is_ok = False
+                    log.error('Expected class 215, Detected class {}'.format(top1))
                 break
-        assert is_ok != 0, "Accuracy check didn't passed, probably format of output has changes"
+        assert is_ok, 'Wrong top1 class'
+        log.info('Accuracy passed')
 
     @pytest.mark.parametrize("param", test_data_fp32_unicode)
     def test_hello_classification_check_unicode_path_support(self, param):
@@ -91,8 +92,8 @@ class TestHello(SamplesCommonTestClass):
 
         # Copy files
         shutil.copy(Path(Environment.env['test_data']) / Path(param['i']), tmp_image_dir)
-        shutil.copy(Path(Environment.env['public_models']) / Path(param['m']), tmp_model_dir)
-        shutil.copy(Path(Environment.env['public_models']) / Path(param['m'].replace('.xml', '.bin')), tmp_model_dir)
+        shutil.copy(Path(Environment.env['models_path']) / 'public' / Path(param['m']), tmp_model_dir)
+        shutil.copy(Path(Environment.env['models_path']) / 'public' / Path(param['m'].replace('.xml', '.bin')), tmp_model_dir)
 
         image_path = tmp_image_dir / Path(param['i']).name
         original_image_name = image_path.name.split(sep='.')[0]
@@ -125,7 +126,7 @@ class TestHello(SamplesCommonTestClass):
 
         ref_probs = []
         for line in ref_stdout.split(sep='\n'):
-            if re.match(r"\d+\s+\d+.\d+", line):
+            if re.match(r"\\d+\\s+\\d+.\\d+", line):
                 prob_class = int(line.split()[0])
                 prob = float(line.split()[1])
                 ref_probs.append((prob_class, prob))
@@ -172,7 +173,7 @@ class TestHello(SamplesCommonTestClass):
 
                 probs = []
                 for line in stdout.split(sep='\n'):
-                    if re.match(r"^\d+\s+\d+.\d+", line):
+                    if re.match(r"^\\d+\\s+\\d+.\\d+", line):
                         prob_class = int(line.split()[0])
                         prob = float(line.split()[1])
                         probs.append((prob_class, prob))

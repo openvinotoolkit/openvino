@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,9 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/frontend/extension/extension_holder.hpp"
+#include "openvino/frontend/extension/progress_reporter_extension.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ov {
 namespace onnx_editor {
@@ -28,9 +31,9 @@ public:
     ///        is parsed and loaded into the m_model_proto member variable.
     ///
     /// \param model_path Path to the file containing the model.
-    ONNXModelEditor(const std::string& model_path);
+    ONNXModelEditor(const std::string& model_path, frontend::ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ONNXModelEditor(const std::wstring& model_path);
+    ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions = {});
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded
@@ -39,7 +42,9 @@ public:
     /// \param model_stream The stream containing the model.
     /// \param model_path Path to the file containing the model. This information can be used
     ///                   for ONNX external weights feature support.
-    ONNXModelEditor(std::istream& model_stream, const std::string& path = "");
+    ONNXModelEditor(std::istream& model_stream,
+                    const std::string& path = "",
+                    frontend::ExtensionHolder extensions = {});
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
@@ -75,7 +80,12 @@ public:
     ///
     /// \param inputs A collection of input edges which become new inputs to the graph
     /// \param outputs A collection of output edges which become new outputs of the graph
-    void cut_graph_fragment(const std::vector<InputEdge>& inputs, const std::vector<OutputEdge>& outputs);
+    /// \param merge_inputs Flag indicates whether newly created inputs after cutting shall be independent or merged,
+    ///                     false - each cutted edge will be connected with one new input (default),
+    ///                     true - all input edges will be connected to one new input
+    void extract_subgraph(const std::vector<InputEdge>& inputs,
+                          const std::vector<OutputEdge>& outputs,
+                          const bool merge_inputs = false);
 
     /// \brief Modifies the in-memory representation of the model by setting custom input
     ///        values for inputs specified in the provided map.
@@ -107,6 +117,11 @@ public:
     /// \param new_name New name of the node.
     void set_node_name(const EditorNode& node, const std::string& new_name);
 
+    /// \brief Retrieves a node name from the in-memory ONNX model.
+    ///
+    /// \param node Node descriptor for which the lookup should be performed.
+    std::string get_node_name(const EditorNode& node) const;
+
     /// \brief Removes node name for all nodes with given name.
     ///
     /// \note Empty and not present names are accepted.
@@ -129,7 +144,7 @@ public:
     std::string model_string() const;
 
     /// \brief     Converts an edited ONNX model to an nGraph Function representation.
-    std::shared_ptr<Function> get_function() const;
+    std::shared_ptr<Model> get_function() const;
 
     /// \brief Returns a list of all inputs of the in-memory model.
     ///        The returned value might depend on the previous operations executed on an
@@ -264,11 +279,24 @@ public:
     /// \brief Returns a nGraph function based on edited model
     ///        decoded to framework nodes
     ///
-    std::shared_ptr<Function> decode();
+    std::shared_ptr<Model> decode();
+
+    /// \brief     Adds output to provided OutputEdge.
+    ///
+    /// \param output_edge An output_edge type where graph output shall be added.
+    ///
+    void add_output(const OutputEdge& output_edge) const;
+
+    /// \brief     Provides element type for given input tensor name.
+    ///
+    /// \param output_edge Name of tensor for which element type will be returned.
+    ///
+    element::Type_t get_input_type(const std::string& tensor_name) const;
 
 private:
     void update_mapper_if_needed() const;
 
+    frontend::ExtensionHolder m_extensions;
     const std::string m_model_path;
 
     struct Impl;

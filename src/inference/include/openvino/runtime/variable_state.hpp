@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- * @brief A header file that provides VariableState
- *
+ * @brief A header file that provides ov::VariableState
  * @file openvino/runtime/variable_state.hpp
  */
 
@@ -21,7 +20,6 @@ class IVariableStateInternal;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 class InferRequest;
 
@@ -29,8 +27,8 @@ class InferRequest;
  * @brief VariableState class
  */
 class OPENVINO_RUNTIME_API VariableState {
+    std::shared_ptr<InferenceEngine::IVariableStateInternal> _impl;
     std::shared_ptr<void> _so;
-    std::shared_ptr<ie::IVariableStateInternal> _impl;
 
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr
@@ -38,15 +36,21 @@ class OPENVINO_RUNTIME_API VariableState {
      * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin
      * object is destroyed.
      */
-    VariableState(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IVariableStateInternal>& impl);
+    VariableState(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& impl,
+                  const std::shared_ptr<void>& so);
 
-    friend class ov::runtime::InferRequest;
+    friend class ov::InferRequest;
 
 public:
     /**
      * @brief Default constructor
      */
     VariableState() = default;
+
+    /**
+     * @brief Destructor preserves unloading order of implementation object and reference to library
+     */
+    ~VariableState();
 
     /**
      * @brief Reset internal variable state for relevant infer request,
@@ -63,7 +67,7 @@ public:
 
     /**
      * @brief Returns the value of the variable state.
-     * @return A blob representing a state
+     * @return A tensor representing a state
      */
     Tensor get_state() const;
 
@@ -73,5 +77,9 @@ public:
      */
     void set_state(const Tensor& state);
 };
+
+namespace runtime {
+using ov::VariableState;
 }  // namespace runtime
+
 }  // namespace ov

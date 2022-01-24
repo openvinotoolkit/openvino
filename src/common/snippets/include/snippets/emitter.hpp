@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
-#include <transformations_visibility.hpp>
 
 #include <vector>
 #include <cstdint>
@@ -20,7 +18,7 @@ using RegInfo = std::pair<std::vector<size_t>, std::vector<size_t>>;
  * @brief Base class for all target specific code emitters used by generator.
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API Emitter {
+class Emitter {
 public:
     /**
      * @brief Default constructor

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "ngraph/op/detection_output.hpp"
+#include "ngraph/op/util/detection_output_base.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
@@ -28,7 +29,7 @@ private:
     };
     using LabelBBox = std::map<int, std::vector<NormalizedBBox>>;
 
-    ngraph::op::DetectionOutputAttrs attrs;
+    ngraph::op::util::DetectionOutputBase::AttributesBase attrs;
     size_t numImages;
     size_t priorSize;
     size_t numPriors;
@@ -37,6 +38,7 @@ private:
     size_t offset;
     size_t numResults;
     size_t outTotalSize;
+    size_t numClasses;
 
     void GetLocPredictions(const dataType* locData, std::vector<LabelBBox>& locations) {
         locations.resize(numImages);
@@ -64,12 +66,12 @@ private:
         for (size_t i = 0; i < numImages; ++i) {
             std::map<int, std::vector<dataType>>& labelScores = confPreds[i];
             for (size_t p = 0; p < numPriors; ++p) {
-                int startIdx = p * attrs.num_classes;
-                for (int c = 0; c < attrs.num_classes; ++c) {
+                int startIdx = p * numClasses;
+                for (int c = 0; c < numClasses; ++c) {
                     labelScores[c].push_back(confData[startIdx + c]);
                 }
             }
-            confData += numPriors * attrs.num_classes;
+            confData += numPriors * numClasses;
         }
     }
 
@@ -80,18 +82,18 @@ private:
         for (size_t i = 0; i < numImages; ++i) {
             std::map<int, std::vector<dataType>>& labelScores = confPreds[i];
             for (size_t p = 0; p < numPriors; ++p) {
-                int startIdx = p * attrs.num_classes;
+                int startIdx = p * numClasses;
                 if (armConfData[p * 2 + 1] < attrs.objectness_score) {
-                    for (int c = 0; c < attrs.num_classes; ++c) {
+                    for (int c = 0; c < numClasses; ++c) {
                         c == attrs.background_label_id ? labelScores[c].push_back(1) : labelScores[c].push_back(0);
                     }
                 } else {
-                    for (int c = 0; c < attrs.num_classes; ++c) {
+                    for (int c = 0; c < numClasses; ++c) {
                         labelScores[c].push_back(confData[startIdx + c]);
                     }
                 }
             }
-            confData += numPriors * attrs.num_classes;
+            confData += numPriors * numClasses;
             armConfData += numPriors * 2;
         }
     }
@@ -369,7 +371,7 @@ private:
         for (size_t p = 0; p < numPriors; p++) {
             dataType conf = -1;
             int id = 0;
-            for (int c = 1; c < attrs.num_classes; c++) {
+            for (int c = 1; c < numClasses; c++) {
                 if (attrs.background_label_id > -1 && c == attrs.background_label_id)
                     continue;
                 dataType temp = confScores.at(c)[p];
@@ -425,7 +427,25 @@ public:
         offset = _attrs.normalized ? 0 : 1;
         numPriors = priorsShape[2] / priorSize;
         priorsBatchSize = priorsShape[0];
-        numLocClasses = _attrs.share_location ? 1 : static_cast<size_t>(_attrs.num_classes);
+        numClasses = _attrs.num_classes;
+        numLocClasses = _attrs.share_location ? 1 : numClasses;
+        numResults = outShape[2];
+        outTotalSize = shape_size(outShape);
+    }
+
+    referenceDetectionOutput(const ngraph::op::util::DetectionOutputBase::AttributesBase& _attrs,
+                             const ngraph::Shape& locShape,
+                             const ngraph::Shape& classPredShape,
+                             const ngraph::Shape& priorsShape,
+                             const ngraph::Shape& outShape)
+        : attrs(_attrs) {
+        numImages = locShape[0];
+        priorSize = _attrs.normalized ? 4 : 5;
+        offset = _attrs.normalized ? 0 : 1;
+        numPriors = priorsShape[2] / priorSize;
+        priorsBatchSize = priorsShape[0];
+        numClasses = classPredShape[1] / numPriors;
+        numLocClasses = _attrs.share_location ? 1 : numClasses;
         numResults = outShape[2];
         outTotalSize = shape_size(outShape);
     }
@@ -469,7 +489,7 @@ public:
             int numDet = 0;
             if (!attrs.decrease_label_id) {
                 // Caffe style
-                for (int c = 0; c < attrs.num_classes; ++c) {
+                for (int c = 0; c < numClasses; ++c) {
                     if (c == attrs.background_label_id) {
                         continue;
                     }

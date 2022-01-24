@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -221,7 +221,7 @@ void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     ov::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    serializer.run_on_function(_function);
+    serializer.run_on_model(_function);
 
     auto m_constants = binFile.str();
     auto m_model = xmlFile.str();

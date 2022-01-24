@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,9 +28,9 @@ struct ROIPoolingParams {
     float spatialScale;
     std::string poolingMode;
     ov::element::Type dataType;
-    ov::runtime::Tensor featureMap;
-    ov::runtime::Tensor proposal;
-    ov::runtime::Tensor refData;
+    ov::Tensor featureMap;
+    ov::Tensor proposal;
+    ov::Tensor refData;
 
 public:
     template<class T>
@@ -76,7 +76,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const size_t i_h, const size_t i_w, const size_t ch, const size_t roi_count,
+    static std::shared_ptr<Model> CreateFunction(const size_t i_h, const size_t i_w, const size_t ch, const size_t roi_count,
                                                     const size_t o_h, const size_t o_w, const float spat_scale, const std::string mode,
                                                     const ov::element::Type& type) {
         Shape feat_map_shape{1, ch, i_h, i_w};
@@ -87,7 +87,7 @@ private:
         const auto feat_map = std::make_shared<op::v0::Parameter>(type, feat_map_shape);
         const auto rois = std::make_shared<op::v0::Parameter>(type, rois_shape);
         const auto roi_pooling = std::make_shared<op::v0::ROIPooling>(feat_map, rois, pooled_shape, spat_scale, mode);
-        return std::make_shared<ov::Function>(roi_pooling, ParameterVector{feat_map, rois});
+        return std::make_shared<ov::Model>(roi_pooling, ParameterVector{feat_map, rois});
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace py = pybind11;
 
 void regclass_graph_Type(py::module m) {
     py::class_<ov::element::Type, std::shared_ptr<ov::element::Type>> type(m, "Type");
-    type.doc() = "openvino.impl.Type wraps ov::element::Type";
+    type.doc() = "openvino.runtime.Type wraps ov::element::Type";
     type.attr("boolean") = ov::element::boolean;
     type.attr("f16") = ov::element::f16;
     type.attr("f32") = ov::element::f32;

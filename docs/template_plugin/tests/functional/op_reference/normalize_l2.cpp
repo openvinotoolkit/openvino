@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,8 +66,8 @@ struct NormalizeL2Params {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
     std::vector<int32_t> m_axes;
     op::EpsMode m_eps_mode;
     float m_eps;
@@ -104,7 +104,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type_t& input_type,
                                                     const std::vector<int32_t>& axes,
                                                     const op::EpsMode& eps_mode,
@@ -112,7 +112,7 @@ private:
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto axes_data = std::make_shared<op::v0::Constant>(element::Type_t::i32, Shape{axes.size()}, axes);
         auto normalize = std::make_shared<op::v0::NormalizeL2>(in, axes_data, eps, eps_mode);
-        return std::make_shared<ov::Function>(normalize, ParameterVector{in});
+        return std::make_shared<ov::Model>(normalize, ParameterVector{in});
     }
 };
 

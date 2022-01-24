@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-import openvino.opset8 as ov
+import openvino.runtime.opset8 as ov
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 

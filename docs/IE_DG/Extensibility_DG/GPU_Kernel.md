@@ -1,15 +1,17 @@
 # How to Implement Custom GPU Operations {#openvino_docs_IE_DG_Extensibility_DG_GPU_Kernel}
 
-The GPU codepath abstracts many details about OpenCL\*. You need to provide the kernel code in OpenCL C and the configuration file that connects the kernel and its parameters to the parameters of the operation.
+To enable operations not supported by OpenVINO™ out of the box, you need a custom extension for Model Optimizer, a custom nGraph operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
 
-There are two options of using the custom operation configuration file:
+The GPU codepath abstracts many details about OpenCL\*. You need to provide the kernel code in OpenCL C and an XML configuration file that connects the kernel and its parameters to the parameters of the operation.
+
+There are two options for using the custom operation configuration file:
 
 * Include a section with your kernels into the global automatically-loaded `cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml` file, which is hosted in the `<INSTALL_DIR>/runtime/bin` folder
 * Call the `InferenceEngine::Core::SetConfig()` method from your application with the `InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE` key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
 
 @snippet snippets/GPU_Kernel.cpp part0
 
-All Inference Engine samples, except the trivial `hello_classification`,
+All Inference Engine samples, except the trivial `hello_classification`, and most Open Model Zoo demos 
 feature a dedicated command-line option `-c` to load custom kernels. For example, to load custom operations for the classification sample, run the command below:
 ```sh
 $ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validation_set/daily/227x227/apron.bmp -d GPU
@@ -132,8 +134,8 @@ queuing an OpenCL program for execution.
 
 ## Example Configuration File
 
-The following code sample provides an example configuration file in the
-`.xml` format. For information on the configuration file structure, see
+The following code sample provides an example configuration file in XML 
+format. For information on the configuration file structure, see
 [Configuration File Format](#config-file-format).
 ```xml
 <CustomLayer name="ReLU" type="SimpleGPU" version="1">
@@ -208,12 +210,12 @@ __kernel void example_relu_kernel(
 }
 ```
 
-> **NOTE:** As described in the previous section, all things like
+> **NOTE**: As described in the previous section, all items like
 > `INPUT0_TYPE` are actually defined as OpenCL (pre-)compiler inputs by
 > the Inference Engine for efficiency reasons. See [Debugging
 > Tips](#debugging-tips) for information on debugging the results.
 
-> **NOTE**: Several GPU-targeted kernels are also added to the binaries upon samples compilation
+> **NOTE**: Several GPU-targeted kernels are also added to the binaries upon compilation of samples
 > so that the sample application can easy load them.
 > Refer to the `cldnn_global_custom_kernels` folder in the GPU plugin installation directory.
 
@@ -221,10 +223,11 @@ __kernel void example_relu_kernel(
 
 * **Using `printf` in the OpenCL™ Kernels**.
 To debug the specific values, you can use `printf` in your kernels.
-However, be careful: for instance, do not output excessively
-as it would generate too much data. The `printf` output is typical, so
+However, be careful not to output excessively, which
+could generate too much data. The `printf` output is typical, so
 your output can be truncated to fit the buffer. Also, because of
 buffering, you actually get an entire buffer of output when the
 execution ends.<br>
+
 For more information, refer to the [printf
 Function](https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/printfFunction.html).

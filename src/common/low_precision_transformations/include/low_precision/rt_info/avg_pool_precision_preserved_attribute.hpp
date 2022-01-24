@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,29 +13,21 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 namespace ngraph {
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief AvgPoolPrecisionPreservedAttribute is utility attribute which is used only during `AvgPool` operation precision
+ * preserved property definition.
+ *
+ * For more details about the attribute, refer to
+ * [AvgPoolPrecisionPreservedAttribute](@ref openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved) page in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
-};
-
-using AvgPoolPrecisionPreservedAttributePtr = std::shared_ptr<AvgPoolPrecisionPreservedAttribute>;
-} // namespace ngraph
-
-namespace ov {
-extern template class LP_TRANSFORMATIONS_API VariantImpl<ngraph::AvgPoolPrecisionPreservedAttributePtr>;
-
-template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<ngraph::AvgPoolPrecisionPreservedAttributePtr> : public VariantImpl<ngraph::AvgPoolPrecisionPreservedAttributePtr> {
 public:
-    static constexpr VariantTypeInfo type_info{ "LowPrecision::AvgPoolPrecisionPreserved", 0 };
-
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-
-    ngraph::AvgPoolPrecisionPreservedAttributePtr get() { return this->m_value; }
-
-    void merge(std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<ngraph::AvgPoolPrecisionPreservedAttribute>>>>& attributes);
-    std::string to_string() override;
+    OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
+    using PrecisionPreservedAttribute::PrecisionPreservedAttribute;
+    void merge(std::vector<ov::Any>& attributes);
+    std::string to_string() const override;
 };
-} // namespace ov
+
+} // namespace ngraph

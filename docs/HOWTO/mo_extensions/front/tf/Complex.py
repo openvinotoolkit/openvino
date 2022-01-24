@@ -1,13 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #! [complex:transformation]
-import logging as log
 
-import numpy as np
-
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
 
 
 class Complex(FrontReplacementSubgraph):
@@ -41,4 +38,3 @@ class Complex(FrontReplacementSubgraph):
         # change the connection so now all consumers of "complex_node" get data from input node of strided slice nodes
         complex_node.out_port(0).get_connection().set_source(input_node_output_port)
 #! [complex:transformation]
-

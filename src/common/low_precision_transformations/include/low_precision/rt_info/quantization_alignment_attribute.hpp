@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,46 +18,24 @@
 #include "attribute_parameters.hpp"
 
 namespace ngraph {
-class QuantizationAlignmentAttribute;
-
-class LP_TRANSFORMATIONS_API QuantizationAlignmentSharedValue : public SharedValue<QuantizationAlignmentAttribute> {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief QuantizationAlignmentAttribute defines subgraph with the same quantization alignment.
+ * FakeQuantize operations are not included. The attribute is used by quantization operations.
+ *
+ * For more details about the attribute, refer to
+ * [QuantizationAlignmentAttribute](@ref openvino_docs_IE_DG_lpt_QuantizationAlignment) page in the Inference Engine Developer Guide.
+ */
+class LP_TRANSFORMATIONS_API QuantizationAlignmentAttribute : public SharedAttribute<bool> {
 public:
-    QuantizationAlignmentSharedValue(const bool value = false) : value(value) {}
-    bool value;
-};
-
-class LP_TRANSFORMATIONS_API QuantizationAlignmentAttribute : public SharedValueAttribute<QuantizationAlignmentSharedValue>{
-public:
+    OPENVINO_RTTI("LowPrecision::QuantizationAlignment", "", ov::RuntimeAttribute, 0);
     QuantizationAlignmentAttribute(const bool value = false);
-};
 
-using QuantizationAlignmentAttributePtr = std::shared_ptr<QuantizationAlignmentAttribute>;
-} // namespace ngraph
-
-namespace ov {
-
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<ngraph::QuantizationAlignmentAttributePtr>;
-
-template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<ngraph::QuantizationAlignmentAttribute>> :
-    public VariantImpl<std::shared_ptr<ngraph::QuantizationAlignmentAttribute>> {
-public:
-    static constexpr VariantTypeInfo type_info{ "LowPrecision::QuantizationAlignment", 0 };
-
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-
-    ov::Any init(const std::shared_ptr<ngraph::Node>& node) override;
-
-    std::shared_ptr<ngraph::QuantizationAlignmentAttribute> get() { return this->m_value; }
-
-    static std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::QuantizationAlignmentAttribute>>> create(
+    static ov::Any create(
         const std::shared_ptr<ngraph::Node>& node,
         const AttributeParameters& params);
-    void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::QuantizationAlignmentAttribute>>>>& attributes);
-    std::string to_string() override;
+    void merge(std::vector<ov::Any>& attributes);
+    std::string to_string() const override;
 };
-} // namespace ov
+
+} // namespace ngraph

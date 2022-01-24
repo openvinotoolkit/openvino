@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,5 +40,5 @@ public:
     explicit MOCTransformations(bool use_shapes, bool low_precision_enabled = true)
         : m_use_shapes(use_shapes), m_low_precision_enabled(low_precision_enabled) {}
 
-    bool run_on_function(std::shared_ptr<ngraph::Function>) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

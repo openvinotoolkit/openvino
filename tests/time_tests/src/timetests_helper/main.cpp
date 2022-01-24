@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-int runPipeline(const std::string &model, const std::string &device);
+int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled);
 
 /**
  * @brief Parses command line and check required arguments
@@ -40,7 +40,7 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
  */
 int _runPipeline() {
   SCOPED_TIMER(full_run);
-  return runPipeline(FLAGS_m, FLAGS_d);
+  return runPipeline(FLAGS_m, FLAGS_d, FLAGS_c);
 }
 
 /**

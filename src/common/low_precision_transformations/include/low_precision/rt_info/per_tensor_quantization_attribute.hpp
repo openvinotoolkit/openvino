@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,24 +14,16 @@
 #include "attribute_parameters.hpp"
 
 namespace ngraph {
-class LP_TRANSFORMATIONS_API PerTensorQuantizationAttribute {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PerTensorQuantizationAttribute defines if operation input port requires per-tensor quantization.
+ *
+ * For more details about the attribute, refer to
+ * [PerTensorQuantizationAttribute](@ref openvino_docs_IE_DG_lpt_PerTensorQuantization) page in the Inference Engine Developer Guide.
+ */
+class LP_TRANSFORMATIONS_API PerTensorQuantizationAttribute : public ov::RuntimeAttribute {
+public:
+    OPENVINO_RTTI("LowPrecision::PerTensorQuantization", "", ov::RuntimeAttribute, 0);
+    ~PerTensorQuantizationAttribute();
 };
 } // namespace ngraph
-
-namespace ov {
-
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<ngraph::PerTensorQuantizationAttribute>;
-
-template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<ngraph::PerTensorQuantizationAttribute> : public VariantImpl<ngraph::PerTensorQuantizationAttribute> {
-public:
-    static constexpr VariantTypeInfo type_info { "LowPrecision::PerTensorQuantization", 0 };
-
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-} // namespace ov

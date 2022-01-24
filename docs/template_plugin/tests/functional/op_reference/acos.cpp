@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ namespace reference_tests {
 namespace {
 
 struct AcosParams {
-    Tensor input;
-    Tensor expected;
+    reference_tests::Tensor input;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<AcosParams> {
@@ -39,10 +39,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& shape, const element::Type& type) {
+    static std::shared_ptr<Model> CreateFunction(const Shape& shape, const element::Type& type) {
         const auto in = std::make_shared<op::v0::Parameter>(type, shape);
         const auto acos = std::make_shared<op::v0::Acos>(in);
-        return std::make_shared<Function>(NodeVector {acos}, ParameterVector {in});
+        return std::make_shared<Model>(NodeVector {acos}, ParameterVector {in});
     }
 };
 

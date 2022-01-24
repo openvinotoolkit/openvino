@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,20 +14,20 @@ namespace {
 struct RNNCellParams {
     RNNCellParams(
         int32_t batchSize, int32_t inputSize, int32_t hiddenSize,
-        const Tensor& X, const Tensor& H_t, const Tensor& W, const Tensor& R, const Tensor& B,
-        const Tensor& Ho, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& X, const reference_tests::Tensor& H_t, const reference_tests::Tensor& W, const reference_tests::Tensor& R, const reference_tests::Tensor& B,
+        const reference_tests::Tensor& Ho, const std::string& testcaseName = "") :
         batchSize(batchSize), inputSize(inputSize), hiddenSize(hiddenSize),
         X(X), H_t(H_t), W(W), R(R), B(B), Ho(Ho), testcaseName(testcaseName) {}
 
     int32_t batchSize;
     int32_t inputSize;
     int32_t hiddenSize;
-    Tensor X;
-    Tensor H_t;
-    Tensor W;
-    Tensor R;
-    Tensor B;
-    Tensor Ho;
+    reference_tests::Tensor X;
+    reference_tests::Tensor H_t;
+    reference_tests::Tensor W;
+    reference_tests::Tensor R;
+    reference_tests::Tensor B;
+    reference_tests::Tensor Ho;
     std::string testcaseName;
 };
 
@@ -65,7 +65,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const RNNCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const RNNCellParams& params) {
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
         const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
         const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
@@ -73,14 +73,14 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto rnn_cell = std::make_shared<op::v0::RNNCell>(X, H_t, W, R, B, params.hiddenSize);
-        auto function = std::make_shared<Function>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };
 
 class ReferenceRNNCellTestBiasClip : public ReferenceRNNCellTest {
 private:
-    static std::shared_ptr<Function> CreateFunction(const RNNCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const RNNCellParams& params) {
         float clip = 2.88f;
 
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
@@ -92,7 +92,7 @@ private:
         const auto rnn_cell = std::make_shared<op::v0::RNNCell>(
             X, H_t, W, R, B, params.hiddenSize,
             std::vector<std::string>{"tanh"}, std::vector<float>{}, std::vector<float>{}, clip);
-        auto function = std::make_shared<Function>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };
@@ -107,7 +107,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const RNNCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const RNNCellParams& params) {
         float clip = 2.88f;
 
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
@@ -126,7 +126,7 @@ private:
                                                                 std::vector<float>{},
                                                                 std::vector<float>{},
                                                                 clip);
-        auto function = std::make_shared<Function>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };
@@ -149,11 +149,11 @@ std::vector<RNNCellParams> generateParams() {
     std::vector<RNNCellParams> params {
         RNNCellParams(
             2, 3, 3,
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.3432185f, 0.612268f, 0.20272376f, 0.9513413f, 0.30585995f, 0.7265472f}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.12444675f, 0.52055854f, 0.46489045f, 0.4983964f, 0.7730452f, 0.28439692f}),
-            Tensor(ET, {3, 3}, std::vector<T>{0.41930267f,
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{0.41930267f,
                                               0.7872176f,
                                               0.89940447f,
                                               0.23659843f,
@@ -162,7 +162,7 @@ std::vector<RNNCellParams> generateParams() {
                                               0.3147149f,
                                               0.6555601f,
                                               0.4559603f}),
-            Tensor(ET, {3, 3}, std::vector<T>{0.8374871f,
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{0.8374871f,
                                               0.86660194f,
                                               0.82114047f,
                                               0.71549815f,
@@ -171,8 +171,8 @@ std::vector<RNNCellParams> generateParams() {
                                               0.25392973f,
                                               0.38301638f,
                                               0.85531586f}),
-            Tensor(ET, {3}, std::vector<T>{0.0f, 0.0f, 0.0f}),
-            Tensor(ET, {2, 3}, std::vector<T>{0.9408395f, 0.53823817f, 0.84270686f, 0.98932856f, 0.768665f, 0.90461975f}),
+            reference_tests::Tensor(ET, {3}, std::vector<T>{0.0f, 0.0f, 0.0f}),
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{0.9408395f, 0.53823817f, 0.84270686f, 0.98932856f, 0.768665f, 0.90461975f}),
             "rnn_cell_zero_bias_default_attrs"),
     };
     return params;
@@ -199,11 +199,11 @@ std::vector<RNNCellParams> generateParamsBiasClip() {
     std::vector<RNNCellParams> params {
         RNNCellParams(
             2, 3, 3,
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.3432185f, 0.612268f, 0.20272376f, 0.9513413f, 0.30585995f, 0.7265472f}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.12444675f, 0.52055854f, 0.46489045f, 0.4983964f, 0.7730452f, 0.28439692f}),
-            Tensor(ET, {3, 3}, std::vector<T>{0.41930267f,
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{0.41930267f,
                                               0.7872176f,
                                               0.89940447f,
                                               0.23659843f,
@@ -212,7 +212,7 @@ std::vector<RNNCellParams> generateParamsBiasClip() {
                                               0.3147149f,
                                               0.6555601f,
                                               0.4559603f}),
-            Tensor(ET, {3, 3}, std::vector<T>{0.8374871f,
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{0.8374871f,
                                               0.86660194f,
                                               0.82114047f,
                                               0.71549815f,
@@ -221,8 +221,8 @@ std::vector<RNNCellParams> generateParamsBiasClip() {
                                               0.25392973f,
                                               0.38301638f,
                                               0.85531586f}),
-            Tensor(ET, {3}, std::vector<T>{1.0289404f, 1.6362579f, 0.4370661f}),
-            Tensor(ET, {2, 3}, std::vector<T>{0.9922437f, 0.97749525f, 0.9312212f, 0.9937176f, 0.9901317f, 0.95906746f}),
+            reference_tests::Tensor(ET, {3}, std::vector<T>{1.0289404f, 1.6362579f, 0.4370661f}),
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{0.9922437f, 0.97749525f, 0.9312212f, 0.9937176f, 0.9901317f, 0.95906746f}),
             "rnn_cell_bias_clip"),
     };
     return params;
@@ -249,11 +249,11 @@ std::vector<RNNCellParams> generateParamsSigmoidActivationFunction() {
     std::vector<RNNCellParams> params {
         RNNCellParams(
             2, 3, 3,
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.3432185f, 0.612268f, 0.20272376f, 0.9513413f, 0.30585995f, 0.7265472f}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.12444675f, 0.52055854f, 0.46489045f, 0.4983964f, 0.7730452f, 0.28439692f}),
-            Tensor(ET, {3, 3}, std::vector<T>{0.41930267f,
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{0.41930267f,
                                               0.7872176f,
                                               0.89940447f,
                                               0.23659843f,
@@ -262,7 +262,7 @@ std::vector<RNNCellParams> generateParamsSigmoidActivationFunction() {
                                               0.3147149f,
                                               0.6555601f,
                                               0.4559603f}),
-            Tensor(ET, {3, 3}, std::vector<T>{0.8374871f,
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{0.8374871f,
                                               0.86660194f,
                                               0.82114047f,
                                               0.71549815f,
@@ -271,8 +271,8 @@ std::vector<RNNCellParams> generateParamsSigmoidActivationFunction() {
                                               0.25392973f,
                                               0.38301638f,
                                               0.85531586f}),
-            Tensor(ET, {3}, std::vector<T>{1.0289404f, 1.6362579f, 0.4370661f}),
-            Tensor(ET, {2, 3}, std::vector<T>{0.94126844f, 0.9036043f, 0.841243f, 0.9468489f, 0.934215f, 0.873708f}),
+            reference_tests::Tensor(ET, {3}, std::vector<T>{1.0289404f, 1.6362579f, 0.4370661f}),
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{0.94126844f, 0.9036043f, 0.841243f, 0.9468489f, 0.934215f, 0.873708f}),
             "rnn_cell_sigmoid_activation_function"),
     };
     return params;

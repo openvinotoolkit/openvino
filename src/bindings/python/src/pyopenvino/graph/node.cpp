@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,14 +9,14 @@
 #include <pybind11/stl_bind.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
-#include "pyopenvino/graph/variant.hpp"
 
 class PyNode : public ov::Node {
 public:
@@ -37,7 +37,7 @@ PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_graph_Node(py::module m) {
     py::class_<ov::Node, std::shared_ptr<ov::Node>, PyNode> node(m, "Node", py::dynamic_attr());
-    node.doc() = "openvino.impl.Node wraps ov::Node";
+    node.doc() = "openvino.runtime.Node wraps ov::Node";
     node.def(
         "__add__",
         [](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node> b) {
@@ -80,7 +80,68 @@ void regclass_graph_Node(py::module m) {
         }
         return "<" + type_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
+    node.def(
+        "evaluate",
+        [](const ov::Node& self,
+           ov::TensorVector& output_values,
+           const ov::TensorVector& input_values,
+           const ov::EvaluationContext& evaluationContext) -> bool {
+            return self.evaluate(output_values, input_values, evaluationContext);
+        },
+        py::arg("output_values"),
+        py::arg("input_values"),
+        py::arg("evaluationContext"),
+        R"(
+                Evaluate the node on inputs, putting results in outputs
+                Parameters
+                ----------
+                output_tensors : List[op.Tensor]
+                    Tensors for the outputs to compute. One for each result.
+                input_tensors : List[op.Tensor]
+                    Tensors for the inputs. One for each inputs.
+                evaluation_context: PyRTMap
+                    Storage of additional settings and attributes that can be used
+                    when evaluating the function. This additional information can be shared across nodes.
+                Returns
+                ----------
+                evaluate : bool
+            )");
+    node.def(
+        "evaluate",
+        [](const ov::Node& self, ov::TensorVector& output_values, const ov::TensorVector& input_values) -> bool {
+            return self.evaluate(output_values, input_values);
+        },
+        py::arg("output_values"),
+        py::arg("input_values"),
+        R"(
+                Evaluate the function on inputs, putting results in outputs
+                Parameters
+                ----------
+                output_tensors : List[op.Tensor]
+                    Tensors for the outputs to compute. One for each result.
+                input_tensors : List[op.Tensor]
+                    Tensors for the inputs. One for each inputs.
+                Returns
+                ----------
+                evaluate : bool
+             )");
+    node.def("get_input_tensor",
+             &ov::Node::get_input_tensor,
+             py::arg("index"),
+             py::return_value_policy::reference_internal,
+             R"(
+                Returns the tensor for the node's input with index i
 
+                Parameters
+                ----------
+                index : int
+                    Index of Input.
+
+                Returns
+                ----------
+                input_tensor : descriptor.Tensor
+                    Tensor of the input i
+             )");
     node.def("get_element_type",
              &ov::Node::get_element_type,
              R"(
@@ -91,6 +152,42 @@ void regclass_graph_Node(py::module m) {
                 get_element_type : Type
                     Type of the output.
              )");
+    node.def("input_values",
+             &ov::Node::input_values,
+             R"(
+                 Returns list of node's inputs, in order.
+
+                 Returns
+                 ----------
+                 inputs : List[Input]
+                    List of node's inputs
+             )");
+    node.def("input_value",
+             &ov::Node::input_value,
+             py::arg("index"),
+             R"(
+                Returns input of the node with index i
+
+                Parameters
+                ----------
+                index : int
+                    Index of Input.
+
+                Returns
+                ----------
+                input : Input
+                    Input of this node.
+             )");
+    node.def("get_input_size",
+             &ov::Node::get_input_size,
+             R"(
+                Returns the number of inputs to the node.
+
+                Returns
+                ----------
+                input_size : int
+                    Number of inputs.
+             )");
     node.def("get_output_size",
              &ov::Node::get_output_size,
              R"(
@@ -98,18 +195,18 @@ void regclass_graph_Node(py::module m) {
 
                 Returns
                 ----------
-                get_element_type : int
+                output_size : int
                     Number of outputs.
              )");
     node.def("get_output_element_type",
              &ov::Node::get_output_element_type,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns the element type for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
@@ -119,13 +216,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_shape",
              &ov::Node::get_output_shape,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns the shape for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
@@ -135,13 +232,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_partial_shape",
              &ov::Node::get_output_partial_shape,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns the partial shape for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
@@ -151,14 +248,14 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_tensor",
              &ov::Node::get_output_tensor,
-             py::arg("i"),
+             py::arg("index"),
              py::return_value_policy::reference_internal,
              R"(
                 Returns the tensor for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns

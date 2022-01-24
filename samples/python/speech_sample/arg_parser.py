@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import argparse
 
@@ -34,8 +34,17 @@ def parse_args() -> argparse.Namespace:
                       'If the network contains multiple inputs, provide scale factors by separating them with commas.')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
-    args.add_argument('-we', '--export_embedded_gna_model', type=str, help=argparse.SUPPRESS)
-    args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, help=argparse.SUPPRESS)
+    args.add_argument('-we', '--export_embedded_gna_model', type=str,
+                      help='Optional. Write GNA embedded model to file using path/filename provided.')
+    args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, metavar='[GNA1, GNA3]',
+                      help='Optional. GNA generation configuration string for embedded export. '
+                      'Can be GNA1 (default) or GNA3.')
+    args.add_argument('--exec_target', default='', type=str, choices=('GNA_TARGET_2_0', 'GNA_TARGET_3_0'),
+                      metavar='[GNA_TARGET_2_0, GNA_TARGET_3_0]',
+                      help='Optional. Specify GNA execution target generation. '
+                      'By default, generation corresponds to the GNA HW available in the system '
+                      'or the latest fully supported generation by the software. '
+                      "See the GNA Plugin's GNA_EXEC_TARGET config option description.")
     args.add_argument('-pc', '--performance_counter', action='store_true',
                       help='Optional. Enables performance report (specify -a to ensure arch accurate results).')
     args.add_argument('-a', '--arch', default='CORE', type=str.upper, choices=('CORE', 'ATOM'), metavar='[CORE, ATOM]',
@@ -46,37 +55,27 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-oname', '--output_layers', type=str,
                       help='Optional. Layer names for output blobs. The names are separated with ",". '
                       'Allows to change the order of output layers for -o flag. Example: Output1:port,Output2:port.')
-    args.add_argument('-cw_l', '--context_window_left', type=IntRange(0), default=0,
+    args.add_argument('-cw_l', '--context_window_left', type=int, default=0,
                       help='Optional. Number of frames for left context windows (default is 0). '
                       'Works only with context window networks. '
                       'If you use the cw_l or cw_r flag, then batch size argument is ignored.')
-    args.add_argument('-cw_r', '--context_window_right', type=IntRange(0), default=0,
+    args.add_argument('-cw_r', '--context_window_right', type=int, default=0,
                       help='Optional. Number of frames for right context windows (default is 0). '
                       'Works only with context window networks. '
                       'If you use the cw_l or cw_r flag, then batch size argument is ignored.')
+    args.add_argument('-pwl_me', type=float, default=1.0,
+                      help='Optional. The maximum percent of error for PWL function. '
+                      'The value must be in <0, 100> range. The default value is 1.0.')
 
-    return parser.parse_args()
+    args = parser.parse_args()
 
+    if args.context_window_left < 0:
+        parser.error('Invalid value for argument -cw_l/--context_window_left: Must be an integer >= 0.')
 
-class IntRange:
-    """Custom argparse type representing a bounded int."""
+    if args.context_window_right < 0:
+        parser.error('Invalid value for argument -cw_r/--context_window_right: Must be an integer >= 0.')
 
-    def __init__(self, _min=None, _max=None):
-        self._min = _min
-        self._max = _max
+    if args.pwl_me < 0.0 or args.pwl_me > 100.0:
+        parser.error('Invalid value for -pwl_me argument. It must be greater than 0.0 and less than 100.0')
 
-    def __call__(self, arg):
-        try:
-            value = int(arg)
-        except ValueError:
-            raise argparse.ArgumentTypeError('Must be an integer.')
-
-        if (self._min is not None and value < self._min) or (self._max is not None and value > self._max):
-            if self._min is not None and self._max is not None:
-                raise argparse.ArgumentTypeError(f'Must be an integer in the range [{self._min}, {self._max}].')
-            elif self._min is not None:
-                raise argparse.ArgumentTypeError(f'Must be an integer >= {self._min}.')
-            elif self._max is not None:
-                raise argparse.ArgumentTypeError(f'Must be an integer <= {self._max}.')
-
-        return value
+    return args

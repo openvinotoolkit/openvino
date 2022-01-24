@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,17 +10,17 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_top_k_v2_op(const NodeContext& node) {
     auto input = node.get_input(0);
     auto k = node.get_input(1);
 
-    TF_OP_VALIDATION_CHECK(node, input.get_partial_shape().rank().is_static(), "Input rank must be static.");
-    TF_OP_VALIDATION_CHECK(node,
-                           input.get_partial_shape().rank().get_length() >= 1,
-                           "Input rank must be greater than 0.");
+    TENSORFLOW_OP_VALIDATION(node, input.get_partial_shape().rank().is_static(), "Input rank must be static.");
+    TENSORFLOW_OP_VALIDATION(node,
+                             input.get_partial_shape().rank().get_length() >= 1,
+                             "Input rank must be greater than 0.");
     // axis along which to compute top k indices
     int64_t k_axis = input.get_partial_shape().rank().get_length() - 1;
     bool sorted = node.get_attribute<bool>("sorted", true);
@@ -34,6 +34,6 @@ OutputVector translate_top_k_v2_op(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

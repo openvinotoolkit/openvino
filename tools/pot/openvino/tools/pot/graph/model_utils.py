@@ -1,8 +1,9 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import networkx as nx
-from mo.graph.graph import Node
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.infer import type_infer
 
 from . import editor as ge, builder as gb
 from .nx_model import NXModel
@@ -39,11 +40,16 @@ def add_outputs(models, node_names):
     'name': model name (for cascaded models only)
     'model': IE model instance
     """
+    outputs_per_model = {}
     for model_dict in models:
-        node_names_ = node_names if len(models) == 1 \
-            else [node_name for node_name in node_names
+        model_name = model_dict['model'].friendly_name
+        model_node_names = list(node_names[model_name].values())
+        node_names_ = model_node_names if len(models) == 1 \
+            else [node_name for node_name in model_node_names
                   if convert_output_key(node_name).startswith(model_dict['name'])]
-        model_dict['model'].add_outputs(node_names_)
+        outputs = model_dict['model'].add_outputs(node_names_)
+        outputs_per_model[model_name] = (outputs if outputs else [])
+    return outputs_per_model
 
 
 def compress_model_weights(model: NXModel):
@@ -127,3 +133,9 @@ def models_union(first_model, second_model):
         union_dict['model'].graph.update(model_1.graph)
         union_dict['model'].graph.update(model_2.graph)
     return union
+
+def nx_type_infer(model):
+    """ Apply type_infer for each model in NXModel wrapper
+    """
+    for model_dict in model.models:
+        type_infer(model_dict['model'])

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,5 +15,9 @@ namespace v0 {
 using ov::op::v0::DetectionOutput;
 }  // namespace v0
 using v0::DetectionOutput;
+
+namespace v8 {
+using ov::op::v8::DetectionOutput;
+}  // namespace v8
 }  // namespace op
 }  // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 using namespace std;
 using namespace ngraph;
+BWDCMP_RTTI_DEFINITION(ov::op::v8::AdaptiveAvgPool);
 
 op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<Node>& output_shape)
     : Op({data, output_shape}) {

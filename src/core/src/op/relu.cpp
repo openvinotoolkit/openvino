@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,6 @@ bool evaluate_relu(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_relu, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_relu, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_relu, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_relu, u32, arg0, out, count);
@@ -66,7 +65,6 @@ bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 bool op::Relu::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Relu_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

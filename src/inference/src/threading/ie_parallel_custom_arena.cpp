@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,12 +22,14 @@ namespace custom {
 namespace detail {
 
 #    if USE_TBBBIND_2_5
+
 extern "C" {
 void __TBB_internal_initialize_system_topology(std::size_t groups_num,
                                                int& numa_nodes_count,
                                                int*& numa_indexes_list,
                                                int& core_types_count,
                                                int*& core_types_indexes_list);
+void __TBB_internal_destroy_system_topology();
 binding_handler* __TBB_internal_allocate_binding_handler(int number_of_slots,
                                                          int numa_id,
                                                          int core_type_id,
@@ -36,25 +38,6 @@ void __TBB_internal_deallocate_binding_handler(binding_handler* handler_ptr);
 void __TBB_internal_apply_affinity(binding_handler* handler_ptr, int slot_num);
 void __TBB_internal_restore_affinity(binding_handler* handler_ptr, int slot_num);
 int __TBB_internal_get_default_concurrency(int numa_id, int core_type_id, int max_threads_per_core);
-}
-
-static int get_processors_group_num() {
-#        if defined(_WIN32) || defined(_WIN64)
-    SYSTEM_INFO si;
-    GetNativeSystemInfo(&si);
-
-    DWORD_PTR pam, sam, m = 1;
-    GetProcessAffinityMask(GetCurrentProcess(), &pam, &sam);
-    int nproc = 0;
-    for (std::size_t i = 0; i < sizeof(DWORD_PTR) * CHAR_BIT; ++i, m <<= 1) {
-        if (pam & m)
-            ++nproc;
-    }
-    if (nproc == static_cast<int>(si.dwNumberOfProcessors)) {
-        return GetActiveProcessorGroupCount();
-    }
-#        endif
-    return 1;
 }
 
 static bool is_binding_environment_valid() {
@@ -73,37 +56,129 @@ static bool is_binding_environment_valid() {
 #        endif /* _WIN32 && !_WIN64 */
 }
 
-static int numa_nodes_count = 0;
-static int* numa_nodes_indexes = nullptr;
+#    elif TBB_NUMA_SUPPORT_PRESENT || TBB_HYBRID_CPUS_SUPPORT_PRESENT
 
-static int core_types_count = 0;
-static int* core_types_indexes = nullptr;
+static tbb::task_arena::constraints convert_constraints(const custom::task_arena::constraints& c) {
+    tbb::task_arena::constraints result{};
+#        if TBB_HYBRID_CPUS_SUPPORT_PRESENT
+    result.core_type = c.core_type;
+    result.max_threads_per_core = c.max_threads_per_core;
+#        endif
+    result.numa_id = c.numa_id;
+    result.max_concurrency = c.max_concurrency;
+    return result;
+}
 
-static void initialize_system_topology() {
-    static std::once_flag is_topology_initialized;
+#    endif  // USE_TBBBIND_2_5
 
-    std::call_once(is_topology_initialized, [&] {
+class TBBbindSystemTopology {
+    TBBbindSystemTopology() {
+#    if USE_TBBBIND_2_5
         if (is_binding_environment_valid()) {
             __TBB_internal_initialize_system_topology(get_processors_group_num(),
                                                       numa_nodes_count,
                                                       numa_nodes_indexes,
                                                       core_types_count,
                                                       core_types_indexes);
-        } else {
-            static int dummy_index = task_arena::automatic;
-
-            numa_nodes_count = 1;
-            numa_nodes_indexes = &dummy_index;
-
-            core_types_count = 1;
-            core_types_indexes = &dummy_index;
         }
-    });
+#    endif
+    }
+
+public:
+    ~TBBbindSystemTopology() {
+#    if USE_TBBBIND_2_5
+        if (is_binding_environment_valid()) {
+            __TBB_internal_destroy_system_topology();
+        }
+#    endif
+    }
+
+    std::vector<numa_node_id> numa_nodes() const {
+#    if USE_TBBBIND_2_5
+        std::vector<numa_node_id> node_indexes(numa_nodes_count);
+        std::memcpy(node_indexes.data(), numa_nodes_indexes, numa_nodes_count * sizeof(int));
+        return node_indexes;
+#    elif TBB_NUMA_SUPPORT_PRESENT
+        return tbb::info::numa_nodes();
+#    else
+        return {tbb::task_arena::automatic};
+#    endif
+    }
+
+    std::vector<core_type_id> core_types() const {
+#    if USE_TBBBIND_2_5
+        std::vector<numa_node_id> core_type_indexes(core_types_count);
+        std::memcpy(core_type_indexes.data(), core_types_indexes, core_types_count * sizeof(int));
+        return core_type_indexes;
+#    elif TBB_HYBRID_CPUS_SUPPORT_PRESENT
+        return tbb::info::core_types();
+#    else
+        return {tbb::task_arena::automatic};
+#    endif
+    }
+
+    int default_concurrency(task_arena::constraints c) const {
+        if (c.max_concurrency > 0) {
+            return c.max_concurrency;
+        }
+#    if USE_TBBBIND_2_5
+        if (is_binding_environment_valid()) {
+            return __TBB_internal_get_default_concurrency(c.numa_id, c.core_type, c.max_threads_per_core);
+        }
+        return tbb::this_task_arena::max_concurrency();
+#    elif TBB_HYBRID_CPUS_SUPPORT_PRESENT
+        return tbb::info::default_concurrency(convert_constraints(c));
+#    elif TBB_NUMA_SUPPORT_PRESENT
+        return tbb::info::default_concurrency(c.numa_id);
+#    else
+        return tbb::this_task_arena::max_concurrency();
+#    endif
+    }
+
+    friend const TBBbindSystemTopology& system_topology();
+
+private:
+    int get_processors_group_num() const {
+#    if defined(_WIN32) || defined(_WIN64)
+        SYSTEM_INFO si;
+        GetNativeSystemInfo(&si);
+
+        DWORD_PTR pam, sam, m = 1;
+        GetProcessAffinityMask(GetCurrentProcess(), &pam, &sam);
+        int nproc = 0;
+        for (std::size_t i = 0; i < sizeof(DWORD_PTR) * CHAR_BIT; ++i, m <<= 1) {
+            if (pam & m)
+                ++nproc;
+        }
+        if (nproc == static_cast<int>(si.dwNumberOfProcessors)) {
+            return GetActiveProcessorGroupCount();
+        }
+#    endif
+        return 1;
+    }
+
+private:
+#    if USE_TBBBIND_2_5
+    int dummy_index = task_arena::automatic;
+
+    int numa_nodes_count = 1;
+    int* numa_nodes_indexes = &dummy_index;
+
+    int core_types_count = 1;
+    int* core_types_indexes = &dummy_index;
+#    endif
+};
+
+const TBBbindSystemTopology& system_topology() {
+    static TBBbindSystemTopology topology;
+    return topology;
 }
+
+#    if USE_TBBBIND_2_5
 
 binding_observer::binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c)
     : task_scheduler_observer(ta) {
-    detail::initialize_system_topology();
+    detail::system_topology();
     my_binding_handler =
         detail::__TBB_internal_allocate_binding_handler(num_slots, c.numa_id, c.core_type, c.max_threads_per_core);
 }
@@ -131,18 +206,7 @@ static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int n
     return observer;
 }
 
-#    elif TBB_NUMA_SUPPORT_PRESENT
-static tbb::task_arena::constraints convert_constraints(const custom::task_arena::constraints& c) {
-    tbb::task_arena::constraints result{};
-#        if TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    result.core_type = c.core_type;
-    result.max_threads_per_core = c.max_threads_per_core;
-#        endif
-    result.numa_id = c.numa_id;
-    result.max_concurrency = c.max_concurrency;
-    return result;
-}
-#    endif
+#    endif  // USE_TBBBIND_2_5
 }  // namespace detail
 
 task_arena::task_arena(int max_concurrency_, unsigned reserved_for_masters)
@@ -219,52 +283,19 @@ int task_arena::max_concurrency() {
 
 namespace info {
 std::vector<numa_node_id> numa_nodes() {
-#    if USE_TBBBIND_2_5
-    detail::initialize_system_topology();
-    std::vector<numa_node_id> node_indexes(detail::numa_nodes_count);
-    std::memcpy(node_indexes.data(), detail::numa_nodes_indexes, detail::numa_nodes_count * sizeof(int));
-    return node_indexes;
-#    elif TBB_NUMA_SUPPORT_PRESENT
-    return tbb::info::numa_nodes();
-#    else
-    return {tbb::task_arena::automatic};
-#    endif
+    return detail::system_topology().numa_nodes();
 }
 
 std::vector<core_type_id> core_types() {
-#    if USE_TBBBIND_2_5
-    detail::initialize_system_topology();
-    std::vector<numa_node_id> core_type_indexes(detail::core_types_count);
-    std::memcpy(core_type_indexes.data(), detail::core_types_indexes, detail::core_types_count * sizeof(int));
-    return core_type_indexes;
-#    elif TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    return tbb::info::core_types();
-#    else
-    return {tbb::task_arena::automatic};
-#    endif
+    return detail::system_topology().core_types();
 }
 
 int default_concurrency(task_arena::constraints c) {
-    if (c.max_concurrency > 0) {
-        return c.max_concurrency;
-    }
-#    if USE_TBBBIND_2_5
-    if (detail::is_binding_environment_valid()) {
-        detail::initialize_system_topology();
-        return detail::__TBB_internal_get_default_concurrency(c.numa_id, c.core_type, c.max_threads_per_core);
-    }
-    return tbb::this_task_arena::max_concurrency();
-#    elif TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    return tbb::info::default_concurrency(convert_constraints(c));
-#    elif TBB_NUMA_SUPPORT_PRESENT
-    return tbb::info::default_concurrency(c.numa_id);
-#    else
-    return tbb::this_task_arena::max_concurrency();
-#    endif
+    return detail::system_topology().default_concurrency(c);
 }
 
 int default_concurrency(numa_node_id id) {
-    return default_concurrency(task_arena::constraints{}.set_numa_id(id));
+    return detail::system_topology().default_concurrency(task_arena::constraints{}.set_numa_id(id));
 }
 
 }  // namespace info

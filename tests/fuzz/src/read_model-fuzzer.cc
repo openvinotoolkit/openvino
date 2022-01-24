@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,11 +25,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     data += net_size + sizeof(kSplitSequence);
 
     // isolate weights data
-    ov::runtime::Tensor weights(ov::element::u8, {static_cast<size_t>(size)}, (void*)data);
+    ov::Tensor weights(ov::element::u8, {static_cast<size_t>(size)}, (void*)data);
 
     // read xml and set weights
     try {
-        ov::runtime::Core core;
+        ov::Core core;
         auto model = core.read_model(net, weights);
     } catch (const std::exception&) {
         return 0;  // fail gracefully on expected exceptions

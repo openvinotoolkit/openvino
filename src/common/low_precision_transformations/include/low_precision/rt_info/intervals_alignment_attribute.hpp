@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,16 +15,18 @@
 #include "low_precision/lpt_visibility.hpp"
 
 namespace ngraph {
-class IntervalsAlignmentAttribute;
-
-class LP_TRANSFORMATIONS_API IntervalsAlignmentSharedValue : public SharedValue<IntervalsAlignmentAttribute> {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief IntervalsAlignmentSharedValue is used by IntervalsAlignmentAttribute as attribute shared value.
+ */
+class LP_TRANSFORMATIONS_API IntervalsAlignmentSharedValue {
 public:
     class Interval {
     public:
         Interval() = default;
         Interval(const float low, const float high) : low(low), high(high) {}
-        float low;
-        float high;
+        float low = 0.f;
+        float high = 0.f;
     };
 
     IntervalsAlignmentSharedValue() = default;
@@ -38,7 +40,7 @@ public:
 
     Interval combinedInterval;
     Interval minInterval;
-    size_t minLevels;
+    size_t minLevels = 0;
     // preferable precisions which are preferred by affected quantization operations to avoid zero points
     std::set<element::Type> preferablePrecisions;
 
@@ -47,8 +49,17 @@ public:
 #endif
 };
 
-class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedValueAttribute<IntervalsAlignmentSharedValue> {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief IntervalsAlignmentAttribute defines subgraph with the same quantization intervals alignment.
+ * FakeQuantize operations are included. The attribute is used by quantization operations.
+ *
+ * For more details about the attribute, refer to
+ * [IntervalsAlignmentAttribute](@ref openvino_docs_IE_DG_lpt_IntervalsAlignment) page in the Inference Engine Developer Guide.
+ */
+class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:
+    OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute, 0);
     IntervalsAlignmentAttribute() = default;
     IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval combinedInterval, size_t levels);
     IntervalsAlignmentAttribute(
@@ -57,36 +68,14 @@ public:
         const IntervalsAlignmentSharedValue::Interval minInterval,
         const size_t minLevels);
 
+    static ov::Any create(
+        const std::shared_ptr<ngraph::Node>& node,
+        const AttributeParameters& params);
+    void merge(std::vector<ov::Any>& attributes);
+    std::string to_string() const override;
+
     // specify subgraph original levels
     size_t levels;
 };
 
-using IntervalsAlignmentAttributePtr = std::shared_ptr<IntervalsAlignmentAttribute>;
 } // namespace ngraph
-
-namespace ov {
-
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<ngraph::IntervalsAlignmentAttributePtr>;
-
-template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<ngraph::IntervalsAlignmentAttribute>> :
-    public VariantImpl<std::shared_ptr<ngraph::IntervalsAlignmentAttribute>> {
-public:
-    static constexpr VariantTypeInfo type_info{ "LowPrecision::IntervalsAlignment", 0 };
-
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-
-    std::shared_ptr<ngraph::IntervalsAlignmentAttribute> get() const { return this->m_value; }
-
-    static std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::IntervalsAlignmentAttribute>>> create(
-        const std::shared_ptr<ngraph::Node>& node,
-        const AttributeParameters& params);
-    void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::IntervalsAlignmentAttribute>>>>& attributes);
-    std::string to_string() override;
-};
-
-}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,6 @@ bool evaluate_floor(const HostTensorPtr& arg0, const HostTensorPtr& out, const s
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_COPY_TENSOR(evaluate_floor, boolean, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_floor, i8, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_floor, i16, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_floor, i32, arg0, out, count);
@@ -80,7 +79,6 @@ bool op::Floor::evaluate(const HostTensorVector& outputs, const HostTensorVector
 bool op::Floor::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Floor_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:

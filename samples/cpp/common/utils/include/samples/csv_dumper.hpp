@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <time.h>
-
+#include <ctime>
 #include <fstream>
 #include <iostream>
-#include <samples/slog.hpp>
 #include <sstream>
 #include <string>
+
+#include "samples/slog.hpp"
 
 /**
  * @class CsvDumper

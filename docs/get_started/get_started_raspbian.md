@@ -22,10 +22,18 @@ This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit
 
 The OpenVINO toolkit for Raspbian* OS is distributed without installer. This document refers to the directory to which you unpacked the toolkit package as `<INSTALL_DIR>`.
 
-The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/tools` directory.
-<details>
-    <summary><strong>Click for the <code>tools</code> directory structure</strong></summary>
+The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/deployment_tools` directory.
 
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for the <code>deployment_tools</code> directory structure</strong>">
+
+@endsphinxdirective
+
+
+   
 
 | Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |
 |:----------------------------------------|:--------------------------------------------------------------------------------------|
@@ -36,7 +44,16 @@ The primary tools for deploying your models and applications are installed to th
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`samples/`      | Inference Engine samples. Contains source code for C++ and Python* samples and build scripts. See the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md). |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`share/`        | CMake configuration files for linking with Inference Engine.|
 
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ## <a name="workflow-overview"></a>OpenVINO™ Workflow Overview
 
@@ -54,29 +71,29 @@ The OpenVINO™ workflow on Raspbian* OS is as follows:
 
 ## <a name="using-sample"></a>Build and Run Code Samples
 
-Follow the steps below to run pre-trained Face Detection network using Inference Engine samples from the OpenVINO toolkit.
+Follow the steps below to run pre-trained SqueezeNet image classification network using Inference Engine samples from the OpenVINO toolkit.
 
 1. Create a samples build directory. This example uses a directory named `build`:
    ```sh
    mkdir build && cd build
    ```
-2. Build the Object Detection Sample with the following command:
+2. Build the Hello Classification Sample with the following command:
    ```sh
    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
-   make -j2 object_detection_sample_ssd
+   make -j2 hello_classification
    ```
-3. Download the pre-trained Face Detection model with the [Model Downloader tool](@ref omz_tools_downloader):
+3. Download the pre-trained SqueezeNet image classification model with the [Model Downloader tool](@ref omz_tools_downloader):
 ```sh
 git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
 cd open_model_zoo/tools/downloader
 python3 -m pip install -r requirements.in
-python3 downloader.py --name face-detection-adas-0001 
+python3 downloader.py --name squeezenet1.1 
 ```
 4. Run the sample, specifying the model and path to the input image:
 ```sh
-./armv7l/Release/object_detection_sample_ssd -m face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
+./armv7l/Release/hello_classification <path_to_model>/squeezenet1.1.xml <path_to_image> MYRIAD
 ```
-The application outputs an image (`out_0.bmp`) with detected faced enclosed in rectangles.
+The application outputs to console window top 10 classification results.
 
 ## <a name="basic-guidelines-sample-application"></a>Basic Guidelines for Using Code Samples
 

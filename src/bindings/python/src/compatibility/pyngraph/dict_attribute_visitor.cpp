@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,65 +28,71 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ngraph
                 &adapter)) {
             std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> input_descs;
             const py::dict& input_desc = m_attributes[name.c_str()].cast<py::dict>();
-            const auto& merged_input_desc = input_desc["merged_input_desc"].cast<py::list>();
-            const auto& slice_input_desc = input_desc["slice_input_desc"].cast<py::list>();
-            const auto& invariant_input_desc = input_desc["invariant_input_desc"].cast<py::list>();
-            for (py::handle h : slice_input_desc) {
-                const py::dict& desc = h.cast<py::dict>();
-                auto slice_in = std::make_shared<ngraph::op::util::SubGraphOp::SliceInputDescription>(
-                    desc["input_idx"].cast<int64_t>(),
-                    desc["body_parameter_idx"].cast<int64_t>(),
-                    desc["start"].cast<int64_t>(),
-                    desc["stride"].cast<int64_t>(),
-                    desc["part_size"].cast<int64_t>(),
-                    desc["end"].cast<int64_t>(),
-                    desc["axis"].cast<int64_t>());
-                input_descs.push_back(slice_in);
+
+            if (input_desc.contains("slice_input_desc") && !input_desc["slice_input_desc"].is_none()) {
+                for (py::handle h : input_desc["slice_input_desc"].cast<py::list>()) {
+                    const py::dict& desc = h.cast<py::dict>();
+                    auto slice_in = std::make_shared<ngraph::op::util::SubGraphOp::SliceInputDescription>(
+                        desc["input_idx"].cast<int64_t>(),
+                        desc["body_parameter_idx"].cast<int64_t>(),
+                        desc["start"].cast<int64_t>(),
+                        desc["stride"].cast<int64_t>(),
+                        desc["part_size"].cast<int64_t>(),
+                        desc["end"].cast<int64_t>(),
+                        desc["axis"].cast<int64_t>());
+                    input_descs.push_back(slice_in);
+                }
             }
 
-            for (py::handle h : merged_input_desc) {
-                const py::dict& desc = h.cast<py::dict>();
-                auto merged_in = std::make_shared<ngraph::op::util::SubGraphOp::MergedInputDescription>(
-                    desc["input_idx"].cast<int64_t>(),
-                    desc["body_parameter_idx"].cast<int64_t>(),
-                    desc["body_value_idx"].cast<int64_t>());
-                input_descs.push_back(merged_in);
+            if (input_desc.contains("merged_input_desc") && !input_desc["merged_input_desc"].is_none()) {
+                for (py::handle h : input_desc["merged_input_desc"].cast<py::list>()) {
+                    const py::dict& desc = h.cast<py::dict>();
+                    auto merged_in = std::make_shared<ngraph::op::util::SubGraphOp::MergedInputDescription>(
+                        desc["input_idx"].cast<int64_t>(),
+                        desc["body_parameter_idx"].cast<int64_t>(),
+                        desc["body_value_idx"].cast<int64_t>());
+                    input_descs.push_back(merged_in);
+                }
             }
 
-            for (py::handle h : invariant_input_desc) {
-                const py::dict& desc = h.cast<py::dict>();
-                auto invariant_in = std::make_shared<ngraph::op::util::SubGraphOp::InvariantInputDescription>(
-                    desc["input_idx"].cast<int64_t>(),
-                    desc["body_parameter_idx"].cast<int64_t>());
-                input_descs.push_back(invariant_in);
+            if (input_desc.contains("invariant_input_desc") && !input_desc["invariant_input_desc"].is_none()) {
+                for (py::handle h : input_desc["invariant_input_desc"].cast<py::list>()) {
+                    const py::dict& desc = h.cast<py::dict>();
+                    auto invariant_in = std::make_shared<ngraph::op::util::SubGraphOp::InvariantInputDescription>(
+                        desc["input_idx"].cast<int64_t>(),
+                        desc["body_parameter_idx"].cast<int64_t>());
+                    input_descs.push_back(invariant_in);
+                }
             }
             a->set(input_descs);
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<
                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
             std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> output_descs;
             const py::dict& output_desc = m_attributes[name.c_str()].cast<py::dict>();
-            const auto& body_output_desc = output_desc["body_output_desc"].cast<py::list>();
-            const auto& concat_output_desc = output_desc["concat_output_desc"].cast<py::list>();
-            for (py::handle h : body_output_desc) {
-                const py::dict& desc = h.cast<py::dict>();
-                auto body_output = std::make_shared<ngraph::op::util::SubGraphOp::BodyOutputDescription>(
-                    desc["body_value_idx"].cast<int64_t>(),
-                    desc["output_idx"].cast<int64_t>(),
-                    desc["iteration"].cast<int64_t>());
-                output_descs.push_back(body_output);
+            if (output_desc.contains("body_output_desc") && !output_desc["body_output_desc"].is_none()) {
+                for (py::handle h : output_desc["body_output_desc"].cast<py::list>()) {
+                    const py::dict& desc = h.cast<py::dict>();
+                    auto body_output = std::make_shared<ngraph::op::util::SubGraphOp::BodyOutputDescription>(
+                        desc["body_value_idx"].cast<int64_t>(),
+                        desc["output_idx"].cast<int64_t>(),
+                        desc["iteration"].cast<int64_t>());
+                    output_descs.push_back(body_output);
+                }
             }
 
-            for (py::handle h : concat_output_desc) {
-                const py::dict& desc = h.cast<py::dict>();
-                auto concat_output = std::make_shared<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(
-                    desc["body_value_idx"].cast<int64_t>(),
-                    desc["output_idx"].cast<int64_t>(),
-                    desc["start"].cast<int64_t>(),
-                    desc["stride"].cast<int64_t>(),
-                    desc["part_size"].cast<int64_t>(),
-                    desc["end"].cast<int64_t>(),
-                    desc["axis"].cast<int64_t>());
-                output_descs.push_back(concat_output);
+            if (output_desc.contains("concat_output_desc") && !output_desc["concat_output_desc"].is_none()) {
+                for (py::handle h : output_desc["concat_output_desc"].cast<py::list>()) {
+                    const py::dict& desc = h.cast<py::dict>();
+                    auto concat_output = std::make_shared<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(
+                        desc["body_value_idx"].cast<int64_t>(),
+                        desc["output_idx"].cast<int64_t>(),
+                        desc["start"].cast<int64_t>(),
+                        desc["stride"].cast<int64_t>(),
+                        desc["part_size"].cast<int64_t>(),
+                        desc["end"].cast<int64_t>(),
+                        desc["axis"].cast<int64_t>());
+                    output_descs.push_back(concat_output);
+                }
             }
             a->set(output_descs);
         } else if (const auto& a =
@@ -241,7 +247,7 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name,
 void util::DictAttributeDeserializer::on_adapter(const std::string& name,
                                                  ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) {
     if (m_attributes.contains(name)) {
-        if (name == "body") {
+        if (name == "body" || name == "then_body" || name == "else_body") {
             const py::dict& body_attrs = m_attributes[name.c_str()].cast<py::dict>();
             const auto& body_outputs = as_output_vector(body_attrs["results"].cast<ngraph::NodeVector>());
             const auto& body_parameters = body_attrs["parameters"].cast<ngraph::ParameterVector>();

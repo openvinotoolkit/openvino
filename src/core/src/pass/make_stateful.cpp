@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ ov::pass::MakeStateful::ParamResPairs find_param_results_by_names(
 }
 }  // namespace
 
-bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::pass::MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& f) {
     if (m_param_res_pairs.empty()) {
         m_param_res_pairs = find_param_results_by_names(f, m_param_res_names);
     }

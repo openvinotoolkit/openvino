@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,86 +26,57 @@ class OPENVINO_API PostProcessSteps final {
     std::unique_ptr<PostProcessStepsImpl> m_impl;
     friend class OutputInfo;
 
-public:
-    /// \brief Default empty constructor
-    ///
-    /// \todo Consider remove it (don't allow user to create standalone objects)
+    /// \brief Default empty internal constructor
     PostProcessSteps();
 
-    /// \brief Default move constructor
-    PostProcessSteps(PostProcessSteps&&) noexcept;
-
-    /// \brief Default move assignment operator
-    PostProcessSteps& operator=(PostProcessSteps&&) noexcept;
-
+public:
     /// \brief Default destructor
     ~PostProcessSteps();
 
-    /// \brief Add convert element type post-process operation - Lvalue version
+    /// \brief Add convert element type post-process operation
     ///
     /// \param type Desired type of output. If not specified, type will be obtained from 'tensor' output information
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    PostProcessSteps& convert_element_type(const ov::element::Type& type = {}) &;
+    PostProcessSteps& convert_element_type(const ov::element::Type& type = {});
 
-    /// \brief Add convert element type post-process operation - Rvalue version
+    /// \brief Add 'convert layout' operation to specified layout.
     ///
-    /// \param type Desired type of output. If not specified, type will be obtained from 'tensor' output information
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    PostProcessSteps&& convert_element_type(const ov::element::Type& type = {}) &&;
-
-    /// \brief Add 'convert layout' operation to specified layout - Lvalue version.
-    ///
-    /// \details Adds appropriate 'transpose' operation between network layout and user's desired layout.
+    /// \details Adds appropriate 'transpose' operation between model layout and user's desired layout.
     /// Current implementation requires source and destination layout to have same number of dimensions
     ///
-    /// \example Example: when network data has output in 'NCHW' layout ([1, 3, 224, 224]) but user needs
+    /// \example Example: when model data has output in 'NCHW' layout ([1, 3, 224, 224]) but user needs
     /// interleaved output image ('NHWC', [1, 224, 224, 3]). Post-processing may look like this:
     ///
-    /// \code{.cpp} auto proc =
-    /// PrePostProcessor(function)
-    ///     .output(OutputInfo()
-    ///            .network(OutputTensorInfo().set_layout("NCHW")) // Network output is NCHW
-    ///            .postprocess(PostProcessSteps()
-    ///                        .convert_layout("NHWC")) // User needs output as NHWC
-    ///     );
+    /// \code{.cpp} auto proc = PrePostProcessor(function);
+    /// proc.output().model(OutputTensorInfo().set_layout("NCHW"); // model output is NCHW
+    /// proc.output().postprocess().convert_layout("NHWC"); // User needs output as NHWC
     /// \endcode
     ///
     /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from
     /// appropriate tensor output properties.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
-    PostProcessSteps& convert_layout(const Layout& dst_layout = {}) &;
-
-    /// \brief Add convert_layout operation to network dimensions - Rvalue version.
-    ///
-    /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from
-    /// appropriate tensor output properties.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
-    PostProcessSteps&& convert_layout(const Layout& dst_layout = {}) &&;
+    PostProcessSteps& convert_layout(const Layout& dst_layout = {});
 
     /// \brief Add convert layout operation by direct specification of transposed dimensions.
     ///
-    /// \example Example: network produces output with shape [1, 3, 480, 640] and user's needs
+    /// \example Example: model produces output with shape [1, 3, 480, 640] and user's needs
     /// interleaved output image [1, 480, 640, 3]. Post-processing may look like this:
     ///
-    /// \code{.cpp} auto proc =
-    /// PrePostProcessor(function)
-    ///     .output(OutputInfo()
-    ///            .postprocess(PostProcessSteps()
-    ///                        .convert_layout({0, 2, 3, 1})
-    ///     );
+    /// \code{.cpp} auto proc = PrePostProcessor(function);
+    /// proc.output().postprocess().convert_layout({0, 2, 3, 1});
+    /// function = proc.build();
+    /// \endcode
+    ///
     /// \param dims Dimensions array specifying places for new axis. If not empty, array size (N) must match to input
     /// shape rank. Array values shall contain all values from 0 to N-1. If empty, no actual conversion will be added.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
-    PostProcessSteps& convert_layout(const std::vector<uint64_t>& dims) &;
-    PostProcessSteps&& convert_layout(const std::vector<uint64_t>& dims) &&;
+    PostProcessSteps& convert_layout(const std::vector<uint64_t>& dims);
 
     /// \brief Signature for custom postprocessing operation. Custom postprocessing operation takes one output node and
-    /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
+    /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Model
     /// directly
     ///
     /// \param node Output node for custom post-processing operation
@@ -113,21 +84,13 @@ public:
     /// \return New node after applying custom post-processing operation
     using CustomPostprocessOp = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>& node)>;
 
-    /// \brief Add custom post-process operation - Lvalue version
+    /// \brief Add custom post-process operation.
     /// Client application can specify callback function for custom action
     ///
     /// \param postprocess_cb Client's custom postprocess operation.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    PostProcessSteps& custom(const CustomPostprocessOp& postprocess_cb) &;
-
-    /// \brief Add custom post-process operation - Rvalue version
-    /// Client application can specify callback function for custom action
-    ///
-    /// \param postprocess_cb Client's custom postprocess operation.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    PostProcessSteps&& custom(const CustomPostprocessOp& postprocess_cb) &&;
+    PostProcessSteps& custom(const CustomPostprocessOp& postprocess_cb);
 };
 
 }  // namespace preprocess

@@ -75,6 +75,11 @@ bool cv::GStreamingCompiled::Priv::pull(cv::GOptRunArgsP &&outs)
     return m_exec->pull(std::move(outs));
 }
 
+std::tuple<bool, cv::util::variant<cv::GRunArgs, cv::GOptRunArgs>> cv::GStreamingCompiled::Priv::pull()
+{
+    return m_exec->pull();
+}
+
 bool cv::GStreamingCompiled::Priv::try_pull(cv::GRunArgsP &&outs)
 {
     return m_exec->try_pull(std::move(outs));
@@ -94,6 +99,12 @@ bool cv::GStreamingCompiled::Priv::running() const
 cv::GStreamingCompiled::GStreamingCompiled()
     : m_priv(new Priv())
 {
+}
+
+// NB: This overload is called from python code
+void cv::GStreamingCompiled::setSource(const cv::detail::ExtractArgsCallback& callback)
+{
+    setSource(callback(m_priv->inInfo()));
 }
 
 void cv::GStreamingCompiled::setSource(GRunArgs &&ins)
@@ -117,51 +128,9 @@ bool cv::GStreamingCompiled::pull(cv::GRunArgsP &&outs)
     return m_priv->pull(std::move(outs));
 }
 
-std::tuple<bool, cv::GRunArgs> cv::GStreamingCompiled::pull()
+std::tuple<bool, cv::util::variant<cv::GRunArgs, cv::GOptRunArgs>> cv::GStreamingCompiled::pull()
 {
-    // FIXME: Why it is not @ priv??
-    GRunArgs run_args;
-    GRunArgsP outs;
-    const auto& out_info = m_priv->outInfo();
-    run_args.reserve(out_info.size());
-    outs.reserve(out_info.size());
-
-    for (auto&& info : out_info)
-    {
-        switch (info.shape)
-        {
-            case cv::GShape::GMAT:
-            {
-                run_args.emplace_back(cv::Mat{});
-                outs.emplace_back(&cv::util::get<cv::Mat>(run_args.back()));
-                break;
-            }
-            case cv::GShape::GSCALAR:
-            {
-                run_args.emplace_back(cv::Scalar{});
-                outs.emplace_back(&cv::util::get<cv::Scalar>(run_args.back()));
-                break;
-            }
-            case cv::GShape::GARRAY:
-            {
-                switch (info.kind)
-                {
-                    case cv::detail::OpaqueKind::CV_POINT2F:
-                        run_args.emplace_back(cv::detail::VectorRef{std::vector<cv::Point2f>{}});
-                        outs.emplace_back(cv::util::get<cv::detail::VectorRef>(run_args.back()));
-                        break;
-                    default:
-                        util::throw_error(std::logic_error("Unsupported kind for GArray"));
-                }
-                break;
-            }
-            default:
-                util::throw_error(std::logic_error("Only cv::GMat and cv::GScalar are supported for python output"));
-        }
-    }
-
-    bool is_over = m_priv->pull(std::move(outs));
-    return std::make_tuple(is_over, run_args);
+    return m_priv->pull();
 }
 
 bool cv::GStreamingCompiled::pull(cv::GOptRunArgsP &&outs)

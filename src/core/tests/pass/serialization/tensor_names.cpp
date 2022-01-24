@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ TEST_F(TensorNameSerializationTest, SerializeFunctionWithTensorNames) {
         function = std::make_shared<ngraph::Function>(results, params, "TensorNames");
     }
 
-    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_function(function);
+    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(function);
     auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
 
     const auto fc = FunctionsComparator::with_default()

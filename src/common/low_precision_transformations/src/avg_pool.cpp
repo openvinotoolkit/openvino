@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
     return !dequantization.empty();
 }
 
-bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const {
     return NetworkHelper::isPrecisionPreserved(layer);
 }
 

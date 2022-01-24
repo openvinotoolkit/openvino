@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,5 +7,4 @@
 using namespace ngraph;
 using namespace ov;
 
-template class ngraph::VariantImpl<PerTensorQuantizationAttribute>;
-constexpr VariantTypeInfo VariantWrapper<PerTensorQuantizationAttribute>::type_info;
+PerTensorQuantizationAttribute::~PerTensorQuantizationAttribute() = default;

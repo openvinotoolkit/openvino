@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ OutputVector loop(const Node& node) {
 
     std::map<std::size_t, std::string> loop_carried_dependencies_map;
     for (std::size_t i = 0; i < loop_carried_dependencies.size(); i++) {
-        loop_carried_dependencies_map[i + 2] = loop_carried_dependencies[i].get_node()->get_friendly_name();
+        loop_carried_dependencies_map[i + 2] = loop_carried_dependencies[i].get_tensor().get_any_name();
     }
 
     const auto& subgraphs = node.get_subgraphs();

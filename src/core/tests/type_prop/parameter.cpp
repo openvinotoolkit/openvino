@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,6 @@ TEST(type_prop, param_layout_empty) {
 
 TEST(type_prop, param_layout_invalid) {
     auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    a->get_output_tensor(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] =
-        ov::make_variant("NCHW");  // incorrect way
-    ASSERT_THROW(a->get_layout(), ov::AssertFailure);
+    a->get_output_tensor(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = "NCHW";  // incorrect way
+    ASSERT_THROW(a->get_layout(), ov::Exception);
 }

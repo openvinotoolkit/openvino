@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ namespace ov {
  * @brief OldApiMapElementType class represents runtime info attribute that stores legacy type
  * that is required for obtaining IR in old API.
  */
-class TRANSFORMATIONS_API OldApiMapElementType : public VariantImpl<ngraph::element::Type> {
+class TRANSFORMATIONS_API OldApiMapElementType : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("old_api_map_element_type", "0");
 
@@ -41,13 +41,15 @@ public:
      * Constructs a new OldApiMapElementType object.
      * @param[in]  value  The object that stores values of OldApiMapElementType.
      */
-    OldApiMapElementType(const value_type& value) : VariantImpl<value_type>(value) {}
+    OldApiMapElementType(const ngraph::element::Type& value) : value(value) {}
 
     bool is_copyable() const override {
         return false;
     }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
+
+    ngraph::element::Type value;
 };
 
 inline bool has_old_api_map_element_type(const std::shared_ptr<Node>& node) {
@@ -57,13 +59,12 @@ inline bool has_old_api_map_element_type(const std::shared_ptr<Node>& node) {
 
 inline OldApiMapElementType get_old_api_map_element_type(const std::shared_ptr<Node>& node) {
     const auto& rt_map = node->get_rt_info();
-    const auto& var = rt_map.at(OldApiMapElementType::get_type_info_static());
-    return ngraph::as_type_ptr<OldApiMapElementType>(var)->get();
+    return rt_map.at(OldApiMapElementType::get_type_info_static()).as<OldApiMapElementType>();
 }
 
-inline void set_old_api_map_element_type(std::shared_ptr<Node>& node, const OldApiMapElementType& old_api_map) {
+inline void set_old_api_map_element_type(const std::shared_ptr<Node>& node, const OldApiMapElementType& old_api_map) {
     auto& rt_map = node->get_rt_info();
-    rt_map[OldApiMapElementType::get_type_info_static()] = std::make_shared<OldApiMapElementType>(old_api_map);
+    rt_map[OldApiMapElementType::get_type_info_static()] = old_api_map;
 }
 
 }  // namespace ov

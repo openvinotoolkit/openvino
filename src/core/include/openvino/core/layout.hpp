@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,20 +9,12 @@
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
-
-class Layout;
-
-namespace layout {
-
-std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& src_shape_rank, const Layout& dst_layout);
-Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
-
-}  // namespace layout
 
 class OPENVINO_API Layout {
 public:
@@ -85,11 +77,7 @@ private:
     int64_t m_left_size = 0;
     int64_t m_right_size = 0;
 
-    friend Layout layout::apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
-
-    friend std::vector<int64_t> layout::find_permutation(const Layout& src_layout,
-                                                         const Rank& src_shape_rank,
-                                                         const Layout& dst_layout);
+    friend class LayoutUtils;
 };
 
 namespace layout {
@@ -142,6 +130,21 @@ OPENVINO_API bool has_width(const Layout& layout);
 ///
 OPENVINO_API std::int64_t width_idx(const Layout& layout);
 
+/// \brief Sets Layout of port
+///
+/// \throws ov::Exception if port is not connected with Result or Parameter
+OPENVINO_API void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout);
+
+/// \brief Gets Layout of port
+///
+/// \return layout from port and empty layout in other case
+OPENVINO_API ov::Layout get_layout(const ov::Output<ov::Node>& output);
+
+/// \brief Gets Layout of port
+///
+/// \return layout from port and empty layout in other case
+OPENVINO_API ov::Layout get_layout(const ov::Output<const ov::Node>& output);
+
 }  // namespace layout
 
 template <>
@@ -161,15 +164,19 @@ protected:
     std::string m_dump;
 };
 
-class OPENVINO_API LayoutAttribute : public VariantImpl<Layout> {
+class OPENVINO_API LayoutAttribute : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("layout", "0");
 
     LayoutAttribute() = default;
 
-    explicit LayoutAttribute(const Layout& value) : VariantImpl<Layout>(value) {}
+    explicit LayoutAttribute(const Layout& value) : value(value) {}
 
     bool visit_attributes(AttributeVisitor& visitor) override;
+
+    std::string to_string() const override;
+
+    Layout value;
 };
 
 }  // namespace ov

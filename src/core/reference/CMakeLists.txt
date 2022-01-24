@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,10 +22,6 @@ ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(${TARGET_NAME} PUBLIC /wd4146)
-endif()
-
 target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
 
 if(NOT BUILD_SHARED_LIBS)
@@ -34,7 +30,7 @@ endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
 link_system_libraries(${TARGET_NAME} PRIVATE xbyak)
 
@@ -43,7 +39,7 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::reference ALIAS ${TARGET_NAME})
 
-ov_install_static_lib(${TARGET_NAME} ngraph)
+ov_install_static_lib(${TARGET_NAME} core)
 
 # developer package
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::reference)
+openvino_developer_export_targets(COMPONENT core TARGETS ngraph::reference)

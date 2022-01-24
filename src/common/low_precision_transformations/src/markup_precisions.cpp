@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,36 +42,27 @@ void setRestriction(
         // if available precisions for any port is empty then mark all input ports
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();
-
-            auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(std::vector<element::Type>());
-            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
-
             rt.emplace(
-                ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name,
-                attributeWrapper);
+                    PrecisionsAttribute::get_type_info_static(),
+                    PrecisionsAttribute(std::vector<element::Type>()));
         }
     } else {
         for (const std::pair<size_t, std::vector<ngraph::element::Type>>& item : precisionsByPort) {
             Input<Node> input = node->input(item.first);
+            auto& rt = input.get_rt_info();
 
-            auto precisionsAttribute = ngraph::pass::low_precision::getAttribute<std::shared_ptr<PrecisionsAttribute>>(input);
-            if ((precisionsAttribute != nullptr) &&
-                (precisionsAttribute->get()->sharedValue != nullptr) &&
-                (precisionsAttribute->get()->sharedValue->precisions.empty())) {
+            auto precisionsAttribute = ngraph::pass::low_precision::getAttribute<PrecisionsAttribute>(input);
+            if ((!precisionsAttribute.empty()) &&
+                (precisionsAttribute.as<PrecisionsAttribute>().value().empty())) {
                 return;
             }
-
-            auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(item.second);
-            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
-
-            auto& rt = input.get_rt_info();
-            rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = attributeWrapper;
+            rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute(item.second);
         }
     }
 }
 } // namespace
 
-bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
             continue;
@@ -93,9 +84,8 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
         if (precisionPreserved) {
             auto& rt = node->get_rt_info();
             rt.emplace(
-                ngraph::VariantWrapper<PrecisionPreservedAttributePtr>::type_info.name,
-                std::make_shared<::ngraph::VariantWrapper<PrecisionPreservedAttributePtr>>(
-                    make_shared_attribute<PrecisionPreservedAttribute>(precisionPreserved)));
+                PrecisionPreservedAttribute::get_type_info_static(),
+                PrecisionPreservedAttribute(precisionPreserved));
         }
 
         const auto& typeInfo = node->get_type_info();
@@ -136,6 +126,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
     static std::unordered_set<std::string> precisionPreservedOps = {
         { name<opset1::Concat>() },
         { name<opset1::DepthToSpace>() },
+        { name<opset1::Interpolate>() },
         { name<opset1::MaxPool>() },
         { name<opset1::ReduceMax>() },
         { name<opset1::ReduceMin>() },
