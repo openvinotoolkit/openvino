@@ -437,6 +437,7 @@ class AppInputInfo:
         self.scale = np.empty([0])
         self.mean = np.empty([0])
         self.name = None
+        self.node_name = None
 
     @property
     def is_image(self):
@@ -555,6 +556,8 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         info = AppInputInfo()
         # Input name
         info.name = input_names[i]
+        # Input node name
+        info.node_name = input_node_names[i]
         # Input precision
         info.element_type = inputs[i].element_type
         # Shape
@@ -562,8 +565,8 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         if info.name in shape_map:
             info.partial_shape = parse_partial_shape(shape_map[info.name])
             reshape = True
-        elif input_node_names[i] in shape_map:
-            info.partial_shape = parse_partial_shape(shape_map[input_node_names[i]])
+        elif info.node_name in shape_map:
+            info.partial_shape = parse_partial_shape(shape_map[info.node_name])
             reshape = True
         else:
             info.partial_shape = inputs[i].partial_shape
@@ -571,8 +574,8 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         # Layout
         if info.name in layout_map:
             info.layout = Layout(layout_map[info.name])
-        elif input_node_names[i] in layout_map:
-            info.layout = Layout(layout_map[input_node_names[i]])
+        elif info.node_name in layout_map:
+            info.layout = Layout(layout_map[info.node_name])
         elif inputs[i].node.layout != Layout():
             info.layout = inputs[i].node.layout
         else:
@@ -613,8 +616,8 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                     raise Exception(f"Batch dimension is not specified for this model!")
 
         # Data shape
-        if (info.name in data_shape_map or input_node_names[i] in data_shape_map) and info.is_dynamic:
-            used_name = info.name if info.name in data_shape_map else input_node_names[i]
+        if (info.name in data_shape_map or info.node_name in data_shape_map) and info.is_dynamic:
+            used_name = info.name if info.name in data_shape_map else info.node_name
             for p_shape in data_shape_map[used_name]:
                 if p_shape.is_dynamic:
                     raise Exception(f"Data shape always should be static, {str(p_shape)} is dynamic.")
@@ -635,12 +638,12 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
     for input in input_info:
         if input.name in scale_map:
             input.scale = scale_map[input.name]
-        elif input_node_names[i] in scale_map:
-            input.scale = scale_map[input_node_names[i]]
+        elif input.node_name in scale_map:
+            input.scale = scale_map[input.node_name]
         if input.name in mean_map:
             input.mean = mean_map[input.name]
-        elif input_node_names[i] in mean_map:
-            input.mean = mean_map[input_node_names[i]]
+        elif input.node_name in mean_map:
+            input.mean = mean_map[input.node_name]
 
     return input_info, reshape
 

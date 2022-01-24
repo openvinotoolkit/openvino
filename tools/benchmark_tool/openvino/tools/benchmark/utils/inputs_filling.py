@@ -314,20 +314,22 @@ def parse_path(path, app_input_info):
     """
     Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3 or file1/dir1,file2/dir2" into two dicts - with binary files and with images
     """
-    input_names = sorted(list(info.name for info in app_input_info))
+    input_names = list(info.name for info in app_input_info)
+    input_node_names = list(info.node_name for info in app_input_info)
     parsed_names = re.findall(r"([^,]\w+):", path)
-    wrong_names = list(name for name in parsed_names if name not in input_names)
+    wrong_names = list(name for name in parsed_names if name not in input_names + input_node_names)
     if wrong_names:
         raise Exception(
             f"Wrong input mapping! Cannot find inputs: {wrong_names}. "
             f"Available inputs: {input_names}. "
             "Please check `-i` input data"
         )
+    tensor_names = [parsed_name if parsed_name in input_names else input_names[input_node_names.index(parsed_name)] for parsed_name in parsed_names]
     input_pathes = [path for path in re.split(r"[^,]\w+:", path) if path]
     input_path_mapping = defaultdict(list)
     # input mapping is used
-    if parsed_names:
-        input_path_mapping = {input_: files.strip(",").split(",") for input_, files in zip(parsed_names, input_pathes)}
+    if tensor_names:
+        input_path_mapping = {input_: files.strip(",").split(",") for input_, files in zip(tensor_names, input_pathes)}
     else:
         input_files = list()
         _input_pathes = input_pathes[0].strip(",").split(",")
