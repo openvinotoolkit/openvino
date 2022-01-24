@@ -155,13 +155,13 @@ def get_image_tensors(image_paths, info, batch_sizes):
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
 
-            if info.scale or info.mean:
+            if info.scale.size or info.mean.size:
                 blue, green, red = cv2.split(image)
-                if info.mean:
+                if info.mean.size:
                     blue = np.subtract(blue, info.mean[0])
                     green = np.subtract(green, info.mean[1])
                     red = np.subtract(red, info.mean[2])
-                if info.scale:
+                if info.scale.size:
                     blue = np.divide(blue, info.scale[0])
                     green = np.divide(green, info.scale[1])
                     red = np.divide(red, info.scale[2])
