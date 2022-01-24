@@ -49,8 +49,10 @@ def set_time_dim(graph):
         if node.time_dim >= 0:
             continue
 
-        if node.op == "MemoryOffset":
-            node.time_dim = node.in_port(0).get_source().node.time_dim + abs(node.t)
+        # MemoryOffset with default value does not change time delay
+        if node.op == "MemoryOffset" and not node.has_default:
+            # MemoryOffset can be splitted already and can be without input, time_dim = t in this case
+            node.time_dim = node.in_port(0).get_source().node.time_dim + abs(node.t) if not node.in_port(0).disconnected() else abs(node.t)
         elif node.op == "Splice":
             node.time_dim = node.in_port(0).get_source().node.time_dim + len(node.context) - 1
         elif node.op in ['Convolution', 'Pooling']:
@@ -71,11 +73,14 @@ def update_time_dim_for_start_convolution(graph):
     """
     params = graph.get_op_nodes(op="Parameter")
     for param_node in params:
-        if not param_node.out_port(0).disconnected() and \
-                param_node.out_port(0).get_destination().node.op == 'Convolution':
-            conv_node = param_node.out_port(0).get_destination().node
-            # time_dim starts from 0, kernel from 1
-            param_node.time_dim = conv_node.soft_get('kernel')[1] - 1
+        for dest in param_node.out_port(0).get_destinations():
+            if dest.node.op == 'Convolution':
+                conv_node = dest.node
+                assert param_node.time_dim == -1 or \
+                    param_node.time_dim == conv_node.soft_get('kernel')[1] - 1, \
+                    "Kaldi model have 2 Convolutions after Parameter with different time dimensions"
+                # time_dim starts from 0, kernel from 1
+                param_node.time_dim = conv_node.soft_get('kernel')[1] - 1
 
 
 class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
@@ -95,9 +100,12 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == "kaldi"]
 
-    def run_before(self):
+    def run_after(self):
+        # remove cycles before this transformation because topological_sort call
         from openvino.tools.mo.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
-        return [SplitRecurrentMemoryOffset]
+        # MemoryOffsetAdjustment required to have node.t > 0 and simplify finding of maximum time dimension
+        from openvino.tools.mo.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
+        return [MemoryOffsetAdjustment, SplitRecurrentMemoryOffset]
 
     @staticmethod
     def find_and_replace_pattern(graph: Graph):
