@@ -10,7 +10,7 @@ from openvino.pyopenvino import Core as CoreBase
 from openvino.pyopenvino import CompiledModel as CompiledModelBase
 from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino.pyopenvino import Output, ConstOutput
+from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import OVAny as OVAnyBase
 
@@ -29,7 +29,7 @@ def convert_dict_items(inputs: dict, py_types: dict) -> dict:
     # ensuring that original inputs are not overwritten with Tensors.
     new_inputs = {}
     for k, val in inputs.items():
-        if not isinstance(k, (str, int, Output, ConstOutput)):
+        if not isinstance(k, (str, int, ConstOutput)):
             raise TypeError("Incompatible key type for tensor: {}".format(k))
         try:
             ov_type = py_types[k]
@@ -61,13 +61,13 @@ def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
     def get_inputs(obj: Union[InferRequestBase, CompiledModelBase]) -> list:
         return obj.model_inputs if isinstance(obj, InferRequestBase) else obj.inputs
 
-    def map_tensor_names_to_types(input: Output) -> dict:
+    def map_tensor_names_to_types(input: ConstOutput) -> dict:
         return {n: input.get_element_type() for n in input.get_names()}
 
     input_types: dict = {}
     for idx, input in enumerate(get_inputs(obj)):
         # Add all possible "accessing aliases" to dictionary
-        # Key as a ConstOutput/Output port
+        # Key as a ConstOutput port
         input_types[input] = input.get_element_type()
         # Key as an integer
         input_types[idx] = input.get_element_type()

@@ -68,6 +68,7 @@ def test_tensor_setter(device):
     model = core.read_model(test_net_xml, test_net_bin)
     compiled_1 = core.compile_model(model=model, device_name=device)
     compiled_2 = core.compile_model(model=model, device_name=device)
+    compiled_3 = core.compile_model(model=model, device_name=device)
 
     img = read_image()
     tensor = Tensor(img)
@@ -92,6 +93,18 @@ def test_tensor_setter(device):
     request.set_tensor("data", tensor)
     t3 = request.get_tensor("data")
     assert np.allclose(t3.data, t1.data, atol=1e-2, rtol=1e-2)
+
+    request = compiled_3.create_infer_request()
+    request.set_tensor(model.inputs[0], tensor)
+    t1 = request1.get_tensor(model.inputs[0])
+
+    assert np.allclose(tensor.data, t1.data, atol=1e-2, rtol=1e-2)
+
+    res = request.infer()
+    k = list(res)[0]
+    res_1 = np.sort(res[k])
+    t2 = request1.get_tensor(model.outputs[0])
+    assert np.allclose(t2.data, res[k].data, atol=1e-2, rtol=1e-2)
 
 
 def test_set_tensors(device):
@@ -494,10 +507,23 @@ def test_infer_float16(device):
 
 
 def test_ports_as_inputs(device):
-    request, arr_1, arr_2 = create_simple_request_and_inputs(device)
+    input_shape = [2, 2]
+    param_a = ops.parameter(input_shape, np.float32)
+    param_b = ops.parameter(input_shape, np.float32)
+    model = Model(ops.add(param_a, param_b), [param_a, param_b])
+
+    core = Core()
+    compiled = core.compile_model(model, device)
+    request = compiled.create_infer_request()
+
+    arr_1 = np.array([[1, 2], [3, 4]], dtype=np.float32)
+    arr_2 = np.array([[3, 4], [1, 2]], dtype=np.float32)
 
     tensor1 = Tensor(arr_1)
     tensor2 = Tensor(arr_2)
+
+    res = request.infer({compiled.inputs[0]: tensor1, compiled.inputs[1]: tensor2})
+    assert np.array_equal(res[compiled.outputs[0]], tensor1.data + tensor2.data)
 
     res = request.infer({request.model_inputs[0]: tensor1, request.model_inputs[1]: tensor2})
     assert np.array_equal(res[request.model_outputs[0]], tensor1.data + tensor2.data)
