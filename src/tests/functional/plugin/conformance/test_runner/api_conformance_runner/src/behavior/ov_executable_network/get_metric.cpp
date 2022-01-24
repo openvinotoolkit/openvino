@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,11 +51,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetConfigTest, OVClassExecutableNetworkGetConfigTest,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkSetConfigTest, OVClassExecutableNetworkSetConfigTest,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 ////
 //// Hetero Executable Network GetMetric
@@ -63,19 +63,19 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 //////////////////////////////////////////////////////////////////////////////////////////
 

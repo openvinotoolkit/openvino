@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,11 @@
 #include "ngraph/op/equal.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/not.hpp"
+#include "ngraph/op/or.hpp"
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/divide.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -58,6 +60,23 @@ bool evaluate_divide(const HostTensorPtr& arg0,
     return rc;
 }
 
+HostTensorPtr equality_mask(const HostTensorPtr& tensor, const shared_ptr<op::Constant>& constant) {
+    auto mask = std::make_shared<HostTensor>(element::boolean, tensor->get_shape());
+    const auto& param = std::make_shared<op::Parameter>(tensor->get_element_type(), tensor->get_shape());
+    op::v1::Equal(param, constant, ngraph::op::AutoBroadcastType::NUMPY)
+        .evaluate({mask}, {tensor, std::make_shared<HostTensor>(constant)});
+    return mask;
+}
+
+HostTensorPtr or_tensor(const HostTensorPtr& lhs, const HostTensorPtr& rhs) {
+    auto result = std::make_shared<HostTensor>();
+    op::v1::LogicalOr(std::make_shared<op::Parameter>(lhs->get_element_type(), lhs->get_shape()),
+                      std::make_shared<op::Parameter>(rhs->get_element_type(), rhs->get_shape()),
+                      ngraph::op::AutoBroadcastType::NUMPY)
+        .evaluate({result}, {lhs, rhs});
+    return result;
+}
+
 bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper) {
     // for positive arg2 divide will have limits [low/up , up/low]
     // for negative arg2 limits for divide will be [up/low, low/up]
@@ -85,6 +104,8 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
         return false;
 
     auto zeros_const = op::Constant::create(input2.get_element_type(), {}, {0});
+    auto max_constant = get_constant_max_of_type(input2.get_element_type());
+    auto dynamic_mask = or_tensor(equality_mask(input1_up, max_constant), equality_mask(input2_up, max_constant));
 
     // mask to find out positive values for arg2
     auto input2_positive_up_mask = std::make_shared<HostTensor>(element::boolean, input2.get_shape());
@@ -134,6 +155,11 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
                                             output_values[0]});
         if (!status)
             return status;
+
+        status = op::v1::Select().evaluate(output_values,
+                                           {dynamic_mask, std::make_shared<HostTensor>(zeros_const), output_values[0]});
+        if (!status)
+            return status;
     } else {
         auto value1 = std::make_shared<HostTensor>(input1.get_element_type(), input_shape);
         status = op::v1::Select().evaluate({value1}, {input2_positive_up_mask, input1_up, input1_low});
@@ -171,13 +197,21 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
         status = op::v1::Select().evaluate(
             output_values,
             {input2_zeros_mask, std::make_shared<HostTensor>(output_maximum_value), output_values[0]});
-        return status;
+        if (!status)
+            return status;
 
         // replace values where zeros inside [low, ip] values range of second arg to maximum values
         status = op::v1::Select().evaluate(output_values,
                                            {input2_low_negative_up_positive_mask,
                                             std::make_shared<HostTensor>(output_maximum_value),
                                             output_values[0]});
+        if (!status)
+            return status;
+
+        // in case input elements were dynamic we replace them with zero
+        status = op::v1::Select().evaluate(
+            output_values,
+            {dynamic_mask, std::make_shared<HostTensor>(output_maximum_value), output_values[0]});
         if (!status)
             return status;
     }

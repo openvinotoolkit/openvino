@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,6 @@ bool MKLDNNReshapeNode::needShapeInfer() const {
     return false;
 }
 
-// TODO [DS]: rewrite after new shape infer will be added
 std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
     const auto &memPtr = getParentEdgesAtPort(1)[0]->getMemory();
 
@@ -86,16 +85,7 @@ std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
         lastSecondInputValues[i] = sndInput[i];
     }
 
-    std::vector<ov::StaticShape> input_shapes = {getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims(), memPtr.getStaticDims()};
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values = {
-            {1, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, memPtr.getStaticDims(), memPtr.GetPtr())}
-    };
-    std::vector<ov::StaticShape> output_shapes = {{}};
-    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
-
-    std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s){ return s.to_shape(); });
-    return result;
+    return shapeInferGeneric(PortMask(1));
 }
 
 void MKLDNNReshapeNode::getSupportedDescriptors() {

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,9 @@ Output<Node> insert_identity(const Output<Node>& in_node) {
 }
 
 std::shared_ptr<Function> createLSTMBody(const std::shared_ptr<Parameter>& Xi,
-                                                 const std::shared_ptr<Parameter>& H_t,
-                                                 const std::shared_ptr<Parameter>& C_t,
-                                                 bool is_loop = false) {
+                                         const std::shared_ptr<Parameter>& H_t,
+                                         const std::shared_ptr<Parameter>& C_t,
+                                         bool is_loop = false) {
     // Body
     auto axis = Constant::create(element::i64, Shape{}, {0});
     auto squeeze = std::make_shared<Squeeze>(Xi, axis);
@@ -57,11 +57,9 @@ std::shared_ptr<Function> createLSTMBody(const std::shared_ptr<Parameter>& Xi,
     auto res_2 = std::make_shared<Result>(unsqueeze);
     auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
 
-    auto func = std::make_shared<Function>(OutputVector{res_1, res_2, res_3},
-                                           ParameterVector{Xi, H_t, C_t});
+    auto func = std::make_shared<Function>(OutputVector{res_1, res_2, res_3}, ParameterVector{Xi, H_t, C_t});
     if (is_loop) {
-        auto body_condition = std::make_shared<Constant>(
-                element::boolean, Shape{1}, true);
+        auto body_condition = std::make_shared<Constant>(element::boolean, Shape{1}, true);
         auto cond_res = std::make_shared<Result>(body_condition);
         func->add_results({cond_res});
     }
@@ -77,7 +75,9 @@ TEST(TransformationTests, LowLatency2_LSTM) {
 
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        H_t->set_friendly_name("H_t");
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        C_t->set_friendly_name("C_t");
 
         // Body
         auto body = createLSTMBody(Xi, H_t, C_t);
@@ -96,8 +96,7 @@ TEST(TransformationTests, LowLatency2_LSTM) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2},
-                                               ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -110,10 +109,12 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/variable0");
-        const std::string variable_name_C("LSTMTensorIterator/variable1");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
-        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        auto variable_H =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        auto variable_C =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -128,8 +129,8 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         auto B = Constant::create(element::f32, Shape{512}, b_val);
 
         auto lstm_cell = std::make_shared<LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
-        auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
-        auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
+        auto assign_H = std::make_shared<Assign>(insert_identity(lstm_cell->output(0)), variable_H);
+        auto assign_C = std::make_shared<Assign>(insert_identity(lstm_cell->output(1)), variable_C);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
         auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
         auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
@@ -149,7 +150,9 @@ TEST(TransformationTests, LowLatency2_GRU) {
         auto Y = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
+        Xi->set_friendly_name("Xi");
         auto Yi = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        Yi->set_friendly_name("Yi");
 
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -170,6 +173,7 @@ TEST(TransformationTests, LowLatency2_GRU) {
 
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
+        tensor_iterator->set_friendly_name("GRUTensorIterator");
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
         tensor_iterator->set_merged_input(Yi, Y, res_1);
@@ -192,8 +196,9 @@ TEST(TransformationTests, LowLatency2_GRU) {
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("GRUTensorIterator/variable0");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        const std::string variable_name_H("GRUTensorIterator/Yi/variable");
+        auto variable_H =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -207,11 +212,11 @@ TEST(TransformationTests, LowLatency2_GRU) {
         auto B = Constant::create(element::f32, Shape{384}, b_val);
 
         auto rnn_cell = std::make_shared<GRUCell>(squeeze, read_value_H, W, R, B, 128);
-        auto assign_H = std::make_shared<Assign>(rnn_cell->output(0), variable_H);
+        auto assign_H = std::make_shared<Assign>(insert_identity(rnn_cell->output(0)), variable_H);
         auto res_1 = std::make_shared<Result>(assign_H);
         auto unsqueeze = std::make_shared<Unsqueeze>(rnn_cell->output(0), axis);
         auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
-        f_ref = std::make_shared<Function>(ResultVector {res_2}, ParameterVector{Xi, H_t});
+        f_ref = std::make_shared<Function>(ResultVector{res_2}, ParameterVector{Xi, H_t});
         f_ref->add_sinks({assign_H});
         assign_H->add_control_dependency(read_value_H);
     }
@@ -226,7 +231,9 @@ TEST(TransformationTests, LowLatency2_RNN) {
         auto Y = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
+        Xi->set_friendly_name("Xi");
         auto Yi = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        Yi->set_friendly_name("Yi");
 
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -243,11 +250,11 @@ TEST(TransformationTests, LowLatency2_RNN) {
         auto res_1 = std::make_shared<Result>(rnn_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(rnn_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi,
-                                                                                                   Yi});
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
+        tensor_iterator->set_friendly_name("RNNTensorIterator");
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
         tensor_iterator->set_merged_input(Yi, Y, res_1);
@@ -270,8 +277,9 @@ TEST(TransformationTests, LowLatency2_RNN) {
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("RNNTensorIterator/variable0");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        const std::string variable_name_H("RNNTensorIterator/Yi/variable");
+        auto variable_H =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -285,7 +293,7 @@ TEST(TransformationTests, LowLatency2_RNN) {
         auto B = Constant::create(element::f32, Shape{128}, b_val);
 
         auto rnn_cell = std::make_shared<RNNCell>(squeeze, read_value_H, W, R, B, 128);
-        auto assign_H = std::make_shared<Assign>(rnn_cell->output(0), variable_H);
+        auto assign_H = std::make_shared<Assign>(insert_identity(rnn_cell->output(0)), variable_H);
         auto res_1 = std::make_shared<Result>(assign_H);
         auto unsqueeze = std::make_shared<Unsqueeze>(rnn_cell->output(0), axis);
         auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
@@ -306,7 +314,9 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
 
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        H_t->set_friendly_name("H_t");
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        C_t->set_friendly_name("C_t");
 
         // Body
         auto body = createLSTMBody(Xi, H_t, C_t);
@@ -314,6 +324,7 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
 
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
+        tensor_iterator->set_friendly_name("LSTMTensorIterator");
 
         tensor_iterator->set_merged_input(C_t, C, results[2]);
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
@@ -324,8 +335,7 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H,
-                                                                                                               C});
+        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
 
         // Reshape
         // change the number of iteration of TI. 2 -> 1
@@ -345,10 +355,12 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/variable0");
-        const std::string variable_name_C("LSTMTensorIterator/variable1");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
-        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        auto variable_H =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        auto variable_C =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -363,8 +375,8 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         auto B = Constant::create(element::f32, Shape{512}, b_val);
 
         auto lstm_cell = std::make_shared<LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
-        auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
-        auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
+        auto assign_H = std::make_shared<Assign>(insert_identity(lstm_cell->output(0)), variable_H);
+        auto assign_C = std::make_shared<Assign>(insert_identity(lstm_cell->output(1)), variable_C);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
         auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
         auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
@@ -386,7 +398,9 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
 
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        H_t->set_friendly_name("H_t");
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        C_t->set_friendly_name("C_t");
 
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -396,10 +410,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         auto body = createLSTMBody(Xi, H_t, C_t, true);
         auto results = body->get_results();
 
-        auto trip_count =
-                std::make_shared<Constant>(element::i64, Shape{}, 1);
-        auto exec_condition =
-                std::make_shared<Constant>(element::boolean, Shape{}, true);
+        auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 1);
+        auto exec_condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 3});
         loop->set_function(body);
@@ -414,8 +426,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2},
-                                               ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -429,10 +440,12 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/variable0");
-        const std::string variable_name_C("LSTMTensorIterator/variable1");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
-        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+        const std::string variable_name_H("LSTMLoop/H_t/variable");
+        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        auto variable_H =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        auto variable_C =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -447,8 +460,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         auto B = Constant::create(element::f32, Shape{512}, b_val);
 
         auto lstm_cell = std::make_shared<LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
-        auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
-        auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
+        auto assign_H = std::make_shared<Assign>(insert_identity(lstm_cell->output(0)), variable_H);
+        auto assign_C = std::make_shared<Assign>(insert_identity(lstm_cell->output(1)), variable_C);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
         auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
         auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
@@ -471,7 +484,9 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
 
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        H_t->set_friendly_name("H_t");
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        C_t->set_friendly_name("C_t");
 
         // Body
         auto body = createLSTMBody(Xi, H_t, C_t);
@@ -479,6 +494,7 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
 
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
+        tensor_iterator->set_friendly_name("LSTMTensorIterator");
 
         tensor_iterator->set_merged_input(C_t, C, results[2]);
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
@@ -489,8 +505,7 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H,
-                                                                                       C});
+        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -506,10 +521,12 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         auto H = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/variable0");
-        const std::string variable_name_C("LSTMTensorIterator/variable1");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
-        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        auto variable_H =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        auto variable_C =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C), variable_C);
 
@@ -535,8 +552,7 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
         auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3},
-                                               ParameterVector{Xi, H_t, C_t});
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3}, ParameterVector{Xi, H_t, C_t});
 
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
@@ -571,17 +587,19 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
 
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        H_t->set_friendly_name("H_t");
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        C_t->set_friendly_name("C_t");
 
         // Body
         auto body = createLSTMBody(Xi, H_t, C_t, true);
         auto results = body->get_results();
 
         auto shape_of = std::make_shared<ShapeOf>(X);
-        const auto trip_count = std::make_shared<Gather>(shape_of, Constant::create(ngraph::element::i64, {1}, {0}),
-                                                         Constant::create(ngraph::element::i64, {1}, {0}));
-        auto exec_condition =
-                std::make_shared<Constant>(element::boolean, Shape{}, true);
+        const auto trip_count = std::make_shared<ov::opset8::Gather>(shape_of,
+                                                                     Constant::create(ngraph::element::i64, {1}, {0}),
+                                                                     Constant::create(ngraph::element::i64, {1}, {0}));
+        auto exec_condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 3});
         loop->set_function(body);
@@ -596,8 +614,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2},
-                                       ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         // Reshape
         // change the number of iteration of Loop. 10 -> 1
@@ -617,10 +634,12 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/variable0");
-        const std::string variable_name_C("LSTMTensorIterator/variable1");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
-        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+        const std::string variable_name_H("LSTMLoop/H_t/variable");
+        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        auto variable_H =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        auto variable_C =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -635,8 +654,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         auto B = Constant::create(element::f32, Shape{512}, b_val);
 
         auto lstm_cell = std::make_shared<LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
-        auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
-        auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
+        auto assign_H = std::make_shared<Assign>(insert_identity(lstm_cell->output(0)), variable_H);
+        auto assign_C = std::make_shared<Assign>(insert_identity(lstm_cell->output(1)), variable_C);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
         auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
         auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
@@ -649,7 +668,6 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-
 TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
@@ -659,16 +677,16 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
 
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        H_t->set_friendly_name("H_t");
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        C_t->set_friendly_name("C_t");
 
         // Body
         auto body = createLSTMBody(Xi, H_t, C_t, true);
         auto results = body->get_results();
 
-        auto trip_count =
-                std::make_shared<Constant>(element::i64, Shape{}, 10);
-        auto exec_condition =
-                std::make_shared<Constant>(element::boolean, Shape{}, true);
+        auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
+        auto exec_condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 3});
         loop->set_function(body);
@@ -683,8 +701,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2},
-                                       ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -698,10 +715,12 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         auto H = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/variable0");
-        const std::string variable_name_C("LSTMTensorIterator/variable1");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
-        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+        const std::string variable_name_H("LSTMLoop/H_t/variable");
+        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        auto variable_H =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        auto variable_C =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C), variable_C);
 
@@ -726,15 +745,12 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
         auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body_condition = std::make_shared<Constant>(
-                element::boolean, Shape{1}, true);
+        auto body_condition = std::make_shared<Constant>(element::boolean, Shape{1}, true);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3, body_condition},
                                                ParameterVector{Xi, H_t, C_t});
 
-        auto trip_count =
-                std::make_shared<Constant>(element::i64, Shape{}, 10);
-        auto exec_condition =
-                std::make_shared<Constant>(element::boolean, Shape{}, true);
+        auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
+        auto exec_condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 3});
         loop->set_function(body);
@@ -803,8 +819,7 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2},
-                                               ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         auto f_2 = ngraph::clone_function(*f);
         pass::Manager manager_2;

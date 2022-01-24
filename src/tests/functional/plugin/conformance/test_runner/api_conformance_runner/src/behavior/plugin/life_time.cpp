@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTest,
             ::testing::Combine(
-            ::testing::Values(ConformanceTests::targetDevice),
+            ::testing::Values(ov::test::conformance::targetDevice),
             ::testing::ValuesIn(orders)),
             HoldersTest::getTestCaseName);
 

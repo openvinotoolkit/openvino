@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
+#include "transformations/resolve_gen_names_collisions.hpp"
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
@@ -70,6 +71,7 @@
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "transformations/op_conversions/softmax_decomposition.hpp"
+#include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -299,6 +301,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // List of enabled/disabled transformations
         pass_config->disable<ngraph::pass::ConvertGELU>();
+        pass_config->disable<ngraph::pass::Gelu7Downgrade>();
         pass_config->disable<ngraph::pass::ConvertMod>();
         pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
         pass_config->disable<ngraph::pass::HSwishDecomposition>();
@@ -434,6 +437,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !config.enable_loop_unrolling;
             });
+        manager.register_pass<ov::pass::ResolveGeneratedNameCollisions>();
 
         manager.run_passes(func);
     }

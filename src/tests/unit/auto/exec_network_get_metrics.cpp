@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,12 +56,12 @@ public:
 
     //mock cpu exeNetwork
     std::shared_ptr<MockIExecutableNetworkInternal> cpuMockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  cpuMockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  cpuMockExeNetwork;
     MockIInferencePlugin*                           cpuMockIPlugin;
     InferenceEngine::InferencePlugin                cpuMockPlugin;
     //mock gpu exeNetwork
     std::shared_ptr<MockIExecutableNetworkInternal> gpuMockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  gpuMockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  gpuMockExeNetwork;
     MockIInferencePlugin*                           gpuMockIPlugin;
     InferenceEngine::InferencePlugin                gpuMockPlugin;
     // config for Auto device

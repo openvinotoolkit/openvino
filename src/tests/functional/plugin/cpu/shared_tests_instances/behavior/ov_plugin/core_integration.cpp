@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(
 //////////////////////////////////////////////////////////////////////////////////////////
 
 TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedThrow) {
-    ov::runtime::Core ie;
+    ov::Core ie;
     std::string value = {};
 
     ASSERT_NO_THROW(ie.set_config({{KEY_CPU_THREADS_NUM, "1"}}, "CPU"));

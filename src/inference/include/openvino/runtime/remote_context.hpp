@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@ class RemoteContext;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 class Core;
 class CompiledModel;
@@ -46,8 +45,8 @@ protected:
      * object is destroyed.
      */
     RemoteContext(const std::shared_ptr<InferenceEngine::RemoteContext>& impl, const std::shared_ptr<void>& so);
-    friend class ov::runtime::Core;
-    friend class ov::runtime::CompiledModel;
+    friend class ov::Core;
+    friend class ov::CompiledModel;
 
 public:
     /**
@@ -167,5 +166,8 @@ public:
     Tensor create_host_tensor(const element::Type type, const Shape& shape);
 };
 
+namespace runtime {
+using ov::RemoteContext;
 }  // namespace runtime
+
 }  // namespace ov

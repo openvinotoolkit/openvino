@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ struct OVInferRequestIOTensorTest : public OVInferRequestTests {
     static std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj);
     void SetUp() override;
     void TearDown() override;
-    runtime::InferRequest req;
+    ov::InferRequest req;
     ov::Output<const ov::Node> input;
     ov::Output<const ov::Node> output;
 };
@@ -33,10 +33,10 @@ struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterfa
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj);
     void SetUp() override;
     void TearDown() override;
-    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function;
-    runtime::CompiledModel execNet;
-    runtime::InferRequest req;
+    ov::CompiledModel execNet;
+    ov::InferRequest req;
     std::string         target_device;
     runtime::ConfigMap  config;
     element::Type       element_type;
@@ -49,11 +49,12 @@ struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<O
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj);
     void SetUp() override;
     void TearDown() override;
+    void Run();
 
-    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> model;
-    runtime::CompiledModel compModel;
-    runtime::InferRequest req;
+    ov::CompiledModel compModel;
+    ov::InferRequest req;
     runtime::ConfigMap  config;
     std::string         target_device;
     element::Type       element_type;

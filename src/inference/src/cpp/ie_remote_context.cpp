@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@
     }
 
 namespace ov {
-namespace runtime {
 
 void RemoteContext::type_check(const RemoteContext& tensor,
                                const std::map<std::string, std::vector<std::string>>& type_info) {
@@ -92,5 +91,4 @@ ParamMap RemoteContext::get_params() const {
     return paramMap;
 }
 
-}  // namespace runtime
 }  // namespace ov
