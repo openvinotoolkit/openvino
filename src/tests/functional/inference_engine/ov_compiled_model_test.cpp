@@ -61,12 +61,17 @@ TEST(ExecutableNetworkOVTests, throwsOnUninitializedInputIndex) {
 
 TEST(ExecutableNetworkOVTests, throwsOnUninitializedSetConfig) {
     ov::CompiledModel exec;
-    ASSERT_THROW(exec.set_property({{}}), ov::Exception);
+    ASSERT_THROW(exec.set_config({{}}), ov::Exception);
+}
+
+TEST(ExecutableNetworkOVTests, throwsOnUninitializedGetConfig) {
+    ov::CompiledModel exec;
+    ASSERT_THROW(exec.get_config({}), ov::Exception);
 }
 
 TEST(ExecutableNetworkOVTests, throwsOnUninitializedGetMetric) {
     ov::CompiledModel exec;
-    ASSERT_THROW(exec.get_property({}), ov::Exception);
+    ASSERT_THROW(exec.get_metric({}), ov::Exception);
 }
 
 TEST(ExecutableNetworkOVTests, throwsOnUninitializedGetContext) {

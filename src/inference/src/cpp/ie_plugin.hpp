@@ -19,7 +19,6 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "so_ptr.hpp"
 #include "openvino/runtime/common.hpp"
-#include "any_copy.hpp"
 
 #if defined __GNUC__
 # pragma GCC diagnostic push
@@ -175,26 +174,26 @@ public:
         OV_PLUGIN_CALL_STATEMENT(_ptr->AddExtension(extension));
     }
 
-    void set_config(const std::map<std::string, std::string>& config) {
+    void set_config(const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network, const std::map<std::string, std::string>& config) {
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network, const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network,
                                                         const std::shared_ptr<ie::RemoteContext>& context,
-                                                        const std::map<std::string, std::string>& config) {
+                                                        const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config, context), _so});
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::string& modelPath, const std::map<std::string, std::string>& config) {
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::string& modelPath, const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(modelPath, config), _so});
     }
 
     ie::QueryNetworkResult query_model(const ie::CNNNetwork& network,
-                                       const std::map<std::string, std::string>& config) const {
+                                       const ConfigMap& config) const {
         ie::QueryNetworkResult res;
         OV_PLUGIN_CALL_STATEMENT(res = _ptr->QueryNetwork(network, config));
         OPENVINO_ASSERT(res.rc == ie::OK, res.resp.msg);
@@ -202,34 +201,34 @@ public:
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(const std::string& modelFileName,
-                                                       const std::map<std::string, std::string>& config) {
+                                                       const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(modelFileName, config), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
-                                    const std::map<std::string, std::string>& config) {
+                                    const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(networkModel, config), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
                                                        const std::shared_ptr<ie::RemoteContext>& context,
-                                                       const std::map<std::string, std::string>& config) {
+                                                       const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(networkModel, context, config), _so});
     }
 
-    Any get_metric(const std::string& name, const AnyMap& options) const {
+    ie::Parameter get_metric(const std::string& name, const ie::ParamMap& options) const {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetMetric(name, options), _so});
     }
 
-    SoPtr<ie::RemoteContext> create_context(const AnyMap& params) {
+    SoPtr<ie::RemoteContext> create_context(const ie::ParamMap& params) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->CreateContext(params), _so});
     }
 
-    SoPtr<ie::RemoteContext> get_default_context(const AnyMap& params) {
+    SoPtr<ie::RemoteContext> get_default_context(const ie::ParamMap& params) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetDefaultContext(params), _so});
     }
 
-    Any get_config(const std::string& name, const AnyMap& options) const {
+    ie::Parameter get_config(const std::string& name, const ie::ParamMap& options) const {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetConfig(name, options), _so});
     }
 };

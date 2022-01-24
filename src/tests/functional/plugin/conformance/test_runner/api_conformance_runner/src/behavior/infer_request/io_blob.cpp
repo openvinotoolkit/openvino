@@ -9,6 +9,7 @@
 #include "api_conformance_helpers.hpp"
 
 namespace {
+using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
 using namespace ConformanceTests;
 

@@ -78,12 +78,12 @@ TEST_P(OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow)
     ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_property(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
+    ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
     uint64_t t = p;
 
     std::cout << "GPU device total memory size: " << t << std::endl;
 
-    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
@@ -95,11 +95,11 @@ TEST_P(OVClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_property(deviceName, GPU_METRIC_KEY(UARCH_VERSION)));
+    ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(UARCH_VERSION)));
     std::string t = p;
 
     std::cout << "GPU device uarch: " << t << std::endl;
-    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(UARCH_VERSION));
+    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(UARCH_VERSION));
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
@@ -111,12 +111,12 @@ TEST_P(OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow)
     ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_property(deviceName, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
+    ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
     int t = p;
 
     std::cout << "GPU EUs count: " << t << std::endl;
 
-    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
+    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,

@@ -9,11 +9,11 @@ using namespace ov::test::behavior;
 
 namespace {
 
-const std::vector<ov::AnyMap> configs = {
+const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
-const std::vector<ov::AnyMap> HeteroConfigs = {
+const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
             {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferenceChaining,
