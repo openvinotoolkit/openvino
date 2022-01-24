@@ -481,6 +481,11 @@ public:
         return newAPI;
     }
 
+    ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override {
+        auto parsed = ov::runtime::parseDeviceNameIntoConfig(deviceName, {});
+        return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._ptr;
+    }
+
     ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
                                                           const std::shared_ptr<ie::RemoteContext>& context,
                                                           const std::map<std::string, std::string>& config) override {

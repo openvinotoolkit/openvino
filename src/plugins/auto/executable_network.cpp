@@ -553,16 +553,15 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     auto num = _numRequestsCreated++;
     size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
+    InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
     if (_workModeIsAUTO) {
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            if (num < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
-            }
+            if (_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") == std::string::npos)
+                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
         }
         // if user creates more infer request than the device optimal value, fall back to default memory
-        return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
+        return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, ctx);
     }
 
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
@@ -583,16 +582,15 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     auto num = _numRequestsCreated++;
     size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
+    InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
     if (_workModeIsAUTO) {
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            if (num < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
-            }
+            if (_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") == std::string::npos)
+                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
         }
         // if user creates more infer request than the device optimal value, fall back to default memory
-        return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
+        return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, ctx);
     }
 
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests

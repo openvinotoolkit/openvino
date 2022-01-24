@@ -16,19 +16,22 @@ using namespace InferenceEngine;
 // ------------------------------MultiDeviceInferRequest----------------------------
 MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                                 const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with)
+                                                 const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
+                                                 InferenceEngine::RemoteContext::Ptr ctx)
         : IInferRequestInternal(inputs, outputs) {
-    CreateInferRequest(request_to_share_blobs_with);
+    CreateInferRequest(request_to_share_blobs_with, ctx);
 }
 
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
-                                                 const SoIInferRequestInternal & request_to_share_blobs_with)
+                                                 const SoIInferRequestInternal & request_to_share_blobs_with,
+                                                 InferenceEngine::RemoteContext::Ptr ctx)
         : IInferRequestInternal(networkInputs, networkOutputs) {
-    CreateInferRequest(request_to_share_blobs_with);
+    CreateInferRequest(request_to_share_blobs_with, ctx);
 }
 
-void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with) {
+void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
+            InferenceEngine::RemoteContext::Ptr ctx) {
     if (request_to_share_blobs_with) {
         // borrow device-friendly blobs from the request
         for (const auto &it : _networkInputs)
@@ -44,7 +47,11 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
         SizeVector dims = it.second->getTensorDesc().getDims();
 
         TensorDesc desc = TensorDesc(p, dims, l);
-        _inputs[it.first] = make_blob_with_precision(desc);
+        if (ctx) {
+            _inputs[it.first] = ctx->CreateHostBlob(desc);
+        } else {
+            _inputs[it.first] = make_blob_with_precision(desc);
+        }
         _inputs[it.first]->allocate();
     }
     // Allocate all output blobs
@@ -54,7 +61,11 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
         SizeVector dims = it.second->getTensorDesc().getDims();
 
         TensorDesc desc = TensorDesc(p, dims, l);
-        _outputs[it.first] = make_blob_with_precision(desc);
+        if (ctx) {
+            _outputs[it.first] = ctx->CreateHostBlob(desc);
+        } else {
+            _outputs[it.first] = make_blob_with_precision(desc);
+        }
         _outputs[it.first]->allocate();
     }
 }
