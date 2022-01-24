@@ -5,11 +5,11 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <mutex>
 #include <queue>
 #include <type_traits>
-#include <atomic>
 
 #include "ie_parallel.hpp"
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
