@@ -71,6 +71,7 @@
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "transformations/op_conversions/softmax_decomposition.hpp"
+#include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -300,6 +301,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // List of enabled/disabled transformations
         pass_config->disable<ngraph::pass::ConvertGELU>();
+        pass_config->disable<ngraph::pass::Gelu7Downgrade>();
         pass_config->disable<ngraph::pass::ConvertMod>();
         pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
         pass_config->disable<ngraph::pass::HSwishDecomposition>();
