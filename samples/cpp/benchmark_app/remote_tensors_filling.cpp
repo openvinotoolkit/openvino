@@ -106,7 +106,6 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
                                                                    0,
                                                                    (cl::size_type)inputSize);
 
-
             auto tensor = oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
             remoteTensors[input.first].push_back(tensor);
 
