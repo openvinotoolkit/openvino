@@ -20,11 +20,26 @@ class ResultRename(BackReplacementPattern):
                 # Graph may contain Result nodes with names equal to input tensors and
                 # renaming in this case is not needed. The example of such situation is
                 # IR reader check when graph is read with correct Result names.
-                if tensor_names and node.soft_get('name') == tensor_names[0]:
+                if not tensor_names:
                     continue
-                if tensor_names and not graph.get_op_nodes(name=tensor_names[0]):
-                    result_name = tensor_names[0]
-                else:
+                rename_not_needed = False
+                # If Result name is equal to some tensor name from list, then renaming is not needed
+                for tensor_name in tensor_names:
+                    if node.soft_get('name') == tensor_name:
+                        rename_not_needed = True
+                        break
+                if rename_not_needed:
+                    continue
+
+                # Try to find tensor name, that is not intersects with graph node names
+                result_name = None
+                for tensor_name in tensor_names:
+                    if not graph.get_op_nodes(name=tensor_name):
+                        result_name = tensor_name
+                        break
+
+                # If we didn't find appropriate tensor name, then Result is named by default naming
+                if result_name is None:
                     result_name = prev_node_out_port.node.soft_get('name', prev_node_out_port.node.id) + \
                                   '/sink_port_' + str(prev_node_out_port.idx)
                 node['name'] = result_name
