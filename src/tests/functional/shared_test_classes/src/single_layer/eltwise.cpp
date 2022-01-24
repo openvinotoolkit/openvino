@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ void EltwiseLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetI
     const auto& funcInputs = function->inputs();
     for (int i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        ov::runtime::Tensor tensor;
+        ov::Tensor tensor;
         bool isReal = funcInput.get_element_type().is_real();
         switch (opType) {
             case ngraph::helpers::EltwiseTypes::POWER:

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -283,9 +283,15 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
             case EltwiseMode::LOGIC_XOR:
                 op += "(!" + input0_str + " != !" + input1_str + ")";
                 break;
-            case EltwiseMode::FLOOR_MOD:
-                op += "(" + input0_str + " - floor(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
+            case EltwiseMode::FLOOR_MOD: {
+                auto input_1_type = params.inputs[1].GetDType();
+                if (input_1_type == kernel_selector::Datatype::F16 || input_1_type == kernel_selector::Datatype::F32) {
+                    op += "(" + input0_str + " - floor(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
+                } else {
+                    op += "(" + input0_str + " - floor(" + input0_str + " / convert_float(" + input1_str + ")) * " + input1_str + ")";
+                }
                 break;
+            }
             case EltwiseMode::ASSIGN:
                 op += input0_str;
                 break;
@@ -392,6 +398,8 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                 bfyx_idx_order = { "d1", "d4", "d3", "d2" };
             } else if (l == DataLayout::byxf) {
                 bfyx_idx_order = { "d4", "d1", "d3", "d2" };
+            } else if (l == DataLayout::fs_b_yx_fsv32) {
+                bfyx_idx_order = { "d3", "d4", "d2", "d1" };
             } else {
                 bfyx_idx_order = { "d4", "d3", "d2", "d1" };
             }

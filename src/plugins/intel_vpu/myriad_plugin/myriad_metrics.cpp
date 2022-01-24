@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,7 @@ IE_SUPPRESS_DEPRECATED_START
     _supportedConfigKeys = {
         MYRIAD_CUSTOM_LAYERS,
         MYRIAD_ENABLE_FORCE_RESET,
+        MYRIAD_ENABLE_MX_BOOT,
 
         // deprecated
         KEY_VPU_CUSTOM_LAYERS,

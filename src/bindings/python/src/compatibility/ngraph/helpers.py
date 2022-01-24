@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """nGraph helper functions."""
@@ -6,7 +6,7 @@
 from typing import Union
 
 from ngraph.impl import Function, PartialShape
-from openvino.inference_engine import IENetwork, DataPtr, CDataPtr
+from openvino.inference_engine import IENetwork, DataPtr, CDataPtr  # type: ignore
 
 
 def function_from_cnn(cnn_network: IENetwork) -> Function:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,8 +127,8 @@ void SubgraphBaseTest::query_model() {
     ASSERT_EQ(expected, actual);
 }
 
-void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
-                               const std::vector<ov::runtime::Tensor>& actual) {
+void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
+                               const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); i++) {
         ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
@@ -176,7 +176,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     const auto& funcInputs = function->inputs();
     for (int i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        ov::runtime::Tensor tensor;
+        ov::Tensor tensor;
         if (funcInput.get_element_type().is_real()) {
             tensor = ov::test::utils::create_and_fill_tensor(
                 funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
@@ -195,8 +195,8 @@ void SubgraphBaseTest::infer() {
     inferRequest.infer();
 }
 
-std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
-    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
+std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
     auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
@@ -242,8 +242,8 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     return ngraph::helpers::interpretFunction(functionToProcess, inputs);
 }
 
-std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_plugin_outputs() {
-    auto outputs = std::vector<ov::runtime::Tensor>{};
+std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
+    auto outputs = std::vector<ov::Tensor>{};
     for (const auto& output : function->outputs()) {
         outputs.push_back(inferRequest.get_tensor(output));
     }

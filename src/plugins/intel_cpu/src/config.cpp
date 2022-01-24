@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,7 @@ Config::Config() {
     if (!with_cpu_x86_bfloat16())
         enforceBF16 = false;
 
+    CPU_DEBUG_CAP_ENABLE(readDebugCapsProperties());
     updateProperties();
 }
 
@@ -136,6 +137,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
         streamExecutorConfig._streams = 1;
 
+    CPU_DEBUG_CAP_ENABLE(readDebugCapsProperties());
     updateProperties();
 }
 void Config::updateProperties() {
@@ -183,5 +185,52 @@ void Config::updateProperties() {
         _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
     }
 }
+
+#ifdef CPU_DEBUG_CAPS
+void Config::readDebugCapsProperties() {
+    auto readEnv = [](const char* envVar) {
+        return std::getenv(envVar);
+    };
+
+    auto parseDumpFormat = [](const std::string& format) {
+        if (format == "BIN")
+            return FORMAT::BIN;
+        else if (format == "TEXT")
+            return FORMAT::TEXT;
+        else
+            IE_THROW() << "readDebugCapsProperties: Unknown dump format";
+    };
+
+    const char* envVarValue = nullptr;
+
+    if (envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH"))
+        execGraphPath = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_VERBOSE"))
+        verbose = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_DIR"))
+        blobDumpDir = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_FORMAT"))
+        blobDumpFormat = parseDumpFormat(envVarValue);
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID"))
+        blobDumpFilters[BY_EXEC_ID] = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_PORTS"))
+        blobDumpFilters[BY_PORTS] = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_TYPE"))
+        blobDumpFilters[BY_TYPE] = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME"))
+        blobDumpFilters[BY_NAME] = envVarValue;
+
+    // always enable perf counters for verbose mode
+    if (!verbose.empty())
+        collectPerfCounters = true;
+}
+#endif // CPU_DEBUG_CAPS
 
 }  // namespace MKLDNNPlugin

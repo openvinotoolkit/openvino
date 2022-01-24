@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,15 @@ using namespace ov;
 namespace {
 struct ExperimentalDetectronTopKROIsParams {
     ExperimentalDetectronTopKROIsParams(
-        const Tensor& dataTensor, const Tensor& probsTensor, const int32_t numRois,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& probsTensor, const int32_t numRois,
+        const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
         dataTensor(dataTensor), probsTensor(probsTensor), numRois(numRois),
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor probsTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor probsTensor;
     int32_t numRois;
-    Tensor expectedTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -72,17 +72,17 @@ std::vector<ExperimentalDetectronTopKROIsParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ExperimentalDetectronTopKROIsParams> params {
         ExperimentalDetectronTopKROIsParams(
-            Tensor(ET, {2, 4}, std::vector<T>{1.0f, 1.0f, 3.0f, 4.0f, 2.0f, 1.0f, 5.0f, 7.0f}),
-            Tensor(ET, {2}, std::vector<T>{0.5f, 0.3f}),
+            reference_tests::Tensor(ET, {2, 4}, std::vector<T>{1.0f, 1.0f, 3.0f, 4.0f, 2.0f, 1.0f, 5.0f, 7.0f}),
+            reference_tests::Tensor(ET, {2}, std::vector<T>{0.5f, 0.3f}),
             1,
-            Tensor(ET, {1, 4}, std::vector<T>{1.0, 1.0, 3.0, 4.0}),
+            reference_tests::Tensor(ET, {1, 4}, std::vector<T>{1.0, 1.0, 3.0, 4.0}),
             "experimental_detectron_topk_rois_eval"),
         ExperimentalDetectronTopKROIsParams(
-            Tensor(ET, {4, 4}, std::vector<T>{1.0f,  1.0f,  4.0f,  5.0f,  3.0f,  2.0f,  7.0f,  9.0f,
+            reference_tests::Tensor(ET, {4, 4}, std::vector<T>{1.0f,  1.0f,  4.0f,  5.0f,  3.0f,  2.0f,  7.0f,  9.0f,
                                               10.0f, 15.0f, 13.0f, 17.0f, 13.0f, 10.0f, 18.0f, 15.0f}),
-            Tensor(ET, {4}, std::vector<T>{0.1f, 0.7f, 0.5f, 0.9f}),
+            reference_tests::Tensor(ET, {4}, std::vector<T>{0.1f, 0.7f, 0.5f, 0.9f}),
             2,
-            Tensor(ET, {2, 4}, std::vector<T>{13.0f, 10.0f, 18.0f, 15.0f, 3.0f, 2.0f, 7.0f, 9.0f}),
+            reference_tests::Tensor(ET, {2, 4}, std::vector<T>{13.0f, 10.0f, 18.0f, 15.0f, 3.0f, 2.0f, 7.0f, 9.0f}),
             "experimental_detectron_topk_rois_eval"),
     };
     return params;

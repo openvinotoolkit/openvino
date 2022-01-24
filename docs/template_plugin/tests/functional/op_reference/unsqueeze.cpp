@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,11 +38,11 @@ struct UnsqueezeParams {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
     Shape m_axes_shape;
     element::Type m_axes_type;
-    runtime::Tensor m_axes_value;
+    ov::Tensor m_axes_value;
 };
 
 class ReferenceUnsqueezeLayerTest : public testing::TestWithParam<UnsqueezeParams>, public CommonReferenceTest {
@@ -77,7 +77,7 @@ private:
                                                     const Shape& input_shape,
                                                     const element::Type& axes_type,
                                                     const Shape& axes_shape,
-                                                    const runtime::Tensor& axes_value) {
+                                                    const ov::Tensor& axes_value) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto axes = std::make_shared<op::v0::Constant>(axes_type, axes_shape, axes_value.data());
         const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(in, axes);

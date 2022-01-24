@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,11 +40,11 @@ struct EmbeddingSegmentsSumParams {
 
     ov::PartialShape _iShape;
     ov::element::Type _iType;
-    ov::runtime::Tensor _iData;
+    ov::Tensor _iData;
 
     ov::PartialShape _refShape;
     ov::element::Type _refType;
-    ov::runtime::Tensor _refData;
+    ov::Tensor _refData;
 
     std::shared_ptr<ngraph::opset1::Constant> _indices;
     std::shared_ptr<ngraph::opset1::Constant> _segmentIds;
