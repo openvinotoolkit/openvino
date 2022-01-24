@@ -482,7 +482,7 @@ public:
     }
 
     ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override {
-        auto parsed = ov::runtime::parseDeviceNameIntoConfig(deviceName, {});
+        auto parsed = ov::parseDeviceNameIntoConfig(deviceName, {});
         return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._ptr;
     }
 
