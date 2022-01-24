@@ -136,6 +136,29 @@ std::vector<ReadValueAssignParams> generateParamsForReadValueAssign() {
     return params;
 }
 
+template <element::Type_t IN_ET>
+std::vector<ReadValueAssignParams> generateParamsForReadValueAssignBoolean() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<ReadValueAssignParams> params{
+        ReadValueAssignParams(ov::Shape{1}, ov::Shape{1}, IN_ET, IN_ET, std::vector<T>{true}, std::vector<T>{true}, "v0"),
+        ReadValueAssignParams(ov::Shape{2, 2},
+                              ov::Shape{2, 2},
+                              IN_ET,
+                              IN_ET,
+                              std::vector<T>{true, true, false, false},
+                              std::vector<T>{true, true, false, false},
+                              "v0"),
+        ReadValueAssignParams(ov::Shape{1, 2, 3},
+                              ov::Shape{1, 2, 3},
+                              IN_ET,
+                              IN_ET,
+                              std::vector<T>{true, false, true, false, true, false},
+                              std::vector<T>{true, false, true, false, true, false},
+                              "v0")};
+    return params;
+}
+
 std::vector<ReadValueAssignParams> generateCombinedParamsForReadValueAssign() {
     const std::vector<std::vector<ReadValueAssignParams>> allTypeParams{
         generateParamsForReadValueAssign<element::Type_t::f64>(),
@@ -152,7 +175,7 @@ std::vector<ReadValueAssignParams> generateCombinedParamsForReadValueAssign() {
         generateParamsForReadValueAssign<element::Type_t::u16>(),
         generateParamsForReadValueAssign<element::Type_t::u8>(),
         generateParamsForReadValueAssign<element::Type_t::u4>(),
-        generateParamsForReadValueAssign<element::Type_t::boolean>()};
+        generateParamsForReadValueAssignBoolean<element::Type_t::boolean>()};
 
     std::vector<ReadValueAssignParams> combinedParams;
 
