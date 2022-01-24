@@ -9,8 +9,7 @@ from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestAdd(CommonTFLayerTest):
-    def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, use_new_frontend,
-                                         api_2):
+    def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, use_new_frontend):
         """
             Tensorflow net                  IR net
 
