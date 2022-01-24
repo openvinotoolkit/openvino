@@ -89,7 +89,7 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
                        << std::string((input.second.is_image() ? "image" : "some binary data")) << " is expected)"
                        << slog::endl;
 
-            auto tensor = oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
+            auto tensor = oclContext.create_usm_device_tensor(input.second.type, input.second.dataShape);
             remoteTensors[input.first].push_back(tensor);
 
             // Creating and filling shared buffers
