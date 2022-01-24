@@ -42,7 +42,7 @@ namespace util {
     }
 }// namespace util
 
-TestResult common_test_pipeline(std::vector<std::function<void()>> test_pipeline, const int &n) {
+TestResult common_test_pipeline(const std::vector<std::function<void()>>& test_pipeline, const int &n) {
     if (AVERAGE_NUM > n)
         return TestResult(TestStatus::TEST_FAILED, "Test failed: number of iterations less than defined AVERAGE_NUM");
 
@@ -65,7 +65,7 @@ TestResult common_test_pipeline(std::vector<std::function<void()>> test_pipeline
 
     for (size_t iteration = 1, measure_count = n / AVERAGE_NUM;; iteration++) {
         // run test pipeline and collect metrics
-        for (auto step : test_pipeline) step();
+        for (const auto& step : test_pipeline) step();
         getVmValues(cur[VMSIZE], cur[VMPEAK], cur[VMRSS], cur[VMHWM]);
         cur[THREADS] = getThreadsNum();
 

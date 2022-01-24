@@ -100,23 +100,29 @@ TEST_P(MemLeaksTestSuite, recreate_exenetwork) {
     if (test_params.api_version == 1) {
         InferenceEngine::Core ie;
         for (int i = 0; i < test_params.models.size(); i++) {
-
-                pipeline.push_back(recreate_exenetwork(ie, test_params.models[i]["full_path"], test_params.device));
-            }
+            pipeline.push_back(recreate_exenetwork(ie, test_params.models[i]["full_path"], test_params.device));
+        }
+        auto test = [&] {
+            log_info("Recreate ExecutableNetworks within existing InferenceEngine::Core from networks: "
+                             << test_params.model_name << " for \"" << test_params.device << "\" device for "
+                             << test_params.numiters << " times");
+            return common_test_pipeline(pipeline, test_params.numiters);
+        };
+        test_runner(test_params.numthreads, test);
     }
     else {
         ov::Core ie;
         for (int i = 0; i < test_params.models.size(); i++) {
             pipeline.push_back(recreate_compiled_model(ie, test_params.models[i]["full_path"], test_params.device));
         }
+        auto test = [&] {
+            log_info("Recreate ExecutableNetworks within existing InferenceEngine::Core from networks: "
+                             << test_params.model_name << " for \"" << test_params.device << "\" device for "
+                             << test_params.numiters << " times");
+            return common_test_pipeline(pipeline, test_params.numiters);
+        };
+        test_runner(test_params.numthreads, test);
     }
-    auto test = [&] {
-        log_info("Recreate ExecutableNetworks within existing InferenceEngine::Core from networks: "
-                 << test_params.model_name << " for \"" << test_params.device << "\" device for "
-                 << test_params.numiters << " times");
-        return common_test_pipeline(pipeline, test_params.numiters);
-    };
-    test_runner(test_params.numthreads, test);
 }
 
 TEST_P(MemLeaksTestSuite, recreate_infer_request) {
@@ -135,6 +141,12 @@ TEST_P(MemLeaksTestSuite, recreate_infer_request) {
             exeNetworks.push_back(exeNetwork);
             pipeline.push_back(recreate_infer_request(exeNetworks[i]));
         }
+        auto test = [&] {
+            log_info("Create InferRequests from networks: " << test_params.model_name << " for \"" << test_params.device
+                                                            << "\" device for " << test_params.numiters << " times");
+            return common_test_pipeline(pipeline, test_params.numiters);
+        };
+        test_runner(test_params.numthreads, test);
     }
     else {
         ov::Core ie;
@@ -149,13 +161,13 @@ TEST_P(MemLeaksTestSuite, recreate_infer_request) {
             compiled_models.push_back(compiled_model);
             pipeline.push_back(recreate_infer_request(compiled_models[i]));
         }
+        auto test = [&] {
+            log_info("Create InferRequests from networks: " << test_params.model_name << " for \"" << test_params.device
+                                                            << "\" device for " << test_params.numiters << " times");
+            return common_test_pipeline(pipeline, test_params.numiters);
+        };
+        test_runner(test_params.numthreads, test);
     }
-    auto test = [&] {
-        log_info("Create InferRequests from networks: " << test_params.model_name << " for \"" << test_params.device
-                                                        << "\" device for " << test_params.numiters << " times");
-        return common_test_pipeline(pipeline, test_params.numiters);
-    };
-    test_runner(test_params.numthreads, test);
 }
 
 TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
@@ -184,6 +196,13 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
             fillBlobs(infer_requests[i], inputsInfo, batchSize);
             pipeline.push_back(reinfer_request_inference(infer_requests[i], outputs_info[i]));
         }
+        auto test = [&] {
+            log_info("Inference of InferRequests from networks: " << test_params.model_name << " for \""
+                                                                  << test_params.device << "\" device for "
+                                                                  << test_params.numiters << " times");
+            return common_test_pipeline(pipeline, test_params.numiters);
+        };
+        test_runner(test_params.numthreads, test);
     }
     else {
         ov::Core ie;
@@ -206,14 +225,14 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
             fillTensors(infer_requests[i], inputs);
             pipeline.push_back(reinfer_request_inference(infer_requests[i], outputs_info[i]));
         }
+        auto test = [&] {
+            log_info("Inference of InferRequests from networks: " << test_params.model_name << " for \""
+                                                                  << test_params.device << "\" device for "
+                                                                  << test_params.numiters << " times");
+            return common_test_pipeline(pipeline, test_params.numiters);
+        };
+        test_runner(test_params.numthreads, test);
     }
-    auto test = [&] {
-        log_info("Inference of InferRequests from networks: " << test_params.model_name << " for \""
-                                                              << test_params.device << "\" device for "
-                                                              << test_params.numiters << " times");
-        return common_test_pipeline(pipeline, test_params.numiters);
-    };
-    test_runner(test_params.numthreads, test);
 }
 
 TEST_P(MemLeaksTestSuite, infer_request_inference) {
