@@ -33,7 +33,8 @@ ConvertTransposePrecision::ConvertTransposePrecision() {
 
         auto convert = std::make_shared<ngraph::opset1::Convert>(new_in, dst_type);
         auto transpose_node_fp16 = make_shared<ngraph::opset8::Transpose>(convert,
-                                                                  transpose_node->input_value(1));
+                                                                          transpose_node->input_value(1));
+        transpose_node_fp16->set_friendly_name(transpose_node->get_friendly_name());
         ngraph::copy_runtime_info(transpose_node, transpose_node_fp16);
         ngraph::replace_node(transpose_node, transpose_node_fp16);
         return true;
