@@ -150,8 +150,8 @@ std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledMo
             }
         }
         outputTensors[output.get_any_name()] = oclContext.create_tensor(output.get_element_type(),
-                                                                         output.get_shape(),
-                                                                         clBuffer[output.get_any_name()].get());
+                                                                        output.get_shape(),
+                                                                        clBuffer[output.get_any_name()].get());
     }
 
     return outputTensors;
