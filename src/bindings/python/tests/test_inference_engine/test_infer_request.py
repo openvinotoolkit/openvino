@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from copy import deepcopy
 import numpy as np
 import os
 import pytest
@@ -25,6 +26,22 @@ def create_model_with_memory(input_shape, data_type):
     res = ops.result(add, "res")
     model = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
     return model
+
+
+def create_simple_request_and_inputs(device):
+    input_shape = [2, 2]
+    param_a = ops.parameter(input_shape, np.float32)
+    param_b = ops.parameter(input_shape, np.float32)
+    model = Model(ops.add(param_a, param_b), [param_a, param_b])
+
+    core = Core()
+    compiled = core.compile_model(model, device)
+    request = compiled.create_infer_request()
+
+    arr_1 = np.array([[1, 2], [3, 4]], dtype=np.float32)
+    arr_2 = np.array([[3, 4], [1, 2]], dtype=np.float32)
+
+    return request, arr_1, arr_2
 
 
 def test_get_profiling_info(device):
@@ -477,17 +494,44 @@ def test_infer_float16(device):
 
 
 def test_ports_as_inputs(device):
-    input_shape = [2, 2]
-    param_a = ops.parameter(input_shape, np.float32)
-    param_b = ops.parameter(input_shape, np.float32)
-    model = Model(ops.add(param_a, param_b), [param_a, param_b])
+    request, arr_1, arr_2 = create_simple_request_and_inputs(device)
 
-    core = Core()
-    compiled = core.compile_model(model, device)
-    request = compiled.create_infer_request()
-
-    tensor1 = Tensor(np.array([[1, 2], [3, 4]], dtype=np.float32))
-    tensor2 = Tensor(np.array([[3, 4], [1, 2]], dtype=np.float32))
+    tensor1 = Tensor(arr_1)
+    tensor2 = Tensor(arr_2)
 
     res = request.infer({request.model_inputs[0]: tensor1, request.model_inputs[1]: tensor2})
     assert np.array_equal(res[request.model_outputs[0]], tensor1.data + tensor2.data)
+
+
+def test_inputs_dict_not_replaced(device):
+    request, arr_1, arr_2 = create_simple_request_and_inputs(device)
+
+    inputs = {0: arr_1, 1: arr_2}
+    inputs_copy = deepcopy(inputs)
+
+    res = request.infer(inputs)
+
+    np.testing.assert_equal(inputs, inputs_copy)
+    assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
+
+
+def test_inputs_list_not_replaced(device):
+    request, arr_1, arr_2 = create_simple_request_and_inputs(device)
+
+    inputs = [arr_1, arr_2]
+    inputs_copy = deepcopy(inputs)
+
+    res = request.infer(inputs)
+
+    assert np.array_equal(inputs, inputs_copy)
+    assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
+
+
+def test_invalid_inputs_container(device):
+    request, arr_1, arr_2 = create_simple_request_and_inputs(device)
+
+    inputs = (arr_1, arr_2)
+
+    with pytest.raises(TypeError) as e:
+        request.infer(inputs)
+    assert "Inputs should be either list or dict! Current type:" in str(e.value)

@@ -22,10 +22,12 @@ def tensor_from_file(path: str) -> Tensor:
     return Tensor(np.fromfile(path, dtype=np.uint8))
 
 
-def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
-    """Normalize a dictionary of inputs to Tensors."""
-    if isinstance(inputs, list):
-        inputs = {index: input for index, input in enumerate(inputs)}
+def convert_dict_items(inputs: dict, py_types: dict) -> dict:
+    """Helper function converting dictionary items to Tensors."""
+    # Create new temporary dictionary.
+    # new_inputs will be used to transfer data to inference calls,
+    # ensuring that original inputs are not overwritten with Tensors.
+    new_inputs = {}
     for k, val in inputs.items():
         if not isinstance(k, (str, int, Output, ConstOutput)):
             raise TypeError("Incompatible key type for tensor: {}".format(k))
@@ -33,12 +35,24 @@ def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
             ov_type = py_types[k]
         except KeyError:
             raise KeyError("Port for tensor {} was not found!".format(k))
-        inputs[k] = (
+        # Convert numpy arrays or copy Tensors
+        new_inputs[k] = (
             val
             if isinstance(val, Tensor)
             else Tensor(np.array(val, get_dtype(ov_type)))
         )
-    return inputs
+    return new_inputs
+
+
+def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
+    """Normalize a dictionary of inputs to Tensors."""
+    if isinstance(inputs, dict):
+        return convert_dict_items(inputs, py_types)
+    elif isinstance(inputs, list):
+        # Lists are required to be represented as dictionaries with int keys
+        return convert_dict_items({index: input for index, input in enumerate(inputs)}, py_types)
+    else:
+        raise TypeError("Inputs should be either list or dict! Current type: {}".format(type(inputs)))
 
 
 def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
