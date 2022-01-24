@@ -716,13 +716,13 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
             //if (!selectedConfig.inConfs[i].getMemDesc()->isCompatible(*config.inConfs[i].getMemDesc()))
-            if (!selectedConfig.inConfs[i].getPortDesc()->compare(*config.inConfs[i].getPortDesc()))
+            if (!selectedConfig.inConfs[i].getPortDesc()->isCompatible(*config.inConfs[i].getPortDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " intput port";
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
             //if (!selectedConfig.outConfs[i].getMemDesc()->isCompatible(*config.outConfs[i].getMemDesc()))
-            if (!selectedConfig.outConfs[i].getPortDesc()->compare(*config.outConfs[i].getPortDesc()))
+            if (!selectedConfig.outConfs[i].getPortDesc()->isCompatible(*config.outConfs[i].getPortDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " output port";
         }
         rightConfig = config;
@@ -925,7 +925,7 @@ MemoryDescPtr MKLDNNNode::getConsistentInputDesc(const NodeConfig &config, size_
 
     if (config.inConfs[idx].inPlace() >= 0) {
         auto outPortDesc = config.outConfs[static_cast<size_t>(config.inConfs[idx].inPlace())].getPortDesc();
-        if (config.inConfs[idx].getPortDesc()->compare(*outPortDesc)) {
+        if (config.inConfs[idx].getPortDesc()->isCompatible(*outPortDesc)) {
             return outPortDesc->getMemDesc();
         }
     }
@@ -936,7 +936,7 @@ MemoryDescPtr MKLDNNNode::getConsistentInputDesc(const NodeConfig &config, size_
         if (!parentConf.getMemDesc()->isDefined() && parentConf.inPlace() >= 0)
             getParentEdgeAt(idx)->getParent()->initOptimalPrimitiveDescriptor();
         parentConf = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
-        if (parentConf.getMemDesc()->isDefined() && config.inConfs[idx].getPortDesc()->compare(*parentConf.getPortDesc())) {
+        if (parentConf.getMemDesc()->isDefined() && config.inConfs[idx].getPortDesc()->isCompatible(*parentConf.getPortDesc())) {
             return parentConf.getMemDesc();
         }
     }
@@ -952,7 +952,7 @@ MemoryDescPtr MKLDNNNode::getConsistentOutputDesc(const NodeConfig &config, size
 
     if (config.outConfs[idx].inPlace() >= 0) {
         auto inpPortDesc = config.inConfs[static_cast<size_t>(config.outConfs[idx].inPlace())].getPortDesc();
-        if (config.outConfs[idx].getPortDesc()->compare(*inpPortDesc)) {
+        if (config.outConfs[idx].getPortDesc()->isCompatible(*inpPortDesc)) {
             return inpPortDesc->getMemDesc();
         }
     }
@@ -963,7 +963,7 @@ MemoryDescPtr MKLDNNNode::getConsistentOutputDesc(const NodeConfig &config, size
         if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
             getChildEdgeAt(idx)->getChild()->initOptimalPrimitiveDescriptor();
         childConf = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-        if (childConf.getMemDesc()->isDefined() && config.outConfs[idx].getPortDesc()->compare(*childConf.getPortDesc())) {
+        if (childConf.getMemDesc()->isDefined() && config.outConfs[idx].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
             return childConf.getMemDesc();
         }
     }

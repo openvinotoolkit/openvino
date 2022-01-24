@@ -333,7 +333,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
                     const auto& parentConfig = getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
                     if (!parentConfig.getMemDesc()->isDefined() && parentConfig.inPlace() >= 0)
                         getParentEdgeAt(i)->getParent()->initOptimalPrimitiveDescriptor();
-                    if (parentConfig.getMemDesc()->isDefined() && config.inConfs[i].getPortDesc()->compare(*parentConfig.getPortDesc())) {
+                    if (parentConfig.getMemDesc()->isDefined() && config.inConfs[i].getPortDesc()->isCompatible(*parentConfig.getPortDesc())) {
                         config.inConfs[i].setMemDesc(parentConfig.getMemDesc());
                         continue;
                     }
