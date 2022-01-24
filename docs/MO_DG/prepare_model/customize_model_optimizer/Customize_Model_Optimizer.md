@@ -113,10 +113,6 @@ operation to trigger the extracting function for and the value is the function. 
 to extract attributes from. This is a legacy and non-extensible approach so it should be avoided. This mechanism will be
 removed in future versions of the Model Optimizer.
 
-3.  Caffe specific extractor using the `CustomLayersMapping.xml` described in the
-[Legacy Mode for Caffe\* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md). This approach is deprecated and will be
-removed in future versions of the Model Optimizer.
-
 The extractors execution order is the following:
 * `CustomLayersMapping.xml` (for Caffe models only).
 * Model Optimizer extension.

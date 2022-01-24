@@ -91,20 +91,20 @@ More importantly, an infer request encapsulates the reference to the “executab
 
 If your application simultaneously executes multiple infer requests:
 
-- 	For the CPU, the best solution, you can use the <a href="#cpu-streams">CPU "throughput" mode</a>.
-	-	If latency is of more concern, you can try the `EXCLUSIVE_ASYNC_REQUESTS` [configuration option](../IE_DG/supported_plugins/CPU.md) that limits the number of the simultaneously executed requests for all (executable) networks that share the specific device to just one:<br>
+- For the CPU, the best solution, you can use the <a href="#cpu-streams">CPU "throughput" mode</a>.
+- If latency is of more concern, you can try the `EXCLUSIVE_ASYNC_REQUESTS` [configuration option](../IE_DG/supported_plugins/CPU.md) that limits the number of the simultaneously executed requests for all (executable) networks that share the specific device to just one:
 
 @snippet snippets/dldt_optimization_guide7.cpp part7
 
-		<br>For more information on the executable networks notation, see <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a>.
+For more information on the executable networks notation, see <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a>.
 
-	-	The heterogeneous device uses the `EXCLUSIVE_ASYNC_REQUESTS` by default.
+- The heterogeneous device uses the `EXCLUSIVE_ASYNC_REQUESTS` by default.
 
-	-	`KEY_EXCLUSIVE_ASYNC_REQUESTS` option affects only device queues of the individual application.
+- `KEY_EXCLUSIVE_ASYNC_REQUESTS` option affects only device queues of the individual application.
 
--	For GPU, the actual work is serialized by a plugin and/or a driver anyway.
+- For GPU, the actual work is serialized by a plugin and/or a driver anyway.
 
-- 	Finally, for <a href="#myriad">any VPU flavor</a>, using multiple requests is a must for achieving good throughput. 
+- Finally, for <a href="#myriad">any VPU flavor</a>, using multiple requests is a must for achieving good throughput. 
 
 In the Inference Engine, there is no notion of requests priorities. It is left to the user side (for example, not queuing the low priority infer request, until another higher priority is waiting). Notice that it would require additional logic to synchronize between executable networks (queues) in your application code.
 
@@ -113,14 +113,14 @@ In the Inference Engine, there is no notion of requests priorities. It is left t
 Inference precision directly affects the performance. 
 
 Model Optimizer can produce an IR with different precision. For example, an FP16 IR initially targets VPU and GPU devices, while, for example, for the CPU, an FP16 IR is    typically up-scaled to the regular FP32 automatically upon loading. But notice that further device-specific inference precision settings are available, 
-for example, [8-bit integer](Int8Inference.md) or [bfloat16](Bfloat16Inference.md), which is specific to the CPU inference, below.
-Note that for the [MULTI device](supported_plugins/MULTI.md) plugin that supports automatic inference on multiple devices in parallel, you can use an FP16 IR (no need for FP32).
+for example, [8-bit integer](../IE_DG/Int8Inference.md) or [bfloat16](../IE_DG/Bfloat16Inference.md), which is specific to the CPU inference, below.
+Note that for the [MULTI device](../IE_DG/supported_plugins/MULTI.md) plugin that supports automatic inference on multiple devices in parallel, you can use an FP16 IR (no need for FP32).
 You can find more information, including preferred data types for specific devices, in the
-[Supported Devices](supported_plugins/Supported_Devices.md) document.
+[Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md) document.
 
 
 By default, plugins enable the optimizations that allow lower precision if the acceptable range of accuracy is preserved.
-For example, for the CPU that supports the AVX512_BF16 instructions, an FP16/FP32 model is converted to a [bfloat16](Bfloat16Inference.md) IR to accelerate inference.
+For example, for the CPU that supports the AVX512_BF16 instructions, an FP16/FP32 model is converted to a [bfloat16](../IE_DG/Bfloat16Inference.md) IR to accelerate inference.
 
 To compare the associated speedup, run the example command below to disable this feature on the CPU device with the AVX512_BF16 support and get regular FP32 execution:
 
@@ -129,10 +129,10 @@ $ benchmark_app -m <model.xml> -enforcebf16=false
  ```
 
 Notice that for quantized (e.g. INT8) models the bfloat16 calculations (of the layers that remain in FP32) is disabled by default.
-Refer to the [CPU Plugin documentation](supported_plugins/CPU.md) for more details.
+Refer to the [CPU Plugin documentation](../IE_DG/supported_plugins/CPU.md) for more details.
 
 Similarly, the GPU device automatically executes FP16 for the layers that remain in FP16 in the quantized models (assuming that the FP16 model was quantized).
-Refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU Plugin documentation](supported_plugins/GPU.md).
+Refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU Plugin documentation](../IE_DG/supported_plugins/GPU.md).
 
 ## Device Optimizations
 

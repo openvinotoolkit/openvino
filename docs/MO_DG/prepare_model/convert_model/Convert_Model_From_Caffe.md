@@ -93,7 +93,7 @@ Caffe*-specific parameters:
    ```sh    
    mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt --output_dir <OUTPUT_MODEL_DIR>
    ```
-* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe\* system on the computer. To read more about this, see [Legacy Mode for Caffe* Custom Layers](../customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md).
+* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe\* system on the computer.
 Optional parameters without default values and not specified by the user in the `.prototxt` file are removed from the Intermediate Representation, and nested parameters are flattened:
    ```sh
    mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params --output_dir <OUTPUT_MODEL_DIR>

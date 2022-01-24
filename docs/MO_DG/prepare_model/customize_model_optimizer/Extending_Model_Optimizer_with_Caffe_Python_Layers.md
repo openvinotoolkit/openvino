@@ -84,5 +84,5 @@ class ProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):
 ```
 
 ## See Also
+
 * [Customize_Model_Optimizer](Customize_Model_Optimizer.md)
-* [Legacy Mode for Caffe* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md)

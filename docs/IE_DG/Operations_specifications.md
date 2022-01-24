@@ -105,6 +105,7 @@
    openvino_docs_ops_matrix_MatMul_1
    openvino_docs_ops_sort_MatrixNms_8
    openvino_docs_ops_pooling_MaxPool_1
+   openvino_docs_ops_pooling_MaxPool_8
    openvino_docs_ops_arithmetic_Maximum_1
    openvino_docs_ops_arithmetic_Minimum_1
    openvino_docs_ops_activation_Mish_4
@@ -170,6 +171,7 @@
    openvino_docs_ops_arithmetic_Sign_1
    openvino_docs_ops_arithmetic_Sin_1
    openvino_docs_ops_arithmetic_Sinh_1
+   openvino_docs_ops_movement_Slice_8
    openvino_docs_ops_activation_SoftMax_1
    openvino_docs_ops_activation_SoftMax_8
    openvino_docs_ops_activation_SoftPlus_4

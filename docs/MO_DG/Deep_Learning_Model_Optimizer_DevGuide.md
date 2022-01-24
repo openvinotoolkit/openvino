@@ -636,15 +636,15 @@ mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 
 You need to have have write permissions for an output directory.
 
-> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](Converting_Model.md).
+> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md).
 
-To adjust the conversion process, you may use general parameters defined in the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) and 
+To adjust the conversion process, you may use general parameters defined in the [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md) and 
 framework-specific parameters for:
-* [Caffe](Convert_Model_From_Caffe.md)
-* [TensorFlow](Convert_Model_From_TensorFlow.md)
-* [MXNet](Convert_Model_From_MxNet.md)
-* [ONNX](Convert_Model_From_ONNX.md)
-* [Kaldi](Convert_Model_From_Kaldi.md)
+* [Caffe](prepare_model/convert_model/Convert_Model_From_Caffe.md)
+* [TensorFlow](prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+* [MXNet](prepare_model/convert_model/Convert_Model_From_MxNet.md)
+* [ONNX](prepare_model/convert_model/Convert_Model_From_ONNX.md)
+* [Kaldi](prepare_model/convert_model/Convert_Model_From_Kaldi.md)
 
 ## Videos
 

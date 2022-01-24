@@ -197,7 +197,7 @@ python <path_to_sample>/speech_sample.py -m <path_to_model>/wsj_dnn5b.xml -i <pa
 
 > **NOTES**:
 >
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample supports input and output in numpy file format (.npz)
 
