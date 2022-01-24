@@ -2194,20 +2194,21 @@ inline void MKLDNNTopKNode::prepare_original_idx() {
                 }
             }
         } else {
+            size_t blk_len = mayiuse(cpu::x64::avx2) ? blk_size : 4;
             if (vec_idx_block.empty()) {
-                vec_idx_block.resize(axis_dim * blk_size);
+                vec_idx_block.resize(axis_dim * blk_len);
                 for (size_t i = 0; i < axis_dim; i++) {
-                    for (size_t j = 0; j < blk_size; j++) {
-                        vec_idx_block[i * blk_size + j] = i;
+                    for (size_t j = 0; j < blk_len; j++) {
+                        vec_idx_block[i * blk_len + j] = i;
                     }
                 }
             } else {
-                size_t pre_size = vec_idx_block.size() / blk_size;
+                size_t pre_size = vec_idx_block.size() / blk_len;
                 if (pre_size != axis_dim) {
-                    vec_idx_block.resize(axis_dim * blk_size);
+                    vec_idx_block.resize(axis_dim * blk_len);
                     for (size_t i = pre_size; i < axis_dim; i++) {
-                        for (size_t j = 0; j < blk_size; j++) {
-                            vec_idx_block[i * blk_size + j] = i;
+                        for (size_t j = 0; j < blk_len; j++) {
+                            vec_idx_block[i * blk_len + j] = i;
                         }
                     }
                 }
