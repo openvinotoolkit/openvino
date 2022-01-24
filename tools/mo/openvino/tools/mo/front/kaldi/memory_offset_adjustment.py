@@ -41,7 +41,7 @@ def align_frame_time(graph: Graph, node: Node, frame_time_max):
         # Adding MemoryOffset for Const does not make sense
         if in_node.frame_time < frame_time_max and in_node.op != 'Const':
             # Change existing MemoryOffset to avoid adding new one
-            if in_node.op == 'MemoryOffset' and not in_node.has_default:
+            if in_node.op == 'MemoryOffset':
                 in_node.t = in_node.frame_time - frame_time_max
                 in_node.frame_time = in_node.t
                 if in_node.has_and_set('splitted'):
@@ -119,7 +119,7 @@ class MemoryOffsetAdjustment(FrontReplacementSubgraph):
             # calculate frame_time (delay) that was not calculated
             if node.frame_time < 0:
                 # MemoryOffset with t>0 increases frame delay
-                if node.op == "MemoryOffset" and not node.has_default:
+                if node.op == "MemoryOffset":
                     node.frame_time = node.in_port(0).get_source().node.frame_time + node.t if not node.in_port(0).disconnected() else node.t
                 # for node with several inputs frame_time = maximum of delays from branches
                 # other branches should be synced by adding MemoryOffset(branch frame_time  - max)

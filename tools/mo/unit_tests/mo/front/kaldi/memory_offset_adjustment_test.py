@@ -4,6 +4,7 @@
 import unittest
 
 from openvino.tools.mo.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
+from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
@@ -36,6 +37,50 @@ class MemoruOffsetAdjustmentTests(unittest.TestCase):
                                  ('memory__2', 'concat', {'in': 2}),
                                  ('memory__1', 'concat', {'in': 1}),
                                  ('memory__5', 'concat', {'in': 3})],
+                                nodes_with_edges_only=True)
+
+        MemoryOffsetAdjustment().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, ref_graph, 'concat', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_several_memory_concat_splitted(self):
+        graph = build_graph({'in': {'kind': 'op', 'op': None},
+                             'memory_1': {'kind': 'op', 'op': 'MemoryOffset', 't': -1, 'splitted': True,
+                                          'pair_name': 'memory_1_pair'},
+                             'memory_2': {'kind': 'op', 'op': 'MemoryOffset', 't': 2},
+                             'memory__3': {'kind': 'op', 'op': 'MemoryOffset', 't': -3},
+                             'concat': {'kind': 'op', 'op': 'Concat'},
+                             'memory_1_pair': {'kind': 'op', 'op': 'MemoryOffset', 't': -1, 'splitted': True,
+                                               'pair_name': 'memory_1'},
+                             },
+                            [('in', 'memory_2', {'out': 1}),
+                             ('in', 'memory__3', {'out': 3}),
+                             ('memory_2', 'concat', {'in': 0}),
+                             ('memory_1', 'concat', {'in': 1}),
+                             ('in', 'concat', {'in': 2, 'out': 2}),
+                             ('memory__3', 'concat', {'in': 3}),
+                             ('concat', 'memory_1_pair', {'out': 0})],
+                            nodes_with_edges_only=True)
+        graph.stage = 'front'
+        mem_1 = Node(graph, 'memory_1')
+        mem_1.add_input_port(0)
+
+        ref_graph = build_graph({'in': {'kind': 'op', 'op': None},
+                                 'memory__5': {'kind': 'op', 'op': 'MemoryOffset', 't': -5},
+                                 'memory_1': {'kind': 'op', 'op': 'MemoryOffset', 't': -3, 'splitted': True,
+                                              'pair_name': 'memory_1_pair'},
+                                 'memory__2': {'kind': 'op', 'op': 'MemoryOffset', 't': -2},
+                                 'concat': {'kind': 'op', 'op': 'Concat'},
+                                 'memory_1_pair': {'kind': 'op', 'op': 'MemoryOffset', 't': -3, 'splitted': True,
+                                                   'pair_name': 'memory_1'}},
+                                [('in', 'memory__5', {'out': 3}),
+                                 ('in', 'memory__2', {'out': 1}),
+                                 ('in', 'concat', {'in': 0, 'out': 0}),
+                                 ('memory__2', 'concat', {'in': 2}),
+                                 ('memory_1', 'concat', {'in': 1}),
+                                 ('memory__5', 'concat', {'in': 3}),
+                                 ('concat', 'memory_1_pair', {'out': 0})],
                                 nodes_with_edges_only=True)
 
         MemoryOffsetAdjustment().find_and_replace_pattern(graph)
