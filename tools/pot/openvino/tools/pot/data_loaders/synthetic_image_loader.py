@@ -138,6 +138,10 @@ class SyntheticImageLoader(ImageLoader):
         self._instances = None
         self._categories = None
 
+        super().get_layout()
+        if self._shape is None or len(self._shape) < 2:
+            raise ValueError('Input shape should be specified. Please, use `--shape')
+
         if not os.path.exists(self.data_source):
             logger.info(f'Synthetic dataset will be stored in {self.data_source}')
             os.mkdir(self.data_source)
@@ -146,24 +150,28 @@ class SyntheticImageLoader(ImageLoader):
 
         assert os.path.isdir(self.data_source)
         if config.generate_data:
-            # progress bar?
+            self.download_colorization_model()
             self.generate_dataset()
-        elif not os.listdir(self.data_source): # folder is empty
-            # self.download_images()
-            raise NotImplementedError
 
         self._img_files = collect_img_files(self.data_source)
 
-    def download_images(self):
-        URL = ''
-        response = requests.get(URL, stream=True)
-        archive_path = os.path.join(self.data_source, 'synthetic_images.tar.gz')
-        with open(archive_path, 'wb') as f:
-            f.write(response.raw.read())
+    def download_colorization_model(self):
+        proto_name = 'colorization_deploy_v2.prototxt'
+        model_name = 'colorization_release_v2.caffemodel'
+        npy_name = 'pts_in_hull.npy'
 
-        tar = tarfile.open(archive_path, "r:gz")
-        tar.extractall(path=archive_path.replace('.tar.gz', ''))
-        tar.close()
+        if not os.path.exists(proto_name):
+            url = 'https://raw.githubusercontent.com/richzhang/colorization/caffe/colorization/models/'
+            proto = requests.get(url + proto_name)
+            open(proto_name, 'wb').write(proto.content)
+        if not os.path.exists(model_name):
+            url = 'http://eecs.berkeley.edu/~rich.zhang/projects/2016_colorization/files/demo_v2/'
+            model = requests.get(url + model_name)
+            open(model_name, 'wb').write(model.content)
+        if not os.path.exists(npy_name):
+            url = 'https://github.com/richzhang/colorization/raw/caffe/colorization/resources/'
+            pts_in_hull = requests.get(url + npy_name)
+            open(npy_name, 'wb').write(pts_in_hull.content)
 
     def initialize_params(self, height, width):
         default_img_size = 362 * 362
@@ -179,10 +187,6 @@ class SyntheticImageLoader(ImageLoader):
             self._categories = np.ceil(self.subset_size / (self._instances * self._weights.shape[0])).astype(int)
 
     def generate_dataset(self):
-        super().get_layout()
-        if self._shape is None or len(self._shape) < 2:
-            raise ValueError('Input shape should be specified. Please, use `--shape')
-
         height = self._shape[self._layout.get_index_by_name('H')]
         width = self._shape[self._layout.get_index_by_name('W')]
         self.initialize_params(height, width)
@@ -218,8 +222,7 @@ class SyntheticImageLoader(ImageLoader):
 
     def generate_image_batch(self, params, weights, height, width, indices):
         pts_in_hull = np.load('pts_in_hull.npy').transpose().reshape(2, 313, 1, 1).astype(np.float32)
-        net = cv.dnn.readNetFromCaffe('colorization_deploy_v2.prototxt',
-                                      'colorization_release_v2.caffemodel')
+        net = cv.dnn.readNetFromCaffe('colorization_deploy_v2.prototxt', 'colorization_release_v2.caffemodel')
         net.getLayer(net.getLayerId('class8_ab')).blobs = [pts_in_hull]
         net.getLayer(net.getLayerId('conv8_313_rh')).blobs = [np.full([1, 313], 2.606, np.float32)]
 
