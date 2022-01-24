@@ -53,7 +53,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::MOD
 };
 
-ov::AnyMap additional_config = {};
+std::map<std::string, std::string> additional_config = {};
 
 const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
