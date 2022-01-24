@@ -60,8 +60,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(${TARGET_NAME} PRIVATE "-Wno-error=register")
 endif()
 
-find_package(Python COMPONENTS Interpreter Development)
-
 # perform copy
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD

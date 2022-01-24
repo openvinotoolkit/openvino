@@ -88,7 +88,9 @@ find_package( Cython REQUIRED
               PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
               NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
-find_package(PythonLibs 3 REQUIRED)
+
+find_package(PythonInterp 3 REQUIRED)
+find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT REQUIRED)
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
@@ -283,8 +285,8 @@ function( cython_add_module _name )
     endif()
   endforeach()
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
+  include_directories( ${PYTHON_INCLUDE_DIRS} )
   python_add_module ( ${_name} ${generated_file} ${other_module_sources} )
-  target_include_directories( ${_name} PRIVATE ${PYTHON_INCLUDE_DIRS})
   # set_target_properties(${_name} PROPERTIES PREFIX "" SUFFIX "${PYTHON_MODULE_EXTENSION}")
   if( APPLE )
     set_target_properties( ${_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
