@@ -15,7 +15,7 @@ using namespace InferenceEngine;
 std::map<std::string, std::vector<size_t>> parseDataShapes(const std::string& shapeString) {
   std::map<std::string, std::vector<size_t>> data_shapes;
   // Parse input parameter string
-  std::vector<std::string> inputsShapes = split(shapeString, ';');
+  std::vector<std::string> inputsShapes = split(shapeString, '&');
 
   for (int i = 0; i < inputsShapes.size(); i++) {
     std::vector<std::string> curLayout = split(inputsShapes[i], ':');
@@ -38,7 +38,7 @@ std::map<std::string, std::vector<size_t>> parseDataShapes(const std::string& sh
 std::map<std::string, ov::PartialShape> parseReshapeShapes(const std::string& shapeString) {
   std::map<std::string, ov::PartialShape> reshape_info;
   // Parse input parameter string
-  std::vector<std::string> inputsShapes = split(shapeString, ';');
+  std::vector<std::string> inputsShapes = split(shapeString, '&');
 
   for (int i = 0; i < inputsShapes.size(); i++) {
     std::vector<std::string> curLayout = split(inputsShapes[i], ':');
