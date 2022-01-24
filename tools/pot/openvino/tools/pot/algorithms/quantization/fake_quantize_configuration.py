@@ -422,9 +422,10 @@ def _fake_quantize_to_types(model, hardware_config):
         if fq['fq_group'] == 'outputs':
             fq_input = get_node_input(fq, 0)
             hw_node_types = get_hardware_config_operation_type(fq_input, available_types)
-            out[fq.name] = ([(fq_input.name, hw_node_types)], fq['fq_group'])
+            out_data = ([(fq_input.name, hw_node_types)], fq['fq_group'])
         else:
-            out[fq.name] = (_get_node_valuable_descendant(fq), fq['fq_group'])
+            out_data = (_get_node_valuable_descendant(fq), fq['fq_group'])
+        out[fq.fullname] = out_data
 
     return out
 

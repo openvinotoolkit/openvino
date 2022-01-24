@@ -132,10 +132,8 @@ def compute_stats_layouts(config, model, qscheme=None):
 
     fake_quantize_config = {}
     for fq in fq_nodes:
-        node_input = get_node_input(fq, 0)
-        fq_group = fq['fq_group']
-        is_weights = node_input.type == 'Const'
-        fq_config = copy(fq_configuration[fq.name][fq_group])
+        is_weights = fq['fq_group'] == 'weights'
+        fq_config = copy(fq_configuration[fq.name][fq['fq_group']])
         for merged_configs in fq['fq_configs']:
             if merged_configs['bits'] == primary_bitwidth and not is_weights:
                 for field, value in merged_configs.items():

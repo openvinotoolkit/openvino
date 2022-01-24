@@ -149,8 +149,7 @@ class InsertFakeQuantize(BackReplacementPattern):
             insert_fake_quantize(graph, m_op, [0, 1], ['fq_input', 'fq_weights'], ['activations', 'weights'],
                                  hw_config=self._hardware_config)
         elif m_op.type == 'LSTMCell':
-            #TODO: Add configuration and FQ types
-            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4])
+            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4], hw_config=self._hardware_config)
         elif self.quantize_only_input(m_op):
             insert_fake_quantize(graph, m_op, [0], hw_config=self._hardware_config)
         else:
@@ -855,21 +854,23 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         if in_port_type != 'Const' and port.data.get_value() is not None:
             continue
 
-        name = 'fq_weights' if in_port_type == 'Const' else 'fq_input' 
+        is_weights = in_port_type == 'Const'
+
+        name = 'fq_weights' if is_weights else 'fq_input'
         if port_name is not None and idx in port_name:
             name = port_name[idx]
 
         port_data_type = nu.get_node_data_type(node, idx)
         port_data_type = port_data_type if port_data_type else np.float32
         # Create FakeQuantize operations
-        fq_group = 'weights' if in_port_type == 'Const' else 'activations'
+        fq_group = 'weights' if is_weights else 'activations'
         if fq_type is not None and idx in fq_type:
             fq_group = fq_type[idx]
 
         fq_configs = hw_config[node.type][fq_group] if hw_config is not None and hw_config[node.type] else []
         fq_options = {'fq_group': fq_group, 'fq_configs': copy(fq_configs)}
-        fq_input = create_fake_quantize_node(
-            graph, '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx), port_data_type, **fq_options)
+        fq_name = '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx)
+        fq_input = create_fake_quantize_node(graph, fq_name, port_data_type, **fq_options)
         # Insert FakeQuantize after input
         if node.type == 'Result':
             in_port = port.get_source()
