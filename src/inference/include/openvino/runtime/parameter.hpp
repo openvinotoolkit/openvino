@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header file for the Parameter class
+ * @brief A header file for the Parameter class.
  * @file openvino/runtime/parameter.hpp
  */
 #pragma once
@@ -15,7 +15,7 @@
 namespace ov {
 namespace runtime {
 /**
- * @brief An std::map object containing parameters
+ * @brief An std::map object containing parameters.
  */
 using ParamMap = std::map<std::string, Any>;
 }  // namespace runtime

@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief This is a header file for the OpenVINO Runtime common aliases and data types
+ * @brief A header file for the OpenVINO Runtime common aliases and data types.
  *
  * @file openvino/runtime/common.hpp
  */
@@ -30,7 +30,7 @@
 
 /**
  * @def OPENVINO_PLUGIN_API
- * @brief Defines OpenVINO Runtime Plugin API method
+ * @brief Defines the OpenVINO Runtime Plugin API method.
  */
 
 #ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
@@ -45,7 +45,7 @@ namespace ov {
 namespace ie = InferenceEngine;
 namespace runtime {
 /**
- * @brief This type of map is commonly used to pass set of device configuration parameters
+ * @brief This type of map is commonly used to pass a set of device configuration parameters.
  */
 using ConfigMap = std::map<std::string, std::string>;
 
