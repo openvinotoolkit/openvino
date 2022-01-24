@@ -95,7 +95,7 @@ const std::list<std::string>& ov::descriptor::Tensor::get_names() const {
     return m_names;
 }
 
-std::string ov::descriptor::Tensor::get_main_name() const {
+std::string ov::descriptor::Tensor::get_any_name() const {
     if (m_names.empty()) {
         throw ngraph::ngraph_error("Attempt to get a name for a Tensor without names");
     }

@@ -356,7 +356,7 @@ std::map<std::string, std::vector<std::string>> parse_input_parameters(
             return_value[input_name].push_back(input_value);
         } else {
             for (auto& item : input_info) {
-                return_value[item.get_main_name()].push_back(input_value);
+                return_value[item.get_any_name()].push_back(input_value);
             }
         }
         search_string = search_string.substr(end_pos + 1);
@@ -434,7 +434,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
     std::map<std::string, int> currentFileCounters;
     for (auto& item : input_info) {
-        currentFileCounters[item.get_main_name()] = 0;
+        currentFileCounters[item.get_any_name()] = 0;
     }
 
     std::vector<benchmark_app::InputsInfo> info_maps;
@@ -443,7 +443,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
         for (auto& item : input_info) {
             benchmark_app::InputInfo info;
-            auto name = item.get_main_name();
+            auto name = item.get_any_name();
 
             // Layout
             if (layout_map.count(name)) {
@@ -477,7 +477,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 }
                 if (info_maps.empty()) {  // Show warnings only for 1st test case config, as for other test cases
                                           // they will be the same
-                    slog::warn << item.get_main_name() << ": layout is not set explicitly"
+                    slog::warn << item.get_any_name() << ": layout is not set explicitly"
                                << (newLayout != "" ? std::string(", so it is defaulted to ") + newLayout : "")
                                << ". It is STRONGLY recommended to set layout manually to avoid further issues."
                                << slog::endl;
@@ -509,7 +509,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.is_image()) {
                 auto& namesVector = fileNames.at(filesInputName);
                 if (contains_binaries(namesVector)) {
-                    throw std::logic_error("Input files list for input " + item.get_main_name() +
+                    throw std::logic_error("Input files list for input " + item.get_any_name() +
                                            " contains binary file(s) and input shape is dynamic. Tensor shape should "
                                            "be defined explicitly (using -tensor_shape).");
                 }
@@ -533,8 +533,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
                 size_t w = 0;
                 size_t h = 0;
-                size_t fileIdx = currentFileCounters[item.get_main_name()];
-                for (; fileIdx < currentFileCounters[item.get_main_name()] + tensorBatchSize; fileIdx++) {
+                size_t fileIdx = currentFileCounters[item.get_any_name()];
+                for (; fileIdx < currentFileCounters[item.get_any_name()] + tensorBatchSize; fileIdx++) {
                     if (fileIdx >= namesVector.size()) {
                         throw std::logic_error(
                             "Not enough files to fill in full batch (number of files should be a multiple of batch "
@@ -549,7 +549,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     w = reader->width();
                     h = reader->height();
                 }
-                currentFileCounters[item.get_main_name()] = fileIdx;
+                currentFileCounters[item.get_any_name()] = fileIdx;
 
                 if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
                     info.dataShape[ov::layout::height_idx(info.layout)] = h;
@@ -563,7 +563,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     })) {
                     throw std::logic_error("Not enough information in shape and image to determine tensor shape "
                                            "automatically autmatically. Input: " +
-                                           item.get_main_name() + ", File name: " + namesVector[fileIdx - 1]);
+                                           item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
                 }
 
             } else if (info.partialShape.is_static()) {
@@ -594,7 +594,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                         reshape_required = true;
                     }
                 } else {
-                    slog::warn << "Input '" << item.get_main_name()
+                    slog::warn << "Input '" << item.get_any_name()
                                << "' doesn't have batch dimension in layout. -b option will be ignored for this input."
                                << slog::endl;
                 }

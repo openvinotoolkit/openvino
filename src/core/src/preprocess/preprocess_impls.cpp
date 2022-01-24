@@ -243,7 +243,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     // Dump tensor and model shapes if any preprocessing is needed
     str << "Input ";
     if (!data.m_param->output(0).get_names().empty()) {
-        str << "\"" << data.m_param->output(0).get_main_name() << "\"";
+        str << "\"" << data.m_param->output(0).get_any_name() << "\"";
     }
     if (context.color_format() != ColorFormat::UNDEFINED) {
         str << " (color " << color_format_name(context.color_format()) << ")";
@@ -261,7 +261,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
         for (size_t i = 0; i < nodes.size(); i++) {
             str << "       " << i << ": ";
             if (!nodes[i].get_names().empty()) {
-                str << nodes[i].get_main_name() << " ";
+                str << nodes[i].get_any_name() << " ";
             }
             dump_tensor(str, nodes[i].get_partial_shape(), context.layout(), nodes[i].get_element_type());
             str << std::endl;

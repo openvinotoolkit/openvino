@@ -257,7 +257,7 @@ def check_suitable_for_reverse(layout: Layout, ov_input):
         c_idx += rank
     if c_idx >= rank:
         raise Error('Layout {} for input {} is inconsistent with shape {}'.format(
-            layout, ov_input.get_tensor().get_main_name(), ov_input.get_partial_shape()))
+            layout, ov_input.get_tensor().get_any_name(), ov_input.get_partial_shape()))
     c_num = ov_input.get_partial_shape()[c_idx]
     return c_num.is_dynamic or c_num.get_length() == 3
 
@@ -274,7 +274,7 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
     suitable_params = []
     for i in range(0, len(ov_function.inputs)):
         ov_input = ov_function.input(i)
-        param_info = [ov_input.get_tensor().get_main_name(), ov_input.get_partial_shape()]
+        param_info = [ov_input.get_tensor().get_any_name(), ov_input.get_partial_shape()]
         all_params.append(param_info)
 
         if not ov_function.get_parameters()[i].layout.empty:
@@ -283,7 +283,7 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
             continue
 
         layout_item = None
-        first_name = ov_input.get_tensor().get_main_name()
+        first_name = ov_input.get_tensor().get_any_name()
         for name in ov_input.get_tensor().get_names():
             if name in layout_values:
                 layout_item = layout_values[name]

@@ -41,7 +41,7 @@ public:
     OPENVINO_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
     void set_name(const std::string& name);
 
-    std::string get_main_name() const;
+    std::string get_any_name() const;
     const std::list<std::string>& get_names() const;
     void set_names(const std::list<std::string>& names);
     void add_names(const std::list<std::string>& names);

@@ -351,9 +351,9 @@ TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.input()));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input().get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input().get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input().get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input().get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_input_tensor(0));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -377,9 +377,9 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output()));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output().get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output().get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output().get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output().get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -433,9 +433,9 @@ TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.input(0)));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(0)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input(0).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input(0).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(0).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(0).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_input_tensor(0));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -448,9 +448,9 @@ TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
     }
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(1)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input(1).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input(1).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(1).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(1).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_input_tensor(1));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -504,9 +504,9 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(0)));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(0).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(0).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -519,9 +519,9 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     }
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(1).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(1).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(1));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -571,9 +571,9 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(0)));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(0).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(0).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -586,9 +586,9 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
     }
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(1).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(1).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1).get_main_name()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1).get_any_name()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(1));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));

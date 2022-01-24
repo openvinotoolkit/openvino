@@ -949,7 +949,7 @@ static void dump_parameter(std::ostream& stream, const std::shared_ptr<const ov:
     const auto& node = f->input(index);
     stream << index << ": { ";
     if (!node.get_tensor().get_names().empty()) {
-        stream << "name='" << node.get_tensor().get_main_name() << "', ";
+        stream << "name='" << node.get_tensor().get_any_name() << "', ";
     }
     stream << "shape=" << node.get_partial_shape();
     if (node.get_partial_shape().rank().is_static()) {

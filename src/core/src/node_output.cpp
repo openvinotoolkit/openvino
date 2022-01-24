@@ -86,8 +86,8 @@ const std::list<std::string>& Output<Node>::get_names() const {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
 }
 
-std::string Output<Node>::get_main_name() const {
-    return get_tensor().get_main_name();
+std::string Output<Node>::get_any_name() const {
+    return get_tensor().get_any_name();
 }
 
 void Output<Node>::set_names(const std::list<std::string>& names) {
@@ -102,8 +102,8 @@ const std::list<std::string>& Output<const Node>::get_names() const {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
 }
 
-std::string Output<const Node>::get_main_name() const {
-    return get_tensor().get_main_name();
+std::string Output<const Node>::get_any_name() const {
+    return get_tensor().get_any_name();
 }
 
 bool Output<Node>::operator==(const Output& other) const {

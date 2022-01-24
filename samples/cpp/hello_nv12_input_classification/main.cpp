@@ -107,8 +107,8 @@ int main(int argc, char* argv[]) {
         OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
         OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
 
-        std::string input_tensor_name = model->input().get_main_name();
-        std::string output_tensor_name = model->output().get_main_name();
+        std::string input_tensor_name = model->input().get_any_name();
+        std::string output_tensor_name = model->output().get_any_name();
 
         // -------- Step 3. Configure preprocessing  --------
         PrePostProcessor ppp = PrePostProcessor(model);

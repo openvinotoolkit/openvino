@@ -56,8 +56,8 @@ void regclass_graph_Output(py::module m, std::string typestring) {
                 get_index : int
                     Index value as integer.
                )");
-    output.def("get_main_name",
-               &ov::Output<VT>::get_main_name,
+    output.def("get_any_name",
+               &ov::Output<VT>::get_any_name,
                R"(
                 One of the tensor names associated with this output.
                 Note: first name in lexicographical order.
@@ -146,7 +146,7 @@ void regclass_graph_Output(py::module m, std::string typestring) {
 
     output.def_property_readonly("node", &ov::Output<VT>::get_node_shared_ptr);
     output.def_property_readonly("index", &ov::Output<VT>::get_index);
-    output.def_property_readonly("any_name", &ov::Output<VT>::get_main_name);
+    output.def_property_readonly("any_name", &ov::Output<VT>::get_any_name);
     output.def_property_readonly("names", &ov::Output<VT>::get_names);
     output.def_property_readonly("element_type", &ov::Output<VT>::get_element_type);
     output.def_property_readonly("shape", &ov::Output<VT>::get_shape, py::return_value_policy::copy);

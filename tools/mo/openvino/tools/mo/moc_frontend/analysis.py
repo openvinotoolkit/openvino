@@ -32,7 +32,7 @@ def json_model_analysis_dump(framework_model: Model):
     for op in framework_model.get_ordered_ops():
         for out_idx in range(op.get_output_size()):
             output = op.output(out_idx)
-            tensor_name = output.get_main_name()
+            tensor_name = output.get_any_name()
             json_dump['intermediate'][tensor_name] = {}
             json_dump['intermediate'][tensor_name]['shape'] = dump_partial_shape(output.get_partial_shape())
             json_dump['intermediate'][tensor_name]['data_type'] = dump_element_type(output.get_element_type())

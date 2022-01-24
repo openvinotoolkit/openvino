@@ -78,7 +78,7 @@ public:
     /// \return The tensor names associated with this output
     const std::list<std::string>& get_names() const;
     /// \return Any tensor names associated with this output
-    std::string get_main_name() const;
+    std::string get_any_name() const;
     /// \return Set tensor names associated with this output
     void set_names(const std::list<std::string>& names);
     /// \return Add tensor names associated with this output
@@ -158,7 +158,7 @@ public:
     /// \return The tensor names associated with this output
     const std::list<std::string>& get_names() const;
     /// \return Any tensor name associated with this output
-    std::string get_main_name() const;
+    std::string get_any_name() const;
     /// \return A set containing handles for all inputs targeted by the output referenced by
     ///        this output handle.
     std::set<Input<Node>> get_target_inputs() const;
