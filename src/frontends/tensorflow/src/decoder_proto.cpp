@@ -104,16 +104,35 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
 
         if (list.tensor_size() || list.func_size())
-            FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type is not supported.");
+            FRONT_END_GENERAL_CHECK(
+                false,
+                "Conversion from Tensorflow to OpenVINO data type failed: List of tensors/functions type for '",
+                name,
+                "' attribute is not supported.");
 
-        FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type is not supported.");
+        FRONT_END_GENERAL_CHECK(false,
+                                "Conversion from Tensorflow to OpenVINO data type failed: List type for '",
+                                name,
+                                "' attribute is not supported.");
     }
 
     case ::tensorflow::AttrValue::ValueCase::kTensor:
+        FRONT_END_GENERAL_CHECK(false,
+                                "Conversion from Tensorflow to OpenVINO data type failed: Tensor type for '",
+                                name,
+                                "' attribute is not supported.");
     case ::tensorflow::AttrValue::ValueCase::kPlaceholder:
+        FRONT_END_GENERAL_CHECK(false,
+                                "Conversion from Tensorflow to OpenVINO data type failed: Placeholder type for '",
+                                name,
+                                "' attribute is not supported.");
     case ::tensorflow::AttrValue::ValueCase::kFunc:
+        FRONT_END_GENERAL_CHECK(false,
+                                "Conversion from Tensorflow to OpenVINO data type failed: Function type for '",
+                                name,
+                                "' attribute is not supported.");
     default:
-        FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type is not supported.");
+        FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type failed.");
     }
 }
 
