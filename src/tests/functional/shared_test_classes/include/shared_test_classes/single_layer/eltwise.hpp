@@ -26,7 +26,6 @@ typedef std::tuple<
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
                          virtual public SubgraphBaseTest {
 protected:
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 
 public:
