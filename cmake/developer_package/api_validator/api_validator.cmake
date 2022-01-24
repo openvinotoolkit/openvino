@@ -50,7 +50,7 @@ endfunction()
 
 set(VALIDATED_LIBRARIES "" CACHE INTERNAL "")
 
-function(_ie_add_api_validator_post_build_step)
+function(_ov_add_api_validator_post_build_step)
     if(NOT BUILD_SHARED_LIBS)
         # since _ie_add_api_validator_post_build_step
         # is currently run only on shared libraries, we have nothing to test
@@ -149,5 +149,5 @@ endfunction()
 # ie_add_api_validator_post_build_step(TARGET <name>)
 #
 macro(ie_add_api_validator_post_build_step)
-    _ie_add_api_validator_post_build_step(${ARGV})
+    _ov_add_api_validator_post_build_step(${ARGV})
 endmacro()
