@@ -274,7 +274,7 @@ class Port:
                     tensor_names_list.append(tensor_name.replace(',', '\\,'))
         return sorted(tensor_names_list)
 
-    def set_tensor_names(self, op_names: list, tensor_names: list, port_renumber: bool = False):
+    def add_tensor_names(self, op_names: list, tensor_names: list, port_renumber: bool = False):
         """
         Sets tensor names list.
         :param op_names: list of op names.

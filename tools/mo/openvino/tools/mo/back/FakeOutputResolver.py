@@ -44,7 +44,7 @@ class FakeOutputResolver(BackReplacementPattern):
 
                 # Move tensor names to Add op, which replaces FakeOutput
                 if len(tensor_names) > 0:
-                    add.out_port(0).set_tensor_names([add.soft_get('name')], [tensor_names])
+                    add.out_port(0).add_tensor_names([add.soft_get('name')], [tensor_names])
 
             else:
                 result_in_port = fake_output.out_port(0).get_destination()

@@ -1088,6 +1088,16 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                         smart_node['data_type'] = data_type
                     inputs.append(node_id)
                     port_and_shape_info['added'] = True
+
+                    if smart_node.out_edges():
+                        # User specified input is Parameter, so input cut is not needed, but
+                        # Op name needs to be added to tensor names
+                        fw_info = []
+                        op_name = smart_node.soft_get('name')
+                        if 'fw_tensor_debug_info' in smart_node.out_edge(0):
+                            fw_info += smart_node.out_edge(0)['fw_tensor_debug_info']
+                        smart_node.out_edge(0)['fw_tensor_debug_info'] = fw_info + [(op_name, op_name)]
+
                     continue
 
                 if before_infer:

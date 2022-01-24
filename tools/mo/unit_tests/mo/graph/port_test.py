@@ -32,7 +32,7 @@ class TestsGetTensorNames(unittest.TestCase):
         op1_node.add_output_port(0)
         self.assertTrue(op1_node.out_port(0).get_tensor_names() == [])
 
-        input_node.out_port(0).set_tensor_names(["A", "B", "C"], [["A:0"], ["B:0", "B:1", "B:2"], ["C:0"]])
+        input_node.out_port(0).add_tensor_names(["A", "B", "C"], [["A:0"], ["B:0", "B:1", "B:2"], ["C:0"]])
         self.assertTrue(input_node.out_port(0).get_tensor_debug_info() ==
                         [('input', 'input'), ('Op1', 'Op1,Op2'), ("A", "A:0"), ("B", "B:0,B:1,B:2"), ("C", "C:0")])
         self.assertTrue(input_node.out_port(0).get_tensor_names() ==
@@ -53,7 +53,7 @@ class TestsGetTensorNames(unittest.TestCase):
         op2_node.add_output_port(0)
         self.assertTrue(op2_node.out_port(0).get_tensor_names() == [])
 
-        input_node.out_port(0).set_tensor_names(["A", "B", "C"], [["A:0"], ["B:0", "B:1", "B:2"], ["C:0"]])
+        input_node.out_port(0).add_tensor_names(["A", "B", "C"], [["A:0"], ["B:0", "B:1", "B:2"], ["C:0"]])
         self.assertTrue(input_node.out_port(0).get_tensor_debug_info() ==
                         [('input', 'input'), ('Op1', 'Op1,Op2'), ("A", "A:0"), ("B", "B:0,B:1,B:2"), ("C", "C:0")])
         self.assertTrue(input_node.out_port(0).get_tensor_names() ==
@@ -70,7 +70,7 @@ class TestsGetTensorNames(unittest.TestCase):
 
         self.assertTrue(op1_node.out_port(0).get_tensor_names(port_renumber=True) == ['Op1\\,Op2'])
 
-        input_node.out_port(0).set_tensor_names(["A", "B", "C"], [["A:0"], ["B:0", "B:1", "B:2"], ["C:0"]],
+        input_node.out_port(0).add_tensor_names(["A", "B", "C"], [["A:0"], ["B:0", "B:1", "B:2"], ["C:0"]],
                                                 port_renumber=True)
         self.assertTrue(input_node.out_port(0).get_tensor_debug_info(port_renumber=True) ==
                         [('input', 'input'), ('Op1', 'Op1,Op2'), ("A", "A:0"), ("B", "B:0,B:1,B:2"), ("C", "C:0")])
