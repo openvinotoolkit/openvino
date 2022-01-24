@@ -1643,7 +1643,7 @@ def test_add_the_same_name_to_tensor_twice():
 
     add_input = ov_model.input(1)
     add_input_tensor_names = add_input.get_names()
-    assert len(add_input_tensor_names) == 2
+    assert len(add_input_tensor_names) == 3
     assert "extra_name" in add_input_tensor_names
 
 
