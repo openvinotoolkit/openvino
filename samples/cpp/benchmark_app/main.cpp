@@ -137,9 +137,10 @@ int main(int argc, char* argv[]) {
             }
         }
         if (!FLAGS_report_type.empty()) {
-            statistics = FLAGS_json_stats ?
-                std::make_shared<StatisticsReportJSON>(StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder}) : 
-                std::make_shared<StatisticsReport>(StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder});
+            statistics = FLAGS_json_stats ? std::make_shared<StatisticsReportJSON>(
+                                                StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder})
+                                          : std::make_shared<StatisticsReport>(
+                                                StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder});
 
             statistics->add_parameters(StatisticsReport::Category::COMMAND_LINE_PARAMETERS, command_line_arguments);
         }
@@ -399,16 +400,17 @@ int main(int argc, char* argv[]) {
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
             app_inputs_info = get_inputs_info(FLAGS_shape,
-                                            FLAGS_layout,
-                                            batchSize,
-                                            FLAGS_data_shape,
-                                            inputFiles,
-                                            FLAGS_iscale,
-                                            FLAGS_imean,
-                                            compiledModel.inputs());
+                                              FLAGS_layout,
+                                              batchSize,
+                                              FLAGS_data_shape,
+                                              inputFiles,
+                                              FLAGS_iscale,
+                                              FLAGS_imean,
+                                              compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -425,7 +427,8 @@ int main(int argc, char* argv[]) {
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
                     {StatisticsVariant("read network time (ms)", "read_network_time", duration_ms)});
 
             const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
@@ -457,7 +460,8 @@ int main(int argc, char* argv[]) {
                 duration_ms = get_duration_ms_till_now(startTime);
                 slog::info << "Reshape network took " << double_to_string(duration_ms) << " ms" << slog::endl;
                 if (statistics)
-                    statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                    statistics->add_parameters(
+                        StatisticsReport::Category::EXECUTION_RESULTS,
                         {StatisticsVariant("reshape network time (ms)", "reshape_network_time", duration_ms)});
             }
 
@@ -559,7 +563,8 @@ int main(int argc, char* argv[]) {
             duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
                     {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
         } else {
             next_step();
@@ -583,8 +588,9 @@ int main(int argc, char* argv[]) {
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Import network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {StatisticsVariant("import network time (ms)", "import_network_time", duration_ms)});
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("import network time (ms)", "import_network_time", duration_ms)});
 
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
@@ -689,29 +695,27 @@ int main(int argc, char* argv[]) {
         if (statistics) {
             statistics->add_parameters(
                 StatisticsReport::Category::RUNTIME_CONFIG,
-                StatisticsReport::Parameters({   
-                    StatisticsVariant("benchmark mode", "benchmark_mode", inferenceOnly ? "inference only" : "full"),
-                    StatisticsVariant("topology", "topology", topology_name),
-                    StatisticsVariant("target device", "target_device", device_name),
-                    StatisticsVariant("API", "api", FLAGS_api),
-                    StatisticsVariant("precision", "precision", type.get_type_name()),
-                    StatisticsVariant("batch size", "batch_size", batchSize),
-                    StatisticsVariant("number of iterations", "iterations_num", niter),
-                    StatisticsVariant("number of parallel infer requests", "nireq", nireq),
-                    StatisticsVariant("duration (ms)", "duration", get_duration_in_milliseconds(duration_seconds))
-                }));
+                StatisticsReport::Parameters(
+                    {StatisticsVariant("benchmark mode", "benchmark_mode", inferenceOnly ? "inference only" : "full"),
+                     StatisticsVariant("topology", "topology", topology_name),
+                     StatisticsVariant("target device", "target_device", device_name),
+                     StatisticsVariant("API", "api", FLAGS_api),
+                     StatisticsVariant("precision", "precision", type.get_type_name()),
+                     StatisticsVariant("batch size", "batch_size", batchSize),
+                     StatisticsVariant("number of iterations", "iterations_num", niter),
+                     StatisticsVariant("number of parallel infer requests", "nireq", nireq),
+                     StatisticsVariant("duration (ms)", "duration", get_duration_in_milliseconds(duration_seconds))}));
             for (auto& nstreams : device_nstreams) {
                 std::stringstream ss;
                 ss << "number of " << nstreams.first << " streams";
-                
+
                 std::string dev_name = nstreams.first;
                 std::transform(dev_name.begin(), dev_name.end(), dev_name.begin(), [](unsigned char c) {
                     return c == ' ' ? '_' : std::tolower(c);
                 });
 
                 statistics->add_parameters(StatisticsReport::Category::RUNTIME_CONFIG,
-                                          {StatisticsVariant(ss.str(),dev_name+"_streams_num", nstreams.second)
-                                          });
+                                           {StatisticsVariant(ss.str(), dev_name + "_streams_num", nstreams.second)});
             }
         }
 
@@ -878,9 +882,9 @@ int main(int argc, char* argv[]) {
         slog::info << "First inference took " << double_to_string(duration_ms) << " ms" << slog::endl;
 
         if (statistics) {
-            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {StatisticsVariant("first inference time (ms)", "first_inference_time", duration_ms)
-        });
+            statistics->add_parameters(
+                StatisticsReport::Category::EXECUTION_RESULTS,
+                {StatisticsVariant("first inference time (ms)", "first_inference_time", duration_ms)});
         }
         inferRequestsQueue.reset_times();
 
@@ -976,13 +980,13 @@ int main(int argc, char* argv[]) {
             const auto& lat_groups = inferRequestsQueue.get_latency_groups();
             for (int i = 0; i < lat_groups.size(); i++) {
                 const auto& lats = lat_groups[i];
-               
+
                 std::string data_shapes_string = "";
                 for (auto& item : app_inputs_info[i]) {
                     data_shapes_string += item.first + " : " + get_shape_string(item.second.dataShape) + " ";
                 }
 
-                groupLatencies.emplace_back(lats,data_shapes_string,FLAGS_latency_percentile);
+                groupLatencies.emplace_back(lats, data_shapes_string, FLAGS_latency_percentile);
             }
         }
 
@@ -992,10 +996,8 @@ int main(int argc, char* argv[]) {
 
         if (statistics) {
             statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {
-                                          StatisticsVariant("total execution time (ms)", "execution_time", totalDuration),
-                                          StatisticsVariant("total number of iterations", "iterations_num", iteration)
-                                      });
+                                       {StatisticsVariant("total execution time (ms)", "execution_time", totalDuration),
+                                        StatisticsVariant("total number of iterations", "iterations_num", iteration)});
             if (device_name.find("MULTI") == std::string::npos) {
                 std::string latency_label;
                 if (FLAGS_latency_percentile == 50) {
@@ -1005,18 +1007,17 @@ int main(int argc, char* argv[]) {
                 }
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {
-                        StatisticsVariant(latency_label,"latency_median", generalLatency.median_or_percentile),
-                        StatisticsVariant("Percentile boundary", "percentile_boundary", FLAGS_latency_percentile),
-                        StatisticsVariant("Average latency (ms)", "latency_avg", generalLatency.avg),
-                        StatisticsVariant("Min latency (ms)", "latency_min", generalLatency.min),
-                        StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max),
-                        StatisticsVariant("throughput", "throughput", fps)
-                    });
+                    {StatisticsVariant(latency_label, "latency_median", generalLatency.median_or_percentile),
+                     StatisticsVariant("Percentile boundary", "percentile_boundary", FLAGS_latency_percentile),
+                     StatisticsVariant("Average latency (ms)", "latency_avg", generalLatency.avg),
+                     StatisticsVariant("Min latency (ms)", "latency_min", generalLatency.min),
+                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max),
+                     StatisticsVariant("throughput", "throughput", fps)});
 
                 if (FLAGS_pcseq && app_inputs_info.size() > 1) {
                     for (size_t i = 0; i < groupLatencies.size(); ++i) {
-                        statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS_GROUPPED,
+                        statistics->add_parameters(
+                            StatisticsReport::Category::EXECUTION_RESULTS_GROUPPED,
                             {StatisticsVariant("Group Latencies", "group_latencies", groupLatencies[i])});
                     }
                 }
@@ -1093,9 +1094,7 @@ int main(int argc, char* argv[]) {
 
         if (statistics) {
             statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {
-                                          StatisticsVariant("error", "error", ex.what())
-                                      });
+                                       {StatisticsVariant("error", "error", ex.what())});
             statistics->dump();
         }
 

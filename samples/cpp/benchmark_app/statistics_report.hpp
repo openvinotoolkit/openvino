@@ -5,11 +5,10 @@
 #pragma once
 
 #include <map>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 // clang-format off
 #include "samples/common.hpp"
@@ -27,7 +26,7 @@ static constexpr char detailedCntReport[] = "detailed_counters";
 /// @brief Responsible for calculating different latency metrics
 class LatencyMetrics {
 public:
-    LatencyMetrics(){}
+    LatencyMetrics() {}
 
     LatencyMetrics(const std::vector<double>& latencies,
                    const std::string& data_shape = "",
@@ -116,12 +115,7 @@ public:
         std::string report_folder;
     };
 
-    enum class Category {
-        COMMAND_LINE_PARAMETERS,
-        RUNTIME_CONFIG,
-        EXECUTION_RESULTS,
-        EXECUTION_RESULTS_GROUPPED
-    };
+    enum class Category { COMMAND_LINE_PARAMETERS, RUNTIME_CONFIG, EXECUTION_RESULTS, EXECUTION_RESULTS_GROUPPED };
 
     explicit StatisticsReport(Config config) : _config(std::move(config)) {
         _separator =
@@ -163,8 +157,7 @@ protected:
 
 class StatisticsReportJSON : public StatisticsReport {
 public:
-    explicit StatisticsReportJSON(Config config) : StatisticsReport(std::move(config)) {
-    }
+    explicit StatisticsReportJSON(Config config) : StatisticsReport(std::move(config)) {}
 
     void dump() override;
     void dump_performance_counters(const std::vector<PerformanceCounters>& perfCounts) override;

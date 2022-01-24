@@ -84,8 +84,9 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
 
     for (const auto& layer : perfCounts) {
         dumper << layer.node_name;  // layer name
-        dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
-                                                                                : "INVALID_STATUS");
+        dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
+                       ? status_names[(int)layer.status]
+                       : "INVALID_STATUS");
         dumper << layer.node_type << layer.exec_type;
         dumper << std::to_string(layer.real_time.count() / 1000.0) << std::to_string(layer.cpu_time.count() / 1000.0);
         total += layer.real_time;
@@ -101,7 +102,8 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
     dumper.endLine();
 }
 
-StatisticsReport::PerformanceCounters StatisticsReport::get_average_performance_counters(const std::vector<PerformanceCounters>& perfCounts) {
+StatisticsReport::PerformanceCounters StatisticsReport::get_average_performance_counters(
+    const std::vector<PerformanceCounters>& perfCounts) {
     StatisticsReport::PerformanceCounters performanceCountersAvg;
     // iterate over each processed infer request and handle its PM data
     for (size_t i = 0; i < perfCounts.size(); i++) {
@@ -152,9 +154,8 @@ void StatisticsReport::dump_performance_counters(const std::vector<PerformanceCo
     slog::info << "Performance counters report is stored to " << dumper.getFilename() << slog::endl;
 }
 
-void StatisticsReportJSON::dump_parameters(nlohmann::json& js,
-                                           const StatisticsReport::Parameters& parameters) {
-    for (auto& parameter : parameters) {        
+void StatisticsReportJSON::dump_parameters(nlohmann::json& js, const StatisticsReport::Parameters& parameters) {
+    for (auto& parameter : parameters) {
         parameter.write_to_json(js);
     }
 };
@@ -164,8 +165,8 @@ void StatisticsReportJSON::dump() {
     std::string name = _config.report_folder + _separator + "benchmark_report.json";
 
     dump_parameters(js["cmd_options"], _parameters.at(Category::COMMAND_LINE_PARAMETERS));
-    dump_parameters(js["configuration_setup"],_parameters.at(Category::RUNTIME_CONFIG));
-    dump_parameters(js["execution_results"],_parameters.at(Category::EXECUTION_RESULTS));
+    dump_parameters(js["configuration_setup"], _parameters.at(Category::RUNTIME_CONFIG));
+    dump_parameters(js["execution_results"], _parameters.at(Category::EXECUTION_RESULTS));
     dump_parameters(js["execution_results"], _parameters.at(Category::EXECUTION_RESULTS_GROUPPED));
 
     std::ofstream out_stream(name);
@@ -206,7 +207,8 @@ void StatisticsReportJSON::dump_performance_counters(const std::vector<Performan
     slog::info << "Performance counters report is stored to " << name << slog::endl;
 }
 
-const nlohmann::json StatisticsReportJSON::perf_counters_to_json(const StatisticsReport::PerformanceCounters& perfCounts) {
+const nlohmann::json StatisticsReportJSON::perf_counters_to_json(
+    const StatisticsReport::PerformanceCounters& perfCounts) {
     std::chrono::microseconds total = std::chrono::microseconds::zero();
     std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
 
@@ -217,9 +219,8 @@ const nlohmann::json StatisticsReportJSON::perf_counters_to_json(const Statistic
 
         item["name"] = layer.node_name;  // layer name
         item["status"] =
-            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
-                       ? status_names[(int)layer.status]
-                       : "INVALID_STATUS");
+            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+                                                                                  : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;
         item["real_time"] = layer.real_time.count() / 1000.0;
