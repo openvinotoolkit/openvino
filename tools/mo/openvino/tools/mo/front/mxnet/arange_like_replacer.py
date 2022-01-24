@@ -59,7 +59,8 @@ class ArangeLikeReplacer(FrontReplacementOp):
             '''
 
             flattened_shape_node = create_op_with_const_inputs(graph, ReduceProd, {1: int64_array([0])},
-                                                               {'name': input_shape_node.name + '/ReduceProd'})
+                                                               {'name': input_shape_node.name + '/ReduceProd',
+                                                                'keep_dims': True})
             reshape_backward_node = Reshape(graph, {'name': name + '/Reshape_backward'}).create_node()
 
             input_shape_node.out_port(0).connect(flattened_shape_node.in_port(0))
