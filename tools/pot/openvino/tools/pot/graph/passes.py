@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import deque
@@ -662,11 +662,11 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
                 new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
             fq_node['orig_fq_name'] = copy(fq_node.name)
-            rename_node(fq_node, new_fq_name)
 
             if 'orig_node_name' not in input_node:
                 input_node['orig_node_name'] = copy(input_node.name)
                 rename_node(input_node, f'{input_node.name}/pre_fq_input')
+            rename_node(fq_node, new_fq_name)
 
         pattern = get_fq_result_pattern()
         apply_pattern(
@@ -708,7 +708,8 @@ def create_bias_node(graph: Graph, src_node):
 
     for destination_port in destination_ports:
         add_op.out_port(0).connect(destination_port)
-    add_bias.out_node(0)['Insert_Convert_operation_after'] = True
+    if bias_dtype != np.float32:
+        add_bias.out_node(0)['Insert_Convert_operation_after'] = True
 
 
 def create_fake_quantize_node(graph: Graph, name, data_type=np.float32):

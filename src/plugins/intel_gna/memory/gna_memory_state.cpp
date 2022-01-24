@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,8 +113,7 @@ namespace memory {
                 InferenceEngine::SizeVector({ 1, elements }),
                 InferenceEngine::NC));
             result_blob->allocate();
-            std::memcpy(state->gna_ptr, result_blob->buffer(), state->reserved_size);
-
+            std::memcpy(result_blob->buffer(), state->gna_ptr, state->reserved_size);
             return result_blob;
         }
     }

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <pybind11/pybind11.h>
+#include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
 #include "openvino/core/node_output.hpp"
@@ -25,8 +26,20 @@ void regclass_graph_Output(py::module m, std::string typestring)
                                                                        py::dynamic_attr());
     output.doc() = docs;
 
+    // operator overloading
+    output.def(py::self < py::self);
+    output.def(py::self <= py::self);
+    output.def(py::self > py::self);
+    output.def(py::self >= py::self);
+    output.def(py::self == py::self);
+    output.def(py::self != py::self);
+
+    output.def("__hash__", [](ov::Output<VT>& port) {
+        return std::hash<VT*>()(port.get_node()) + port.get_index();
+    });
+
     output.def("get_node",
-               &ov::Output<VT>::get_node,
+               &ov::Output<VT>::get_node_shared_ptr,
                R"(
                 Get node referenced by this output handle.
 
@@ -78,23 +91,25 @@ void regclass_graph_Output(py::module m, std::string typestring)
                )");
     output.def("get_shape",
                &ov::Output<VT>::get_shape,
+               py::return_value_policy::copy,
                R"(
                 The shape of the output referred to by this output handle.
 
                 Returns
                 ----------
                 get_shape : Shape
-                    Shape of the output.
+                    Copy of Shape of the output.
                )");
     output.def("get_partial_shape",
                &ov::Output<VT>::get_partial_shape,
+               py::return_value_policy::copy,
                R"(
                 The partial shape of the output referred to by this output handle.
 
                 Returns
                 ----------
                 get_partial_shape : PartialShape
-                    PartialShape of the output.
+                    Copy of PartialShape of the output.
                )");
     output.def("get_target_inputs",
                &ov::Output<VT>::get_target_inputs,
@@ -132,13 +147,13 @@ void regclass_graph_Output(py::module m, std::string typestring)
              )");
 
 
-    output.def_property_readonly("node", &ov::Output<VT>::get_node);
+    output.def_property_readonly("node", &ov::Output<VT>::get_node_shared_ptr);
     output.def_property_readonly("index", &ov::Output<VT>::get_index);
     output.def_property_readonly("any_name", &ov::Output<VT>::get_any_name);
     output.def_property_readonly("names", &ov::Output<VT>::get_names);
     output.def_property_readonly("element_type", &ov::Output<VT>::get_element_type);
-    output.def_property_readonly("shape", &ov::Output<VT>::get_shape);
-    output.def_property_readonly("partial_shape", &ov::Output<VT>::get_partial_shape);
+    output.def_property_readonly("shape", &ov::Output<VT>::get_shape, py::return_value_policy::copy);
+    output.def_property_readonly("partial_shape", &ov::Output<VT>::get_partial_shape, py::return_value_policy::copy);
     output.def_property_readonly("target_inputs", &ov::Output<VT>::get_target_inputs);
     output.def_property_readonly("tensor", &ov::Output<VT>::get_tensor);
     output.def_property_readonly("rt_info",

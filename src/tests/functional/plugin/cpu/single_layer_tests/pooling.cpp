@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -593,7 +593,8 @@ const std::vector<InputShape> inputShapes4D_int8 = {
             {
                 {1, 32, 8, 8},
                 {1, 32, 8, 4},
-                {2, 32, 8, 12}
+                {2, 32, 8, 12},
+                {1, 32, 8, 8}
             }
         },
         {
@@ -603,7 +604,8 @@ const std::vector<InputShape> inputShapes4D_int8 = {
             {
                 {3, 16, 32, 32},
                 {1, 16, 16, 12},
-                {1, 16, 8, 8}
+                {1, 16, 8, 8},
+                {3, 16, 32, 32},
             }
         }
 };
@@ -631,7 +633,8 @@ const std::vector<InputShape> inputShapes5D_int8 = {
             {
                 {2, 32, 8, 8, 8},
                 {1, 32, 16, 20, 8},
-                {1, 32, 16, 16, 16}
+                {1, 32, 16, 16, 16},
+                {2, 32, 8, 8, 8}
             }
         },
         {
@@ -641,7 +644,8 @@ const std::vector<InputShape> inputShapes5D_int8 = {
             {
                 {1, 16, 16, 16, 16},
                 {1, 16, 16, 8, 12},
-                {2, 16, 8, 8, 8}
+                {2, 16, 8, 8, 8},
+                {1, 16, 16, 16, 16},
             }
         }
 };

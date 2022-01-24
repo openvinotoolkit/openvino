@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,11 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ngraph_functions/builders.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 #include <ngraph/pass/manager.hpp>
 
@@ -817,4 +820,215 @@ TEST(nop_elimination, gather_3d_indices_constant_axis_1) {
             check_usecase(PartialShape{3, 2, 1}, i32, multiout, std::vector<int64_t>{1}, 2, 0);
             check_usecase(PartialShape{1, 16}, i32, multiout, std::vector<int64_t>{0, 0}, 0, 1);
         }
+}
+
+using namespace helpers;
+
+struct ShapeParams {
+    PartialShape shape1;
+    Shape shape2;
+    bool swap_inputs;
+    bool can_fuse;
+};
+
+enum class ConstantKind {
+    ZERO,
+    ONE,
+    RANDOM,
+};
+
+static std::ostream& operator<<(std::ostream& os, ConstantKind kind) {
+    switch (kind) {
+        case ConstantKind::ZERO:
+            os << "zero";
+            break;
+        case ConstantKind::ONE:
+            os << "one";
+            break;
+        case ConstantKind::RANDOM:
+            os << "random";
+            break;
+    }
+    return os;
+}
+
+struct TypeParams {
+    EltwiseTypes op_type;
+    ConstantKind constant_kind;
+    bool can_fuse;
+};
+
+using EliminateEltwiseParams = std::tuple<ShapeParams, TypeParams, element::Type>;
+
+class EliminateEltwiseTests: public testing::WithParamInterface<EliminateEltwiseParams>, virtual public TransformationTestsF {
+    public:
+        static std::string get_test_case_name(testing::TestParamInfo<EliminateEltwiseParams> info) {
+            const auto& shape_params = std::get<0>(info.param);
+            const auto& type_params = std::get<1>(info.param);
+            const auto& element_type = std::get<2>(info.param);
+            std::ostringstream result;
+            result << type_params.op_type
+                   << "_input1=" << shape_params.shape1
+                   << "_input2=" << shape_params.shape2
+                   << "_swap_inputs=" << std::boolalpha << shape_params.swap_inputs
+                   << "_constant=" << type_params.constant_kind
+                   << "_type=" << element_type;
+            return result.str();
+        }
+};
+
+TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
+    auto params = GetParam();
+    const auto& shape_params = std::get<0>(params);
+    const auto& type_params = std::get<1>(params);
+    const auto& type = std::get<2>(params);
+    const auto& shape1 = shape_params.shape1;
+    const auto& shape2 = shape_params.shape2;
+    bool swap_inputs = shape_params.swap_inputs;
+    bool can_fuse = shape_params.can_fuse && type_params.can_fuse;
+
+    auto parameter = make_shared<op::Parameter>(type, shape1);
+    std::shared_ptr<Node> constant;
+    switch (type_params.constant_kind) {
+        case ConstantKind::ZERO:
+            constant = op::Constant::create(type, shape2, {0});
+            break;
+        case ConstantKind::ONE:
+            constant = op::Constant::create(type, shape2, {1});
+            break;
+        case ConstantKind::RANDOM:
+            constant = builder::makeConstant(type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
+            break;
+    }
+
+    shared_ptr<Node> A = parameter;
+    shared_ptr<Node> B = constant;
+    if (swap_inputs) {
+        std::swap(A, B);
+        if (type_params.op_type == EltwiseTypes::SUBTRACT ||
+            type_params.op_type == EltwiseTypes::DIVIDE) {
+            can_fuse = false;
+        }
+    }
+
+    shared_ptr<Node> node;
+    switch (type_params.op_type) {
+        case EltwiseTypes::ADD:
+            node = make_shared<opset8::Add>(A, B);
+            break;
+        case EltwiseTypes::SUBTRACT:
+            node = make_shared<opset8::Subtract>(A, B);
+            break;
+        case EltwiseTypes::MULTIPLY:
+            node = make_shared<opset8::Multiply>(A, B);
+            break;
+        case EltwiseTypes::DIVIDE:
+            node = make_shared<opset8::Divide>(A, B);
+            break;
+        default:
+            ASSERT_FALSE(true) << "Invalid EltwiseType";
+    }
+    auto abs = make_shared<opset8::Abs>(node);
+    function = make_shared<Function>(abs, ParameterVector{parameter});
+
+    manager.register_pass<pass::NopElimination>();
+
+    if (can_fuse) {
+        auto abs = make_shared<opset8::Abs>(parameter);
+        function_ref = make_shared<Function>(abs, ParameterVector{parameter});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    if (type == element::f32) {
+        enable_accuracy_check();
+    }
+}
+
+std::vector<ShapeParams> shape_params = {
+    // input 1, input 2, swap inputs, can fuse
+    { Shape{}, Shape{}, false, true },
+    { Shape{}, Shape{}, true, true },
+    { Shape{5}, Shape{}, false, true },
+    { Shape{5}, Shape{1}, false, true },
+    { Shape{5}, Shape{5}, false, true },
+    { Shape{5}, Shape{5}, true, true },
+    { Shape{2, 3, 5}, Shape{}, false, true },
+    { Shape{2, 3, 5}, Shape{1}, false, true },
+    { Shape{2, 3, 5}, Shape{1, 1}, false, true },
+    { Shape{2, 3, 5}, Shape{1, 1, 1}, false, true },
+    { Shape{2, 3, 5}, Shape{5}, false, true },
+    { Shape{2, 3, 5}, Shape{1, 5}, false, true },
+    { Shape{2, 3, 5}, Shape{1, 1, 5}, false, true },
+    { Shape{2, 3, 5}, Shape{3, 5}, false, true },
+    { Shape{2, 3, 5}, Shape{1, 3, 5}, false, true },
+    { Shape{2, 3, 5}, Shape{2, 3, 5}, false, true },
+    { Shape{2, 3, 5}, Shape{2, 3, 5}, true, true },
+    { PartialShape::dynamic(), Shape{}, false, true },
+    { PartialShape::dynamic(3), Shape{}, false, true },
+    { PartialShape::dynamic(3), Shape{1}, false, true },
+    { PartialShape::dynamic(3), Shape{1, 1}, false, true },
+    { PartialShape::dynamic(3), Shape{1, 1, 1}, false, true },
+    { PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()}, Shape{1, 1}, false, true },
+    { PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()}, Shape{3, 1}, false, true },
+    { PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()}, Shape{1, 3, 1}, false, true },
+    // negative cases
+    { Shape{}, Shape{1}, false, false },
+    { Shape{}, Shape{2, 3}, false, false },
+    { Shape{5}, Shape{1, 1}, false, false },
+    { Shape{4, 1, 3}, Shape{2, 3}, false, false },
+    { Shape{1, 2, 3}, Shape{4, 2, 3}, false, false },
+    { Shape{1, 1, 3}, Shape{2, 1, 3}, false, false },
+    { Shape{1, 2, 3}, Shape{1, 1, 1, 1}, false, false },
+    { PartialShape::dynamic(), Shape{2, 3, 4}, false, false },
+    { PartialShape::dynamic(3), Shape{1, 2, 1}, false, false },
+    { PartialShape::dynamic(3), Shape{1, 1, 1, 1}, false, false },
+};
+
+std::vector<TypeParams> type_params = {
+    // op type, constant value, can fuse
+    { EltwiseTypes::ADD, ConstantKind::ZERO, true },
+    { EltwiseTypes::ADD, ConstantKind::RANDOM, false },
+    { EltwiseTypes::SUBTRACT, ConstantKind::ZERO, true },
+    { EltwiseTypes::SUBTRACT, ConstantKind::RANDOM, false },
+    { EltwiseTypes::MULTIPLY, ConstantKind::ONE, true },
+    { EltwiseTypes::MULTIPLY, ConstantKind::RANDOM, false },
+    { EltwiseTypes::DIVIDE, ConstantKind::ONE, true },
+    { EltwiseTypes::DIVIDE, ConstantKind::RANDOM, false },
+};
+
+std::vector<element::Type> types{
+    element::f32, element::f64,
+    element::i32, element::u32,
+    element::i64, element::u64,
+    element::i8, element::u8,
+    element::i16, element::u16,
+};
+
+INSTANTIATE_TEST_SUITE_P(EliminateEltwise, EliminateEltwiseTests,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(shape_params),
+                            ::testing::ValuesIn(type_params),
+                            ::testing::ValuesIn(types)),
+                        EliminateEltwiseTests::get_test_case_name);
+
+
+TEST_F(TransformationTestsF, eliminate_eltwise_dequantization_subgraph) {
+    {
+        auto constant = opset8::Constant::create(element::i8, Shape{}, {2});
+        auto convert = make_shared<opset8::Convert>(constant, element::f32);
+        auto sub = make_shared<opset8::Subtract>(convert, opset8::Constant::create(element::f32, Shape{}, {0}));
+        auto mul = make_shared<opset8::Multiply>(sub, opset8::Constant::create(element::f32, Shape{}, {1}));
+        function = make_shared<Function>(mul, ParameterVector{});
+    }
+    {
+        auto constant = opset8::Constant::create(element::i8, Shape{}, {2});
+        auto convert = make_shared<opset8::Convert>(constant, element::f32);
+        auto mul = make_shared<opset8::Multiply>(convert, opset8::Constant::create(element::f32, Shape{}, {1}));
+        function_ref = make_shared<Function>(mul, ParameterVector{});
+    }
+
+    manager.register_pass<pass::NopElimination>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    enable_accuracy_check();
 }

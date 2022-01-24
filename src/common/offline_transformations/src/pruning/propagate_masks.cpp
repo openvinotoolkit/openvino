@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pruning.hpp"
 #include "mask_attribute.hpp"
+
+#include <algorithm>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -22,6 +24,7 @@ class GroupConvolution;
 class GroupConvolutionReshape;
 class Elementwise;
 class PassThrough;
+class Reduce;
 class StopPropagation;
 class FakeQuantize;
 class Concat;
@@ -228,7 +231,11 @@ public:
                 return false;
             }
             auto input_mask_row = input_mask.get();
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            // Check reshape mask already initialized during StopPropagation pass
+            auto output_mask = getMask(m_output);
+            if (!output_mask)
+                output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+
             auto output_mask_row = output_mask.get();
 
             // Depthwise Convolution pruned only by input channels (== groups) ->
@@ -301,7 +308,6 @@ public:
             }
 
             InitConstMask({0, 1}).apply(m_weights.get_node_shared_ptr());
-
             auto weights_mask = getMask(m_weights);
             if (!weights_mask) {
                 NGRAPH_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
@@ -561,9 +567,12 @@ public:
 class ngraph::pass::mask_propagation::PassThrough : public MatcherPass {
 public:
     PassThrough() {
-        auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic, opset6::Clamp,
-                                            opset6::Convert, opset6::ConvertLike, opset6::AvgPool, opset6::MaxPool,
-                                            opset6::ROIPooling, opset6::PSROIPooling, opset6::Pad>();
+        auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic, opset6::Clamp, opset6::Swish,
+                                           opset6::Elu, opset6::HardSigmoid, opset6::PRelu, opset6::Mish,
+                                           opset6::Softmax, opset6::SoftPlus, opset6::Convert, opset6::ConvertLike,
+                                           opset6::AvgPool, opset6::MaxPool, opset6::ROIPooling, opset6::PSROIPooling,
+                                           opset6::Pad>();
+
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
@@ -582,19 +591,92 @@ public:
     }
 };
 
+class ngraph::pass::mask_propagation::Reduce : public MatcherPass {
+public:
+    Reduce() {
+        auto inputs = pattern::any_input();
+        auto weights = pattern::wrap_type<opset6::Constant>();
+        auto pooling_by_reduce = pattern::wrap_type<opset6::ReduceMin, opset6::ReduceMax, opset6::ReduceMean>({inputs, weights});
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto & pattern_map = m.get_pattern_value_map();
+            const auto m_weights = pattern_map.at(weights);
+            const auto & m_input = pattern_map.at(inputs);
+            const auto & m_output = pattern_map.at(pooling_by_reduce);
+
+
+            // Check reduce operation reduces only dimension without masks
+            if (auto input_mask = getMask(m_input)) {
+                auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+                const auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
+                const auto reduce_dims = constant->cast_vector<int64_t>();
+
+                auto input_mask_row = input_mask.get();
+                auto output_mask_row = output_mask.get();
+                input_mask->add_callback([output_mask_row](Mask::Ptr cur_mask) -> bool {
+                    cur_mask->copy_value_from_mask(output_mask_row);
+                    return true;
+                }, output_mask);
+                output_mask->add_callback([input_mask_row, reduce_dims](Mask::Ptr cur_mask) -> bool{
+                    // Propagate masks through dimension only if this dimension isn't reduced
+                    for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
+                        if (std::find(reduce_dims.begin(), reduce_dims.end(), dim) == reduce_dims.end())
+                            cur_mask->at(dim) = input_mask_row->at(dim);
+                        else if (cur_mask->at(dim) != input_mask_row->at(dim))
+                            cur_mask->initialize_dependencies();
+                    return true;
+                }, input_mask);
+
+                // Invalidate current mask and its parent masks
+                output_mask->apply_callback(input_mask);
+                setMask(m_output, output_mask);
+            }
+
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(pooling_by_reduce, "PassThroughReduceMaskPropagation");
+        register_matcher(m, callback);
+    }
+};
+
 class ngraph::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
     StopPropagation() {
         auto any_node = pattern::any_input();
 
-        ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto & pattern_map = m.get_pattern_value_map();
+            const auto & m_output = pattern_map.at(any_node);
             const auto & node = m.get_match_root();
+
+            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            bool any_input_with_masks = false;
             for (const auto & input : node->input_values()) {
-                if (auto mask = getMask(input)) {
-                    // Invalidate current mask and its parent masks
-                    mask->invalidate();
-                    NGRAPH_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node << " is unknown\n";
+                if (auto input_mask = getMask(input)) {
+                        auto input_mask_row = input_mask.get();
+                        input_mask->add_callback([](Mask::Ptr cur_mask) -> bool {
+                            cur_mask->clean_dim_values();
+                            return true;
+                        }, output_mask);
+                        output_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool{
+                            cur_mask->copy_value_from_mask(input_mask_row);
+                            return true;
+                        }, input_mask);
+
+                        // Invalidate current mask and its parent masks
+                        output_mask->apply_callback(input_mask);
+                        NGRAPH_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node << " is in scope of stop ops.\n";
+                        any_input_with_masks = true;
+                    }
                 }
+            if (any_input_with_masks) {
+                // Set mask to stop op first input tensor to prevent mask rewriting for
+                // nodes which share output tensor with previous node.
+                if (ngraph::is_type<opset6::Result>(m_output.get_node_shared_ptr()))
+                    setMask(*m_output.get_node()->inputs().begin(), output_mask);
+                else
+                    setMask(m_output, output_mask);
             }
             return true;
         };
@@ -610,6 +692,7 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::GroupConvolution>();
     add_matcher<mask_propagation::Elementwise>();
     add_matcher<mask_propagation::PassThrough>();
+    add_matcher<mask_propagation::Reduce>();
     add_matcher<mask_propagation::FakeQuantize>();
     add_matcher<mask_propagation::Concat>();
     add_matcher<mask_propagation::StopPropagation>();

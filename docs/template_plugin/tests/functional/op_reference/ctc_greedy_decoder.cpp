@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,15 @@ using namespace ov;
 namespace {
 struct CTCGreedyDecoderParams {
     CTCGreedyDecoderParams(
-        const Tensor& dataTensor, const Tensor& masksTensor, int64_t ctcMergedRepeat,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& masksTensor, int64_t ctcMergedRepeat,
+        const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
         dataTensor(dataTensor), masksTensor(masksTensor), ctcMergedRepeat(ctcMergedRepeat),
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor masksTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor masksTensor;
     bool ctcMergedRepeat;
-    Tensor expectedTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -72,41 +72,41 @@ std::vector<CTCGreedyDecoderParams> generateParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<CTCGreedyDecoderParams> params {
         CTCGreedyDecoderParams(
-            Tensor(IN_ET, {3, 1, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
-            Tensor(IN_ET, {3, 1}, std::vector<T>{1.0f, 1.0f, 1.0f}),
+            reference_tests::Tensor(IN_ET, {3, 1, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
+            reference_tests::Tensor(IN_ET, {3, 1}, std::vector<T>{1.0f, 1.0f, 1.0f}),
             false,
-            Tensor(IN_ET, {1, 3, 1, 1}, std::vector<T>{1.0f, 0.0f, 1.0f}),
+            reference_tests::Tensor(IN_ET, {1, 3, 1, 1}, std::vector<T>{1.0f, 0.0f, 1.0f}),
             "ctc_greedy_decoder"),
         CTCGreedyDecoderParams(
-            Tensor(IN_ET, {3, 2, 3}, std::vector<T>{
+            reference_tests::Tensor(IN_ET, {3, 2, 3}, std::vector<T>{
                 0.1f, 0.2f, 0.f, 0.15f, 0.25f, 0.f, 0.4f, 0.3f, 0.f, 0.45f, 0.35f, 0.f, 0.5f, 0.6f, 0.f, 0.55f, 0.65f, 0.f}),
-            Tensor(IN_ET, {3, 2}, std::vector<T>{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
+            reference_tests::Tensor(IN_ET, {3, 2}, std::vector<T>{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
             false,
-            Tensor(IN_ET, {2, 3, 1, 1}, std::vector<T>{1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f}),
+            reference_tests::Tensor(IN_ET, {2, 3, 1, 1}, std::vector<T>{1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f}),
             "ctc_greedy_decoder_multiple_batches"),
         CTCGreedyDecoderParams(
-            Tensor(IN_ET, {3, 1, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
-            Tensor(IN_ET, {3, 1}, std::vector<T>{1.0f, 1.0f, 0.0f}),
+            reference_tests::Tensor(IN_ET, {3, 1, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
+            reference_tests::Tensor(IN_ET, {3, 1}, std::vector<T>{1.0f, 1.0f, 0.0f}),
             false,
-            Tensor(IN_ET, {1, 3, 1, 1}, std::vector<T>{1.0f, 0.0f, -1.0f}),
+            reference_tests::Tensor(IN_ET, {1, 3, 1, 1}, std::vector<T>{1.0f, 0.0f, -1.0f}),
             "ctc_greedy_decoder_single_batch_short_sequence"),
         CTCGreedyDecoderParams(
-            Tensor(IN_ET, {3, 1, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.3f, 0.4f, 0.f, 0.6f, 0.5f, 0.f}),
-            Tensor(IN_ET, {3, 1}, std::vector<T>{1.0f, 1.0f, 1.0f}),
+            reference_tests::Tensor(IN_ET, {3, 1, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.3f, 0.4f, 0.f, 0.6f, 0.5f, 0.f}),
+            reference_tests::Tensor(IN_ET, {3, 1}, std::vector<T>{1.0f, 1.0f, 1.0f}),
             true,
-            Tensor(IN_ET, {1, 3, 1, 1}, std::vector<T>{1.0f, 0.0f, -1.0f}),
+            reference_tests::Tensor(IN_ET, {1, 3, 1, 1}, std::vector<T>{1.0f, 0.0f, -1.0f}),
             "ctc_greedy_decoder_merge"),
         CTCGreedyDecoderParams(
-            Tensor(IN_ET, {3, 1, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.3f, 0.4f, 0.f, 0.6f, 0.5f, 0.f}),
-            Tensor(IN_ET, {3, 1}, std::vector<T>{1.0f, 1.0f, 1.0f}),
+            reference_tests::Tensor(IN_ET, {3, 1, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.3f, 0.4f, 0.f, 0.6f, 0.5f, 0.f}),
+            reference_tests::Tensor(IN_ET, {3, 1}, std::vector<T>{1.0f, 1.0f, 1.0f}),
             false,
-            Tensor(IN_ET, {1, 3, 1, 1}, std::vector<T>{1.0f, 1.0f, 0.0f}),
+            reference_tests::Tensor(IN_ET, {1, 3, 1, 1}, std::vector<T>{1.0f, 1.0f, 0.0f}),
             "ctc_greedy_decoder_single_no_merge"),
         CTCGreedyDecoderParams(
-            Tensor(IN_ET, {2, 2, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f, 0.7f, 0.8f, 0.f}),
-            Tensor(IN_ET, {2, 2}, std::vector<T>{1.0f, 1.0f, 1.0f, 0.0f}),
+            reference_tests::Tensor(IN_ET, {2, 2, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f, 0.7f, 0.8f, 0.f}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1.0f, 1.0f, 1.0f, 0.0f}),
             false,
-            Tensor(IN_ET, {2, 2, 1, 1}, std::vector<T>{1.0f, 1.0f, 0.0f, -1.0f}),
+            reference_tests::Tensor(IN_ET, {2, 2, 1, 1}, std::vector<T>{1.0f, 1.0f, 0.0f, -1.0f}),
             "ctc_greedy_decoder_multiple_sequences"),
     };
     return params;

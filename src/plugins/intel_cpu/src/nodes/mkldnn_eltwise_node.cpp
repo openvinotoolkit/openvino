@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1934,6 +1934,7 @@ void MKLDNNEltwiseNode::prepareParams() {
     // together with the corresponding appendPostOps method to pass the scales and shifts pointers at runtime.
     // Until then we have to read them from the quantization_t directly, store them somewhere
     // and nullify them to get read of the address dependency in the key structure
+    fqDataPtrs.clear();
     for (int i = 0; i < key.postOps.len(); ++i) {
         auto &data = key.postOps.get()->entry_[i].quantization.data;
         fqDataPtrs.insert(fqDataPtrs.end(), std::begin(data), std::end(data));
@@ -1993,8 +1994,6 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
                 IE_THROW() << "Can't set batch dims for eltwise node with rank: " << dims_out.size() << " and batch idx: " << batchDimIdx;
             dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
         }
-
-        std::vector<const void*> vecPostOpData(fqDataPtrs.size());
 
         args_ptrs.post_op_data = fqDataPtrs.data();
 

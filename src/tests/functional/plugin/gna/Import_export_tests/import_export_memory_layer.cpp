@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,8 @@ typedef std::tuple<
         InferenceEngine::Precision,         // Network Precision
         std::string,                        // Target Device
         std::map<std::string, std::string>, // Export Configuration
-        std::map<std::string, std::string>  // Import Configuration
+        std::map<std::string, std::string>, // Import Configuration
+        std::pair<bool, bool>               // With reset
 > exportImportNetworkParams;
 
 namespace LayerTestsDefinitions {
@@ -34,7 +35,8 @@ public:
         std::string targetDevice;
         std::map<std::string, std::string> exportConfiguration;
         std::map<std::string, std::string> importConfiguration;
-        std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration) = obj.param;
+        std::pair<bool, bool> withReset;
+        std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, withReset) = obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
@@ -45,6 +47,8 @@ public:
         for (auto const &configItem : importConfiguration) {
             result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
         }
+        result << "_resetBefore=" << withReset.first;
+        result << "_resetAfter=" << withReset.second;
         return result.str();
     }
 
@@ -55,6 +59,11 @@ public:
         LoadNetwork();
         GenerateInputs();
         Infer();
+        if (withReset.first) {
+            for (auto &query_state : inferRequest.QueryState()) {
+                query_state.Reset();
+            }
+        }
         executableNetwork.Export("exported_model.blob");
         for (auto const &configItem : importConfiguration) {
             configuration[configItem.first] = configItem.second;
@@ -66,20 +75,30 @@ public:
         auto importedNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
         std::vector<std::string> queryToState;
         InferenceEngine::InferRequest importInfer = importedNetwork.CreateInferRequest();
-        for (const auto &query_state : importInfer.QueryState()) {
+
+        for (auto &query_state : importInfer.QueryState()) {
             queryToState.push_back(query_state.GetName());
+        }
+        if (withReset.first) {
+            CheckQueryStates(&inferRequest);
         }
         for (const auto &next_memory : importInfer.QueryState()) {
             ASSERT_TRUE(std::find(queryToState.begin(), queryToState.end(), next_memory.GetName()) != queryToState.end())
                                         << "State " << next_memory.GetName() << " expected to be in memory states but it is not!";
         }
         importInfer.Infer();
+        if (withReset.second) {
+            for (auto &query_state : importInfer.QueryState()) {
+                query_state.Reset();
+            }
+            CheckQueryStates(&importInfer);
+        }
     }
 
 protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
-        std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration) = this->GetParam();
+        std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, withReset) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, {{1, 336}});
@@ -96,7 +115,18 @@ protected:
         function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
     }
 
+    void CheckQueryStates(InferenceEngine::InferRequest* inferRequest) {
+        for (auto &query_state : inferRequest->QueryState()) {
+            auto state = query_state.GetState();
+            auto state_data = state->cbuffer().as<int16_t *>();
+            for (int i = 0; i < state->size(); i++) {
+                EXPECT_NEAR(0, state_data[i], 1e-5);
+            }
+        }
+    }
+
 private:
+    std::pair<bool, bool> withReset;
     std::map<std::string, std::string> exportConfiguration;
     std::map<std::string, std::string> importConfiguration;
 };
@@ -128,13 +158,19 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
         },
 };
 
+const std::vector<std::pair<bool, bool>> withReset = {
+    {false, false},
+    {true, false}, // Reset before export
+    {false, true}  // Reset after export
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkMemoryCase, ImportMemoryTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                 ::testing::ValuesIn(exportConfigs),
-                                ::testing::ValuesIn(importConfigs)),
+                                ::testing::ValuesIn(importConfigs),
+                                ::testing::ValuesIn(withReset)),
                         ImportMemoryTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
-

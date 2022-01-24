@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -271,7 +271,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'value. When a list of inputs is overridden by the --input ' +
                                    'parameter, this scale ' +
                                    'is not applied for any input that does not match with ' +
-                                   'the original input of the model.')
+                                   'the original input of the model.' +
+                                   'If both --mean and --scale  are specified, ' +
+                                   'the mean is subtracted first and then scale is applied ' +
+                                   'regardless of the order of options in command line.')
     common_group.add_argument('--reverse_input_channels',
                               help='Switch the input channels order from RGB to BGR (or vice versa). Applied to '
                                    'original inputs of the model if and only if a number of channels equals 3. '
@@ -279,7 +282,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'be applied to user\'s input data first, so that numbers in --mean_values '
                                    'and --scale_values go in the order of channels used in the original model. '
                                    'In other words, if both options are specified, then the data flow in the model '
-                                   'looks as following: Parameter -> ReverseInputChannels -> Mean/Scale apply -> the original body of the model.',
+                                   'looks as following: Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model.',
                               action='store_true')
     common_group.add_argument('--log_level',
                               help='Logger level',
@@ -320,7 +323,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Can be defined for desired input of the model, for example: ' +
                                    '"--scale_values data[255,255,255],info[255,255,255]". ' +
                                    'The exact meaning and order ' +
-                                   'of channels depend on how the original model was trained.',
+                                   'of channels depend on how the original model was trained.' +
+                                   'If both --mean_values and --scale_values are specified, ' +
+                                   'the mean is subtracted first and then scale is applied ' +
+                                   'regardless of the order of options in command line.',
                               default=())
     common_group.add_argument('--source_layout',
                               help='Layout of the input or output of the model in the framework. Layout can'

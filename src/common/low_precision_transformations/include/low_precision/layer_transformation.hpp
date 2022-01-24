@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -328,6 +328,13 @@ protected:
 protected:
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(
         TransformationContext &context,
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool updatePrecision,
+        const bool moveSubtract = true) const;
+
+    std::shared_ptr<ngraph::Node> moveDequantizationBefore(
+        TransformationContext& context,
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -44,7 +44,8 @@ endforeach()
 
 add_subdirectory(mo)
 
-file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/pot/version.txt ${CI_BUILD_NUMBER})
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt.in"
+               "${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt" @ONLY)
 
 # build and install openvino-dev wheel
 

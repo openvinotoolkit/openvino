@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include <typeinfo>
 #include <tuple>
 #include <string>
+#include <sstream>
+#include "to_string_utils.h"
 
 namespace cldnn {
 
@@ -124,6 +126,19 @@ struct implementation_key<loop> {
     type operator()(const layout&) { return -1; }
 };
 
+namespace {
+template <typename key_type>
+std::string get_key_name(const key_type &) { return std::string(""); }
+
+template <>
+std::string get_key_name(const int32_t &k) { return std::to_string(k); }
+
+template <>
+std::string get_key_name(const std::tuple<data_types, format::type> &key) {
+    return dt_to_str(std::get<0>(key)) + "/" + fmt_to_str(std::get<1>(key));
+}
+} // namespace
+
 template <typename primitive_kind>
 class implementation_map {
 public:
@@ -147,8 +162,11 @@ public:
                 return factory;
             }
         }
+        std::stringstream target_impl_type_ss;
+        target_impl_type_ss << target_impl_type;
         throw std::runtime_error(std::string("implementation_map for ") + typeid(primitive_kind).name() +
-                                     " could not find any implementation to match key");
+                                    " could not find any implementation to match key: " +
+                                    get_key_name(key) + ", impl_type: " + target_impl_type_ss.str() + ", node_id: " + primitive.id());
     }
 
     // check if for a given engine and type there exist an implementation

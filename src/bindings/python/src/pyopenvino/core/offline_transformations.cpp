@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <pybind11/stl.h>
 
+#include <compress_quantize_weights.hpp>
 #include <generate_mapping_file.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -13,6 +14,7 @@
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
 #include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
+#include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/serialize.hpp>
 
@@ -35,9 +37,7 @@ inline Version convert_to_version(const std::string& version) {
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
-    // TODO: change the submodule name according to the description in 69196
-    py::module m_offline_transformations =
-        m.def_submodule("offline_transformations_pybind", "Offline transformations module");
+    py::module m_offline_transformations = m.def_submodule("offline_transformations", "Offline transformations module");
 
     m_offline_transformations.def(
         "apply_moc_transformations",
@@ -48,6 +48,16 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("function"),
         py::arg("cf"));
+
+    m_offline_transformations.def(
+        "apply_moc_legacy_transformations",
+        [](std::shared_ptr<ov::Model> function, const std::vector<std::string>& params_with_custom_types) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::MOCLegacyTransformations>(params_with_custom_types);
+            manager.run_passes(function);
+        },
+        py::arg("function"),
+        py::arg("params_with_custom_types"));
 
     m_offline_transformations.def(
         "apply_pot_transformations",
@@ -105,6 +115,16 @@ void regmodule_offline_transformations(py::module m) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
             manager.register_pass<ov::pass::CompressFloatConstants>();
+            manager.run_passes(function);
+        },
+        py::arg("function"));
+
+    m_offline_transformations.def(
+        "compress_quantize_weights_transformation",
+        [](std::shared_ptr<ov::Model> function) {
+            ov::pass::Manager manager;
+            manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
+            manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
             manager.run_passes(function);
         },
         py::arg("function"));

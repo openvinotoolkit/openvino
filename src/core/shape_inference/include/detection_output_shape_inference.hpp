@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,7 +160,7 @@ void shape_infer_base(const DetectionOutputBase* op,
         if (!num_prior_boxes && box_logits_pshape[1].is_static()) {
             auto box_logits_pshape_2nd_dim = box_logits_pshape[1].get_length();
             NODE_VALIDATION_CHECK(op,
-                                  (box_logits_pshape_2nd_dim % (num_loc_classes * 4)) == 0,
+                                  num_loc_classes != 0 && (box_logits_pshape_2nd_dim % (num_loc_classes * 4)) == 0,
                                   "Box logits' second dimension must be a multiply of num_loc_classes * 4 (",
                                   num_loc_classes * 4,
                                   "). Current value is: ",

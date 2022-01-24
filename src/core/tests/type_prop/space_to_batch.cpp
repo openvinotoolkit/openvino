@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 
 using namespace std;
 using namespace ngraph;
+
+#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
 
 TEST(type_prop, space_to_batch_output_shape_2D) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
@@ -60,6 +62,34 @@ TEST(type_prop, space_to_batch_and_batch_to_space) {
     auto batch_to_space = make_shared<op::v1::BatchToSpace>(space_to_batch, block_shape, pads_begin, pads_end);
     ASSERT_EQ(batch_to_space->get_element_type(), element::f32);
     ASSERT_EQ(batch_to_space->get_shape(), (Shape{2, 100, 1024, 3}));
+}
+
+TEST(type_prop, space_to_batch_when_space_is_static) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{2, 5}, 100, 1024, 3});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 12, 100, 2});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 38, 1});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 5, 38, 0});
+
+    auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+
+    ASSERT_EQ(
+        space_to_batch->get_output_partial_shape(0),
+        (PartialShape{{2 * 12 * 100 * 2, 5 * 12 * 100 * 2}, (100 + 3 + 5) / 12, (1024 + 38 + 38) / 100, (3 + 1) / 2}));
+}
+
+TEST(type_prop, space_to_batch_when_space_is_dynamic) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{2, 5}, {5, 100}, {100, 1024}, {3, 10}});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 12, 100, 2});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 38, 1});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 5, 38, 0});
+
+    auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+
+    ASSERT_EQ(space_to_batch->get_output_partial_shape(0),
+              (PartialShape{{2 * 12 * 100 * 2, 5 * 12 * 100 * 2},
+                            {DIV_ROUND_UP((5 + 5 + 3), 12), (100 + 5 + 3) / 12},
+                            {DIV_ROUND_UP((100 + 38 + 38), 100), (1024 + 38 + 38) / 100},
+                            {DIV_ROUND_UP((3 + 1), 2), (10 + 1) / 2}}));
 }
 
 TEST(type_prop, space_to_batch_dynamic_shape_static_rank) {

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,6 +106,7 @@ enum WeightsLayout {
     os_is_yx_isa8_osv16_isv4,                // for fully connected MMAD
     os_is_zyx_isa8_osv16_isv4,               // for fully connected MMAD
     os_is_yx_osa4_isa8_osv8_isv4,            // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+    is_os_yx_isa4_osa8_isv8_osv4,            // for onednn deconvolution
     g_os_is_yx_osa4_isa8_osv8_isv4,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_zyx_osa4_isa8_osv8_isv4,         // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     os_is_yx_osa4_isa8_osv8_isv2,            // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,

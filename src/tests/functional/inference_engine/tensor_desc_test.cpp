@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,11 +85,28 @@ TEST_F(TensorDescTests, CompareNDHWCandNCDHWLayouts) {
 
 TEST_F(TensorDescTests, SetLayout) {
     TensorDesc descNCHW(Precision::FP32, {1, 2, 3, 4}, Layout::NCHW);
-
     TensorDesc decsNHWC = descNCHW;
     decsNHWC.setLayout(Layout::NHWC);
 
     TensorDesc refNHWC(descNCHW.getPrecision(), descNCHW.getDims(), Layout::NHWC);
-
     ASSERT_EQ(decsNHWC, refNHWC);
+}
+
+TEST_F(TensorDescTests, setDimsForBLOCKED) {
+    TensorDesc desc(Precision::FP32, {1, 2, 3, 4, 5, 6}, Layout::BLOCKED);
+    SizeVector newDims {7, 7, 7, 7, 7, 7};
+    desc.setDims(newDims);
+    EXPECT_EQ(desc.getDims(), newDims);
+    EXPECT_EQ(desc.getBlockingDesc().getBlockDims(), newDims);
+}
+
+TEST_F(TensorDescTests, setDimsForNHWC) {
+    TensorDesc desc(Precision::FP32, {1, 2, 3, 4}, Layout::NHWC);
+    auto refOrder = desc.getBlockingDesc().getOrder();
+    SizeVector newDims {7, 7, 7, 7};
+    desc.setDims(newDims);
+    EXPECT_EQ(desc.getDims(), newDims);
+    EXPECT_EQ(desc.getLayout(), Layout::NHWC);
+    EXPECT_EQ(desc.getBlockingDesc().getBlockDims(), newDims);
+    EXPECT_EQ(desc.getBlockingDesc().getOrder(), refOrder);
 }

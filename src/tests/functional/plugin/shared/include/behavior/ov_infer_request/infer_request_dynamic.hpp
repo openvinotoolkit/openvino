@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ protected:
 
     void TearDown() override;
 
-    std::shared_ptr<runtime::Core> ie = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     std::shared_ptr<Model> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

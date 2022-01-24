@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
@@ -7,6 +7,7 @@ import numpy as np
 from ..statistics.statistics import compute_statistic, Statistic, TensorStatistic
 from ..statistics.function_selector import get_stats_function, ACTIVATIONS
 from ..utils.logger import get_logger
+from ..utils.utils import convert_output_key
 
 logger = get_logger(__name__)
 
@@ -15,7 +16,8 @@ def append_stats(accumulated_layer_stats, stats_layout, value, dataset_index):
     inplace_stats_mapping = get_inplace_stats_mapping(stats_layout)
     if isinstance(value, list):
         value = parse_sequential_stats(value, stats_layout)
-
+    else:
+        value = process_raw_output(value)
     for layer, stats in stats_layout.items():
         if layer not in accumulated_layer_stats:
             accumulated_layer_stats[layer] = {stat_name: [] for stat_name in stats_layout[layer]}
@@ -30,16 +32,18 @@ def parse_sequential_stats(value_sequential, stats_layout):
     stat_names_by_layer, old_names_mapping = get_per_layer_stat_mapping(stats_layout)
     activation_seq = defaultdict(lambda: [])
     for value in value_sequential:
+        value = process_raw_output(value)
         for layer, activations in value.items():
             get_sequential_activations(activations, layer, activation_seq, stats_layout,
                                        stat_names_by_layer, old_names_mapping)
 
     for layer, act_seq in activation_seq.items():
+        seq_len = len(act_seq[0].shape)
         if not isinstance(stat_names_by_layer[layer], Statistic) or \
                 not stat_names_by_layer[layer].kwargs.get('inplace_statistics', False):
-            axis = 1 if len(act_seq[0].shape) == 2 else 2
+            axis = 1 if seq_len == 2 else 2
         else:
-            axis = 1 if len(act_seq[0].shape) == 1 else 2
+            axis = seq_len if seq_len in (0, 1) else 2
         activation_seq[layer] = np.stack(act_seq, axis=axis)
     return activation_seq
 
@@ -133,3 +137,38 @@ def align_stat_names_with_results(result_names, nodes_name, output2node, stats_l
                 assert out_name_with_port in result_names
                 update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)
                 output2node[out_name_with_port] = original_out_name
+
+
+def process_raw_output(raw_output):
+    """ Process raw output into the POT friendly format """
+    result = {}
+    for result_node, result_data in raw_output.items():
+        for name in result_node.get_tensor().get_names():
+            result_name = name.replace('/sink_port_0', '')
+            result[result_name] = result_data
+    return result
+
+
+def add_tensor_names(nodes, names):
+    """ Process nGraph nodes and sets POT-friendly tensor name """
+    for ng_node, node_name in zip(nodes, names):
+        names = ng_node.get_tensor().get_names()
+        names.add(convert_output_key(node_name))
+        ng_node.get_tensor().set_names(names)
+
+def cast_friendly_names(nodes):
+    """ Process nGraph nodes and sets POT-friendly tensor name
+    based on friendly_name
+     """
+    for ng_node in nodes:
+        names = ng_node.get_tensor().get_names()
+        names.add(ng_node.get_node().friendly_name)
+        ng_node.get_tensor().set_names(names)
+
+def collect_model_outputs(ng_model):
+    """ Collect nGraph model outputs and their tensor names
+    """
+    model_output_names = []
+    for ng_output in ng_model.outputs:
+        model_output_names.extend(list(ng_output.get_tensor().get_names()))
+    return model_output_names

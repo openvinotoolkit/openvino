@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,6 +152,7 @@ private:
     std::promise<void>                                                  _firstLoadPromise;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
+    bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset7.hpp"
+#include "util/graph_comparator.hpp"
 #include "util/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -530,4 +531,120 @@ TEST(build_graph, build_graph_unregistred_variables) {
                                            SinkVector{assign, assign_2},
                                            ParameterVector{arg, arg2},
                                            VariableVector{variable}));
+}
+
+TEST(build_graph, build_graph_with_sinks_compare) {
+    shared_ptr<Function> f0, f1;
+    {
+        auto init_const0 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto init_const1 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto read0 = make_shared<opset5::ReadValue>(init_const0, "v0");
+        auto read1 = make_shared<opset5::ReadValue>(init_const1, "v1");
+        std::vector<shared_ptr<Node>> args = {read0, read1};
+        auto add = make_shared<opset5::Add>(read0, read1);
+        auto assign0 = make_shared<opset5::Assign>(add, "v0");
+        auto assign1 = make_shared<opset5::Assign>(add, "v1");
+
+        f0 = make_shared<Function>(ResultVector({}), SinkVector({assign0, assign1}), ParameterVector{});
+    }
+
+    {
+        auto init_const0 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto init_const1 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto read0 = make_shared<opset5::ReadValue>(init_const0, "v0");
+        auto read1 = make_shared<opset5::ReadValue>(init_const1, "v1");
+        auto add = make_shared<opset5::Add>(read0, read1);
+        auto squeeze = make_shared<opset5::Squeeze>(add);
+        auto assign0 = make_shared<opset5::Assign>(squeeze, "v0");
+        auto assign1 = make_shared<opset5::Assign>(add, "v1");
+
+        f1 = make_shared<Function>(ResultVector({}), SinkVector({assign0, assign1}), ParameterVector{});
+    }
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f0, f1);
+    EXPECT_FALSE(res.valid) << res.message;
+}
+
+TEST(build_graph, build_graph_with_sinks_compare_reads) {
+    shared_ptr<Function> f0, f1;
+    {
+        auto variable0 = make_shared<Variable>(VariableInfo{Shape{2, 2}, element::f32, "v0"});
+        auto variable1 = make_shared<Variable>(VariableInfo{Shape{2, 2}, element::f32, "v1"});
+
+        auto init_const0 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto read0 = make_shared<opset7::ReadValue>(init_const0, variable0);
+        auto assign0 = make_shared<opset7::Assign>(read0, variable0);
+
+        auto init_const1 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto read1 = make_shared<opset7::ReadValue>(init_const1, variable1);
+        auto assign1 = make_shared<opset7::Assign>(read1, variable1);
+
+        f0 = make_shared<Function>(ResultVector({}),
+                                   SinkVector({assign0, assign1}),
+                                   ParameterVector{},
+                                   VariableVector{variable0, variable1});
+    }
+
+    {
+        auto variable0 = make_shared<Variable>(VariableInfo{Shape{2, 2}, element::f32, "v0"});
+        auto variable1 = make_shared<Variable>(VariableInfo{Shape{2, 2}, element::f32, "v1"});
+
+        auto init_const0 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto read0 = make_shared<opset7::ReadValue>(init_const0, variable1);
+        auto assign0 = make_shared<opset7::Assign>(read0, variable0);
+
+        auto init_const1 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto read1 = make_shared<opset7::ReadValue>(init_const1, variable0);
+        auto assign1 = make_shared<opset7::Assign>(read1, variable1);
+
+        f1 = make_shared<Function>(ResultVector({}),
+                                   SinkVector({assign0, assign1}),
+                                   ParameterVector{},
+                                   VariableVector{variable0, variable1});
+    }
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f0, f1);
+    EXPECT_FALSE(res.valid) << res.message;
+}
+
+TEST(build_graph, build_graph_with_sinks_compare_results) {
+    shared_ptr<Function> f0, f1;
+    {
+        auto variable0 = make_shared<Variable>(VariableInfo{Shape{2, 2}, element::f32, "v0"});
+        auto init_const0 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto read0 = make_shared<opset7::ReadValue>(init_const0, variable0);
+        auto op = make_shared<opset7::Relu>(read0);
+        auto assign0 = make_shared<opset7::Assign>(read0, variable0);
+        auto result0 = make_shared<opset7::Result>(assign0);
+        auto result1 = make_shared<opset7::Result>(op);
+
+        f0 = make_shared<Function>(ResultVector({result0, result1}),
+                                   SinkVector({assign0}),
+                                   ParameterVector{},
+                                   VariableVector{variable0});
+    }
+
+    {
+        auto variable0 = make_shared<Variable>(VariableInfo{Shape{2, 2}, element::f32, "v0"});
+        auto init_const0 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+        auto read0 = make_shared<opset7::ReadValue>(init_const0, variable0);
+        auto op = make_shared<opset7::Relu>(read0);
+        auto assign0 = make_shared<opset7::Assign>(read0, variable0);
+        auto result0 = make_shared<opset7::Result>(assign0);
+        auto result1 = make_shared<opset7::Result>(op);
+
+        f1 = make_shared<Function>(ResultVector({result0, result1}),
+                                   SinkVector({assign0}),
+                                   ParameterVector{},
+                                   VariableVector{variable0});
+    }
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f0, f1);
+    EXPECT_TRUE(res.valid) << res.message;
 }
