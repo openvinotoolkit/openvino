@@ -131,10 +131,12 @@ void concat_input_order::run(program& p) {
         bool no_fusing = !concat_node.has_fused_primitives() && concat_node.get_dependencies().size() == inputs_count;
 
         auto out_format = concat_node.get_output_layout().format;
-        bool correct_format = out_format == format::b_fs_yx_fsv16;
+        bool correct_format = (out_format == format::b_fs_yx_fsv16) || (out_format == format::b_fs_yx_fsv32);
         tensor::value_type alignment = 1;
         if (out_format == format::b_fs_yx_fsv16)
             alignment = 16;
+        else if (out_format == format::b_fs_yx_fsv32)
+            alignment = 32;
 
         bool single_format = true;
         std::vector<tensor::value_type> feature_sizes;
