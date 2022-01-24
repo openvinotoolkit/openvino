@@ -9,6 +9,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 using namespace ov::test;
 using namespace ngraph;
@@ -90,37 +91,18 @@ public:
         return result.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
-        inputs.clear();
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+        // w/a to fill valid data for port 2
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
-            const auto& funcInput = funcInputs[i];
-            ov::Tensor tensor;
-
-            if (i == 1) {
-                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-
-                const size_t range = 1;
-                const size_t startFrom = 0;
-                const size_t k = 1000;
-                const int seed = 1;
-                std::default_random_engine random(seed);
-                std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
-
-                auto *dataPtr = tensor.data<float>();
-                for (size_t i = 0; i < tensor.get_size(); i++) {
-                    auto value = static_cast<float>(distribution(random));
-                    dataPtr[i] = value / static_cast<float>(k);
-                }
-            } else if (i == 2) {
-                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &maxOutBoxesPerClass);
-            } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-            }
-
-            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
-        }
+        if (funcInputs.size() < 3) return;
+        auto node = funcInputs[2].get_node_shared_ptr();
+        auto it = inputs.find(node);
+        if (it == inputs.end()) return;
+        auto tensor = ov::runtime::Tensor(node->get_element_type(), targetInputStaticShapes[2], &maxOutBoxesPerClass);
+        inputs[node] = tensor;
     }
+
     void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
         CompareBBoxes(expected, actual);
         inferRequestNum++;
@@ -138,7 +120,6 @@ protected:
         element::Type outType;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType,
                  targetDevice) = this->GetParam();
-
         element::Type paramsPrec, maxBoxPrec, thrPrec;
         std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
@@ -416,7 +397,6 @@ private:
 
 TEST_P(NmsLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     // CheckPluginRelatedResults(executableNetwork, "NonMaxSuppression");
 };
