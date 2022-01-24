@@ -169,7 +169,9 @@ std::shared_ptr<Model> PrePostProcessor::build() {
                                                                          function->get_parameters().end());
 
     for (const auto& input_info : m_impl->m_inputs) {
-        need_validate |= input_info.m_impl->build(function, existing_names, parameters_list);
+        if (input_info.m_impl->build(function, existing_names, parameters_list)) {
+            need_validate = true;
+        }
     }
 
     // Add parameters with right order

@@ -168,7 +168,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
     for (const auto& action : get_preprocess()->actions()) {
         auto action_result = action.m_op(nodes, model, context);
         nodes = std::get<0>(action_result);
-        need_validate |= std::get<1>(action_result);
+        need_validate = need_validate || std::get<1>(action_result);
     }
 
     OPENVINO_ASSERT(nodes.size() == 1,
