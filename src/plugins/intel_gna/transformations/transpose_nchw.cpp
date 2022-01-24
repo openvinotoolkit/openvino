@@ -19,14 +19,12 @@
 using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(GNAPluginNS::TransposeNCHW, "TransposeNCHW", 0);
-NGRAPH_RTTI_DEFINITION(GNAPluginNS::SubstituteGNAConvolution, "SubstituteGNAConvolution", 0);
-NGRAPH_RTTI_DEFINITION(GNAPluginNS::Substitute3DCovolution, "Substitute3DCovolution", 0);
 
 using Node = std::shared_ptr<ngraph::Node>;
 
 #define DEBUG_CHECKPOINT std::cout << __FILE__ << ":" << __LINE__ << ":" << __FUNCTION__ << std::endl;
 
-namespace SubstituteGNAConvolutionNS
+namespace
 {
 
 ngraph::Shape MakeTransposeOrderNCHW2NHWC(size_t shape_size);
@@ -131,80 +129,10 @@ bool DoTransformation(Node convolution)
     return true;
 }
 
-} // namespace SubstituteGNAConvolutionNS
+} // namespace
 
-// ----------------------------------------------------------------------------
-
-namespace Substitute3DCovolutionNS {
-
-bool DoTransformation(Node convolution);
-ngraph::Shape MakeInputReshapeShape(ngraph::Shape shape);
-
-ngraph::Shape MakeInputReshapeShape(ngraph::Shape shape)
-{
-    ngraph::Shape result_shape(shape.begin(), shape.end());
-
-    result_shape.push_back(1);
-    std::iter_swap(result_shape.end() - 2, result_shape.end() - 1);
-
-    std::cout << __FILE__ << ":" << __LINE__ << ":" << __FUNCTION__ << " base shape " << shape << std::endl;
-    std::cout << __FILE__ << ":" << __LINE__ << ":" << __FUNCTION__ << " result shape " << result_shape << std::endl;
-
-    return result_shape;
-}
-
-bool DoTransformation(Node convolution)
-{
-    auto convolution_node = std::dynamic_pointer_cast<ngraph::opset8::Convolution>(convolution);
-    auto convolution_input_data_node = convolution_node->input_value(0);
-    auto convolution_input_const_node = convolution_node->input_value(1);
-    auto covolution_node_consumers = convolution_node->output(0).get_target_inputs();
-
-    const ngraph::Shape convolution_input_shape = convolution_node->get_input_shape(0);
-    const ngraph::Shape convolution_out_shape = convolution_node->get_output_shape(0);
-
-    if (convolution_input_shape.size() > 3)
-        return false;
-    //
-    const ngraph::Shape reshape_before_const_shape = MakeInputReshapeShape(convolution_input_shape);
-    auto reshape_before_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                                                                            ngraph::Shape{reshape_before_const_shape.size()}, reshape_before_const_shape);
-    auto reshape_before =  std::make_shared<ngraph::opset8::Reshape>(convolution_input_data_node, reshape_before_const, false);
-    //
-    const ngraph::Shape reshape_kernel_const_shape = MakeInputReshapeShape(convolution_input_const_node.get_shape());
-    auto reshape_kernel_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                                                                            ngraph::Shape{reshape_kernel_const_shape.size()}, reshape_kernel_const_shape);
-    auto reshape_kernel =  std::make_shared<ngraph::opset8::Reshape>(convolution_input_const_node, reshape_kernel_const, false);
-    //
-    auto reshape_after_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                                                                          ngraph::Shape{convolution_out_shape.size()}, convolution_out_shape);
-    auto reshape_after =  std::make_shared<ngraph::opset8::Reshape>(convolution_node, reshape_after_const, false);
-    //
-    ngraph::copy_runtime_info(convolution_node, reshape_before);
-    reshape_before->set_friendly_name(convolution_node->get_friendly_name() + "/gna_convolution_reshape_before");
-
-    ngraph::copy_runtime_info(convolution_node, reshape_kernel);
-    reshape_kernel->set_friendly_name(convolution_node->get_friendly_name() + "/gna_convolution_reshape_kernel");
-
-    ngraph::copy_runtime_info(convolution_node, reshape_after);
-    reshape_after->set_friendly_name(convolution_node->get_friendly_name() + "/gna_convolution_reshape_after");
-
-    convolution->input(0).replace_source_output(reshape_before);
-    convolution->input(1).replace_source_output(reshape_kernel);
-    for (auto conv_consumer : covolution_node_consumers)
-        conv_consumer.replace_source_output(reshape_after);
-
-    DEBUG_CHECKPOINT;
-
-    return true;
-}
-
-} // namespace Substitute3DCovolutionNS
-
-// ----------------------------------------------------------------------------
-
-SubstituteGNAConvolution::SubstituteGNAConvolution() {
-    MATCHER_SCOPE(SubstituteGNAConvolution);
+TransposeNCHW::TransposeNCHW() {
+    MATCHER_SCOPE(TransposeNCHW);
 
     auto convolution = ngraph::pattern::wrap_type<ngraph::opset8::Convolution>();
 
@@ -214,40 +142,9 @@ SubstituteGNAConvolution::SubstituteGNAConvolution() {
             return false;
         }
 
-        return SubstituteGNAConvolutionNS::DoTransformation(convolution_node);
+        return DoTransformation(convolution_node);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(convolution, matcher_name);
     this->register_matcher(m, callback);
-}
-
-Substitute3DCovolution::Substitute3DCovolution() {
-    MATCHER_SCOPE(Substitute3DCovolution);
-
-    auto convolution = ngraph::pattern::wrap_type<ngraph::opset8::Convolution>();
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto convolution_node = std::dynamic_pointer_cast<ngraph::opset8::Convolution>(m.get_match_root());
-        if (!convolution_node) {
-            return false;
-        }
-
-        return Substitute3DCovolutionNS::DoTransformation(convolution_node);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(convolution, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-
-
-bool TransposeNCHW::run_on_model(const std::shared_ptr<ngraph::Function>& function) {
-    RUN_ON_FUNCTION_SCOPE(TransposeNCHW);
-
-    ngraph::pass::Manager manager(get_pass_config());
-    manager.register_pass<Substitute3DCovolution>();
-    manager.register_pass<SubstituteGNAConvolution>();
-    manager.run_passes(function);
-
-    return false;
 }

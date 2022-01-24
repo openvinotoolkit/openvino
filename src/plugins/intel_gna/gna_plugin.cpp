@@ -83,6 +83,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/transpose_nchw.hpp"
+#include "transformations/reshape1dconvolution.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
@@ -667,6 +668,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
         manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/start.png"); // DEBUG
+        manager.register_pass<Reshape1DConvolution>();
         manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
         manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
         manager.register_pass<DecomposeMVN>();
@@ -716,13 +718,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/after_transpose_sinking.png"); // DEBUG
 #endif // DEBUG_USE_NEW_PASS
 
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_1.png"); // DEBUG
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_2.png"); // DEBUG
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_3.png"); // DEBUG
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_4.png"); // DEBUG
         manager.register_pass<RemoveExtraReshapes>();
         /*
           Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
