@@ -323,7 +323,26 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     const auto& inputsInfo = exeNetwork->GetInputsInfo();
     const auto& outputsInfo = exeNetwork->GetOutputsInfo();
     OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
-    OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
+
+    if (outputsInfo.size() != function->get_output_size()) {
+        std::unordered_set<std::string> output_names;
+        size_t duplicates_count = 0;
+        for (const auto& result : function->get_results()) {
+            const auto& name = result->input_value(0).get_any_name();
+            if (output_names.count(name) > 0) {
+                duplicates_count++;
+            } else {
+                output_names.insert(name);
+            }
+        }
+        OPENVINO_ASSERT((function->get_output_size() - outputsInfo.size()) == duplicates_count,
+                        "outputsInfo.size() is: ",
+                        outputsInfo.size(),
+                        ", and function->get_output_size() is: ",
+                        function->get_output_size(),
+                        ". Number of duplicated results: ",
+                        duplicates_count);
+    }
 
     for (const auto& param : function->get_parameters()) {
         const auto& param_name = param->get_friendly_name();
