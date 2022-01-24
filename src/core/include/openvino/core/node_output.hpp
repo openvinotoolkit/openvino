@@ -5,8 +5,8 @@
 #pragma once
 
 #include <cstring>
-#include <map>
 #include <list>
+#include <map>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"

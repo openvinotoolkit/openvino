@@ -5,11 +5,11 @@
 #pragma once
 
 #include <atomic>
+#include <list>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <list>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
