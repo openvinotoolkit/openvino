@@ -106,7 +106,9 @@ bool switchToImageAffinity(std::shared_ptr<ngraph::Node> start,
     // concatenate per-batch graphs
     for (const auto& elem : concatenate_map) {
         const auto original_node = elem.first.get_node_shared_ptr();
-        const auto concat = std::make_shared<ngraph::opset1::Concat>(elem.second, 0);
+        // TODO: batch dimension could be non-zero
+        const size_t axis = 0;
+        const auto concat = std::make_shared<ngraph::opset1::Concat>(elem.second, axis);
         copy_runtime_info(original_node, concat);
         replace_node(original_node, concat);
     }
