@@ -8,7 +8,7 @@
 using namespace BehaviorTestsDefinitions;
 namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, VersionTest,
-                                    ::testing::Values(ConformanceTests::targetDevice),
+                                    ::testing::Values(ov::test::conformance::targetDevice),
                             VersionTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, VersionTest,

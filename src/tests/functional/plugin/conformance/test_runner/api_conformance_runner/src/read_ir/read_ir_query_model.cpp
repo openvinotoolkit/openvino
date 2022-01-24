@@ -4,11 +4,15 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "read_ir/read_ir_query_network.hpp"
+#include "read_ir/read_ir_query_model.hpp"
 #include "conformance.hpp"
 
-namespace ConformanceTests {
-using namespace LayerTestsDefinitions;
+namespace ov {
+namespace test {
+namespace conformance {
+namespace op {
+
+using namespace ov::test::subgraph;
 
 namespace {
 INSTANTIATE_TEST_SUITE_P(conformance,
@@ -19,4 +23,8 @@ INSTANTIATE_TEST_SUITE_P(conformance,
                                 ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);
 } // namespace
-} // namespace ConformanceTests
+
+}  // namespace op
+}  // namespace conformance
+}  // namespace test
+}  // namespace ov
