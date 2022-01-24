@@ -4,10 +4,7 @@
 
 #include <signal.h>
 #include <fstream>
-#include <shared_test_classes/base/utils/generate_inputs.hpp>
-#include <shared_test_classes/base/utils/compare_results.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
-#include <transformations/convert_precision.hpp>
+#include "transformations/convert_precision.hpp"
 
 #ifdef _WIN32
 #include <process.h>
@@ -18,11 +15,15 @@
 
 #include "graph_comparator.hpp"
 
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "shared_test_classes/base/utils/compare_results.hpp"
 
 namespace ov {
 namespace test {
@@ -138,7 +139,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
         const auto result = results[j];
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
-            if (ngraph::is_type<ov::op::v0::Convert>(inputNode)) {
+            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
                 std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
                 if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
                     inputNode = nextNodePtr;
@@ -195,7 +196,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
                 std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                if (ngraph::is_type<ov::op::v0::Convert>(nodePtr)) {
+                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
                     std::shared_ptr<ov::Node> nextNodePtr = nodePtr->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
                     if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
                         inputNode = nodePtr;

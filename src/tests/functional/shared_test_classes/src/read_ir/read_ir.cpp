@@ -8,7 +8,8 @@
 #endif
 
 #include <pugixml.hpp>
-#include <ngraph_functions/builders.hpp>
+
+#include "ngraph_functions/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/layer_test_utils/op_info.hpp"

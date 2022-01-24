@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ie_core.hpp>
+#include "ie_core.hpp"
 #include "ngraph/node.hpp"
 
 namespace ov {

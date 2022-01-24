@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <common_test_utils/file_utils.hpp>
+#include "common_test_utils/file_utils.hpp"
 
 namespace ov {
 namespace test {
