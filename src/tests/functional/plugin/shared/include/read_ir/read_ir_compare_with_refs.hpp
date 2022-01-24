@@ -4,10 +4,14 @@
 
 #include "shared_test_classes/read_ir/read_ir.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 TEST_P(ReadIRTest, ReadIR) {
-    Run();
+    run();
 }
 
-} // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov
