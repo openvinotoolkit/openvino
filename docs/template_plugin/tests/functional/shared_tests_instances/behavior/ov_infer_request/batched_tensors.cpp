@@ -18,9 +18,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Batch_Non_0) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "CNHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
@@ -32,10 +32,10 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_remote_tensor_default) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch - 1, runtime::Tensor(element::f32, one_shape));
-    tensors.emplace_back(runtime::RemoteTensor());
+    std::vector<ov::Tensor> tensors(batch - 1, ov::Tensor(element::f32, one_shape));
+    tensors.emplace_back(ov::RemoteTensor());
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
@@ -51,16 +51,16 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Strides) {
     std::vector<float> buffer2(one_shape_size_stride, 20);
     auto execNet = ie->compile_model(model, targetDevice);
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    auto tensor1 = runtime::Tensor(element::f32, one_shape_stride, &buffer1[0]);
-    auto tensor2 = runtime::Tensor(element::f32, one_shape_stride, &buffer2[0]);
-    auto tensor1_cut = runtime::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
-    auto tensor2_cut = runtime::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
-    std::vector<ov::runtime::Tensor> tensors;
+    auto tensor1 = ov::Tensor(element::f32, one_shape_stride, &buffer1[0]);
+    auto tensor2 = ov::Tensor(element::f32, one_shape_stride, &buffer2[0]);
+    auto tensor1_cut = ov::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
+    auto tensor2_cut = ov::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
+    std::vector<ov::Tensor> tensors;
     tensors.push_back(tensor1_cut);
     tensors.push_back(tensor2_cut);
-    auto exp_tensor = ov::runtime::Tensor(element::f32, batch_shape);
+    auto exp_tensor = ov::Tensor(element::f32, batch_shape);
     ASSERT_THROW({
                      req.set_tensors("tensor_input0", tensors);
                      req.infer();

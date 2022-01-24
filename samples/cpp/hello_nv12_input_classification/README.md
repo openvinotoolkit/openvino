@@ -6,8 +6,8 @@ Hello NV12 Input Classification C++ Sample demonstrates how to use the NV12 auto
 
 | Feature    | API  | Description |
 |:---        |:---  |:---
-|OpenVINO Runtime Core Operations| `ov::runtime::Core::get_metric` | Gets general runtime metric for dedicated hardware
-| Tensor Operations | `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
+|OpenVINO Runtime Core Operations| `ov::Core::get_metric` | Gets general runtime metric for dedicated hardware
+| Tensor Operations | `ov::Tensor::get_element_type`, `ov::Tensor::get_shape`, `ov::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
 | Input in N12 color format | `ov::preprocess::InputTensorInfo::set_color_format` | Change the color format of the input data
 | Model Input Reshape | `ov::Model::get_output_shape`, `ov::Model::reshape`, `ov::get_batch` | Set the batch size equal to the number of input images
 
