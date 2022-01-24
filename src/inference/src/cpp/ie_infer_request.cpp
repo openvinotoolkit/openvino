@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ namespace InferenceEngine {
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
-        throw ov::runtime::Busy(ex.what());                                 \
+        throw ov::Busy(ex.what());                                          \
     } catch (const std::exception& ex) {                                    \
         throw ov::Exception(ex.what());                                     \
     } catch (...) {                                                         \
@@ -243,7 +243,6 @@ std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
 }  // namespace
 
 namespace ov {
-namespace runtime {
 
 InferRequest::~InferRequest() {
     _impl = {};
@@ -521,5 +520,4 @@ bool InferRequest::operator==(const InferRequest& r) const noexcept {
     return r._impl == _impl;
 }
 
-}  // namespace runtime
 }  // namespace ov

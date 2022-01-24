@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,6 +53,7 @@ NGRAPH_OP(LogicalXor, op::v1)
 NGRAPH_OP(LogicalNot, op::v1)
 NGRAPH_OP(MaxPool, op::v1)
 NGRAPH_OP(Mod, op::v1)
+NGRAPH_OP(NonMaxSuppression, op::v1)
 NGRAPH_OP(OneHot, op::v1)
 NGRAPH_OP(Pad, op::v1)
 NGRAPH_OP(Split, op::v1)
@@ -66,12 +67,14 @@ NGRAPH_OP(EmbeddingBagPackedSum, ngraph::op::v3)
 NGRAPH_OP(ExtractImagePatches, op::v3)
 NGRAPH_OP(EmbeddingSegmentsSum, ngraph::op::v3)
 NGRAPH_OP(GRUCell, ngraph::op::v3)
+NGRAPH_OP(NonMaxSuppression, op::v3)
 NGRAPH_OP(NonZero, op::v3)
 NGRAPH_OP(ScatterNDUpdate, op::v3)
 NGRAPH_OP(ShapeOf, op::v3)
 
 NGRAPH_OP(CTCLoss, op::v4)
 NGRAPH_OP(LSTMCell, op::v4)
+NGRAPH_OP(NonMaxSuppression, op::v4)
 NGRAPH_OP(Proposal, op::v4)
 
 NGRAPH_OP(BatchNormInference, op::v5)

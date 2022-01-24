@@ -1,11 +1,4 @@
-# Intel® Distribution of OpenVINO™ Toolkit Developer Package 
-Copyright © 2018-2021 Intel Corporation
-> **LEGAL NOTICE**: Your use of this software and any required dependent software (the
-“Software Package”) is subject to the terms and conditions of the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html) for the Software Package, which may also include notices, disclaimers, or
-license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
-
->Intel is committed to the respect of human rights and avoiding complicity in human rights abuses, a policy reflected in the [Intel Global Human Rights Principles](https://www.intel.com/content/www/us/en/policy/policy-human-rights.html). Accordingly, by accessing the Intel material on this platform you agree that you will not use the material in a product or application that causes or contributes to a violation of an internationally recognized human right.
-
+# OpenVINO™ Development Tools 
 
 ## Introduction
 
@@ -21,16 +14,16 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 | [Post-Training Optimization Tool](https://docs.openvino.ai/latest/pot_README.html)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to retrain or fine-tune models. Optimizations are also available through the [API](https://docs.openvino.ai/latest/pot_compression_api_README.html).                                            |
 | [Model Downloader and other Open Model Zoo tools](https://docs.openvino.ai/latest/omz_tools_downloader.html)| `omz_downloader` <br> `omz_converter` <br> `omz_quantizer` <br> `omz_info_dumper`| **Model Downloader** is a tool for getting access to the collection of high-quality and extremely fast pre-trained deep learning [public](https://docs.openvino.ai/latest/omz_models_group_public.html) and [Intel](https://docs.openvino.ai/latest/omz_models_group_intel.html)-trained models. These free pre-trained models can be used to speed up the development and production deployment process without training your own models. The tool downloads model files from online sources and, if necessary, patches them to make them more usable with Model Optimizer. A number of additional tools are also provided to automate the process of working with downloaded models:<br> **Model Converter** is a tool for converting Open Model Zoo models that are stored in an original deep learning framework format into the Inference Engine Intermediate Representation (IR) using Model Optimizer. <br> **Model Quantizer** is a tool for automatic quantization of full-precision models in the IR format into low-precision versions using the Post-Training Optimization Tool. <br> **Model Information Dumper** is a helper utility for dumping information about the models to a stable, machine-readable format.
 
-> **NOTE**: The developer package also installs the OpenVINO™ runtime package as a dependency.
+The developer package also installs the OpenVINO™ Runtime package as a dependency.
 
 **The runtime package installs the following components:**
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Inference Engine](https://pypi.org/project/openvino)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                                                |
+| [OpenVINO™ Runtime](https://pypi.org/project/openvino)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                                                |
 
 ## System Requirements
-The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
+The complete list of supported hardware is available in the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-relnotes.html).
 
 The table below lists the supported operating systems and Python* versions required to run the installation.
 
@@ -44,7 +37,9 @@ The table below lists the supported operating systems and Python* versions requi
 
 > **NOTE**: This package can be installed on other versions of macOS, Linux and Windows, but only the specific versions above are fully validated.
 
-## Install the Developer Package
+> **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel® CPUs only.
+
+## Install the OpenVINO™ Development Tools Package
 
 ### Step 1. Set Up Python Virtual Environment
 
@@ -131,3 +126,10 @@ sudo apt-get install libpython3.7
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - [OpenVINO™ toolkit online documentation](https://docs.openvino.ai)
 - [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+
+Copyright © 2018-2022 Intel Corporation
+> **LEGAL NOTICE**: Your use of this software and any required dependent software (the
+“Software Package”) is subject to the terms and conditions of the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html) for the Software Package, which may also include notices, disclaimers, or
+license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
+
+>Intel is committed to the respect of human rights and avoiding complicity in human rights abuses, a policy reflected in the [Intel Global Human Rights Principles](https://www.intel.com/content/www/us/en/policy/policy-human-rights.html). Accordingly, by accessing the Intel material on this platform you agree that you will not use the material in a product or application that causes or contributes to a violation of an internationally recognized human right.

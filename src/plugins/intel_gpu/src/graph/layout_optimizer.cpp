@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -354,6 +354,28 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
                     return false;
                 else
                     return true;
+            }
+        }
+
+        if (next.is_type<convolution>() &&
+            (fmt_prev == format::bfyx && fmt_next == format::bs_fs_yx_bsv32_fsv32) &&
+            // Condition to avoid execution in reorder_inputs.
+            prev.get_users().size() == 1 && prev.get_users().front()->is_type<reorder>()) {
+            const auto& cur = prev.get_users().front();
+            std::set<size_t> dep_idx_set;
+            for (auto& p : next.get_fused_primitives()) {
+                // find eltwise sum primitive which has dependency nodes, and gather dependency indices of it.
+                if (p.node->is_type<eltwise>() && p.node->as<eltwise>().get_primitive()->mode == eltwise_mode::sum) {
+                    for (size_t i = p.dep_start_idx; i < p.dep_start_idx + p.total_num_deps; i++)
+                        dep_idx_set.insert(i);
+                }
+            }
+            // The current reorder can be fused if it is a dependency of eltwise sum primitive fused.
+            for (size_t i = 0; i < next.get_dependencies().size(); i++) {
+                auto& d_node = next.get_dependency(i);
+                if (cur->id() == d_node.id() && dep_idx_set.find(i) != dep_idx_set.end()) {
+                    return true;
+                }
             }
         }
 

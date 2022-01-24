@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -334,6 +334,16 @@ TEST_F(AnyTests, PrintToIntAny) {
     std::stringstream stream;
     ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), std::to_string(value));
+}
+
+TEST_F(AnyTests, ReadToIntAny) {
+    int value = -5;
+    std::stringstream strm;
+    strm << value;
+    Any p = int{};
+    ASSERT_NO_THROW(p.read(strm));
+    ASSERT_FALSE(strm.fail());
+    ASSERT_EQ(value, p.as<int>());
 }
 
 TEST_F(AnyTests, PrintToUIntAny) {

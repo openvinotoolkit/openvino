@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -307,3 +307,19 @@ def test_infer_tensor_model_from_buffer(device):
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": tensor})
     assert np.argmax(res[list(res)[0]]) == 2
+
+
+def test_direct_infer(device):
+    core = Core()
+    with open(test_net_bin, "rb") as f:
+        bin = f.read()
+    with open(test_net_xml, "rb") as f:
+        xml = f.read()
+    model = core.read_model(model=xml, weights=bin)
+    img = read_image()
+    tensor = Tensor(img)
+    comp_model = core.compile_model(model, device)
+    res = comp_model({"data": tensor})
+    assert np.argmax(res[comp_model.outputs[0]]) == 2
+    ref = comp_model.infer_new_request({"data": tensor})
+    assert np.array_equal(ref[comp_model.outputs[0]], res[comp_model.outputs[0]])

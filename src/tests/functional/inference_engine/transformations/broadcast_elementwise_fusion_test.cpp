@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -267,3 +267,22 @@ INSTANTIATE_TEST_SUITE_P(EliminateDynamicBroadcast, EliminateDynamicBroadcastTes
 INSTANTIATE_TEST_SUITE_P(NoEliminateDynamicBroadcast, NoEliminateDynamicBroadcastTest,
                         testing::Values(std::make_tuple(InputShape{2, 1, 4}, InputShape{2, DYN, 4}, InputShape{2, DYN, 4}),
                                         std::make_tuple(InputShape{2, DYN, 4}, InputShape{2, DYN, 4}, InputShape{2, DYN, 4})));
+
+
+TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOf) {
+    {
+        auto input =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, Shape{1, 3});
+        auto shape_of = std::make_shared<ngraph::opset5::ShapeOf>(input);
+        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input, shape_of);
+        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input, broadcast);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input});
+
+        manager.register_pass<pass::BroadcastElementwiseFusion>();
+    }
+
+    {
+        auto input =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, Shape{1, 3});
+        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input, input);
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input});
+    }
+}

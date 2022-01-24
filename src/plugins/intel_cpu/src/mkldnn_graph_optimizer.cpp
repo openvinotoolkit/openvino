@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -269,9 +269,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionMatMulAndBias(MKLDNNGraph &graph) {
                 graphEdges.push_back(newEdge);
                 parent->addEdge(newEdge);
 
-                auto partialShape = { parentEltwise->outputShapes[0].toPartialShape()[parentEltwise->getFusingAxis()] };
-                parent->outputShapes[inNum] = Shape(partialShape);
-                parentEltwise->inputShapes.push_back(parent->outputShapes[0]);
+                const auto fusingAxis = parentEltwise->getFusingAxis();
+                const auto& outShape = parentEltwise->getOutputShapeAtPort(0);
+
+                parent->outputShapes[inNum] = Shape({outShape.getMinDims()[fusingAxis]}, {outShape.getMaxDims()[fusingAxis]});
+                parentEltwise->inputShapes.push_back(parent->getOutputShapeAtPort(0));
             }
         }
 
@@ -1117,10 +1119,21 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             isSuitableParent2 = isSuitableParent2 && canFuseSum(binConvNode2, graphNode);
         }
 
+        auto checkFusedWithSum = [](MKLDNNConvolutionNode* conv) -> bool {
+            for (const auto& node : conv->getFusedWith()) {
+                const auto eltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(node);
+                if (eltwise && eltwise->isSpecialConvolutionAddFusing())
+                    return true;
+            }
+            return false;
+        };
+
         auto* convNode1 = dynamic_cast<MKLDNNConvolutionNode *>(parent1.get());
         if (convNode1) {
             if (!convNode1->canBeExecutedInInt8()) {
                 isSuitableParent1 = isSuitableParent1 && convNode1->getFusedWith().empty();
+            } else {
+                isSuitableParent1 = isSuitableParent1 && !checkFusedWithSum(convNode1);
             }
         }
 
@@ -1128,6 +1141,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         if (convNode2) {
             if (!convNode2->canBeExecutedInInt8()) {
                 isSuitableParent2 = isSuitableParent2 && convNode2->getFusedWith().empty();
+            } else {
+                isSuitableParent2 = isSuitableParent2 && !checkFusedWithSum(convNode2);
             }
         }
 
@@ -1853,11 +1868,15 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Transpose && node->getChildEdges().size() == 1;
+        return node->getType() == Transpose
+                && node->getChildEdges().size() == 1
+                && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
     };
 
     auto isSuitableChildNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Reorder && node->getChildEdges().size() == 1;
+        return node->getType() == Reorder
+                && node->getChildEdges().size() == 1
+                && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
     };
 
     // Method checkAscendingSummaryOrder() checks that after the sequential execution of Transpose and Reorder nodes,

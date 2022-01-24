@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,12 +39,20 @@ public:
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
-    Shape(const VectorDims& minVals, const VectorDims& maxVals) {
-        minDims = minVals;
-        maxDims = maxVals;
-        type = minVals == maxVals ? ShapeType::Static : ShapeType::Dynamic;
+    Shape(const VectorDims& minDims, const VectorDims& maxDims) {
+        if (minDims.size() != maxDims.size()) {
+            IE_THROW() << "Can't create shape due to min/max vectors dims size mismatch";
+        }
+        this->minDims = minDims;
+        this->maxDims = maxDims;
 
         initDims();
+
+        if (std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == Shape::UNDEFINED_DIM; } ))  {
+            type = ShapeType::Dynamic;
+        } else {
+            type = ShapeType::Static;
+        }
 
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }

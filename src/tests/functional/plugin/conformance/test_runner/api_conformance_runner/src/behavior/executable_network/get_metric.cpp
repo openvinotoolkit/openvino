@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/executable_network/get_metric.hpp"
 #include "api_conformance_helpers.hpp"
 
-using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
 using namespace InferenceEngine::PluginConfigParams;
 

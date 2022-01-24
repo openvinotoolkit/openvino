@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,12 +88,12 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_inp
     input_low =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_low, zero_point));
-    if (auto constant = get_constant_from_source(input_low))
+    if (auto constant = ov::get_constant_from_source(input_low))
         input_low = constant;
     input_high =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_high, zero_point));
-    if (auto constant = get_constant_from_source(input_high))
+    if (auto constant = ov::get_constant_from_source(input_high))
         input_high = constant;
 
     return std::make_tuple(input_low, input_high);

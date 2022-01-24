@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,17 +150,15 @@ static const char use_device_mem_message[] =
     "Optional. Switch between host and device memory allocation for input and output buffers.";
 #endif
 
-#ifdef USE_OPENCV
 // @brief message for load config option
 static const char load_config_message[] =
-    "Optional. Path to XML/YAML/JSON file to load custom IE parameters."
+    "Optional. Path to JSON file to load custom IE parameters."
     " Please note, command line parameters have higher priority then parameters from configuration "
     "file.";
 
 // @brief message for dump config option
 static const char dump_config_message[] =
-    "Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.";
-#endif
+    "Optional. Path to JSON file to dump IE parameters, which were set by application.";
 
 static const char shape_message[] =
     "Optional. Set shape for network input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
@@ -309,13 +307,11 @@ DEFINE_bool(pcseq, false, pcseq_message);
 DEFINE_bool(use_device_mem, false, use_device_mem_message);
 #endif
 
-#ifdef USE_OPENCV
 /// @brief Define flag for loading configuration file <br>
 DEFINE_string(load_config, "", load_config_message);
 
 /// @brief Define flag for dumping configuration file <br>
 DEFINE_string(dump_config, "", dump_config_message);
-#endif
 
 /// @brief Define flag for input shape <br>
 DEFINE_string(shape, "", shape_message);
@@ -359,7 +355,7 @@ DEFINE_bool(inference_only, true, inference_only_message);
 /**
  * @brief This function show a help message
  */
-static void showUsage() {
+static void show_usage() {
     std::cout << std::endl;
     std::cout << "benchmark_app [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
@@ -399,10 +395,8 @@ static void showUsage() {
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
     std::cout << "    -pcseq                    " << pcseq_message << std::endl;
-#ifdef USE_OPENCV
     std::cout << "    -dump_config              " << dump_config_message << std::endl;
     std::cout << "    -load_config              " << load_config_message << std::endl;
-#endif
     std::cout << "    -qb                       " << gna_qb_message << std::endl;
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;

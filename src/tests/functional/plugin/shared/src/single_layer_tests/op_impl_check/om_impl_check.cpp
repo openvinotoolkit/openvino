@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <signal.h>
@@ -43,7 +43,7 @@ void OpImplCheckTest::SetUp() {
 std::string OpImplCheckTest::getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj) {
     std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>> funcInfo;
     std::string targetDevice;
-    std::map<std::string, std::string> config;
+    ov::AnyMap config;
     std::tie(funcInfo, targetDevice, config) = obj.param;
 
     std::ostringstream result;
@@ -52,7 +52,9 @@ std::string OpImplCheckTest::getTestCaseName(const testing::TestParamInfo<OpImpl
     result << "Device=" << targetDevice << "_";
     result << "Config=(";
     for (const auto& configItem : config) {
-        result << configItem.first << "=" << configItem.second << "_";
+        result << configItem.first << "=";
+        configItem.second.print(result);
+        result << "_";
     }
     result << ")";
     return result.str();

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,18 +14,18 @@ using namespace ov;
 
 namespace {
 struct SpaceToBatchParams {
-    SpaceToBatchParams(const Tensor& dataTensor, const Tensor& blockShapeTensor,
-                       const Tensor& padsBeginTensor, const Tensor& padsEndTensor,
-                       const Tensor& expectedTensor, const std::string& testcaseName = "") :
+    SpaceToBatchParams(const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& blockShapeTensor,
+                       const reference_tests::Tensor& padsBeginTensor, const reference_tests::Tensor& padsEndTensor,
+                       const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
                   dataTensor(dataTensor), blockShapeTensor(blockShapeTensor),
                   padsBeginTensor(padsBeginTensor), padsEndTensor(padsEndTensor),
                   expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor blockShapeTensor;
-    Tensor padsBeginTensor;
-    Tensor padsEndTensor;
-    Tensor expectedTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor blockShapeTensor;
+    reference_tests::Tensor padsBeginTensor;
+    reference_tests::Tensor padsEndTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -80,20 +80,20 @@ std::vector<SpaceToBatchParams> generateParams() {
     std::vector<SpaceToBatchParams> batchToSpaceParams {
         // space_to_batch_4D
         SpaceToBatchParams(
-            Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 1}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 1}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
             "space_to_batch_4D"),
 
         // space_to_batch_5D
          SpaceToBatchParams(
-             Tensor({1, 1, 3, 2, 1}, IN_ET, std::vector<T>{1, 1, 1, 1, 1, 1}),
-             Tensor({5}, element::i64, std::vector<int64_t>{1, 1, 3, 2, 2}),
-             Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 1, 0, 3}),
-             Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 2, 0, 0}),
-             Tensor({12, 1, 2, 1, 2}, IN_ET, std::vector<T>{
+             reference_tests::Tensor({1, 1, 3, 2, 1}, IN_ET, std::vector<T>{1, 1, 1, 1, 1, 1}),
+             reference_tests::Tensor({5}, element::i64, std::vector<int64_t>{1, 1, 3, 2, 2}),
+             reference_tests::Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 1, 0, 3}),
+             reference_tests::Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 2, 0, 0}),
+             reference_tests::Tensor({12, 1, 2, 1, 2}, IN_ET, std::vector<T>{
                  0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
                  0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0,
                  0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
@@ -102,12 +102,12 @@ std::vector<SpaceToBatchParams> generateParams() {
 
         // space_to_batch_4x4
         SpaceToBatchParams(
-            Tensor({1, 1, 4, 4}, IN_ET, std::vector<T>{
+            reference_tests::Tensor({1, 1, 4, 4}, IN_ET, std::vector<T>{
                 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 1}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 1, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({1, 1, 5, 4}, IN_ET, std::vector<T>{
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 1}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 1, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({1, 1, 5, 4}, IN_ET, std::vector<T>{
                 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
                 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}),
             "space_to_batch_4x4"),

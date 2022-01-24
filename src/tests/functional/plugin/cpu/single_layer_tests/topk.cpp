@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ protected:
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
-        ov::runtime::Tensor data_tensor;
+        ov::Tensor data_tensor;
         const auto& dataPrecision = funcInputs[0].get_element_type();
         const auto& dataShape = targetInputStaticShapes.front();
         if (funcInputs[0].get_element_type().is_real()) {
