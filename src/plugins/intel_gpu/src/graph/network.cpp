@@ -527,7 +527,12 @@ void network::allocate_primitives() {
     std::sort(nodes_to_allocate.begin(),
               nodes_to_allocate.end(),
               [](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+                    if (rhs->get_output_layout().is_dynamic())
+                        return false;
+                    if (lhs->get_output_layout().is_dynamic())
+                        return true;
+
+                    return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
               });
 
     for (auto const& node : nodes_to_allocate) {
@@ -697,6 +702,20 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             }
         }
 
+        // if (inst->shape_changed())
+        {
+            GPU_DEBUG_IF(debug_config->verbose == 4) {
+                std::cerr << inst->id()  << " shape has changed!" << std::endl;
+            }
+
+            // Lock for program nodes
+            // To be removed once concurrency issue for program node is resolved
+            static std::mutex m;
+            std::lock_guard<std::mutex> lock(m);
+            inst->update_impl();
+            inst->set_arguments();
+        }
+
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
             GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
                            << inst->output_memory().get_allocation_type() << std::endl;
@@ -704,7 +723,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed
         // So we need to set arguments on each execution.
-        if (inst->has_mutable_input() || inst->is_output()) {
+        if (inst->has_mutable_input() || inst->is_output() || inst->is_dynamic()) {
             inst->set_arguments();
         }
         execute_primitive(inst, events);
@@ -879,6 +898,10 @@ void network::allocate_primitive_instance(program_node const& node) {
         }
         return false;
     };
+
+    if (node.is_dynamic()) {
+        _is_dynamic = true;
+    }
 
     if (is_mutable_input(node)) {
         inst->set_mutable_input(true);

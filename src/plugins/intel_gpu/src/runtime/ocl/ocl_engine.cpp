@@ -87,13 +87,17 @@ const cl::UsmHelper& ocl_engine::get_usm_helper() const {
 
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
     if (layout.bytes_count() > get_device_info().max_alloc_mem_size) {
-        throw std::runtime_error("exceeded max size of memory object allocation");
+        throw std::runtime_error("[GPU] Exceeded max size of memory object allocation");
+    }
+
+    if (layout.is_dynamic()) {
+        throw std::runtime_error("[GPU] Can't allocate memory for dynamic layout");
     }
 
     if (type != allocation_type::cl_mem && !supports_allocation(type)) {
         std::ostringstream type_str;
         type_str << type;
-        throw std::runtime_error("Unsupported allocation type " + type_str.str());
+        throw std::runtime_error("[GPU] Unsupported allocation type " + type_str.str());
     }
 
     try {

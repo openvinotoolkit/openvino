@@ -114,7 +114,9 @@ public:
         return _impl->validate(*this);
     }
     bool output_changed() const { return _output_changed; }
+    bool shape_changed() const { return _shape_changed; }
     void reset_output_change() { _output_changed = false; }
+    void reset_shape_change() { _shape_changed = false; }
 
     void build_deps();
 
@@ -142,11 +144,18 @@ public:
         return _mem_allocated;
     }
 
+    bool is_dynamic() const {
+        return _node.is_dynamic();
+    }
+
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool,
                                         const program_node& _node, bool is_internal);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
+
+    void update_shape();
+    void update_impl();
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -177,6 +186,7 @@ protected:
     std::vector<memory::cptr> _intermediates_memory;
 
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
+    bool _shape_changed = false;
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
@@ -206,8 +216,7 @@ struct typed_primitive_impl : public primitive_impl {
     using primitive_impl::primitive_impl;
 
 private:
-    event::ptr execute(const std::vector<event::ptr>& event,
-                            primitive_inst& instance) override {
+    event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
         if (instance.get_impl() != this)

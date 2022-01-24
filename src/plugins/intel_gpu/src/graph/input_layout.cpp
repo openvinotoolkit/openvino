@@ -43,7 +43,8 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
 void input_layout_inst::set_data(memory::ptr mem) {
     auto ol = node.get_output_layout();
 
-    check_memory_to_set(*mem, ol);
+    if (!_node.is_dynamic())
+        check_memory_to_set(*mem, ol);
 
     if (mem->is_allocated_by(get_network().get_engine())) {
         _output = mem;
@@ -55,6 +56,7 @@ void input_layout_inst::set_data(memory::ptr mem) {
 
     _has_valid_input = true;
     _output_changed = true;
+    _shape_changed = mem->get_layout() != ol;
 }
 
 std::string input_layout_inst::to_string(input_layout_node const& node) {

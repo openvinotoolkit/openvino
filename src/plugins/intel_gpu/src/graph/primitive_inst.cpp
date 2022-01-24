@@ -81,6 +81,26 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
 
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
+void primitive_inst::update_shape() {
+    // Do nothing for static nodes
+    if (!_node.is_dynamic())
+        return;
+
+    auto new_layout = _node.type()->calc_output_layout(_node);
+    // TODO: Get rid of this const_cast ASAP
+    const_cast<program_node&>(_node).set_output_layout(new_layout);
+    reset_shape_change();
+}
+
+void primitive_inst::update_impl() {
+    update_shape();
+    if (!_node.is_type<data>() && !(_node.is_type<mutable_data>() && _node.get_dependencies().empty())) {
+        _impl = std::move(_node.type()->choose_impl(_node));
+        _network.get_program()->compile();
+        _impl->init_kernels();
+    }
+}
+
 void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout) const {
     CLDNN_ERROR_LAYOUT_MISMATCH("network layout",
         "set memory layout",
