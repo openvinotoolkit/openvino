@@ -52,7 +52,7 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
 endif()
 
 if(ENABLE_INTEL_MYRIAD)
-    include(${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/vpu_dependencies.cmake)
+    include(${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/myriad_dependencies.cmake)
 endif()
 
 ## Intel OMP package

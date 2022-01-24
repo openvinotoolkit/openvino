@@ -181,6 +181,10 @@ if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
 endif()
 
+if (ENABLE_INTEL_MYRIAD)
+    add_definitions(-DENABLE_INTEL_MYRIAD=1)
+endif()
+
 if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_INTEL_MYRIAD)
     add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
 endif()
