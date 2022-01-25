@@ -59,7 +59,7 @@ python <path_to_omz_tools>/converter.py --name ssdlite_mobilenet_v2
 3. Perform inference of `banana.jpg` using `ssdlite_mobilenet_v2` model on a `GPU`, for example:
 
 ```
-python hello_reshape_ssd.py -m ssdlite_mobilenet_v2.xml -i banana.jpg -d GPU
+python hello_reshape_ssd.py ssdlite_mobilenet_v2.xml banana.jpg GPU
 ```
 
 ## Sample Output

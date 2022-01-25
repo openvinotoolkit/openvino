@@ -60,7 +60,7 @@ python <path_to_omz_tools>/converter.py --name alexnet
 3. Perform inference of `banana.jpg` using `alexnet` model on a `GPU`, for example:
 
 ```
-python hello_classification.py -m alexnet.xml -i banana.jpg -d GPU
+python hello_classification.py alexnet.xml banana.jpg GPU
 ```
 
 ## Sample Output
