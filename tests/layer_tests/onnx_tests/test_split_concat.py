@@ -562,8 +562,8 @@ class TestSplit(Caffe2OnnxLayerTest):
     @pytest.mark.parametrize("params", test_multiple_out)
     def test_split_outputs_order(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_split_net_ordered_outputs(**params, ir_version=ir_version),
-                   ie_device, precision,
-                   ir_version, temp_dir=temp_dir, output_names=params['output_names'], api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   output_names=params['output_names'], api_2=api_2)
 
     @pytest.mark.parametrize("params", test_multiple_out_with_add)
     def test_split_outputs_order_multiple_connection_before_result_case(self, params, ie_device,
@@ -571,7 +571,7 @@ class TestSplit(Caffe2OnnxLayerTest):
                                                                         temp_dir, api_2):
         self._test(*self.create_split_net_ordered_outputs_with_add(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   output_names=params['output_names'])
+                   output_names=params['output_names'], api_2=api_2)
 
     @pytest.mark.parametrize("params", test_multiple_out_with_identity)
     def test_split_outputs_order_multiple_tensors_before_result_case(self,
