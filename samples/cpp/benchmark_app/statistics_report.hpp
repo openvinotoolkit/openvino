@@ -164,6 +164,6 @@ public:
 
 private:
     void dump_parameters(nlohmann::json& js, const StatisticsReport::Parameters& parameters);
-    const nlohmann::json StatisticsReportJSON::perf_counters_to_json(
+    const nlohmann::json perf_counters_to_json(
         const StatisticsReport::PerformanceCounters& perfCounts);
 };
