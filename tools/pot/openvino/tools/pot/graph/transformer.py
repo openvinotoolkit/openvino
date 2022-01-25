@@ -7,7 +7,8 @@ from .editor import add_fullname_for_nodes
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
 from .passes import InsertFakeQuantize, FakeQuantizePropagation, FakeQuantizeOptimization, RemoveFakeQuantize, \
     SpecialBlocksMarker, FakeQuantizeNameSwapper
-from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params, get_operation_list_with_outputs
+from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params, \
+    get_operation_list_with_outputs
 
 
 class GraphTransformer:

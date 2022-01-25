@@ -27,7 +27,8 @@ from . import editor as ge
 from . import node_utils as nu
 from .editor import get_nodes_by_type
 from .pattern_utils import get_fq_result_pattern
-from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, SPLIT_OPERATIONS, OPERATIONS_WITH_BIAS
+from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, \
+    SPLIT_OPERATIONS, OPERATIONS_WITH_BIAS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
 from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, get_weights_for_node
 from ..graph.special_patterns import get_ignored_patterns
@@ -35,7 +36,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-
+#pylint: disable=C0302
 class SaveBNStatistics(FrontReplacementSubgraph):
     enabled = True
 
@@ -89,7 +90,7 @@ class InsertFakeQuantize(BackReplacementPattern):
     @quantize_operations.setter
     def quantize_operations(self, value):
         setattr(self, '_quantize_operations', value)
-    
+
     @property
     def quantize_output_operations(self):
         return getattr(self, '_quantize_output_operations', [])
@@ -147,20 +148,21 @@ class InsertFakeQuantize(BackReplacementPattern):
 
         if m_op.type in ['Convolution', 'ConvolutionBackpropData', 'MatMul']:
             insert_fake_quantize(graph, m_op, [0, 1], ['fq_input', 'fq_weights'], ['activations', 'weights'],
-                                 hw_config=self._hardware_config)
+                                 hw_config=self.hardware_config)
         elif m_op.type == 'LSTMCell':
-            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4], hw_config=self._hardware_config)
+            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4], hw_config=self.hardware_config)
         elif self.quantize_only_input(m_op):
-            insert_fake_quantize(graph, m_op, [0], hw_config=self._hardware_config)
+            insert_fake_quantize(graph, m_op, [0], hw_config=self.hardware_config)
         else:
-            insert_fake_quantize(graph, m_op, hw_config=self._hardware_config)
-        
+            insert_fake_quantize(graph, m_op, hw_config=self.hardware_config)
+
         biased_op = [op['type'] for op in OPERATIONS_WITH_BIAS]
         if m_op.type in self._quantize_output_operations:
             bias_node = nu.get_bias_for_node(m_op)
             if m_op.type in biased_op and bias_node:
                 m_op = nu.get_node_output(bias_node, 0)[0]
-            insert_output_fake_quantize(graph, m_op, hw_config=self._hardware_config, ignored_params=self.ignored_params)
+            insert_output_fake_quantize(graph, m_op, hw_config=self.hardware_config,
+                                        ignored_params=self.ignored_params)
 
 
 class FakeQuantizePropagation(BackReplacementPattern):
@@ -188,7 +190,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         # Disconnect FQ from input and reconnect outputs to input node
         self.remove_node_and_reset_connections(graph, fq, in_port)
 
-        return insert_fake_quantize(graph, op, [0], hw_config=self._hardware_config)
+        return insert_fake_quantize(graph, op, [0], hw_config=self.hardware_config)
 
     def jump_to_all_inputs(self, graph: Graph, fq: Node) -> []:
         in_port = fq.in_port(0).get_source()
@@ -198,7 +200,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         self.remove_node_and_reset_connections(graph, fq, in_port)
 
         # Insert FQ operations for all inputs
-        return insert_fake_quantize(graph, op, hw_config=self._hardware_config)
+        return insert_fake_quantize(graph, op, hw_config=self.hardware_config)
 
     def jump_to_all_branch_except_const(self, graph, fq: Node) -> []:
         in_port = fq.in_port(0).get_source()
@@ -209,7 +211,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         # Disconnect FQ from input and reconnect outputs to input node
         self.remove_node_and_reset_connections(graph, fq, in_port)
 
-        return insert_fake_quantize(graph, op, ports, hw_config=self._hardware_config)
+        return insert_fake_quantize(graph, op, ports, hw_config=self.hardware_config)
 
     def jump_over_split_concat(self, graph: Graph, fq: Node) -> []:
         in_port = fq.in_port(0).get_source()
@@ -219,7 +221,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         self.remove_node_and_reset_connections(graph, fq, in_port)
 
         # Insert FQ operations for split input
-        return insert_fake_quantize(graph, get_node_inputs(op)[0], [0], hw_config=self._hardware_config)
+        return insert_fake_quantize(graph, get_node_inputs(op)[0], [0], hw_config=self.hardware_config)
 
     def remove_duplication(self, graph: Graph, fq: Node) -> []:
         # Keep only input operation
@@ -829,7 +831,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
     port_name = None
     if ports is not None and names is not None:
         port_name = dict(zip(ports, names))
-    
+
     fq_type = None
     if fq_types is not None and ports is not None:
         fq_type = dict(zip(ports, fq_types))
@@ -838,7 +840,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
     for idx, port in node.in_ports().items():
         if port.disconnected():
             continue
-            
+
         in_port_type = port.get_source().node.type
 
         # Temporary WA while blobs_as_inputs option isn't work properly
@@ -867,7 +869,10 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         if fq_type is not None and idx in fq_type:
             fq_group = fq_type[idx]
 
-        fq_configs = hw_config[node.type][fq_group] if hw_config is not None and hw_config[node.type] else []
+        fq_configs = []
+        if hw_config is not None and hw_config[node.type]:
+            fq_configs = hw_config[node.type][fq_group]
+        
         fq_options = {'fq_group': fq_group, 'fq_configs': copy(fq_configs)}
         fq_name = '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx)
         fq_input = create_fake_quantize_node(graph, fq_name, port_data_type, **fq_options)
@@ -885,6 +890,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         new_fq.append(fq_input)
     return new_fq
 
+
 def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None):
     new_fq = []
     for out_port_id, port in node.out_ports().items():
@@ -898,7 +904,8 @@ def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None
             if next_node.type == 'ShapeOf':
                 continue
 
-            if ignored_params is not None and next_node.type != 'FakeQuantize' and is_ignored(ignored_params, next_node):
+            if ignored_params is not None and next_node.type != 'FakeQuantize' \
+                    and is_ignored(ignored_params, next_node):
                 continue
 
             fq_name = '{node_name}/fq_output_{out_port_id}_{next_port_id}'.format(node_name=node.name,
@@ -915,6 +922,7 @@ def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None
             new_fq.append(fq_output)
 
     return new_fq
+
 
 def traverse_graph(node, move_fn, stop_criteria_fn=None, criteria_fns=None):
     """ Traverse through graph dependent on move_fn
