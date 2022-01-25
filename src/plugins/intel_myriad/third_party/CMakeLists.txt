@@ -14,7 +14,6 @@ if (ENABLE_INTEL_MYRIAD)
     endif()
 
     set(XLINK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/XLink" CACHE PATH "path to Xlink")
-    set(mvnc_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mvnc")
     add_subdirectory(
         "${XLINK_DIR}"
         "${CMAKE_CURRENT_BINARY_DIR}/XLink")
