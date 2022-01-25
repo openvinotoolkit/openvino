@@ -16,6 +16,7 @@
 #include <set>
 
 #include <ngraph/node.hpp>
+#include <ngraph/log.hpp>
 
 namespace ngraph {
 
@@ -153,10 +154,19 @@ public:
         return result_mask;
     }
 
+    //bool add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+    //    if (m_callbacks.find(mask.get()) != m_callbacks.end()) return false;
+
+    //    m_callbacks[mask.get()] = receive_callback;
+    //    m_dependencies.push_back(mask.get());
+    //    return true;
+    //}
+
     void add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());
     }
+
 
     /* Modify state of this mask by corresponding callback,
     which returns modifying success status (bool) and then

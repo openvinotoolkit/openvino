@@ -484,7 +484,7 @@ public:
             auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
-            auto out_mask_callback = [input_mask_row, weights_mask_row, union_eltwise_type](Mask::Ptr cur_mask) -> bool {
+            const auto out_mask_callback = [input_mask_row, weights_mask_row, union_eltwise_type](Mask::Ptr cur_mask) -> bool {
                 Mask::Ptr result_mask;
                 if (union_eltwise_type) {
                     result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
@@ -492,25 +492,30 @@ public:
                     result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
                 }
                 cur_mask->copy_value_from_mask_reversed(result_mask.get());
+
+                auto input_iter = input_mask_row->rbegin();
+                auto weights_iter = weights_mask_row->rbegin();
+                while (input_iter != input_mask_row->rend() && weights_iter != weights_mask_row->rend()) {
+                    if (*input_iter != *weights_iter)
+                        cur_mask->initialize_dependencies();
+                    input_iter++;
+                    weights_iter++;
+                }
                 return true;
             };
-            output_mask->add_callback(out_mask_callback, input_mask);
-
-            input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->copy_value_from_mask_reversed(weights_mask_row);
-                return true;
-            }, weights_mask);
-            input_mask->add_callback([output_mask_row](Mask::Ptr cur_mask) -> bool {
+            const auto input_mask_callback = [output_mask_row](Mask::Ptr cur_mask) -> bool {
                 cur_mask->copy_value_from_mask_reversed(output_mask_row);
                 return true;
-            }, output_mask);
-            weights_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->copy_value_from_mask_reversed(input_mask_row);
-                return true;
-            }, input_mask);
+            };
+
+            output_mask->add_callback(out_mask_callback, input_mask);
+            input_mask->add_callback(input_mask_callback, output_mask);
+
+            output_mask->add_callback(out_mask_callback, weights_mask);
+            weights_mask->add_callback(input_mask_callback, output_mask);
 
             output_mask->apply_callback(input_mask);
-            weights_mask->apply_callback(input_mask);
+            //weights_mask->apply_callback(input_mask);
 
             setMask(m_output, output_mask);
             return true;
@@ -565,8 +570,13 @@ public:
                 return true;
             };
 
+            //bool status = true;
             output_mask->add_callback(output_mask_callback, input_mask);
             input_mask->add_callback(input_mask_callback, output_mask);
+            //if (not status) {
+            //    NGRAPH_DEBUG << "Attempt to rewrite callbacks while processing node"
+            //                 << m_output.get_node()->get_friendly_name();
+            //}
 
             // Calculate output mask
             output_mask->apply_callback(input_mask);

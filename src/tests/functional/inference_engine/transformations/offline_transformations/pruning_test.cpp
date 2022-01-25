@@ -2420,7 +2420,7 @@ TEST(TransformationTests, PruneLinearIsClosingAndInGroup) {
 }
 
 
-TEST(TransformationTests, PruneLinearUp) {
+TEST(TransformationTests, PruneLinearUpBad) {
     const auto linear_input_features = 6 * 2 * 2;
     auto inputShapes = PartialShape{1, 6, 2, 2};
     auto weightsShape = Shape{6, 6, 1, 1};
@@ -2457,6 +2457,116 @@ TEST(TransformationTests, PruneLinearUp) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneLinearUp.svg").run_on_function(function);
+
+    pass::Manager m;
+    m.register_pass<pass::Pruning>();
+    m.run_passes(function);
+
+    //compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    //compare_masks(*getMask(conv->output(0)),  Mask({{}, {}, {}, {}}));
+
+    //compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    //compare_masks(*getMask(end_conv->output(0)),  Mask({{}, {}, {}, {}}));
+}
+
+
+TEST(TransformationTests, PruneLinearUp) {
+    const auto linear_input_features = 6 * 2 * 2;
+    auto inputShapes = PartialShape{1, 6, 2, 2};
+    auto weightsShape = Shape{6, 6, 1, 1};
+    auto linearShape = Shape{linear_input_features, linear_input_features};
+    auto lastLinearShape = Shape{10, linear_input_features};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+    auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
+    auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                                      CoordinateDiff(2, 0),
+                                                                      CoordinateDiff(2, 0),
+                                                                      Strides(2, 1));
+
+    auto reshape_const = opset5::Constant::create(element::i64, Shape{2}, {1, linear_input_features});
+    auto reshape = std::make_shared<opset5::Reshape>(conv, reshape_const, true);
+
+    auto linear_mask = Mask();
+    auto outer_dim_zeros = std::set<size_t>();
+    for (auto i = 0; i < linear_input_features / 2; ++i)
+        outer_dim_zeros.insert(i);
+    linear_mask.push_back({10, 11});
+    linear_mask.push_back(outer_dim_zeros);
+    auto linear_const = create_constant_with_zeros(linearShape, linear_mask);
+    auto linear = std::make_shared<opset5::MatMul>(reshape, linear_const);
+
+    auto add_mask = Mask();
+    add_mask.push_back({});
+    add_mask.push_back(outer_dim_zeros);
+    auto add_const = create_constant_with_zeros({1, linear_input_features}, add_mask);
+    auto add = std::make_shared<opset5::Add>(linear, add_const);
+    auto add_const_1 = create_constant_with_zeros({1, linear_input_features}, add_mask);
+    auto add_1 = std::make_shared<opset5::Add>(add, add_const_1);
+    auto add_2 = std::make_shared<opset5::Add>(add_1, reshape);
+
+    auto bad_add_const = create_constant_with_zeros({1, linear_input_features}, {{}, {}});
+    auto bad_add = std::make_shared<opset5::Add>(add_2, bad_add_const);
+
+    auto weights_end_linear = create_constant_with_zeros(lastLinearShape, {{1, 2, 3}, {3, 4, 6}});
+    auto last_linear = std::make_shared<opset5::MatMul>(bad_add, weights_end_linear, false, true);
+    auto function = std::make_shared<ngraph::Function>(OutputVector{last_linear}, ParameterVector{input});
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneLinearUp.svg").run_on_function(function);
+
+    pass::Manager m;
+    m.register_pass<pass::Pruning>();
+    m.run_passes(function);
+
+    //compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    //compare_masks(*getMask(conv->output(0)),  Mask({{}, {}, {}, {}}));
+
+    //compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    //compare_masks(*getMask(end_conv->output(0)),  Mask({{}, {}, {}, {}}));
+}
+
+
+TEST(TransformationTests, PruneConvUp) {
+    const auto linear_input_features = 6 * 2 * 2;
+    auto inputShapes = PartialShape{1, 6, 2, 2};
+    auto convShape = Shape{1, 6, 2, 2};
+    auto weightsShape = Shape{6, 6, 1, 1};
+    auto lastLinearShape = Shape{10, linear_input_features};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+    auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
+    auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                                      CoordinateDiff(2, 0),
+                                                                      CoordinateDiff(2, 0),
+                                                                      Strides(2, 1));
+
+
+    auto conv_1_const = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
+    auto conv_1 = std::make_shared<opset5::Convolution>(conv, conv_1_const, Strides(2, 1),
+                                                                        CoordinateDiff(2, 0),
+                                                                        CoordinateDiff(2, 0),
+                                                                        Strides(2, 1));
+
+    auto add_const = create_constant_with_zeros(convShape, {{}, {1, 2, 3}, {}, {}});
+    auto add = std::make_shared<opset5::Add>(conv_1, add_const);
+    auto add_const_1 = create_constant_with_zeros(convShape, {{}, {1, 2, 3}, {}, {}});
+    auto add_1 = std::make_shared<opset5::Add>(add, add_const_1);
+    auto add_2 = std::make_shared<opset5::Add>(add_1, conv);
+
+    auto bad_add_const = create_constant_with_zeros(convShape, {{}, {}, {}, {}});
+    auto bad_add = std::make_shared<opset5::Add>(add_2, bad_add_const);
+
+    auto weights_end_conv = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {1, 2, 3}, {}, {}});
+    auto last_conv = std::make_shared<opset5::Convolution>(bad_add, weights_end_conv, Strides(2, 1),
+                                                                        CoordinateDiff(2, 0),
+                                                                        CoordinateDiff(2, 0),
+                                                                        Strides(2, 1));
+
+    auto function = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input});
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvUp.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
