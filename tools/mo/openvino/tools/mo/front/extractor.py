@@ -962,12 +962,6 @@ def add_input_ops_helper_before_infer_input_port(graph: Graph, smart_node: Node,
 
 def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, port:int, node_id: str,
                                                 inputs: list, edges_to_remove: list):
-    n_inputs = len(smart_node.in_nodes())
-    if n_inputs > 1 and port is not None and port != 0:
-        raise Error(
-            'Input port > 0 in --input is not supported if --input_shape is not provided. Node:'
-            ' "{}". Omit port index and all input ports will be replaced by placeholders. '
-            'Or provide --input_shape. ' + refer_to_faq_msg(31), node_id)
     port = port if port is not None else 0
     in_node = smart_node.in_node(port)
     shape = in_node['shape'] if 'shape' in in_node else None
