@@ -400,9 +400,9 @@ def accuracy_metrics(out_blob, ref_out_blob):
 def performance_metrics(device, pc, ref_device, ref_pc):
     compare = [
         ('Device', '-d ' + device, '-ref_d ' + ref_device),
-        ('Status', pc.status, ref_pc.status),
+        ('Status', str(pc.status), str(ref_pc.status)),
         ('Layer type', pc.node_type, ref_pc.node_type),
-        ('Real time, microsec', pc.real_time, ref_pc.real_time)
+        ('Real time, microsec', str(pc.real_time), str(ref_pc.real_time))
     ]
 
     for metric, actual, reference in compare:
@@ -506,7 +506,7 @@ def get_layers_list(all_layers: list, inputs: list, outputs: list, layers: str):
             all_outputs = []
             for layer in all_layers:
                 if layer.get_type_name() not in ['Constant', 'Result']:
-                    all_outputs += layer.outputs()
+                    all_outputs += [(layer.friendly_name, i) for i in range(layer.get_output_size())]
             return all_outputs
             #return [output for output in [layer.outputs() for layer in all_layers if layer.get_type_name() not in ['Constant', 'Result']]]
         else:
@@ -527,7 +527,7 @@ def get_layers_list(all_layers: list, inputs: list, outputs: list, layers: str):
                     new_outputs += prev_layer.outputs
             return new_outputs
     else:
-        return outputs
+        return list((port.node.friendly_name, port.index) for port in outputs)
 
 
 ###

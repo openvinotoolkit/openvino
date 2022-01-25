@@ -11,7 +11,7 @@ import sys
 import numpy as np
 
 try:
-    from openvino.runtime import Core, Model, CompiledModel, InferRequest, get_version
+    from openvino.runtime import Core, Model, CompiledModel, InferRequest, ProfilingInfo, get_version
 except Exception as e:
     exception_type = type(e).__name__
     print(f"The following error happened while importing OpenVINO Python API module:\n[ {exception_type} ] {e}")
@@ -71,9 +71,10 @@ def get_infer_request(compiled_model: CompiledModel):
 @error_handling('output \'{output}\' addition for network from model \'{model}\'')
 def get_model_copy_with_output(model: str, output, core: Core):
     model_copy = get_model(model_path=model, core=core)
+    new_outputs = None
     if output not in ['None', None]:
-        model_copy.add_outputs(output)
-    return model_copy
+        new_outputs = model_copy.add_outputs(output)
+    return model_copy, new_outputs
 
 
 @error_handling('getting model layers info')
@@ -100,18 +101,19 @@ def get_profiling_info(infer_request: InferRequest):
 def infer(model: Model, core: Core, device: str, inputs: list, outputs: list):
     compiled_model = get_compiled_model(core=core, model=model, device=device)
     infer_request = get_infer_request(compiled_model)
-    infer_dict = get_infer_results(infer_request=infer_request, inputs=inputs)
+    infer_request.infer(inputs)
+    #infer_dict = get_infer_results(infer_request=infer_request, inputs=inputs)
     profiling_info = get_profiling_info(infer_request=infer_request)
-    no_i = 'no_info'
-    no_info_pc = {'cpu_time': no_i, 'node_type': no_i, 'real_time': no_i, 'status': no_i}
+    #no_i = 'no_info'
+    #no_info_pc = {'cpu_time': no_i, 'node_type': no_i, 'real_time': no_i, 'status': no_i}
     result = {}
     for output in outputs:
-        if output not in infer_dict:
-            log.warning(f"There is no '{output}' layer in Inference Engine outputs results")
-            continue
+        #if output not in infer_dict:
+            #log.warning(f"There is no '{output}' layer in Inference Engine outputs results")
+            #continue
         pc = [pc for pc in profiling_info if pc.node_name == output.node.name]
-        pc = pc.pop() if pc else no_info_pc
-        result = {output: [infer_dict[output], pc, device]}
+        pc = pc.pop() if pc else ProfilingInfo()
+        result = {output: [infer_request.get_tensor(output).data, pc, device]}
     return result
 
 
@@ -121,8 +123,8 @@ def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out
                            num_of_iterations: int):
     global_times, ref_global_times = [], []
     if layers in ['None', None]:
-        model_copy = get_model_copy_with_output(model=model, output=layers, core=core)
-        ref_model_copy = get_model_copy_with_output(model=ref_model, output=layers, core=ref_core)
+        model_copy, _ = get_model_copy_with_output(model=model, output=layers, core=core)
+        ref_model_copy, _ = get_model_copy_with_output(model=ref_model, output=layers, core=ref_core)
         for i in range(num_of_iterations):
             t1 = datetime.datetime.now()
             infer(model=model_copy, core=core, device=device, inputs=inputs, outputs=out_layers)
@@ -153,17 +155,17 @@ def one_ir_mode(args):
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
     for out_layer in out_layers:
-        log.info(f'Layer {out_layer.node.friendly_name} statistics')
-        model_copy = get_model_copy_with_output(model=args.model, output=out_layer, core=core)
-        results = infer(model=model_copy, core=core, device=args.device, inputs=inputs, outputs=[out_layer])
-        if out_layer not in results:
-            continue
-        out_blob, pc, device = results[out_layer]
+        log.info(f'Layer {out_layer[0]} statistics')
+        model_copy, new_outputs = get_model_copy_with_output(model=args.model, output=out_layer, core=core)
+        results = infer(model=model_copy, core=core, device=args.device, inputs=inputs, outputs=new_outputs)
+        #if out_layer not in results:
+            #continue
+        out_blob, pc, device = results[new_outputs[0]]
         ref_results = infer(model=model_copy, core=ref_core, device=args.reference_device,
-                            inputs=inputs, outputs=[out_layer])
-        if out_layer not in ref_results:
-            continue
-        ref_out_blob, ref_pc, ref_device = ref_results[out_layer]
+                            inputs=inputs, outputs=new_outputs)
+        #if out_layer not in ref_results:
+            #continue
+        ref_out_blob, ref_pc, ref_device = ref_results[new_outputs[0]]
         a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
         performance_metrics(device, pc, ref_device, ref_pc)
         blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
