@@ -6,7 +6,6 @@
 #include "primitive_inst.h"
 #include "program_helpers.h"
 #include "intel_gpu/runtime/error_handler.hpp"
-
 #include "data_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
@@ -1650,9 +1649,41 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (input_layout.format.dimension() == 5 &&
             (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16))
             expected = format::bfzyx;
+    } else if (node.is_type<resample>()) {
+        // if the resample is in the last part of the network and there are no users using blocked format,
+        // it is better to reorder to bfyx before resample is done.
+        if (all_users_simple_format(node, node, 0, 10)) {
+            const auto& dim = format::dimension(node.get_output_layout().format);
+            switch (dim) {
+                case 4 : expected = format::bfyx; break;
+                case 5 : expected = format::bfzyx; break;
+                case 6 : expected = format::bfwzyx; break;
+                default : throw std::runtime_error("Unknown rank " + dim);
+            }
+        } else {
+            expected = format::any;
+        }
     }
 
     return expected;
+}
+
+bool layout_optimizer::all_users_simple_format(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth) {
+    if (cur_node.is_output()) return true;
+    if (cur_depth > max_depth) return false;
+
+    if (cur_node.is_in_data_flow() && (cur_node.type() != origin_node.type())) {
+        const auto& fmt = get_preferred_format(cur_node);
+        if (fmt != format::any && !format::is_simple_data_format(fmt)) {
+            return false;
+        }
+    }
+
+    bool res = true;
+    for (const auto& usr : cur_node.get_users()) {
+        res &= all_users_simple_format(origin_node, *usr, cur_depth + 1, max_depth);
+    }
+    return res;
 }
 
 void layout_optimizer::set_optimization_attribute(optimization_attributes_type attribute, int32_t val) {
