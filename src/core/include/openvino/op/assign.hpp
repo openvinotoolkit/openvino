@@ -31,7 +31,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 
 private:
     std::string m_variable_id;

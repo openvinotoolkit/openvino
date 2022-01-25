@@ -53,10 +53,6 @@ bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool op::v3::ReadValue::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    return false;
-}
-
 op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Variable>& variable)
     : ReadValueBase({init_value}) {
     m_variable = variable;
