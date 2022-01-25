@@ -16,4 +16,4 @@ class DataFreeEngine(SimplifiedEngine):
         if config.data_type == 'image':
             return SyntheticImageLoader(config)
 
-        raise NotImplementedError
+        raise NotImplementedError("Currently data-free optimization is available for Computer Vision models only")

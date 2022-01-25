@@ -116,7 +116,7 @@ def get_common_argument_parser():
         '--data-source',
         default='../../../pot_dataset',
         help='Valid only for DataFreeEngine. '
-             'Specify path to directory where synthetic dataset will be downloaded or generated and saved. '
+             'Specify path to directory where synthetic dataset is located or will be generated and saved. '
              'Default: `../../../pot_dataset`')
 
     parser.add_argument(
@@ -135,7 +135,7 @@ def get_common_argument_parser():
         '--generate-data',
         action='store_true',
         help='Generate synthetic dataset on first run and store to `dataset-dir`. '
-             'If not specified, dataset will be downloaded.')
+             'If not specified, the dataset from `--data-source` will be used')
 
     return parser
 

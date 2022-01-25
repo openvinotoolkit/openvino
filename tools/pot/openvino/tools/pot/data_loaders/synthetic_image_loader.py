@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import tarfile
 from multiprocessing import Pool
+from pathlib import Path
 import requests
 
 import cv2 as cv
@@ -287,19 +287,29 @@ class SyntheticImageLoader(ImageLoader):
         frame_normed = np.array(frame_normed, dtype=np.uint8)
         return cv.resize(frame_normed, (H_orig, W_orig))
 
-    @staticmethod
-    def _augment(image):
+    def _augment(self, image):
         if np.random.random(1) >= 0.5:
             image = cv.flip(image, 1)
 
         if np.random.random(1) >= 0.5:
             image = cv.flip(image, 0)
 
-        k_size = np.random.choice(list(range(1, 16, 2)))
-        image = cv.GaussianBlur(image, (k_size, k_size), 0)
-
         height, width = image.shape[:2]
         angle = np.random.uniform(-30, 30)
         rotate_matrix = cv.getRotationMatrix2D(center=(width / 2, height / 2), angle=angle, scale=1)
         image = cv.warpAffine(src=image, M=rotate_matrix, dsize=(width, height))
+
+        image = self.fill_background(image)
+
+        k_size = np.random.choice(list(range(1, 16, 2)))
+        image = cv.GaussianBlur(image, (k_size, k_size), 0)
+        return image
+
+    @staticmethod
+    def fill_background(image):
+        synthetic_background = Path(__file__).parent / 'synthetic_background.npy'
+        imagenet_means = np.load(synthetic_background)
+        class_id = np.random.randint(0, imagenet_means.shape[0])
+        rows, cols = np.where(~np.any(image, axis=-1))  # background color = [0, 0, 0]
+        image[rows, cols] = imagenet_means[class_id]
         return image

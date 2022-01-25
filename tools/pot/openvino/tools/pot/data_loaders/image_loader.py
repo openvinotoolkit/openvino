@@ -57,7 +57,7 @@ class ImageLoader(DataLoader):
         if input_node:
             layout_from_ir = input_node.graph.graph.get('layout', None)
             if layout_from_ir is not None:
-                if self._shape is not None and 'N' in self._layout and len(self._shape) == 3:
+                if self._shape is not None and 'N' in layout_from_ir and len(self._shape) == 3:
                     layout_from_ir = layout_from_ir[1:]
                 self._layout = Layout(layout_from_ir)
                 return
