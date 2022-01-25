@@ -79,11 +79,11 @@ void fillBlobRandom(InferenceEngine::Blob::Ptr& inputBlob) {
 
 
 /**
- * @brief Fill InferenceEngine tensor with random values using node information
+ * @brief Fill InferenceEngine tensor with random values
  */
 template<typename T>
-ov::runtime::Tensor fillTensorRandom(ov::Output<const ov::Node>& input) {
-  ov::Tensor tensor { input.get_element_type(), input.get_shape() };
+ov::Tensor fillTensorRandom(ov::Output<const ov::Node>& input) {
+  ov::Tensor tensor {input.get_element_type(), input.get_shape()};
   std::vector<T>values(ov::shape_size(input.get_shape()));
 
   for (size_t i = 0; i < values.size(); ++i) {
@@ -97,7 +97,22 @@ ov::runtime::Tensor fillTensorRandom(ov::Output<const ov::Node>& input) {
 
 
 /**
- * @brief Fill InferenceEngine blob with image information using blob information
+ * @brief Fill InferenceEngine tensor with image information
+ */
+template<typename T>
+ov::Tensor fillTensorImInfo(ov::Output<const ov::Node>& input,
+                            std::pair<size_t, size_t> image_size) {
+  ov::Tensor tensor {input.get_element_type(), input.get_shape()};
+  std::vector<float> values{static_cast<float>(image_size.first), static_cast<float>(image_size.second)};
+
+  std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
+
+  return tensor;
+}
+
+
+/**
+ * @brief Fill InferenceEngine blob with image information
  */
 template<typename T>
 void fillBlobImInfo(InferenceEngine::Blob::Ptr& inputBlob,

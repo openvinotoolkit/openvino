@@ -64,23 +64,21 @@ void fillTensors(ov::InferRequest& infer_request, std::vector<ov::Output<const o
   std::vector<std::pair<size_t, size_t>> input_image_sizes;
 
   for (size_t i = 0; i < inputs.size(); i++) {
-    // Need to check Layout
     if (inputs[i].get_shape().size() == 4)
+      // TODO: Check layout
       input_image_sizes.emplace_back(inputs[i].get_shape()[1], inputs[i].get_shape()[2]);
   }
   for (size_t i = 0; i < inputs.size(); i++) {
     ov::Tensor input_tensor;
 
     if ((inputs[i].get_shape().size() == 2) && (input_image_sizes.size() == 1)) {
+      auto image_size = input_image_sizes.at(0);
       if (inputs[i].get_element_type() == ov::element::f32) {
-        std::vector<float> values{static_cast<float>(input_image_sizes[0].first), static_cast<float>(input_image_sizes[0].second), 1.0f};
-        input_tensor = ov::Tensor(ov::element::f32, inputs[i].get_shape(), values.data());
+        input_tensor = fillTensorImInfo<float>(inputs[i], image_size);
       } else if (inputs[i].get_element_type() == ov::element::f16) {
-        std::vector<short> values{static_cast<short>(input_image_sizes[0].first), static_cast<short>(input_image_sizes[0].second), 1};
-        input_tensor = ov::Tensor(ov::element::f16, inputs[i].get_shape(), values.data());
+        input_tensor = fillTensorImInfo<short>(inputs[i], image_size);
       } else if (inputs[i].get_element_type() == ov::element::i32) {
-        std::vector<int32_t> values{static_cast<int32_t>(input_image_sizes[0].first), static_cast<int32_t>(input_image_sizes[0].second), 1};
-        input_tensor = ov::Tensor(ov::element::i32, inputs[i].get_shape(), values.data());
+        input_tensor = fillTensorImInfo<int32_t>(inputs[i], image_size);
       } else {
         throw std::logic_error("Input precision is not supported for image info!");
       }
