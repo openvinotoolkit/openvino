@@ -6,6 +6,7 @@
 #ifdef CPU_DEBUG_CAPS
 
 #include "mkldnn_node.h"
+#include "utils/verbose_node_helper.h"
 
 #include <string>
 #include <cstdlib>
@@ -19,6 +20,7 @@ public:
         : node(_node), lvl(atoi(_lvl.c_str())) {
         if (!shouldBePrinted())
             return;
+        node->_verboseStorage.cleanup();
         printInfo();
     }
 
@@ -26,7 +28,7 @@ public:
         if (!shouldBePrinted())
             return;
 
-        printDuration();
+        printLastInfo();
         flush();
     }
 
@@ -37,7 +39,7 @@ private:
 
     bool shouldBePrinted() const;
     void printInfo();
-    void printDuration();
+    void printLastInfo();
     void flush() const;
 };
 

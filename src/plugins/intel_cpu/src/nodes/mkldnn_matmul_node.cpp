@@ -472,13 +472,13 @@ void MKLDNNMatMulNode::prepareParams() {
 
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, builder);
+    VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
 
     if (!result.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
     prim = result.first;
-
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();

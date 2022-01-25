@@ -854,9 +854,10 @@ void MKLDNNGraph::Infer(MKLDNNInferRequestBase* request, int batch) {
 
     mkldnn::stream stream(eng);
 
+    CPU_DEBUG_CAP_ENABLE(const std::string modelInput(perfGetModelInputStr(*this)));
     for (const auto& node : executableGraphNodes) {
         VERBOSE(node, config.verbose);
-        PERF(node, config.collectPerfCounters);
+        PERF(node, config.collectPerfCounters, modelInput);
 
         if (request)
             request->ThrowIfCanceled();

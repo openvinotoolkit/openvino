@@ -46,6 +46,11 @@ public:
 
     void Export(std::ostream& modelStream) override;
 
+    #ifdef CPU_DEBUG_CAPS
+    friend void perfDump(const MKLDNNExecNetwork& execNet);
+    ~MKLDNNExecNetwork() { perfDump(*this); }
+    #endif
+
 protected:
     friend class MKLDNNInferRequestBase;
     MKLDNNExtensionManager::Ptr extensionManager;

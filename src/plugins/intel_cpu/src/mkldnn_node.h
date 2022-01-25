@@ -30,6 +30,8 @@
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "cache/multi_cache.h"
+#include "perf_count.h"
+#include "utils/verbose_node_helper.h"
 
 #include <utils/shape_inference/static_shape.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
@@ -827,6 +829,9 @@ private:
 
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;
+
+protected:
+    VerboseNodeStorage _verboseStorage;
 #endif
 };
 

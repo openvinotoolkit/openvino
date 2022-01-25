@@ -2143,6 +2143,7 @@ void MKLDNNInterpolateNode::prepareParams() {
 
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, buildExecutor);
+    VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
     execPtr = result.first;
 
     lastOutputDims = dstDims;

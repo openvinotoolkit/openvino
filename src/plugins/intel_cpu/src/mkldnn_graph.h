@@ -75,7 +75,7 @@ public:
         return graphEdges;
     }
 
-    std::map<std::string, MKLDNNNodePtr>& GetInputNodesMap() {
+    const std::map<std::string, MKLDNNNodePtr>& GetInputNodesMap() const {
         return inputNodesMap;
     }
 
@@ -237,6 +237,7 @@ protected:
     friend class MKLDNNLegacyInferRequest;
     friend class MKLDNNInferRequest;
     friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
+    CPU_DEBUG_CAP_ENABLE(friend void perfDump(const MKLDNNExecNetwork& execNet));
 
 private:
     // TODO: change std::map to std::unordered_map

@@ -160,9 +160,11 @@ void Verbose::printInfo() {
            << post_ops << ',';
 }
 
-void Verbose::printDuration() {
-    const auto& duration = node->PerfCounter().duration().count();
-    stream << duration << "ms";
+void Verbose::printLastInfo() {
+    stream << node->PerfCounter().getItrDurationReport();
+    if (node->_verboseStorage.isPrepareParamsCacheHit()) {
+        stream << ",cacheHit:prepareParams";
+    }
 }
 
 void Verbose::flush() const {

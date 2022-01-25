@@ -959,6 +959,7 @@ void MKLDNNMVNNode::prepareParams() {
 
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, builder);
+    VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
     execPtr = result.first;
 }
 

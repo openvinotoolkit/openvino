@@ -1911,6 +1911,7 @@ void MKLDNNReduceNode::prepareParams() {
         ReduceKey key = {jcp, attr.get_post_ops()};
         auto cache = getRuntimeCache();
         auto result = cache->getOrCreate(key, builder);
+        VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
         if (!result.first) {
             IE_THROW() << errorPrefix << " has not found jit_uni_reduce_post_kernel_f32.";
         }

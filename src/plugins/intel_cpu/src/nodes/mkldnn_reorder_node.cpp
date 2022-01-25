@@ -255,6 +255,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
     } else {
         result = cache->getOrCreate(key, builder);
     }
+    VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
 
     if (!result.first) {
         IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
