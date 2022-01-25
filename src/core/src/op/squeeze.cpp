@@ -262,6 +262,12 @@ bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) cons
     return default_upper_bound_evaluator(this, output_values);
 }
 
+bool op::v0::Squeeze::evaluate_label(TensorLabelVector& output_labels) const {
+    if (get_input_size() > 1 && !get_input_tensor(1).has_and_set_bound())
+        return false;
+    return default_label_evaluator(this, output_labels);
+}
+
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     NGRAPH_OP_SCOPE(v0_Squeeze_constant_fold);
     if (get_output_partial_shape(0).is_dynamic()) {

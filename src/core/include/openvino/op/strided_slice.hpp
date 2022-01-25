@@ -100,6 +100,7 @@ public:
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 private:
     AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;
