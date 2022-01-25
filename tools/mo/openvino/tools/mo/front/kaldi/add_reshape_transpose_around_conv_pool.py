@@ -80,7 +80,7 @@ def update_time_dim_for_start_convolution(graph):
         for dest in param_node.out_port(0).get_destinations():
             if dest.node.op == 'Convolution':
                 conv_node = dest.node
-                assert param_node.time_dim == -1 or \
+                assert param_node.time_dim is None or \
                     param_node.time_dim == conv_node.soft_get('kernel')[1] - 1, \
                     "Kaldi model have 2 Convolutions after Parameter with different time dimensions"
                 # time_dim starts from 0, kernel from 1
