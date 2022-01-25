@@ -414,15 +414,13 @@ bool ParamsKey::Support(const ParamsKey& k) const {
         return false;
     if (!((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw))
         return false;
-    if (!((key.inputLayout & k.key.inputLayout) != 0 || key.inputLayout == k.key.inputLayout))
+    if (!(k.key.inputLayout.none() || (key.inputLayout & k.key.inputLayout).any()))
         return false;
-    if (!((key.outputLayout & k.key.outputLayout) != 0 || key.outputLayout == k.key.outputLayout))
+    if (!(k.key.outputLayout.none() || (key.outputLayout & k.key.outputLayout).any()))
         return false;
-    if (!((key.weightsInputLayout & k.key.weightsInputLayout) != 0 ||
-          key.weightsInputLayout == k.key.weightsInputLayout))
+    if (!(k.key.weightsInputLayout.none() || (key.weightsInputLayout & k.key.weightsInputLayout).any()))
         return false;
-    if (!((key.weightsOutputLayout & k.key.weightsOutputLayout) != 0 ||
-          key.weightsOutputLayout == k.key.weightsOutputLayout))
+    if (!(k.key.weightsOutputLayout.none() || (key.weightsOutputLayout & k.key.weightsOutputLayout).any()))
         return false;
 
     return true;
