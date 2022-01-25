@@ -96,8 +96,7 @@ def test_const_output_get_names(device):
     exec_net = core.compile_model(func, device)
     input_name = "data"
     node = exec_net.input(input_name)
-    expected_names = set()
-    expected_names.add(input_name)
+    expected_names = [input_name]
     assert node.get_names() == expected_names
     assert node.names == expected_names
     assert node.get_any_name() == input_name
