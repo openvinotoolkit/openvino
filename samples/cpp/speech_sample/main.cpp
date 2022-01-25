@@ -237,7 +237,7 @@ int main(int argc, char* argv[]) {
         if (!FLAGS_wg.empty()) {
             slog::info << "Writing GNA Model to file " << FLAGS_wg << slog::endl;
             t0 = Time::now();
-            std::ofstream streamwq(FLAGS_wg, std::ios::out);
+            std::ofstream streamwq(FLAGS_wg, std::ios_base::binary | std::ios::out);
             executableNet.export_model(streamwq);
             ms exportTime = std::chrono::duration_cast<ms>(Time::now() - t0);
             slog::info << "Exporting time " << exportTime.count() << " ms" << slog::endl;
