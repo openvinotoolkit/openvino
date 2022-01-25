@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "range_inst.h"
-#include "primitive_type_base.h"
+#include <range_inst.h>
+#include <primitive_type_base.h>
 #include "lexical_cast.hpp"
 
 namespace cldnn {
@@ -13,11 +13,7 @@ primitive_type_id range::type_id() {
     return &instance;
 }
 
-layout range_inst::calc_output_layout(range_node const& node) {
-    return node.get_primitive()->output_layout;
-}
-
-std::string range_inst::to_string(range_node const& node) {
+std::string typed_primitive_inst<range>::to_string(range_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
 
@@ -27,7 +23,5 @@ std::string range_inst::to_string(range_node const& node) {
     node_info->add("range info", std::move(op_info));
     return lexical_cast(*node_info);
 }
-
-range_inst::typed_primitive_inst(network& network, range_node const& node) : typed_primitive_inst_base{network, node} {}
 
 }  // namespace cldnn

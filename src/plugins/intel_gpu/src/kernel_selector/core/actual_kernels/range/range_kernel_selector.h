@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "kernel_selector.h"
+#include <kernel_selector.h>
 
 namespace kernel_selector {
 

@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include "intel_gpu/primitives/range.hpp"
+#include <intel_gpu/primitives/range.hpp>
 #include "primitive_inst.h"
-
-#include <string>
 
 namespace cldnn {
 template <>
@@ -21,12 +19,12 @@ using range_node = typed_program_node<range>;
 template <>
 class typed_primitive_inst<range> : public typed_primitive_inst_base<range> {
 public:
-    static layout calc_output_layout(range_node const& node);
+    using typed_primitive_inst_base::typed_primitive_inst_base;
+
+    static layout calc_output_layout(const range_node &node) {
+        return node.get_primitive()->output_layout;
+    }
     static std::string to_string(range_node const& node);
-
-    typed_primitive_inst(network& network, range_node const& desc);
 };
-
-using range_inst = typed_primitive_inst<range>;
 
 }  // namespace cldnn

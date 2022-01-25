@@ -21,15 +21,15 @@ const std::initializer_list<InferenceEngine::Precision> netPrecisions {
 
 using LayerTestsDefinitions::RangeLayerTest;
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, RangeLayerTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(start),
-                                ::testing::ValuesIn(stop),
-                                ::testing::ValuesIn(step),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        testing::Combine(
+                                testing::ValuesIn(start),
+                                testing::ValuesIn(stop),
+                                testing::ValuesIn(step),
+                                testing::ValuesIn(netPrecisions),
+                                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                testing::Values(InferenceEngine::Layout::ANY),
+                                testing::Values(InferenceEngine::Layout::ANY),
+                                testing::Values(CommonTestUtils::DEVICE_GPU)),
                         RangeLayerTest::getTestCaseName);
 }  // namespace
