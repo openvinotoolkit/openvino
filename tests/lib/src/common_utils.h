@@ -61,7 +61,6 @@ inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::Ten
   }
 }
 
-
 /**
  * @brief Fill InferenceEngine blob with random values
  */

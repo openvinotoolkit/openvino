@@ -4,12 +4,10 @@
 
 #include "cpp/ie_executable_network.hpp"
 
-#include "any_copy.hpp"
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
-#include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -208,39 +206,16 @@ void CompiledModel::export_model(std::ostream& networkModel) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
 }
 
-void CompiledModel::set_property(const AnyMap& config) {
+void CompiledModel::set_config(const ie::ParamMap& config) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
-Any CompiledModel::get_property(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        if (ov::supported_properties == name) {
-            try {
-                return {_impl->GetMetric(name), _so};
-            } catch (ie::Exception&) {
-                auto ro_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-                auto rw_properties = _impl->GetConfig(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-                std::vector<ov::PropertyName> supported_properties;
-                for (auto&& ro_property : ro_properties) {
-                    supported_properties.emplace_back(ro_property, PropertyMutability::RO);
-                }
-                for (auto&& rw_property : rw_properties) {
-                    supported_properties.emplace_back(rw_property, PropertyMutability::RW);
-                }
-                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
-                return supported_properties;
-            }
-        }
-        try {
-            return {_impl->GetMetric(name), _so};
-        } catch (ie::Exception&) {
-            return {_impl->GetConfig(name), _so};
-        }
-    });
+ie::Parameter CompiledModel::get_config(const std::string& name) const {
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), _so});
 }
 
-void CompiledModel::get_property(const std::string& name, Any& to) const {
-    any_lexical_cast(get_property(name), to);
+ie::Parameter CompiledModel::get_metric(const std::string& name) const {
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), _so});
 }
 
 RemoteContext CompiledModel::get_context() const {
