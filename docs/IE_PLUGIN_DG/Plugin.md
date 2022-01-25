@@ -178,7 +178,7 @@ information must be stored and checked during the import.
 - Compiled backend specific graph itself
 - Information about precisions and shapes set by the user
 
-@snippet template_plugin/src/template_plugin.cpp plugin:import_network_impl
+@snippet template_plugin/src/template_plugin.cpp plugin:import_network
 
 Create Instance of Plugin Class
 ------------------------

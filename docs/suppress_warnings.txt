@@ -84,4 +84,4 @@ no module named \'openvino\'
 \'openvino\'
 possible hints:
 no module named openvino
-critical: title level inconsistent
+title level inconsistent
