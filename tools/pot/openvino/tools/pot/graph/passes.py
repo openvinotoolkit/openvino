@@ -157,7 +157,7 @@ class InsertFakeQuantize(BackReplacementPattern):
             insert_fake_quantize(graph, m_op, hw_config=self.hardware_config)
 
         biased_op = [op['type'] for op in OPERATIONS_WITH_BIAS]
-        if m_op.type in self._quantize_output_operations:
+        if m_op.type in self.quantize_output_operations:
             bias_node = nu.get_bias_for_node(m_op)
             if m_op.type in biased_op and bias_node:
                 m_op = nu.get_node_output(bias_node, 0)[0]
@@ -872,7 +872,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         fq_configs = []
         if hw_config is not None and hw_config[node.type]:
             fq_configs = hw_config[node.type][fq_group]
-        
+
         fq_options = {'fq_group': fq_group, 'fq_configs': copy(fq_configs)}
         fq_name = '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx)
         fq_input = create_fake_quantize_node(graph, fq_name, port_data_type, **fq_options)
