@@ -8,9 +8,10 @@ import typing
 from functools import reduce
 
 import numpy as np
-from openvino.preprocess import PrePostProcessor
-from openvino.runtime import Core, Layout, Type, Model, Shape, PartialShape
 import openvino
+from openvino.preprocess import PrePostProcessor
+from openvino.runtime import Core, Layout, Model, Shape, Type, set_batch
+
 from data import digits
 
 
@@ -125,7 +126,7 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     # Parsing and validation of input arguments
     if len(sys.argv) != 3:
-        log.info('Usage: <path_to_model> <device_name>')
+        log.info(f'Usage: {sys.argv[0]} <path_to_model> <device_name>')
         return 1
 
     model_path = sys.argv[1]
@@ -160,8 +161,7 @@ def main():
     model = ppp.build()
 
     # Set a batch size equal to number of input images
-    model.reshape({model.input().get_any_name(): PartialShape((digits.shape[0], model.input().shape[1], model.input().shape[2], model.input().shape[3]))})
-
+    set_batch(model, digits.shape[0])
     # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     compiled_model = core.compile_model(model, device_name)
