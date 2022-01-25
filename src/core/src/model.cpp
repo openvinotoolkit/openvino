@@ -691,7 +691,7 @@ ov::Output<const ov::Node> ov::Model::output(size_t i) const {
 }
 ov::Output<const ov::Node> ov::Model::output(const std::string& tensor_name) const {
     for (const auto& res : m_results) {
-        const auto names = res->get_output_tensor(0).get_names();
+        const auto& names = res->get_output_tensor(0).get_names();
         if (std::find(names.begin(), names.end(), tensor_name) != names.end()) {
             std::shared_ptr<const ov::Node> result = res;
             return result;
@@ -718,7 +718,7 @@ ov::Output<ov::Node> ov::Model::output(size_t i) {
 }
 ov::Output<ov::Node> ov::Model::output(const std::string& tensor_name) {
     for (const auto& res : m_results) {
-        const auto names = res->get_output_tensor(0).get_names();
+        const auto& names = res->get_output_tensor(0).get_names();
         if (std::find(names.begin(), names.end(), tensor_name) != names.end())
             return res;
     }
@@ -748,7 +748,7 @@ ov::Output<const ov::Node> ov::Model::input(size_t i) const {
 }
 ov::Output<const ov::Node> ov::Model::input(const std::string& tensor_name) const {
     for (const auto& param : m_parameters) {
-        const auto names = param->get_output_tensor(0).get_names();
+        const auto& names = param->get_output_tensor(0).get_names();
         if (std::find(names.begin(), names.end(), tensor_name) != names.end()) {
             std::shared_ptr<const ov::Node> parameter = param;
             return parameter;
@@ -776,7 +776,7 @@ ov::Output<ov::Node> ov::Model::input(size_t i) {
 }
 ov::Output<ov::Node> ov::Model::input(const std::string& tensor_name) {
     for (const auto& param : m_parameters) {
-        const auto names = param->get_output_tensor(0).get_names();
+        const auto& names = param->get_output_tensor(0).get_names();
         if (std::find(names.begin(), names.end(), tensor_name) != names.end())
             return param;
     }

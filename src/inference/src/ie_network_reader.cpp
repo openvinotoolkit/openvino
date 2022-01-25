@@ -340,7 +340,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             {
                 for (const auto& result : function->get_results()) {
                     auto res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
-                    const auto names = result->get_output_tensor(0).get_names();
+                    const auto& names = result->get_output_tensor(0).get_names();
                     OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                         std::find(names.begin(), names.end(), res_name) != names.end(),
                                     "Model operation names have collisions with tensor names.",
@@ -350,7 +350,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 }
                 for (const auto& param : function->get_parameters()) {
                     auto param_name = param->get_friendly_name();
-                    const auto names = param->get_output_tensor(0).get_names();
+                    const auto& names = param->get_output_tensor(0).get_names();
                     OPENVINO_ASSERT(leaf_names.find(param_name) == leaf_names.end() ||
                                         std::find(names.begin(), names.end(), param_name) != names.end(),
                                     "Model operation names have collisions with tensor names.",

@@ -20,7 +20,7 @@ def test_test_descriptor_tensor():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     td = relu1.get_output_tensor(0)
     assert "relu_t1" in td.names
     assert td.element_type == Type.f32
@@ -34,7 +34,7 @@ def test_function_add_outputs_tensor_name():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     assert "relu_t1" in relu1.get_output_tensor(0).names
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
@@ -51,7 +51,7 @@ def test_function_add_outputs_op_name():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
@@ -66,7 +66,7 @@ def test_function_add_output_port():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
@@ -81,7 +81,7 @@ def test_function_add_output_incorrect_tensor_name():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
@@ -94,7 +94,7 @@ def test_function_add_output_incorrect_idx():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
@@ -109,7 +109,7 @@ def test_function_add_output_incorrect_name():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
@@ -122,9 +122,9 @@ def test_add_outputs_several_tensors():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     relu2 = ops.relu(relu1, name="relu2")
-    relu2.get_output_tensor(0).set_names({"relu_t2"})
+    relu2.get_output_tensor(0).set_names(["relu_t2"])
     relu3 = ops.relu(relu2, name="relu3")
     function = Model(relu3, [param], "TestFunction")
     assert len(function.get_results()) == 1
@@ -141,9 +141,9 @@ def test_add_outputs_several_ports():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     relu2 = ops.relu(relu1, name="relu2")
-    relu2.get_output_tensor(0).set_names({"relu_t2"})
+    relu2.get_output_tensor(0).set_names(["relu_t2"])
     relu3 = ops.relu(relu2, name="relu3")
     function = Model(relu3, [param], "TestFunction")
     assert len(function.get_results()) == 1
@@ -160,7 +160,7 @@ def test_add_outputs_incorrect_value():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     relu2 = ops.relu(relu1, name="relu2")
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
@@ -173,7 +173,7 @@ def test_add_outputs_incorrect_outputs_list():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    relu1.get_output_tensor(0).set_names(["relu_t1"])
     function = Model(relu1, [param], "TestFunction")
     assert len(function.get_results()) == 1
     with pytest.raises(TypeError) as e:
