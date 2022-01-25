@@ -169,10 +169,9 @@ endif()
 _ov_find_dependency(Threads)
 
 set(ENABLE_INTEL_GNA "@ENABLE_INTEL_GNA@")
-if(${ENABLE_INTEL_GNA} AND NOT libGNA_FOUND)
-    if(NOT GNA)
-        set_and_check(_gna_dir ${_ov_package_prefix_dir}/../@IE_CPACK_RUNTIME_PATH@)
-    endif()
+set(ENABLE_INTEL_GNA_SHARED "@BUILD_SHARED_LIBS@")
+if(ENABLE_INTEL_GNA AND NOT ENABLE_INTEL_GNA_SHARED AND NOT libGNA_FOUND)
+    set_and_check(GNA_PATH "@PACKAGE_GNA_PATH@")
     _ov_find_dependency(libGNA
                         COMPONENTS KERNEL
                         CONFIG

@@ -76,6 +76,9 @@ install(FILES ${source_list}
         DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gna)
 
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake"
-        DESTINATION runtime/cmake
-        COMPONENT gna)
+if(NOT BUILD_SHARED_LIBS)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${CMAKE_BINARY_DIR} COPYONLY)
+    install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
+            DESTINATION runtime/cmake
+            COMPONENT gna)
+endif()

@@ -4,13 +4,6 @@
 
 # module to locate GNA libraries
 
-if (WIN32)
-    set(GNA_PLATFORM_DIR win64 CACHE STRING "" FORCE)
-elseif (UNIX)
-    set(GNA_PLATFORM_DIR linux CACHE STRING "" FORCE)
-else ()
-    message(FATAL_ERROR "GNA not supported on this platform, only linux, and windows")
-endif ()
 
 set(libGNA_FOUND TRUE)
 
@@ -25,12 +18,7 @@ foreach (_gna_component ${libGNA_FIND_COMPONENTS})
     set(libGNA_FIND_REQUIRED_${_gna_component} TRUE)
 endforeach()
 
-if(NOT GNA)
-    set(libGNA_LIBRARIES_BASE_PATH ${_gna_dir} CACHE STRING "" FORCE)
-else()
-    set(GNA_LIB_DIR x64 CACHE STRING "" FORCE)
-    set(libGNA_LIBRARIES_BASE_PATH ${GNA}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR} CACHE STRING "" FORCE)
-endif()
+set(libGNA_LIBRARIES_BASE_PATH ${GNA_PATH} CACHE STRING "" FORCE)
 
 if(libGNA_FIND_REQUIRED_KERNEL)
     find_library(GNA_KERNEL_LIBRARY
