@@ -20,7 +20,7 @@ except ImportError:
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used, legacy_transformations_config_used, \
-    new_extensions_used, new_transformations_config_used
+    new_extensions_used, new_transformations_config_used, input_freezig_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
@@ -272,8 +272,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     argv.output = argv.output.split(',') if argv.output else None
 
-    argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(argv.input, argv.input_shape,
-                                                                                  argv.batch)
+    inputs_list, argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(
+        argv.input, argv.input_shape, argv.batch)
+    argv.inputs_list = inputs_list
 
     mean_values = parse_tuple_pairs(argv.mean_values)
     scale_values = parse_tuple_pairs(argv.scale_values)
@@ -340,6 +341,7 @@ def check_fallback(argv : argparse.Namespace):
 
     fallback_reasons['extensions'] = legacy_extensions_used
     fallback_reasons['transformations_config'] = legacy_transformations_config_used
+    fallback_reasons['input_freezing'] = input_freezig_used
 
     reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons

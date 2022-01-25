@@ -14,7 +14,7 @@ using namespace ov::test::conformance;
 namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
                         ::testing::Combine(
-                                ::testing::Values(ConformanceTests::targetDevice),
+                                ::testing::Values(ov::test::conformance::targetDevice),
                                 ::testing::ValuesIn(emptyConfig)),
                         OVInferRequestIOTensorTest::getTestCaseName);
 
@@ -58,7 +58,7 @@ std::vector<ov::element::Type> ovIOTensorElemTypes = {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypes),
-                                 ::testing::Values(ConformanceTests::targetDevice),
+                                 ::testing::Values(ov::test::conformance::targetDevice),
                                  ::testing::ValuesIn(emptyConfig)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
