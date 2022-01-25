@@ -70,7 +70,7 @@
 
 #include "myriad_plugin.h"
 #include "vpu/configuration/options/performance_hint.hpp"
-#include "vpu/configuration/options/performance_hitn_num_requests.hpp"
+#include "vpu/configuration/options/performance_hint_num_requests.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;

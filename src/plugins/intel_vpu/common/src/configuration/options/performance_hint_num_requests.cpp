@@ -1,9 +1,9 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu/private_plugin_config.hpp"
-#include "vpu/configuration/options/performance_hitn_num_requests.hpp"
+#include "vpu/configuration/options/performance_hint_num_requests.hpp"
 #include "vpu/utils/containers.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
 #include "vpu/utils/error.hpp"

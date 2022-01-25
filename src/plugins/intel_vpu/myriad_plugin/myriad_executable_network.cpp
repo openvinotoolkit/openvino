@@ -19,7 +19,7 @@
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
 #include <vpu/configuration/options/performance_hint.hpp>
-#include "vpu/configuration/options/performance_hitn_num_requests.hpp"
+#include "vpu/configuration/options/performance_hint_num_requests.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <ngraph/opsets/opset3.hpp>

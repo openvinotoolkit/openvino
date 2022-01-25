@@ -54,7 +54,7 @@
 #include <vpu/configuration/options/none_layers.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
 #include <vpu/configuration/options/performance_hint.hpp>
-#include "vpu/configuration/options/performance_hitn_num_requests.hpp"
+#include "vpu/configuration/options/performance_hint_num_requests.hpp"
 
 using namespace InferenceEngine;
 using namespace vpu;
