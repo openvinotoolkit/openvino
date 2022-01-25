@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -230,6 +230,20 @@ def test_ngraph_preprocess_set_shape():
     computation = runtime.computation(function)
     output = computation(input_data)
     assert np.equal(output, expected_output).all()
+
+
+def test_ngraph_preprocess_set_memory_type():
+    shape = [1, 1, 1]
+    parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
+    op = ops.relu(parameter_a)
+    model = op
+    function = Model(model, [parameter_a], "TestFunction")
+
+    p = PrePostProcessor(function)
+    p.input().tensor().set_memory_type("some_memory_type")
+    function = p.build()
+
+    assert any(key for key in function.input().rt_info if "memory_type" in key)
 
 
 @pytest.mark.parametrize(

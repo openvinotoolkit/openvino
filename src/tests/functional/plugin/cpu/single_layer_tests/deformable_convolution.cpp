@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,7 +104,7 @@ protected:
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 0) {  // "a_data"
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), inShape, 2, -1, 100);
             } else if (i == 1) {  // "b_offset_vals"

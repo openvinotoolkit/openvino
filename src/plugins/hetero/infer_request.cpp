@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,6 +70,7 @@ void HeteroInferRequest::CreateInferRequest(
     // go over all subnet and create requests
     for (auto&& desc : _inferRequests) {
         desc._request = {desc._network->CreateInferRequest(), desc._network._so};
+        desc._request->setModelInputsOutputs(desc._network->getInputs(), desc._network->getOutputs());
         // go over all inputs and get blobs from subnet infer requests
         for (auto&& outputInfo : desc._network->GetOutputsInfo()) {
             requestBlob(outputInfo.first, desc._request, true);

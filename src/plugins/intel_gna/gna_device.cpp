@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -441,7 +441,7 @@ void GNADeviceHelper::updateGnaDeviceVersion() {
     checkGna2Status(status, "Gna2DeviceGetVersion");
 }
 
-void GNADeviceHelper::open(uint8_t n_threads) {
+void GNADeviceHelper::open() {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     updateGnaDeviceVersion();
     const auto gnaExecTarget = parseTarget(executionTarget);
@@ -457,10 +457,6 @@ void GNADeviceHelper::open(uint8_t n_threads) {
         const auto status = Gna2DeviceOpen(nGnaDeviceIndex);
         checkGna2Status(status, "Gna2DeviceOpen");
     }
-
-    // TODO: GNA2: uncomment when scratchpad repaired
-    // status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
-    // checkGna2Status(status);
     deviceOpened = true;
 }
 
@@ -481,12 +477,6 @@ void GNADeviceHelper::close() {
         gnawarn() << "GNA Device was not successfully closed with status " << status << std::endl;
     }
     deviceOpened = false;
-}
-
-void GNADeviceHelper::setOMPThreads(uint8_t const n_threads) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    const auto status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
-    checkGna2Status(status, "Gna2DeviceSetNumberOfThreads");
 }
 
 void GNADeviceHelper::updateGnaPerfCounters() {

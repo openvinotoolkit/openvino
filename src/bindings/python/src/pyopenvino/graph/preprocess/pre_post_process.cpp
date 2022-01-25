@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -269,6 +269,9 @@ static void regclass_graph_InputTensorInfo(py::module m) {
                 const std::vector<std::string>& sub_names = {}) {
                  return &me.set_color_format(format, sub_names);
              });
+    info.def("set_memory_type", [](ov::preprocess::InputTensorInfo& me, const std::string& memory_type) {
+        return &me.set_memory_type(memory_type);
+    });
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,13 @@ using namespace HeteroTests;
 
 // this tests load plugin by library name: this is not available during static linkage
 #ifndef OPENVINO_STATIC_LIBRARY
+
+INSTANTIATE_TEST_SUITE_P(smoke_manyTargetInputs, HeteroSyntheticTest,
+                        ::testing::Combine(
+                                ::testing::Values(std::vector<PluginParameter>{{"TEMPLATE0", "ov_template_plugin"}, {"TEMPLATE1", "ov_template_plugin"}}),
+                                ::testing::ValuesIn(HeteroTests::HeteroSyntheticTest::withMajorNodesFunctions(
+                                        [] {return ngraph::builder::subgraph::makeConvPool2Relu2();}, {"Conv_1"}, true))),
+                        HeteroSyntheticTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleMajorNode, HeteroSyntheticTest,
                         ::testing::Combine(

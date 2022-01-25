@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,9 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
         InferenceEngine::InputsDataMap networkInputs,
         InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     virtual ~AutoBatchExecutableNetwork();
@@ -69,7 +72,11 @@ protected:
     DeviceInformation _device;
     InferenceEngine::SoExecutableNetworkInternal _network;
     InferenceEngine::SoExecutableNetworkInternal _networkWithoutBatch;
+
+    std::pair<WorkerInferRequest&, int> GetWorkerInferRequest();
     std::vector<WorkerInferRequest::Ptr> _workerRequests;
+    std::mutex _workerRequestsMutex;
+
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool _needPerfCounters = false;
     std::atomic_size_t _numRequestsCreated = {0};
@@ -85,19 +92,26 @@ public:
                                    int batch_id,
                                    int num_batch,
                                    bool _needPerfCounters = false);
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
+    explicit AutoBatchInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                   const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                   AutoBatchExecutableNetwork::WorkerInferRequest& workerRequestPtr,
+                                   int batch_id,
+                                   int num_batch,
+                                   bool _needPerfCounters = false);
 
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
     void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
     void CopyInputsIfNeeded();
     void CopyOutputsIfNeeded();
     AutoBatchExecutableNetwork::WorkerInferRequest& _myBatchedRequestWrapper;
     std::exception_ptr _exceptionPtr;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> _perfMap;
 
 protected:
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> _perfMap;
     bool _needPerfCounters = false;
     void CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst, bool bInput);
+    void ShareBlobsWithBatchRequest();
     size_t _batchId;
     size_t _batchSize;
 };
@@ -154,6 +168,7 @@ protected:
         const InferenceEngine::CNNNetwork& network,
         const std::shared_ptr<InferenceEngine::RemoteContext> context,
         const std::map<std::string, std::string>& config);
+    std::vector<std::shared_ptr<void>> _additionalSOPtrs;
 };
 
 }  // namespace AutoBatchPlugin

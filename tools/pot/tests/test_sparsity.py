@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -39,8 +39,6 @@ TEST_SPARSITY_ALGO = [
 @pytest.mark.parametrize('test_models', TEST_SPARSITY_ALGO,
                          ids=['{}_{}_{}_{}'.format(*m) for m in TEST_SPARSITY_ALGO])
 def test_sparsity_algo(test_models, tmp_path, models):
-    # TODO: Enable these tests after solving IRReader problem
-    pytest.skip()
     model_name, model_framework, algorithm, sparsity_level, normed_threshold, ref_name = test_models
     algorithm_config = Dict({
         'algorithms': [{

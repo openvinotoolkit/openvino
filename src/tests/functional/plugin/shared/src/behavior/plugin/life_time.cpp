@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,17 @@
 #include <base/behavior_test_utils.hpp>
 #include "behavior/plugin/life_time.hpp"
 
+#ifndef _WIN32
+    #include <signal.h>
+    #include <setjmp.h>
+#endif
+
 namespace BehaviorTestsDefinitions {
+
+#ifndef _WIN32
+    static jmp_buf env;
+#endif
+
     std::string HoldersTest::getTestCaseName(testing::TestParamInfo<HoldersParams> obj) {
         std::string targetDevice;
         std::vector<int> order;
@@ -27,19 +37,21 @@ namespace BehaviorTestsDefinitions {
     void HoldersTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, order) = this->GetParam();
-        deathTestStyle = ::testing::GTEST_FLAG(death_test_style);
-        if (deathTestStyle == "fast") {
-            ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
-        }
         function = ngraph::builder::subgraph::makeConvPoolRelu();
-    }
 
-    void HoldersTest::TearDown() {
-        ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
+#ifndef _WIN32
+        // configure handling of crash
+        auto crashHandler = [](int errCode) {
+            std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
+            siglongjmp(env, 1);
+        };
+        struct sigaction act;
+        act.sa_handler = crashHandler;
+        sigemptyset(&act.sa_mask);
+        act.sa_flags = 0;
+        sigaction(SIGSEGV, &act, 0);
+#endif
     }
-
-#define EXPECT_NO_CRASH(_statement) \
-    EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
 
     void release_order_test(std::vector<int> order, const std::string &deviceName,
                             std::shared_ptr<ngraph::Function> function) {
@@ -79,12 +91,28 @@ namespace BehaviorTestsDefinitions {
 
     TEST_P(HoldersTest, Orders) {
         // Test failed if crash happens
-        EXPECT_NO_CRASH(release_order_test(order, targetDevice, function));
+#ifdef _WIN32
+        EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+#else
+        if (sigsetjmp(env, 1) == 0) {
+            release_order_test(order, targetDevice, function);
+        } else {
+            IE_THROW() << "Crash happens";
+        }
+#endif
     }
 
     TEST_P(HoldersTestImportNetwork, Orders) {
         // Test failed if crash happens
-        EXPECT_NO_CRASH(release_order_test(order, targetDevice, function));
+#ifdef _WIN32
+        EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+#else
+        if (sigsetjmp(env, 1) == 0) {
+            release_order_test(order, targetDevice, function);
+        } else {
+            IE_THROW() << "Crash happens";
+        }
+#endif
     }
 
     std::string HoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {
@@ -94,15 +122,7 @@ namespace BehaviorTestsDefinitions {
     void HoldersTestOnImportedNetwork::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         targetDevice = this->GetParam();
-        deathTestStyle = ::testing::GTEST_FLAG(death_test_style);
-        if (deathTestStyle == "fast") {
-            ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
-        }
         function = ngraph::builder::subgraph::makeConvPoolRelu();
-    }
-
-    void HoldersTestOnImportedNetwork::TearDown() {
-        ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
     }
 
     TEST_P(HoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {

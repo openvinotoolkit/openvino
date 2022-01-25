@@ -91,6 +91,9 @@ Framework-agnostic parameters:
                         is overridden by the --input parameter, this scale is
                         not applied for any input that does not match with the
                         original input of the model.
+                        If both --mean and --scale are specified,
+                        the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line.
   --reverse_input_channels
                         Switch the input channels order from RGB to BGR (or
                         vice versa). Applied to original inputs of the model
@@ -105,7 +108,8 @@ Framework-agnostic parameters:
   --log_level {CRITICAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
                         Logger level
   --input INPUT         Quoted list of comma-separated input nodes names with shapes, 
-                        data types, and values for freezing. The shape and value are 
+                        data types, and values for freezing. The order of inputs in converted 
+                        model is the same as order of specified operation names. The shape and value are 
                         specified as space-separated lists. The data type of input 
                         node is specified in braces and can have one of the values: 
                         f64 (float64), f32 (float32), f16 (float16), i64 (int64), 
@@ -124,6 +128,8 @@ Framework-agnostic parameters:
                         "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".
   --output OUTPUT       The name of the output operation of the model. For
                         TensorFlow*, do not add :0 to this name.
+                        The order of outputs in converted model is the same as order of
+                        specified operation names.
   --mean_values MEAN_VALUES, -ms MEAN_VALUES
                         Mean values to be used for the input image per
                         channel. Values to be provided in the (R,G,B) or
@@ -140,6 +146,9 @@ Framework-agnostic parameters:
                         data[255,255,255],info[255,255,255]". The exact
                         meaning and order of channels depend on how the
                         original model was trained.
+                        If both --mean_values and --scale_values are specified,
+                        the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line.
   --data_type {FP16,FP32,half,float}
                         Data type for all intermediate tensors and weights. If
                         original model is in FP32 and --data_type=FP16 is
@@ -195,9 +204,9 @@ Usually neural network models are trained with the normalized input data. This m
  
 In the first case, the Model Optimizer generates the IR with required pre-processing layers and Inference Engine samples may be used to infer the model. 
  
-In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--scale`, `--scale_values`, `--mean_values`. 
+In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--mean`, `--scale`, `--scale_values`, `--mean_values`. 
 
-If both mean and scale values are specified, the mean is subtracted first and then scale is applied. Input values are *divided* by the scale value(s). 
+> **NOTE:** If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the reverse_input_channels will be applied first, then mean and after that scale.
 
 There is no a universal recipe for determining the mean/scale values for a particular model. The steps below could help to determine them:
 * Read the model documentation. Usually the documentation describes mean/scale value if the pre-processing is required.

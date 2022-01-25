@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,10 @@
 
 #include "functional_test_utils/skip_tests_config.hpp"
 
-namespace ConformanceTests {
+namespace ov {
+namespace test {
+namespace conformance {
+
 const char *targetDevice = "";
 const char *targetPluginName = "";
 
@@ -17,8 +20,11 @@ std::vector<std::string> IRFolderPaths = {};
 std::vector<std::string> disabledTests = {};
 
 std::map<std::string, std::string> pluginConfig = {};
-}
+
+} // namespace conformance
+} // namespace test
+} // namespace ov
 
 std::vector<std::string> disabledTestPatterns() {
-    return ConformanceTests::disabledTests;
+    return ov::test::conformance::disabledTests;
 }

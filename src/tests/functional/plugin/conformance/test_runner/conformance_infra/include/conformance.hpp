@@ -1,20 +1,22 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <common_test_utils/file_utils.hpp>
+#include "common_test_utils/file_utils.hpp"
 
-namespace ConformanceTests {
+namespace ov {
+namespace test {
+namespace conformance {
 
-extern const char* targetDevice;
-extern const char* targetPluginName;
+extern const char *targetDevice;
+extern const char *targetPluginName;
 extern std::vector<std::string> IRFolderPaths;
 extern std::vector<std::string> disabledTests;
 extern std::map<std::string, std::string> pluginConfig;
 
-inline std::map<std::string, std::string> readPluginConfig(const std::string& configFilePath) {
+inline std::map<std::string, std::string> readPluginConfig(const std::string &configFilePath) {
     if (!CommonTestUtils::fileExists(configFilePath)) {
         std::string msg = "Input directory (" + configFilePath + ") doesn't not exist!";
         throw std::runtime_error(msg);
@@ -41,4 +43,6 @@ inline std::map<std::string, std::string> readPluginConfig(const std::string& co
     return config;
 }
 
-} // namespace ConformanceTests
+}  // namespace conformance
+}  // namespace test
+}  // namespace ov

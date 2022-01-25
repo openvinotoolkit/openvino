@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
-                                ::testing::Values(ConformanceTests::targetDevice),
+                                ::testing::Values(ov::test::conformance::targetDevice),
                                 ::testing::ValuesIn(emptyConfig)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(ConformanceTests::targetDevice),
+                                ::testing::Values(ov::test::conformance::targetDevice),
                                 ::testing::ValuesIn(emptyConfig)),
                         OVInferRequestDynamicTests::getTestCaseName);
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -196,8 +196,6 @@ def run(args):
                         config[device]['GNA_PRECISION'] = 'I8'
                     else:
                         config[device]['GNA_PRECISION'] = 'I16'
-                if args.number_threads and is_flag_set_in_command_line("nthreads"):
-                    config[device]['GNA_LIB_N_THREADS'] = str(args.number_threads)
             else:
                 supported_config_keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
                 if 'CPU_THREADS_NUM' in supported_config_keys and args.number_threads and is_flag_set_in_command_line("nthreads"):

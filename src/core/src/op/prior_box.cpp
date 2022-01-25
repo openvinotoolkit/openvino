@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,18 +51,16 @@ void op::v0::PriorBox::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(0);
 
-    if (auto const_shape = get_constant_from_source(input_value(0))) {
+    PartialShape spatials;
+    if (evaluate_as_partial_shape(input_value(0), spatials)) {
         NODE_VALIDATION_CHECK(this,
-                              shape_size(const_shape->get_shape()) == 2,
+                              spatials.rank().is_static() && spatials.size() == 2,
                               "Layer shape must have rank 2",
-                              const_shape->get_shape());
+                              spatials);
 
-        auto layer_shape = const_shape->get_shape_val();
-
-        set_output_type(
-            0,
-            element::f32,
-            ov::Shape{2, 4 * layer_shape[0] * layer_shape[1] * static_cast<size_t>(number_of_priors(m_attrs))});
+        set_output_type(0,
+                        element::f32,
+                        ov::PartialShape{2, spatials[0] * spatials[1] * Dimension(4 * number_of_priors(m_attrs))});
     } else {
         set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
     }
@@ -243,18 +241,16 @@ void op::v8::PriorBox::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(0);
 
-    if (auto const_shape = get_constant_from_source(input_value(0))) {
+    PartialShape spatials;
+    if (evaluate_as_partial_shape(input_value(0), spatials)) {
         NODE_VALIDATION_CHECK(this,
-                              shape_size(const_shape->get_shape()) == 2,
+                              spatials.rank().is_static() && spatials.size() == 2,
                               "Layer shape must have rank 2",
-                              const_shape->get_shape());
+                              spatials);
 
-        auto layer_shape = const_shape->get_shape_val();
-
-        set_output_type(
-            0,
-            element::f32,
-            ov::Shape{2, 4 * layer_shape[0] * layer_shape[1] * static_cast<size_t>(number_of_priors(m_attrs))});
+        set_output_type(0,
+                        element::f32,
+                        ov::PartialShape{2, spatials[0] * spatials[1] * Dimension(4 * number_of_priors(m_attrs))});
     } else {
         set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
     }

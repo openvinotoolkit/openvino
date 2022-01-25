@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ private:
     const std::string _probabilityStr = "probability";
     const std::string _labelStr = "label";
     size_t _nTop;
-    ov::runtime::Tensor _outTensor;
+    ov::Tensor _outTensor;
     const std::vector<std::string> _labels;
     const std::vector<std::string> _imageNames;
     const size_t _batchSize;
@@ -54,7 +54,7 @@ private:
      * @param output Vector of indexes for the top n places
      */
     template <class T>
-    void topResults(unsigned int n, const ov::runtime::Tensor& input, std::vector<unsigned>& output) {
+    void topResults(unsigned int n, const ov::Tensor& input, std::vector<unsigned>& output) {
         ov::Shape shape = input.get_shape();
         size_t input_rank = shape.size();
         OPENVINO_ASSERT(input_rank != 0 && shape[0] != 0, "Input tensor has incorrect dimensions!");
@@ -89,7 +89,7 @@ private:
      * @param input 1D blob that contains probabilities
      * @param output Vector of indexes for the top n places
      */
-    void topResults(unsigned int n, const ov::runtime::Tensor& input, std::vector<unsigned>& output) {
+    void topResults(unsigned int n, const ov::Tensor& input, std::vector<unsigned>& output) {
 #define TENSOR_TOP_RESULT(elem_type)                                                  \
     case ov::element::Type_t::elem_type: {                                            \
         using tensor_type = ov::fundamental_type_for<ov::element::Type_t::elem_type>; \
@@ -117,7 +117,7 @@ private:
     }
 
 public:
-    explicit ClassificationResult(const ov::runtime::Tensor& output_tensor,
+    explicit ClassificationResult(const ov::Tensor& output_tensor,
                                   const std::vector<std::string>& image_names = {},
                                   size_t batch_size = 1,
                                   size_t num_of_top = 10,

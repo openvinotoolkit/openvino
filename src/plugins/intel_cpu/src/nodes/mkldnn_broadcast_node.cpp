@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -182,29 +182,7 @@ bool MKLDNNBroadcastNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNBroadcastNode::shapeInfer() const {
-    ngraph::OutputVector inputsForShapeInfer {
-            std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(INPUT_DATA_IDX),
-                            getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemory().GetShape().toPartialShape()),
-            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
-                            getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetShape().getStaticDims(),
-                            getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetPtr())
-        };
-    if (opToShapeInfer->get_input_size() > AXES_MAPPING_IDX) {
-        inputsForShapeInfer.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
-                        getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetShape().getStaticDims(),
-                        getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetPtr()));
-    }
-    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
-
-    localShapeInferOp->validate_and_infer_types();
-
-    std::vector<VectorDims> newOutputShapes(outputShapes.size());
-    for (size_t i = 0lu; i < newOutputShapes.size(); i++) {
-        const auto &partShape = localShapeInferOp->get_output_partial_shape(i);
-        newOutputShapes[i] = partShape.get_shape();
-    }
-
-    return newOutputShapes;
+    return MKLDNNNode::shapeInferGeneric(PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX));
 }
 
 bool MKLDNNBroadcastNode::isExecutable() const {

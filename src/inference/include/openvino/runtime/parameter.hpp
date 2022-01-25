@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,14 @@
 #include "openvino/core/any.hpp"
 
 namespace ov {
-namespace runtime {
+
 /**
  * @brief An std::map object containing parameters
  */
 using ParamMap = std::map<std::string, Any>;
+
+namespace runtime {
+using ov::ParamMap;
 }  // namespace runtime
+
 }  // namespace ov
