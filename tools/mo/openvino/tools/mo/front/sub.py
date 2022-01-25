@@ -42,4 +42,9 @@ class Sub(FrontReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for sub in graph.get_op_nodes(op='Sub'):
+
+            # The attribute zero_point_sub indicates that the node can be used in ConvertQuantizeDequantize
+            # transformation (offline transformations). Pattern of such transformation expects Subtract node.
+            if sub.has_and_set('zero_point_sub'):
+                continue
             self.sub_to_add_replacement(sub)
