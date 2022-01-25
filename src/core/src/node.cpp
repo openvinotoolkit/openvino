@@ -782,6 +782,10 @@ bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
+bool ov::Node::evaluate_label(TensorLabelVector& output_labels) const {
+    return false;
+}
+
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
 

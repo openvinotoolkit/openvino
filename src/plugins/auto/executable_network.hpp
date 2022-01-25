@@ -17,6 +17,7 @@
 #include "threading/ie_itask_executor.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "ie_icore.hpp"
+#include <ie_performance_hints.hpp>
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
