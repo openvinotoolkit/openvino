@@ -129,7 +129,7 @@ TEST(replace_node, node_elimination) {
     relu2->output(0).get_tensor().set_names({"e", "f"});
 
     ASSERT_TRUE(replace_output_update_name(relu2->output(0), relu2->input_value(0)));
-    ASSERT_EQ(relu1->output(0).get_tensor().get_names(), std::list<std::string>({"c", "d", "e", "f"}));
+    ASSERT_EQ(relu1->output(0).get_tensor().get_names(), std::list<std::string>({"e", "f", "c", "d"}));
     ASSERT_EQ(param->output(0).get_tensor().get_names(), std::list<std::string>({"a", "b"}));
 }
 
