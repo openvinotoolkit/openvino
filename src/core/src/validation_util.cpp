@@ -1622,7 +1622,7 @@ bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
 shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source) {
     if (!has_and_set_equal_bounds(source))
         return nullptr;
-    if (const auto& c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
+    if (auto c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
         return c;
     return std::make_shared<op::v0::Constant>(source.get_tensor().get_upper_value());
 }
