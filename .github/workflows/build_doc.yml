@@ -73,6 +73,20 @@ jobs:
         with:
           name: openvino_doc_pytest
           path: build/docs/_artifacts/
+      
+      - name: 'Upload doxygen.log'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: openvino_doc_pytest
+          path: build/docs/doxygen.log
+
+        - name: 'Upload sphinx.log results'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: openvino_doc_pytest
+          path: build/docs/sphinx.log
 
       - name: 'Upload html'
         if: github.event_name == 'push'
