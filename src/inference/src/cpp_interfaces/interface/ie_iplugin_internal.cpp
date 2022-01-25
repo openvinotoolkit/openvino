@@ -27,7 +27,6 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
