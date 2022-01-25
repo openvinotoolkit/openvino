@@ -167,7 +167,7 @@ static const char shape_message[] =
     " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
 static const char data_shape_message[] =
-    "Optional. Required for networks with dynamic shapes. Set shape for input blobs."
+    "Required for networks with dynamic shapes. Set shape for input blobs."
     " In case of one input size: \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\"."
     " In case of several input sizes provide the same number for each input (except cases with single shape for any "
     "input):"
