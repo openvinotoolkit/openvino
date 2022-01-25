@@ -78,14 +78,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: openvino_doc_pytest
+          name: doxygen_log
           path: build/docs/doxygen.log
 
       - name: 'Upload sphinx.log results'
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: openvino_doc_pytest
+          name: sphinx_log
           path: build/docs/sphinx.log
 
       - name: 'Upload html'
