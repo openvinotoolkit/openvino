@@ -143,7 +143,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         assert mode in ["signed", "unsigned"]
         i_min_value = -(levels // 2) if mode == "signed" else 0
 
-        i_min = mo_array([i_min_value], dtype=dst_type)
+        i_min = mo_array(i_min_value, dtype=dst_type) if not quantize.in_node(0).shape.size else mo_array([i_min_value], dtype=dst_type)
         i_max = mo_array(levels + i_min - 1, dtype=dst_type)
 
         assert i_max - i_min == levels - 1
