@@ -471,7 +471,7 @@ struct Properties {
     inline util::EnableIfAllProperties<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {device_name, AnyMap{std::pair<std::string, Any>{configs...}}};
+        return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
     }
 };
 
