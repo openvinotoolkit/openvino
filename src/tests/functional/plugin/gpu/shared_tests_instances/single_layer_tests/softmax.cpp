@@ -32,7 +32,7 @@ const auto params2D = testing::Combine(
     testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes2D)),
     testing::ValuesIn(axis2D),
     testing::Values(CommonTestUtils::DEVICE_GPU),
-    testing::Values(ov::AnyMap())
+    testing::Values(std::map<std::string, std::string>())
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -57,7 +57,7 @@ const auto params4D = testing::Combine(
     testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes4D)),
     testing::ValuesIn(axis4D),
     testing::Values(CommonTestUtils::DEVICE_GPU),
-    testing::Values(ov::AnyMap())
+    testing::Values(std::map<std::string, std::string>())
 );
 
 INSTANTIATE_TEST_SUITE_P(

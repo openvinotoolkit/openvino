@@ -8,11 +8,12 @@
 #include "api_conformance_helpers.hpp"
 
 using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
 
 namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
-                                    ::testing::Values(ConformanceTests::targetDevice),
+                                    ::testing::Values(ov::test::conformance::targetDevice),
                                     ::testing::ValuesIn(emptyConfig)),
                             ExecutableNetworkBaseTest::getTestCaseName);
 
@@ -38,7 +39,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
                             ::testing::Combine(
                                     ::testing::ValuesIn(execNetBaseElemTypes),
-                                    ::testing::Values(ConformanceTests::targetDevice),
+                                    ::testing::Values(ov::test::conformance::targetDevice),
                                     ::testing::ValuesIn(emptyConfig)),
                             ExecNetSetPrecision::getTestCaseName);
 
