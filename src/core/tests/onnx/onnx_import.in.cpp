@@ -99,7 +99,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check) {
     EXPECT_EQ(additions.at(1)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"Y"});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_duplicated_output_names) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_duplicated_output_name) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/duplicated_output_name.onnx"));
     EXPECT_EQ(function->get_output_size(), 2);
@@ -108,6 +108,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_duplicated_output_names) {
     test_case.add_multiple_inputs(Inputs{{1}, {2}, {3}});
     test_case.add_expected_output(Shape{1}, std::vector<float>{6});
     test_case.add_expected_output(Shape{1}, std::vector<float>{6});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_duplicated_more_output_names) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/duplicated_more_output_names.onnx"));
+    EXPECT_EQ(function->get_output_size(), 4);
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_multiple_inputs(Inputs{{1, 2}, {2}, {3}});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{7});
     test_case.run();
 }
 

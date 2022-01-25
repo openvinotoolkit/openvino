@@ -11,9 +11,20 @@ graph {
   node {
     input: "X"
     input: "C"
-    output: "Y"
+    output: "K"
     name: "add_node2"
     op_type: "Add"
+  }
+  node {
+    input: "K"
+    output: "Y"
+    output: "output_2"
+    op_type: "Split"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
   }
   name: "test_graph"
   input {
@@ -23,7 +34,7 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 1
+            dim_value: 2
           }
         }
       }
@@ -70,6 +81,32 @@ graph {
   }
   output {
     name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output_2"
     type {
       tensor_type {
         elem_type: 1
