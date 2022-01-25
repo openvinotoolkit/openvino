@@ -37,9 +37,9 @@ public:
         auto &engine = get_test_engine();
 
         auto shape = engine.allocate_memory(
-                {data_type, params.f, {1, 1, static_cast<int32_t >(params.output_tensor.sizes().size()), 1}});
-        auto min_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
-        auto max_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
+                {data_type, params.f, tensor{1, 1, static_cast<int32_t >(params.output_tensor.sizes().size()), 1}});
+        auto min_val = engine.allocate_memory(layout(data_type, format::bfyx, tensor{1, 1, 1, 1}));
+        auto max_val = engine.allocate_memory(layout(data_type, format::bfyx, tensor{1, 1, 1, 1}));
 
         set_values(shape, params.output_tensor.sizes());
         set_values(min_val, {params.min_val});

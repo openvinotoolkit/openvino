@@ -314,8 +314,8 @@ static void set_binary_values(cldnn::memory::ptr mem, std::vector<T> args) {
 TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
-    auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, tensor{ 1, 16, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, tensor{ 4, 16, 1, 1 } });
 
     // 0 0 1 0  0 1 0 0  1 0 1 0  1 0 1 0
     // 1 0 0 0  0 1 1 0  0 1 1 0  1 0 1 0
@@ -398,8 +398,8 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
 TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
-    auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, tensor{ 1, 16, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, tensor{ 4, 16, 1, 1 } });
 
     // 0 0 1 0  0 1 0 0  1 0 1 0  1 0 1 0
     // 1 0 0 0  0 1 1 0  0 1 1 0  1 0 1 0

@@ -46,8 +46,8 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 2, 4, 3} }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 3 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 3, 2, 2, 4, 3} }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 3 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_y;
     int64_t batch_dim = -1;
     bool negative_indexes = true;
@@ -171,8 +171,8 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2} }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 2 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 2, 2, 2, 2, 2, 2} }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 2 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_x;
     int64_t batch_dim = -1;
 
@@ -265,8 +265,8 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 2, 4, 3} }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 3 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 3, 2, 2, 4, 3} }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 3 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_y;
     int64_t batch_dim = -1;
 
@@ -383,8 +383,8 @@ TEST(gather7_gpu_fp16, d44_axisY_bdim1) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 3, 1, 5 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 4, 4, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 3, 1, 5 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 4, 4, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_y;
     int64_t batch_dim = 1;
 
@@ -472,8 +472,8 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
     size_t batch_dim = -1;
 
@@ -535,8 +535,8 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
     int64_t batch_dim = 1;
 
@@ -597,8 +597,8 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
     size_t batch_dim = 0;
 
@@ -667,8 +667,8 @@ TEST(gather_gpu_fp16, d14_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_b;
 
     set_values(input1, {
@@ -726,8 +726,8 @@ TEST(gather_gpu_fp16, d222_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_b;
 
     set_values(input1, {
@@ -788,8 +788,8 @@ TEST(gather_gpu_fp16, d22_axisY) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 3 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_y;
 
     set_values(input1, {
@@ -849,8 +849,8 @@ TEST(gather_gpu_fp16, d22_axisF) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
 
     set_values(input1, {
@@ -909,8 +909,8 @@ TEST(gather_gpu_fp32, d14_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_b;
 
     set_values(input1, {
@@ -968,8 +968,8 @@ TEST(gather_gpu_fp32, d222_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_b;
 
     set_values(input1, {
@@ -1029,8 +1029,8 @@ TEST(gather_gpu_fp32, d22_axisY) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 3 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_y;
 
     set_values(input1, {
@@ -1090,8 +1090,8 @@ TEST(gather_gpu_fp32, d22_axisF) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 3, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
 
     set_values(input1, {
@@ -1151,8 +1151,8 @@ TEST(gather_gpu_int32, d22_axisF) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 3, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
 
     set_values(input1, {
@@ -1211,8 +1211,8 @@ TEST(gather_gpu_int32, d14_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 4, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 4, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_b;
 
     set_values(input1, {
@@ -1270,8 +1270,8 @@ TEST(gather_gpu_int32, d222_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_b;
 
     set_values(input1, {
@@ -1331,8 +1331,8 @@ TEST(gather_gpu_int32, d22_axisY) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 2, 1, 3 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_y;
 
     set_values(input1, {
@@ -1395,8 +1395,8 @@ TEST(gather_gpu_fp32, d41_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 3 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_b;
 
     set_values(input1, {
@@ -1461,8 +1461,8 @@ TEST(gather_gpu_fp32, d41_axisF) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 3, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
 
     set_values(input1, {
@@ -1520,8 +1520,8 @@ TEST(gather_gpu_fp32, d2_axisX) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 1, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 1, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_x;
 
     set_values(input1, {
@@ -1570,8 +1570,8 @@ TEST(gather_gpu_fp32, 322_axisF) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 3, 1, 1 } }); // data
-    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 3, 1, 1 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
 
     set_values(input1, {
@@ -1619,8 +1619,8 @@ TEST(gather_gpu_u8, 322_axisF) {
 
     auto &engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({data_types::u8, format::bfyx, {3, 3, 1, 1}}); // data
-    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, {2, 2, 1, 1}}); // Indexes
+    auto input1 = engine.allocate_memory({data_types::u8, format::bfyx, tensor{3, 3, 1, 1}}); // data
+    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{2, 2, 1, 1}}); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
 
     set_values<uint8_t>(input1, {0, 1, 2, 10, 11, 12, 20, 21, 22});

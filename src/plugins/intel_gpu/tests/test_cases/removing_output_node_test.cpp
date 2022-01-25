@@ -35,9 +35,9 @@ TEST(removing_output_node, multiple_outputs) {
     tensor after_reshape = tensor(feature(batch_num * feature_num * y_size * x_size));
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, initial_shape });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(begin, {
             1, 0, 1, 0
@@ -72,7 +72,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output = outputs.at("reshape").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    ASSERT_TRUE(output->get_layout().size == after_reshape);
+    ASSERT_TRUE(output->get_layout().get_tensor() == after_reshape);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr[i], out_vec[i]);
@@ -82,7 +82,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output2 = outputs.at("strided_slice").get_memory();
     cldnn::mem_lock<float> output_ptr2(output, get_test_stream());
 
-    ASSERT_TRUE(output2->get_layout().size == after_strided_slice);
+    ASSERT_TRUE(output2->get_layout().get_tensor() == after_strided_slice);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr2[i], out_vec[i]);
@@ -110,8 +110,8 @@ TEST(removing_output_node, output_node_optimization) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32,format::yxfb,{ 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32,format::yxfb, tensor{ 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 3, 2 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });

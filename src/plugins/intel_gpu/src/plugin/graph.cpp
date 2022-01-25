@@ -294,7 +294,7 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         Precision precision = data_type_to_precision(layout.data_type);
         SizeVector dims;
         auto l = InferenceEngine::Layout::NCHW;
-        auto size = layout.size;
+        auto size = layout.get_tensor();
         if (layout.format.dimension() == 4) {
             dims = {static_cast<size_t>(size.batch[0]),
                     static_cast<size_t>(size.feature[0]),

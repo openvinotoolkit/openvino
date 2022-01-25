@@ -115,7 +115,7 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
 
     EXPECT_EQ(out_layout.size, ref_layout.size);
     EXPECT_EQ(out_layout.data_type, ref_layout.data_type);
-    EXPECT_EQ(get_expected_output_tensor(), out_layout.size);
+    EXPECT_EQ(get_expected_output_tensor(), out_layout.get_tensor());
     EXPECT_EQ(out_layout.get_linear_size(), ref_layout.get_linear_size());
     EXPECT_EQ(out_layout.data_padding, ref_layout.data_padding);
 
@@ -251,7 +251,7 @@ size_t generic_test::get_linear_index_with_broadcast(const layout& in_layout, si
 //Default implementation. Should be overridden in derived class otherwise.
 cldnn::tensor generic_test::get_expected_output_tensor()
 {
-    return generic_params->input_layouts[0].size;
+    return generic_params->input_layouts[0].get_tensor();
 }
 
 std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params)
@@ -351,7 +351,7 @@ std::string test_params::print() {
     str << "Data type: " << data_type_traits::name(data_type) << std::endl;
 
     for (int j = 0 ; j < (int)input_layouts.size(); j++) {
-        const cldnn::tensor& t = input_layouts[j].size;
+        const cldnn::tensor& t = input_layouts[j].get_tensor();
 
         str << "Input " << j << ": " << print_tensor(t) << std::endl;
     }

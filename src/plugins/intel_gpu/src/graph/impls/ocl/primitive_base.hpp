@@ -117,7 +117,7 @@ protected:
         const auto bpp = data_type_traits::size_of(dtype);
         for (auto size : _kernel_data.internalBufferSizes) {
             layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                    {1, 1, 1, (tensor::value_type)(size / bpp)}};
+                                    tensor{1, 1, 1, (tensor::value_type)(size / bpp)}};
             layouts.push_back(inbuf_layout);
         }
         return layouts;

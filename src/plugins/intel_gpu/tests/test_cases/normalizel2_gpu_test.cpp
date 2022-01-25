@@ -27,8 +27,8 @@ TEST(normalizel2_f32_gpu, basic) {
     const unsigned y = 3;
     const unsigned x = 3;
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {b, f, y, x}});
-    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{b, f, y, x}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, f, 1, 1}});
 
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -92,8 +92,8 @@ TEST(normalizel2_f32_gpu, basic2) {
     const unsigned y = 3;
     const unsigned x = 3;
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {b, f, y, x}});
-    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{b, f, y, x}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, f, 1, 1}});
 
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -157,8 +157,8 @@ TEST(normalizel2_int8_gpu, basic) {
     const unsigned y = 3;
     const unsigned x = 3;
 
-    auto input = engine.allocate_memory({data_types::i8, format::bfyx, {b, f, y, x}});
-    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
+    auto input = engine.allocate_memory({data_types::i8, format::bfyx, tensor{b, f, y, x}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, f, 1, 1}});
 
     std::vector<int8_t> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -222,8 +222,8 @@ TEST(normalizel2_int8_gpu, basic2) {
     const unsigned y = 3;
     const unsigned x = 3;
 
-    auto input = engine.allocate_memory({data_types::i8, format::bfyx, {b, f, y, x}});
-    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
+    auto input = engine.allocate_memory({data_types::i8, format::bfyx, tensor{b, f, y, x}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, f, 1, 1}});
 
     std::vector<int8_t> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {

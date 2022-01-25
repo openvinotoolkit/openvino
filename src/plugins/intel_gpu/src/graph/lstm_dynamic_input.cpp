@@ -101,7 +101,7 @@ lstm_dynamic_input_inst::typed_primitive_inst(network& network, lstm_dynamic_inp
     // check bias
     if (node.bias_term()) {
         auto bias_id = node.id();
-        auto bias_tensor = node.bias().get_output_layout().size;
+        auto bias_tensor = node.bias().get_output_layout();
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Bias count",
                               bias_tensor.count(),

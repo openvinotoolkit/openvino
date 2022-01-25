@@ -264,10 +264,10 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1_
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 4, 4 } });
-    auto trans = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 18, 4, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 4, 4, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 4, 4 } });
+    auto trans = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 18, 4, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 4, 4, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 1, 1 } });
 
     set_values(input, { 0.680375f, -0.211234f, 0.566198f, 0.59688f, 0.823295f, -0.604897f, -0.329554f, 0.536459f,
                         -0.444451f, 0.10794f, -0.0452059f, 0.257742f, -0.270431f, 0.0268018f, 0.904459f, 0.83239f,
@@ -395,10 +395,10 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 4, 4 } });
-    auto trans = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 18, 4, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 4, 4, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 4, 4 } });
+    auto trans = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 18, 4, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 4, 4, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 1, 1 } });
 
     set_values(input, { 0.680375f, -0.211234f, 0.566198f, 0.59688f, 0.823295f, -0.604897f, -0.329554f, 0.536459f,
                         -0.444451f, 0.10794f, -0.0452059f, 0.257742f, -0.270431f, 0.0268018f, 0.904459f, 0.83239f,
@@ -526,10 +526,10 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 4, 4 } });
-    auto trans = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 36, 4, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 4, 4, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 4, 4 } });
+    auto trans = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 36, 4, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 4, 4, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 1, 1 } });
 
     set_values(input, { 0.680375f, -0.211234f, 0.566198f, 0.59688f, 0.823295f, -0.604897f, -0.329554f, 0.536459f,
                         -0.444451f, 0.10794f, -0.0452059f, 0.257742f, -0.270431f, 0.0268018f, 0.904459f, 0.83239f,
@@ -698,8 +698,8 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 2 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
@@ -769,8 +769,8 @@ TEST(convolution_f32_fw_gpu, basic_convolution_int8_no_bias) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 1, 1, 3, 2 } });
 
     set_values(input, { 1.1f, 2.4f, 3.5f, 4.5f, 5.8f,
                         2.9f, 2.3f, 3.5f, 4.4f, 6.6f,
@@ -784,10 +784,10 @@ TEST(convolution_f32_fw_gpu, basic_convolution_int8_no_bias) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("to_int","input", { data_types::i8, format::bfyx, { 1, 1, 5, 4 } }),
+        reorder("to_int","input", { data_types::i8, format::bfyx, tensor{ 1, 1, 5, 4 } }),
         data("weights", weights),
         convolution("conv", "to_int", { "weights" }, {2, 1 }),
-        reorder("output", "conv", { data_types::f32, format::bfyx, { 1, 1, 3, 2 } }));
+        reorder("output", "conv", { data_types::f32, format::bfyx, tensor{ 1, 1, 3, 2 } }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -826,8 +826,8 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_no_bias) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 2 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
@@ -921,9 +921,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 1, 4, 4, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 1, 1, 4, 4, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 1, 1, 2, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1, 1 } });
 
     set_values(input, {
         1.0f,  0.0f,  1.0f,  0.0f,
@@ -1012,9 +1012,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D) {
 TEST(convolution_f32_fw_gpu, basic_convolution3D_group2) {
     //  data is similar as in basic_convolution3D_split2
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 4, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 1, 2, 4, 4, 4 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::goizyx, tensor(format::goizyx,  {2, 1, 1, 2, 2, 2 }) });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 1, 1, 1 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 1, 2, 1, 1, 1 } });
 
     set_values(input, {
         1.0f,  0.0f,  1.0f,  0.0f,
@@ -1144,9 +1144,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_group2) {
 TEST(convolution_f32_fw_gpu, with_output_size_same_input) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 320, 320 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 64, 4, 7, 7 } });
-    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 64, 4, 7, 7 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 320, 320 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 64, 4, 7, 7 } });
+    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 64, 4, 7, 7 } });
 
     topology topology(
         input_layout("input", input->get_layout()),
@@ -1183,8 +1183,8 @@ TEST(convolution_f32_fw_gpu, three_convolutions_same_weights) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } });
 
     set_values(input, { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
     set_values(weights, { 1.0f, 1.0f, 1.0f, 1.0f });
@@ -1251,9 +1251,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
@@ -1299,13 +1299,13 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout) {
     //Same params as convolution_f32_fw_gpu, basic_convolution but with bfyx optimized data and weights set as input_layout
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,
-    { 1, 1, 5, 4 }
+    tensor{ 1, 1, 5, 4 }
     });
     auto weights = engine.allocate_memory({ data_types::f32, format::bfyx,
-    { 1, 1, 3, 2 }
+    tensor{ 1, 1, 3, 2 }
     });
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx,
-    { 1, 1, 1, 1 }
+    tensor{ 1, 1, 1, 1 }
     });
     set_values(input,
     { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }
@@ -1390,9 +1390,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_padding) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 3 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 3 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values(weights, { 1.0f, 1.0f, 1.0f, 1.0f });
@@ -1491,9 +1491,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 3 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 3 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values(weights, { 1.0f, 1.0f, 1.0f, 1.0f });
@@ -1588,9 +1588,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 3 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 3 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values(weights, { 1.0f, 1.0f, 1.0f, 1.0f });
@@ -1692,9 +1692,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding_with_pad) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 3 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 3 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values(weights, { 1.0f, 1.0f, 1.0f, 1.0f });
@@ -1802,9 +1802,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding_with_pad) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 3 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 3 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values(weights, { 1.0f, 1.0f, 1.0f, 1.0f });
@@ -1903,9 +1903,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_and_output_padding) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 3 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 3 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values(weights, { 1.0f, 1.0f, 1.0f, 1.0f });
@@ -2023,10 +2023,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad_random) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32,  format::yxfb, { 1, 1, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32,  format::yxfb, tensor{ 1, 1, 4, 4 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 2, 2 }, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32,  format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32,  format::bfyx, { 1, 1, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32,  format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32,  format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, input_rnd_vec);
     set_values(weights, filter_rnd_vec);
@@ -2093,10 +2093,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad_random) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 1, 2, 2 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 2, { 1, 1 }, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, input_rnd_vec);
     set_values(weights, filter_rnd_vec);
@@ -2151,10 +2151,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 4 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 2, 2 }, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -0.5f, 1.0f, 0.5f, 2.0f, 1.5f, -0.5f, 0.0f, -1.0f, 0.5f, 0.5f, -1.0f, 1.0f, 0.5f, 2.0f, 1.5f, -0.5f });
     set_values(weights, { -2.0f, 0.5f, 3.5f, 1.5f });
@@ -2205,10 +2205,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad) {
     //  3.65 -5.36
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 1, 2, 2 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 2, { 1, 1 }, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 0.5f, 2.3f, 1.5f, -0.4f, 2.0f, 1.0f, -4.0f, 3.0f });
     set_values(weights, { -1.2f, 1.5f, 0.5f, -0.5f });
@@ -2257,10 +2257,10 @@ TEST(convolution_f32_fw_gpu, basic_ofm_wsiz2x1x2x1_in1x2x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 1, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 1, 2 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 1, 1 }, 2 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values(input, { 1.0f, 2.0f });
     set_values(weights, { 1.0f, 2.0f, -1.0f, -2.0f });
@@ -2316,10 +2316,10 @@ TEST(convolution_f32_fw_gpu, basic_ofm_wsiz3x2x2x1_in2x2x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 2, 1, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 2, 1, 2 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 1, 1 }, 3 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 3, 1, 1 } });
 
     set_values(input, { 1.0f, 3.0f, 2.0f, 4.0f });
     set_values(weights, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f });
@@ -2372,10 +2372,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2x1x3_wstr2x2_in2x2x1x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 1, 1 }, 3 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 3, 1, 1 } });
 
     set_values(input, { -2.3f, -0.1f, 3.1f, 1.9f });
     set_values(weights, { -1.1f, 1.5f, 0.5f, -0.5f, 0.1f, 0.2f, 0.4f, 0.7f, 2.0f, -1.0f, 2.5f, -1.5f });
@@ -2428,10 +2428,10 @@ TEST(convolution_f32_fw_gpu, wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
     //  12.25
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 1, 1 }, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -0.5f, 1.0f, 0.5f, 2.0f });
     set_values(weights, { -2.0f, 0.5f, 3.5f, 1.5f, 4.0f, -5.0f, 0.5f, 1.5f, -1.5f });
@@ -2485,10 +2485,10 @@ TEST(convolution_f32_fw_gpu, offsets_wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
     //   rnd   2.0
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 2, 2 }, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -0.5f, 1.0f, 0.5f, 2.0f });
     set_values(weights, { -2.0f, 0.5f, 3.5f, 1.5f, 4.0f, -5.0f, 0.5f, 1.5f, -1.5f });
@@ -2561,10 +2561,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_split2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 2, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 2, 4, 4 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 2, 2 }, 2 } });
     auto weights1 = engine.allocate_memory({ data_types::f32, format::goiyx, tensor(group(2), batch(1), feature(1), spatial(2, 2))});
-    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values(input, {
         -0.5f,  0.5f,  1.0f,  1.5f,  0.5f,  2.3f,  2.0f, -0.4f,
@@ -2659,10 +2659,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 4, 4 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 2, { 2, 2 }, 2 } });
     auto weights1 = engine.allocate_memory({ data_types::f32, format::goiyx, tensor(group(2), batch(1), feature(1), spatial(2, 2)) });
-    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values(input, {
        -0.5f, -0.5f,  0.5f,  0.5f,  1.0f,  1.0f,  1.5f,  1.5f,  0.5f,  0.5f,  2.3f,  2.3f,  2.0f,  2.0f, -0.4f, -0.4f,
@@ -2721,9 +2721,9 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2) {
     //  data is similar as in basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_split2
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 2, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 2, 4, 4 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::goiyx, tensor(group(2), batch(1), feature(1), spatial(2, 2)) });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values(input, {
         -0.5f,  0.5f,  1.0f,  1.5f,  0.5f,  2.3f,  2.0f, -0.4f,
@@ -2778,9 +2778,9 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2_bfyx) 
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 2, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 2, 4, 4 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::goiyx, tensor(group(2), batch(1), feature(1), spatial(2, 2)) });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values(input, {
         -0.5f,  0.5f,  1.0f,  1.5f,  0.5f,  2.3f,  2.0f, -0.4f,
@@ -2796,7 +2796,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2_bfyx) 
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("input_1", "input", { data_types::f32, format::bfyx, { 1, 2, 4, 4 } }),
+        reorder("input_1", "input", { data_types::f32, format::bfyx, tensor{ 1, 2, 4, 4 } }),
         data("weights", weights),
         data("biases", biases),
         convolution(
@@ -2836,9 +2836,9 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 4, 4 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::goiyx, tensor(group(2), batch(1), feature(1), spatial(2, 2)) });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values(input, {
         -0.5f, -0.5f,  0.5f,  0.5f,  1.0f,  1.0f,  1.5f,  1.5f,  0.5f,  0.5f,  2.3f,  2.3f,  2.0f,  2.0f, -0.4f, -0.4f,
@@ -2902,7 +2902,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 16, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 16, 4, 4 } });
 
     set_values(input, {
         -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f,
@@ -2924,7 +2924,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
     });
 
     auto weights1 = engine.allocate_memory({ data_types::f32, format::goiyx, tensor(group(16), batch(1), feature(1), spatial(2, 2)) });
-    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 16, 1, 1 } });
+    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 16, 1, 1 } });
 
     set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
                            -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
@@ -2991,7 +2991,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
     //  data is similar as in basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2 but with batch 1
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 16, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 16, 4, 4 } });
 
     set_values(input, {
         -0.5f, 1.0f, 0.5f, 2.0f, 1.5f, -0.5f, 0.0f, -1.0f, 0.5f, 0.5f, -1.0f, 1.0f, 0.5f, 2.0f, 1.5f, -0.5f,
@@ -3013,7 +3013,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
     });
 
     auto weights1 = engine.allocate_memory({ data_types::f32, format::goiyx, tensor(group(16), batch(1), feature(1), spatial(2, 2)) });
-    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 16, 1, 1 } });
+    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 16, 1, 1 } });
 
     set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
                            -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
@@ -3085,7 +3085,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 16, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 16, 4, 4 } });
 
     set_values(input, {
         -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f,
@@ -3109,7 +3109,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16) {
     topology topology(input_layout("input", input->get_layout()));
 
     auto weights = engine.allocate_memory({ data_types::f32, format::goiyx, tensor(group(16), batch(1), feature(1), spatial(2, 2)) });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 16, 1, 1 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 16, 1, 1 } });
 
     set_values(weights,
         {
@@ -3179,7 +3179,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
     //  data is similar as in basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthwise_sep_opt_bfyx
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 16, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 16, 4, 4 } });
 
     set_values(input, {
         -0.5f, 1.0f, 0.5f, 2.0f, 1.5f, -0.5f, 0.0f, -1.0f, 0.5f, 0.5f, -1.0f, 1.0f, 0.5f, 2.0f, 1.5f, -0.5f,
@@ -3203,7 +3203,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
     topology topology(input_layout("input", input->get_layout()));
 
     auto weights = engine.allocate_memory({ data_types::f32, format::goiyx, tensor(group(16), batch(1), feature(1), spatial(2, 2)) });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 16, 1, 1 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 16, 1, 1 } });
 
     set_values(weights,
         {
@@ -3309,12 +3309,12 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 4, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 4, 1, 1 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 1, 1 }, 4 } });
-    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
-    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto biases2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } });
+    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
+    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } });
+    auto biases2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values(input, {
        1.5f, 0.5f, 0.0f, -0.5f
@@ -3390,12 +3390,12 @@ TEST(convolution_f32_fw_gpu, basic_wsiz1x1_wstr2x2_in1x1x2x1_nopad_split2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 2, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 2, 1, 1 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 1, 1 }, 4 } });
-    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
-    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
-    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
-    auto biases2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 1 } });
+    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
+    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 1 } });
+    auto biases2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values(input, {
         1.5f, 0.5f
@@ -3477,12 +3477,12 @@ TEST(convolution_f32_fw_gpu, basic_wsiz1x1_wstr2x2_in1x1x4x1_filter_1x3x2x1x1_no
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 4, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 4, 1, 1 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 1, 1 }, 6 } });
-    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } });
-    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
-    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } });
-    auto biases2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
+    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } });
+    auto biases1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 3, 1, 1 } });
+    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } });
+    auto biases2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 3, 1, 1 } });
 
     set_values(input, {
         1.5f, 0.5f, 2.0f, -1.0f
@@ -3554,10 +3554,10 @@ TEST(convolution_gpu, trivial_convolution_relu) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 4 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 2, 2 }, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, {
         -0.5f,  1.0f,  0.5f,  2.0f,
@@ -3631,10 +3631,10 @@ TEST(convolution_gpu, relu_with_negative_slope) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 4 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32, { 1, { 2, 2 }, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, {
         -0.5f,  1.0f,  0.5f,  2.0f,
@@ -3688,9 +3688,9 @@ TEST(convolution_gpu, DISABLED_two_1x1_kernels_after_each_other) {
 
     extern const std::vector<float> conv_1x1_output;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 16, 8, 16, 16 } });
-    auto weights_conv_1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 8, 8, 1, 1 } });
-    auto weights_conv_2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 8, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 16, 8, 16, 16 } });
+    auto weights_conv_1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 8, 8, 1, 1 } });
+    auto weights_conv_2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 8, 1, 1 } });
 
     set_random_values<float>(input);
     set_random_values<float>(weights_conv_1);
@@ -3777,7 +3777,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp32)
     auto input = engine.allocate_memory({ data_types::f32, input_format, input_size });
     auto weights_size = tensor( output_feature_count, input_feature_count, weights_x, weights_y );
     auto weights = engine.allocate_memory({ data_types::f32, weights_format, weights_size });
-    auto biases = engine.allocate_memory({ data_types::f32, biases_format, { 1, output_feature_count, 1, 1 } });
+    auto biases = engine.allocate_memory({ data_types::f32, biases_format, tensor{ 1, output_feature_count, 1, 1 } });
 
     //auto output = memory::allocate({ output_format, { batch_size, { output_x, output_y }, output_feature_count } });
 
@@ -3928,7 +3928,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp32)
 }
 
 void add_primitives(engine& engine, topology& topology) {
-    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 2 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 2, 1, 3, 2 } });
 
     std::vector<char> weights_values = { 1, 2, 1,
                                          2, 1, 2,
@@ -3936,7 +3936,7 @@ void add_primitives(engine& engine, topology& topology) {
                                          19, 17, -1,
                                          -10, 32, 23 };
     set_values<char>(weights, weights_values);
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
     set_values(biases, { 1.0f, -8.0f });
 
     topology.add(
@@ -3976,7 +3976,7 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
     //  Bias:
     //  1 -8
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 5, 4 } });
+    auto input = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 1, 1, 5, 4 } });
 
     VVVF<char> output_vec = {
         {
@@ -4029,9 +4029,9 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_symmetric) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 2, 1, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values<uint8_t>(input, { 1, 2, 3, 4, 5,
                                  2, 2, 3, 4, 6,
@@ -4096,11 +4096,11 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_symmetric) {
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weight_and_activations) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
-    auto w_zp = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 1, 1 } });
-    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 2, 1, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
+    auto w_zp = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 2, 1, 1, 1 } });
+    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values<uint8_t>(input, { 1, 2, 3, 4, 5,
                                  2, 2, 3, 4, 6,
@@ -4170,10 +4170,10 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weight_an
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activations_per_tensor) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
-    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 2, 1, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
+    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values<uint8_t>(input, { 1, 2, 3, 4, 5,
                                  2, 2, 3, 4, 6,
@@ -4241,10 +4241,10 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activations_per_channel) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 2, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 2, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
-    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 2, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 2, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 2, 2, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
+    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     set_values<uint8_t>(input, { 1, 2, 3, 4, 5,
                                  2, 2, 3, 4, 6,
@@ -4326,10 +4326,10 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activations_per_channel_3ic_with_sub) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 3, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 3, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
-    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 3, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 3, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 2, 3, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
+    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 3, 1, 1 } });
 
     set_values<uint8_t>(input, { 1, 2, 3, 4, 5,
                                  2, 2, 3, 4, 6,
@@ -4427,10 +4427,10 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weights_per_channel) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 3 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
-    auto w_zp = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{ 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 2, 1, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
+    auto w_zp = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 2, 1, 1, 1 } });
 
     set_values<uint8_t>(input, { 1, 2, 3, 4, 5,
                                  2, 2, 3, 4, 6,
@@ -5365,12 +5365,12 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
 
     topology topology_ref(
         input_layout("input", input->get_layout()),
-        reorder("to_int", "input", { data_types::i8, format::bfyx, { batch_num, input_f, input_size_x, input_size_y } }),
+        reorder("to_int", "input", { data_types::i8, format::bfyx, tensor{ batch_num, input_f, input_size_x, input_size_y } }),
         data("weights", weights),
         data("biases", biases),
         convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 }, "",
                     padding{ { 0, 0, output_padding, output_padding }, 0 }),
-        reorder("output", "conv", { data_types::f32, format::bfyx, { batch_num, input_f, input_size_x, input_size_y } }));
+        reorder("output", "conv", { data_types::f32, format::bfyx, tensor{ batch_num, input_f, input_size_x, input_size_y } }));
 
     build_options build_opt;
 
@@ -5387,12 +5387,12 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
 
     topology topology_act(
         input_layout("input", input->get_layout()),
-        reorder("to_int", "input", { data_types::i8,format::b_fs_yx_fsv4, { batch_num, input_f, input_size_x, input_size_y } }),
+        reorder("to_int", "input", { data_types::i8,format::b_fs_yx_fsv4, tensor{ batch_num, input_f, input_size_x, input_size_y } }),
         data("weights", weights),
         data("biases", biases),
         convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 }, "",
             padding{ { 0, 0, output_padding, output_padding }, 0 }),
-        reorder("output", "conv", { data_types::f32,format::bfyx, { batch_num, input_f, input_size_x, input_size_y } }));
+        reorder("output", "conv", { data_types::f32,format::bfyx, tensor{ batch_num, input_f, input_size_x, input_size_y } }));
 
     build_options build_opt_act;
 
@@ -6026,7 +6026,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     }
 
     const float scalar = 5.5f;
-    auto scale_mem = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 1, 1, 1, 1 } });
+    auto scale_mem = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 1, 1, 1, 1, 1 } });
     set_values(scale_mem, { scalar });
 
     topology.add(data("scalar", scale_mem));
@@ -6465,7 +6465,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     }
 
     const float scalar = 5.5f;
-    auto scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
     set_values(scale_mem, { scalar });
 
     topology.add(data("scalar", scale_mem));
@@ -8555,11 +8555,11 @@ public:
 
     cldnn::tensor get_expected_output_tensor() override {
         auto convolution = std::static_pointer_cast<const cldnn::convolution>(layer_params);
-        tensor input_size = generic_params->input_layouts[0].size;
+        tensor input_size = generic_params->input_layouts[0].get_tensor();
         auto dilation = convolution->dilation;
         auto stride = convolution->stride;
         auto pad = convolution->pad;
-        tensor weights_size = generic_params->input_layouts[1].size;
+        tensor weights_size = generic_params->input_layouts[1].get_tensor();
 
         int kernel_extent_y = dilation[dilation.size() - 2] * (weights_size.spatial[1] - 1) + 1;
         int kernel_extent_x = dilation[dilation.size() - 1] * (weights_size.spatial[0] - 1) + 1;
@@ -8586,22 +8586,22 @@ public:
 
         // Update inputs.
         auto input = inputs[0];
-        auto input_size = inputs[0]->get_layout().size;
-        VVVVF<Type> input_rnd = generate_random_4d<Type>(input_size.batch[0], input_size.feature[0], input_size.spatial[1], input_size.spatial[0], -2, 2, k);
+        auto input_size = inputs[0]->get_layout();
+        VVVVF<Type> input_rnd = generate_random_4d<Type>(input_size.batch(), input_size.feature(), input_size.spatial(1), input_size.spatial(0), -2, 2, k);
         VF<Type> input_rnd_vec = flatten_4d<Type>(input->get_layout().format, input_rnd);
         set_values(input, input_rnd_vec);
 
         // Update weights.
         auto weight_input = inputs[1];
-        auto weight_size = inputs[1]->get_layout().size;
-        VVVVF<Type> weight_rnd = generate_random_4d<Type>(weight_size.batch[0], weight_size.feature[0], weight_size.spatial[1], weight_size.spatial[0], -2, 2, k);
+        auto weight_size = inputs[1]->get_layout();
+        VVVVF<Type> weight_rnd = generate_random_4d<Type>(weight_size.batch(), weight_size.feature(), weight_size.spatial(1), weight_size.spatial(0), -2, 2, k);
         VF<Type> weight_rnd_vec = flatten_4d<Type>(weight_input->get_layout().format, weight_rnd);
         set_values(weight_input, weight_rnd_vec);
 
         // Update biases.
         auto bias_input = inputs[2];
-        auto bias_size = inputs[2]->get_layout().size;
-        VF<Type> bias_rnd = generate_random_1d<Type>(bias_size.spatial[0], -2, 2, k);
+        auto bias_layout = inputs[2]->get_layout();
+        VF<Type> bias_rnd = generate_random_1d<Type>(bias_layout.spatial(0), -2, 2, k);
         set_values(bias_input, bias_rnd);
     }
 
@@ -8613,11 +8613,11 @@ public:
 
         data_types dt = inputs[0]->get_layout().data_type;
 
-        tensor input_size = inputs[0]->get_layout().size;
+        tensor input_size = inputs[0]->get_layout().get_tensor();
         ov::Strides dilation = convolution->dilation;
         ov::Strides stride = convolution->stride;
         ov::CoordinateDiff pad = convolution->pad;
-        tensor weights_size = inputs[1]->get_layout().size;
+        tensor weights_size = inputs[1]->get_layout().get_tensor();
         padding output_padding = convolution->output_padding;
 
         tensor output_size = get_expected_output_tensor();
@@ -8961,7 +8961,7 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     auto input_reorder = reorder("input_fsv", "input", { data_types::f16, format::b_fs_yx_fsv16, input_size });
     auto conv1 = convolution("conv1", "input_fsv", { "weights" });
     auto conv2 = convolution("conv2", "conv1", { "weights" }, { 1, 1 }, { 1, 1 }, { 1, 1 }, { output_b, output_f, output_x, output_x });
-    auto output_reorder = reorder("reorder", "conv2", { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_x } });
+    auto output_reorder = reorder("reorder", "conv2", { data_types::f32, format::bfyx, tensor{ output_b, output_f, output_x, output_x } });
 
     topology topology_test(input, weights, input_reorder, conv1, conv2, output_reorder);
     topology topology_ref(input, weights, input_reorder, conv1, conv2, output_reorder);

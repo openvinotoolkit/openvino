@@ -23,7 +23,7 @@ layout roi_align_inst::calc_output_layout(roi_align_node const& node) {
     auto rois_layout = node.input(1).get_output_layout();
     auto num_rois = rois_layout.batch();
     auto num_channels = input_layout.feature();
-    return layout(input_layout.data_type, format::bfyx, {num_rois, num_channels, primitive->pooled_h, primitive->pooled_w});
+    return layout(input_layout.data_type, format::bfyx, tensor{num_rois, num_channels, primitive->pooled_h, primitive->pooled_w});
 }
 
 std::string roi_align_inst::to_string(roi_align_node const& node) {

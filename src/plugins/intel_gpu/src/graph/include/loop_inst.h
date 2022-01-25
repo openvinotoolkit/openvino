@@ -174,11 +174,10 @@ public:
             throw std::runtime_error("Can't find input from dependency_list");
         }
         layout calculated_layout = (*input)->get_output_layout();
-        auto shape = calculated_layout.size.sizes(calculated_layout.format);
+        auto shape = calculated_layout.get_dims();
 
         if (inputDesc.axis >= 0) {
-            iteration_axis = convert_to_raw_axis(static_cast<size_t>(inputDesc.axis), shape.size());
-            calculated_layout.size.raw[iteration_axis] = 1; // cropped inputs shape
+            calculated_layout.get_dims()[inputDesc.axis] = 1; // cropped inputs shape
         }
 
         return calculated_layout;
@@ -242,7 +241,7 @@ public:
         }
 
         const topology_map& body_topology_map = body.get_primitives();
-        const layout body_input_layout(data_types::i64, format::bfyx, {1, 1, 1, 1});
+        const layout body_input_layout(data_types::i64, format::bfyx, tensor{1, 1, 1, 1});
 
         // add current_iteration primitive if current_iteration primitive is not exist in body
         if (body_topology_map.find(current_iteration_id) == body_topology_map.end()) {
@@ -277,7 +276,7 @@ public:
     void process_single_int_output(const primitive_id& id) const {
         // add mutable if not exist
         const topology_map& body_topology_map = body.get_primitives();
-        layout body_output_layout(data_types::i64, format::bfyx, {1, 1, 1, 1});
+        layout body_output_layout(data_types::i64, format::bfyx, tensor{1, 1, 1, 1});
         if (!id.empty()) {
             auto body_output = body_topology_map.find(id);
             if (body_output == body_topology_map.end()) {
@@ -480,10 +479,10 @@ private:
 
             int64_t batch_size = 1;
             for (int64_t i = 0; i < axis; ++i) {
-                batch_size *= mem_layout.size.raw[i];
+                batch_size *= mem_layout.get_dims()[i];
             }
             for (int64_t i = axis-1; i >= 2; --i) {
-                batch_size *= mem_layout.size.raw[i];
+                batch_size *= mem_layout.get_dims()[i];
             }
             return batch_size;
         }

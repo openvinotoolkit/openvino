@@ -16,9 +16,9 @@ using namespace ::tests;
 TEST(select_gpu_f32, select_basic) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -70,9 +70,9 @@ TEST(select_gpu_f32, select_basic) {
 TEST(select_gpu_f32, select_basic_negative) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -124,9 +124,9 @@ TEST(select_gpu_f32, select_basic_negative) {
 TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x2x1x2) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 1, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -210,9 +210,9 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x2x1x2) {
 TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_1x1x1x1) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -286,9 +286,9 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_1x1x1x1) {
 TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x2x2x1) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf ,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 2, 2, 1 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 1 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -366,9 +366,9 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x2x2x1) {
 TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_2x2x1x2) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -452,9 +452,9 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_2x2x1x2) {
 TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x2x1_bcast_in2_2x2x1x2) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -534,9 +534,9 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x2x1_bcast_in2_2x2x1
 TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x1x2x2_in1_1x2x2x2_in2_2x2x1x2) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -608,9 +608,9 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x1x2x2_in1_1x2x2x2_in
 TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x2x1_in2_2x2x1x2) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 2, 2, 1 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf ,{ 2, 2, 1, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 1, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 1 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 1, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -684,9 +684,9 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
 TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_1x1x1x1) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -760,9 +760,9 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_1x1x1x1) {
 TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in2_2x2x2x1) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf ,{ 2, 2, 2, 1 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 1 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -840,9 +840,9 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in2_2x2x2x1) {
 TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x1x2) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -926,9 +926,9 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x1x2) {
 TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_1x1x1x1) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -1002,9 +1002,9 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_1x1x1x1) {
 TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in1_2x2x2x1) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 2, 2, 1 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf ,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 1 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -1082,9 +1082,9 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in1_2x2x2x1) {
 TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x2x1) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 2, 2, 1 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf ,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 1, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 1 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -1162,9 +1162,9 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
 TEST(select_gpu_f32, select_basic_comma) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1216,9 +1216,9 @@ TEST(select_gpu_f32, select_basic_comma) {
 TEST(select_gpu_f32, select_basic_error_input_sizes) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 3, 4, 5, 6 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 3, 4, 5, 6 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1232,9 +1232,9 @@ TEST(select_gpu_f32, select_basic_error_input_sizes) {
 TEST(select_gpu_f32, select_basic_error_mask_sizes) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 3, 4, 5, 6 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 3, 4, 5, 6 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1248,9 +1248,9 @@ TEST(select_gpu_f32, select_basic_error_mask_sizes) {
 TEST(select_gpu_f32, select_basic_error_input_types) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1263,9 +1263,9 @@ TEST(select_gpu_f32, select_basic_error_input_types) {
 TEST(select_gpu_f32, select_basic_error_input_formats) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1279,9 +1279,9 @@ TEST(select_gpu_f32, select_basic_error_input_formats) {
 TEST(select_gpu_f32, select_basic_byxf) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::byxf,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::byxf,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1333,9 +1333,9 @@ TEST(select_gpu_f32, select_basic_byxf) {
 TEST(select_gpu_f32, select_basic_mask_f16) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f16, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1387,9 +1387,9 @@ TEST(select_gpu_f32, select_basic_mask_f16) {
 TEST(select_gpu_f32, select_basic_mask_i8) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::i8, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1441,9 +1441,9 @@ TEST(select_gpu_f32, select_basic_mask_i8) {
 TEST(select_gpu_f32, select_basic_mask_u8) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1495,9 +1495,9 @@ TEST(select_gpu_f32, select_basic_mask_u8) {
 TEST(select_gpu_f32, select_basic_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1541,9 +1541,9 @@ TEST(select_gpu_f32, select_basic_1x1x2x2) {
 TEST(select_gpu_f32, select_basic_bfyx_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1591,9 +1591,9 @@ TEST(select_gpu_f32, select_basic_bfyx_1x1x2x2) {
 TEST(select_gpu_f32, select_basic_byxf_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1642,9 +1642,9 @@ TEST(select_gpu_f32, select_basic_byxf_1x1x2x2) {
 TEST(select_gpu_f16, select_basic_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1692,9 +1692,9 @@ TEST(select_gpu_f16, select_basic_1x1x2x2) {
 TEST(select_gpu_f16, select_basic_mask_f32_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1742,9 +1742,9 @@ TEST(select_gpu_f16, select_basic_mask_f32_1x1x2x2) {
 TEST(select_gpu_f16, select_basic_mask_i8_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1792,9 +1792,9 @@ TEST(select_gpu_f16, select_basic_mask_i8_1x1x2x2) {
 TEST(select_gpu_f16, select_basic_mask_u8_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1843,9 +1843,9 @@ TEST(select_gpu_f16, select_basic_mask_u8_1x1x2x2) {
 TEST(select_gpu_i8, select_basic_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1893,9 +1893,9 @@ TEST(select_gpu_i8, select_basic_1x1x2x2) {
 TEST(select_gpu_i8, select_basic_mask_f32_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1943,9 +1943,9 @@ TEST(select_gpu_i8, select_basic_mask_f32_1x1x2x2) {
 TEST(select_gpu_i8, select_basic_mask_f16_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1993,9 +1993,9 @@ TEST(select_gpu_i8, select_basic_mask_f16_1x1x2x2) {
 TEST(select_gpu_i8, select_basic_mask_u8_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2044,9 +2044,9 @@ TEST(select_gpu_i8, select_basic_mask_u8_1x1x2x2) {
 TEST(select_gpu_u8, select_basic_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2094,9 +2094,9 @@ TEST(select_gpu_u8, select_basic_1x1x2x2) {
 TEST(select_gpu_u8, select_basic_mask_f32_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2144,9 +2144,9 @@ TEST(select_gpu_u8, select_basic_mask_f32_1x1x2x2) {
 TEST(select_gpu_u8, select_basic_mask_f16_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2194,9 +2194,9 @@ TEST(select_gpu_u8, select_basic_mask_f16_1x1x2x2) {
 TEST(select_gpu_u8, select_basic_mask_i8_1x1x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::i8, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));

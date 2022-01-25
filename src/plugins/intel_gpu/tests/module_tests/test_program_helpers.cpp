@@ -60,7 +60,7 @@ TEST_P(functional_test, test_are_layouts_identical) {
     auto test5 = program_helpers::are_layouts_identical(in_bfyx_layout, layout(p.input_data_type, format::bfzyx, p.in_shape, p.pad1));
     EXPECT_EQ(false, test5.first);
     EXPECT_EQ(false, test5.second);
-    auto test6 = program_helpers::are_layouts_identical(in_layout, layout(p.input_data_type, p.input_format, {1, 32, 16, 16}, p.pad1));
+    auto test6 = program_helpers::are_layouts_identical(in_layout, layout(p.input_data_type, p.input_format, tensor{1, 32, 16, 16}, p.pad1));
     EXPECT_EQ(false, test6.first);
     EXPECT_EQ(false, test6.second);
     auto test7 = program_helpers::are_layouts_identical(in_bfyx_layout, layout(p.input_data_type, format::b_fs_yx_fsv32, p.in_shape, p.pad2));

@@ -384,7 +384,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      desc->stride,
                                                                      desc->pad,
                                                                      desc->dilation,
-                                                                     conv.get_output_layout().size,
+                                                                     conv.get_output_layout().get_tensor(),
                                                                      conv.get_output_layout().data_type,
                                                                      desc->grouped_weights_shape);
 
@@ -421,7 +421,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->pad,
-                                                                         deconv.get_output_layout().size,
+                                                                         deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);
 
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
@@ -469,9 +469,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             continue;
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
-            auto in_size = node.get_dependency(0).get_output_layout().size;
-            return (node.get_split() > 1 && node.get_split() != in_size.feature[0]) ||
-                   (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_size.feature[0]));
+            auto in_layout = node.get_dependency(0).get_output_layout();
+            return (node.get_split() > 1 && node.get_split() != in_layout.feature()) ||
+                   (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_layout.feature()));
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
@@ -972,8 +972,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto parent1 = parents[0];
             auto parent2 = parents[1];
 
-            auto p1_raw_size = parent1->get_output_layout().size.sizes();
-            auto p2_raw_size = parent2->get_output_layout().size.sizes();
+            // TODO: check if broadcasable
+            auto p1_raw_size = parent1->get_output_layout().get_dims();
+            auto p2_raw_size = parent2->get_output_layout().get_dims();
             for (unsigned k = 0; k < p1_raw_size.size(); k++) {
                 if (p1_raw_size[k] < p2_raw_size[k]) {
                     if (p1_raw_size[k] != 1)

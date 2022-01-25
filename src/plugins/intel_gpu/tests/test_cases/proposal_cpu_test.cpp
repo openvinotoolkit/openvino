@@ -73,8 +73,8 @@ class TestRunnerProposal
 
 template <typename Dtype, typename ImInfoType>
 TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_info_size) :
-                            _cls_scores_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 18, 23, 14 } ),
-                            _bbox_pred_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 36, 23, 14 } ),
+                            _cls_scores_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, tensor{ 1, 18, 23, 14 } ),
+                            _bbox_pred_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, tensor{ 1, 36, 23, 14 } ),
                             _image_info_layout(cldnn::type_to_data_type<ImInfoType>::value, format::bfyx, image_info_size),
                             _test_layer(layer_name,
                                         cls_scores_name,

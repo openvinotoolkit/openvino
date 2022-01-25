@@ -43,7 +43,7 @@ void start_broadcast_test(data_types cldnn_data_type, std::vector<size_t> output
     }
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({cldnn_data_type, format::bfyx, {input_4d.at(0), input_4d.at(1), input_4d.at(3), input_4d.at(2)}});
+    auto input = engine.allocate_memory({cldnn_data_type, format::bfyx, tensor{input_4d.at(0), input_4d.at(1), input_4d.at(3), input_4d.at(2)}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -102,7 +102,7 @@ void start_broadcast_test_5d(data_types cldnn_data_type, std::vector<size_t> out
     }
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ cldnn_data_type, format::bfzyx,{ input_5d.at(0), input_5d.at(1), input_5d.at(4), input_5d.at(3), input_5d.at(2) } });
+    auto input = engine.allocate_memory({ cldnn_data_type, format::bfzyx, tensor{ input_5d.at(0), input_5d.at(1), input_5d.at(4), input_5d.at(3), input_5d.at(2) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1430,7 +1430,7 @@ TEST(broadcast_gpu_int64_t, bfyx_2_to_2x3x4x5_w_b_axes_1_2_3) {
 TEST(broadcast_gpu, basic_error_wrong_b_axes_size) {
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 1, 1, 1}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1443,7 +1443,7 @@ TEST(broadcast_gpu, basic_error_wrong_b_axes_size) {
 TEST(broadcast_gpu, basic_error_wrong_b_axis_value) {
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 1, 1, 1}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1456,7 +1456,7 @@ TEST(broadcast_gpu, basic_error_wrong_b_axis_value) {
 TEST(broadcast_gpu, basic_error_duplicate_b_axis_values) {
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 1, 1, 1}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1469,7 +1469,7 @@ TEST(broadcast_gpu, basic_error_duplicate_b_axis_values) {
 TEST(broadcast_gpu, basic_error_wrong_input_dimension_0) {
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 3, 4, 5}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{2, 3, 4, 5}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1482,7 +1482,7 @@ TEST(broadcast_gpu, basic_error_wrong_input_dimension_0) {
 TEST(broadcast_gpu, basic_error_not_dividable_2x3x4x5_to_3x3x4x5) {
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 3, 4, 5}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{2, 3, 4, 5}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1495,7 +1495,7 @@ TEST(broadcast_gpu, basic_error_not_dividable_2x3x4x5_to_3x3x4x5) {
 TEST(broadcast_gpu, basic_error_not_dividable_3_to_2x3x4x5_w_b_axes_0x1x3) {
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 3, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 1, 3, 1}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1508,7 +1508,7 @@ TEST(broadcast_gpu, basic_error_not_dividable_3_to_2x3x4x5_w_b_axes_0x1x3) {
 TEST(broadcast_gpu, basic_error_not_dividable_4x5_to_3x4x5_w_b_axes_1) {
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 3, 5, 4}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 3, 5, 4}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));

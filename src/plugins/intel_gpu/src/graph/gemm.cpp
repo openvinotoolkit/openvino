@@ -28,11 +28,11 @@ layout gemm_inst::calc_output_layout(gemm_node const& node) {
     auto M = !transpose_input0 ? input0_layout.spatial(1) : input0_layout.spatial(0);
     auto N = !transpose_input1 ? input1_layout.spatial(0) : input1_layout.spatial(1);
 
-    auto output_size = input0_layout.size;
+    auto output_size = input0_layout.get_tensor();
 
     for (size_t i = 1; i < node.inputs_count(); ++i) {
         auto input_layout = node.input(i).get_output_layout();
-        output_size = tensor::max(output_size, input_layout.size);
+        output_size = tensor::max(output_size, input_layout.get_tensor());
     }
 
     output_size.spatial[0] = N;

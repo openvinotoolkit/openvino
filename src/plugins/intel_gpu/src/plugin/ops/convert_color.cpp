@@ -41,7 +41,7 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
                                                                           inputPrimitives[1] + "_" + std::to_string(b)};
             cldnn::primitive_id batched_prim_id = layerName + "_" + std::to_string(b);
             convert_color_names.emplace_back(batched_prim_id);
-            out_layout.size.batch[0] = 1;
+            out_layout.size[0] = 1;
 
             p.AddPrimitive(cldnn::convert_color(batched_prim_id,
                                                 batchedInputPrimitives,

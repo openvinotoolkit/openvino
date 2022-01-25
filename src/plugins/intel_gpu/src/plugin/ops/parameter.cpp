@@ -99,14 +99,14 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputName = layer_type_name_ID(op);
     auto preProcess = inputInfo->getPreProcess();
     size_t meanChannels = preProcess.getNumberOfChannels();
-    networkInputLayout.format = inputFormat;
-    networkInputLayout.size = networkInputLayout.size.transform(inputFormat, 1);
-    networkInputLayout.data_type = DataTypeFromPrecision(op->get_output_element_type(0));
+    networkInputLayout = cldnn::layout{DataTypeFromPrecision(op->get_output_element_type(0)),
+                                       inputFormat,
+                                       networkInputLayout.get_tensor().transform(inputFormat, 1)};
     cldnn::primitive_id meanBlobID = inputName + Program::m_meanValuesTag;
     std::vector<float> meanValues;
 
     if ((meanChannels > 0) &&
-        (meanChannels != networkInputLayout.size.feature[0])) {
+        (meanChannels != networkInputLayout.feature())) {
         IE_THROW() << "Mismatched mean values channels in input " << inputName;
     }
 
@@ -152,7 +152,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         auto meanBlobPtr = std::make_shared<TBlob<float>>(meanBlob);
 
         // mean values will use external format (sub in the input format before convert to new format)
-        cldnn::tensor meanBlobTensor(networkInputLayout.size);
+        cldnn::tensor meanBlobTensor(networkInputLayout.get_tensor());
         meanBlobTensor.batch[0] = 1;  // mean values have no batches
         cldnn::layout meanBlobLayout(cldnn::data_types::f32, cldnn::format::bfyx, meanBlobTensor);
 
@@ -197,7 +197,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             }
         }
 
-        if (networkInputLayout.format == cldnn::format::nv12 && networkInputLayout.size.batch[0] > 1) {
+        if (networkInputLayout.format == cldnn::format::nv12 && networkInputLayout.batch() > 1) {
             networkInputLayout.size = { 1, TensorValue(inputDims[3]), TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
 
             std::vector<cldnn::primitive_id> inputs;
@@ -235,9 +235,9 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 std::string uv_name = inputName + "_UV" + std::to_string(i);
 
                 cldnn::layout y_layout(DataTypeFromPrecision(ip),
-                                       cldnn::format::nv12, { 1, 1, width, height });
+                                       cldnn::format::nv12, cldnn::tensor{ 1, 1, width, height });
                 cldnn::layout uv_layout(DataTypeFromPrecision(ip),
-                                        cldnn::format::nv12, { 1, 2, width / 2, height / 2 });
+                                        cldnn::format::nv12, cldnn::tensor{ 1, 2, width / 2, height / 2 });
                 auto inputY = cldnn::input_layout(y_name, y_layout, inputInfo->name());
                 auto inputUV = cldnn::input_layout(uv_name, uv_layout, inputInfo->name());
 

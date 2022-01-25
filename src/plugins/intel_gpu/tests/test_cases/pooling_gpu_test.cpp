@@ -221,7 +221,7 @@ TEST(pooling_forward_gpu, basic_max_byxf_f32_wsiz3x3_wstr1x1_i1x3x3x8_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,  format::byxf,{ 1, 8, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 1, 8, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -266,7 +266,7 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz3x3_wstr1x1_i3x3x1x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,  format::yxfb, { 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,  format::yxfb, tensor{ 1, 1, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -304,7 +304,7 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_global_i3x3x1x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,  format::yxfb,{ 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,  format::yxfb, tensor{ 1, 1, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -334,7 +334,7 @@ TEST(pooling_forward_gpu, basic_max_b_fs_yx_fsv16_i8_global_i3x3x1x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::i8, format::b_fs_yx_fsv16, { 1, 16, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::i8, format::b_fs_yx_fsv16, tensor{ 1, 16, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -380,7 +380,7 @@ TEST(pooling_forward_gpu, basic_avg_b_fs_yx_fsv16_i8_global_i3x3x1x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::i8, format::b_fs_yx_fsv16, { 1, 16, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::i8, format::b_fs_yx_fsv16, tensor{ 1, 16, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -425,9 +425,9 @@ TEST(pooling_forward_gpu, basic_avg_b_fs_yx_fsv16_i8_global_i3x3x1x1_nopad) {
 TEST(pooling_forward_gpu, basic_max_pooling_int8) {
 
     auto& engine = get_test_engine();
-    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
-    layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    layout in_layout = { type_to_data_type<float>::value, format::byxf, tensor{ 1, 1, 3, 3 } };
+    layout out_layout = { type_to_data_type<float>::value, format::byxf, tensor{ 1, 1, 1, 1 } };
+    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, tensor{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.5f };
     std::list<float> final_results = { 9.0f };
 
@@ -471,9 +471,9 @@ TEST(pooling_forward_gpu, basic_max_pooling_int8) {
 TEST(pooling_forward_gpu, basic_avg_pooling_int8) {
 
     auto& engine = get_test_engine();
-    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
-    layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    layout in_layout = { type_to_data_type<float>::value, format::byxf, tensor{ 1, 1, 3, 3 } };
+    layout out_layout = { type_to_data_type<float>::value, format::byxf, tensor{ 1, 1, 1, 1 } };
+    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, tensor{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 2.0f, -2.5f, 5.1f, -4.0f, 8.03f, -6.99f, 17.0f, -8.0f, 19.5f };
     // Average pooling returns fp32 by default for int8 inputs
     auto final_result = 0.0f;
@@ -535,7 +535,7 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr1x1_i3x3x1x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -579,7 +579,7 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr2x2_i4x4x1x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 4, 4 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 4, 4 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -633,7 +633,7 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr1x1_i3x3x2x2_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -683,7 +683,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i2x2x1x1_zeropad)
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -728,7 +728,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -749,7 +749,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
     EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+    EXPECT_EQ((int)output_prim->get_layout().count(), 4);
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     EXPECT_EQ(1.5f, output_ptr[0]);
@@ -777,7 +777,7 @@ TEST(pooling_forward_gpu, basic_avg_yxfb_f32_wsiz2x2_wstr1x1_i3x3x1x1_nopad) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -822,7 +822,7 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i2x2x1x1_zeropad)
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -867,7 +867,7 @@ TEST(pooling_forward_gpu, offsets_avg_bfyx_f32_wsiz3x3_wstr3x3_i1x1x3x3_zeropad)
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -915,7 +915,7 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
@@ -930,7 +930,7 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
     EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+    EXPECT_EQ((int)output_prim->get_layout().count(), 4);
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
     EXPECT_EQ(0.375f,  output_ptr[0]);
@@ -1059,7 +1059,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_out
         EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+        EXPECT_EQ((int)output_prim->get_layout().count(), 4);
         EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
@@ -1193,7 +1193,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inp
         EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+        EXPECT_EQ((int)output_prim->get_layout().count(), 4);
         EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
@@ -1335,7 +1335,7 @@ TEST(pooling_forward_gpu, max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inpad2x1_ou
         EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().size.count(), 9);
+        EXPECT_EQ((int)output_prim->get_layout().count(), 9);
         EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
@@ -1366,8 +1366,8 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         1.0f, 2.0f, -10.f,
@@ -1443,8 +1443,8 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2x1_max_with_argmax) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 3, 2, 1 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 2, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 3, 2, 1 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 2, 1, 1 } });
 
     set_values(input, {
         1.0f, 2.0f, -10.f,
@@ -1522,8 +1522,8 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_input_padding) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         1.0f, 2.0f, -10.f,
@@ -1601,8 +1601,8 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_output_padding) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         1.0f, 2.0f, -10.f,
@@ -1690,8 +1690,8 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_with_output_size) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         1.0f, 2.0f, -10.f,
@@ -1784,7 +1784,7 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
     auto output_mem = net.execute().at("pool").get_memory();
 
     ASSERT_EQ(output_mem->count(), expected_output.size());
-    EXPECT_EQ(output_mem->get_layout().size, output);
+    EXPECT_EQ(output_mem->get_layout().get_tensor(), output);
     cldnn::mem_lock<DataType> out_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < expected_output.size(); ++i)
@@ -1964,7 +1964,7 @@ TEST(pooling_forward_gpu, b_fs_yx_fsv4)
         {
             // Mem initialization
             // This is user data, no kernels here
-            auto input = engine.allocate_memory({ data_types::i8, format::bfyx, { in_B, in_F, in_X, in_Y } });
+            auto input = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ in_B, in_F, in_X, in_Y } });
             set_values(input, std::move(DataGold));
 
             auto pool = pooling("pool_GOLD",
@@ -1999,7 +1999,7 @@ TEST(pooling_forward_gpu, b_fs_yx_fsv4)
 
             // Mem initialization
             // This is user data, no kernels here
-            auto input = engine.allocate_memory({ data_types::i8, format::bfyx, { in_B, in_F, in_X, in_Y } });
+            auto input = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ in_B, in_F, in_X, in_Y } });
             set_values(input, std::move(Data));
 
             // Add input to topology
@@ -2011,7 +2011,7 @@ TEST(pooling_forward_gpu, b_fs_yx_fsv4)
                          "input",
                          layout(data_types::i8,
                                 format::b_fs_yx_fsv4,
-                                { in_B, in_F, in_X, in_Y })));
+                                tensor{ in_B, in_F, in_X, in_Y })));
 
             // Add Convoluiton to topology
             topology.add(pooling("pool_IMAD",
@@ -2025,7 +2025,7 @@ TEST(pooling_forward_gpu, b_fs_yx_fsv4)
                                  "pool_IMAD",
                                  layout(data_types::i8,
                                         format::bfyx,
-                                        { in_B, in_F, in_X, in_Y })));
+                                        tensor{ in_B, in_F, in_X, in_Y })));
 
             network network(engine, topology);
             network.set_input_data("input", input);
@@ -2073,13 +2073,13 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_1x1_stride_2x2_ou
     //  [ 1.0,   0.625]
     //  [ 1.625, 0.875]
 
-    auto input_prim = engine.allocate_memory({ data_types::f16, format::yxfb, { 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input", input_prim->get_layout()));
-    topology.add(reorder("reorder_input", "input", layout(data_types::f16, format::fs_b_yx_fsv32, { 1, 1, 3, 3 })));
+    topology.add(reorder("reorder_input", "input", layout(data_types::f16, format::fs_b_yx_fsv32, tensor{ 1, 1, 3, 3 })));
     topology.add(pooling("avg_pooling", "reorder_input", pooling_mode::average, { 2, 2 }, { 1, 1 }));
-    topology.add(reorder("reorder_after_pooling", "avg_pooling", layout(data_types::f16, format::bfyx, { 1, 1, 2, 2 })));
+    topology.add(reorder("reorder_after_pooling", "avg_pooling", layout(data_types::f16, format::bfyx, tensor{ 1, 1, 2, 2 })));
 
     network network(engine, topology);
     set_values(input_prim, { FLOAT16(-0.5f), FLOAT16(1.0f), FLOAT16(0.5f), FLOAT16(2.0f), FLOAT16(1.5f), FLOAT16(-0.5f), FLOAT16(4.0f), FLOAT16(-1.0f), FLOAT16(3.5f) });
@@ -2125,13 +2125,13 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_2x2_stride)
     //  [ 1.0, 0  ]
     //  [ 1.5, 3.5]
 
-    auto input_prim = engine.allocate_memory({ data_types::f16, format::yxfb, { 1, 1, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input", input_prim->get_layout()));
-    topology.add(reorder("reorder_input", "input", layout(data_types::f16, format::fs_b_yx_fsv32, { 1, 1, 3, 3 })));
+    topology.add(reorder("reorder_input", "input", layout(data_types::f16, format::fs_b_yx_fsv32, tensor{ 1, 1, 3, 3 })));
     topology.add(pooling("avg_pooling", "reorder_input", pooling_mode::average, { 2, 2 }, { 2, 2 }));
-    topology.add(reorder("reorder_after_pooling", "avg_pooling", layout(data_types::f16, format::bfyx, { 1, 1, 3, 3 })));
+    topology.add(reorder("reorder_after_pooling", "avg_pooling", layout(data_types::f16, format::bfyx, tensor{ 1, 1, 3, 3 })));
 
     network network(engine, topology);
     set_values(input_prim, { FLOAT16(-0.5f), FLOAT16(1.0f), FLOAT16(0.5f), FLOAT16(2.0f), FLOAT16(1.5f), FLOAT16(-0.5f), FLOAT16(4.0f), FLOAT16(-1.0f), FLOAT16(3.5f) });
@@ -2191,13 +2191,13 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_2x2x3x3_input_2x2_pool_2x2_stride)
     const int out_x = 2;
     const int out_y = 2;
 
-    auto input_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { batch_count, features_count, 3, 3 } });
+    auto input_prim = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ batch_count, features_count, 3, 3 } });
 
     topology topology;
     topology.add(input_layout("input", input_prim->get_layout()));
-    topology.add(reorder("reorder_input", "input", layout(data_types::f16, format::fs_b_yx_fsv32, { batch_count, features_count, 3, 3 })));
+    topology.add(reorder("reorder_input", "input", layout(data_types::f16, format::fs_b_yx_fsv32, tensor{ batch_count, features_count, 3, 3 })));
     topology.add(pooling("avg_pooling", "reorder_input", pooling_mode::average, { 2, 2 }, { 2, 2 }));
-    topology.add(reorder("reorder_after_pooling", "avg_pooling", layout(data_types::f16, format::bfyx, { batch_count, features_count, out_y, out_x })));
+    topology.add(reorder("reorder_after_pooling", "avg_pooling", layout(data_types::f16, format::bfyx, tensor{ batch_count, features_count, out_y, out_x })));
 
     network network(engine, topology);
     set_values(input_prim, { FLOAT16(-0.5f), FLOAT16(1.0f), FLOAT16(0.5f), FLOAT16(2.0f), FLOAT16(1.5f), FLOAT16(-0.5f), FLOAT16(4.0f), FLOAT16(-1.0f), FLOAT16(3.5f),   //B0F0
@@ -2268,7 +2268,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
         topology.add(input_layout("input_prim", input_prim->get_layout()));
         topology.add(reorder("reorder_input", "input_prim", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
         topology.add(pooling("pool_prim", "reorder_input", pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, "", padding{{0, 0, 1, 1}, 0}));
-        topology.add(reorder("reorder_pooling", "pool_prim", layout(data_types::f16, format::bfyx, { 1,1,4,4 }, padding{ { 0, 0, 1, 1 }, 0 })));
+        topology.add(reorder("reorder_pooling", "pool_prim", layout(data_types::f16, format::bfyx, tensor{ 1,1,4,4 }, padding{ { 0, 0, 1, 1 }, 0 })));
 
         network network(engine, topology);
 
@@ -2292,7 +2292,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
         EXPECT_EQ(outputs.begin()->first, "reorder_pooling");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+        EXPECT_EQ((int)output_prim->get_layout().count(), 4);
         EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
 
         cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
@@ -2368,7 +2368,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x5x5_input_2x2_pool_2x2_stride_2x
     EXPECT_EQ(outputs.begin()->first, "reorder_pooling");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    EXPECT_EQ((int)output_prim->get_layout().size.count(), 9);
+    EXPECT_EQ((int)output_prim->get_layout().count(), 9);
     EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
 
     cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
@@ -3782,9 +3782,9 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_POOLING,
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
     auto& engine = get_onednn_test_engine();
-    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
-    layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    layout in_layout = { type_to_data_type<float>::value, format::byxf, tensor{ 1, 1, 3, 3 } };
+    layout out_layout = { type_to_data_type<float>::value, format::byxf, tensor{ 1, 1, 1, 1 } };
+    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, tensor{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.5f };
     std::list<float> final_results = { 9.0f };
 

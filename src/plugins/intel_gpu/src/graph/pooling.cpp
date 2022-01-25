@@ -160,7 +160,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
     for (size_t i = 0; i < window_size.size(); i++) {
         size.spatial[i] = window_size[window_size.size() - i - 1];
     }
-    auto output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.size,
+    auto output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.get_tensor(),
                                                                                       size,
                                                                                       ov::CoordinateDiff(pad.begin(), pad.end()),
                                                                                       stride,

@@ -21,8 +21,8 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
     auto input_layout_origin = node.input(0).get_output_layout();
     auto indices_layout_origin = node.input(1).get_output_layout();
 
-    auto input_layout = input_layout_origin.size.sizes(input_layout_origin.format);
-    auto indices_layout = indices_layout_origin.size.sizes(indices_layout_origin.format);
+    auto input_layout = input_layout_origin.get_dims();
+    auto indices_layout = indices_layout_origin.get_dims();
 
     const auto input_rank = static_cast<size_t>(op->input_rank);
     const auto indices_rank = op->indices_rank;
@@ -72,7 +72,7 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
         output_format = cldnn::format::bfwzyx;
     }
 
-    auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
+    auto output_sizes_tensor = tensor(output_format, final_output_sizes);
     auto padding = op->output_padding;
 
     if (node.has_fused_primitives()) {
@@ -91,11 +91,11 @@ std::string gather_nd_inst::to_string(gather_nd_node const& node) {
 
     json_composite gather_nd_info;
     gather_nd_info.add("input id", input.id());
-    gather_nd_info.add("input shape", node.input(0).get_output_layout().size.to_string());
-    gather_nd_info.add("indices shape", node.input(1).get_output_layout().size.to_string());
+    gather_nd_info.add("input shape", node.input(0).get_output_layout().to_string());
+    gather_nd_info.add("indices shape", node.input(1).get_output_layout().to_string());
     gather_nd_info.add("indices rank", desc->indices_rank);
     gather_nd_info.add("batch dims", desc->batch_dims);
-    gather_nd_info.add("output shape", calc_output_layout(node).size.to_string());
+    gather_nd_info.add("output shape", calc_output_layout(node).to_string());
 
     node_info->add("gather_nd info", gather_nd_info);
     node_info->dump(primitive_description);

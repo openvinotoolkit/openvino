@@ -62,7 +62,7 @@ void prepare_padding::run(program& p) {
                     format == format::b_fs_zyx_fsv32)
                     continue;
 
-                auto filter_size = prim_node.weights(0).get_output_layout().size;
+                auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
@@ -81,7 +81,7 @@ void prepare_padding::run(program& p) {
                 if (!prim->with_output_size)
                     continue;
 
-                auto filter_size = prim_node.weights(0).get_output_layout().size;
+                auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,

@@ -34,7 +34,7 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node) 
             "The depth of the input tensor must be divisible by squared block size. Actual block size is " +
                 std::to_string(block_size));
 
-    auto out_size = input_layout.size;
+    auto out_size = input_layout.get_tensor();
     if (format::spatial_num(input_layout.format) == 3) {
         const size_t feature = input_layout.feature() / block_size / block_size / block_size;
         const size_t z = input_layout.spatial(2) * block_size;

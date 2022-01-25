@@ -112,7 +112,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         primitive_id split_id = "split:" + create_split_id(splitNum);
         cldnn::memory::ptr output = outputs.at(split_id).get_memory();
         auto prim = output->get_layout();
-        EXPECT_EQ(prim.size, expected_sizes[splitNum]);
+        EXPECT_EQ(prim.get_tensor(), expected_sizes[splitNum]);
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         // Output tensor size
@@ -206,7 +206,7 @@ TEST(split_gpu_f32, basic_split_concat_optimization) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 25, 1, 256 } });
+    auto input = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 25, 1, 256 } });
     tests::set_random_values<float>(input);
 
     topology topology;
@@ -246,7 +246,7 @@ TEST(split_gpu_i64, basic_split_concat_optimization) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::i64,format::bfyx,{ 1, 25, 1, 256 } });
+    auto input = engine.allocate_memory({ data_types::i64,format::bfyx, tensor{ 1, 25, 1, 256 } });
     tests::set_random_values<int64_t>(input);
 
     topology topology;
@@ -525,7 +525,7 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_feature_bfyx) {
     auto x_size = 4;
     auto y_size = 3;
 
-    auto input = engine.allocate_memory({ data_types::f32,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -571,7 +571,7 @@ TEST(split_gpu_i64, basic_in2x3x2x2_split_feature_bfyx) {
     auto x_size = 4;
     auto y_size = 3;
 
-    auto input = engine.allocate_memory({ data_types::i64,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::i64,format::bfyx, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -618,10 +618,10 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
     auto x_size = 4;
     auto y_size = 3;
 
-    auto input = engine.allocate_memory({ data_types::f32,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
-    auto scale_input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto scale_input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto scale_input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ batch_num, feature_num, x_size, y_size } });
+    auto scale_input0 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto scale_input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto scale_input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));

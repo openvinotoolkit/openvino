@@ -53,7 +53,7 @@ void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::runtime::
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
     auto layout = src->get_layout();
-    auto size = layout.size;
+    auto size = layout.get_tensor();
 
     auto locked_dst = dst->buffer();
     auto dst_ptr = locked_dst.as<T*>();
@@ -813,7 +813,7 @@ void InferRequest::enqueue_dynamic() {
                 const Blob::Ptr inputBlob = item.second;
 
                 auto inputLayout = m_graph->GetInputLayouts().at(inputName);
-                inputLayout.size.batch[0] = mask;
+                inputLayout.size[0] = mask;
                 copy_input_data(m_graph->GetNetwork(nb), inputName, inputLayout, *inputBlob, &batchInputs[inputName][nb]);
             }
             internal_outputs_dynamic[nb] = m_graph->GetNetwork(nb)->execute();

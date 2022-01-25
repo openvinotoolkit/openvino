@@ -114,7 +114,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
         if (!use_usm)
             return false;
-        if (out_l.size.batch[0] > 1)
+        if (out_l.batch() > 1)
             return false;
     }
 
@@ -210,7 +210,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                 return false;
         }
 
-        lower_padd_in_axis += input->get_output_layout().size.sizes(def_fmt)[concat_axis];
+        lower_padd_in_axis += input->get_output_layout().get_dims()[concat_axis];
         idx += 1;
     }
 
@@ -343,10 +343,9 @@ void prepare_buffer_fusing::run(program& p) {
                 auto format = crop_layout.format;
                 auto crop_prim = node.get_primitive();
                 auto input_layout = node.get_dependency(0).get_output_layout();
-                const auto& crop_size = crop_layout.size;
                 const auto& out_padd = crop_layout.data_padding;
                 const auto opt_lower_pad = crop_prim->offsets.feature[0];
-                const auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
+                const auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_layout.feature();
 
                 // do not optimize crop if paddings are not properly aligned
                 for (auto& usr : node.get_users()) {
@@ -363,9 +362,9 @@ void prepare_buffer_fusing::run(program& p) {
                         return;
                 }
 
-                if (format == format::bfyx && crop_size.batch[0] == input_layout.batch() &&
-                    crop_size.spatial[0] == input_layout.spatial(0) &&
-                    crop_size.spatial[1] == input_layout.spatial(1) && out_padd.lower_size().feature[0] == 0 &&
+                if (format == format::bfyx && crop_layout.batch() == input_layout.batch() &&
+                    crop_layout.spatial(0) == input_layout.spatial(0) &&
+                    crop_layout.spatial(1) == input_layout.spatial(1) && out_padd.lower_size().feature[0] == 0 &&
                     out_padd.upper_size().feature[0] == 0 && out_padd.lower_size().batch[0] == 0 &&
                     out_padd.upper_size().batch[0] == 0 && out_padd.lower_size().spatial[0] == 0 &&
                     out_padd.lower_size().spatial[1] == 0 && out_padd.upper_size().spatial[0] == 0 &&

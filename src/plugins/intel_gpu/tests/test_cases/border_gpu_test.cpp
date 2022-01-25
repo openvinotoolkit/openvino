@@ -55,7 +55,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
@@ -131,7 +131,7 @@ TEST(border_gpu, basic_fsv16_0x0x1x2_0x0x3x4_border_constant) {
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
@@ -211,7 +211,7 @@ TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
     topology.add(
@@ -424,7 +424,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant_non_constant) {
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
@@ -500,7 +500,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
@@ -578,7 +578,7 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
     topology.add(

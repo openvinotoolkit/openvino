@@ -43,8 +43,8 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         4.0f, 4.0f,
@@ -125,8 +125,8 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2_output_padding) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         4.0f, 4.0f,
@@ -216,8 +216,8 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2_output_size) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         4.0f, 4.0f,
@@ -297,8 +297,8 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2_fp16) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx,{ 2, 2, 2, 1 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 2, 1 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         FLOAT16(4.0f), FLOAT16(4.0f),
@@ -377,8 +377,8 @@ TEST(max_unpooling_gpu, basic_in2x2x3x2_max_with_argmax_pooling_unpooling) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
-    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
+    auto arg_max = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         1.0f, 2.0f, -10.f,

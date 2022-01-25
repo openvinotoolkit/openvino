@@ -597,7 +597,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     && conv_layout.format == wrong_format[i]
                     && data_type_traits::is_i8_u8(old_layout.data_type)
                     && (old_layout.format == wrong_format[i])
-                    && !(old_layout.size.batch[0] == 1 && old_layout.size.feature[0] <= 4)) {
+                    && !(old_layout.batch() == 1 && old_layout.feature() <= 4)) {
                 auto new_layout = old_layout;
                 new_layout.format = correct_format[i];
                 auto new_input = rf.get_reorder(prev_node->id(),
@@ -620,10 +620,11 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto input_layout = input.get_output_layout();
         // Change input data of fully-connected node from bx to bf
         if (format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
-            input_layout.size.feature[0] == 1 && input_layout.size.spatial[0] != 1 && input_layout.size.spatial[1] == 1) {
-            auto new_tensor = input_layout.size;
-            new_tensor.feature[0] = input_layout.size.spatial[0];
+            input_layout.feature() == 1 && input_layout.spatial(0) != 1 && input_layout.spatial(1) == 1) {
+            auto new_tensor = input_layout.get_tensor();
+            new_tensor.feature[0] = input_layout.spatial(0);
             new_tensor.spatial[0] = 1;
+            input_layout = layout(input_layout.data_type, input_layout.format, new_tensor);
             auto new_reshape = std::make_shared<reshape>("reorder:Reshape_bf_" + fc_node.id() + "_for_input", input.id(), new_tensor);
             auto& new_reorder_node = p.get_or_create(new_reshape);
             p.add_intermediate(new_reorder_node, fc_node, 0);

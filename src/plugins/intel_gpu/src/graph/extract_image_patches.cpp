@@ -39,12 +39,12 @@ std::string extract_image_patches_inst::to_string(extract_image_patches_node con
 
     json_composite extract_image_patches_info;
     extract_image_patches_info.add("input id", input.id());
-    extract_image_patches_info.add("input shape", input.get_output_layout().size.to_string());
+    extract_image_patches_info.add("input shape", input.get_output_layout().to_string());
     extract_image_patches_info.add("sizes", sizes.str());
     extract_image_patches_info.add("strides", strides.str());
     extract_image_patches_info.add("rates", rates.str());
     extract_image_patches_info.add("auto_pad", desc->auto_pad);
-    extract_image_patches_info.add("output shape", input.calc_output_layout().size.to_string());
+    extract_image_patches_info.add("output shape", input.calc_output_layout().to_string());
 
     node_info->add("extract_image_patches info", extract_image_patches_info);
     node_info->dump(primitive_description);

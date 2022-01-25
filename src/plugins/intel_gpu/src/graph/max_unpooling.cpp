@@ -73,7 +73,7 @@ layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
                                    0,
                                    "Size Y (of pooling window) must be positive (>= 1)");
 
-    auto output_range = calc_sliding_window_needed_input_range(input_layout.size,
+    auto output_range = calc_sliding_window_needed_input_range(input_layout.get_tensor(),
                                                                window_size,
                                                                pad,
                                                                stride,

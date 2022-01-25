@@ -97,19 +97,5 @@ scale_inst::typed_primitive_inst(network& network, scale_node const& node) : par
                               input_feature_size,
                               "");
     }
-
-    if (!argument.bias.empty()) {
-        auto bias_layout = node.bias().get_output_layout();
-        auto bias_format = bias_layout.format;
-        auto bias_raw_sizes = bias_layout.size.raw;
-
-        CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "Scale format", scale_format.value, "bias format", bias_format);
-
-        for (size_t i = 0; i < bias_layout.size.raw.size(); ++i) {
-            if (scale_layout.size.raw[i] != bias_raw_sizes[i])
-                CLDNN_ERROR_MESSAGE(node.id(),
-                                    "Scale input size do not match bias size! Size index:" + std::to_string(i));
-        }
-    }
 }
 }  // namespace cldnn

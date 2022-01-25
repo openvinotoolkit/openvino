@@ -28,7 +28,7 @@ TEST(resample_gpu, basic_in2x3x2x2_nearest) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
 
     auto output_size = tensor(batch(2), feature(2), spatial(6, 4));
     uint32_t num_filter = 0u;
@@ -100,7 +100,7 @@ TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
 
     auto output_size = tensor(batch(1), feature(1), spatial(4, 4));
     uint32_t num_filter = 1u;
@@ -151,7 +151,7 @@ TEST(resample_gpu, basic_in1x1x2x2_interp) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
 
     auto output_size = tensor(batch(1), feature(1), spatial(4, 4));
 
@@ -201,7 +201,7 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_f16) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
 
     auto output_size = tensor(batch(1), feature(1), spatial(4, 4));
 
@@ -259,7 +259,7 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_fsv32) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
 
     auto output_size = tensor(batch(1), feature(1), spatial(4, 4));
 
@@ -318,7 +318,7 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_align_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
 
     auto output_size = tensor(batch(1), feature(1), spatial(4, 4));
 
@@ -368,7 +368,7 @@ TEST(resample_gpu, nearest_asymmetric) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
 
     auto output_size = tensor(batch(1), feature(1), spatial(5, 4));
 
@@ -419,7 +419,7 @@ TEST(resample_gpu, nearest_asymmetric_i8) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 1, 1, 2, 2 } });
 
     auto output_size = tensor(batch(1), feature(1), spatial(5, 4));
 
@@ -470,7 +470,7 @@ TEST(resample_gpu, bilinear_asymmetric) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 2 } });
 
     auto output_size = tensor(batch(1), feature(1), spatial(6, 4));
 

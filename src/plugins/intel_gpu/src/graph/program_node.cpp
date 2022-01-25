@@ -87,7 +87,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     json_composite output_layout_info;
     output_layout_info.add("data type", dt_to_str(output_layout.data_type));
     output_layout_info.add("format", fmt_to_str(output_layout.format));
-    output_layout_info.add("size", output_layout.size.to_string());
+    output_layout_info.add("size", output_layout.to_string());
 
     json_composite padding_info;
     padding_info.add("lower size", output_layout.data_padding.lower_size().to_string());
@@ -115,7 +115,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
         info.add("format", fmt_to_str(output_layout.format));
-        info.add("size", output_layout.size.to_string());
+        info.add("size", output_layout.to_string());
         fused_node_info.add("output layout", info);
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
@@ -794,7 +794,7 @@ void program_node::init_onednn_primitive_attributes() {
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
-                int oc_dim = node->get_output_layout().size.feature.size();
+                int oc_dim = node->get_output_layout().feature();
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {

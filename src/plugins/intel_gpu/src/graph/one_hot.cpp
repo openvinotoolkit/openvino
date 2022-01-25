@@ -21,7 +21,7 @@ static bool is_output_bfzyx(const layout& input, int32_t axis) {
         return true;
     if (axis == 4)
         return true;
-    auto in_dims = input.size.sizes(format::bfyx);
+    auto in_dims = input.get_dims();
     if (in_dims[3] != 1)
         return true;
     return false;
@@ -68,13 +68,9 @@ std::string one_hot_inst::to_string(one_hot_node const& node) {
 one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
-    const auto& input_sizes = input_layout.size;
     const auto& output_sizes = argument.shape;
 
-    std::vector<tensor::value_type> input_dims = {input_sizes.batch[0],
-                                                  input_sizes.feature[0],
-                                                  input_sizes.spatial[1],
-                                                  input_sizes.spatial[0]};
+    std::vector<tensor::value_type> input_dims = input_layout.get_dims();
     std::vector<tensor::value_type> output_dims = {output_sizes.batch[0],
                                                    output_sizes.feature[0],
                                                    output_sizes.spatial[1],

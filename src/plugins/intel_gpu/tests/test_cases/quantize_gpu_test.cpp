@@ -17,11 +17,11 @@ using namespace ::tests;
 
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 16, 2, 2}});
+    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 16, 1, 1 } });
+    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 16, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -105,10 +105,10 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
 
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 8, 2, 2}});
-    auto input_thresh = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 8, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 8, 2, 2}});
+    auto input_thresh = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 8, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -169,10 +169,10 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
 
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 8, 2, 2}});
-    auto input_thresh = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 8, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 8, 2, 2}});
+    auto input_thresh = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 8, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -235,11 +235,11 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
 
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
     cldnn::engine& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 16, 2, 2}});
+    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -313,11 +313,11 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
 
 TEST(quantize_gpu, quantize_levels_3) {
     cldnn::engine& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 16, 2, 2}});
+    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 16, 1, 1 } });
+    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 16, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -403,11 +403,11 @@ TEST(quantize_gpu, quantize_levels_3) {
 
 TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
     cldnn::engine& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 16, 2, 2}});
+    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 16, 1, 1 } });
+    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 16, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -494,11 +494,11 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
 
 TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
     cldnn::engine& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {1, 16, 2, 1, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, tensor{1, 16, 2, 1, 2}});
+    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 16, 1, 1 } });
+    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 16, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -703,16 +703,16 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         auto input = engine.allocate_memory(in_layout);
         fill_random(input);
 
-        auto input_low   = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto input_high  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto output_low  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto output_high = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+        auto input_low   = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+        auto input_high  = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+        auto output_low  = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+        auto output_high = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
         // For quantize_gpu_scale_shift_opt
-        auto input_scale   = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto input_shift   = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto output_scale  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto output_shift  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+        auto input_scale   = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+        auto input_shift   = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+        auto output_scale  = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+        auto output_shift  = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
         set_values(input_low,  { 0.0f });
         set_values(input_high, { 40.0f });

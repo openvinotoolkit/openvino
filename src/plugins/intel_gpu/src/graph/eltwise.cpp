@@ -22,11 +22,11 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
 
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_node_layout.data_type;
 
-    auto size = input_node_layout.size;
+    auto size = input_node_layout.get_tensor();
     auto format = input_node_layout.format;
     for (size_t i = 1; i < node.inputs_count(); i++) {
         auto l = node.input(i).get_non_padded_output_layout();
-        size = tensor::max(size, l.size);
+        size = tensor::max(size, l.get_tensor());
         if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
             format = format::b_fs_zyx_fsv16;
         else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
@@ -86,10 +86,12 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
     if (!eltw->stride.empty()) {
         // we can safely use only first stride, since we're using first input, and input / stride should give exact same
         // value for every input
-        input_node_layout.size.spatial[0] = (input_node_layout.spatial(0) - 1) / eltw->stride[0].spatial[0] + 1;
-        input_node_layout.size.spatial[1] = (input_node_layout.spatial(1) - 1) / eltw->stride[0].spatial[1] + 1;
-        input_node_layout.size.spatial[2] = (input_node_layout.spatial(2) - 1) / eltw->stride[0].spatial[2] + 1;
-        return input_node_layout;
+        auto t = input_node_layout.get_tensor();
+        t.spatial[0] = (input_node_layout.spatial(0) - 1) / eltw->stride[0].spatial[0] + 1;
+        t.spatial[1] = (input_node_layout.spatial(1) - 1) / eltw->stride[0].spatial[1] + 1;
+        t.spatial[2] = (input_node_layout.spatial(2) - 1) / eltw->stride[0].spatial[2] + 1;
+
+        return layout(input_node_layout.data_type, input_node_layout.format, t);
     }
     return output_layout;
 }
@@ -235,9 +237,10 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       "");
         }
     } else {
-        std::vector<int32_t> input0_size = node.input().get_output_layout().size.raw.vector();
+        // TODO: Align ranks and check if tensors are broadcastable
+        std::vector<int32_t> input0_size = node.input().get_output_layout().get_dims();
         for (size_t i = 1; i < inputs_count; i++) {
-            std::vector<int32_t> input_size = node.input(i).get_output_layout().size.raw.vector();
+            std::vector<int32_t> input_size = node.input(i).get_output_layout().get_dims();
             for (size_t d = 0; d < input0_size.size(); d++) {
                 bool sizes_equal = input0_size[d] == input_size[d];
                 bool broadcast =

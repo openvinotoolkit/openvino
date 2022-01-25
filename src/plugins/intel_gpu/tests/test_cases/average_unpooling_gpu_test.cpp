@@ -36,7 +36,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         2.5f, -4.5f,
@@ -103,7 +103,7 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
 
     set_values(input, {
         1.f, 2.f, -10.f,
@@ -119,7 +119,7 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(pooling("pooling", "input", pooling_mode::average_no_padding, { 2, 2 }, { 2, 2 }));
-    topology.add(average_unpooling("average_unpooling", "pooling", input->get_layout().size, { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
+    topology.add(average_unpooling("average_unpooling", "pooling", input->get_layout().get_tensor(), { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
 
     network network(engine, topology);
 
@@ -175,7 +175,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         2.5f, -4.5f,
@@ -256,7 +256,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     set_values(input, {
         FLOAT16(2.5f), FLOAT16(-4.5f),

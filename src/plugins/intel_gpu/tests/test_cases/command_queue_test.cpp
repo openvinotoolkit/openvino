@@ -18,7 +18,7 @@ void exexute_network(cldnn::engine& engine) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 3, batch_num = 2;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max));

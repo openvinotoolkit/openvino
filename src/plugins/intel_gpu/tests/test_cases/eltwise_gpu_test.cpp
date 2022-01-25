@@ -175,8 +175,8 @@ TEST(eltwise_gpu_f32, equal_in2_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -245,8 +245,8 @@ TEST(eltwise_gpu_f32, not_equal_in2_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -315,8 +315,8 @@ TEST(eltwise_gpu_f32, less_in2_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -385,8 +385,8 @@ TEST(eltwise_gpu_f32, less_equal_in2_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -455,8 +455,8 @@ TEST(eltwise_gpu_f32, greater_in2_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -525,8 +525,8 @@ TEST(eltwise_gpu_f32, greater_equal_in2_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -595,8 +595,8 @@ TEST(eltwise_gpu_f32, logicalAND_in2_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -672,9 +672,9 @@ TEST(eltwise_gpu_f32, logicalAND_in3_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -752,8 +752,8 @@ TEST(eltwise_gpu_f32, logicalOR_in2_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -829,9 +829,9 @@ TEST(eltwise_gpu_f32, logicalOR_in3_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -909,8 +909,8 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input1, {
             1.f,   2.5f, 5.f, 1.5f,
@@ -980,8 +980,8 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1028,8 +1028,8 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
 TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_channel) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1091,8 +1091,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_channel) {
 TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_x) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1160,8 +1160,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_x) {
 TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_y) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1223,8 +1223,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_y) {
 TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_batch) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1288,8 +1288,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_batch) {
 TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_multiple_dims) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1347,8 +1347,8 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_multiple_dims) {
 TEST(eltwise_gpu_f32, pow_in2x2x2x2_broadcast_all) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1404,9 +1404,9 @@ TEST(eltwise_gpu_f32, pow_in2x2x2x2_broadcast_all) {
 TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_same_dim) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1482,9 +1482,9 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_same_dim) {
 TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_diff_dim) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1580,8 +1580,8 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4) {
     //
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1651,8 +1651,8 @@ TEST(eltwise_gpu_f32, sub_basic_in4x4x4x4) {
     //
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1717,16 +1717,16 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
         for (auto& mode : eltwise_ops_to_test)
         {
             auto& engine = get_test_engine();
-            auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-            auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+            auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+            auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
             topology topology;
             topology.add(input_layout("input", input->get_layout()));
             topology.add(input_layout("input2", input2->get_layout()));
-            topology.add(reorder("input_reorder", "input", { data_type, format::yxfb,{ 2, 2, 2, 2 } }));
-            topology.add(reorder("input2_reorder", "input2", { data_type, format::yxfb,{ 2, 2, 2, 2 } }));
+            topology.add(reorder("input_reorder", "input", { data_type, format::yxfb, tensor{ 2, 2, 2, 2 } }));
+            topology.add(reorder("input2_reorder", "input2", { data_type, format::yxfb, tensor{ 2, 2, 2, 2 } }));
             topology.add(eltwise("eltwise", { "input_reorder", "input2_reorder" }, mode));
-            topology.add(reorder("eltwise_reorder", "eltwise", { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
+            topology.add(reorder("eltwise_reorder", "eltwise", { data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } }));
 
             std::vector<float> input_1_vec = {
                 1.f,   0.f,  5.f,  1.f,
@@ -1796,15 +1796,15 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
         for (auto& mode : eltwise_ops_to_test)
         {
             auto& engine = get_test_engine();
-            auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-            auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+            auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+            auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
             topology topology;
             topology.add(input_layout("input", input->get_layout()));
             topology.add(input_layout("input2", input2->get_layout()));
-            topology.add(reorder("input_reorder", "input", { data_type, format::yxfb,{ 2, 2, 2, 2 } }));
+            topology.add(reorder("input_reorder", "input", { data_type, format::yxfb, tensor{ 2, 2, 2, 2 } }));
             topology.add(eltwise("eltwise", { "input_reorder", "input2" }, mode));
-            topology.add(reorder("eltwise_reorder", "eltwise", { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
+            topology.add(reorder("eltwise_reorder", "eltwise", { data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } }));
 
             std::vector<float> input_1_vec = {
                 1.f,   0.f,  5.f,  1.f,
@@ -1882,8 +1882,8 @@ TEST(eltwise_gpu_f32, prod_basic_in4x4x4x4) {
     //
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
@@ -1953,8 +1953,8 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4_input_padding) {
     //
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2027,8 +2027,8 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2075,9 +2075,9 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients) {
 TEST(eltwise_gpu_f32, coefficients_count_check) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2135,9 +2135,9 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients_3inputs) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2222,9 +2222,9 @@ TEST(eltwise_gpu_f32, max_3inputs_in4x4x4x4_input_padding) {
     //
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2311,8 +2311,8 @@ TEST(eltwise_gpu_f32, stride_test_2x2) {
     //
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 4, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 4, 4 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2393,8 +2393,8 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 1, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2585,8 +2585,8 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 2, 2, 2, 2, 1 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 2, 2, 1, 1, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 2, 2, 1 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 1, 1, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -3096,17 +3096,17 @@ TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
 
     // Mem initialization
     // This is user data, no kernels here
-    auto input1 = engine.allocate_memory({ data_types::i8, format::bfyx, { in_B, in_F, in_X, in_Y } });
+    auto input1 = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ in_B, in_F, in_X, in_Y } });
     std::vector<char> data_i1(DataGold);
     for (size_t i = 0; i < data_i1.size(); i++) data_i1[i] = data_i1[i] + 1;
     set_values(input1, std::move(data_i1));
 
-    auto input2 = engine.allocate_memory({ data_types::i8, format::bfyx, { in_B, in_F, in_X, in_Y } });
+    auto input2 = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ in_B, in_F, in_X, in_Y } });
     std::vector<char> data_i2(DataGold);
     for (size_t i = 0; i < data_i2.size(); i++) data_i2[i] = data_i2[i] + 2;
     set_values(input2, std::move(data_i2));
 
-    auto input3 = engine.allocate_memory({ data_types::i8, format::bfyx, { in_B, in_F, in_X, in_Y } });
+    auto input3 = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ in_B, in_F, in_X, in_Y } });
     std::vector<char> data_i3(DataGold);
     for (size_t i = 0; i < data_i3.size(); i++) data_i3[i] = data_i3[i] + 3;
     set_values(input3, std::move(data_i3));
@@ -3161,17 +3161,17 @@ TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
                                  "input1",
                                  layout(data_types::i8,
                                         format::b_fs_yx_fsv4,
-                                        { in_B, in_F, in_X, in_Y })),
+                                        tensor{ in_B, in_F, in_X, in_Y })),
                          reorder("reorder2_Swizzelled",
                                  "input2",
                                  layout(data_types::i8,
                                         format::b_fs_yx_fsv4,
-                                        { in_B, in_F, in_X, in_Y })),
+                                        tensor{ in_B, in_F, in_X, in_Y })),
                          reorder("reorder3_Swizzelled",
                                  "input3",
                                  layout(data_types::i8,
                                         format::b_fs_yx_fsv4,
-                                        { in_B, in_F, in_X, in_Y })));
+                                        tensor{ in_B, in_F, in_X, in_Y })));
 
             auto eltw = eltwise("eltw_IMAD_no_relu",
                                 { "reorder1_Swizzelled",
@@ -3189,7 +3189,7 @@ TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
                                  "eltw_IMAD",
                                  layout(data_types::i8,
                                      format::bfyx,
-                                     { in_B, in_F, in_X, in_Y })));
+                                     tensor{ in_B, in_F, in_X, in_Y })));
 
             // Network processing
             network network(engine, topology);

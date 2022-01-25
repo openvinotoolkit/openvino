@@ -36,7 +36,7 @@ layout shuffle_channels_inst::calc_output_layout(shuffle_channels_node const& no
             node.id(),
             "Invalid group size value (should equal at least one). Actual block size is" + std::to_string(group));
 
-    if (input_layout.size.sizes(format::bfyx)[axis] % group != 0)
+    if (input_layout.get_dims()[axis] % group != 0)
         CLDNN_ERROR_MESSAGE(
             node.id(),
             "Group parameter must evenly divide the channel dimension. Actual group size is " + std::to_string(group));

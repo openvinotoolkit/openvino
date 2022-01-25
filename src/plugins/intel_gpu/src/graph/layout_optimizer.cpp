@@ -122,7 +122,7 @@ std::vector<std::pair<std::shared_ptr<primitive>, bool>> reorder_factory::get_we
         if (intermediate_format != old_layout.format || intermediate_type != old_layout.data_type) {
             const layout intermediate_layout = { intermediate_type,
                                                 intermediate_format,
-                                                old_layout.size.transform(intermediate_format, 1) };
+                                                old_layout.get_tensor().transform(intermediate_format, 1) };
 
             auto reorder = get_reorder(input_id, old_layout, intermediate_layout);
             if (reorder.first) {
@@ -512,8 +512,8 @@ layout_optimizer::layout_optimizer(bool output_size_handling_enabled)
 }
 
 bool layout_optimizer::is_depthwise(const convolution_node& node) const {
-        const int32_t output_channels = *node.get_output_layout().size.feature.begin();
-        const int32_t input_channels = *node.get_dependency(0).get_output_layout().size.feature.begin();
+        const int32_t output_channels = node.get_output_layout().feature();
+        const int32_t input_channels = node.get_dependency(0).get_output_layout().feature();
 
         return (node.get_groups() == static_cast<uint32_t>(input_channels) && input_channels == output_channels && node.get_split() == 1)
                  || (node.get_split() == input_channels && node.get_groups() == 1);
@@ -528,17 +528,17 @@ bool layout_optimizer::convolution_bfyx_opt(layout const& output_layout,
         !((weights_layout.spatial(0) == 1 && weights_layout.spatial(1) == 1) ||
           (weights_layout.spatial(0) >= 5 && weights_layout.spatial(1) >= 5) ||
           (conv->stride[0] > 1 && conv->stride[1] > 1) ||
-          (weights_layout.size.feature[0] <= 32 && output_layout.spatial(0) < 224 &&
+          (weights_layout.feature() <= 32 && output_layout.spatial(0) < 224 &&
            output_layout.spatial(1) < 224) ||
-          (weights_layout.size.feature[0] <= 64 && output_layout.spatial(0) < 112 &&
+          (weights_layout.feature() <= 64 && output_layout.spatial(0) < 112 &&
            output_layout.spatial(1) < 112) ||
-          (weights_layout.size.feature[0] <= 128 && output_layout.spatial(0) < 56 &&
+          (weights_layout.feature() <= 128 && output_layout.spatial(0) < 56 &&
            output_layout.spatial(1) < 56) ||
-          (weights_layout.size.feature[0] <= 256 && output_layout.spatial(0) < 28 &&
+          (weights_layout.feature() <= 256 && output_layout.spatial(0) < 28 &&
            output_layout.spatial(1) < 28) ||
-          (weights_layout.size.feature[0] <= 512 && output_layout.spatial(0) < 14 &&
+          (weights_layout.feature() <= 512 && output_layout.spatial(0) < 14 &&
            output_layout.spatial(1) < 14) ||
-          (weights_layout.size.feature[0] <= 1024 && output_layout.spatial(0) <= 7 &&
+          (weights_layout.feature() <= 1024 && output_layout.spatial(0) <= 7 &&
            output_layout.spatial(1) <= 7)) ||
         // WA for AgeGender, which has one convolution that is better on yxfb, but due to additonal reorder overall
         // performance is worse than bfyx
@@ -564,7 +564,7 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
     }
 
     // A set of rules that define when byxf mem format has better performance
-    if ((output_layout.data_type == data_types::f16 && weights_layout.size.spatial[0] == 1 &&
+    if ((output_layout.data_type == data_types::f16 && weights_layout.spatial(0) == 1 &&
         all_ones(conv->dilation) &&
         !node.get_transposed() &&
          node.get_groups() == 1 &&
@@ -1140,17 +1140,17 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     } else if (_optimization_attributes.b_fs_zyx_fsv16_network &&
         deconvolution_b_fs_zyx_fsv16_opt(current_layout, output_or_weights_layout, prim)) {
         expected_tensor = current_layout.size;
-        if ((current_layout.data_type == data_types::f32 && expected_tensor.batch[0] % 16 == 0) ||
-            (current_layout.data_type == data_types::f16 && expected_tensor.batch[0] % 32 == 0))
+        if ((current_layout.data_type == data_types::f32 && current_layout.batch() % 16 == 0) ||
+            (current_layout.data_type == data_types::f16 && current_layout.batch() % 32 == 0))
             expected_format = cldnn::format::bs_fs_zyx_bsv16_fsv16;
         else
             expected_format = cldnn::format::b_fs_zyx_fsv16;
     } else if (_optimization_attributes.b_fs_yx_fsv16_network &&
                deconvolution_b_fs_yx_fsv16_opt(current_layout, output_or_weights_layout, prim)) {
         expected_tensor = current_layout.size;
-        auto input_tensor = node.get_dependency(0).get_output_layout().size;
-        int input_features = input_tensor.feature[0];
-        int output_features = expected_tensor.feature[0];
+        auto input_layout = node.get_dependency(0).get_output_layout();
+        int input_features = input_layout.feature();
+        int output_features = current_layout.feature();
         float f_cost = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
         float stride_cost = 1 / static_cast<float>(prim->stride[prim->stride.size() - 1]);
         if (f_cost * stride_cost > 0.1f)
@@ -1517,9 +1517,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         auto fc_prim = node.as<fully_connected>().get_primitive();
         auto out_layout = node.get_output_layout();
         size_t rank = cldnn::format::dimension(out_layout.format);
-        auto size = out_layout.size;
         for (int i = 0; i < rank - 2 - (fc_prim->input_size == 3 ? 1 : 0); i++) {
-            if (size.spatial[i] != 1) {
+            if (out_layout.spatial(i) != 1) {
                 impl_candidate = impl_types::ocl;
                 break;
             }
@@ -1585,8 +1584,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             if (use_onednn_impls && layout.batch() % 32 == 0) {
                 if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>()) {
                     auto& conv = node.get_users().front()->as<convolution>();
-                    auto ws = conv.get_dependency(1).get_output_layout().size;
-                    if (ws.spatial[0] != 7 || conv.get_primitive()->groups > 1 || layout.size.feature[0] == 1)
+                    auto ws = conv.get_dependency(1).get_output_layout();
+                    if (ws.spatial(0) != 7 || conv.get_primitive()->groups > 1 || layout.feature() == 1)
                         expected = format::bfyx;
                     else
                         expected = format::bs_fs_yx_bsv8_fsv4;
@@ -1606,8 +1605,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             } else {
                 if (use_onednn_impls && layout.batch() % 16 == 0 && node.get_users().front()->is_type<convolution>()) {
                     auto& conv = node.get_users().front()->as<convolution>();
-                    auto ws = conv.get_dependency(1).get_output_layout().size;
-                    if (data_type_traits::is_floating_point(conv.get_output_layout().data_type) || ws.spatial[0] != 7 || conv.get_primitive()->groups > 1)
+                    auto ws = conv.get_dependency(1).get_output_layout();
+                    if (data_type_traits::is_floating_point(conv.get_output_layout().data_type) || ws.spatial(0) != 7 || conv.get_primitive()->groups > 1)
                         expected = format::bfyx;
                     else
                         expected = format::bs_fs_yx_bsv4_fsv4;

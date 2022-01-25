@@ -22,7 +22,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node) {
            "Output data type forcing is not supported for reshape_node!");
     auto input_layout = node.input().get_non_padded_output_layout();
     auto sizes = node.get_primitive()->output_shape.sizes();
-    auto input_sizes = input_layout.size.sizes();
+    auto input_sizes = input_layout.get_dims();
     size_t need_recalc = 0;
     uint32_t shape_count = 1;
 
@@ -40,10 +40,9 @@ layout reshape_inst::calc_output_layout(reshape_node const& node) {
         shape_count *= sizes[i];
     }
     if (need_recalc)
-        sizes[need_recalc] = static_cast<int>(input_layout.size.count()) / shape_count;
+        sizes[need_recalc] = static_cast<int>(input_layout.count()) / shape_count;
 
-    input_layout.size = tensor(sizes);
-    return input_layout;
+    return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
 }
 
 std::string reshape_inst::to_string(reshape_node const& node) {

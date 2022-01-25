@@ -73,8 +73,8 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
     : parent(network, node),
       _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true(), true)),
       _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false(), true)) {
-    auto compare_tensor = node.compare().get_output_layout().size;
-    auto input_tensor = node.input().get_output_layout().size;
+    auto compare_tensor = node.compare().get_output_layout().get_tensor();
+    auto input_tensor = node.input().get_output_layout().get_tensor();
     CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
                                           "Compare tensor",
                                           compare_tensor,

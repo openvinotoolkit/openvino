@@ -23,7 +23,7 @@ TEST(memory_tests, DISABLED_execution_loop)
 {
     engine eng;
 
-    memory in = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1, 1, 1000, 1000 } });
+    memory in = memory::allocate(eng, layout{ data_types::f32, format::bfyx, tensor{ 1, 1, 1000, 1000 } });
 
     topology tpl{
         input_layout("in", in->get_layout()),
@@ -43,7 +43,7 @@ TEST(memory_tests, DISABLED_network_creation_loop)
 {
     engine eng;
 
-    memory in = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1, 1, 1000, 1000 } });
+    memory in = memory::allocate(eng, layout{ data_types::f32, format::bfyx, tensor{ 1, 1, 1000, 1000 } });
 
     topology tpl{
         input_layout("in", in->get_layout()),
@@ -66,7 +66,7 @@ TEST(memory_pool, basic_non_padded_relu_pipe) {
     auto x_size = 1;
     auto y_size = 1;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -99,7 +99,7 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
     auto x_size = 4;
     auto y_size = 4;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -133,7 +133,7 @@ TEST(memory_pool, multi_outputs_network) {
     auto x_size = 4;
     auto y_size = 4;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -171,7 +171,7 @@ TEST(memory_pool, oooq) {
     auto x_size = 4;
     auto y_size = 4;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -209,7 +209,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     auto inp_x_size = 4;
     auto inp_y_size = 4;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, tensor{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
 
     set_values(input,
     {   1.0f, 2.5f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 6.1f, 4.7f, 1.0f, 1.0f, 8.2f, 1.0f, 2.0f, 1.0f,
@@ -286,8 +286,8 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
     auto inp_x_size = 4;
     auto inp_y_size = 4;
 
-    auto input= engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
-    auto weights = engine->allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+    auto input= engine->allocate_memory({ data_types::f32, format::bfyx, tensor{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
+    auto weights = engine->allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 2 } });
 
     std::vector<float> dummy_input_data_1 = {
        /*f0 xy*/ 0.8f, 0.65f, 0.1f, 1.0f, 1.0f, 0.5f, 0.11f, 0.33f, 0.66f, 0.11f, 0.22f, 0.33f, 0.99f, 0.8f, 0.7f, 0.5f,
@@ -373,7 +373,7 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     layout lay_batch_8 = { dt, fmt, { tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_8)) }};
     auto input_1 = engine->allocate_memory(lay_batch_1);
     auto input_8 = engine->allocate_memory(lay_batch_8);
-    auto weights = engine->allocate_memory({ dt, fmt, { 1, 3, 3, 2 } });
+    auto weights = engine->allocate_memory({ dt, fmt, tensor{ 1, 3, 3, 2 } });
 
     std::vector<float> dummy_input_data_1 = generate_random_1d<float>(batch_1 * feature_num * inp_x_size * inp_y_size, 0, 1);
     std::vector<float> dummy_input_data_8 = generate_random_1d<float>(batch_8 * feature_num * inp_x_size * inp_y_size, 0, 1);
@@ -456,12 +456,12 @@ TEST(memory_pool, shared_dep_two_output) {
 
 TEST(memory_pool, non_opt_intermidate_opt_after) {
     auto& engine = get_test_engine();
-    auto input_layout1 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 2, 2 });
-    auto input_layout2 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 2, 2 });
+    auto input_layout1 = layout(cldnn::data_types::f32, cldnn::format::bfyx, tensor{ 1, 1, 2, 2 });
+    auto input_layout2 = layout(cldnn::data_types::f32, cldnn::format::bfyx, tensor{ 1, 1, 2, 2 });
 
     auto input_memory1 = engine.allocate_memory(input_layout1);
     auto input_memory2 = engine.allocate_memory(input_layout2);
-    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 1, 1 }));
+    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, tensor{ 1, 1, 1, 1 }));
     auto data_memory = cldnn::data("scale_mem", scale_memory);
 
     set_values(input_memory1, { 1.0f, 2.0f, 3.0f, 4.0f });
@@ -507,10 +507,10 @@ TEST(memory_pool, non_opt_intermidate_opt_after) {
 TEST(memory_pool, add_mem_dep_test) {
     auto& engine = get_test_engine();
 
-    auto input_layout1 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 2, 2, 2 });
+    auto input_layout1 = layout(cldnn::data_types::f32, cldnn::format::bfyx, tensor{ 1, 2, 2, 2 });
 
     auto input_memory1 = engine.allocate_memory(input_layout1);
-    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 1, 1 }));
+    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, tensor{ 1, 1, 1, 1 }));
     auto data_memory = cldnn::data("scale_mem", scale_memory);
 
     set_values(input_memory1, { 1.0f, 2.0f, 3.0f, 4.0f,

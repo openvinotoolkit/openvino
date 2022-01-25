@@ -92,11 +92,11 @@ TYPED_TEST_SUITE(SliceTest, DataTypes);
 
 TYPED_TEST(SliceTest, bfyx_positive_step) {
     this->input_shape_ = { 1, 2, 100, 12 };
-    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
     set_values<int64_t>(this->start_, {0, 1, 0, 1});
-    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
     set_values<int64_t>(this->stop_, { 1, 2, 5, 100 });
-    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
     set_values<int64_t>(this->step_, { 1, 1, 1, 10 });
     this->output_shape_ = { 1, 1, 5, 10 };
     this->expected_output_ = {
@@ -110,11 +110,11 @@ TYPED_TEST(SliceTest, bfyx_positive_step) {
 
 TYPED_TEST(SliceTest, bfyx_negative_step) {
     this->input_shape_ = { 1, 2, 100, 12 };
-    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
     set_values<int64_t>(this->start_, { 1, 2, 5, 100 });
-    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
     set_values<int64_t>(this->stop_, {0, 1, 0, 1});
-    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
     set_values<int64_t>(this->step_, { -1, -1, -1, -10 });
     this->output_shape_ = { 1, 1, 5, 10 };
     this->expected_output_ = {
@@ -128,11 +128,11 @@ TYPED_TEST(SliceTest, bfyx_negative_step) {
 
 TYPED_TEST(SliceTest, bfzyx) {
     this->input_shape_ = { 2, 3, 10, 12, 5 };
-    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, { 5, 1, 1, 1 } });
+    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, tensor{ 5, 1, 1, 1 } });
     set_values<int64_t>(this->start_, { 0, 0, 0, 0, 0 });
-    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, { 5, 1, 1, 1 } });
+    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, tensor{ 5, 1, 1, 1 } });
     set_values<int64_t>(this->stop_, {1, 2, 2, 2, 2});
-    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, { 5, 1, 1, 1 } });
+    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, tensor{ 5, 1, 1, 1 } });
     set_values<int64_t>(this->step_, { 1, 1, 1, 1, 1 });
     this->output_shape_ = { 1, 2, 2, 2, 2 };
     this->expected_output_ = {

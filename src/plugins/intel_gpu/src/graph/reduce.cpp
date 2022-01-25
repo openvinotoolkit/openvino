@@ -26,7 +26,7 @@ layout reduce_inst::calc_output_layout(reduce_node const& node) {
     auto output_type = input_layout.data_type;
     auto mode = desc->mode;
     auto reduce_axes = desc->axes;
-    auto in_dims = input_layout.size.sizes();
+    auto in_dims = input_layout.get_dims();
 
     for (size_t a = 0; a < reduce_axes.size(); a++) {
         in_dims[reduce_axes[a]] = 1;

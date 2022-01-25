@@ -112,7 +112,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<float>(input, true, 8, 100);
 
@@ -139,7 +139,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<float>(input, true, 8, 100);
 
@@ -166,7 +166,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_outside_sqrt_fp16) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<FLOAT16>(input, true, 8, 100);
 
@@ -193,7 +193,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_fp16) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<FLOAT16>(input, true, 8, 100);
 
@@ -220,7 +220,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<float>(input, true, 8, 100);
 
@@ -247,7 +247,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<float>(input, true, 8, 100);
 
@@ -274,7 +274,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<FLOAT16>(input, true, 8, 100);
 
@@ -301,7 +301,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance_
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<FLOAT16>(input, true, 8, 100);
 
@@ -328,7 +328,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<float>(input, true, 8, 100);
 
@@ -355,7 +355,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt__bfyx) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<float>(input, true, 8, 100);
 
@@ -382,7 +382,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx_fp16) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<FLOAT16>(input, true, 8, 100);
 
@@ -409,7 +409,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_fp16) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<FLOAT16>(input, true, 8, 100);
 
@@ -436,7 +436,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx_normalize_variance
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<float>(input, true, 8, 100);
 
@@ -463,7 +463,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_normalize_variance)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<float>(input, true, 8, 100);
 
@@ -490,7 +490,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx_normalize_variance
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<FLOAT16>(input, true, 8, 100);
 
@@ -517,7 +517,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_normalize_variance_
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {7, 10, 17, 13}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, tensor{7, 10, 17, 13}});
 
     tests::set_random_values<FLOAT16>(input, true, 8, 100);
 

@@ -2680,7 +2680,7 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_sum_out) {
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         eltwise("shift", { "conv_prim", "shift_data" }, eltwise_mode::sum, data_types::f32),
         // Add 'not fusable' primitive to be able to test full size tensor sum
-        crop("crop", "shift", get_output_layout(p).size, { 0, 0, 0, 0 }),
+        crop("crop", "shift", get_output_layout(p).get_tensor(), tensor{ 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 
@@ -2698,7 +2698,7 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_prod_out) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()) ),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod, data_types::u8),
-        crop("crop", "scale", get_output_layout(p).size, { 0, 0, 0, 0 }),
+        crop("crop", "scale", get_output_layout(p).get_tensor(), tensor{ 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 
@@ -2998,7 +2998,7 @@ TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation, p.out_shape, data_types::f32, false),
         eltwise("sum", { "conv_prim", "sum_data" }, eltwise_mode::sum, data_types::f32),
         eltwise("scale", { "sum", "scale_data" }, eltwise_mode::prod, data_types::f32),
-        crop("crop", "scale", get_output_layout(p).size, { 0, 0, 0, 0 }),
+        crop("crop", "scale", get_output_layout(p).get_tensor(), tensor{ 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 

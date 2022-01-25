@@ -31,7 +31,7 @@ layout pyramid_roi_align_inst::calc_output_layout(pyramid_roi_align_node const& 
     int32_t output_x = desc->output_size;
     int32_t output_y = desc->output_size;
 
-    return layout{P2_layout.data_type, P2_layout.format, {output_b, output_f, output_x, output_y}};
+    return layout{P2_layout.data_type, P2_layout.format, tensor{output_b, output_f, output_x, output_y}};
 }
 
 std::string pyramid_roi_align_inst::to_string(pyramid_roi_align_node const& node) {

@@ -20,9 +20,9 @@ TEST(propagate_constants, copy_dependecies_from_nodes) {
     build_options build_opt;
     build_opt.set_option(build_option::optimize_data(true));
 
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto weights1 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 1 } });
-    auto weights2 = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 1, 1, 2 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto weights1 = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, 1, 2, 1 } });
+    auto weights2 = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 1, 1, 1, 2 } });
 
     set_values(input, { FLOAT16(1.1f), FLOAT16(1.2f), FLOAT16(1.3f), FLOAT16(1.4f) });
     set_values(weights1, { FLOAT16(2.1f), FLOAT16(3.1f) });

@@ -103,7 +103,7 @@ std::string value_macro(const std::string& name, const std::string& value) {
 static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const std::string& name, const layout& l) {
     // Size (in elements)
     // #define INPUT0_DIMS (uint[]) { b, f, y, x, }
-    mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_DIMS", l.size.sizes(format::bfyx)));
+    mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_DIMS", l.get_dims()));
 
     // Data type
     // #define INPUT0_TYPE float

@@ -14,7 +14,7 @@ using namespace ::tests;
 TEST(gpu_streams, can_create_networks_for_stream) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 5, 4 } });
     set_values(input,
                { 1.0f, -2.0f, -3.0f, 4.0f, 5.0f,
                  2.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -58,13 +58,13 @@ TEST(gpu_streams, can_create_networks_for_stream) {
 TEST(gpu_streams, check_networks_can_use_the_same_weights) {
     auto& engine = get_test_engine();
 
-    auto weights = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
+    auto weights = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 3, 2 } });
 
     VVF<float> output_vec = {
             { 20.0f, 27.0f, 38.0f },
             { 17.0f, 19.0f, 19.0f } };
 
-    layout input0_layout(data_types::f32, format::yxfb, { 1, 1, 5, 4 });
+    layout input0_layout(data_types::f32, format::yxfb, tensor{ 1, 1, 5, 4 });
 
     topology topology(
             input_layout("input", input0_layout),
@@ -122,13 +122,13 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
 TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
     auto& engine = get_test_engine();
 
-    auto weights = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
+    auto weights = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1, 1, 3, 2 } });
 
     VVF<float> output_vec = {
             { 20.0f, 27.0f, 38.0f },
             { 17.0f, 19.0f, 19.0f } };
 
-    layout input0_layout(data_types::f32, format::bfyx, { 1, 1, 5, 4 });
+    layout input0_layout(data_types::f32, format::bfyx, tensor{ 1, 1, 5, 4 });
 
     topology topology(
             input_layout("input", input0_layout),

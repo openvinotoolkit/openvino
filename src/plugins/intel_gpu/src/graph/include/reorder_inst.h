@@ -44,7 +44,7 @@ public:
 
 private:
     bool req_reinterpr = false;
-    layout input_layout = layout(data_types::f32, format::bfyx, { 0, 0, 0, 0 });
+    layout input_layout = layout(data_types::f32, format::bfyx, tensor{ 0, 0, 0, 0 });
 };
 
 using reorder_node = typed_program_node<reorder>;

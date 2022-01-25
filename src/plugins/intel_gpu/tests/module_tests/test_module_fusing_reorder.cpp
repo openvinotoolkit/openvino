@@ -41,10 +41,10 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     auto& engine = get_test_engine();
 #endif
 
-    layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, {1, 32, 2, 2}, padding({0, }, 0));
-    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 2, 2} });
-    auto weights = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 2, 2} });
-    auto bias = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 1, 1} });
+    layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, tensor{1, 32, 2, 2}, padding({0, }, 0));
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{1, 3, 2, 2} });
+    auto weights = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{1, 3, 2, 2} });
+    auto bias = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{1, 3, 1, 1} });
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
@@ -83,10 +83,10 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     auto& engine = get_test_engine();
 #endif
 
-    layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, {1, 32, 2, 2}, padding({0, }, 0));
-    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 2, 2} });
-    auto weights = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 2, 2} });
-    auto bias = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 1, 1} });
+    layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, tensor{1, 32, 2, 2}, padding({0, }, 0));
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{1, 3, 2, 2} });
+    auto weights = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{1, 3, 2, 2} });
+    auto bias = engine.allocate_memory({ data_types::u8, format::bfyx, tensor{1, 3, 1, 1} });
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));

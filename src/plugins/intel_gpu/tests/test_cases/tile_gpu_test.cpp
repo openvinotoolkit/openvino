@@ -57,8 +57,8 @@ void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis,
 TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -86,8 +86,8 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
 TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -118,8 +118,8 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
 TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 4 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -150,8 +150,8 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
 TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 4, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -182,8 +182,8 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
 TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 1, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 4, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -210,8 +210,8 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
 TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 1, 2, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 1, 2, 2, 2, 4 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));

@@ -21,10 +21,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -78,10 +78,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -135,10 +135,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -194,10 +194,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -253,10 +253,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
     // Output (BFYX): 1x1x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -309,10 +309,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
     // Output (BFYX): 1x1x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -365,10 +365,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
     // Output (BFYX): 2x2x2x3
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 3, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 4 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
@@ -428,10 +428,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
     // Output (BFYX): 2x2x2x3
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 3, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 4 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
@@ -491,10 +491,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
     // Output (BFYX): 1x2x4x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 4, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 4, 4 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f,
@@ -574,10 +574,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
     // Output (BFYX): 1x2x4x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 4, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 4, 4 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f,
@@ -655,10 +655,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
     // Output (BFYX): 1x2x2x4
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 4 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
@@ -711,10 +711,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
     // Output (BFYX): 1x2x2x4
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 4 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
@@ -767,10 +767,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
     // Output (BFYX): 1x2x1x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
@@ -821,10 +821,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
     // Output (BFYX): 1x2x1x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
@@ -874,10 +874,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
     // Output (BFYX): 2x2x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
@@ -927,10 +927,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
     // Output (BFYX): 2x2x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 2, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 2, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 2, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 2, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 2, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
@@ -980,10 +980,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
     // Output (BFZYX): 1x2x2x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 1, 1, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
@@ -1033,10 +1033,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
     // Output (BFZYX): 1x2x2x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 1, 1, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
@@ -1087,10 +1087,10 @@ TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
     // Output (BFZYX): 1x2x2x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::i8, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::i8, format::bfzyx, tensor{ 2, 2, 1, 1, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
 
     set_values<int8_t>(input, {
             0, 1, 2, 3, 4, 5, 6, 7
@@ -1139,10 +1139,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
     // Output (BFZYX): 2x1x1x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 1, 1, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
@@ -1192,10 +1192,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
     // Output (BFZYX): 2x1x1x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 1, 1, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
@@ -1248,10 +1248,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -1305,10 +1305,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -1359,10 +1359,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
     // Output (BFZYX): 2x1x1x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 1, 1, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
@@ -1412,10 +1412,10 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
     // Output (BFZYX): 2x1x1x1x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 1, 1, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 3, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f

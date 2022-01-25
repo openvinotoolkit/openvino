@@ -23,9 +23,9 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -83,8 +83,8 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -138,9 +138,9 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 2, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 2, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 2, 1};
 
     /*
@@ -231,9 +231,9 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 3, 2 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 3, 2};
 
     /*
@@ -374,10 +374,10 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -438,10 +438,10 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -503,10 +503,10 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -566,9 +566,9 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -626,10 +626,10 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 3, 2 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 3, 2};
 
     /*
@@ -772,10 +772,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -837,10 +837,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -902,10 +902,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -965,9 +965,9 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -1025,10 +1025,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 5, 2, 3, 2 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 3, 2};
 
     /*
@@ -1169,9 +1169,9 @@ TEST(embedding_bag_fp32_gpu, packed_sum_basic) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f32, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -1230,9 +1230,9 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f32, format::bfyx, { 5, 2, 3, 2 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 5, 2, 3, 2 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 3, 2};
 
     /*
@@ -1371,9 +1371,9 @@ TEST(embedding_bag_fp32_gpu, extended5_6) {
     //  Input values in fp16
     auto& engine = get_test_engine();
 
-    auto emb_table = engine.allocate_memory({ data_types::f32, format::bfyx, { 5, 6, 1, 1 } });
-    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 5, 1, 1, 1 } });
-    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 5, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 5, 6, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 5, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 5, 1, 1, 1 } });
     tensor output_shape = {5, 6, 1, 1};
 
     set_values(emb_table, {

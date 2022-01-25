@@ -48,7 +48,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
     auto crop_x_size = x_size - 2;
     auto crop_y_size = y_size - 2;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -92,7 +92,7 @@ TEST(crop_gpu, basic_in2x2x2x3_crop_all) {
     auto crop_x_size = x_size - 1;
     auto crop_y_size = y_size - 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -143,7 +143,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all) {
     auto crop_x_size = x_size - 2;
     auto crop_y_size = y_size - 2;
 
-    auto input = engine.allocate_memory({ data_types::i32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::i32, format::yxfb, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -191,7 +191,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all) {
     auto crop_x_size = x_size - 2;
     auto crop_y_size = y_size - 2;
 
-    auto input = engine.allocate_memory({ data_types::i64, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::i64, format::yxfb, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -239,7 +239,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_bfyx) {
     auto crop_x_size = x_size - 2;
     auto crop_y_size = y_size - 1;
 
-    auto input = engine.allocate_memory({ data_types::f32,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -288,7 +288,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_bfyx) {
     auto crop_x_size = x_size - 2;
     auto crop_y_size = y_size - 1;
 
-    auto input = engine.allocate_memory({ data_types::i32,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::i32,format::bfyx, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -337,7 +337,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_bfyx) {
     auto crop_x_size = x_size - 2;
     auto crop_y_size = y_size - 1;
 
-    auto input = engine.allocate_memory({ data_types::i64,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::i64,format::bfyx, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -386,7 +386,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_fyxb) {
     auto crop_x_size = x_size - 2;
     auto crop_y_size = y_size - 1;
 
-    auto input = engine.allocate_memory({ data_types::f32,format::fyxb,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::f32,format::fyxb, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -433,7 +433,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_fyxb) {
     auto crop_x_size = x_size - 2;
     auto crop_y_size = y_size - 1;
 
-    auto input = engine.allocate_memory({ data_types::i32,format::fyxb,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::i32,format::fyxb, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -480,7 +480,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_fyxb) {
     auto crop_x_size = x_size - 2;
     auto crop_y_size = y_size - 1;
 
-    auto input = engine.allocate_memory({ data_types::i64,format::fyxb,{ batch_num, feature_num, x_size, y_size } });
+    auto input = engine.allocate_memory({ data_types::i64,format::fyxb, tensor{ batch_num, feature_num, x_size, y_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -539,7 +539,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_offsets) {
     auto x_offset = 1;
     auto y_offset = 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -604,7 +604,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_offsets) {
     auto x_offset = 1;
     auto y_offset = 1;
 
-    auto input = engine.allocate_memory({ data_types::i32, format::yxfb,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine.allocate_memory({ data_types::i32, format::yxfb, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -669,7 +669,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_offsets) {
     auto x_offset = 1;
     auto y_offset = 1;
 
-    auto input = engine.allocate_memory({ data_types::i64, format::yxfb,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine.allocate_memory({ data_types::i64, format::yxfb, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -748,7 +748,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
     auto crop_y_size = 1;
     auto feature_offset_1 = 0;
     auto feature_offset_2 = 3;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -794,7 +794,7 @@ TEST(crop_gpu, basic_in1x4x1x1_crop_pad) {
     auto crop_x_size = 1;
     auto crop_y_size = 1;
     auto feature_offset_1 = 0;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     padding in_pad({0, 0, 1, 1}, {0, 0, 1, 1});
     auto padded_layout = input->get_layout().with_padding(in_pad);
@@ -864,7 +864,7 @@ TEST(crop_gpu, basic_i32_in1x4x1x1_split) {
     auto crop_y_size = 1;
     auto feature_offset_1 = 0;
     auto feature_offset_2 = 3;
-    auto input = engine.allocate_memory({ data_types::i32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -939,7 +939,7 @@ TEST(crop_gpu, basic_i64_in1x4x1x1_split) {
     auto crop_y_size = 1;
     auto feature_offset_1 = 0;
     auto feature_offset_2 = 3;
-    auto input = engine.allocate_memory({ data_types::i64, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1014,7 +1014,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     auto crop_y_size = 1;
     auto feature_offset_1 = 0;
     auto feature_offset_2 = 3;
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, tensor{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1072,7 +1072,7 @@ TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
     auto crop_y_size = y_size - 1;
     auto crop_z_size = z_size - 1;
 
-    auto input = engine.allocate_memory({ data_types::f32,format::bfzyx,{ batch_num, feature_num, x_size, y_size, z_size } });
+    auto input = engine.allocate_memory({ data_types::f32,format::bfzyx, tensor{ batch_num, feature_num, x_size, y_size, z_size } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));

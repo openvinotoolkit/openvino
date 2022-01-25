@@ -224,11 +224,11 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
         }
     }
 
-    memory::ptr input = engine.allocate_memory({ dt, format::bfyx,     { batch_size,   sequence_len,  input_size,      1 } });
-    memory::ptr weights = engine.allocate_memory({ dt, format::bfyx,   { 1,            direction,     input_size,      4 * hidden_size } });
-    memory::ptr recurrent = engine.allocate_memory({ dt, format::bfyx, { 1,            direction,     hidden_size,     4 * hidden_size } });
-    memory::ptr biases = engine.allocate_memory({ dt, format::bfyx,    { 1,            1,             4 * hidden_size, direction } });
-    memory::ptr hidden = engine.allocate_memory({ dt, format::bfyx,    { batch_size,   direction,     hidden_size,     1 } });
+    memory::ptr input = engine.allocate_memory({ dt, format::bfyx,     tensor{ batch_size,   sequence_len,  input_size,      1 } });
+    memory::ptr weights = engine.allocate_memory({ dt, format::bfyx,   tensor{ 1,            direction,     input_size,      4 * hidden_size } });
+    memory::ptr recurrent = engine.allocate_memory({ dt, format::bfyx, tensor{ 1,            direction,     hidden_size,     4 * hidden_size } });
+    memory::ptr biases = engine.allocate_memory({ dt, format::bfyx,    tensor{ 1,            1,             4 * hidden_size, direction } });
+    memory::ptr hidden = engine.allocate_memory({ dt, format::bfyx,    tensor{ batch_size,   direction,     hidden_size,     1 } });
 
     set_values(input, ref_input_vec);
     set_values(weights, ref_weights_vec);
@@ -300,8 +300,8 @@ void generic_lstm_elt_gpu_test(int /* sequence_len */, int direction, int batch_
         }
     }
 
-    memory::ptr tempGEMM = engine.allocate_memory({ dt, format::bfyx,{ batch_size,    direction, 4 * hidden_size, 1 } });
-    memory::ptr cell = engine.allocate_memory({ dt, format::bfyx,{ batch_size,    direction,     hidden_size, 1 } });
+    memory::ptr tempGEMM = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size,    direction, 4 * hidden_size, 1 } });
+    memory::ptr cell = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size,    direction,     hidden_size, 1 } });
     set_values(tempGEMM, ref_tempGEMM_vec);
     set_values(cell, ref_cell_vec);
 
@@ -346,7 +346,7 @@ std::string get_string_id(size_t i) {
 void generate_lstm_topology(topology& t, memory::ptr input, memory::ptr hidden, memory::ptr cell,
     memory::ptr weights, memory::ptr recurrent, memory::ptr biases, int sequence_len,
     bool hasBias = true, bool hasInitialHidden = true, bool hasInitialCell = true) {
-    auto hidden_size = hidden->get_layout().size;
+    auto hidden_size = hidden->get_layout().get_tensor();
     t.add(input_layout("input", input->get_layout()));
     std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
     std::vector<primitive_id> output_ids_offsets;
@@ -418,12 +418,12 @@ void generic_lstm_custom_gpu_test(int sequence_len, int direction, int batch_siz
         hasBias, hasInitialHidden, hasInitialCell);
 
     auto& engine = get_test_engine();
-    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ batch_size, sequence_len,  input_size,       1 } });
-    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1,          direction,     input_size,       4 * hidden_size } });
-    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1,          direction,     hidden_size,      4 * hidden_size } });
-    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1,          1,             4 * hidden_size,  direction } });
-    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ batch_size, direction,     hidden_size,      1 } });
-    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ batch_size, direction,     hidden_size,      1 } });
+    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ batch_size, sequence_len,  input_size,       1 } });
+    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1,          direction,     input_size,       4 * hidden_size } });
+    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1,          direction,     hidden_size,      4 * hidden_size } });
+    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1,          1,             4 * hidden_size,  direction } });
+    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ batch_size, direction,     hidden_size,      1 } });
+    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ batch_size, direction,     hidden_size,      1 } });
     set_values(input, ref_input_vec);
     set_values(weights, ref_weights_vec);
     set_values(recurrent, ref_recurrent_vec);
@@ -531,7 +531,7 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
         }
     }
 
-    memory::ptr input = engine.allocate_memory({ dt, format::bfyx, {batch_size, sequence_len, input_size, 1} });
+    memory::ptr input = engine.allocate_memory({ dt, format::bfyx, tensor{batch_size, sequence_len, input_size, 1} });
     set_values(input, ref_input_vec);
 
     std::vector<memory::ptr> weights;
@@ -540,20 +540,20 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
     std::vector<memory::ptr> hidden;
     std::vector<memory::ptr> cell;
     for(int i = 0; i < layers; ++i) {
-        weights.push_back(engine.allocate_memory({ dt, format::bfyx, { 1, direction, i==0 ? input_size : hidden_size, 4 * hidden_size } }));
+        weights.push_back(engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, i==0 ? input_size : hidden_size, 4 * hidden_size } }));
         set_values(weights[i], ref_weights_vec[i]);
-        recurrent.push_back(engine.allocate_memory({ dt, format::bfyx, { 1, direction, hidden_size, 4 * hidden_size } }));
+        recurrent.push_back(engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, hidden_size, 4 * hidden_size } }));
         set_values(recurrent[i], ref_recurrent_vec[i]);
         if (hasBias) {
-            biases.push_back(engine.allocate_memory({ dt, format::bfyx, { 1, 1, 4 * hidden_size, direction } }));
+            biases.push_back(engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, 4 * hidden_size, direction } }));
             set_values(biases[i], ref_bias_vec[i]);
         }
         if (hasInitialHidden) {
-            hidden.push_back(engine.allocate_memory({ dt, format::bfyx, { batch_size, 1, hidden_size, direction } }));
+            hidden.push_back(engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, 1, hidden_size, direction } }));
             set_values(hidden[i], ref_hidden_vec[i]);
         }
         if (hasInitialCell) {
-            cell.push_back(engine.allocate_memory({ dt, format::bfyx, { batch_size, 1, hidden_size, direction} }));
+            cell.push_back(engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, 1, hidden_size, direction} }));
             set_values(cell[i], ref_cell_vec[i]);
         }
     }
@@ -678,12 +678,12 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
 
     auto& engine = get_test_engine();
 
-    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {batch_size, sequence_len, input_size, 1} });
-    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, input_size , 4 * hidden_size } });
-    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, hidden_size, 4 * hidden_size } });
-    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, 1, 4 * hidden_size, directions } });
-    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, directions } });
-    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, directions } });
+    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{batch_size, sequence_len, input_size, 1} });
+    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, directions, input_size , 4 * hidden_size } });
+    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, directions, hidden_size, 4 * hidden_size } });
+    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 1, 4 * hidden_size, directions } });
+    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ batch_size, 1, hidden_size, directions } });
+    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ batch_size, 1, hidden_size, directions } });
 
     set_values(input, ref_input_vec);
     set_values(weights, ref_weights_vec);
@@ -841,12 +841,12 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
 
     auto& engine = get_test_engine();
 
-    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value,format, {batch_size, sequence_len, input_size, 1} });
-    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, input_size , 4 * hidden_size } });
-    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, hidden_size, 4 * hidden_size } });
-    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, 1, 4 * hidden_size, directions } });
-    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format, { batch_size, 1, hidden_size, directions } });
-    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format, { batch_size, 1, hidden_size, directions } });
+    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value,format, tensor{batch_size, sequence_len, input_size, 1} });
+    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, directions, input_size , 4 * hidden_size } });
+    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, directions, hidden_size, 4 * hidden_size } });
+    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 1, 4 * hidden_size, directions } });
+    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format, tensor{ batch_size, 1, hidden_size, directions } });
+    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format, tensor{ batch_size, 1, hidden_size, directions } });
 
     set_values(input, ref_input_vec);
     set_values(weights, ref_weights_vec);
@@ -1020,12 +1020,12 @@ void lstm_gpu_users_test() {
 
     auto& engine = get_test_engine();
 
-    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {batch_size, sequence_len, input_size, 1} });
-    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, input_size , 4 * hidden_size } });
-    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, hidden_size, 4 * hidden_size } });
-    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, 1, 4 * hidden_size, directions } });
-    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, directions } });
-    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, directions } });
+    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{batch_size, sequence_len, input_size, 1} });
+    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, directions, input_size , 4 * hidden_size } });
+    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, directions, hidden_size, 4 * hidden_size } });
+    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 1, 4 * hidden_size, directions } });
+    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ batch_size, 1, hidden_size, directions } });
+    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ batch_size, 1, hidden_size, directions } });
 
     set_values(input, ref_input_vec);
     set_values(weights, ref_weights_vec);
@@ -1143,7 +1143,7 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 
 	auto& engine = get_test_engine();
 
-	memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {batch_size, sequence_len, input_size, 1} });
+	memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{batch_size, sequence_len, input_size, 1} });
 	set_values(input, ref_input_vec);
 
 	std::vector<memory::ptr> weights;
@@ -1152,20 +1152,20 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 	std::vector<memory::ptr> hidden;
 	std::vector<memory::ptr> cell;
 	for (int i = 0; i < layers; ++i) {
-		weights.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, direction, i == 0 ? input_size : hidden_size, 4 * hidden_size } }));
+		weights.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, direction, i == 0 ? input_size : hidden_size, 4 * hidden_size } }));
 		set_values(weights[i], ref_weights_vec[i]);
-		recurrent.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, direction, hidden_size, 4 * hidden_size } }));
+		recurrent.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, direction, hidden_size, 4 * hidden_size } }));
 		set_values(recurrent[i], ref_recurrent_vec[i]);
 		if (has_bias) {
-			biases.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, 1, 4 * hidden_size, direction } }));
+			biases.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 1, 4 * hidden_size, direction } }));
 			set_values(biases[i], ref_bias_vec[i]);
 		}
 		if (has_initial_hidden) {
-			hidden.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, direction } }));
+			hidden.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ batch_size, 1, hidden_size, direction } }));
 			set_values(hidden[i], ref_hidden_vec[i]);
 		}
 		if (has_initial_cell) {
-			cell.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, direction} }));
+			cell.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ batch_size, 1, hidden_size, direction} }));
 			set_values(cell[i], ref_cell_vec[i]);
 		}
 	}
@@ -1402,27 +1402,27 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
         std::vector<memory::ptr> per_chain_cell;
 
         for (size_t layer = 0; layer < layers; layer++) {
-            per_chain_weights.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, directions, layer == 0 ? input_size : hidden_size, 4 * hidden_size} }));
+            per_chain_weights.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{1, directions, layer == 0 ? input_size : hidden_size, 4 * hidden_size} }));
             set_values(per_chain_weights[layer], ref_weights_vec[chain][layer]);
 
-            per_chain_recurrent.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, directions, hidden_size, 4 * hidden_size} }));
+            per_chain_recurrent.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{1, directions, hidden_size, 4 * hidden_size} }));
             set_values(per_chain_recurrent[layer], ref_recurrent_vec[chain][layer]);
 
             if (has_bias)
             {
-                per_chain_biases.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, 1, 4 * hidden_size, directions} }));
+                per_chain_biases.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{1, 1, 4 * hidden_size, directions} }));
                 set_values(per_chain_biases[layer], ref_bias_vec[chain][layer]);
             }
 
             if (has_initial_hidden)
             {
-                per_chain_hidden.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, 1, hidden_size, directions} }));
+                per_chain_hidden.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{1, 1, hidden_size, directions} }));
                 set_values(per_chain_hidden[layer], ref_hidden_vec[chain][layer]);
             }
 
             if (has_initial_cell)
             {
-                per_chain_cell.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, 1, hidden_size, directions} }));
+                per_chain_cell.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{1, 1, hidden_size, directions} }));
                 set_values(per_chain_cell[layer], ref_cell_vec[chain][layer]);
             }
         }

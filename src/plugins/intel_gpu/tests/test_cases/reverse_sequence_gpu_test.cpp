@@ -17,8 +17,8 @@ using namespace ::tests;
 TEST(reverese_sequence_gpu_test, fp32_d2_2_ba1_sa0) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 1 } });
     int32_t batch_axis = 1;
     int32_t seq_axis = 0;
 
@@ -59,8 +59,8 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_ba1_sa0) {
 TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba0_sa1) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 3, 1, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 3, 1, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 1, 1, 1 } });
     int32_t batch_axis = 0;
     int32_t seq_axis = 1;
 
@@ -105,8 +105,8 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba0_sa1) {
 TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 3, 1, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 3, 1, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 1, 1, 1 } });
     int32_t batch_axis = 2;
     int32_t seq_axis = 0;
 
@@ -151,8 +151,8 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
 TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa3) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 1 } });
     int32_t batch_axis = 0;
     int32_t seq_axis = 3;
 
@@ -198,8 +198,8 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa3) {
 TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 1 } });
     int32_t batch_axis = 0;
     int32_t seq_axis = 2;
 
@@ -245,8 +245,8 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa2) {
 TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba2_sa0) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 1, 1, 1 } });
     int32_t batch_axis = 2;
     int32_t seq_axis = 0;
 
@@ -292,8 +292,8 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba2_sa0) {
 TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 1 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 1 } });
     int32_t batch_axis = 1;
     int32_t seq_axis = 0;
 
@@ -334,8 +334,8 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
 TEST(reverese_sequence_gpu_test, fp16x2_d2_2_ba1_sa0) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 1 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 1, 1, 1 } });
     int32_t batch_axis = 1;
     int32_t seq_axis = 0;
 
@@ -376,8 +376,8 @@ TEST(reverese_sequence_gpu_test, fp16x2_d2_2_ba1_sa0) {
 TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba0_sa1) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 1, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 3, 1, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 1, 1, 1 } });
     int32_t batch_axis = 0;
     int32_t seq_axis = 1;
 
@@ -422,8 +422,8 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba0_sa1) {
 TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba2_sa0) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 1, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 3, 1, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 1, 1, 1 } });
     int32_t batch_axis = 2;
     int32_t seq_axis = 0;
 
@@ -468,8 +468,8 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba2_sa0) {
 TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa3) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 2, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 2, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 1 } });
     int32_t batch_axis = 0;
     int32_t seq_axis = 3;
 
@@ -515,8 +515,8 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa3) {
 TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 2, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 2, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 1 } });
     int32_t batch_axis = 0;
     int32_t seq_axis = 2;
 
@@ -562,8 +562,8 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa2) {
 TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba2_sa0) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 2, 3 } });
-    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 2, 3 } });
+    auto seq_lengths = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 1, 1, 1 } });
     int32_t batch_axis = 2;
     int32_t seq_axis = 0;
 

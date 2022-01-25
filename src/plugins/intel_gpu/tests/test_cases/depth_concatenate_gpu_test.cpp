@@ -56,8 +56,8 @@ TEST(depth_concatenate_f32_gpu, test01) {
     //
 
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 1, 1}});
-    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 3, 1, 1}});
+    auto input1 = engine.allocate_memory({data_types::f32, format::yxfb, tensor{2, 2, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, tensor{2, 3, 1, 1}});
 
     set_values(input1, {0.5f, 0.7f, 0.2f, 0.4f});
     set_values(input2, {1.0f, 0.1f, 0.3f, -0.5f, 0.0f, -0.2f});
@@ -115,8 +115,8 @@ void concat_basic_with_reorder() {
     //
 
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 1, 1}});
-    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 3, 1, 1}});
+    auto input1 = engine.allocate_memory({data_types::f32, format::yxfb, tensor{2, 2, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, tensor{2, 3, 1, 1}});
     auto outs = {2.0f, 3.0f, 0.0f, 1.0f, 1.0f, 4.0f, -4.0f, -7.0f, 0.0f, 0.0f};
     set_values(input1, {2.5f, 3.7f, 0.2f, 1.4f});
     set_values(input2, {1.0f, 4.1f, -4.3f, -7.5f, 0.0f, -0.2f});
@@ -124,10 +124,10 @@ void concat_basic_with_reorder() {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(reorder("to_int1", "input1", {DType, format::yxfb, {2, 2, 1, 1}}));
-    topology.add(reorder("to_int2", "input2", {DType, format::yxfb, {2, 3, 1, 1}}));
+    topology.add(reorder("to_int1", "input1", {DType, format::yxfb, tensor{2, 2, 1, 1}}));
+    topology.add(reorder("to_int2", "input2", {DType, format::yxfb, tensor{2, 3, 1, 1}}));
     topology.add(concatenation("depth1", {"to_int1", "to_int2"}, 1));
-    topology.add(reorder("to_float", "depth1", {data_types::f32, format::yxfb, {2, 5, 1, 1}}));
+    topology.add(reorder("to_float", "depth1", {data_types::f32, format::yxfb, tensor{2, 5, 1, 1}}));
 
     network network(engine, topology);
 
@@ -191,9 +191,9 @@ TEST(depth_concatenate_f32_gpu, test02) {
     //
 
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 1, 1}});
-    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 3, 1, 1}});
-    auto input3 = engine.allocate_memory({data_types::f32, format::bfyx, {2, 3, 1, 1}});
+    auto input1 = engine.allocate_memory({data_types::f32, format::yxfb, tensor{2, 2, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, tensor{2, 3, 1, 1}});
+    auto input3 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{2, 3, 1, 1}});
 
     set_values(input1, {0.5f, 0.7f, 0.2f, 0.4f});
     set_values(input2, {1.0f, 0.1f, 0.3f, -0.5f, 0.0f, -0.2f});
@@ -238,8 +238,8 @@ TEST(depth_concatenate_f32_gpu, test02) {
 
 TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 2, 2}});
-    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 2, 1}});
+    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 1, 2, 2}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 1, 2, 1}});
 
     set_values(input1, {16.0f, 32.0f, 128.0f, 256.0f});
     set_values(weights, {.1f, .2f});
@@ -275,7 +275,7 @@ TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
     //  graph should remove all concatenations from execution.
 
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 2, 2, 1}});
+    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 2, 2, 1}});
 
     set_values(input1, {16.0f, 32.0f, 128.0f, 256.0f});
 
@@ -328,8 +328,8 @@ TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     // 2 inputs of size 3x10x10 concatenated on f axis with fused relu
 
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 3, 10, 10}});
-    auto input2 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 3, 10, 10}});
+    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 3, 10, 10}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 3, 10, 10}});
 
     std::vector<float> input1_vec = generate_random_input<float>(1, 3, 10, 10, -10, 10);
     set_values(input1, input1_vec);
@@ -369,8 +369,8 @@ TEST(depth_concatenate_f32_gpu, test05_different_formats) {
     // 2 inputs of size 3x2x2 concatenated on f axis
 
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 3, 2, 2}});
-    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {1, 3, 2, 2}});
+    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 3, 2, 2}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, tensor{1, 3, 2, 2}});
 
     set_values(input1, {1.0f, 1.0f, 1.0f, 1.0f,
                         2.0f, 2.0f, 2.0f, 2.0f,
@@ -426,15 +426,15 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     const int32_t output_f = 3 * input_f;
 
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
-    auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, tensor{1, input_f, 1, 1} });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, tensor{1, input_f, 1, 1} });
 
     auto input1_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
     auto input2_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
     set_values(input1, flatten_4d(format::bfyx, input1_data));
     set_values(input2, flatten_4d(format::bfyx, input2_data));
 
-    auto weights = engine.allocate_memory({ data_types::f16, format::oiyx, {input_f, input_f, 3, 3} });
+    auto weights = engine.allocate_memory({ data_types::f16, format::oiyx, tensor{input_f, input_f, 3, 3} });
     // Construct weights for convolution that just double input values.
     VVVVF<FLOAT16> weights_data;
     weights_data.resize(input_f);
@@ -503,15 +503,15 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     const int32_t output_f = 2 * input_f;
 
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
-    auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, tensor{1, input_f, 1, 1} });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, tensor{1, input_f, 1, 1} });
 
     auto input1_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
     auto input2_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
     set_values(input1, flatten_4d(format::bfyx, input1_data));
     set_values(input2, flatten_4d(format::bfyx, input2_data));
 
-    auto weights = engine.allocate_memory({ data_types::f16, format::oiyx, {output_f, output_f, 3, 3} });
+    auto weights = engine.allocate_memory({ data_types::f16, format::oiyx, tensor{output_f, output_f, 3, 3} });
     // Construct weights for convolution that just double input values.
     VVVVF<FLOAT16> weights_data;
     weights_data.resize(output_f);
@@ -576,8 +576,8 @@ TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
     const int32_t output_f = 2 * input_f;
 
     auto& engine = get_test_engine();
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, {1, input_f, 1, 1} });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, {1, input_f, 1, 1} });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, input_f, 1, 1} });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, input_f, 1, 1} });
 
     auto input1_data = generate_random_4d<float>(1, input_f, 1, 1, -1, 1);
     auto input2_data = generate_random_4d<float>(1, input_f, 1, 1, -1, 1);
@@ -625,8 +625,8 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
     build_options build_opt;
     const int in1_f = 2, in2_f = 1;
     const int b = 2, x = 2, y = 4;
-    auto input1 = engine.allocate_memory({ data_types::f32, format::yxfb,{ b, in1_f, y, x } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ b, in2_f, y, x } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ b, in1_f, y, x } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, in2_f, y, x } });
     unsigned input2_start_value = (unsigned)input1->count() + 1;
 
     std::vector<float> in1(input1->count());
@@ -707,7 +707,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
 
     auto& engine = get_test_engine();
     build_options build_opt;
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2,4,1,2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2,4,1,2 } });
 
     std::vector<float> values = {
         0.1f, 0.2f, 0.3f, 0.4f,
@@ -745,7 +745,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
 TEST(depth_concatenate_i32_gpu, optimize_data01) {
     auto& engine = get_test_engine();
     build_options build_opt;
-    auto input = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::i32, format::bfyx, tensor{1, 1, 1, 1}});
 
     topology topology;
     topology.add(
@@ -772,10 +772,10 @@ TEST(depth_concatenate_i32_gpu, optimize_data01) {
 TEST(depth_concatenate_i32_gpu, optimize_data02) {
     auto& engine = get_test_engine();
     build_options build_opt;
-    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
-    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
-    auto input3 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
-    auto input4 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
+    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{1, 1, 2, 2}});
+    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{1, 1, 2, 2}});
+    auto input3 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{1, 1, 2, 2}});
+    auto input4 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{1, 1, 2, 2}});
 
     topology topology;
     topology.add(
@@ -839,7 +839,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data02) {
 TEST(depth_concatenate_i32_gpu, optimize_data03) {
     auto& engine = get_test_engine();
     build_options build_opt;
-    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
+    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{1, 1, 2, 2}});
 
     topology topology;
     topology.add(
@@ -879,7 +879,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data03) {
 TEST(depth_concatenate_i32_gpu, optimize_data04) {
     auto& engine = get_test_engine();
     build_options build_opt;
-    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
+    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{1, 1, 2, 2}});
 
     topology topology;
     topology.add(
@@ -919,7 +919,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data04) {
 TEST(depth_concatenate_i32_gpu, optimize_data05) {
     auto& engine = get_test_engine();
     build_options build_opt;
-    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 2, 2}});
+    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{1, 1, 2, 2}});
 
     topology topology;
     topology.add(
@@ -1185,7 +1185,7 @@ public:
             features += t.feature();
         }
 
-        const auto& t = generic_params->input_layouts[0].size;
+        const auto& t = generic_params->input_layouts[0].get_tensor();
         return {t.batch[0], features, t.spatial[0], t.spatial[1]};
     }
 
@@ -1262,8 +1262,8 @@ public:
 
             res << "_"
                 << "Input" << i;
-            for (unsigned int j = 0; j < p->input_layouts[i].size.sizes(p->fmt).size(); ++j) {
-                res << chans[j] << p->input_layouts[i].size.sizes(p->fmt)[j];
+            for (unsigned int j = 0; j < p->input_layouts[i].get_dims().size(); ++j) {
+                res << chans[j] << p->input_layouts[i].get_dims()[j];
             }
         }
 

@@ -142,9 +142,9 @@ public:
         const int keep_top_k = 150;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         topology topology;
         topology.add(input_layout("input_location", input_location->get_layout()));
@@ -176,9 +176,9 @@ public:
         const int keep_top_k = 150;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         topology topology;
         topology.add(input_layout("input_location", input_location->get_layout()));
@@ -217,9 +217,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -265,9 +265,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -307,9 +307,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -360,9 +360,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -404,9 +404,9 @@ public:
         const int background_label_id = -1;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -465,9 +465,9 @@ public:
         const int top_k = 2;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -513,9 +513,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -564,9 +564,9 @@ public:
         const int top_k = 2;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -609,9 +609,9 @@ public:
         const int top_k = 2;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
         topology topology;
@@ -666,9 +666,9 @@ public:
         const bool prior_is_normalized = true;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 1, 1, this->num_priors * prior_info_size } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1, 1, 1, this->num_priors * prior_info_size } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location, variance_encoded_in_target,
             prior_info_size, prior_coordinates_offset, prior_is_normalized);

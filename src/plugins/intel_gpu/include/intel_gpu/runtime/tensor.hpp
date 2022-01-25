@@ -20,6 +20,8 @@
 #include <utility>
 #include <functional>
 
+#include <openvino/core/partial_shape.hpp>
+
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{

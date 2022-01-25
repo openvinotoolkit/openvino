@@ -29,7 +29,7 @@ namespace intel_gpu {
 
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num, const cldnn::primitive_id& ext_prim_id) {
-    auto mem = p.GetEngine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
+    auto mem = p.GetEngine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, cldnn::tensor{ 1, 1, 1, 1 } });
     cldnn::mem_lock<int64_t> ptr{mem, p.GetEngine().get_program_stream()};
     *ptr.begin() = num;
     return {id, mem, ext_prim_id};

@@ -20,7 +20,7 @@ layout crop_inst::calc_output_layout(crop_node const& node) {
            "Output data type forcing is not supported for crop_node!");
     const auto& ref_in_sizes = node.get_primitive()->reference_input;
     const auto in_layout = node.input().get_output_layout();
-    const auto& in_sizes = in_layout.size;
+    const auto& in_sizes = in_layout.get_tensor();
     const auto& offsets = node.get_primitive()->offsets;
 
     // Check for borders variant of crop.
@@ -42,7 +42,7 @@ std::string crop_inst::to_string(crop_node const& node) {
     auto ref_in_sizes = desc->reference_input;
     const auto& offsets = desc->offsets;
     const auto in_layout = node.input().get_output_layout();
-    const auto& in_sizes = in_layout.size;
+    const auto& in_sizes = in_layout.get_tensor();
 
     auto node_info = node.desc_to_json();
 
@@ -71,7 +71,7 @@ std::string crop_inst::to_string(crop_node const& node) {
 crop_inst::typed_primitive_inst(network& network, crop_node const& node) : parent(network, node) {
     const auto& ref_in_sizes = argument.reference_input;
     const auto in_layout = node.input().get_output_layout();
-    const auto& in_sizes = in_layout.size;
+    const auto& in_sizes = in_layout.get_tensor();
     const auto& offsets = argument.offsets;
     tensor null_tensor {};
     tensor value_tensor { 1, 1, 1, 1, 1 };

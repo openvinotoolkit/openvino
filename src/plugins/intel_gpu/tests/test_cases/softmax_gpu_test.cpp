@@ -30,7 +30,7 @@ public:
 
     softmax_gpu_xb_f32_test_fixture()
         : engine(get_test_engine())
-        , input(engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1}}))
+        , input(engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ input_b, 1, input_x, 1}}))
     {}
 
     void compare_out_buffer_with_expected() {
@@ -176,7 +176,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
         batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input"));
@@ -249,7 +249,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_y) {
         batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_y));
@@ -343,7 +343,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_f) {
         batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_f));
@@ -431,7 +431,7 @@ TEST(softmax_gpu_yxfb_f32, normalize_f) {
         batch_num = 12, buf_size = x_size*y_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, y_size , x_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ batch_num, feature_num, y_size , x_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_fyx));
@@ -508,7 +508,7 @@ TEST(softmax_gpu_bfzyx_f32, normalize_z) {
         batch_num = 2, buf_size = x_size  *y_size * z_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ batch_num, feature_num, x_size , y_size, z_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ batch_num, feature_num, x_size , y_size, z_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_z));
@@ -600,7 +600,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_all) {
                          batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{batch_num, feature_num, x_size, y_size}});
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_all));
@@ -638,7 +638,7 @@ TEST(softmax_gpu_yxfb_f32, normalize_all) {
                          batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {y_size, x_size, feature_num, batch_num}});
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, tensor{y_size, x_size, feature_num, batch_num}});
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_all));
@@ -676,7 +676,7 @@ TEST(softmax_gpu_bfzyx_f32, normalize_all) {
                          batch_num = 2, buf_size = x_size * y_size * z_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {batch_num, feature_num, x_size, y_size, z_size}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, tensor{batch_num, feature_num, x_size, y_size, z_size}});
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_all));
@@ -713,7 +713,7 @@ TEST(softmax_gpu_bfyx_f16, normalize_all) {
                          batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, tensor{batch_num, feature_num, x_size, y_size}});
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_all));
@@ -751,7 +751,7 @@ TEST(softmax_gpu_yxfb_f16, normalize_all) {
                          batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::yxfb, {y_size, x_size, feature_num, batch_num}});
+    auto input = engine.allocate_memory({data_types::f16, format::yxfb, tensor{y_size, x_size, feature_num, batch_num}});
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_all));
@@ -789,7 +789,7 @@ TEST(softmax_gpu_bfzyx_f16, normalize_all) {
                          batch_num = 2, buf_size = x_size * y_size * z_size * batch_num * feature_num;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfzyx, {batch_num, feature_num, x_size, y_size, z_size}});
+    auto input = engine.allocate_memory({data_types::f16, format::bfzyx, tensor{batch_num, feature_num, x_size, y_size, z_size}});
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(softmax("softmax", "input", softmax::normalize_all));
@@ -891,10 +891,10 @@ public:
         cldnn::mem_lock<Type> in0_mem(input, get_test_stream());
         cldnn::mem_lock<Type> out_mem(output, get_test_stream());
 
-        const int in0_b = input->get_layout().size.sizes()[0];
-        const int in0_f = input->get_layout().size.sizes()[1];
-        const int in0_h = input->get_layout().size.sizes()[3];
-        const int in0_w = input->get_layout().size.sizes()[2];
+        const int in0_b = input->get_layout().get_dims()[0];
+        const int in0_f = input->get_layout().get_dims()[1];
+        const int in0_h = input->get_layout().get_dims()[2];
+        const int in0_w = input->get_layout().get_dims()[3];
 
 //        const int out_b = output->get_layout().size.transform(cldnn::format::bfyx, 0).sizes()[0];
 //        const int out_f = output->get_layout().size.transform(cldnn::format::bfyx, 0).sizes()[1];
@@ -974,9 +974,9 @@ public:
             const auto chans = format::traits(p->fmt).order;
 
             res << "_" << "Input" << i;
-            for (unsigned int j = 0; j < p->input_layouts[i].size.sizes(p->fmt).size(); ++j)
+            for (unsigned int j = 0; j < p->input_layouts[i].get_dims().size(); ++j)
             {
-                res << chans[j] << p->input_layouts[i].size.sizes(p->fmt)[j];
+                res << chans[j] << p->input_layouts[i].get_dims()[j];
             }
         }
 

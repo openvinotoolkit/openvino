@@ -210,8 +210,8 @@ TEST(reorder_gpu_optimization, bfyx_to_fsv16_without_f_remainder) {
     const int32_t y_in = 4;
     const int32_t x_in = 8 * 2;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { b_in,f_in,x_in,y_in } });
-    layout output_layout(data_types::f32, format::b_fs_yx_fsv16, { b_in,f_in,x_in,y_in });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b_in,f_in,x_in,y_in } });
+    layout output_layout(data_types::f32, format::b_fs_yx_fsv16, tensor{ b_in,f_in,x_in,y_in });
 
     // Set incremental input value
     mem_lock<float> input_ptr{input, get_test_stream()};
@@ -291,8 +291,8 @@ TEST(reorder_gpu_f32, basic) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx,{ 2, 2, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 });
 
     set_values(input, {
         1.f, 0.f,
@@ -376,9 +376,9 @@ TEST(reorder_gpu_f32, basic_subtract) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32,  format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout( data_types::f32, format::bfyx, { 2, 2, 2, 2 } );
-    auto subtract = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32,  format::yxfb, tensor{ 2, 2, 2, 2 } });
+    layout output_layout( data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } );
+    auto subtract = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 1, 2, 2, 2 } });
 
     set_values(input, {
         1.f, 0.f,
@@ -465,8 +465,8 @@ TEST(reorder_gpu_f32, basic_subtract_value) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx,{ 2, 2, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 });
     std::vector<float> subtract_val = { 0.5, 2.5 };
 
     set_values(input, {
@@ -556,9 +556,9 @@ TEST(reorder_gpu_f16, basic_subtract_f32_output_f32) {
         return;
     }
 
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx,{ 2, 2, 2, 2 });
-    auto subtract = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 });
+    auto subtract = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 1, 2, 2, 2 } });
 
     set_values(input, {
         half_t(1.f), half_t(0.f),
@@ -650,8 +650,8 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
         return;
     }
 
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout(data_types::f16, format::bfyx,{ 2, 2, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::f16, format::bfyx, tensor{ 2, 2, 2, 2 });
     std::vector<float> subtract_val = { 0.5, 2.5 };
 
     set_values(input, {
@@ -734,8 +734,8 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
     expected_values[0xF802] = half_t(0x8000, 0);    // -0
     expected_values[0xF803] = half_t(0xFC12, 0);    // A NaN (sample: -NaN.0x12).
 
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 1, static_cast<int32_t>(expected_values.size()) / 4, 2, 2 } });
-    layout interm_layout( data_types::f32, format::byxf, { 1, static_cast<int32_t>(expected_values.size()) / 4, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 1, static_cast<int32_t>(expected_values.size()) / 4, 2, 2 } });
+    layout interm_layout( data_types::f32, format::byxf, tensor{ 1, static_cast<int32_t>(expected_values.size()) / 4, 2, 2 });
     auto output_layout = input->get_layout();
 
     set_values(input, expected_values);
@@ -791,8 +791,8 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
 TEST(reorder_gpu, basic_convert_int8) {
 
     auto& engine = get_test_engine();
-    layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1, 1, 3, 3 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1, 1, 3, 3 } };
+    layout in_layout = { type_to_data_type<float>::value,format::byxf, tensor{ 1, 1, 3, 3 } };
+    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, tensor{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f, 9.0f };
 
@@ -863,8 +863,8 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
         255, 254, 253, 252, 251, 250, 249, 248, 247, 246, 245, 244, 243, 242, 241, 240, 239, 238, 237, 236
     };
 
-    layout in_layout = { type_to_data_type<uint8_t>::value,format::byxf,{ 1, 4, kernel_size,kernel_size } };
-    layout output_layout = { type_to_data_type<float>::value, format::bfyx, { 1, 4, kernel_size,kernel_size } };
+    layout in_layout = { type_to_data_type<uint8_t>::value,format::byxf, tensor{ 1, 4, kernel_size,kernel_size } };
+    layout output_layout = { type_to_data_type<float>::value, format::bfyx, tensor{ 1, 4, kernel_size,kernel_size } };
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
@@ -981,8 +981,8 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx, { 2, 2, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 });
 
     set_values(input, {
         1.f, 0.f,
@@ -1060,8 +1060,8 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::yxfb, { 2, 2, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 });
 
     set_values(input, {
         1.0f,  2.0f,
@@ -1121,7 +1121,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_bfzyx)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
 
     set_values(input, {
         1.f, 0.f,
@@ -1185,7 +1185,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfzyx)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     set_values(input, {
         1.f, 0.f,
@@ -1249,7 +1249,7 @@ TEST(reorder_gpu_f32, basic_bfzyx_to_bfyx)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 2, 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 2, 2, 2 } });
 
     set_values(input, {
         1.f, 0.f,
@@ -1600,8 +1600,8 @@ TEST(reorder_gpu_i32, basic)
     //  Test for converting data types f32->i32
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::i32, format::bfyx, { 2, 2, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::i32, format::bfyx, tensor{ 2, 2, 2, 2 });
 
     set_values(input, {
         1.f, 0.f, 5.f, 1.5f,
@@ -1641,8 +1641,8 @@ TEST(reorder_gpu_i64, basic)
     //  Test for converting data types f32->i64
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::i64, format::bfyx, { 2, 2, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::i64, format::bfyx, tensor{ 2, 2, 2, 2 });
 
     set_values(input, {
         1.f, 0.f, 5.f, 1.5f,
@@ -1684,8 +1684,8 @@ TEST(reorder_gpu_binary, binary_output)
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::bin, format::b_fs_yx_32fp, { 2, 2, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::bin, format::b_fs_yx_32fp, tensor{ 2, 2, 2, 2 });
 
     // Data is supposed to be quantized to {0,1} values
     set_values(input, {
@@ -1732,8 +1732,8 @@ TEST(reorder_gpu_binary, binary_input)
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
 
-    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx, { 2, 2, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, tensor{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::f32, format::bfyx, tensor{ 2, 2, 2, 2 });
 
     // Data is supposed to be quantized to {0,1} values
     std::vector<float> answers = {
@@ -1857,8 +1857,8 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16)
     const int32_t y_in = 2;
     const int32_t z_in = 2;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { b_in,f_in,x_in,y_in,z_in } });
-    layout output_layout(data_types::f32, format::bs_fs_zyx_bsv16_fsv16,{ b_in,f_in,x_in,y_in,z_in });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ b_in,f_in,x_in,y_in,z_in } });
+    layout output_layout(data_types::f32, format::bs_fs_zyx_bsv16_fsv16, tensor{ b_in,f_in,x_in,y_in,z_in });
 
     tests::set_random_values<float>(input);
 
@@ -1939,8 +1939,8 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
     const int32_t y_pad= 2;
     const int32_t x_pad= 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { b_in, f_in, x_in, y_in, z_in } });
-    layout output_layout(data_types::f32, format::bs_fs_zyx_bsv16_fsv16, { b_in, f_in, x_in, y_in, z_in });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ b_in, f_in, x_in, y_in, z_in } });
+    layout output_layout(data_types::f32, format::bs_fs_zyx_bsv16_fsv16, tensor{ b_in, f_in, x_in, y_in, z_in });
 
     tests::set_random_values<float>(input);
 
@@ -2011,7 +2011,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
 {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { 2, 12, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, tensor{ 2, 12, 1, 1 } });
 
     set_values(input, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f,
                         16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f });
@@ -2055,8 +2055,8 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
 {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { 1, 8, 1, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::oiyx, { 1, 8, 3, 3 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, tensor{ 1, 8, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::oiyx, tensor{ 1, 8, 3, 3 } });
 
     set_values(input, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f });
 
@@ -2100,7 +2100,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
 
     auto input = engine.allocate_memory({ data_types::f32,
                                             format::b_fs_yx_fsv16,
-                                            { 2, 4, 1, 1 },
+                                            tensor{ 2, 4, 1, 1 },
                                             padding({ 1, 16, 0, 0 }, { 1, 0, 0, 0 }) });
 
     std::vector<float> in_data = {
@@ -2181,8 +2181,8 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)
 {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::image_2d_rgba, { 1, 3, 2, 2 } });
-    layout output_layout(data_types::f16, format::bfyx, { 1, 3, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::u8, format::image_2d_rgba, tensor{ 1, 3, 2, 2 } });
+    layout output_layout(data_types::f16, format::bfyx, tensor{ 1, 3, 2, 2 });
 
     set_values<unsigned char>(input, {
         1, 0, 5, 7,
@@ -2227,8 +2227,8 @@ TEST(reorder_bfyx_to_image2d_rgba_gpu, basic)
 {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 2, 2 } });
-    layout output_layout(data_types::u8, format::image_2d_rgba, { 1, 3, 2, 2 });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 3, 2, 2 } });
+    layout output_layout(data_types::u8, format::image_2d_rgba, tensor{ 1, 3, 2, 2 });
 
     set_values<FLOAT16>(input, {
         FLOAT16(1.0f / 255.f),  FLOAT16(2.0f / 255.f),
@@ -2290,7 +2290,7 @@ public:
 
         for (const auto& test_param : all_generic_params)
         {
-            cldnn::tensor input_tensor = test_param->input_layouts[0].size;
+            cldnn::tensor input_tensor = test_param->input_layouts[0].get_tensor();
 
             std::vector<cldnn::layout> output_layouts = {};
 
@@ -2457,7 +2457,7 @@ public:
 
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.size;
+        tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
             VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
             set_values(prim, rnd_vec);
@@ -2611,8 +2611,8 @@ INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing, testing_removal_reorder,
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_onednn_gpu, basic_convert_int8) {
     auto& engine = get_onednn_test_engine();
-    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    layout in_layout = { type_to_data_type<float>::value, format::byxf, tensor{ 1, 1, 3, 3 } };
+    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, tensor{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.6f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, -3.0f, 3.0f, -4.0f, 5.0f, -7.0f, 7.0f, -8.0f, 9.0f };
 

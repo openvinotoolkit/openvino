@@ -74,7 +74,7 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
     tensor weights_tensor(output_f, f, x, y);
     auto input = engine.allocate_memory({ type_to_data_type<T>::value, test_input_fmt, input_tensor });
     auto weights = engine.allocate_memory({ type_to_data_type<T>::value, test_weights_fmt, weights_tensor });
-    auto bias = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1,1,output_f,1 } });
+    auto bias = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, tensor{ 1,1,output_f,1 } });
     set_values(input, input_rnd_vec);
     set_values(weights, weights_rnd_vec);
     set_values(bias, bias_rnd_vec);
@@ -103,9 +103,8 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
     cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
 
     //EXPECT_EQ(output_layout.format.value, test_input_fmt);
-    tensor output_tensor = output_layout.size;
-    int b_size = output_tensor.batch[0];
-    int x_size = output_tensor.feature[0];
+    int b_size = output_layout.batch();
+    int x_size = output_layout.feature();
     EXPECT_EQ(b_size, input_b);
     EXPECT_EQ(x_size, output_f);
     unsigned num_of_operations = f * x * y * 2;
@@ -195,8 +194,8 @@ TEST(fully_connected_gpu, no_biases) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb,{ input_b, 1, input_x, 1} });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb, tensor{ input_b, 1, input_x, 1} });
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ weight_b, 1, weight_x, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -252,17 +251,17 @@ TEST(fully_connected_gpu, no_biases_int8) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::i8,format::bfyx,{ weight_b, 1, weight_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ input_b, 1, input_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::i8,format::bfyx, tensor{ weight_b, 1, weight_x, 1 } });
 
     set_values(input_prim, { 8.4f, 2.3f, -4.49f });
     set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8,format::bfyx,{ input_b, 1, input_x, 1 } });
+    auto ri = reorder("reorder_to_int", "input", { data_types::i8,format::bfyx, tensor{ input_b, 1, input_x, 1 } });
     auto fc = fully_connected("full_con_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32,format::bfyx,{ input_b, 1, 4, 1 } });
+    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32,format::bfyx, tensor{ input_b, 1, 4, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -313,9 +312,9 @@ TEST(fully_connected_gpu, xb_f32_batch_1) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx, { 1,1,output_f, 1} });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ input_b, 1, input_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,output_f, 1} });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -373,9 +372,9 @@ TEST(fully_connected_gpu, xb_f32_batch_2) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb,{ input_b,1,input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb, tensor{ input_b,1,input_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,output_f,1 } });
 
     set_values(input_prim, { -0.5f, 1.0f, 2.0f, 1.5f, 0.5f, 0.0f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -434,10 +433,10 @@ TEST(fully_connected_gpu, x_f32) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx, { 1,1,input_x,1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,input_x,1 } });
     //auto output_prim = memory::allocate({ memory::format::xb_f32,{ output_b,{ { output_f } },{ 1 } } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,output_f,1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -490,10 +489,10 @@ TEST(fully_connected_gpu, yxfn_f32) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 2, 2, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 2, 2, 1 } });
     //auto output_prim = memory::allocate({ memory::format::xb_f32,{ 2 ,{ { 1 } }, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 2, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 1 } });
 
     set_values(input_prim, { 1.f, 3.f, -2.f, -4.f });
     set_values(weights_prim, { 1.f, -1.f, 2.0f, 0.f, 3.0f, 4.0f, 0.5f, 5.0f });
@@ -548,10 +547,10 @@ TEST(fully_connected_gpu, xb_f32_batch_1_relu) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb,{ input_b, 1, input_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb, tensor{ input_b, 1, input_x, 1 } });
     //auto output_prim = memory::allocate({ memory::format::xb_f32,{ output_b,{ { output_f } },{ 1 } } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -610,10 +609,10 @@ TEST(fully_connected_gpu, xb_f32_batch_2_relu) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb,{ input_b, 1, input_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb, tensor{ input_b, 1, input_x, 1 } });
     //auto output_prim = memory::allocate({ memory::format::xb_f32,{ output_b,{ { output_f } },{ 1 } } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,output_f,1 } });
 
     set_values(input_prim, { -0.5f, 1.0f, 2.0f, 1.5f, 0.5f, 0.0f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -673,10 +672,10 @@ TEST(fully_connected_gpu, x_f32_relu) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,input_x,1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,input_x,1 } });
     //auto output_prim = memory::allocate({ memory::format::x_f32,{ 1       ,{ { output_f } }, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,output_f,1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -733,10 +732,10 @@ TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,input_x,1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,input_x,1 } });
     //auto output_prim = memory::allocate({ memory::format::x_f32,{ 1       ,{ { output_f } }, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx, tensor{ 1,1,output_f,1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -785,7 +784,7 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     std::vector<char> Data(in_F * in_B); // in_X=in_Y=1
     int i = 0;
     std::generate(Data.begin(), Data.end(), [i]() mutable { return i++ % 9; });
-    auto input = engine.allocate_memory({data_types::i8, format::bfyx, {in_B, in_F, in_X, in_Y}});
+    auto input = engine.allocate_memory({data_types::i8, format::bfyx, tensor{in_B, in_F, in_X, in_Y}});
     set_values(input, std::move(Data));
 
     // Create a topology
@@ -794,7 +793,7 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     // Reorder
     topology.add(reorder("reorder_in",
                          "input",
-                         layout(data_types::i8, format::b_fs_yx_fsv4, {in_B, in_F, in_X, in_Y})));
+                         layout(data_types::i8, format::b_fs_yx_fsv4, tensor{in_B, in_F, in_X, in_Y})));
 
     // Weights
     std::vector<char> Weights(W_B * W_F);
@@ -803,15 +802,15 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
         return i % 2 ? -(i++) / W_F - 1 : (i++) / W_F + 1;
     });
     auto weights_gold =
-        engine.allocate_memory({data_types::i8, format::bfyx, {W_B, W_F, W_X, W_Y}});
+        engine.allocate_memory({data_types::i8, format::bfyx, tensor{W_B, W_F, W_X, W_Y}});
     auto weights_imad =
-        engine.allocate_memory({data_types::i8, format::bfyx, {W_B, W_F, W_X, W_Y}});
+        engine.allocate_memory({data_types::i8, format::bfyx, tensor{W_B, W_F, W_X, W_Y}});
     set_values(weights_gold, Weights);
     set_values(weights_imad, std::move(Weights));
     topology.add(data("weights_gold", weights_gold), data("weights_imad", weights_imad));
 
-    auto bias_gold = engine.allocate_memory({data_types::f32, format::bfyx, {1, in_F, 1, 1}});
-    auto bias_imad = engine.allocate_memory({data_types::f32, format::bfyx, {1, in_F, 1, 1}});
+    auto bias_gold = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, in_F, 1, 1}});
+    auto bias_imad = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, in_F, 1, 1}});
 
     std::vector<float> bias_data(in_F, 0);
     set_values(bias_gold, bias_data);
@@ -828,10 +827,10 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     topology.add(fullc_gold, fullc_imad);
 
 
-    auto input_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, {1, W_B, 1, 1} });
-    auto input_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, {1, W_B, 1, 1} });
-    auto output_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, {1, 1, 1, 1} });
-    auto output_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, {1, 1, 1, 1} });
+    auto input_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, W_B, 1, 1} });
+    auto input_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, W_B, 1, 1} });
+    auto output_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, 1, 1, 1} });
+    auto output_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, 1, 1, 1} });
     set_values(input_low_mem,  generate_random_1d<float>(W_B, -200, 0));
     set_values(input_high_mem, generate_random_1d<float>(W_B, 1, 200));
     set_values(output_low_mem,  {-127.0f});
@@ -847,9 +846,9 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
 
     // Output reorder
     auto reorder_gold =
-        reorder("reorder_gold", "quant_gold", layout(data_types::i8, format::bfyx, {in_B, W_B, 1, 1}));
+        reorder("reorder_gold", "quant_gold", layout(data_types::i8, format::bfyx, tensor{in_B, W_B, 1, 1}));
     auto reorder_imad =
-        reorder("reorder_imad", "quant_imad", layout(data_types::i8, format::bfyx, {in_B, W_B, 1, 1}));
+        reorder("reorder_imad", "quant_imad", layout(data_types::i8, format::bfyx, tensor{in_B, W_B, 1, 1}));
     topology.add(reorder_gold, reorder_imad);
 
     // Network build
@@ -892,9 +891,9 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
     const int input_f = 64;
 
     // Allocate memory
-    auto input_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { batch_num, input_f, input_y, input_x } });
-    auto weights_prim = engine.allocate_memory({ data_types::f16,format::bfyx,{ output_f, input_f, input_y, input_x } });
-    auto bias_prim = engine.allocate_memory({ data_types::f16,format::bfyx,{ 1, 1, output_f, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ batch_num, input_f, input_y, input_x } });
+    auto weights_prim = engine.allocate_memory({ data_types::f16,format::bfyx, tensor{ output_f, input_f, input_y, input_x } });
+    auto bias_prim = engine.allocate_memory({ data_types::f16,format::bfyx, tensor{ 1, 1, output_f, 1 } });
 
     // Generate random input data and set values
     auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
@@ -916,7 +915,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        reorder("input_fsv", "input", {data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
+        reorder("input_fsv", "input", {data_types::f16, format::fs_b_yx_fsv32, tensor{ batch_num, input_f, input_y, input_x } }),
         fully_connected("fc", "input_fsv", "weights", "bias"),
         activation("out", "fc", activation_func::relu)
     );
@@ -968,9 +967,9 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     const int input_f = 64;
 
     // Allocate memory
-    auto input_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { batch_num, input_f, input_y, input_x } });
-    auto weights_prim = engine.allocate_memory({ data_types::f16,format::bfyx,{ output_f, input_f, input_y, input_x } });
-    auto bias_prim = engine.allocate_memory({ data_types::f16,format::bfyx,{ 1, 1, output_f, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ batch_num, input_f, input_y, input_x } });
+    auto weights_prim = engine.allocate_memory({ data_types::f16,format::bfyx, tensor{ output_f, input_f, input_y, input_x } });
+    auto bias_prim = engine.allocate_memory({ data_types::f16,format::bfyx, tensor{ 1, 1, output_f, 1 } });
 
     // Generate random input data and set values
     auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
@@ -992,7 +991,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        reorder("input_fsv", "input", { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
+        reorder("input_fsv", "input", { data_types::f16, format::fs_b_yx_fsv32, tensor{ batch_num, input_f, input_y, input_x } }),
         fully_connected("fc", "input_fsv", "weights", "bias"),
         activation("out", "fc", activation_func::relu)
     );
@@ -1619,17 +1618,17 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     auto& engine = get_onednn_test_engine();
 
     // Change input data of fully-connected node from bx to bf
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_b, weight_x, 1, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ input_b, 1, input_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ weight_b, weight_x, 1, 1 } });
 
     set_values(input_prim, { 8.4f, 2.3f, -4.49f });
     set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, 1, input_x, 1 } });
+    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, tensor{ input_b, 1, input_x, 1 } });
     auto fc = fully_connected("full_con_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32, format::bfyx, { input_b, 1, 4, 1 } });
+    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32, format::bfyx, tensor{ input_b, 1, 4, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -1669,17 +1668,17 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
 
     auto& engine = get_onednn_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, input_f, 1, input_y } });
-    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_o, weight_i, 1, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ input_b, input_f, 1, input_y } });
+    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ weight_o, weight_i, 1, 1 } });
 
     set_values(input_prim, { 8.4f, 2.3f, -4.49f, 8.4f, 2.3f, -4.49f });
     set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, input_y } });
+    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, tensor{ input_b, input_f, 1, input_y } });
     auto fc = fully_connected("full_con_prim", "reorder_to_int", "weights", "", "", padding(), 3);
-    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
+    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32, format::bfyx, tensor{ output_b, output_f, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);

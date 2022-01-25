@@ -43,8 +43,8 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     std::string kernel_code =
         R"__krnl(
@@ -59,7 +59,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
         {custom_gpu_primitive::arg_input, 0},
         {custom_gpu_primitive::arg_input, 1 },
         {custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
+    layout output_layout = { data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -138,8 +138,8 @@ void add_basic_in2x2x2x2_with_reorder()
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     std::string data_type_string = "float";
     switch (DType)
@@ -162,13 +162,13 @@ void add_basic_in2x2x2x2_with_reorder()
         "   }\n";
     std::string entry_point = "add_kernel";
     std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_input, 1 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { DType, format::yxfb,{ 2, 2, 2, 2 } };
+    layout output_layout = { DType, format::yxfb, tensor{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(reorder("to_int1", "input", { DType, format::yxfb,{ 2,2,2,2 } }));
-    topology.add(reorder("to_int2", "input2", { DType, format::yxfb,{ 2,2,2,2 } }));
+    topology.add(reorder("to_int1", "input", { DType, format::yxfb, tensor{ 2,2,2,2 } }));
+    topology.add(reorder("to_int2", "input2", { DType, format::yxfb, tensor{ 2,2,2,2 } }));
     topology.add(custom_gpu_primitive(
         "user_kernel",
         { "to_int1", "to_int2" },
@@ -178,7 +178,7 @@ void add_basic_in2x2x2x2_with_reorder()
         "-cl-mad-enable",
         output_layout,
         gws));
-    topology.add(reorder("to_float", "user_kernel", { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
+    topology.add(reorder("to_float", "user_kernel", { data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } }));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.f,
@@ -251,8 +251,8 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     std::string kernel_code =
         R"__krnl(
@@ -264,7 +264,7 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
         )__krnl";
     std::string entry_point = "add_kernel";
     std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
+    layout output_layout = { data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -344,8 +344,8 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     std::string kernel_code =
         R"__krnl(
@@ -357,7 +357,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
         )__krnl";
     std::string entry_point = "add_kernel";
     std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
+    layout output_layout = { data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -437,7 +437,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     std::string kernel_code1 =
         R"__krnl(
@@ -458,7 +458,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         )__krnl";
     std::string entry_point = "add_kernel";
     std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
+    layout output_layout = { data_types::f32, format::yxfb, tensor{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -509,8 +509,8 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
 TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb, tensor{ 2, 2, 2, 2 } });
 
     std::string kernel_code =
         R"__krnl(
@@ -522,7 +522,7 @@ TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
         )__krnl";
     std::string entry_point = "add_kernel";
     std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_input, 1 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::u8, format::yxfb,{ 2, 2, 2, 2 } };
+    layout output_layout = { data_types::u8, format::yxfb, tensor{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
     topology.add(input_layout("input", input->get_layout()));

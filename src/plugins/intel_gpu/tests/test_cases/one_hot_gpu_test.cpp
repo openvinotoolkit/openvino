@@ -811,7 +811,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
 
 TEST(one_hot_error, basic_error_wrong_axis) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::i32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -823,7 +823,7 @@ TEST(one_hot_error, basic_error_wrong_axis) {
 
 TEST(one_hot_error, basic_error_bad_shape) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::i32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));

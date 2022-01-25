@@ -32,8 +32,8 @@ TEST(reorder_inputs, propagation) {
     // At most single reorder should be inserted before first convolution.
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 2, 32, 1, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 32, 32, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, tensor{ 2, 32, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 32, 32, 1, 1 } });
 
     topology topology;
     topology.add(data("weights", weights));
@@ -71,7 +71,7 @@ TEST(reorder_inputs, propagation) {
 
 TEST(reorder_inputs, impl_forcing_basic_format) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 4, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -109,7 +109,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
 
 TEST(reorder_inputs, impl_forcing_not_existing) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 4, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -125,7 +125,7 @@ TEST(reorder_inputs, impl_forcing_not_existing) {
 
 TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 4, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));

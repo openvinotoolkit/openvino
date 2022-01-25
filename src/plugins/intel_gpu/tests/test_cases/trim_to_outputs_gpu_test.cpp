@@ -30,9 +30,9 @@ TEST(trim_to_outputs, one_node_to_eliminate_case1) {
     build_opt.set_option(cldnn::build_option::outputs({ "conv1" }));
     build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 1, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-    auto bias = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 1, 1 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto bias = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.1f });
     set_values(weights, { 2.1f });
@@ -79,11 +79,11 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
     build_opt.set_option(cldnn::build_option::outputs({ "conv1" }));
     build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
-    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto bias1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto bias2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 1, 1 } });
+    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto bias1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto bias2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.1f });
     set_values(weights1, { 2.1f });
@@ -136,11 +136,11 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
     build_opt.set_option(cldnn::build_option::outputs({ "conv4" }));
     build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
-    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto weights23 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto weights4 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto bias = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 1, 1 } });
+    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto weights23 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto weights4 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto bias = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.1f });
     set_values(weights1, { 2.1f });

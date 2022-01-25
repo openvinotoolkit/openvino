@@ -71,7 +71,7 @@ TEST(arg_max_gpu_batch_one, base) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 5, batch_num = 1, top_k = 8;
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k));
@@ -145,7 +145,7 @@ TEST(arg_max_gpu_top_k, base) {
 	static const int32_t x_size = 2, y_size = 2, feature_num = 5, batch_num = 2;
 	auto& engine = get_test_engine();
 	const int top_k = 8;
-	auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+	auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
 	topology topology;
 	topology.add(input_layout("input", input->get_layout()));
 	topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k));
@@ -225,7 +225,7 @@ TEST(arg_max_gpu_min_top_k, base) {
 	static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
 	auto& engine = get_test_engine();
 	const int top_k = 3;
-	auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+	auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
 	topology topology;
 	topology.add(input_layout("input", input->get_layout()));
 	topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k));
@@ -303,7 +303,7 @@ TEST(arg_max_gpu_min_axis_batch, base) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch));
@@ -390,7 +390,7 @@ TEST(arg_max_gpu_min_axis_batch, i32) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::i32));
@@ -433,7 +433,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
     static const int32_t x_size = 2, y_size = 2, z_size = 1, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ batch_num, feature_num, x_size , y_size, z_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ batch_num, feature_num, x_size , y_size, z_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::i32));
@@ -475,7 +475,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 1;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
@@ -539,7 +539,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 1;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
@@ -603,7 +603,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
@@ -677,9 +677,9 @@ TEST(top_k_layer_tests, second_output) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
-    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1 , 1 } });
-    auto second_output = engine.allocate_memory({ data_types::f32, format::bfyx, { top_k, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
+    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1 , 1 } });
+    auto second_output = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ top_k, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
@@ -728,9 +728,9 @@ TEST(top_k_layer_tests, second_output2) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 1;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
-    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1 , 1 } });
-    auto second_output = engine.allocate_memory({ data_types::f32, format::yxfb, { top_k, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ batch_num, feature_num, x_size , y_size } });
+    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1 , 1 } });
+    auto second_output = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ top_k, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
@@ -822,7 +822,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
@@ -896,7 +896,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_indices, false, "", padding(), data_types::f32));

@@ -28,7 +28,7 @@ bool pre_optimize_bias::optimize_bias(T& node, reorder_factory& rf, program& p) 
         const program_node& bias = node.get_dependency(i);
         auto new_layout = layout(bias.get_output_layout().data_type,
                                  format::bfyx,
-                                 { 1, static_cast<tensor::value_type>(bias.get_output_layout().count()), 1, 1 });
+                                 tensor{ 1, static_cast<tensor::value_type>(bias.get_output_layout().count()), 1, 1 });
         auto reorder = rf.get_reorder(bias.id(),
                                       bias.get_output_layout(),
                                       new_layout);

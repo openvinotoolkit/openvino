@@ -109,10 +109,10 @@ TEST(cl_mem_check, check_2_inputs) {
     auto engine_config = cldnn::engine_configuration();
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
 
-    auto input = input_layout("input", { data_types::i8, format::nv12, {1,1,height,width} });
-    auto input2 = input_layout("input2", { data_types::i8, format::nv12, {1,1,height / 2,width / 2} });
+    auto input = input_layout("input", { data_types::i8, format::nv12, tensor{1,1,height,width} });
+    auto input2 = input_layout("input2", { data_types::i8, format::nv12, tensor{1,1,height / 2,width / 2} });
     auto output_format = cldnn::format::byxf;
-    layout output_layout(data_types::f32, output_format, { 1,3,height,width });
+    layout output_layout(data_types::f32, output_format, tensor{ 1,3,height,width });
     auto input_memory = engine->share_image(input.layout, nv12_image_plane_y);
     auto input_memory2 = engine->share_image(input2.layout, nv12_image_plane_uv);
 
@@ -220,9 +220,9 @@ TEST(cl_mem_check, check_input) {
 
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second);
 
-    auto input = input_layout("input", { data_types::i8, format::nv12, {1,1,height,width} });
+    auto input = input_layout("input", { data_types::i8, format::nv12, tensor{1,1,height,width} });
     auto output_format = cldnn::format::byxf;
-    layout output_layout(data_types::f32, output_format, { 1,3,height,width });
+    layout output_layout(data_types::f32, output_format, tensor{ 1,3,height,width });
     auto input_memory = engine->share_image(input.layout, img);
 
     topology topology;

@@ -47,9 +47,9 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     topology branch_true = generate_simple_branch(true, "condi");
     topology branch_false = generate_simple_branch(false, "condi");
@@ -99,10 +99,10 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } });
 
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 1 } });
 
     topology branch_true = generate_simple_branch(true, "condi");
     topology branch_false = generate_simple_branch(false, "condi");
@@ -211,7 +211,7 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 5, 2, 5, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 5, 2, 5, 1 } });
     std::vector<float> input_data(50);
     std::iota(input_data.begin(), input_data.end(), 0.0f);
 
@@ -321,9 +321,9 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 1 } });
 
     topology condi_1_true = generate_simple_branch(true, "condi");
     topology condi_1_false = generate_simple_branch(false, "condi");
@@ -392,12 +392,12 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
-    auto scale_5_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 1 } });
+    auto scale_5_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
     set_values(scale_5_mem, { 5.0f });
-    auto scale_10_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto scale_10_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
     set_values(scale_10_mem, { 10.0f });
 
     topology nested_true;
@@ -474,8 +474,8 @@ TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 5, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 5, 1 } });
 
     topology branch_true = generate_simple_branch(true, "condi");
     topology branch_false = generate_simple_branch(false, "condi");
@@ -498,8 +498,8 @@ TEST(DISABLED_condition_gpu, negative_too_big_offset) {
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 1 } });
 
     topology branch_true = generate_simple_branch(true, "condi");
     topology branch_false = generate_simple_branch(false, "condi");
@@ -522,8 +522,8 @@ TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     topology branch_true;
     branch_true.add(
@@ -553,8 +553,8 @@ TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     topology branch_true;
     branch_true.add(

@@ -34,8 +34,8 @@ TEST(set_output_memory_gpu, basic) {
     const int y = 5;
     const int x = 5;
 
-    auto input_data = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
-    auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
+    auto input_data = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
+    auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
 
     const int inputSize = input_data->get_layout().count();
     auto inputVals = generateVector(inputSize);
@@ -72,10 +72,10 @@ TEST(set_output_memory_gpu, basic_const) {
     const int y = 5;
     const int x = 5;
 
-    auto input_data = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
-    auto const_data = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
-    auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
-    auto output_const_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
+    auto input_data = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
+    auto const_data = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
+    auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
+    auto output_const_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
 
     const int inputSize = input_data->get_layout().count();
     auto inputVals = generateVector(inputSize);
@@ -122,10 +122,10 @@ TEST(set_output_memory_gpu, basic_mutable) {
     const int f = 2;
     const int y = 5;
     const int x = 5;
-    auto input_data = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
-    auto md = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
-    auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
-    auto output_mutable_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
+    auto input_data = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
+    auto md = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
+    auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
+    auto output_mutable_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ b, f, x, y } });
     const int inputSize = input_data->get_layout().count();
     auto inputVals = generateVector(inputSize);
     auto mutableVals = generateVector(inputSize);
@@ -169,10 +169,10 @@ TEST(set_output_memory_gpu, top_k1) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 1;
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
-    auto top_k_input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{batch_num, feature_num, x_size, y_size}});
+    auto top_k_input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 1, 1, 1}});
     auto output_mem =
-        engine.allocate_memory({data_types::f32, format::bfyx, {top_k, feature_num, x_size, y_size}});
+        engine.allocate_memory({data_types::f32, format::bfyx, tensor{top_k, feature_num, x_size, y_size}});
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
@@ -214,10 +214,10 @@ TEST(set_output_memory_gpu, top_k2) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
-    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto second_output = engine.allocate_memory({ data_types::f32, format::bfyx, { top_k, feature_num, x_size , y_size } });
-    auto second_output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { top_k, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
+    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto second_output = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ top_k, feature_num, x_size , y_size } });
+    auto second_output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ top_k, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
@@ -347,9 +347,9 @@ TEST(set_output_memory_gpu, mutable_output_data) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
-    auto final_output = engine.allocate_memory({ data_types::f32, format::bfyx, { top_k, feature_num, x_size , y_size } });
-    auto second_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1 , 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch_num, feature_num, x_size , y_size } });
+    auto final_output = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ top_k, feature_num, x_size , y_size } });
+    auto second_input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1 , 1 } });
 
     topology topology;
     topology.add(input_layout("Add_1396", input->get_layout()));

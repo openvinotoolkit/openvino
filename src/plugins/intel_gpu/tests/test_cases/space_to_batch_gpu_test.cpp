@@ -24,7 +24,7 @@ TEST(space_to_batch_fp16_gpu, i1222_bs1222_pb0000_pe0000) {
     // Input values in fp16
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {1,2,2,2} });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{1,2,2,2} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f),
@@ -68,7 +68,7 @@ TEST(space_to_batch_fp16_gpu, i1242_bs1221_pb0020_pe0000) {
     // Input values in fp16
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {1,2,2,4} });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{1,2,2,4} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -115,7 +115,7 @@ TEST(space_to_batch_fp16_gpu, i2132_bs1222_pb0010_pe0100) {
     // Input values in fp16
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {2,1,2,3} });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{2,1,2,3} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -161,7 +161,7 @@ TEST(space_to_batch_fp16_gpu, i12132_bs12122_pb00010_pe00000) {
     // Input values in fp16
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::bfzyx, {1,2,2,3,1} });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{1,2,2,3,1} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -259,7 +259,7 @@ TEST(space_to_batch_fp16_gpu, i11611_bs1222_pb0010_pe0001_b_fs_yx_fsv16) {
     // Input values in fp16
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {1,16,1,1} });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{1,16,1,1} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -312,7 +312,7 @@ TEST(space_to_batch_fp16_gpu, i1812_bs1221_pb0010_pe0200_b_fs_yx_fsv16) {
     // Input values in fp16
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {1,8,2,1} });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{1,8,2,1} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -361,7 +361,7 @@ TEST(space_to_batch_fp32_gpu, i1222_bs1222_pb0000_pe0000) {
     // Input values in fp32
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1,2,2,2} });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1,2,2,2} });
 
     set_values(input, {
         0.0f, 1.0f, 2.0f, 3.0f,
@@ -403,7 +403,7 @@ TEST(space_to_batch_fp32_gpu, i1242_bs1221_pb0020_pe0000) {
     // Input values in fp32
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1,2,2,4} });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1,2,2,4} });
 
     set_values(input, {
         0.0f, 1.0f, 2.0f, 3.0f,
@@ -450,7 +450,7 @@ TEST(space_to_batch_fp32_gpu, i2132_bs1222_pb0010_pe0100) {
     // Input values in fp32
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {2,1,2,3} });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{2,1,2,3} });
 
     set_values(input, {
         0.0f, 1.0f, 2.0f, 3.0f,
@@ -496,7 +496,7 @@ TEST(space_to_batch_fp32_gpu, i12132_bs12122_pb00010_pe00000) {
     // Input values in fp32
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, {1,2,2,3,1} });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{1,2,2,3,1} });
 
     set_values(input, {
         0.0f, 1.0f, 2.0f, 3.0f,
@@ -592,7 +592,7 @@ TEST(space_to_batch_fp32_gpu, i11622_bs1421_pb0000_pe0000_b_fs_yx_fsv16) {
     // Input values in fp32
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1,16,2,2} });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1,16,2,2} });
 
     set_values(input, {
         0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,
@@ -649,7 +649,7 @@ TEST(space_to_batch_fp32_gpu, i1623_bs1312_pb0001_pe0000_b_fs_yx_fsv16) {
     // Input values in fp32
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1,6,3,2} });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1,6,3,2} });
 
     set_values(input, {
         0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,

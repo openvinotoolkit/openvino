@@ -25,7 +25,7 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 4, 1, 1 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 4, 1, 1 } });
     size_t block_size = 2;
 
     set_values(input1, {
@@ -65,7 +65,7 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 4, 1, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 4, 1, 2 } });
     size_t block_size = 2;
 
     set_values(input1, {
@@ -107,7 +107,7 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 9, 3, 3 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 9, 3, 3 } });
     size_t block_size = 3;
 
     set_values(input1, {
@@ -170,7 +170,7 @@ TEST(depth_to_space_fp32_gpu, d1411_bs2) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 1 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 1, 1 } });
     size_t block_size = 2;
 
     set_values(input1, {
@@ -209,7 +209,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 12, 960, 540 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 12, 960, 540 } });
     size_t block_size = 2;
 
     auto random_input = generate_random_4d<FLOAT16>(1, 12, 540, 960, -1, 1);
@@ -271,7 +271,7 @@ TEST(depth_to_space_fp32_gpu, d1933_bs3) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 9, 3, 3 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 9, 3, 3 } });
     size_t block_size = 3;
 
     set_values(input1, {
@@ -327,7 +327,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 8, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 8, 2, 2 } });
     size_t block_size = 2;
 
     set_values(input1, {
@@ -377,7 +377,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 8, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 8, 2, 2 } });
     size_t block_size = 2;
 
     set_values(input1, {

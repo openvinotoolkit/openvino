@@ -46,8 +46,8 @@ TEST(gather_elements_gpu_fp16, d3283_i2283_a0) {
     auto& engine = get_test_engine();
 
     auto axis = cldnn::gather_elements::gather_elements_axis::along_b;
-    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 8, 3 } }); // data
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 8, 3 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 8, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 8, 3 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8), FLOAT16(5), FLOAT16(5), FLOAT16(2), FLOAT16(0), FLOAT16(7),
@@ -107,8 +107,8 @@ TEST(gather_elements_gpu_fp16, d2235_i2235_a3) {
     auto& engine = get_test_engine();
 
     auto axis = cldnn::gather_elements::gather_elements_axis::along_x;
-    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 3, 5 } }); // data
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 3, 5 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 3, 5 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 3, 5 } }); // indices
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8),
         FLOAT16(5), FLOAT16(5), FLOAT16(2),
@@ -185,8 +185,8 @@ TEST(gather_elements_gpu_fp16, d1329_i1359_an1) {
     auto& engine = get_test_engine();
 
     auto axis = cldnn::gather_elements::gather_elements_axis::along_x;
-    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 2, 9 } }); // data
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 5, 9 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 3, 2, 9 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 3, 5, 9 } }); // indices
     set_values(input0, {
         FLOAT16(0), FLOAT16(1),
         FLOAT16(8), FLOAT16(5),
@@ -284,8 +284,8 @@ TEST(gather_elements_gpu_fp16, d12853_i12923_a3) {
     auto& engine = get_test_engine();
 
     auto axis = cldnn::gather_elements::gather_elements_axis::along_y;
-    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 8, 5, 3 } }); // data
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 8, 2, 3 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 1, 2, 8, 5, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 1, 2, 8, 2, 3 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8), FLOAT16(5), FLOAT16(5), FLOAT16(2), FLOAT16(0), FLOAT16(7),
@@ -357,8 +357,8 @@ TEST(gather_elements_gpu_fp16, d25441_i22441_an4) {
     auto& engine = get_test_engine();
 
     auto axis = cldnn::gather_elements::gather_elements_axis::along_f;
-    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 5, 4, 4, 1 } }); // data
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 4, 4, 1 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 2, 5, 4, 4, 1 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 2, 2, 4, 4, 1 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8), FLOAT16(5),
@@ -449,8 +449,8 @@ TEST(gather_elements_gpu_fp16, d32843_i12843_a0) {
     auto& engine = get_test_engine();
 
     auto axis = cldnn::gather_elements::gather_elements_axis::along_b;
-    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 8, 4, 3 } }); // data
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 8, 4, 3 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 3, 2, 8, 4, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 1, 2, 8, 4, 3 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8), FLOAT16(5), FLOAT16(5), FLOAT16(2), FLOAT16(0), FLOAT16(7),
@@ -589,8 +589,8 @@ TEST(gather_elements_gpu_fp16, d223442_i226442_a5) {
     auto& engine = get_test_engine();
 
     auto axis = cldnn::gather_elements::gather_elements_axis::along_x;
-    auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 3, 4, 4, 2 } }); // data
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 6, 4, 4, 2 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 2, 2, 3, 4, 4, 2 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 2, 2, 6, 4, 4, 2 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8),
@@ -992,8 +992,8 @@ TEST(gather_elements_gpu_fp16, d124251_i124221_an3) {
     auto& engine = get_test_engine();
 
     auto axis = cldnn::gather_elements::gather_elements_axis::along_z;
-    auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 4, 2, 5, 1 } }); // data
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 4, 2, 2, 1 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 1, 2, 4, 2, 5, 1 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 1, 2, 4, 2, 2, 1 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8), FLOAT16(5),
@@ -1047,8 +1047,8 @@ TEST(gather_elements_gpu_fp16, d233113_i233115_a2) {
     auto& engine = get_test_engine();
 
     auto axis = cldnn::gather_elements::gather_elements_axis::along_w;
-    auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 3, 1, 1, 3 } }); // data
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 3, 1, 1, 5 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 2, 3, 3, 1, 1, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 2, 3, 3, 1, 1, 5 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8),

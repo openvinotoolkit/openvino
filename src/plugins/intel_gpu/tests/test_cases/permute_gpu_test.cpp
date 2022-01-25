@@ -89,7 +89,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_2_3)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
 
     std::vector<float> values =
     {
@@ -151,7 +151,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_3_2)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
 
     set_values(input, {
         1.0f,  2.0f, -15.f,
@@ -210,7 +210,7 @@ TEST(permute_gpu_f32, basic_yxfb_permute_1_0_2_3)
 {
     auto& engine = get_test_engine();
 
-    auto input_mem = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 100, 64, 1 } });
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 100, 64, 1 } });
 
     tests::set_random_values<float>(input_mem);
 
@@ -259,7 +259,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_3_2_input_padding)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
 
     set_values(input, {
         1.0f,  2.0f, -15.f,
@@ -323,7 +323,7 @@ TEST(permute_gpu_f32, basic_yxfb_permute_batch_with_feature)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 8, 2, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 8, 2, 1, 1 } });
 
     set_values(input, {
         //b0 - b7 for f=0
@@ -378,7 +378,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_batch_with_feature)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 8, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 8, 1, 1 } });
 
     set_values(input, {
         //f0 - f7 for b=0
@@ -430,7 +430,7 @@ void permute_test_with_reorder()
 {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } });
 
     set_values(input, {
         1.0f,  2.0f, -15.f,
@@ -448,9 +448,9 @@ void permute_test_with_reorder()
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", { DType, format::bfyx,{ 2, 2, 3, 2 } }),
+        reorder("reorder", "input", { DType, format::bfyx, tensor{ 2, 2, 3, 2 } }),
         permute("permute", "reorder", { 0, 1, 3, 2 }),
-        reorder("reorder_out", "permute", { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } }));
+        reorder("reorder_out", "permute", { data_types::f32, format::bfyx, tensor{ 2, 2, 3, 2 } }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -505,7 +505,7 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
     //  Permute2 order       : {0, 2, 3, 1}
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1, 8, 1, 16}});
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, 8, 1, 16}});
 
     std::vector<float> values = {
             0.0f, 1.0f, 2.0f, 3.0f,
@@ -593,7 +593,7 @@ TEST(fc_permute_crop_gpu, basic_permute_yxfb)
 {
     auto& engine = get_test_engine();
 
-    auto input_mem = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 5, 1, 512 } });
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 5, 1, 512 } });
 
     //Topolgy creates permute which "repalces" the batch with the feature.
     topology topology(
@@ -622,9 +622,9 @@ TEST(fc_permute_crop_gpu, basic_0)
 
     auto& engine = get_test_engine();
 
-    auto input_mem = engine.allocate_memory({ data_types::f32, format::yxfb,{ 5, 11264, 1, 1 } });
-    auto weights_mem = engine.allocate_memory({ data_types::f32, format::yxio,{ 512, 11264, 1, 1 } });
-    auto bias_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 512, 1 } });
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 5, 11264, 1, 1 } });
+    auto weights_mem = engine.allocate_memory({ data_types::f32, format::yxio, tensor{ 512, 11264, 1, 1 } });
+    auto bias_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 512, 1 } });
 
     topology topology(
         input_layout("input", input_mem->get_layout()),                   // bfyx {5, 11264, 1, 1}}
@@ -656,7 +656,7 @@ TEST(fc_permute_gpu, basic_permute_bfyx)
 {
     auto& engine = get_test_engine();
 
-    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 5, 1, 256 } });
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 5, 1, 256 } });
 
     tests::set_random_values<float>(input_mem);
 
@@ -841,7 +841,7 @@ TEST(permute_gpu_f32, basic_bfzyx_permute_0_4_1_2_3)
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 2, 2, 3, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 2, 3, 2, 2 } });
 
     set_values(input, {
         1.0f,  2.0f, -15.f, //B0, F0,   // z0 y0 x-3
@@ -923,7 +923,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfyx_0_2_3_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 8, 8, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 8, 8, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -979,7 +979,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfyx_0_2_3_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 5, 8, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 5, 8, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -1029,7 +1029,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfyx_0_2_3_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 8, 5, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 8, 5, 2 } });
 
     set_values(input, {
         0.f,   1.f,   2.f,   3.f,   4.f,   5.f,   6.f,   7.f,   8.f,   9.f,  10.f,  11.f,  12.f,  13.f,  14.f,  15.f,
@@ -1085,7 +1085,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfyx_0_2_3_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 5, 5, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 5, 5, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -1135,7 +1135,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfzyx_0_2_3_4_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 2, 8, 8, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 8, 8, 2, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -1197,7 +1197,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfzyx_0_2_3_4_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 2, 5, 8, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 5, 8, 2, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -1251,7 +1251,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfzyx_0_2_3_4_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 2, 8, 5, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 8, 5, 2, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -1305,7 +1305,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfzyx_0_2_3_4_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 2, 5, 5, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 2, 5, 5, 2, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -1359,7 +1359,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfwzyx_0_2_3_4_5_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx,{ 2, 8, 8, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ 2, 8, 8, 2, 2, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -1431,7 +1431,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfwzyx_0_2_3_4_5_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx,{ 2, 5, 8, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ 2, 5, 8, 2, 2, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -1491,7 +1491,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfwzyx_0_2_3_4_5_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx,{ 2, 8, 5, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ 2, 8, 5, 2, 2, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
@@ -1551,7 +1551,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_2_3_4_5_1) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx,{ 2, 5, 5, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ 2, 5, 5, 2, 2, 2 } });
 
     std::vector<float> input_data;
     input_data.reserve(array_size);

@@ -39,9 +39,9 @@ std::string scatter_nd_update_inst::to_string(scatter_nd_update_node const& node
 
     json_composite scatter_nd_update_info;
     scatter_nd_update_info.add("input id", input.id());
-    scatter_nd_update_info.add("input shape", node.input(0).get_output_layout().size.to_string());
-    scatter_nd_update_info.add("indices shape", node.input(1).get_output_layout().size.to_string());
-    scatter_nd_update_info.add("updates shape", node.input(2).get_output_layout().size.to_string());
+    scatter_nd_update_info.add("input shape", node.input(0).get_output_layout().to_string());
+    scatter_nd_update_info.add("indices shape", node.input(1).get_output_layout().to_string());
+    scatter_nd_update_info.add("updates shape", node.input(2).get_output_layout().to_string());
 
     node_info->add("scatter_nd_update info", scatter_nd_update_info);
     node_info->dump(primitive_description);

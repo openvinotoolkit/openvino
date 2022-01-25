@@ -27,9 +27,9 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     build_options build_opt;
     build_opt.set_option(build_option::optimize_data(false));
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
-    auto weights1 = engine.allocate_memory({ data_types::f32, format::yxio,{ 1, 1, 1, 2 } });
-    auto weights2 = engine.allocate_memory({ data_types::f32, format::oiyx,{ 1, 1, 1, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 2, 2 } });
+    auto weights1 = engine.allocate_memory({ data_types::f32, format::yxio,tensor{ 1, 1, 1, 2 } });
+    auto weights2 = engine.allocate_memory({ data_types::f32, format::oiyx,tensor{ 1, 1, 1, 2 } });
 
     set_values(input, { 1.1f, 1.2f, 1.3f, 1.4f });
     set_values(weights1, { 2.1f, 3.1f});
@@ -83,7 +83,7 @@ void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis,
     const data_t* psrc = src.data();
     data_t* pdst = dst.data();
 
-    auto sizes = get_sizes(input->get_layout().size, axis);
+    auto sizes = get_sizes(input->get_layout().get_tensor(), axis);
     int outer_dim = sizes.first;
     int inner_dim = sizes.second;
 
@@ -101,8 +101,8 @@ void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis,
 TEST(add_reorders_gpu, basic_reshape_and_tile) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 2, 2, 1 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::byxf,{ 2, 1, 4, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 1, 2, 2, 1 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::byxf, tensor{ 2, 1, 4, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));

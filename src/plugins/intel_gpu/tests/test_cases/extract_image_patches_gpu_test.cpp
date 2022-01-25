@@ -29,7 +29,7 @@ TEST(extract_image_patches_gpu, basic) {
     std::vector<unsigned int> rates = {1, 1};
     std::string auto_pad = "valid";
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch, depth, in_cols, in_rows } });
 
     std::vector<float> inputVals(batch * depth * in_rows * in_cols);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -103,7 +103,7 @@ TEST(extract_image_patches_gpu, basic2) {
     std::string auto_pad = "valid";
     tensor output_shape = {1, 16, 1, 1};
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch, depth, in_cols, in_rows } });
 
     std::vector<float> inputVals(batch * depth * in_rows * in_cols);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -167,7 +167,7 @@ TEST(extract_image_patches_gpu, basic3) {
     std::string auto_pad = "same_upper";
     tensor output_shape = {1, 16, 2, 2};
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch, depth, in_cols, in_rows } });
 
     std::vector<float> inputVals(batch * depth * in_rows * in_cols);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -262,7 +262,7 @@ TEST(extract_image_patches_gpu, basic3_same_lower) {
     std::string auto_pad = "same_lower";
     tensor output_shape = {1, 16, 2, 2};
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch, depth, in_cols, in_rows } });
 
     std::vector<float> inputVals(batch * depth * in_rows * in_cols);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -357,7 +357,7 @@ TEST(extract_image_patches_gpu, basic3_enough_space) {
     std::string auto_pad = "same_upper";
     tensor output_shape = {1, 9, 2, 2};
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch, depth, in_cols, in_rows } });
 
     std::vector<float> inputVals(batch * depth * in_rows * in_cols);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -431,7 +431,7 @@ TEST(extract_image_patches_gpu, basic4) {
     std::string auto_pad = "valid";
     tensor output_shape = {1, 9, 2, 2};
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch, depth, in_cols, in_rows } });
 
     std::vector<float> inputVals(batch * depth * in_rows * in_cols);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -505,7 +505,7 @@ TEST(extract_image_patches_gpu, basic5) {
     std::string auto_pad = "valid";
     tensor output_shape = {1, 8, 2, 2};
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ batch, depth, in_cols, in_rows } });
 
     std::vector<float> inputVals(batch * depth * in_rows * in_cols);
     std::generate(inputVals.begin(), inputVals.end(), []() {

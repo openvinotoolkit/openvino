@@ -154,10 +154,10 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
         ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) {
-        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
+        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?
-        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
+        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else {
         return layout(odt, ofmt, input_layout.size, op);
     }
@@ -190,23 +190,8 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
         reuse_input();
 
     auto input_layout = node.input().get_output_layout();
-    auto output_layout = node.get_output_layout();
-
-    CLDNN_ERROR_LESS_THAN(node.id(),
-                          "Input dimension size",
-                          input_layout.size.raw.size(),
-                          "ouput dimension size",
-                          output_layout.size.raw.size(),
-                          "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
-                          "(reorder) or when input > output (flatten).");
 
     if (!argument.subtract_per_feature.empty()) {
-        CLDNN_ERROR_GREATER_THAN(node.id(),
-                                 "Input feature dimension size",
-                                 input_layout.size.feature.size(),
-                                 "value",
-                                 1,
-                                 "Subtracting values work only for formats that have feature dimension == 1");
         if (input_layout.format != format::nv12) {
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                 "Input feature size[0]",

@@ -23,7 +23,7 @@ TEST(lrn_fp32_gpu, basic) {
     const size_t y = 1;
     const size_t x = 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, tensor{ b, f, x, y } });
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
         static float n = 0;
@@ -72,7 +72,7 @@ TEST(lrn_fp32_gpu, basic2) {
     const size_t y = 1;
     const size_t x = 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, tensor{ b, f, x, y } });
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
         static float n = 0;
@@ -121,7 +121,7 @@ TEST(lrn_fp16_gpu, basic1) {
     const size_t y = 1;
     const size_t x = 1;
 
-    auto input = engine.allocate_memory({ data_types::f16, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = engine.allocate_memory({ data_types::f16, format::b_fs_yx_fsv16, tensor{ b, f, x, y } });
     std::vector<half_t> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
         static float n = 0;
@@ -170,7 +170,7 @@ TEST(lrn_fp32_gpu, basic3) {
     const size_t y = 4;
     const size_t x = 4;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, tensor{ b, f, x, y } });
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
         static float n = 0;

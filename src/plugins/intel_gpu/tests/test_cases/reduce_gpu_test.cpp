@@ -517,8 +517,8 @@ public:
         cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
         auto out_lay = out_mem->get_layout();
 
-        ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
-        ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
+        ASSERT_EQ(out_lay.get_dims()[0], reference_result.size());                 // b
+        ASSERT_EQ(out_lay.get_dims()[1], reference_result[0].size());              // f
         ASSERT_EQ(out_lay.spatial(3), reference_result[0][0].size());           // w
         ASSERT_EQ(out_lay.spatial(2), reference_result[0][0][0].size());        // z
         ASSERT_EQ(out_lay.spatial(1), reference_result[0][0][0][0].size());     // y
@@ -750,7 +750,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_reduce_gpu_ref_f32_f32,
 
 TEST(reduce_gpu, common_bfyx) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 1, 1, 1}});
 
     set_values(input, {1.0f});
 
@@ -780,7 +780,7 @@ TEST(reduce_gpu, common_bfyx) {
 
 TEST(reduce_gpu, common_bfyx_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 3, 4, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 3, 4, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f});
 
@@ -810,7 +810,7 @@ TEST(reduce_gpu, common_bfyx_keepdims) {
 
 TEST(reduce_gpu, regr_bfyx_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1, 3, 2, 2} });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, 3, 2, 2} });
 
     set_values(input, { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f });
 
@@ -840,7 +840,7 @@ TEST(reduce_gpu, regr_bfyx_keepdims) {
 
 TEST(reduce_gpu, common_bfzyx) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {1, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, tensor{1, 1, 1, 1, 1}});
 
     set_values(input, {1.0f});
 
@@ -870,7 +870,7 @@ TEST(reduce_gpu, common_bfzyx) {
 
 TEST(reduce_gpu, common_bfzyx_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {1, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, tensor{1, 1, 1, 1, 1}});
 
     set_values(input, {1.0f});
 
@@ -960,7 +960,7 @@ TEST(reduce_gpu, common_bfwzyx_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_max_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 4, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 4, 1, 1, 1}});
 
     set_values(input, {0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f,
                        12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f});
@@ -991,7 +991,7 @@ TEST(reduce_gpu, common_bfwzyx_max_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_min) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1021,7 +1021,7 @@ TEST(reduce_gpu, common_bfwzyx_min) {
 
 TEST(reduce_gpu, common_bfwzyx_min_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1051,7 +1051,7 @@ TEST(reduce_gpu, common_bfwzyx_min_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_mean) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1081,7 +1081,7 @@ TEST(reduce_gpu, common_bfwzyx_mean) {
 
 TEST(reduce_gpu, common_bfwzyx_mean_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1111,7 +1111,7 @@ TEST(reduce_gpu, common_bfwzyx_mean_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_prod) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1141,7 +1141,7 @@ TEST(reduce_gpu, common_bfwzyx_prod) {
 
 TEST(reduce_gpu, common_bfwzyx_prod_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1171,7 +1171,7 @@ TEST(reduce_gpu, common_bfwzyx_prod_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_sum_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 4, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 4, 1, 1, 1}});
 
     set_values(input, {0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f,
                        12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f});
@@ -1202,7 +1202,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_logical_and) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1232,7 +1232,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_and) {
 
 TEST(reduce_gpu, common_bfwzyx_logical_and_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1262,7 +1262,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_and_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_logical_or) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1292,7 +1292,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_or) {
 
 TEST(reduce_gpu, common_bfwzyx_logical_or_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1322,7 +1322,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_or_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_sum_square) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1352,7 +1352,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_square) {
 
 TEST(reduce_gpu, common_bfwzyx_sum_square_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1382,7 +1382,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_square_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_l1) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, -2.0f, 3.0f, 4.0f, -5.0f});
 
@@ -1412,7 +1412,7 @@ TEST(reduce_gpu, common_bfwzyx_l1) {
 
 TEST(reduce_gpu, common_bfwzyx_l1_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, -2.0f, 3.0f, 4.0f, -5.0f});
 
@@ -1442,7 +1442,7 @@ TEST(reduce_gpu, common_bfwzyx_l1_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_l2) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, -2.0f, 3.0f, 4.0f, -5.0f});
 
@@ -1472,7 +1472,7 @@ TEST(reduce_gpu, common_bfwzyx_l2) {
 
 TEST(reduce_gpu, common_bfwzyx_l2_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, -2.0f, 3.0f, 4.0f, -5.0f});
 
@@ -1502,7 +1502,7 @@ TEST(reduce_gpu, common_bfwzyx_l2_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_log_sum) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1532,7 +1532,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum) {
 
 TEST(reduce_gpu, common_bfwzyx_log_sum_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1562,7 +1562,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_keepdims) {
 
 TEST(reduce_gpu, common_bfwzyx_log_sum_exp) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1592,7 +1592,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp) {
 
 TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor{2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
@@ -1731,8 +1731,8 @@ public:
             cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
             auto out_lay = out_mem->get_layout();
 
-            ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
-            ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
+            ASSERT_EQ(out_lay.get_dims()[0], reference_result.size());                 // b
+            ASSERT_EQ(out_lay.get_dims()[1], reference_result[0].size());              // f
             ASSERT_EQ(out_lay.spatial(3), reference_result[0][0].size());           // w
             ASSERT_EQ(out_lay.spatial(2), reference_result[0][0][0].size());        // z
             ASSERT_EQ(out_lay.spatial(1), reference_result[0][0][0][0].size());     // y

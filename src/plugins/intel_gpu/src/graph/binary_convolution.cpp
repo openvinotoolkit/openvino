@@ -110,18 +110,6 @@ binary_convolution_inst::typed_primitive_inst(network& network, binary_convoluti
                               0.0f,
                               "Unknown padding mode.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Output feature size",
-                              output_size.feature.size(),
-                              "expected feature size",
-                              1,
-                              "Only one-dimensional features are supported");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Output batch size",
-                              output_size.batch.size(),
-                              "expected output size",
-                              1,
-                              "Only one-dimensional batch size are supported");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights feature maps number",
                               input_layout.feature(),
                               "input feature maps number",

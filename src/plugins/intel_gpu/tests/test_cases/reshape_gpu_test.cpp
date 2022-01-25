@@ -79,7 +79,7 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     EXPECT_TRUE(output->get_layout().format.value == input->get_layout().format.value);  //reshape should not change format
 
     //output size should be equal to requested plus output padding
-    ASSERT_TRUE(output->get_layout().size == reshape_size);
+    ASSERT_TRUE(output->get_layout().get_tensor() == reshape_size);
     ASSERT_TRUE(output->get_layout().get_buffer_size() == reshape_size.add(output_padd.lower_size()).add(output_padd.upper_size()));
 
     {
@@ -440,7 +440,7 @@ TEST(reshape_gpu_f32, multiple_users_with_reorder) {
     auto feature_num = 2;
     auto x_size = 1;
     auto y_size = 1;
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -485,7 +485,7 @@ TEST(reshape_gpu_f32, calc_output_shape) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{2, 2, 1, 1}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -505,7 +505,7 @@ TEST(reshape_gpu_f32, calc_output_shape) {
     EXPECT_TRUE(output->get_layout().data_type == input->get_layout().data_type);
     EXPECT_TRUE(output->get_layout().format == input->get_layout().format);
 
-    ASSERT_TRUE(output->get_layout().size == tensor(1, 1, 1, 4));
+    ASSERT_TRUE(output->get_layout().get_tensor() == tensor(1, 1, 1, 4));
 
     float answers[4] = {-1.f, 2.f, -3.f, 4.f};
 
@@ -586,9 +586,9 @@ TEST(reshape_gpu_f32, shrink_chain_partial) {
     auto feature_num = 2;
     auto x_size = 1;
     auto y_size = 1;
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}});
-    auto scale_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto shift_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}});
+    auto scale_in = engine.allocate_memory({data_types::f32, format::bfyx, tensor{ tensor(feature(4)) }});
+    auto shift_in = engine.allocate_memory({data_types::f32, format::bfyx, tensor{ tensor(feature(4)) }});
 
     std::vector<float> scale_vals = {0.f, 1.f, 2.f, 3.f};
     std::vector<float> scale_shifts = {5.f, 10.f, 15.f, 20.0f};
@@ -625,9 +625,9 @@ TEST(reshape_gpu_f32, shrink_chain_partial) {
 
 TEST(reshape_gpu_f32, shrink_chain_full) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto scale_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto shift_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{ tensor(feature(4)) }});
+    auto scale_in = engine.allocate_memory({data_types::f32, format::bfyx, tensor{ tensor(feature(4)) }});
+    auto shift_in = engine.allocate_memory({data_types::f32, format::bfyx, tensor{ tensor(feature(4)) }});
 
     std::vector<float> scale_vals = {0.f, 1.f, 2.f, 3.f};
     std::vector<float> scale_shifts = {5.f, 10.f, 15.f, 20.0f};
@@ -664,9 +664,9 @@ TEST(reshape_gpu_f32, shrink_chain_full) {
 
 TEST(reshape_gpu_f32, shrink_chain_out) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto scale_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto shift_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{ tensor(feature(4)) }});
+    auto scale_in = engine.allocate_memory({data_types::f32, format::bfyx, tensor{ tensor(feature(4)) }});
+    auto shift_in = engine.allocate_memory({data_types::f32, format::bfyx, tensor{ tensor(feature(4)) }});
 
     std::vector<float> scale_vals = {0.f, 1.f, 2.f, 3.f};
     std::vector<float> scale_shifts = {5.f, 10.f, 15.f, 20.0f};

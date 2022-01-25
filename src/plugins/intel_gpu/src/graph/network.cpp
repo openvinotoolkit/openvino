@@ -112,7 +112,7 @@ static size_t get_x_pitch(const layout& layout) {
 
 template <class T>
 static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
-    auto&& size = mem->get_layout().size;
+    auto&& size = mem->get_layout().get_tensor();
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     auto batch_size = std::max(std::min(debug_config->dump_layers_limit_batch, size.batch[0]), 1);

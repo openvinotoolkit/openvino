@@ -39,7 +39,7 @@ layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(exp
     int num_channels = data_layout.feature();
     auto desc = node.get_primitive();
 
-    return layout(data_layout.data_type, format::bfyx, {num_rois, num_channels, desc->output_dim, desc->output_dim});
+    return layout(data_layout.data_type, format::bfyx, tensor{num_rois, num_channels, desc->output_dim, desc->output_dim});
 }
 
 std::string experimental_detectron_roi_feature_extractor_inst::to_string(experimental_detectron_roi_feature_extractor_node const& node) {

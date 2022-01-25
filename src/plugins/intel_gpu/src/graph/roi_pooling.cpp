@@ -23,7 +23,7 @@ layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node) {
     int num_rois = rois_layout.batch();
     int out_fm = desc->position_sensitive ? desc->output_dim : data_layout.feature();
 
-    return layout(data_layout.data_type, format::bfyx, {num_rois, out_fm, desc->pooled_width, desc->pooled_height});
+    return layout(data_layout.data_type, format::bfyx, tensor{num_rois, out_fm, desc->pooled_width, desc->pooled_height});
 }
 
 std::string roi_pooling_inst::to_string(roi_pooling_node const& node) {

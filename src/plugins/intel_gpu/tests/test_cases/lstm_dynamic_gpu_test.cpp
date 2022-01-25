@@ -219,13 +219,13 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
             ref_dynamic_length.push_back((T)v);
         constexpr auto dt = std::is_same<T, float>::value ? data_types::f32 : data_types::f16;
 
-        auto input_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, max_sequence_len, input_size, direction } });
+        auto input_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, max_sequence_len, input_size, direction } });
         set_values<T>(input_mem, ref_input_vec);
-        auto weights_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, input_size, 4 * hidden_size } });
+        auto weights_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, input_size, 4 * hidden_size } });
         set_values<T>(weights_mem, ref_weights_vec);
-        auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, batch_size, 1 } });
+        auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, batch_size, 1 } });
         set_values<T>(dynamic_length_mem, ref_dynamic_length);
-        auto bias_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, 4 * hidden_size, direction } });
+        auto bias_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, 4 * hidden_size, direction } });
         set_values(bias_mem, ref_bias_vec);
 
         topology topology;
@@ -333,20 +333,20 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
         for (auto& v : dynamic_lengths)
             ref_dynamic_length.push_back((T)v);
 
-        auto input_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, max_sequence_len, input_size, direction } });
+        auto input_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, max_sequence_len, input_size, direction } });
         set_values<T>(input_mem, ref_input_vec);
 
-        auto weights_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, input_size, 4 * hidden_size } });
+        auto weights_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, input_size, 4 * hidden_size } });
         set_values<T>(weights_mem, ref_weights_vec);
-        auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, hidden_size, 4 * hidden_size } });
+        auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, hidden_size, 4 * hidden_size } });
         set_values<T>(recurrent_mem, ref_recurrent_vec);
-        auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, batch_size, 1 } });
+        auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, batch_size, 1 } });
         set_values<T>(dynamic_length_mem, ref_dynamic_length);
-        auto bias_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, 4 * hidden_size, direction } });
+        auto bias_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, 4 * hidden_size, direction } });
         set_values(bias_mem, ref_bias_vec);
-        auto initial_hidden_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, 1, hidden_size, direction } });
+        auto initial_hidden_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, 1, hidden_size, direction } });
         set_values<T>(initial_hidden_mem, ref_hidden_vec);
-        auto initial_cell_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, 1, hidden_size, direction } });
+        auto initial_cell_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, 1, hidden_size, direction } });
         set_values<T>(initial_cell_mem, ref_cell_vec);
 
         topology topology;
@@ -377,7 +377,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
         }
 
         std::string last_hidden_state = "";
-        auto last_hidden_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, 1, hidden_size, direction } });
+        auto last_hidden_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, 1, hidden_size, direction } });
         last_hidden_mem->fill(get_test_stream());
         get_test_stream().finish();
         if (has_last_hidden_state)
@@ -387,7 +387,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
         }
 
         std::string last_cell_state = "";
-        auto last_cell_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, 1, hidden_size, direction } });
+        auto last_cell_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, 1, hidden_size, direction } });
         last_cell_mem->fill(get_test_stream());
         get_test_stream().finish();
         if (has_last_cell_state)
@@ -872,11 +872,11 @@ TEST(lstm_dynamic_negative, wrong_weights_size) {
     auto wrong_value = 50;
     auto& engine = get_test_engine();
     cldnn::data_types dt = cldnn::data_types::f32;
-    auto input_mem = engine.allocate_memory({ dt, format::bfyx, { batch_size, max_sequence_len, input_size, 1 } });
-    auto weights_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, input_size, wrong_value } });
-    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, hidden_size, 4 * hidden_size } });
-    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, batch_size, 1 } });
-    auto bias_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, 4 * hidden_size, 1 } });
+    auto input_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, max_sequence_len, input_size, 1 } });
+    auto weights_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, input_size, wrong_value } });
+    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, hidden_size, 4 * hidden_size } });
+    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, batch_size, 1 } });
+    auto bias_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, 4 * hidden_size, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input_mem->get_layout()));
@@ -897,11 +897,11 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_0) {
     auto wrong_value = 50;
     auto& engine = get_test_engine();
     cldnn::data_types dt = cldnn::data_types::f32;
-    auto input_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, max_sequence_len, input_size, 1 } });
-    auto weights_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, input_size, 4 * hidden_size } });
-    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, wrong_value, 4 * hidden_size } });
-    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, batch_size, 1 } });
-    auto bias_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, 4 * hidden_size, 1 } });
+    auto input_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, max_sequence_len, input_size, 1 } });
+    auto weights_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, input_size, 4 * hidden_size } });
+    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, wrong_value, 4 * hidden_size } });
+    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, batch_size, 1 } });
+    auto bias_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, 4 * hidden_size, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input_mem->get_layout()));
@@ -922,11 +922,11 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_1) {
     auto wrong_value = 50;
     auto& engine = get_test_engine();
     cldnn::data_types dt = cldnn::data_types::f32;
-    auto input_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, max_sequence_len, input_size, 1 } });
-    auto weights_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, input_size, 4 * hidden_size } });
-    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, wrong_value, 4 * hidden_size } });
-    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, batch_size, 1 } });
-    auto bias_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, 4 * hidden_size, 1 } });
+    auto input_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, max_sequence_len, input_size, 1 } });
+    auto weights_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, input_size, 4 * hidden_size } });
+    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, wrong_value, 4 * hidden_size } });
+    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, batch_size, 1 } });
+    auto bias_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, 4 * hidden_size, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input_mem->get_layout()));
@@ -947,11 +947,11 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_0) {
     auto wrong_value = 50;
     auto& engine = get_test_engine();
     cldnn::data_types dt = cldnn::data_types::f32;
-    auto input_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, max_sequence_len, input_size, 1 } });
-    auto weights_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, input_size, 4 * hidden_size } });
-    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, hidden_size, 4 * hidden_size } });
-    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, wrong_value, 1 } });
-    auto bias_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, 4 * hidden_size, 1 } });
+    auto input_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, max_sequence_len, input_size, 1 } });
+    auto weights_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, input_size, 4 * hidden_size } });
+    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, hidden_size, 4 * hidden_size } });
+    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, wrong_value, 1 } });
+    auto bias_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, 4 * hidden_size, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input_mem->get_layout()));
@@ -972,11 +972,11 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_1) {
     auto wrong_value = 2;
     auto& engine = get_test_engine();
     cldnn::data_types dt = cldnn::data_types::f32;
-    auto input_mem = engine.allocate_memory({ dt, format::bfyx,{ batch_size, max_sequence_len, input_size, 1 } });
-    auto weights_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, input_size, 4 * hidden_size } });
-    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, direction, hidden_size, 4 * hidden_size } });
-    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, wrong_value, 1 } });
-    auto bias_mem = engine.allocate_memory({ dt, format::bfyx,{ 1, 1, 4 * hidden_size, 1 } });
+    auto input_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ batch_size, max_sequence_len, input_size, 1 } });
+    auto weights_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, input_size, 4 * hidden_size } });
+    auto recurrent_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, direction, hidden_size, 4 * hidden_size } });
+    auto dynamic_length_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, wrong_value, 1 } });
+    auto bias_mem = engine.allocate_memory({ dt, format::bfyx, tensor{ 1, 1, 4 * hidden_size, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input_mem->get_layout()));

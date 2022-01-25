@@ -22,7 +22,7 @@ void eltwise_remove_stride::conv_stride_extend(program& p, program_node& node, c
 
     const auto conv = std::static_pointer_cast<const convolution>(node.get_primitive());
     auto weights_node_ptr = p.get_node_ptr(conv->weights[0]);
-    auto filter_size = weights_node_ptr->get_output_layout().size;
+    auto filter_size = weights_node_ptr->get_output_layout().get_tensor();
     // make sure this is conv 1x1
     if (filter_size.spatial[0] == 1 && filter_size.spatial[1] == 1) {
         auto deps = node.get_dependencies();

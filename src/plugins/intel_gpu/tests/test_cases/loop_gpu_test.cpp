@@ -29,11 +29,11 @@ TEST(loop_gpu, basic_no_concat)
 {
     auto& engine = get_test_engine();
 
-    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
-    auto operand_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
-    auto trip_count_mem = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
-    auto initial_condition_mem = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
-    auto num_iteration_mem = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 5 } });
+    auto operand_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 5 } });
+    auto trip_count_mem = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto initial_condition_mem = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto num_iteration_mem = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     std::vector<float> input_data{
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
@@ -126,11 +126,11 @@ TEST(loop_gpu, basic_concat)
 {
     auto& engine = get_test_engine();
 
-    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } }); // b,f,x,y
-    auto operand_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 1 } }); // b,f,x,y
-    auto trip_count_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
-    auto initial_condition_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
-    auto num_iteration_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 5 } }); // b,f,x,y
+    auto operand_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } }); // b,f,x,y
+    auto trip_count_mem = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto initial_condition_mem = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto num_iteration_mem = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 1, 1, 1, 1 } });
 
     std::vector<float> input_data{
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
@@ -219,14 +219,14 @@ TEST(loop_gpu, basic_concat_nested)
 {
     auto& engine = get_test_engine();
 
-    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } }); // b,f,x,y
-    auto trip_count_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
-    auto initial_condition_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
-    auto num_iteration_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
-    auto inner_trip_count_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
-    auto inner_initial_condition_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
-    auto inner_num_iteration_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
-    auto inner_operand_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 1 } }); // b,f,x,y
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 5 } }); // b,f,x,y
+    auto trip_count_mem = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto initial_condition_mem = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto num_iteration_mem = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto inner_trip_count_mem = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto inner_initial_condition_mem = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto inner_num_iteration_mem = engine.allocate_memory({ data_types::i64, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    auto inner_operand_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 4, 1 } }); // b,f,x,y
 
     /////////////////////////////////
     // set data
