@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,7 @@ addIeTargetTest(
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE}
         DEPENDENCIES
-            myriadPlugin
+            ov_intel_vpu_plugin
         LINK_LIBRARIES
             vpu_graph_transformer
             vpu_common_lib

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,16 +24,20 @@ typedef std::tuple<
     std::string,                        // Target Device
     std::map<std::string, std::string>, // Configuration
     std::vector<size_t>,                // Input Shape
-    std::pair<float, float>,            // Input Min and Max
-    size_t                              // Levels
+    std::pair<float, float>,            // Input Min and Max (before conv)
+    std::pair<float, float>,            // Input Min and Max (after conv)
+    size_t,                             // Levels
+    bool                                // Reshape between FQ and Pooling
 > fqMaxpoolReorderingParams;
 
 namespace LayerTestsDefinitions {
 
 class FQMaxpoolReordering : public testing::WithParamInterface<fqMaxpoolReorderingParams>,
     public LayerTestsUtils::LayerTestsCommon {
-    float inputDataMin = 0.0f;
-    float inputDataMax = 0.0f;
+    float inputDataMin1 = 0.0f;
+    float inputDataMax1 = 0.0f;
+    float inputDataMin2 = 0.0f;
+    float inputDataMax2 = 0.0f;
     float inputDataResolution = 1.0f;
 
 public:
@@ -42,9 +46,11 @@ public:
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::vector<size_t> inputShape;
-        std::pair<float, float> inputMinMax;
+        std::pair<float, float> inputMinMax1;
+        std::pair<float, float> inputMinMax2;
         size_t levels = 0;
-        std::tie(netPrecision, targetDevice, configuration, inputShape, inputMinMax, levels) = obj.param;
+        bool reshape = false;
+        std::tie(netPrecision, targetDevice, configuration, inputShape, inputMinMax1, inputMinMax2, levels, reshape) = obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
@@ -53,14 +59,16 @@ public:
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
         result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
-        result << "_inputMinMax=(" << inputMinMax.first << ".." << inputMinMax.second << ")";
+        result << "_inputMinMax1=(" << inputMinMax1.first << ".." << inputMinMax1.second << ")";
+        result << "_inputMinMax2=(" << inputMinMax2.first << ".." << inputMinMax2.second << ")";
         result << "_levels=" << levels;
+        result << "_reshape=" << reshape;
 
         return result.str();
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution);
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax1 - inputDataMin1, inputDataMin1, 1 / inputDataResolution);
     }
 
 protected:
@@ -68,23 +76,28 @@ protected:
         InferenceEngine::Precision netPrecision;
 
         std::vector<size_t> inputShape;
-        std::pair<float, float> inputMinMax;
+        std::pair<float, float> inputMinMax1;
+        std::pair<float, float> inputMinMax2;
         size_t levels = 0;
-        std::tie(netPrecision, targetDevice, configuration, inputShape, inputMinMax, levels) = this->GetParam();
+        bool reshape = false;
+        std::tie(netPrecision, targetDevice, configuration, inputShape, inputMinMax1, inputMinMax2, levels, reshape) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        std::tie(inputDataMin, inputDataMax) = inputMinMax;
-        auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputDataMin });
-        auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputDataMax });
+        std::tie(inputDataMin1, inputDataMax1) = inputMinMax1;
+        std::tie(inputDataMin2, inputDataMax2) = inputMinMax2;
+        auto inputLowNode1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputDataMin1 });
+        auto inputHighNode1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputDataMax1 });
+        auto inputLowNode2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputDataMin2 });
+        auto inputHighNode2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputDataMax2 });
 
         auto inputVector = ngraph::builder::makeParams(ngPrc, {inputShape});
 
         auto inputFQ = std::make_shared<ngraph::opset1::FakeQuantize>(inputVector[0],
-            inputLowNode, inputHighNode, inputLowNode, inputHighNode, levels);
+            inputLowNode1, inputHighNode1, inputLowNode1, inputHighNode1, levels);
 
         auto filterWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, {8, inputShape[1], 1, 8}, { 1.0f });
-        auto convLowNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMin});
-        auto convHighNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMax});
+        auto convLowNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMin1});
+        auto convHighNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMax1});
         auto convWeightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(filterWeightsNode,
             convLowNode, convHighNode, convLowNode, convHighNode, levels);
         auto convWeightsFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(convWeightsFQNode);
@@ -97,9 +110,20 @@ protected:
         auto add = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
 
         auto convFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(add,
-            inputLowNode, inputHighNode, inputLowNode, inputHighNode, levels);
+            inputLowNode2, inputHighNode2, inputLowNode2, inputHighNode2, levels);
 
-        auto maxpool = ngraph::builder::makePooling(convFQNode, {1, 2}, {0, 0}, {0, 0}, {1, 2}, ngraph::op::RoundingType::FLOOR,
+        std::shared_ptr<ngraph::Node> node_before_pooling = convFQNode;
+        if (reshape) {
+            const auto& shape = conv->get_output_shape(0);
+            size_t total = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+            auto reshapeConst1 = ngraph::builder::makeConstant(ngraph::element::i64, std::vector<size_t>{ 2 }, ngraph::Shape{1, total});
+            auto reshapeNode1 = std::make_shared<ngraph::opset1::Reshape>(convFQNode, reshapeConst1, false);
+            auto reshapeConst2 = ngraph::builder::makeConstant(ngraph::element::i64, std::vector<size_t>{ 4 }, shape);
+            auto reshapeNode2 = std::make_shared<ngraph::opset1::Reshape>(reshapeNode1, reshapeConst2, false);
+            node_before_pooling = reshapeNode2;
+        }
+
+        auto maxpool = ngraph::builder::makePooling(node_before_pooling, {1, 2}, {0, 0}, {0, 0}, {1, 2}, ngraph::op::RoundingType::FLOOR,
                                                     ngraph::op::PadType::VALID, false, ngraph::helpers::PoolingTypes::MAX);
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(maxpool)};
@@ -130,7 +154,9 @@ const std::vector<std::vector<size_t>> inputShape = {
 const std::vector<std::pair<float, float>> inputMinMax = {
     {-0.5, 0.5},
     {-2, 2},
-    {-8, 8}
+    {-8, 8},
+    {-5, 5},
+    {-17.5, 17.5},
 };
 
 const std::vector<size_t> levels = {
@@ -144,6 +170,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_fq_maxpool_reordering, FQMaxpoolReordering,
         ::testing::ValuesIn(configs),
         ::testing::ValuesIn(inputShape),
         ::testing::ValuesIn(inputMinMax),
-        ::testing::ValuesIn(levels)),
+        ::testing::ValuesIn(inputMinMax),
+        ::testing::ValuesIn(levels),
+        ::testing::ValuesIn(std::vector<bool>{true, false})),
     FQMaxpoolReordering::getTestCaseName);
 } // namespace LayerTestsDefinitions

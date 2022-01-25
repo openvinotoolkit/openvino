@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,14 +106,21 @@ public:
                 auto& devicesInfo = devicesMap[netPrecision];
                 bool find = false;
                 DeviceInformation expect;
-                for (auto& item : devicesInfo) {
-                    auto device =  std::find_if(metaDevices.begin(), metaDevices.end(),
-                            [&item](const DeviceInformation& d)->bool{return d.uniqueName == item.uniqueName;});
-                    if (device != metaDevices.end()) {
-                        find = true;
-                        expect = item;
-                        break;
+                if (metaDevices.size() > 1) {
+                    for (auto& item : devicesInfo) {
+                        auto device =  std::find_if(metaDevices.begin(), metaDevices.end(),
+                                [&item](const DeviceInformation& d)->bool{return d.uniqueName == item.uniqueName;});
+                        if (device != metaDevices.end()) {
+                            find = true;
+                            expect = item;
+                            break;
+                        }
                     }
+                } else if (metaDevices.size() == 1) {
+                    expect = metaDevices[0];
+                    find = true;
+                } else {
+                    find = false;
                 }
                 testConfigs.push_back(std::make_tuple(netPrecision, metaDevices, expect, !find));
             } else {

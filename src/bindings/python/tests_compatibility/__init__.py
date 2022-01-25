@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -65,9 +65,6 @@ xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node 
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Momentum")
-xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger "
-                                      "and QLinearMatMul "
-                                      "Input0 scale and input0 zero point shape must be same and 1")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
                                       "tf_crop_and_resize - this type of coordinate transformation mode "
                                       "is not supported. Choose one of the following modes: "

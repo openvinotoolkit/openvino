@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -741,7 +741,7 @@ TEST(model_reshape, TestInvalidReshape) {
         f = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
 
-    EXPECT_ANY_THROW(f->reshape({{"tensor", ov::Shape({4})}}));
+    EXPECT_THROW(f->reshape({{"tensor", ov::Shape({4})}}), ov::Exception);
 
     auto param = f->get_parameters().front();
     EXPECT_EQ(param->get_output_shape(0), ov::Shape({1, 1000, 4}));

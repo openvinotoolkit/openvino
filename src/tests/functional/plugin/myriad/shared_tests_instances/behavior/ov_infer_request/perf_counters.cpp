@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,13 +12,13 @@ namespace {
 TEST_P(OVInferRequestPerfCountersTest, CheckOperationInProfilingInfo) {
     req = execNet.create_infer_request();
     ASSERT_NO_THROW(req.infer());
-    std::vector<ov::runtime::ProfilingInfo> profiling_info;
+    std::vector<ov::ProfilingInfo> profiling_info;
     ASSERT_NO_THROW(profiling_info = req.get_profiling_info());
     for (const auto& op : function->get_ops()) {
         if (ov::is_type<ov::op::v0::Result>(op) || ov::is_type<ov::op::v0::Constant>(op))
             continue;
         auto op_is_in_profiling_info = std::any_of(std::begin(profiling_info), std::end(profiling_info),
-            [&] (const ov::runtime::ProfilingInfo& info) {
+            [&] (const ov::ProfilingInfo& info) {
             if (info.node_name.find(op->get_friendly_name() + "_") != std::string::npos || info.node_name == op->get_friendly_name()) {
                 return true;
             } else {

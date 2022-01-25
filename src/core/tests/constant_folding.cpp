@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -266,6 +266,8 @@ TEST(constant_folding, constant_unary_binary) {
     vector<int> values_g{1, 4};
     vector<char> values_h{0, 0, 1, 1};
     vector<char> values_i{0, 1};
+    vector<int8_t> values_j{-3, 5};
+    vector<uint8_t> values_k{3, 5};
     auto a = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_a);
     auto b = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_b);
     auto c = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_c);
@@ -275,6 +277,8 @@ TEST(constant_folding, constant_unary_binary) {
     auto g = make_shared<op::Constant>(element::i32, Shape{2}, values_g);
     auto h = make_shared<op::Constant>(element::boolean, Shape{2, 2}, values_h);
     auto i = make_shared<op::Constant>(element::boolean, Shape{2}, values_i);
+    auto j = make_shared<op::Constant>(element::i8, Shape{2}, values_j);
+    auto k = make_shared<op::Constant>(element::u8, Shape{2}, values_k);
     auto doubles = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 9.0});
 
     auto add = make_shared<op::v1::Add>(a, b);
@@ -303,6 +307,8 @@ TEST(constant_folding, constant_unary_binary) {
     auto logical_or_autob_numpy = make_shared<op::v1::LogicalOr>(h, i, op::AutoBroadcastType::NUMPY);
     auto logical_xor_autob_numpy = make_shared<op::Xor>(h, i, op::AutoBroadcastType::NUMPY);
     auto doubles_sqrt = make_shared<op::Sqrt>(doubles);
+    auto sub_int8 = make_shared<op::v1::Subtract>(j, j);
+    auto sub_uint8 = make_shared<op::v1::Subtract>(k, k);
 
     auto neg_sqrt = make_shared<op::Sqrt>(c);
 
@@ -331,7 +337,9 @@ TEST(constant_folding, constant_unary_binary) {
                                                  less_eq_autob_numpy,
                                                  logical_or_autob_numpy,
                                                  logical_xor_autob_numpy,
-                                                 doubles_sqrt},
+                                                 doubles_sqrt,
+                                                 sub_int8,
+                                                 sub_uint8},
                                       ParameterVector{});
     auto func_error = make_shared<Function>(NodeVector{neg_sqrt}, ParameterVector{});
 
@@ -365,6 +373,8 @@ TEST(constant_folding, constant_unary_binary) {
     vector<char> logical_or_autob_numpy_expected{0, 1, 1, 1};
     vector<char> logical_xor_autob_numpy_expected{0, 1, 1, 0};
     vector<double> doubles_sqrt_expected{2.0, 3.0};
+    vector<int8_t> sub_int8_expected{0, 0};
+    vector<uint8_t> sub_uint8_expected{0, 0};
 
     ASSERT_EQ(get_result_constant<int>(func, 0), add_expected);
     ASSERT_EQ(get_result_constant<int>(func, 1), sub_expected);
@@ -392,13 +402,15 @@ TEST(constant_folding, constant_unary_binary) {
     ASSERT_EQ(get_result_constant<char>(func, 23), logical_or_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<char>(func, 24), logical_xor_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<double>(func, 25), doubles_sqrt_expected);
+    ASSERT_EQ(get_result_constant<int8_t>(func, 26), sub_int8_expected);
+    ASSERT_EQ(get_result_constant<uint8_t>(func, 27), sub_uint8_expected);
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
-template <typename T, typename U>
+template <element::Type_t from, element::Type_t to, typename T, typename U>
 static void test_const_convert(const vector<T>& values_in, const vector<U>& values_expected) {
-    auto constant = op::Constant::create(element::from<T>(), Shape{values_in.size()}, values_in);
-    auto convert = make_shared<op::Convert>(constant, element::from<U>());
+    auto constant = op::Constant::create(from, Shape{values_in.size()}, values_in);
+    auto convert = make_shared<op::Convert>(constant, to);
     convert->set_friendly_name("test");
     auto f = make_shared<Function>(convert, ParameterVector{});
 
@@ -412,8 +424,8 @@ static void test_const_convert(const vector<T>& values_in, const vector<U>& valu
     auto new_const = ov::as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     ASSERT_EQ(new_const->get_friendly_name(), "test");
-    ASSERT_EQ(new_const->get_output_element_type(0), element::from<U>());
-    auto values_out = new_const->template get_vector<U>();
+    ASSERT_EQ(new_const->get_output_element_type(0), to);
+    auto values_out = new_const->template cast_vector<U>();
 
     ASSERT_EQ(values_expected, values_out);
 }
@@ -422,47 +434,57 @@ TEST(constant_folding, const_convert) {
     {
         vector<float> in{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
         vector<uint64_t> expected{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::u64>(in, expected);
     }
     {
         vector<bool> in{false, true, true, false, false, false, true};
         vector<float> expected{0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-        test_const_convert(in, expected);
+        test_const_convert<element::boolean, element::f32>(in, expected);
     }
     {
         vector<float> in{1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f};
         vector<bool> expected{true, false, true, false, true, false, true};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::boolean>(in, expected);
     }
     {
         vector<int64_t> in{1, 2, 3, 4, 5};
         vector<double> expected{1.0, 2.0, 3.0, 4.0, 5.0};
-        test_const_convert(in, expected);
+        test_const_convert<element::i64, element::f64>(in, expected);
     }
     {
         vector<double> in{1.2, 2.1, 3.3, 4.45, 5.02};
         vector<int64_t> expected{1, 2, 3, 4, 5};
-        test_const_convert(in, expected);
+        test_const_convert<element::f64, element::i64>(in, expected);
+    }
+    {
+        vector<int8_t> in{7, 0, 1, 2, 3, 4, 5, -1, -2, -8};
+        vector<float> expected{7, 0, 1, 2, 3, 4, 5, -1, -2, -8};
+        test_const_convert<element::i4, element::f32>(in, expected);
+    }
+    {
+        vector<float> in{9, 0, 1, 2, 3, 4, 5, -1, -2, -10};
+        vector<int8_t> expected{-7, 0, 1, 2, 3, 4, 5, -1, -2, 6};
+        test_const_convert<element::f32, element::i4>(in, expected);
     }
     {
         vector<int8_t> in{-128, -2, 0, 1, 3, 127};
         vector<float> expected{-128, -2, 0, 1, 3, 127};
-        test_const_convert(in, expected);
+        test_const_convert<element::i8, element::f32>(in, expected);
     }
     {
         vector<uint8_t> in{0, 1, 3, 127, 255};
         vector<float> expected{0, 1, 3, 127, 255};
-        test_const_convert(in, expected);
+        test_const_convert<element::u8, element::f32>(in, expected);
     }
     {
         vector<float> in{-300, -128, -1, 0, 33, 127, 128};
         vector<int8_t> expected{-44, -128, -1, 0, 33, 127, -128};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::i8>(in, expected);
     }
     {
         vector<float> in{0, 33, 127, 255, 256};
         vector<uint8_t> expected{0, 33, 127, 255, 0};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::u8>(in, expected);
     }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,54 +229,60 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, RNNSequenceCPUTest,
                 RNNSequenceCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicShapes = {
-    { { {-1, {1, 5}, 10},                           // #0. Dynamic shape 0
-        { {10, 2, 10}, {8, 3, 10}, {5, 4, 10} } },  // Target shapes
-      { {{0, 15}, 1, 1},                            // Dynamic shape 1
-        { {10, 1, 1}, {8, 1, 1}, {5, 1, 1} } },     // Target shapes
-      { {{0, 12}},                                  // Dynamic shape 2
-        { {10}, {8}, {5} } } },                     // Target shapes
-    { { {{0, 11}, -1, 10},                          // #1. Dynamic shape 0
-        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10} } },  // Target shapes
-      { {-1, 1, 10},                                // Dynamic shape 1
-        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } },  // Target shapes
-      { {-1},                                       // Dynamic shape 2
-        { {10}, {3}, {5} } } },                     // Target shapes
-    { { {{0, 11}, -1, {5, 15}},                     // #2. Dynamic shape 0
-        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10} } },  // Target shapes
-      { {-1, -1, {8, 11}},                          // Dynamic shape 1
-        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } },  // Target shapes
-      { {-1},                                       // Dynamic shape 2
-        { {10}, {3}, {5} } } },                     // Target shapes
-    { { {-1, {0, 7}, 10},                           // #3. Dynamic shape 0
-        { {1, 2, 10}, {1, 3, 10}, {1, 6, 10} } },   // Target shapes
-      { {-1, 1, 1},                                 // Dynamic shape 1
-        { {1, 1, 1}, {1, 1, 1}, {1, 1, 1} } },      // Target shapes
-      { {-1},                                       // Dynamic shape 2
-        { {1}, {1}, {1} } } },                      // Target shapes
-    { { {1, -1, 10},                                // #4. Dynamic shape 0
-        { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes
-      { {1, 1, 10},                                 // Dynamic shape 1
-        { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
-      { {1},                                        // Dynamic shape 2
-        { {1}, {1}, {1} } } },                      // Target shapes
-    { { {-1, -1, -1},                               // #5. Dynamic shape 0
-        { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes
-      { {-1, -1, -1},                               // Dynamic shape 1
-        { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
-      { {-1},                                       // Dynamic shape 2
-        { {1}, {1}, {1} } } },                      // Target shapes
-    { { {-1, {1, 5}, 10},                           // #6. Dynamic shape 0
-        { {10, 2, 10}, {8, 3, 10}, {5, 4, 10} } },  // Target shapes
-      { {{0, 15}, 1, 1},                            // Dynamic shape 1
-        { {10, 1, 1}, {8, 1, 1}, {5, 1, 1} } } },   // Target shapes
-    { { {{0, 11}, -1, 10},                          // #7. Dynamic shape 0
-        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10} } },  // Target shapes
-      { {-1, 1, 10},                                // Dynamic shape 1
-        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } } } // Target shapes
+    { { {-1, {1, 5}, 10},                                // #0. Dynamic shape 0
+        { {10, 2, 10}, {8, 3, 10}, {5, 4, 10} } },       // Target shapes
+      { {{0, 15}, 1, 1},                                 // Dynamic shape 1
+        { {10, 1, 1}, {8, 1, 1}, {5, 1, 1} } },          // Target shapes
+      { {{0, 12}},                                       // Dynamic shape 2
+        { {10}, {8}, {5} } } },                          // Target shapes
+    { { {{0, 11}, -1, 10},                               // #1. Dynamic shape 0
+        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10} } },       // Target shapes
+      { {-1, 1, 10},                                     // Dynamic shape 1
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } },       // Target shapes
+      { {-1},                                            // Dynamic shape 2
+        { {10}, {3}, {5} } } },                          // Target shapes
+    { { {{0, 11}, -1, {5, 15}},                          // #2. Dynamic shape 0
+        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10} } },       // Target shapes
+      { {-1, -1, {8, 11}},                               // Dynamic shape 1
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } },       // Target shapes
+      { {-1},                                            // Dynamic shape 2
+        { {10}, {3}, {5} } } },                          // Target shapes
+    { { {-1, {0, 7}, 10},                                // #3. Dynamic shape 0
+        { {1, 2, 10}, {1, 3, 10}, {1, 6, 10} } },        // Target shapes
+      { {-1, 1, 1},                                      // Dynamic shape 1
+        { {1, 1, 1}, {1, 1, 1}, {1, 1, 1} } },           // Target shapes
+      { {-1},                                            // Dynamic shape 2
+        { {1}, {1}, {1} } } },                           // Target shapes
+    { { {1, -1, 10},                                     // #4. Dynamic shape 0
+        { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },        // Target shapes
+      { {1, 1, 10},                                      // Dynamic shape 1
+        { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },        // Target shapes
+      { {1},                                             // Dynamic shape 2
+        { {1}, {1}, {1} } } },                           // Target shapes
+    { { {-1, -1, -1},                                    // #5. Dynamic shape 0
+        { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },        // Target shapes
+      { {-1, -1, -1},                                    // Dynamic shape 1
+        { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },        // Target shapes
+      { {-1},                                            // Dynamic shape 2
+        { {1}, {1}, {1} } } },                           // Target shapes
+    { { {7, {1, 5}, 10},                                 // #6. Dynamic shape 0
+        { {7, 2, 10}, {7, 3, 10}, {7, 4, 10} } },        // Target shapes
+      { {7, 1, 1},                                       // Dynamic shape 1
+        { {7, 1, 1}, {7, 1, 1}, {7, 1, 1} } } },         // Target shapes
+    { { {5, -1, 10},                                     // #7. Dynamic shape 0
+        { {5, 2, 10}, {5, 4, 10}, {5, 5, 10} } },        // Target shapes
+      { {5, 1, 10},                                      // Dynamic shape 1
+        { {5, 1, 10}, {5, 1, 10}, {5, 1, 10} } } },      // Target shapes
+    { { {{0, 11}, -1, 10},                               // #8. Dynamic shape 0
+        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10}, {10, 2, 10}, {5, 5, 10} } },   // Target shapes
+      { {-1, 1, 10},                                     // Dynamic shape 1
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10}, {10, 1, 10}, {5, 1, 10} } }, // Target shapes
+      { {-1},                                            // Dynamic shape 2
+        { {10}, {3}, {5}, {10}, {5} } } }                // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, RNNSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
@@ -298,13 +304,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, RNNSequenceCPUTest,
             RNNSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic, RNNSequenceCPUTest,
-            ::testing::Combine(::testing::Values(dynamicShapes[5]),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[5], dynamicShapes[8]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParamsBatchSizeOne),
+                               ::testing::Values(cpuParams),
                                ::testing::Values(std::map<std::string, std::string>{})),
             RNNSequenceCPUTest::getTestCaseName);
 
@@ -315,7 +321,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, RNNSequenceCPUTest,
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParamsBatchSizeOne),
+                               ::testing::Values(cpuParams),
                                ::testing::Values(additionalConfig[1])),
             RNNSequenceCPUTest::getTestCaseName);
 } // namespace

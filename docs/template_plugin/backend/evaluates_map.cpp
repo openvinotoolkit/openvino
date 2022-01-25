@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1499,7 +1499,8 @@ bool evaluate(const shared_ptr<op::v8::MatrixNms>& op,
                                                               op->get_output_type(),
                                                               selected_outputs,
                                                               selected_indices,
-                                                              valid_outputs);
+                                                              valid_outputs,
+                                                              op->get_input_element_type(0));
     return true;
 }
 
@@ -1623,7 +1624,8 @@ bool evaluate(const shared_ptr<op::v8::MulticlassNms>& op,
                                                               op->get_output_type(),
                                                               selected_outputs,
                                                               selected_indices,
-                                                              valid_outputs);
+                                                              valid_outputs,
+                                                              op->get_input_element_type(0));
 
     return true;
 }

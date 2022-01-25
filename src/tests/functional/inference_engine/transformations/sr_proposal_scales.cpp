@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <cpp/ie_cnn_network.h>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 TEST(SmartReshapeTests, Proposal1Scales) {
     std::shared_ptr<ngraph::Function> f(nullptr);
@@ -37,7 +38,10 @@ TEST(SmartReshapeTests, Proposal1Scales) {
     }
 
     InferenceEngine::CNNNetwork network(f);
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({600, 5}));
 }
 
@@ -68,6 +72,11 @@ TEST(SmartReshapeTests, Proposal4Scales) {
     }
 
     InferenceEngine::CNNNetwork network(f);
+
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
+
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({600, 5}));
 }

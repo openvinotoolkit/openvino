@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import collections
@@ -1000,6 +1000,19 @@ class Graph(nx.MultiDiGraph):
         eliminate_dead_nodes(self)
         # Add Const op for constant data nodes
         add_constant_operations(self)
+
+    def topological_sort(self, reverse: bool = False):
+        sorted_node_ids = nx.topological_sort(self)
+
+        sorted_nodes = [Node(self, node_id) for node_id in sorted_node_ids]
+
+        if not reverse:
+            return sorted_nodes
+        else:
+            return list(reversed(sorted_nodes))
+
+    def set_node_attributes(self, name: str, values):
+        return nx.set_node_attributes(self, values=values, name=name)
 
 
 def fill_graph_with_nodes(graph, src_nodes, get_id: callable, get_attrs: callable):

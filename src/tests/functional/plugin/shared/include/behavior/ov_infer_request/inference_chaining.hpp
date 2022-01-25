@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,9 @@ protected:
     static std::shared_ptr<ov::Model> getThirdStaticFunction(const ov::PartialShape &shape = {3});
 
     template<typename T>
-    ov::runtime::Tensor tensor(const std::vector<T> &v) {
+    ov::Tensor tensor(const std::vector<T> &v) {
         auto type = ov::element::from<T>();
-        ov::runtime::Tensor tensor(type, {v.size()});
+        ov::Tensor tensor(type, {v.size()});
         std::memcpy(tensor.data(), v.data(), v.size() * type.size());
 
         return tensor;

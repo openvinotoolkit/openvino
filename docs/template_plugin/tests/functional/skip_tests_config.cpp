@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,10 +100,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceTopKTest.*aType=f64.*)",
         // CVS-63947
         R"(.*ReferenceConcatTest.*concat_zero_.*)",
-        // CVS-64119
-        R"(.*ReferenceMatrixNmsTest.*esiType=i64.*evoType=i64.*)",
-        // CVS-64121
-        R"(.*ReferenceMulticlassNmsTest.*esiType=i64.*evoType=i64.*)",
         // CVS-64096
         R"(.*ReferenceNonMaxSuppressionTest.*esiType=i32.*evoType=i32.*)",
         // CVS-64081

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,14 +14,23 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace GNAPluginNS {
-
-static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
-                {GNAConfigParams::GNA_AUTO,             {Gna2AccelerationModeAuto,                         false}},
-                {GNAConfigParams::GNA_HW,               {Gna2AccelerationModeHardware,                     false}},
-                {GNAConfigParams::GNA_HW_WITH_SW_FBACK, {Gna2AccelerationModeHardwareWithSoftwareFallback, false}},
-                {GNAConfigParams::GNA_SW,               {Gna2AccelerationModeSoftware,                     false}},
-                {GNAConfigParams::GNA_SW_EXACT,         {Gna2AccelerationModeSoftware,                     true}},
-        };
+IE_SUPPRESS_DEPRECATED_START
+static const caseless_unordered_map<std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
+    {GNAConfigParams::GNA_AUTO,                 {Gna2AccelerationModeAuto,                          false}},
+    {GNAConfigParams::GNA_HW,                   {Gna2AccelerationModeHardware,                      false}},
+    {GNAConfigParams::GNA_HW_WITH_SW_FBACK,     {Gna2AccelerationModeHardwareWithSoftwareFallback,  false}},
+    {GNAConfigParams::GNA_SW,                   {Gna2AccelerationModeSoftware,                      false}},
+    {GNAConfigParams::GNA_SW_EXACT,             {Gna2AccelerationModeSoftware,                      true}},
+    {GNAConfigParams::GNA_GEN,                  {Gna2AccelerationModeGeneric,                       false}},
+    {GNAConfigParams::GNA_GEN_EXACT,            {Gna2AccelerationModeGeneric,                       true}},
+    {GNAConfigParams::GNA_SSE,                  {Gna2AccelerationModeSse4x2,                        false}},
+    {GNAConfigParams::GNA_SSE_EXACT,            {Gna2AccelerationModeSse4x2,                        true}},
+    {GNAConfigParams::GNA_AVX1,                 {Gna2AccelerationModeAvx1,                          false}},
+    {GNAConfigParams::GNA_AVX1_EXACT,           {Gna2AccelerationModeAvx1,                          true}},
+    {GNAConfigParams::GNA_AVX2,                 {Gna2AccelerationModeAvx2,                          false}},
+    {GNAConfigParams::GNA_AVX2_EXACT,           {Gna2AccelerationModeAvx2,                          true}},
+};
+IE_SUPPRESS_DEPRECATED_END
 
 static const std::set<std::string> supportedTargets = {
     GNAConfigParams::GNA_TARGET_2_0,
@@ -29,6 +38,7 @@ static const std::set<std::string> supportedTargets = {
     ""
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
     for (auto&& item : config) {
         auto key = item.first;
@@ -72,6 +82,10 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             inputScaleFactors[input_index] = InferenceEngine::CNNLayer::ie_parse_float(value);
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)) {
             dumpXNNPath = value;
+            IE_SUPPRESS_DEPRECATED_START
+        } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)) {
+            IE_SUPPRESS_DEPRECATED_END
+            dumpXNNGeneration = value;
         } else if (key == GNA_CONFIG_KEY(DEVICE_MODE)) {
             auto procType = supported_values.find(value);
             if (procType == supported_values.end()) {
@@ -121,7 +135,9 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                                     << value;
             }
             gnaPrecision = precision;
+            IE_SUPPRESS_DEPRECATED_START
         } else if (key == GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)) {
+            // This key is deprecated and will be removed in a future release
             if (value == PluginConfigParams::YES) {
                 gnaFlags.uniformPwlDesign = true;
             } else if (value == PluginConfigParams::NO) {
@@ -133,6 +149,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                                     << "should be equal to YES/NO, but not" << value;
             }
         } else if (key == GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)) {
+            // This key is deprecated and will be removed in a future release
+            IE_SUPPRESS_DEPRECATED_END
             float max_error;
             try {
                 max_error = InferenceEngine::CNNLayer::ie_parse_float(value);
@@ -210,6 +228,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
 
     AdjustKeyMapValues();
 }
+ OPENVINO_SUPPRESS_DEPRECATED_END
 
 void Config::AdjustKeyMapValues() {
     std::lock_guard<std::mutex> lockGuard{ mtx4keyConfigMap };
@@ -224,7 +243,9 @@ void Config::AdjustKeyMapValues() {
                 std::to_string(inputScaleFactors[n]);
     }
     keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)] = dumpXNNPath;
-
+    IE_SUPPRESS_DEPRECATED_START
+    keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)] = dumpXNNGeneration;
+    IE_SUPPRESS_DEPRECATED_END
     std::string device_mode;
     if (gnaFlags.sw_fp32) {
         device_mode = GNA_CONFIG_VALUE(SW_FP32);
@@ -246,14 +267,18 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
             gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
+    IE_SUPPRESS_DEPRECATED_START
     keyConfigMap[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
             gnaFlags.uniformPwlDesign ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(gnaFlags.pwlMaxErrorPercent);
+    IE_SUPPRESS_DEPRECATED_END
     keyConfigMap[CONFIG_KEY(PERF_COUNT)] =
             gnaFlags.performance_counting ? PluginConfigParams::YES: PluginConfigParams::NO;
+OPENVINO_SUPPRESS_DEPRECATED_START
     keyConfigMap[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);
     keyConfigMap[CONFIG_KEY(SINGLE_THREAD)] =
             gnaFlags.gna_openmp_multithreading ? PluginConfigParams::NO: PluginConfigParams::YES;
+OPENVINO_SUPPRESS_DEPRECATED_END
     keyConfigMap[CONFIG_KEY(LOG_LEVEL)] = gnaFlags.log_level;
 }
 
