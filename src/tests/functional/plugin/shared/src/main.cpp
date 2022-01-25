@@ -4,6 +4,7 @@
 
 #include "gtest/gtest.h"
 
+#include "common_test_utils/ov_common_utils.hpp"
 #include "functional_test_utils/layer_test_utils/environment.hpp"
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"

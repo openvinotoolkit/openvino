@@ -17,7 +17,7 @@ using InputShape = std::pair<ov::PartialShape, std::vector<ov::Shape>>;
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape);
 
 using ElementType = ov::element::Type_t;
-using Config = std::map<std::string, std::string>;
+using Config = ov::AnyMap;
 using TargetDevice = std::string;
 
 class SubgraphBaseTest : public CommonTestUtils::TestsCommon {
@@ -47,12 +47,12 @@ protected:
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
-    Config configuration;
+    ov::AnyMap configuration;
 
     std::shared_ptr<ov::Model> function, functionRefs = nullptr;
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
-    std::vector<ngraph::PartialShape> inputDynamicShapes;
-    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
+    std::vector<ov::PartialShape> inputDynamicShapes;
+    std::vector<std::vector<ov::Shape>> targetStaticShapes;
     ElementType inType = ov::element::undefined, outType = ov::element::undefined;
 
     ov::CompiledModel executableNetwork;
