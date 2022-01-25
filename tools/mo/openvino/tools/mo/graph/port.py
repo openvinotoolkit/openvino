@@ -353,7 +353,7 @@ class Port:
 
             if node_idx in self.node.out_nodes():
                 out_node = self.node.out_node(node_idx)
-                out_node.attrs()['fw_tensor_debug_info'] = tensor_info
+                out_node['fw_tensor_debug_info'] = tensor_info
 
     def disconnect(self):
         if self.type == 'out':
