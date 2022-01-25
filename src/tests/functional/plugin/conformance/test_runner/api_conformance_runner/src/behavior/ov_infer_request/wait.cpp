@@ -6,7 +6,7 @@
 
 #include "behavior/ov_infer_request/wait.hpp"
 
-#include "ov_api_conformance_helpers.hpp"
+#include "api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
@@ -14,7 +14,7 @@ using namespace ov::test::conformance;
 namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestWaitTests,
                         ::testing::Combine(
-                                ::testing::Values(ConformanceTests::targetDevice),
+                                ::testing::Values(ov::test::conformance::targetDevice),
                                 ::testing::ValuesIn(emptyConfig)),
                             OVInferRequestWaitTests::getTestCaseName);
 

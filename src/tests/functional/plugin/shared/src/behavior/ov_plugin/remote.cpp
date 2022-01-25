@@ -13,19 +13,17 @@ namespace test {
 std::string OVRemoteTest::getTestCaseName(testing::TestParamInfo<RemoteTensorParams> obj) {
     ov::element::Type element_type;
     std::string target_device;
-    ov::AnyMap config;
-    std::pair<ov::AnyMap, ov::AnyMap> param_pair;
+    runtime::ConfigMap config;
+    std::pair<runtime::ParamMap, runtime::ParamMap> param_pair;
     std::tie(element_type, target_device, config, param_pair) = obj.param;
-    ov::AnyMap context_parameters;
-    ov::AnyMap tensor_parameters;
+    runtime::ParamMap context_parameters;
+    runtime::ParamMap tensor_parameters;
     std::tie(context_parameters, tensor_parameters) = param_pair;
     std::ostringstream result;
     result << "element_type=" << element_type;
     result << "targetDevice=" << target_device;
     for (auto& configItem : config) {
-        result << "configItem=" << configItem.first << "_";
-        configItem.second.print(result);
-        result << "_";
+        result << "configItem=" << configItem.first << "_" << configItem.second << "_";
     }
     result << "__context_parameters=";
     for (auto& param : context_parameters) {
@@ -42,7 +40,7 @@ std::string OVRemoteTest::getTestCaseName(testing::TestParamInfo<RemoteTensorPar
 
 void OVRemoteTest::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::pair<ov::AnyMap, ov::AnyMap> param_pair;
+    std::pair<runtime::ParamMap, runtime::ParamMap> param_pair;
     std::tie(element_type, target_device, config, param_pair) = GetParam();
     std::tie(context_parameters, tensor_parameters) = param_pair;
     function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, element_type);
@@ -61,7 +59,7 @@ TEST_P(OVRemoteTest, canCreateRemote) {
         ? core.get_default_context(target_device)
         : core.create_context(target_device, context_parameters);
 
-    ov::AnyMap params;
+    runtime::ParamMap params;
     std::string device;
 
     ASSERT_NO_THROW(params = context.get_params());

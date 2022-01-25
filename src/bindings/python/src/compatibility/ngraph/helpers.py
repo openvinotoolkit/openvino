@@ -6,7 +6,7 @@
 from typing import Union
 
 from ngraph.impl import Function, PartialShape
-from openvino.inference_engine import IENetwork, DataPtr, CDataPtr
+from openvino.inference_engine import IENetwork, DataPtr, CDataPtr  # type: ignore
 
 
 def function_from_cnn(cnn_network: IENetwork) -> Function:

@@ -79,13 +79,13 @@ INSTANTIATE_TEST_SUITE_P(
 using OVClassExecutableNetworkSetConfigFromFp32Test = OVClassExecutableNetworkGetMetricTestForSpecificConfig;
 
 TEST_P(OVClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
-    ov::Core ie;
+ov::Core ie;
 
-    ov::AnyMap initialConfig;
-    initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = InferenceEngine::GNAConfigParams::GNA_SW_FP32;
-    ov::CompiledModel exeNetwork = ie.compile_model(simpleNetwork, deviceName, initialConfig);
+std::map<std::string, std::string> initialConfig;
+initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = InferenceEngine::GNAConfigParams::GNA_SW_FP32;
+ov::CompiledModel exeNetwork = ie.compile_model(simpleNetwork, deviceName, initialConfig);
 
-    ASSERT_THROW(exeNetwork.set_property({{configKey, configValue}}), ov::Exception);
+ASSERT_THROW(exeNetwork.set_config({{configKey, configValue}}), ov::Exception);
 }
 
 IE_SUPPRESS_DEPRECATED_START

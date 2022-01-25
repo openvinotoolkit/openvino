@@ -4,7 +4,7 @@
 
 #include "behavior/ov_plugin/core_integration.hpp"
 #include "openvino/runtime/core.hpp"
-#include "ov_api_conformance_helpers.hpp"
+#include "api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
@@ -17,15 +17,15 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassCommon, OVClassBasicTestP,
-        ::testing::Values(std::make_pair(getPluginLibNameByDevice(ConformanceTests::targetDevice), ConformanceTests::targetDevice)));
+        ::testing::Values(std::make_pair(getPluginLibNameByDevice(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassNetworkTestP, OVClassNetworkTestP,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassImportExportTestP, OVClassImportExportTestP,
-        ::testing::Values(generateComplexDeviceName(ConformanceTests::targetDevice)));
+        ::testing::Values(generateComplexDeviceName(ov::test::conformance::targetDevice)));
 
 //
 // IE Class GetMetric
@@ -41,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_FULL_DEVICE_NAME,
@@ -49,15 +49,15 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_STREAMS,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_ThrowUnsupported,
@@ -69,7 +69,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 //
 // IE Class GetConfig
@@ -77,18 +77,18 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetConfigTest, OVClassGetConfigTest,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 // IE Class Query network
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 
 // IE Class Load network
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ::testing::Values(ov::test::conformance::targetDevice));
 } // namespace
 
