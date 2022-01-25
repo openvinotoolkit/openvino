@@ -11,6 +11,7 @@
 #include "file_utils.h"
 #include "intel_gpu/plugin/device_config.hpp"
 #include "intel_gpu/plugin/itt.hpp"
+#include <openvino/runtime/intel_gpu/properties.hpp>
 #include <ie_system_conf.h>
 #include <thread>
 
@@ -66,7 +67,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
         const auto hints = perfHintsConfig.SupportedKeys();
         if (hints.end() != std::find(hints.begin(), hints.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
-        } else if (key.compare(PluginConfigParams::KEY_PERF_COUNT) == 0) {
+        } else if (key.compare(PluginConfigParams::KEY_PERF_COUNT) == 0 ||
+                   key.compare(ov::enable_profiling.name()) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 useProfiling = true;
             } else if (val.compare(PluginConfigParams::NO) == 0) {
@@ -91,7 +93,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
         } else if (key.compare(GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY) == 0 ||
-                   key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY) == 0) {
+                   key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY) == 0 ||
+                   key.compare(ov::intel_gpu::hint::queue_priority.name()) == 0) {
             std::stringstream ss(val);
             uint32_t uVal(0);
             ss >> uVal;
@@ -114,50 +117,72 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 default:
                     IE_THROW(ParameterMismatch) << "Unsupported queue priority value: " << uVal;
             }
-        } else if (key.compare(GPUConfigParams::KEY_GPU_MODEL_PRIORITY) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_MODEL_PRIORITY) == 0 ||
+                   key.compare(ov::hint::model_priority.name()) == 0) {
+            const bool new_api = key.compare(ov::hint::model_priority.name()) == 0;
             bool found_matched_value = false;
-            if (val.find(GPUConfigParams::GPU_MODEL_PRIORITY_HIGH) != std::string::npos) {
-                queuePriority = cldnn::priority_mode_types::high;
-                task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
-                found_matched_value = true;
-            } else if (val.find(GPUConfigParams::GPU_MODEL_PRIORITY_LOW) != std::string::npos) {
-                queuePriority = cldnn::priority_mode_types::low;
-                task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
-                found_matched_value = true;
-            } else {
-                if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_HIGH) != std::string::npos) {
-                    queuePriority = cldnn::priority_mode_types::high;
-                    found_matched_value = true;
-                } else if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_MED) != std::string::npos) {
-                    queuePriority = cldnn::priority_mode_types::med;
-                    found_matched_value = true;
-                } else if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_LOW) != std::string::npos) {
-                    queuePriority = cldnn::priority_mode_types::low;
-                    found_matched_value = true;
-                } else if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_DEFAULT) != std::string::npos) {
-                    queuePriority = cldnn::priority_mode_types::disabled;
-                    found_matched_value = true;
-                } else { // default is disabled
-                    queuePriority = cldnn::priority_mode_types::disabled;
+            if (new_api) {
+                std::stringstream ss(val);
+                ov::hint::ModelPriority priority;
+                ss >> priority;
+                switch (priority) {
+                    case ov::hint::ModelPriority::LOW:
+                        queuePriority = cldnn::priority_mode_types::low;
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
+                        break;
+                    case ov::hint::ModelPriority::MEDIUM:
+                        queuePriority = cldnn::priority_mode_types::med;
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+                        break;
+                    case ov::hint::ModelPriority::HIGH:
+                        queuePriority = cldnn::priority_mode_types::high;
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
+                        break;
                 }
-                if (val.find(GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH) != std::string::npos) {
+            } else {
+                if (val.find(GPUConfigParams::GPU_MODEL_PRIORITY_HIGH) != std::string::npos) {
+                    queuePriority = cldnn::priority_mode_types::high;
                     task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
                     found_matched_value = true;
-                } else if (val.find(GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW) != std::string::npos) {
+                } else if (val.find(GPUConfigParams::GPU_MODEL_PRIORITY_LOW) != std::string::npos) {
+                    queuePriority = cldnn::priority_mode_types::low;
                     task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
                     found_matched_value = true;
-                } else if (val.find(GPUConfigParams::GPU_HOST_TASK_PRIORITY_ANY) != std::string::npos) {
-                    task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
-                    found_matched_value = true;
-                } else { // default is any
-                    task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+                } else {
+                    if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_HIGH) != std::string::npos) {
+                        queuePriority = cldnn::priority_mode_types::high;
+                        found_matched_value = true;
+                    } else if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_MED) != std::string::npos) {
+                        queuePriority = cldnn::priority_mode_types::med;
+                        found_matched_value = true;
+                    } else if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_LOW) != std::string::npos) {
+                        queuePriority = cldnn::priority_mode_types::low;
+                        found_matched_value = true;
+                    } else if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_DEFAULT) != std::string::npos) {
+                        queuePriority = cldnn::priority_mode_types::disabled;
+                        found_matched_value = true;
+                    } else { // default is disabled
+                        queuePriority = cldnn::priority_mode_types::disabled;
+                    }
+                    if (val.find(GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH) != std::string::npos) {
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
+                        found_matched_value = true;
+                    } else if (val.find(GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW) != std::string::npos) {
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
+                        found_matched_value = true;
+                    } else if (val.find(GPUConfigParams::GPU_HOST_TASK_PRIORITY_ANY) != std::string::npos) {
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+                        found_matched_value = true;
+                    } else { // default is any
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+                    }
                 }
-            }
-            if (!found_matched_value) {
-                IE_THROW() << "Not found appropriate value for property key " << GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY
-                    << ".\n Expected Plugin priority such as GPU_PLUGIN_PRIORITY_HIGH / GPU_PLUGIN_PRIORITY_LOW or\n"
-                    << " Combination of queue priority(HIGH, MED, LOW, and DISABLED) and host task priority(HIGH, LOW, and ANY)"
-                    << " such as GPU_QUEUE_PRIORITY_HIGH | GPU_HOST_TASK_PRIORITY_HIGH";
+                if (!found_matched_value) {
+                    IE_THROW() << "Not found appropriate value for property key " << GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY
+                        << ".\n Expected Plugin priority such as GPU_PLUGIN_PRIORITY_HIGH / GPU_PLUGIN_PRIORITY_LOW or\n"
+                        << " Combination of queue priority(HIGH, MED, LOW, and DISABLED) and host task priority(HIGH, LOW, and ANY)"
+                        << " such as GPU_QUEUE_PRIORITY_HIGH | GPU_HOST_TASK_PRIORITY_HIGH";
+                }
             }
 
             if (getAvailableCoresTypes().size() > 1) {
@@ -172,7 +197,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                                                         static_cast<int>(std::thread::hardware_concurrency()));
             }
         } else if (key.compare(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) == 0 ||
-                   key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) == 0) {
+                   key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) == 0 ||
+                   key.compare(ov::intel_gpu::hint::queue_throttle.name()) == 0) {
             std::stringstream ss(val);
             uint32_t uVal(0);
             ss >> uVal;
@@ -232,7 +258,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 graph_dumps_dir = val;
                 createDirectory(graph_dumps_dir);
             }
-        } else if (key.compare(PluginConfigParams::KEY_CACHE_DIR) == 0) {
+        } else if (key.compare(PluginConfigParams::KEY_CACHE_DIR) == 0 ||
+                   key.compare(ov::cache_dir.name()) == 0) {
             if (!val.empty()) {
                 kernels_cache_dir = val;
                 createDirectory(kernels_cache_dir);
@@ -250,7 +277,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
-        } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0) {
+        } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0 ||
+                   key.compare(ov::streams::num.name()) == 0) {
             if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0) {
                 throughput_streams = GetDefaultNStreamsForThroughputMode();
             } else {
@@ -265,13 +293,22 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 if (val_i > 0)
                     throughput_streams = static_cast<uint16_t>(val_i);
             }
-        } else if (key.compare(PluginConfigParams::KEY_DEVICE_ID) == 0) {
+        } else if (key.compare(ov::hint::performance_mode.name()) == 0) {
+            std::stringstream ss(val);
+            ov::hint::PerformanceMode mode;
+            ss >> mode;
+            if (mode == ov::hint::PerformanceMode::THROUGHPUT)
+                throughput_streams = GetDefaultNStreamsForThroughputMode();
+            else
+                throughput_streams = 1;
+        } else if (key.compare(PluginConfigParams::KEY_DEVICE_ID) == 0 ||
+                   ov::device::id == key) {
             // Validate if passed value is postivie number.
             try {
                 int val_i = std::stoi(val);
                 (void)val_i;
             } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DEVICE_ID
+                IE_THROW() << "Wrong value for property key " << ov::device::id.name()
                     << ". DeviceIDs are only represented by positive numbers";
             }
             // Set this value.
@@ -301,7 +338,9 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 IE_THROW(NotFound) << "Unsupported KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS flag value: " << val;
             }
-        } else if (key.compare(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS) == 0 ||
+                   // Should be replaced with ov::threads_num after Properties update
+                   /* key.compare(ov::inference_num_threads.name()) == 0 */ false) {
             int max_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
             try {
                 int val_i = std::stoi(val);
@@ -314,7 +353,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                                    << "\nSpecify the number of threads use for build as an integer."
                                    << "\nOut of range value will be set as a default value, maximum concurrent threads.";
             }
-        } else if (key.compare(GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING) == 0 ||
+                   key.compare(ov::intel_gpu::enable_loop_unrolling.name()) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 enable_loop_unrolling = true;
             } else if (val.compare(PluginConfigParams::NO) == 0) {
@@ -332,10 +372,13 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
 
 void Config::adjustKeyMapValues() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Config::AdjustKeyMapValues");
-    if (useProfiling)
+    if (useProfiling) {
         key_config_map[PluginConfigParams::KEY_PERF_COUNT] = PluginConfigParams::YES;
-    else
+        key_config_map[ov::enable_profiling.name()] = PluginConfigParams::YES;
+    } else {
         key_config_map[PluginConfigParams::KEY_PERF_COUNT] = PluginConfigParams::NO;
+        key_config_map[ov::enable_profiling.name()] = PluginConfigParams::NO;
+    }
 
     if (dumpCustomKernels)
         key_config_map[PluginConfigParams::KEY_DUMP_KERNELS] = PluginConfigParams::YES;
@@ -371,10 +414,15 @@ void Config::adjustKeyMapValues() {
         key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::NO;
 
     {
+        std::stringstream s;
         if (queuePriority == cldnn::priority_mode_types::high && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
             key_config_map[GPUConfigParams::KEY_GPU_MODEL_PRIORITY] = GPUConfigParams::GPU_MODEL_PRIORITY_HIGH;
+            s << ov::hint::ModelPriority::HIGH;
+            key_config_map[ov::hint::model_priority.name()] = s.str();
         } else if (queuePriority == cldnn::priority_mode_types::low && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
+            s << ov::hint::ModelPriority::LOW;
             key_config_map[GPUConfigParams::KEY_GPU_MODEL_PRIORITY] = GPUConfigParams::GPU_MODEL_PRIORITY_LOW;
+            key_config_map[ov::hint::model_priority.name()] = s.str();
         } else {
             std::string val_plugin_priority;
             switch (queuePriority) {
@@ -402,6 +450,7 @@ void Config::adjustKeyMapValues() {
         }
         key_config_map[CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY] = qp;
         key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY] = qp;
+        key_config_map[ov::intel_gpu::hint::queue_priority.name()] = qp;
     }
     {
         std::string qt = "0";
@@ -413,6 +462,18 @@ void Config::adjustKeyMapValues() {
         }
         key_config_map[CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE] = qt;
         key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = qt;
+        key_config_map[ov::intel_gpu::hint::queue_throttle.name()] = qt;
+    }
+    {
+        ov::intel_gpu::hint::HostTaskPriority mode;
+        switch (task_exec_config._threadPreferredCoreType) {
+        case IStreamsExecutor::Config::LITTLE:      mode = ov::intel_gpu::hint::HostTaskPriority::LOW; break;
+        case IStreamsExecutor::Config::BIG:         mode = ov::intel_gpu::hint::HostTaskPriority::HIGH; break;
+        case IStreamsExecutor::Config::ANY:default: mode = ov::intel_gpu::hint::HostTaskPriority::ANY; break;
+        }
+        std::stringstream s;
+        s << mode;
+        key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = s.str();
     }
     {
         std::string tm = PluginConfigParams::TUNING_DISABLED;
@@ -430,17 +491,31 @@ void Config::adjustKeyMapValues() {
     key_config_map[CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR] = graph_dumps_dir;
     key_config_map[CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR] = sources_dumps_dir;
     key_config_map[PluginConfigParams::KEY_CACHE_DIR] = kernels_cache_dir;
+    key_config_map[ov::cache_dir.name()] = kernels_cache_dir;
 
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
-    key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;
-    key_config_map[PluginConfigParams::KEY_CONFIG_FILE] = "";
-    key_config_map[GPUConfigParams::KEY_GPU_MAX_NUM_THREADS] = std::to_string(task_exec_config._streams);
+    key_config_map[ov::streams::num.name()] = std::to_string(throughput_streams);
 
-    if (enable_loop_unrolling)
+    key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;
+    key_config_map[ov::device::id.name()] = device_id;
+
+    key_config_map[PluginConfigParams::KEY_CONFIG_FILE] = "";
+
+    key_config_map[GPUConfigParams::KEY_GPU_MAX_NUM_THREADS] = std::to_string(task_exec_config._streams);
+    // Should be replaced with ov::threads_num after Properties update
+    // key_config_map[ov::inference_num_threads.name()] = std::to_string(task_exec_config._streams);
+
+    if (enable_loop_unrolling) {
         key_config_map[GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING] = PluginConfigParams::YES;
-    else
+        key_config_map[ov::intel_gpu::enable_loop_unrolling.name()] = PluginConfigParams::YES;
+    } else {
         key_config_map[GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING] = PluginConfigParams::NO;
+        key_config_map[ov::intel_gpu::enable_loop_unrolling.name()] = PluginConfigParams::NO;
+    }
+
     key_config_map[PluginConfigParams::KEY_PERFORMANCE_HINT]= perfHintsConfig.ovPerfHint;
+    key_config_map[ov::hint::performance_mode.name()]= perfHintsConfig.ovPerfHint;
+
     key_config_map[PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS] =
         std::to_string(perfHintsConfig.ovPerfHintNumRequests);
 }
