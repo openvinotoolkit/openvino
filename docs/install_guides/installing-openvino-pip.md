@@ -1,11 +1,62 @@
 # Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip}
 
-OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on the latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance AI and deep learning inference deployed from edge to cloud.
+You can install Intel® Distribution of OpenVINO™ Toolkit through the PyPI repository, including:
 
-Intel® Distribution of OpenVINO™ Toolkit provides the following packages available for installation through the PyPI repository:
+* OpenVINO Runtime with the Inference Engine inside. This page provides basic steps for installing OpenVINO Runtime. For more details, see <https://pypi.org/project/openvino/>.
+* OpenVINO Model Development Tools that includes Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools. From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. See [Install OpenVINO Model Development Tools](../installing-model-dev-tools.md) or <https://pypi.org/project/openvino-dev> for detailed steps.
 
-* Runtime package with the Inference Engine inside: [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/)
-* Developer package that includes the runtime package as a dependency, Model Optimizer, Accuracy Checker and Post-Training Optimization Tool: [https://pypi.org/project/openvino-dev](https://pypi.org/project/openvino-dev)
+## Install OpenVINO Runtime
+
+For system requirements and troubleshooting, see <https://pypi.org/project/openvino-dev> for more details.
+
+**Step 1. Set Up Python Virtual Environment**
+
+To avoid dependency conflicts, use a virtual environment. Skip this step only if you do want to install all dependencies globally.
+
+To create virtual environment, run the following command:
+```python
+python -m pip install --user virtualenv
+python -m venv openvino_env
+```
+
+>**NOTE**: On Linux and macOS, you may need to type `python3` instead of `python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
+
+**Step 2. Activate Virtual Environment**
+
+On Linux and macOS, run the following command:
+```
+source openvino_env/bin/activate
+```
+
+On Windows, run the following command:
+```
+openvino_env\Scripts\activate
+```
+
+**Step 3. Set Up and Update PIP to the Highest Version**
+
+Run the following command:
+```
+python -m pip install --upgrade pip
+```
+
+**Step 4. Install the Package**
+
+Run the command below:
+```
+pip install openvino
+```
+
+**Step 5. Verify that the Package is installed**
+
+Run the following command:
+```
+python -c "from openvino.inference_engine import IECore"
+```
+
+If installation was successful, you will not see any error messages (no console output).
+
+
 
 ## Additional Resources
 
