@@ -81,7 +81,7 @@ jobs:
           name: openvino_doc_pytest
           path: build/docs/doxygen.log
 
-        - name: 'Upload sphinx.log results'
+      - name: 'Upload sphinx.log results'
         if: always()
         uses: actions/upload-artifact@v2
         with:
