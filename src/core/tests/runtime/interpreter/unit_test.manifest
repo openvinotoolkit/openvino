@@ -142,5 +142,5 @@ INTERPRETER.onnx_model_instance_normalization_dyn_shape
 INTERPRETER.onnx_controlflow_loop_2d_no_identity_termination_cond_false
 
 # Segmentation fault (core dumped)
-INTERPRETER.onnx_duplicated_output_names
+INTERPRETER.onnx_duplicated_output_name
 INTERPRETER.onnx_duplicated_more_output_names
