@@ -211,6 +211,7 @@ REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
 REGISTER_FACTORY(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 
 // ------------------------------ Supported v7 ops ------------------------------ //
+REGISTER_FACTORY(v7, DFT);
 REGISTER_FACTORY(v7, Gather);
 REGISTER_FACTORY(v7, Gelu);
 
