@@ -94,7 +94,6 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs,
                               const EvaluationContext& evaluation_context) const {
     NGRAPH_OP_SCOPE(v6_Assign_evaluate);
-
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 

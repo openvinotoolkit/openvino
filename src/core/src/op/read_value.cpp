@@ -82,7 +82,7 @@ void op::v6::ReadValue::validate_and_infer_types() {
 shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v6_ReadValue_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v6::ReadValue>(new_args.at(0), m_variable);
+    return make_shared<ReadValue>(new_args.at(0), m_variable);
 }
 
 bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
@@ -102,7 +102,6 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs,
                                  const EvaluationContext& evaluation_context) const {
     NGRAPH_OP_SCOPE(v6_ReadValue_evaluate);
-
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 
@@ -114,7 +113,6 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     // initial value (inputs[0]) is not supported, use zeros
     auto zero_const = make_shared<v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
     auto zero_tensor = make_shared<HostTensor>(zero_const);
-
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
     outputs[0]->set_unary(input_tensor);
 
