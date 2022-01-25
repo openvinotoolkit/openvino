@@ -464,10 +464,10 @@ int main(int argc, char* argv[]) {
                         }
                         // -----------------------------------------------------------------------------------------------------
                         int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);
-                        for (int i = 0; i < model->inputs().size(); i++) {
+                        for (int i = 0; i < executableNet.inputs().size(); i++) {
                             inferRequest.inferRequest.set_input_tensor(
                                 i,
-                                ov::Tensor(ov::element::f32, model->inputs()[i].get_shape(), inputFrame[0]));
+                                ov::Tensor(ov::element::f32, executableNet.inputs()[i].get_shape(), inputFrame[0]));
                         }
                         /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.start_async();
