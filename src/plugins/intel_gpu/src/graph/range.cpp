@@ -4,17 +4,9 @@
 
 #include "range_inst.h"
 #include "primitive_type_base.h"
-#include "json_object.h"
-#include <string>
+#include "lexical_cast.hpp"
 
 namespace cldnn {
-namespace {
-std::string lexical_cast(const json_base& j, int offset = 1) {
-    std::stringstream os;
-    j.dump(os, offset);
-    return os.str();
-}
-}  // namespace
 
 primitive_type_id range::type_id() {
     static primitive_type_base<range> instance;
