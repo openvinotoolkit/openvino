@@ -81,6 +81,11 @@ public:
           json_name(json_name),
           ull_val(v),
           type(ULONGLONG) {}
+    StatisticsVariant(std::string csv_name, std::string json_name, size_t v)
+        : csv_name(csv_name),
+          json_name(json_name),
+          ull_val(v),
+          type(ULONGLONG) {}
     StatisticsVariant(std::string csv_name, std::string json_name, const LatencyMetrics& v)
         : csv_name(csv_name),
           json_name(json_name),
@@ -91,11 +96,9 @@ public:
 
     std::string csv_name;
     std::string json_name;
-    union {
-        int i_val;
-        double d_val;
-        unsigned long long ull_val;
-    };
+    int i_val;
+    double d_val;
+    unsigned long long ull_val;
     std::string s_val;
     LatencyMetrics metrics_val;
     Type type;

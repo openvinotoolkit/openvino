@@ -131,7 +131,7 @@ static const char report_folder_message[] = "Optional. Path to a folder where st
 
 // @brief message for json_stats option
 static const char json_stats_message[] =
-    "Optional. Enables JSON-based statistics output (by default reporting system will use CSV format).";
+    "Optional. Enables JSON-based statistics output (by default reporting system will use CSV format). Should be used together with -report_folder option.";
 
 // @brief message for exec_graph_path option
 static const char exec_graph_path_message[] =

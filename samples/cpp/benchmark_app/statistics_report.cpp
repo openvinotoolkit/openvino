@@ -164,10 +164,18 @@ void StatisticsReportJSON::dump() {
     nlohmann::json js;
     std::string name = _config.report_folder + _separator + "benchmark_report.json";
 
-    dump_parameters(js["cmd_options"], _parameters.at(Category::COMMAND_LINE_PARAMETERS));
-    dump_parameters(js["configuration_setup"], _parameters.at(Category::RUNTIME_CONFIG));
-    dump_parameters(js["execution_results"], _parameters.at(Category::EXECUTION_RESULTS));
-    dump_parameters(js["execution_results"], _parameters.at(Category::EXECUTION_RESULTS_GROUPPED));
+    if (_parameters.count(Category::COMMAND_LINE_PARAMETERS)) {
+        dump_parameters(js["cmd_options"], _parameters.at(Category::COMMAND_LINE_PARAMETERS));
+    }
+    if (_parameters.count(Category::RUNTIME_CONFIG)) {
+        dump_parameters(js["configuration_setup"], _parameters.at(Category::RUNTIME_CONFIG));
+    }
+    if (_parameters.count(Category::EXECUTION_RESULTS)) {
+        dump_parameters(js["execution_results"], _parameters.at(Category::EXECUTION_RESULTS));
+    }
+    if (_parameters.count(Category::EXECUTION_RESULTS_GROUPPED)) {
+        dump_parameters(js["execution_results"], _parameters.at(Category::EXECUTION_RESULTS_GROUPPED));
+    }
 
     std::ofstream out_stream(name);
     out_stream << std::setw(4) << js << std::endl;
