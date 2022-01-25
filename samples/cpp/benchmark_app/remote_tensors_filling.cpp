@@ -89,9 +89,6 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
                        << std::string((input.second.is_image() ? "image" : "some binary data")) << " is expected)"
                        << slog::endl;
 
-            auto tensor = oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
-            remoteTensors[input.first].push_back(tensor);
-
             // Creating and filling shared buffers
             cl_int err;
             auto elementsNum = std::accumulate(begin(input.second.dataShape),
@@ -108,6 +105,10 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
                                                                    CL_MEM_READ_WRITE,
                                                                    0,
                                                                    (cl::size_type)inputSize);
+
+            auto tensor = oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
+            remoteTensors[input.first].push_back(tensor);
+
             if (inputFiles.empty()) {
                 // Filling in random data
                 fill_buffer(mappedPtr, elementsNum, input.second.type);
