@@ -3,11 +3,14 @@
 ## Introduction
 
 Post-training Optimization Tool (POT) is designed to accelerate the inference of deep learning models by applying
-special methods without model retraining or fine-tuning, like post-training quantization. Therefore, the tool does not
+special methods without model retraining or fine-tuning, e.g. post-training 8-bit quantization. Therefore, the tool does not
 require a training dataset or a pipeline. To apply post-training algorithms from the POT, you need:
 * A floating-point precision model, FP32 or FP16, converted into the OpenVINO&trade; Intermediate Representation (IR) format
 and run on CPU with the OpenVINO&trade;.
-* A representative calibration dataset representing a use case scenario, for example, 300 images.
+* A representative calibration dataset representing a use case scenario, e.g. 300 images. 
+
+Figure below shows the optimization workflow:
+![](docs/images/workflow_simple.png) 
 
 Post-training Optimization Tool provides the following key
 features:
@@ -15,41 +18,49 @@ features:
 * Two post-training 8-bit quantization algorithms: fast [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) and precise [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md).
 * Compression for different hardware targets such as CPU and GPU.
 * Multiple domains: Computer Vision, Natural Language Processing, Recommendation Systems, Speech Recognition.
+* [Command-line tool](docs/CLI.md) that provides a simple .
 * [API](openvino/tools/pot/api/README.md) that helps to apply optimization methods within a custom inference script written with OpenVINO Python* API.
-* Symmetric and asymmetric quantization schemes. For details, see the [Quantization](openvino/tools/pot/algorithms/quantization/README.md) section.
-* Per-channel quantization for Convolutional and Fully-Connected layers.
 
 The tool is aimed to fully automate the model transformation process without a need to change the model on the user's side. For details about 
 the low-precision flow in OpenVINO&trade;, see the [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md).
 
 For benchmarking results collected for the models optimized with POT tool, see [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
 
-POT is opensourced on GitHub as a part of https://github.com/openvinotoolkit/openvino.
+POT is opensourced on GitHub as a part of OpenVINO and available at https://github.com/openvinotoolkit/openvino/tools/pot.
 
 Further documentation presumes that you are familiar with the basic Deep Learning concepts, such as model inference,
 dataset preparation, model optimization, as well as with the OpenVINO&trade; toolkit and its components such 
 as  [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) 
 and [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README).
 
-## Use POT
-![](docs/images/workflow.png) 
+## Use options
+![](docs/images/use_cases.png) 
 
-The POT provides three basic usage scenarios:
-* **[Command-line interface](docs/CLI.md)**: this is the recommended path if the model from OpenVINO&trade; 
+The POT provides three basic usage options:
+* **[Command-line interface (CLI)](@ref pot_compression_cli_README)**: this option is recommended if the model from OpenVINO&trade; 
 [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or there is a valid [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README)
 configuration file for the model that allows validating model accuracy using [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README).
-* **[Python* API](openvino/tools/pot/api/README.md)**: it allows integrating optimization methods implemented in POT into
-a Python* inference script written with [Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview). 
-This flow is recommended if it is not possible to use [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README)
-for validation on the dedicated dataset.
-* **[Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench)**: a web-based graphical environment 
-that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
+* **[Simplified mode](@ref pot_configs_README)**: this option can be used if the model from Computer Vision domain and there is an unannotated dataset that can be used for optimization. Please note that this option does not guarantee accuracy in the general case.
+* **[Python\* API](@ref pot_compression_api_README)**: it allows integrating optimization methods implemented in POT into
+a Python* inference script that uses [OpenVINO Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview). 
 
-Note: POT also supports optimization in the so-called [**Simplified mode**](@ref pot_configs_README) which is essentially a local
-implementation of the POT Python API aimed at quantizing Computer Vision with simple pre-processing and inference flow. But
-please note that this mode can lead to an inaccurate model after optimization due to the difference in the model preprocessing.
 
-To get started with POT, follow the [Installation Guide](docs/InstallationGuide.md).
+POT is also integrated into [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench), a web-based graphical environment 
+that enables you to optimize, tune, analyze, visualize, and compare performance of deep learning models. 
+
+## Getting started
+
+To install POT, follow the [Installation Guide](docs/InstallationGuide.md).
+
+OpenVINO provides several tutorials that demonstrates usage of POT optimization workflow:
+
+* POT CLI:
+  * [Quantization of Image Classification model](TODO) 
+* POT API tutorials:
+  * [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
+  * [Quantization of object detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
+  * [Quantization of BERT for text classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
+
 
 ## See Also
 
