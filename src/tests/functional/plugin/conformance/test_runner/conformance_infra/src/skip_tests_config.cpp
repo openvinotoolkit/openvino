@@ -19,7 +19,7 @@ const char *targetPluginName = "";
 std::vector<std::string> IRFolderPaths = {};
 std::vector<std::string> disabledTests = {};
 
-std::map<std::string, std::string> pluginConfig = {};
+ov::AnyMap pluginConfig = {};
 
 } // namespace conformance
 } // namespace test

@@ -13,7 +13,7 @@ namespace subgraph {
 using ReadIRParams = std::tuple<
         std::string,                         // IR path
         std::string,                         // Target Device
-        std::map<std::string, std::string>>; // Plugin Config
+        ov::AnyMap>;                         // Plugin Config
 
 class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
                    virtual public ov::test::SubgraphBaseTest {

@@ -23,7 +23,7 @@ namespace subgraph {
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
     using namespace CommonTestUtils;
     std::string pathToModel, deviceName;
-    std::map<std::string, std::string> config;
+    ov::AnyMap config;
     std::tie(pathToModel, deviceName, config) = obj.param;
 
     std::ostringstream result;
@@ -36,7 +36,8 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     result << "Config=(";
     auto configItem = config.begin();
     while (configItem != config.end()) {
-        result << configItem->first << "=" << configItem->second;
+        result << configItem->first << "=";
+        configItem->second.print(result);
         if (++configItem != config.end()) {
             result << "_";
         }

@@ -21,7 +21,7 @@ namespace behavior {
 typedef std::tuple<
         ov::element::Type_t,                // Element type
         std::string,                        // Device name
-        std::map<std::string, std::string>  // Config
+        ov::AnyMap               // Config
 > OVExecGraphImportExportTestParams;
 
 class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGraphImportExportTestParams>,
@@ -30,7 +30,7 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     static std::string getTestCaseName(testing::TestParamInfo<OVExecGraphImportExportTestParams> obj) {
         ov::element::Type_t elementType;
         std::string targetDevice;
-        std::map<std::string, std::string> configuration;
+        ov::AnyMap configuration;
         std::tie(elementType, targetDevice, configuration) = obj.param;
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
@@ -38,7 +38,9 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
         if (!configuration.empty()) {
             result << "config=(";
             for (const auto& config : configuration) {
-                result << config.first << "=" << config.second << "_";
+                result << config.first << "=";
+                config.second.print(result);
+                result << "_";
             }
             result << ")";
         }
@@ -60,7 +62,7 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
-    std::map<std::string, std::string> configuration;
+    ov::AnyMap configuration;
     ov::element::Type_t elementType;
     std::shared_ptr<ov::Model> function;
 };
@@ -228,6 +230,23 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
 }
 
+static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
+    auto to_config_string = [] (const Any& any) -> std::string {
+        if (any.is<bool>()) {
+            return any.as<bool>() ? "YES" : "NO";
+        } else {
+            std::stringstream strm;
+            any.print(strm);
+            return strm.str();
+        }
+    };
+    std::map<std::string, std::string> result;
+    for (auto&& value : params) {
+        result.emplace(value.first, to_config_string(value.second));
+    }
+    return result;
+}
+
 TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
@@ -258,7 +277,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleRuLU");
     }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration);
+    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
 
     std::stringstream strm;
     execNet.Export(strm);
@@ -328,7 +347,7 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     std::stringstream strm;
     execNet.export_model(strm);
 
-    InferenceEngine::ExecutableNetwork importedExecNet = ie->ImportNetwork(strm, targetDevice, configuration);
+    InferenceEngine::ExecutableNetwork importedExecNet = ie->ImportNetwork(strm, targetDevice, any_copy(configuration));
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.GetInputsInfo().size());
     EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param1"]);

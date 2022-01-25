@@ -196,7 +196,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Differen
         // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
 };
 
-std::map<std::string, std::string> additional_config;
+ov::AnyMap additional_config;
 
 std::vector<ElementType> netType = {ElementType::bf16, ElementType::f32};
 

@@ -20,7 +20,7 @@ typedef std::tuple<
     ElementType,                       // In precision
     ElementType,                       // Out precision
     TargetDevice,                      // Device name
-    Config                             // Additional network configuration
+    ov::AnyMap                  // Additional network configuration
 > EltwiseTestParams;
 
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
