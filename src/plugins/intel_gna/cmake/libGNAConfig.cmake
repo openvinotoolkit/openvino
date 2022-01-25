@@ -4,7 +4,6 @@
 
 # module to locate GNA libraries
 
-
 set(libGNA_FOUND TRUE)
 
 set(GNA_KERNEL_LIB_NAME gna CACHE STRING "" FORCE)
