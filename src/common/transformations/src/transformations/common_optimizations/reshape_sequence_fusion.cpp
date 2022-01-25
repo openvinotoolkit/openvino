@@ -92,7 +92,7 @@ ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion() {
 
         reshape->input(0).replace_source_output(input);
         copy_runtime_info(nodes, reshape);
-        return true;
+        return false;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_b, matcher_name);
