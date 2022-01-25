@@ -98,11 +98,11 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
             auto inputSize = elementsNum * input.second.type.bitwidth() / 8;
 
             clBuffer.push_back(
-                cl::Buffer(oclInstance->_context, CL_MEM_READ_ONLY, (cl::size_type)inputSize, NULL, &err));
+                cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
 
             void* mappedPtr = oclInstance->_queue.enqueueMapBuffer(clBuffer.back(),
                                                                    CL_TRUE,
-                                                                   CL_MEM_READ_ONLY,
+                                                                   CL_MEM_READ_WRITE,
                                                                    0,
                                                                    (cl::size_type)inputSize);
 
@@ -142,12 +142,12 @@ std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledMo
         cl::size_type bufferSize = 0;
         if (clBuffer.find(output.get_any_name()) == clBuffer.end()) {
             clBuffer[output.get_any_name()] =
-                cl::Buffer(oclInstance->_context, CL_MEM_WRITE_ONLY, (cl::size_type)inputSize, NULL, &err);
+                cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
         } else {
             auto& buff = clBuffer[output.get_any_name()];
             buff.getInfo(CL_MEM_SIZE, &bufferSize);
             if (inputSize != bufferSize) {
-                buff = cl::Buffer(oclInstance->_context, CL_MEM_WRITE_ONLY, (cl::size_type)inputSize, NULL, &err);
+                buff = cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
             }
         }
         outputTensors[output.get_any_name()] = oclContext.create_tensor(output.get_element_type(),
