@@ -326,22 +326,22 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
 
     if (outputsInfo.size() != function->get_output_size()) {
+        const auto& outputs = function->outputs();
         std::unordered_set<std::shared_ptr<ov::descriptor::Tensor>> output_tensors;
-        size_t duplicates_count = 0;
-        for (const auto& output : function->outputs()) {
-            const auto tensor = output.get_tensor_ptr();
-            if (output_tensors.count(tensor) > 0) {
-                duplicates_count++;
-            } else {
-                output_tensors.insert(tensor);
-            }
-        }
-        OPENVINO_ASSERT((function->get_output_size() - outputsInfo.size()) == duplicates_count,
+        std::transform(outputs.cbegin(),
+                       outputs.cend(),
+                       std::inserter(output_tensors, output_tensors.begin()),
+                       [](const ov::Output<const ov::Node>& out) {
+                           return out.get_tensor_ptr();
+                       });
+
+        const auto duplicates_count = outputs.size() - output_tensors.size();
+        OPENVINO_ASSERT((outputs.size() - outputsInfo.size()) == duplicates_count,
                         "outputsInfo.size() is: ",
                         outputsInfo.size(),
                         ", and function->get_output_size() is: ",
                         function->get_output_size(),
-                        ". Number of duplicated results: ",
+                        ". Number of duplicated outputs: ",
                         duplicates_count);
     }
 
