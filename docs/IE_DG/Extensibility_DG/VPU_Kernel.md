@@ -28,7 +28,9 @@ The OpenCL toolchain for the Intel® Neural Compute Stick 2 supports offline com
    * `SHAVE_MOVIASM_DIR=<INSTALL_DIR>/deployment_tools/tools/cl_compiler/bin/`
 2. Run the compilation with the command below. You should use `--strip-binary-header` to make an OpenCL runtime-agnostic binary runnable with the Inference Engine.
    ```bash
+   source <INSTALL_DIR>/bin/setupvars.sh
    cd <INSTALL_DIR>/deployment_tools/tools/cl_compiler/bin
+   source cltools_setenv.sh
    ./clc --strip-binary-header custom_layer.cl -o custom_layer.bin
    ```
 
