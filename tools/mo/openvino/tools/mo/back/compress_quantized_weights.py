@@ -232,6 +232,9 @@ class CompressQuantizeWeights(BackReplacementPattern):
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         fake_quantize = match['fake_quantize']
 
+        if fake_quantize.has_and_set('stop_compression'):
+            return
+
         if 'convert' in match:
             dst_type = match['convert'].dst_type
             match['convert']['stop_value_propagation'] = False
