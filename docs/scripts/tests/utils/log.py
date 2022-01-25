@@ -71,7 +71,7 @@ class LogParser:
             filepath = self.strip_path(filepath, strip)
             if filepath in xfail_list:
                 continue
-            warnings = list(filter(lambda item: not any([re.match(re.compile(warning), item)
+            warnings = list(filter(lambda item: not any([re.search(re.compile(warning, re.IGNORECASE), item)
                                                          for warning in suppress_warnings]), warnings))
             if warnings:
                 filtered_out[filepath] = warnings
