@@ -418,7 +418,7 @@
         <model path="public/mtcnn/mtcnn-o/FP16/mtcnn-o.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="1858521" vmpeak="1884745" vmrss="294855" vmhwm="439420" />
         <model path="public/mtcnn/mtcnn-o/FP16/mtcnn-o.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="900504" vmpeak="900504" vmrss="30908" vmhwm="30908" />
         <model path="public/mtcnn/mtcnn-o/FP16/mtcnn-o.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="1943931" vmpeak="2029128" vmrss="293878" vmhwm="437933" />
-        <model path="public/mtcnn/mtcnn-o/FP16/mtcnn-o.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="1002414" vmpeak="1168414" vmrss="32047" vmhwm="32047" />
+        <model path="public/mtcnn/mtcnn-o/FP16/mtcnn-o.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="1010781" vmpeak="1010781" vmrss="42900" vmhwm="42900" /> # Values from {"commit_id": "d6bcfb7b8f3b65b79f5016d4c8351962dd03bc9e", "commit_date": "2022-01-21 14:12"} and *= 1.3
         <model path="public/mtcnn/mtcnn-o/FP16/mtcnn-o.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="2039954" vmpeak="2125151" vmrss="294184" vmhwm="437283" />
         <model path="public/mtcnn/mtcnn-o/FP32/mtcnn-o.xml" precision="FP32" test="create_exenetwork" device="CPU" vmsize="906594" vmpeak="906594" vmrss="36088" vmhwm="36088" /> # Values from {"commit_id": "403339f8f470c90dee6f6d94ed58644b2787f66b", "commit_date": "2022-01-19 14:13"} and *= 1.3
         <model path="public/mtcnn/mtcnn-o/FP32/mtcnn-o.xml" precision="FP32" test="create_exenetwork" device="GPU" vmsize="1877002" vmpeak="1899934" vmrss="273171" vmhwm="373313" />
