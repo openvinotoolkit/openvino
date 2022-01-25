@@ -34,6 +34,7 @@ using ::testing::ReturnRef;
 using ::testing::AtLeast;
 using ::testing::AnyNumber;
 using ::testing::InvokeWithoutArgs;
+using ::testing::ContainsRegex;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
@@ -45,7 +46,8 @@ using ConfigParams = std::tuple<
         unsigned int,                // gpu OPTIMAL_NUMBER_OF_INFER_REQUESTS
         int,                         // gpu infer requet num of customer want
         bool,                        // if gpu sleep, cpu device will load slow
-        unsigned int                 // expect OPTIMAL_NUMBER_OF_INFER_REQUESTS
+        unsigned int,                // expect OPTIMAL_NUMBER_OF_INFER_REQUESTS
+        int                          // gpu PERFORMANCE_HINT_NUM_REQUESTS
         >;
 class ExecNetworkGetMetric : public ::testing::TestWithParam<ConfigParams> {
 public:
@@ -79,8 +81,9 @@ public:
         bool cpuSleep;
         bool gpuSleep;
         bool isThroughput;
+        int gpuPerfHintNum;
         std::tie(isThroughput, cpuOptimalNum, cpuCustomerNum, cpuSleep,
-                 gpuOptimalNum, gpuCustomerNum, gpuSleep, expectOptimalNum) = obj.param;
+                 gpuOptimalNum, gpuCustomerNum, gpuSleep, expectOptimalNum, gpuPerfHintNum) = obj.param;
         std::ostringstream result;
         result << "cpuOptimalNum_" << cpuOptimalNum << "cpuCustomerNum_" << cpuCustomerNum;
         result << "gpuOptimalNum_" << gpuOptimalNum << "gpuCustomerNum_" << gpuCustomerNum;
@@ -90,6 +93,7 @@ public:
         } else {
             result << "__isThroughput" << "false";
         }
+        result << "_gpuPerfHintNum_" << gpuPerfHintNum;
         if (cpuSleep) {
             result << "_cpuSleep_" << "true";
         } else {
@@ -137,7 +141,6 @@ public:
        // remove annoying ON CALL message
        EXPECT_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
        gpuMockExeNetwork = gpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
-
        // prepare mockicore and cnnNetwork for loading
        core  = std::shared_ptr<MockICore>(new MockICore());
        auto* origin_plugin = new MockMultiDeviceInferencePlugin();
@@ -160,10 +163,6 @@ public:
        config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
        config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
                CommonTestUtils::DEVICE_CPU + std::string(",") + CommonTestUtils::DEVICE_GPU});
-
-       ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
-                    std::cout << stream.str() << std::endl;
-               });
     }
 };
 
@@ -176,8 +175,9 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
     bool cpuSleep;
     bool gpuSleep;
     bool isThroughput;
+    int gpuPerfHintNum;
     std::tie(isThroughput, cpuOptimalNum, cpuCustomerNum, cpuSleep,
-             gpuOptimalNum, gpuCustomerNum, gpuSleep, expectOptimalNum) = this->GetParam();
+             gpuOptimalNum, gpuCustomerNum, gpuSleep, expectOptimalNum, gpuPerfHintNum) = this->GetParam();
     if (isThroughput) {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {{CONFIG_KEY(PERFORMANCE_HINT),
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, cpuCustomerNum, ""});
@@ -189,9 +189,18 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
             .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
         ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
+        ON_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT))))
+            .WillByDefault(Return(CONFIG_VALUE(THROUGHPUT)));
+        EXPECT_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT)))).Times(AnyNumber());
+        ON_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS))))
+            .WillByDefault(Return(std::to_string(gpuPerfHintNum)));
+        EXPECT_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)))).Times(AnyNumber());
     } else {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({CommonTestUtils::DEVICE_GPU, {}, gpuCustomerNum, ""});
+        ON_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT))))
+            .WillByDefault(Return(CONFIG_VALUE(LATENCY)));
+        EXPECT_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT)))).Times(AnyNumber());
     }
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
@@ -270,19 +279,22 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
 //  expectOptimalNum of Auto ExecNetwork}
 //
 const std::vector<ConfigParams> testConfigs = {
-                                               ConfigParams {false, 1, -1, false, 2, -1, true, 8},
-                                               ConfigParams {false, 1, -1, false, 10, -1, true, 8},
-                                               ConfigParams {false, 12, -1, false, 2, -1, true, 12},
-                                               ConfigParams {false, 12, -1, false, 10, -1, true, 12},
-                                               ConfigParams {false, 1, -1, true, 2, -1, false, 8},
-                                               ConfigParams {false, 1, -1, true, 10, -1, false, 10},
-                                               ConfigParams {false, 6, -1, true, 2, -1, false, 8},
-                                               ConfigParams {false, 6, -1, true, 10, -1, false, 10},
-                                               ConfigParams {false, 6, 4, false, 2, 3, true, 8},
-                                               ConfigParams {false, 6, 4, false, 10, 3, true, 8},
-                                               ConfigParams {false, 1, 4, true, 2, 3, false, 8},
-                                               ConfigParams {false, 1, 4, true, 10, 3, false, 10},
-                                               ConfigParams {true, 1, 4, false, 10, 3, true, 512}
+                                               ConfigParams {false, 1, -1, false, 2, -1, true, 8, 0},
+                                               ConfigParams {false, 1, -1, false, 10, -1, true, 8, 0},
+                                               ConfigParams {false, 12, -1, false, 2, -1, true, 12, 0},
+                                               ConfigParams {false, 12, -1, false, 10, -1, true, 12, 0},
+                                               ConfigParams {false, 1, -1, true, 2, -1, false, 8, 0},
+                                               ConfigParams {false, 1, -1, true, 10, -1, false, 10, 0},
+                                               ConfigParams {false, 6, -1, true, 2, -1, false, 8, 0},
+                                               ConfigParams {false, 6, -1, true, 10, -1, false, 10, 0},
+                                               ConfigParams {false, 6, 4, false, 2, 3, true, 8, 0},
+                                               ConfigParams {false, 6, 4, false, 10, 3, true, 8, 0},
+                                               ConfigParams {false, 1, 4, true, 2, 3, false, 8, 0},
+                                               ConfigParams {false, 1, 4, true, 10, 3, false, 10, 0},
+                                               ConfigParams {true, 1, 4, false, 10, 3, true, 512, 0},
+                                               ConfigParams {true, 1, 4, false, 10, 3, true, 256, -1},
+                                               ConfigParams {true, 1, 4, false, 10, 3, true, 512, 512},
+                                               ConfigParams {true, 1, 4, false, 10, 3, true, 256, 256},
                                               };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetworkGetMetric,
