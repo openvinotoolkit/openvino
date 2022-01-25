@@ -85,6 +85,14 @@ TEST_P(LogUtilsTest, setLogLevel) {
     printLog();
 }
 
+void traceCallStacks(){
+    TraceCallStacks();
+}
+
+TEST(LogCallStacksTest, testTraceCallStacks){
+    traceCallStacks();
+}
+
 #if 0
 TEST_P(LogUtilsTest, setEnvNotAffectSetLogLevel) {
     EXPECT_CALL(*(HLogger), print(_)).Times(_expectCallNum);
