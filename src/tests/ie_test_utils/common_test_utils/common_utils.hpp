@@ -39,12 +39,12 @@ template<typename vecElementType>
 inline std::string vec2str(const std::vector<vecElementType> &vec) {
     if (!vec.empty()) {
         std::ostringstream result;
-        result << "(";
-        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
-        result << vec.back() << ")";
+        result << "vec";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "_"));
+        result << vec.back() << "_";
         return result.str();
     }
-    return std::string("()");
+    return std::string("vec_empty");
 }
 inline void replaceSubstringInString(std::string& str, const std::string& from, const std::string& to) {
     size_t pos;
@@ -65,7 +65,7 @@ inline std::string partialShape2str(const std::vector<ngraph::PartialShape>& par
 
 inline std::string pair2str(const std::pair<size_t, size_t>& p) {
     std::ostringstream result;
-    result << "(" << p.first << "." << p.second << ")";
+    result << "pair" << p.first << "_" << p.second << "__";
     return result.str();
 }
 
@@ -107,12 +107,12 @@ template<typename vecElementType>
 inline std::string set2str(const std::set<vecElementType> &set) {
     if (!set.empty()) {
         std::ostringstream result;
-        result << "(";
-        std::copy(set.begin(), std::prev(set.end()), std::ostream_iterator<vecElementType>(result, "."));
-        result << *set.rbegin() << ")";
+        result << "set";
+        std::copy(set.begin(), std::prev(set.end()), std::ostream_iterator<vecElementType>(result, "_"));
+        result << *set.rbegin() << "_";
         return result.str();
     }
-    return std::string("()");
+    return std::string("set_empty");
 }
 
 template <typename master, typename slave>
@@ -178,11 +178,11 @@ inline std::string GetTimestamp() {
 }
 
 inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, std::string>& config) {
-    os << "(";
+    os << "map";
     for (const auto& configItem : config) {
-        os << configItem.first << "=" << configItem.second << "_";
+        os << configItem.first << "_" << configItem.second << "__";
     }
-    os << ")";
+    os << "_";
     return os;
 }
 }  // namespace CommonTestUtils
