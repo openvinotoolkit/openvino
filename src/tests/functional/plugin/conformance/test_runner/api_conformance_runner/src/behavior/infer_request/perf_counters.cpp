@@ -6,13 +6,13 @@
 #include "api_conformance_helpers.hpp"
 
 namespace {
-using namespace ConformanceTests;
+using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPerfCountersTest,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
-                                ::testing::ValuesIn(std::vector<std::map<std::string, std::string>>{})),
+                                ::testing::ValuesIn(emptyConfig)),
                          InferRequestPerfCountersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPerfCountersTest,
