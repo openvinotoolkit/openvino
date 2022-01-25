@@ -976,7 +976,16 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
-    if (!isDynamicNode()) { //!isConfigDefined(config)
+    if (isDynamicNode()) {
+        // it is assumed that the nodes will define dense tensors on output edges
+        // if it is not the case the implementation must redefine this behaviour
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
+            auto outMemDesc = config.outConfs[i].getMemDesc();
+            if (outMemDesc && (outMemDesc->getType() & Blocked)) {
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), 0xffffffff);
+            }
+        }
+    } else {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
             config.inConfs[i].setMemDesc(getConsistentInputDesc(config, i));
         }

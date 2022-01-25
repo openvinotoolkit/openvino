@@ -1944,26 +1944,6 @@ void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
 }
 
-void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
-    auto config = selected_pd->getConfig();
-    if (!isDynamicNode()) { //isConfigDefined(config)
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].setMemDesc(getConsistentInputDesc(config, i));
-        }
-
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].setMemDesc(getConsistentOutputDesc(config, i));
-        }
-
-        initDescriptor(config);
-    } else {
-        initDescriptor(config);
-    }
-}
-
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
