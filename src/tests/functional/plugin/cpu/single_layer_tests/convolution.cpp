@@ -150,7 +150,7 @@ protected:
         init_input_shapes({inputShape});
 
         if (configuration.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
-                PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16]) {
+                PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16].as<std::string>()) {
             selectedType += "_BF16";
             rel_threshold = 1e-2f;
             if (selectedType == "jit_gemm_BF16")
