@@ -965,6 +965,7 @@ const std::map<const ngraph::DiscreteTypeInfo, MKLDNNEltwiseNode::Initializer> M
         float alpha_ = static_cast<float>(clampOp->get_min());
         float beta_ = static_cast<float>(clampOp->get_max());
         if (clampOp->get_input_element_type(0).is_integral_number()) {
+            // according to spec, when Clamp has integer element type, min and max mist be converted to integer
             alpha_ = std::ceil(alpha_);
             beta_ = std::floor(beta_);
         }
