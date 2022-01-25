@@ -16,21 +16,26 @@ from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
 def find_max_frame_time(node: Node):
     """
     Find maximum time_dim among all inputs of given node
+    time_dim can be > 0 or < 0, we will find min value (<=0) and max value (>=0) of inputs,
+    time_dim for node with such inputs will max-min
     If one of inputs has undefined time_dim, it raises Error because we assume that all parent nodes already have
     set time_dim.
     """
     in_frame_time_max = 0
+    in_frame_time_min = 0
 
     for inp in node.in_ports():
         if node.in_port(inp).disconnected():
             continue
         in_node = node.in_port(inp).get_source().node
-        if in_node.time_dim == -1:
+        if in_node.time_dim is None:
             raise Error("Parent node {} does not have set time_dim".format(in_node.id))
         if in_node.time_dim > in_frame_time_max:
             in_frame_time_max = in_node.time_dim
+        if in_node.time_dim < in_frame_time_min:
+            in_frame_time_min = in_node.time_dim
 
-    return in_frame_time_max
+    return in_frame_time_max - in_frame_time_min
 
 
 def set_time_dim(graph):
@@ -38,7 +43,7 @@ def set_time_dim(graph):
     Set value of dimension where we gather frames with different time labels.
     If in some node we don't use any context, then time_dim = 0
     """
-    graph.set_node_attributes('time_dim', -1)
+    graph.set_node_attributes('time_dim', None)
 
     # set correct time dim for start Convolutions
     update_time_dim_for_start_convolution(graph)
@@ -46,12 +51,12 @@ def set_time_dim(graph):
     sorted_nodes = graph.topological_sort()
 
     for node in sorted_nodes:
-        if node.time_dim >= 0:
+        if node.time_dim is not None:
             continue
 
         if node.op == "MemoryOffset":
             # MemoryOffset can be splitted already and can be without input, time_dim = t in this case
-            node.time_dim = node.in_port(0).get_source().node.time_dim + abs(node.t) if not node.in_port(0).disconnected() else abs(node.t)
+            node.time_dim = node.in_port(0).get_source().node.time_dim + node.t if not node.in_port(0).disconnected() else node.t
         elif node.op == "Splice":
             node.time_dim = node.in_port(0).get_source().node.time_dim + len(node.context) - 1
         elif node.op in ['Convolution', 'Pooling']:
@@ -102,9 +107,7 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
     def run_after(self):
         # remove cycles before this transformation because topological_sort call
         from openvino.tools.mo.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
-        # MemoryOffsetAdjustment required to have node.t > 0 and simplify finding of maximum time dimension
-        from openvino.tools.mo.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
-        return [MemoryOffsetAdjustment, SplitRecurrentMemoryOffset]
+        return [SplitRecurrentMemoryOffset]
 
     @staticmethod
     def find_and_replace_pattern(graph: Graph):

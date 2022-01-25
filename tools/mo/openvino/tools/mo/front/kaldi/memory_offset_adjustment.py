@@ -44,10 +44,6 @@ def align_frame_time(graph: Graph, node: Node, frame_time_max):
             if in_node.op == 'MemoryOffset':
                 in_node.t = in_node.frame_time - frame_time_max
                 in_node.frame_time = in_node.t
-                if in_node.has_and_set('splitted'):
-                    pair_node = Node(graph, in_node['pair_name'])
-                    pair_node.t = in_node.t
-                    pair_node.frame_time = in_node.frame_time
             else:
                 mem_name = graph.unique_id("align_" + node.id)
                 memory_align = MemoryOffset(graph, attrs={'id': mem_name,
@@ -91,8 +87,8 @@ class MemoryOffsetAdjustment(FrontReplacementSubgraph):
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
-    def run_after(self):
-        # remove cycles before memoryOffset adjustment to be able to apply transform for LSTM networks too
+    def run_before(self):
+        # transformation can't work with splitted MemoryOffsets
         from openvino.tools.mo.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
         return [SplitRecurrentMemoryOffset]
 
@@ -120,7 +116,7 @@ class MemoryOffsetAdjustment(FrontReplacementSubgraph):
             if node.frame_time < 0:
                 # MemoryOffset with t>0 increases frame delay
                 if node.op == "MemoryOffset":
-                    node.frame_time = node.in_port(0).get_source().node.frame_time + node.t if not node.in_port(0).disconnected() else node.t
+                    node.frame_time = node.in_port(0).get_source().node.frame_time + node.t
                 # for node with several inputs frame_time = maximum of delays from branches
                 # other branches should be synced by adding MemoryOffset(branch frame_time  - max)
                 # After that MemoryOffset with maximum delay should be deleted (t becomes 0)
