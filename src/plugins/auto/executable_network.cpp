@@ -556,11 +556,13 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
     if (_workModeIsAUTO) {
-        if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            if (_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") == std::string::npos)
-                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
+        try {
+            ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
+        } catch (InferenceEngine::Exception& ex) {
+            // plugin does not support context
+            LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
+                            _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
         }
-        // if user creates more infer request than the device optimal value, fall back to default memory
         return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, ctx);
     }
 
@@ -585,11 +587,12 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
     if (_workModeIsAUTO) {
-        if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            if (_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") == std::string::npos)
-                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
+        try {
+            ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
+        } catch (InferenceEngine::Exception& ex) {
+            // plugin does not support context
+            LOG_DEBUG("[AUTOPLUGIN]context not supported for %s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName);
         }
-        // if user creates more infer request than the device optimal value, fall back to default memory
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, ctx);
     }
 

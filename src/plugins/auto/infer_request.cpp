@@ -42,9 +42,9 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
     }
     // Allocate all input blobs
     for (const auto &it : _networkInputs) {
-        Layout l = it.second->getLayout();
-        Precision p = it.second->getPrecision();
-        SizeVector dims = it.second->getTensorDesc().getDims();
+        auto l = it.second->getLayout();
+        auto p = it.second->getPrecision();
+        auto dims = it.second->getTensorDesc().getDims();
 
         TensorDesc desc = TensorDesc(p, dims, l);
         if (ctx) {
@@ -56,9 +56,9 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
     }
     // Allocate all output blobs
     for (const auto &it : _networkOutputs) {
-        Layout l = it.second->getLayout();
-        Precision p = it.second->getPrecision();
-        SizeVector dims = it.second->getTensorDesc().getDims();
+        auto l = it.second->getLayout();
+        auto p = it.second->getPrecision();
+        auto dims = it.second->getTensorDesc().getDims();
 
         TensorDesc desc = TensorDesc(p, dims, l);
         if (ctx) {
