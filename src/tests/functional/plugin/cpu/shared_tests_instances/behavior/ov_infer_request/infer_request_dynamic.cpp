@@ -106,6 +106,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_3, OVInferRequestDynamicTests,
                                  ::testing::ValuesIn(configs)),
                          OVInferRequestDynamicTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_4, OVInferRequestDynamicTests,
+                         ::testing::Combine(
+                                 ::testing::Values(getFunction3({{1, 5}, {1, 5}, {10, 40}, {10, 40}})),
+                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                         {{1, 4, 20, 20}, {1, 4, 20, 20}},
+                                         {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::ValuesIn(configs)),
+                         OVInferRequestDynamicTests::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                         ::testing::Combine(
                                 ::testing::Values(getFunction2()),

@@ -167,6 +167,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
+        // Issue: 76980
+        R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
     };
 
 #define FIX_62820 0
