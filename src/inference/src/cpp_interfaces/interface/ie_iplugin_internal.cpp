@@ -27,6 +27,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
@@ -325,14 +326,14 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
 
     if (outputsInfo.size() != function->get_output_size()) {
-        std::unordered_set<std::string> output_names;
+        std::unordered_set<std::shared_ptr<ov::descriptor::Tensor>> output_tensors;
         size_t duplicates_count = 0;
-        for (const auto& result : function->get_results()) {
-            const auto& name = result->input_value(0).get_any_name();
-            if (output_names.count(name) > 0) {
+        for (const auto& output : function->outputs()) {
+            const auto tensor = output.get_tensor_ptr();
+            if (output_tensors.count(tensor) > 0) {
                 duplicates_count++;
             } else {
-                output_names.insert(name);
+                output_tensors.insert(tensor);
             }
         }
         OPENVINO_ASSERT((function->get_output_size() - outputsInfo.size()) == duplicates_count,
