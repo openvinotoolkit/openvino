@@ -464,8 +464,8 @@ void LayerTestsCommon::Validate() {
     if (functionRefs == nullptr) {
         functionRefs = ngraph::clone_function(*function);
     }
-    auto expectedOutputs = CalculateRefs();
-    const auto &actualOutputs = GetOutputs();
+    const auto expectedOutputs = CalculateRefs();
+    const auto actualOutputs = GetOutputs();
 
     if (expectedOutputs.empty()) {
         return;
