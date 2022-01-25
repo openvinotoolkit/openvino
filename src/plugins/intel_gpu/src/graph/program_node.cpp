@@ -154,12 +154,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
     std::vector<std::string> deps_ptrs;
     {
-        bool empty = true;
         auto itr = dependencies.begin();
         while (itr != dependencies.end()) {
-            if (empty) {
-                empty = false;
-            }
             deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(*itr++)));
         }
         if (deps_ptrs.empty()) {
