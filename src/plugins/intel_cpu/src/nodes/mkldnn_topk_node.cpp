@@ -1949,7 +1949,7 @@ void MKLDNNTopKNode::preset_params() {
     auto data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].desc->getPrecision());
     data_size = MKLDNNExtensionUtils::sizeOfDataType(data_type);
 
-    topk_innermost = (layout == TopKLayoutType::topk_ncsp && axis == static_cast<int>(dst_dims.size() - 1)) ||
+    topk_innermost = (layout == TopKLayoutType::topk_ncsp && axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
                     ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
 
     if (mayiuse(cpu::x64::avx512_common)) {
