@@ -931,6 +931,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
                                      name=get_new_placeholder_name(node_id, is_out_port, port)))
 
     tensor_name = Node(graph, node_id).soft_get('name') + ":" + str(port)
+    fw_info = [(Node(graph, node_id).soft_get('name'), tensor_name)]
     if is_out_port and port == 0:
         tensor_name_no_port = Node(graph, node_id).soft_get('name')
         # TODO: This can be optimized. Tensor names can be stored as set, which is initialized after model loading.
@@ -940,10 +941,10 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
                         'graph contains tensor name with same name.'.format(tensor_name_no_port))
         else:
             # Add alias with operation name, as this format is used in some config files
-            tensor_name = tensor_name + "," + tensor_name_no_port
+            fw_info.append((Node(graph, node_id).soft_get('name'), tensor_name_no_port))
 
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
-                  'fw_tensor_debug_info': [(tensor_name, tensor_name)],
+                  'fw_tensor_debug_info': fw_info,
                   'data_attrs': ['fw_tensor_debug_info']}
 
     if not data:
