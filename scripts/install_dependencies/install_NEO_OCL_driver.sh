@@ -255,19 +255,19 @@ _download_packages_ubuntu()
 {
     case $INSTALL_DRIVER_VERSION in
     "21.38.21026")
-        curl -L -O https://github.com/intel/compute-runtime/releases/download/21.38.21026/intel-gmmlib_21.2.1_amd64.deb
-        curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.8708/intel-igc-core_1.0.8708_amd64.deb
-        curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.8708/intel-igc-opencl_1.0.8708_amd64.deb
-        curl -L -O https://github.com/intel/compute-runtime/releases/download/21.38.21026/intel-opencl_21.38.21026_amd64.deb
-        curl -L -O https://github.com/intel/compute-runtime/releases/download/21.38.21026/intel-ocloc_21.38.21026_amd64.deb
-        curl -L -O https://github.com/intel/compute-runtime/releases/download/21.38.21026/intel-level-zero-gpu_1.2.21026_amd64.deb
+        wget https://github.com/intel/compute-runtime/releases/download/21.38.21026/intel-gmmlib_21.2.1_amd64.deb
+        wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.8708/intel-igc-core_1.0.8708_amd64.deb
+        wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.8708/intel-igc-opencl_1.0.8708_amd64.deb
+        wget https://github.com/intel/compute-runtime/releases/download/21.38.21026/intel-opencl_21.38.21026_amd64.deb
+        wget https://github.com/intel/compute-runtime/releases/download/21.38.21026/intel-ocloc_21.38.21026_amd64.deb
+        wget https://github.com/intel/compute-runtime/releases/download/21.38.21026/intel-level-zero-gpu_1.2.21026_amd64.deb
     ;;
     "21.48.21782")
-        curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-gmmlib_21.3.3_amd64.deb
-        curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.9441/intel-igc-core_1.0.9441_amd64.deb
-        curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.9441/intel-igc-opencl_1.0.9441_amd64.deb
-        curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-opencl-icd_21.48.21782_amd64.deb
-        curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-level-zero-gpu_1.2.21782_amd64.deb
+        wget https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-gmmlib_21.3.3_amd64.deb
+        wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.9441/intel-igc-core_1.0.9441_amd64.deb
+        wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.9441/intel-igc-opencl_1.0.9441_amd64.deb
+        wget https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-opencl-icd_21.48.21782_amd64.deb
+        wget https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-level-zero-gpu_1.2.21782_amd64.deb
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
