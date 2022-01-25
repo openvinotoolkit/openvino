@@ -89,6 +89,10 @@ class CompiledModel(CompiledModelBase):
         )
         return super().infer_new_request(inputs)
 
+    def __call__(self, inputs: Union[dict, list] = None) -> dict:
+        """Callable infer wrapper for CompiledModel."""
+        return self.infer_new_request(inputs)
+
 
 class AsyncInferQueue(AsyncInferQueueBase):
     """AsyncInferQueue wrapper."""
@@ -113,9 +117,14 @@ class Core(CoreBase):
     """Core wrapper."""
 
     def compile_model(
-        self, model: Union[Model, str], device_name: str, config: dict = None
+        self, model: Union[Model, str], device_name: str = None, config: dict = None
     ) -> CompiledModel:
         """Compile a model from given Model."""
+        if device_name is None:
+            return CompiledModel(
+                super().compile_model(model, {} if config is None else config)
+            )
+
         return CompiledModel(
             super().compile_model(model, device_name, {} if config is None else config)
         )

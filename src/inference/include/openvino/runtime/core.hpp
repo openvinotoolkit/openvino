@@ -32,8 +32,6 @@ class IExtension;
 
 namespace ov {
 
-namespace runtime {
-
 /**
  * @brief This class represents OpenVINO runtime Core entity.
  * User applications can create several Core class instances, but in this case the underlying plugins
@@ -267,7 +265,7 @@ public:
     /**
      * @brief Imports a compiled model from a previously exported one
      * @param model_stream std::istream input stream containing a model previously exported using
-     * ov::runtime::CompiledModel::export_model method
+     * ov::CompiledModel::export_model method
      * @param device_name Name of device to import compiled model for. Note, if @p device_name device was not used to
      * compile the original mode, an exception is thrown
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
@@ -281,7 +279,7 @@ public:
     /**
      * @brief Imports a compiled model from a previously exported one with a specified remote context.
      * @param model_stream std::istream input stream containing a model previously exported from
-     * ov::runtime::CompiledModel::export_model
+     * ov::CompiledModel::export_model
      * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
      * the original mode, an exception is thrown
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
@@ -393,8 +391,8 @@ public:
      * - `location` specifies absolute path to dynamic library with a plugin.
      *    A path can also be relative to inference engine shared library. It allows to have common config
      *    for different systems with different configurations.
-     * - `properties` are set to a plugin via the ov::runtime::Core::set_config method.
-     * - `extensions` are set to a plugin via the ov::runtime::Core::add_extension method.
+     * - `properties` are set to a plugin via the ov::Core::set_config method.
+     * - `extensions` are set to a plugin via the ov::Core::add_extension method.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
@@ -416,5 +414,9 @@ public:
      */
     RemoteContext get_default_context(const std::string& device_name);
 };
+
+namespace runtime {
+using ov::Core;
 }  // namespace runtime
+
 }  // namespace ov

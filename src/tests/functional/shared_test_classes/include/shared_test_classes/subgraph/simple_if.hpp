@@ -27,7 +27,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<SimpleIfParamsTuple> &obj);
 protected:
     void SetUp() override;
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
+    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
 
     size_t inferNum = 0;
 };
@@ -55,7 +55,7 @@ protected:
 class SimpleIfNotConstConditionAndDimsIncreaseTest : public SimpleIfNotConstConditionTest {
 protected:
     void SetUp() override;
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
+    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
 };
 
 class SimpleIfNotConstConditionUnusedOutputPortsTest : public SimpleIfNotConstConditionTest {
