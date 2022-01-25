@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
     {}
 };
 
@@ -38,12 +38,12 @@ std::vector<ov::element::Type> prcs = {
     ov::element::u64,
 };
 
-const std::vector<std::map<std::string, std::string>> emptyConfigs = {{}};
+const std::vector<ov::AnyMap> emptyConfigs = {{}};
 
-const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
+const std::vector<ov::AnyMap> HeteroConfigs = {
             {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE}}};
 
-const std::vector<std::map<std::string, std::string>> Multiconfigs = {
+const std::vector<ov::AnyMap> Multiconfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_TEMPLATE}}
 };
 

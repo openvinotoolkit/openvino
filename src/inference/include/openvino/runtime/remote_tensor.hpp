@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,10 @@
 #pragma once
 
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
-namespace runtime {
+
 class RemoteContext;
 
 /**
@@ -22,7 +21,7 @@ class RemoteContext;
  */
 class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
-    friend class ov::runtime::RemoteContext;
+    friend class ov::RemoteContext;
 
 public:
     /**
@@ -53,7 +52,7 @@ public:
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    runtime::ParamMap get_params() const;
+    ov::AnyMap get_params() const;
 
     /**
      * @brief Returns name of the device on which underlying object is allocated.
@@ -63,5 +62,8 @@ public:
     std::string get_device_name() const;
 };
 
+namespace runtime {
+using ov::RemoteTensor;
 }  // namespace runtime
+
 }  // namespace ov

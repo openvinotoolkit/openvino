@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,8 +83,8 @@ void regclass_graph_Node(py::module m) {
     node.def(
         "evaluate",
         [](const ov::Node& self,
-           ov::runtime::TensorVector& output_values,
-           const ov::runtime::TensorVector& input_values,
+           ov::TensorVector& output_values,
+           const ov::TensorVector& input_values,
            const ov::EvaluationContext& evaluationContext) -> bool {
             return self.evaluate(output_values, input_values, evaluationContext);
         },
@@ -108,9 +108,7 @@ void regclass_graph_Node(py::module m) {
             )");
     node.def(
         "evaluate",
-        [](const ov::Node& self,
-           ov::runtime::TensorVector& output_values,
-           const ov::runtime::TensorVector& input_values) -> bool {
+        [](const ov::Node& self, ov::TensorVector& output_values, const ov::TensorVector& input_values) -> bool {
             return self.evaluate(output_values, input_values);
         },
         py::arg("output_values"),

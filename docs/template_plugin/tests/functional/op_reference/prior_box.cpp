@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,9 +43,9 @@ struct PriorBoxParams {
     ov::Shape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor layerShapeData;
-    ov::runtime::Tensor imageShapeData;
-    ov::runtime::Tensor refData;
+    ov::Tensor layerShapeData;
+    ov::Tensor imageShapeData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 
@@ -83,9 +83,9 @@ struct PriorBoxV8Params {
     ov::Shape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor layerShapeData;
-    ov::runtime::Tensor imageShapeData;
-    ov::runtime::Tensor refData;
+    ov::Tensor layerShapeData;
+    ov::Tensor imageShapeData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 

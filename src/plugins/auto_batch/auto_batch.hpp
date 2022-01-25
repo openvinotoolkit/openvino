@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -168,6 +168,7 @@ protected:
         const InferenceEngine::CNNNetwork& network,
         const std::shared_ptr<InferenceEngine::RemoteContext> context,
         const std::map<std::string, std::string>& config);
+    std::vector<std::shared_ptr<void>> _additionalSOPtrs;
 };
 
 }  // namespace AutoBatchPlugin

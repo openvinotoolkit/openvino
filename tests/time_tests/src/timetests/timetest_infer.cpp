@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,10 @@
 #include <iostream>
 
 #include "common_utils.h"
+#include "reshape_utils.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
+
 using namespace InferenceEngine;
 
 
@@ -16,13 +18,22 @@ using namespace InferenceEngine;
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled) {
-  auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled) {
+int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
+                std::map<std::string, ov::PartialShape> reshapeShapes,
+                std::map<std::string, std::vector<size_t>> dataShapes) {
+  auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
+                     std::map<std::string, ov::PartialShape> reshapeShapes,
+                     std::map<std::string, std::vector<size_t>> dataShapes) {
     Core ie;
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
     InferRequest inferRequest;
     size_t batchSize = 0;
+
+    bool reshape = false;
+    if (!reshapeShapes.empty()) {
+      reshape = true;
+    }
 
     // first_inference_latency = time_to_inference + first_inference
     {
@@ -48,6 +59,12 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
               cnnNetwork = ie.ReadNetwork(model);
               batchSize = cnnNetwork.getBatchSize();
             }
+            if (reshape) {
+              {
+              SCOPED_TIMER(reshape);
+              cnnNetwork.reshape(reshapeShapes);
+              }
+            }
             {
               SCOPED_TIMER(load_network);
               exeNetwork = ie.LoadNetwork(cnnNetwork, device);
@@ -65,16 +82,23 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
       SCOPED_TIMER(first_inference);
       {
         SCOPED_TIMER(fill_inputs);
+
         const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
         batchSize = batchSize != 0 ? batchSize : 1;
-        fillBlobs(inferRequest, inputsInfo, batchSize);
+
+        if (reshape) {
+          setStaticShapesBlobs(inferRequest, inputsInfo, dataShapes);
+          fillBlobs(inferRequest, inputsInfo, batchSize);
+        } else {
+          fillBlobs(inferRequest, inputsInfo, batchSize);
+        }
       }
       inferRequest.Infer();
     }
   };
 
   try {
-    pipeline(model, device, isCacheEnabled);
+    pipeline(model, device, isCacheEnabled, reshapeShapes, dataShapes);
   } catch (const InferenceEngine::Exception &iex) {
     std::cerr
         << "Inference Engine pipeline failed with Inference Engine exception:\n"

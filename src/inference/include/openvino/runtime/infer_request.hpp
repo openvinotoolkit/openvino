@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@ class IInferRequestInternal;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 class CompiledModel;
 
@@ -42,7 +41,7 @@ class OPENVINO_RUNTIME_API InferRequest {
      * destroyed.
      */
     InferRequest(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl, const std::shared_ptr<void>& so);
-    friend class ov::runtime::CompiledModel;
+    friend class ov::CompiledModel;
 
 public:
     /**
@@ -99,10 +98,10 @@ public:
      * - ov::Model::inputs()
      * - ov::Model::outputs()
      * - ov::Model::outputs()
-     * - ov::runtime::CompiledModel::input()
-     * - ov::runtime::CompiledModel::inputs()
-     * - ov::runtime::CompiledModel::outputs()
-     * - ov::runtime::CompiledModel::outputs()
+     * - ov::CompiledModel::input()
+     * - ov::CompiledModel::inputs()
+     * - ov::CompiledModel::outputs()
+     * - ov::CompiledModel::outputs()
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
@@ -115,10 +114,10 @@ public:
      * - ov::Model::inputs()
      * - ov::Model::outputs()
      * - ov::Model::outputs()
-     * - ov::runtime::CompiledModel::input()
-     * - ov::runtime::CompiledModel::inputs()
-     * - ov::runtime::CompiledModel::outputs()
-     * - ov::runtime::CompiledModel::outputs()
+     * - ov::CompiledModel::input()
+     * - ov::CompiledModel::inputs()
+     * - ov::CompiledModel::outputs()
+     * - ov::CompiledModel::outputs()
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
@@ -185,7 +184,7 @@ public:
 
     /**
      * @brief Sets output tensor to infer
-     * @note An index of input preserved accross ov::Model, ov::runtime::CompiledModel and ov::runtime::InferRequest
+     * @note An index of input preserved accross ov::Model, ov::CompiledModel and ov::InferRequest
      * @param idx Index of output tensor.
      * @param tensor Reference to output tensor. The type of a tensor must match the model output element type and
      * shape.
@@ -257,7 +256,7 @@ public:
     /**
      * @brief Infers specified input(s) in synchronous mode
      * @note blocks all methods of InferRequest while request is ongoing (running or waiting in queue)
-     *       Calling any method will lead to throwning ov::runtime::Busy exception
+     *       Calling any method will lead to throwning ov::Busy exception
      */
     void infer();
 
@@ -276,7 +275,7 @@ public:
     /**
      * @brief Starts inference of specified input(s) in asynchronous mode
      * @note It returns immediately. Inference starts also immediately.
-     *       Calling any method while the request in a running state will lead to throwning ov::runtime::Busy exception
+     *       Calling any method while the request in a running state will lead to throwning ov::Busy exception
      */
     void start_async();
 
@@ -341,5 +340,9 @@ public:
      */
     bool operator==(const InferRequest& other) const noexcept;
 };
+
+namespace runtime {
+using ov::InferRequest;
 }  // namespace runtime
+
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -355,7 +355,7 @@ DEFINE_bool(inference_only, true, inference_only_message);
 /**
  * @brief This function show a help message
  */
-static void showUsage() {
+static void show_usage() {
     std::cout << std::endl;
     std::cout << "benchmark_app [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;

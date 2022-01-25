@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <shared_test_classes/single_layer/roi_pooling.hpp>
@@ -118,10 +118,10 @@ protected:
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
 
             if (i == 1) {
-                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 if (propMode == ULTIMATE_RIGHT_BORDER) {
                     // because of nonalgebraic character of floating point operation, the following values causes inequity:
                     // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) > (end_h - start_h) * (input_h - 1)

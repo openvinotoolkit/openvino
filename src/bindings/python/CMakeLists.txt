@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,11 +10,15 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
 endif()
 
+set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+set(PYTHON_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+add_subdirectory(src/compatibility/openvino)
+
 add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 
-set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-
-add_subdirectory(src)
+add_subdirectory(src/compatibility/pyngraph)
+add_subdirectory(src/pyopenvino)
 
 if(ENABLE_WHEEL)
     add_subdirectory(wheel)

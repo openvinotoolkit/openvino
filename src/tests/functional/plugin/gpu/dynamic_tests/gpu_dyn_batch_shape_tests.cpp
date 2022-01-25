@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ using OVDynamicBatchParams = std::tuple<
     std::vector<InputShape>,                                           // dynamic and static case sizes
     ElementType,                                                       // Network precision
     std::string,                                                       // Device name
-    std::map<std::string, std::string>                                 // Config
+    ov::AnyMap                                                         // Config
 >;
 
 class OVDynamicBatchShape_Tests : public WithParamInterface<OVDynamicBatchParams>,
@@ -26,7 +26,7 @@ public:
         std::vector<InputShape> inputShapes;
         ElementType netPrecision;
         std::string targetDevice;
-        std::map<std::string, std::string> configuration;
+        ov::AnyMap configuration;
         std::tie(inputShapes, netPrecision, targetDevice, configuration) = obj.param;
 
         std::ostringstream result;
@@ -48,7 +48,9 @@ public:
         result << "targetDevice=" << targetDevice;
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+                result << "configItem=" << configItem.first << "_";
+                configItem.second.print(result);
+                result << "_";
             }
         }
         return result.str();
@@ -80,14 +82,14 @@ protected:
 
 TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    core = std::make_shared<ov::runtime::Core>();
+    core = std::make_shared<ov::Core>();
     run();
 }
 
 namespace {
-const std::map<std::string, std::string> config = {};
+const ov::AnyMap config = {};
 
-const std::map<std::string, std::string> hetero_config = {
+const ov::AnyMap hetero_config = {
     {"TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU}
 };
 

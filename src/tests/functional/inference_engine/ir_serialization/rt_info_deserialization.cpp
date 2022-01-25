@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -185,8 +185,8 @@ TEST_F(RTInfoDeserialization, NodeV10) {
             std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         f_10_ref->set_friendly_name("Network");
 
-        ov::runtime::Core core;
-        auto f_10_core = core.read_model(model, ov::runtime::Tensor());
+        ov::Core core;
+        auto f_10_core = core.read_model(model, ov::Tensor());
         ASSERT_NE(nullptr, f_10_core);
 
         check_version(f_10_core, 10);
@@ -287,8 +287,8 @@ TEST_F(RTInfoDeserialization, NamesCollisionV10) {
 
     // read IR v10 with new API and check that CNNNetwork precision conversions are applied
     {
-        ov::runtime::Core core;
-        EXPECT_THROW(core.read_model(model, ov::runtime::Tensor()), ov::Exception);
+        ov::Core core;
+        EXPECT_THROW(core.read_model(model, ov::Tensor()), ov::Exception);
     }
 }
 
@@ -430,8 +430,8 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
             std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         f_10_ref->set_friendly_name("Network");
 
-        ov::runtime::Core core;
-        auto f_10_core = core.read_model(model, ov::runtime::Tensor());
+        ov::Core core;
+        auto f_10_core = core.read_model(model, ov::Tensor());
         ASSERT_NE(nullptr, f_10_core);
         check_version(f_10_core, 10);
 
@@ -557,8 +557,8 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
     // read IR v11 with new API
     {
-        ov::runtime::Core core;
-        auto f_11 = core.read_model(model, ov::runtime::Tensor());
+        ov::Core core;
+        auto f_11 = core.read_model(model, ov::Tensor());
         ASSERT_NE(nullptr, f_11);
 
         check_old_api_map_order(f_11->get_parameters()[0]->get_rt_info(), std::vector<uint64_t>({0, 2, 3, 1}));

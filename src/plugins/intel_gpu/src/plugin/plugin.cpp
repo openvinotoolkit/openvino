@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -269,7 +269,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
         if (!canReuseDefaultContext()) {
-            m_defaultContext.reset(new RemoteCLContext(shared_from_this(), ParamMap(), conf));
+            m_defaultContext.reset(new RemoteCLContext(shared_from_this(), AnyMap(), conf));
         }
     }
 
@@ -303,7 +303,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     return std::make_shared<CompiledModel>(transformedNetwork, casted, conf);
 }
 
-InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const ParamMap& params) {
+InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) {
     // parameter map is non-empty
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
@@ -320,7 +320,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const ParamMap& params
     }
 }
 
-InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const ParamMap& params) {
+InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
     if (nullptr == m_defaultContext) {
         m_defaultContext.reset(new RemoteCLContext(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig()));
     }
@@ -361,7 +361,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     if (m_defaultContext == nullptr) {
         m_defaultContext.reset(new RemoteCLContext(
             std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
-            ParamMap(), conf));
+            AnyMap(), conf));
     }
     Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
     auto function = network.getFunction();
