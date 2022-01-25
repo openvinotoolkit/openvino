@@ -9,9 +9,9 @@
 void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
     std::shared_ptr<InferenceEngine::Core> core = PluginCache::get().ie();
     auto availableDevices = core->GetAvailableDevices();
-    std::string targetDevice = std::string(ConformanceTests::targetDevice);
+    std::string targetDevice = std::string(ov::test::conformance::targetDevice);
     if (std::find(availableDevices.begin(), availableDevices.end(), targetDevice) == availableDevices.end()) {
-        core->RegisterPlugin(ConformanceTests::targetPluginName,
-                             ConformanceTests::targetDevice);
+        core->RegisterPlugin(ov::test::conformance::targetPluginName,
+                             ov::test::conformance::targetDevice);
     }
 }
