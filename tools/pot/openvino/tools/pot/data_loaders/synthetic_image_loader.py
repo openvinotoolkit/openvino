@@ -149,7 +149,7 @@ class SyntheticImageLoader(ImageLoader):
             logger.info(f'Dataset was found in {self.data_source}')
 
         assert os.path.isdir(self.data_source)
-        if config.generate_data:
+        if config.generate_data or not os.listdir(self.data_source):
             self.download_colorization_model()
             self.generate_dataset()
 
