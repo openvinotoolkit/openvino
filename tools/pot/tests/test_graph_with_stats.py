@@ -15,7 +15,7 @@ from .utils.check_graph import check_model
 from .utils.config import merge_configs
 
 TEST_MODELS = [
-    # ('resnet_example', 'pytorch', 'Ranger', 'ANY'),
+    ('resnet_example', 'pytorch', 'Ranger', 'ANY'),
     ('act_act_example', 'pytorch', 'DefaultQuantization', 'GNA')
 ]
 
