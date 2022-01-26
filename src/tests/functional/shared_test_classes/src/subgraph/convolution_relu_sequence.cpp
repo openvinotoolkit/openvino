@@ -44,7 +44,7 @@ void ConvolutionReluSequenceTest::SetUp() {
     convReluSpecificParamsAll convParamsAll;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
     std::map<std::string, std::string> config;
-    std::tie(convParamsAll, netPrecision, inPrc, outPrc, targetDevice, config) =
+    std::tie(convParamsAll, netPrecision, inPrc, outPrc.front(), targetDevice, config) =
         this->GetParam();
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

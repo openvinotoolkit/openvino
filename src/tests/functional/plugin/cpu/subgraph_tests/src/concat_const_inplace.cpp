@@ -37,7 +37,7 @@ public:
 
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        if (Precision::BF16 == (inPrc = outPrc = this->GetParam()))
+        if (Precision::BF16 == (inPrc = outPrc.front() = this->GetParam()))
             configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
         else
             configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });

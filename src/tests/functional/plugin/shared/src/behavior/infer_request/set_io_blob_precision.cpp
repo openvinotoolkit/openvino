@@ -81,12 +81,14 @@ void SetBlobTest::Infer() {
     }
 
     if (type == setType::OUTPUT || type == setType::BOTH) {
+        int outputCnt = 0;
         for (const auto &output : executableNetwork.GetOutputsInfo()) {
             const auto &info = output.second;
-            Blob::Ptr outBlob = make_blob_with_precision(outPrc, info->getTensorDesc());
+            Blob::Ptr outBlob = make_blob_with_precision(outPrc[outputCnt], info->getTensorDesc());
             outBlob->allocate();
             fillBlob(outBlob);
             inferRequest.SetBlob(info->getName(), outBlob);
+            outputCnt++;
         }
     }
 
@@ -101,7 +103,7 @@ void SetBlobTest::SetUp() {
     if (type == setType::INPUT || type == setType::BOTH)
         inPrc = precNet;
     if (type == setType::OUTPUT || type == setType::BOTH)
-        outPrc = precNet;
+        outPrc.front() = precNet;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precNg);
     auto params = ngraph::builder::makeParams(ngPrc, {IS});

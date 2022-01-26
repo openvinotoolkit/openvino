@@ -12,7 +12,7 @@ void GatherLayerTestBase::SetUp(const gatherParamsTuple& params) {
     std::vector<size_t> indicesShape;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(indices, indicesShape, axis, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = params;
+    std::tie(indices, indicesShape, axis, inputShape, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, targetDevice) = params;
     ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size()) << "Indices vector size and provided indices shape doesn't fit each other";
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto functionParams = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -79,7 +79,7 @@ void Gather7LayerTest::SetUp() {
     std::vector<size_t> indicesShape;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
+    std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
     int axis = std::get<0>(axis_batchIdx);
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -121,7 +121,7 @@ void Gather8LayerTest::SetUp() {
     std::vector<size_t> indicesShape;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
+    std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
     int axis = std::get<0>(axis_batchIdx);
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

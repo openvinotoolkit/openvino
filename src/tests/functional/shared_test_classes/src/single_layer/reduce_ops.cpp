@@ -38,7 +38,7 @@ void ReduceOpsLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     std::vector<int> axes;
     CommonTestUtils::OpType opType;
-    std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = GetParam();
+    std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc.front(), inLayout, inputShape, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

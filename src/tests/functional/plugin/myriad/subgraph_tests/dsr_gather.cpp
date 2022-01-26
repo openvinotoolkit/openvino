@@ -69,7 +69,7 @@ protected:
         const auto& idxType = std::get<1>(parameters);
         const auto& gatherSetup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
-        outPrc = InferenceEngine::details::convertPrecision(inDataType);;
+        outPrc.push_back(InferenceEngine::details::convertPrecision(inDataType));
 
         const auto dataParam = std::make_shared<ngraph::opset3::Parameter>(inDataType, gatherSetup.inputShapes.shape);
         m_parameterVector.push_back(dataParam);

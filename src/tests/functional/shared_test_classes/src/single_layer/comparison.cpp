@@ -64,7 +64,7 @@ void ComparisonLayerTest::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
 
     inPrc = ieInPrecision;
-    outPrc = ieOutPrecision;
+    outPrc.front() = ieOutPrecision;
 
     auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
 

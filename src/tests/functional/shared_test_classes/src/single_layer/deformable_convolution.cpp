@@ -62,7 +62,7 @@ void DeformableConvolutionLayerTest::SetUp() {
     deformableConvSpecificParams convParams;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) =
+    std::tie(convParams, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, targetDevice) =
             this->GetParam();
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector offsets, filter, stride, dilation;

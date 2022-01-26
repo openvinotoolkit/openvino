@@ -41,10 +41,11 @@ std::string Slice8LayerTest::getTestCaseName(const testing::TestParamInfo<Slice8
 
 void Slice8LayerTest::SetUp() {
     Slice8SpecificParams sliceParams;
-    ov::test::ElementType netPrecision, inPrecision, outPrecision;
+    ov::test::ElementType netPrecision, inPrecision;
+    std::vector<ov::element::Type_t> outPrecision;
     InferenceEngine::Layout inLayout, outLayout;
     std::map<std::string, std::string> additionalConfig;
-    std::tie(sliceParams, netPrecision, inPrecision, outPrecision, inLayout, outLayout, targetDevice, additionalConfig) = this->GetParam();
+    std::tie(sliceParams, netPrecision, inPrecision, outPrecision.front(), inLayout, outLayout, targetDevice, additionalConfig) = this->GetParam();
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     init_input_shapes(sliceParams.shapes);

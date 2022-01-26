@@ -83,7 +83,7 @@ public:
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
 
         std::tie(inPrc, channels, use_set_input, targetDevice, configuration) = this->GetParam();
-        outPrc = inPrc;
+        outPrc.front() = inPrc;
 
         bool specialZero = true;
 

@@ -15,6 +15,11 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
+const std::vector<std::vector<InferenceEngine::Precision>> outPrecisions = {
+        {InferenceEngine::Precision::FP16, InferenceEngine::Precision::I32},
+        {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32}
+};
+
 const std::vector<int64_t> axes = {
         0,
         1,
@@ -46,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK, TopKLayerTest,
                 ::testing::ValuesIn(sortTypes),
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::ValuesIn(outPrecisions),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10})),
                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),

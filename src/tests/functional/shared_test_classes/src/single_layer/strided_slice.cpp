@@ -39,7 +39,7 @@ void StridedSliceLayerTest::SetUp() {
     StridedSliceSpecificParams ssParams;
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> additionalConfig;
-    std::tie(ssParams, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice, additionalConfig) = this->GetParam();
+    std::tie(ssParams, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, targetDevice, additionalConfig) = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

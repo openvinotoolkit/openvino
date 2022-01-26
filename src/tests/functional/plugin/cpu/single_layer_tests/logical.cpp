@@ -48,7 +48,7 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::string targetName;
         std::map<std::string, std::string> additional_config;
-        std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, inPrc, outPrc,
+        std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, inPrc, outPrc.front(),
                  inLayout, outLayout, targetDevice, additional_config) = basicParamsSet;
 
         selectedType = getPrimitiveType() + "_" + inPrc.name();

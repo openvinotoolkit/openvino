@@ -21,7 +21,8 @@ public:
         std::vector<size_t> indicesShape = {2, 2};
         std::vector<size_t> inputShape = {10, 20, 30, 40};
 
-        InferenceEngine::Precision netPrecision = inPrc = outPrc = Precision::FP32;
+        InferenceEngine::Precision netPrecision = inPrc = Precision::FP32;
+        outPrc = std::vector<Precision>(Precision::FP32);
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())

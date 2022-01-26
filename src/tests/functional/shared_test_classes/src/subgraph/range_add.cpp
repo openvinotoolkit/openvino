@@ -29,7 +29,7 @@ std::string RangeAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<L
 void RangeAddSubgraphTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     float start, stop, step;
-    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
+    std::tie(start, stop, step, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto startConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, start);
@@ -47,8 +47,7 @@ void RangeAddSubgraphTest::SetUp() {
 
 std::string RangeNumpyAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::RangeParams>& obj) {
     InferenceEngine::Precision netPrc;
-    InferenceEngine::Precision constPrc;
-    InferenceEngine::Precision outPrc;
+    InferenceEngine::Precision constPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
     float start, stop, step;
     std::string targetDevice;
@@ -69,7 +68,7 @@ void RangeNumpyAddSubgraphTest::SetUp() {
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision constPrc;
     float start, stop, step;
-    std::tie(start, stop, step, constPrc, netPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
+    std::tie(start, stop, step, constPrc, netPrc, outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
     auto ngConstPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(constPrc);
     auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
 

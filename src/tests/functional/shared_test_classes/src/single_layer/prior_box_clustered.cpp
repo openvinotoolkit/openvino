@@ -60,7 +60,7 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
 void PriorBoxClusteredLayerTest::SetUp() {
     priorBoxClusteredSpecificParams specParams;
     std::tie(specParams, netPrecision,
-        inPrc, outPrc, inLayout, outLayout,
+        inPrc, outPrc.front(), inLayout, outLayout,
         inputShapes, imageShapes, targetDevice) = GetParam();
 
     std::tie(widths,

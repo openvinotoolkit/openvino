@@ -342,13 +342,15 @@ void LayerTestsCommon::ConfigureNetwork() {
         }
     }
 
+    int outputCnt = 0;
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
         if (outLayout != InferenceEngine::Layout::ANY) {
             out.second->setLayout(outLayout);
         }
-        if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {
-            out.second->setPrecision(outPrc);
+        if (outPrc[outputCnt] != InferenceEngine::Precision::UNSPECIFIED) {
+            out.second->setPrecision(outPrc[outputCnt]);
         }
+        outputCnt++;
     }
 }
 

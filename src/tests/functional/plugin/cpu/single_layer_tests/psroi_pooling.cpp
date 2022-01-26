@@ -79,7 +79,8 @@ protected:
         CPULayerTestsDefinitions::PSROIPoolingSpecificParams psroiPoolingParams;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
         std::tie(psroiPoolingParams, netPrecision, targetDevice) = basicParamsSet;
-        inPrc = outPrc = netPrecision;
+        inPrc = netPrecision;
+        outPrc = std::vector<InferenceEngine::Precision>(netPrecision);
         std::tie(featureMapShape, proposal, outputDim, groupSize,
                  spatialScale, spatialBinsX, spatialBinsY, mode) = psroiPoolingParams;
 

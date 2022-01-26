@@ -90,7 +90,7 @@ protected:
         // CNNNetworkNGraphImpl handles only I64, I32 and FP32 precisions and sets FP32 as default otherwise.
         // Set I32 explicitly.
         if (dataType == ngraph::element::boolean) {
-            outPrc = InferenceEngine::Precision::I32;
+            outPrc.push_back(InferenceEngine::Precision::I32);
         }
 
         return reduce;

@@ -35,7 +35,7 @@ void GatherElementsLayerTest::SetUp() {
     InferenceEngine::Precision dPrecision, iPrecision;
     int axis;
     std::tie(dataShape, indicesShape, axis, dPrecision, iPrecision, targetDevice) = this->GetParam();
-    outPrc = dPrecision;
+    outPrc.push_back(dPrecision);
 
     auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);

@@ -57,7 +57,7 @@ protected:
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(staticShapeNonZero->output(0)),
                 std::make_shared<ngraph::opset3::Result>(staticShapeNonZero->output(1))};
         function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{input});
-        outPrc = InferenceEngine::Precision::I32;
+        outPrc = std::vector<InferenceEngine::Precision>(InferenceEngine::Precision::I32);
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {

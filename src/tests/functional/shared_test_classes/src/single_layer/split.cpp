@@ -36,7 +36,7 @@ void SplitLayerTest::SetUp() {
     size_t axis, numSplits;
     std::vector<size_t> inputShape, outIndices;
     InferenceEngine::Precision netPrecision;
-    std::tie(numSplits, axis, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, outIndices, targetDevice) = this->GetParam();
+    std::tie(numSplits, axis, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, outIndices, targetDevice) = this->GetParam();
     if (outIndices.empty()) {
         for (int i = 0; i < numSplits; ++i) {
             outIndices.push_back(i);
