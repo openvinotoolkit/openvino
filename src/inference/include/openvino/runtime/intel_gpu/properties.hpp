@@ -29,7 +29,7 @@ static constexpr Property<std::string, PropertyMutability::RO> uarch_version{"GP
 /**
  * @brief Read-only property to get count of execution units for current GPU
  */
-static constexpr Property<int32_t, PropertyMutability::RO> execution_units_count{"GPU_EXECUTION_UNITS_COUNT"};
+static constexpr Property<uint32_t, PropertyMutability::RO> execution_units_count{"GPU_EXECUTION_UNITS_COUNT"};
 
 /**
  * @brief Read-only property to get statistics of GPU memory allocated by engine for each allocation type

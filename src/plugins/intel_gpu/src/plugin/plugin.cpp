@@ -842,7 +842,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
                 GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
             }
-            return decltype(ov::intel_gpu::max_batch_size)::value_type {static_cast<int32_t>(max_batch_size)};
+            return decltype(ov::intel_gpu::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
         }
         if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
             try {
@@ -960,7 +960,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                 GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
             }
         }
-        return decltype(ov::intel_gpu::max_batch_size)::value_type {static_cast<int32_t>(max_batch_size)};
+        return decltype(ov::intel_gpu::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
