@@ -20,6 +20,10 @@
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "affinity_switcher.hpp"
+#include "switch_affinity.hpp"
+
+#include "markup_optimal_bs.hpp"
+#include "form_components_with_unified_batch.hpp"
 
 #include <transformations/serialize.hpp>
 
@@ -43,12 +47,17 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ngraph::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+    manager.register_pass<ngraph::pass::Serialize>("C://models//test.xml", "C://models//test.bin");
+    manager.register_pass<MarkupOptimalBS>();
+    manager.register_pass<FormComponentsWithUnifiedBatch>();
+    manager.register_pass<ngraph::pass::VisualizeTree>("C://models//model//test.before");
     // TODO: remove 'share_constants' parameter
-    manager.register_pass<AffinitySwitcher>(false);
+    manager.register_pass<SwitchAffinity>(false);
     manager.register_pass<ngraph::pass::Serialize>("C://models//affinity.xml",
                                                    "C://models//affinity.bin");
-    manager.get_pass_config()->set_callback<AffinitySwitcher>([](const std::shared_ptr<const ov::Node>& n) -> bool {
-        return n->get_friendly_name() == "resnet_model/conv2d_2/Conv2D";
+    manager.register_pass<ngraph::pass::VisualizeTree>("C://models//model//test.after");
+    manager.get_pass_config()->set_callback<SwitchAffinity>([](const std::shared_ptr<const ov::Node>& n) -> bool {
+        return n->get_friendly_name() == "resnet_model/conv2d/Conv2D";
     });
 
     manager.run_passes(nGraphFunc);
