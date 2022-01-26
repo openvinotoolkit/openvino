@@ -163,7 +163,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             if (isDynamicNode()) {
                 config.inConfs[i].setMemDesc(desc);
             } else {
-                config.inConfs[i].setMemDesc(desc, 0x0);
+                config.inConfs[i].setMemDesc(desc, BLOCKED_DESC_EMPTY_MASK);
             }
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
@@ -197,12 +197,12 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         SizeVector strides(numOfDim);
         strides.back() = 1lu;
         size_t offset = Shape::UNDEFINED_DIM;
-        uint32_t mask = 0xffffffff ^ (1<<31); // any offset
+        BlockedMemoryDesc::CmpMask mask = BLOCKED_DESC_SKIP_OFFSET_MASK; // any offset
 
         for (size_t i = 2; i <= numOfDim; i++) {
             if (numOfDim - i < axis) {
                 strides[numOfDim - i] = Shape::UNDEFINED_DIM;
-                mask ^= (1 << (numOfDim - i)); // any strides on certain axis
+                mask.reset(numOfDim - i); // any strides on certain axis
             } else {
                 strides[numOfDim - i] = strides[numOfDim - i + 1] * blkDims[numOfDim - i + 1];
             }
@@ -429,9 +429,6 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (!isDynamicNode() && !isConfigDefined(config)) {
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-//            if (config.outConfs[i].getMemDesc()->isDefined())
-//                continue;
-
             int num = getChildEdgeAt(i)->getOutputNum();
             if (num >= 0) {
                 auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
@@ -463,7 +460,7 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
                                                                             inpBlockingDesc->getOrder(),
                                                                             firstOutBlockingDesc->getOffsetPadding() + offset,
                                                                             firstOutBlockingDesc->getOffsetPaddingToData(),
-                                                                            firstOutBlockingDesc->getStrides()), 0xffffffff);
+                                                                            firstOutBlockingDesc->getStrides()), BLOCKED_DESC_FULL_MASK);
             size_t axisSize = 1;
 
             auto firstInpBlockingDesc = config.inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();

@@ -427,7 +427,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                     dataConfig.constant(false);
                     auto desc = getSrcMemDesc(itpd, i);
                     if (desc->getType() & MemoryDescType::Blocked && !isGrouped) {
-                        dataConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), 0x0);
+                        dataConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                     } else {
                         dataConfig.setMemDesc(std::move(desc));
                     }
@@ -461,7 +461,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                     dataConfig.constant(false);
                     auto desc = getDstMemDesc(itpd, i);
                     if (desc->getType() & MemoryDescType::Blocked && !isGrouped) {
-                        dataConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), 0x0);
+                        dataConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                     } else {
                         dataConfig.setMemDesc(std::move(desc));
                     }

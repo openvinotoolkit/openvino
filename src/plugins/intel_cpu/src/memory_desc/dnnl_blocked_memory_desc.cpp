@@ -231,7 +231,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     }
 }
 
-bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, uint32_t cmpMask) const {
+bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
     if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
     } else if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
@@ -241,11 +241,11 @@ bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, uint32_t 
     }
 }
 
-bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, uint32_t cmpMask) const {
+bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     return this->desc.data.extra.flags == dnnl_memory_extra_flag_none && BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
 }
 
-bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, uint32_t cmpMask) const {
+bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     using namespace dnnl;
     using namespace impl;
     using namespace impl::utils;
@@ -263,13 +263,11 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, uint3
         return false;
 
     int stride_start = 0;
-    auto invertCmpMask = ~cmpMask;
-    while ((invertCmpMask & (1u << stride_start)) && stride_start <= wrappedThis.ndims()) {
+    while (!cmpMask.test(stride_start) && stride_start <= wrappedThis.ndims()) {
         ++stride_start;
     }
 
-    constexpr uint32_t offsetMask = 0x80000000u;
-    bool checkOffset = cmpMask & offsetMask;
+    bool checkOffset = cmpMask.test(BLOCKED_DESC_OFFSET_MASK_POS);
 
     const auto thisExtra = this->desc.data.extra;
     const auto rhsExtra = rhs.desc.data.extra;

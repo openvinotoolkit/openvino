@@ -1749,7 +1749,6 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         };
 
         // TODO [DS]: inplace
-        constexpr uint32_t anyOffsetMask = 0xffffffff ^ (1 << 31); // accepts any offset
         size_t offset = 0;
         NodeConfig config;
         if (!isDynamicNode()) {
@@ -1758,7 +1757,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         }
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            uint32_t inputMask = anyOffsetMask;
+            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
             // TODO [DS]: inplace
             if (!isDynamicNode())
@@ -1767,7 +1766,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
             const auto &srcShape = getInputShapeAtPort(i);
             if (!isDynamicNode() && srcShape.getDims()[0] == 1) {
-                inputMask ^= (0x1); // accepts any stride on the batch axis
+                inputMask.reset(0); // accepts any stride on the batch axis
             }
             portConfig.setMemDesc(createMemoryDesc(srcShape, inputPrecisions[i], offset), inputMask);
 
@@ -1779,9 +1778,9 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         portConfig.constant(false);
 
         const auto &dstShape = getOutputShapeAtPort(0);
-        uint32_t outputMask = anyOffsetMask;
+        BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
         if (!isDynamicNode() && dstShape.getDims()[0] == 1) {
-            outputMask ^= (0x1); // accepts any stride on the batch axis
+            outputMask.reset(0); // accepts any stride on the batch axis
         }
         portConfig.setMemDesc(createMemoryDesc(dstShape, outputPrecision, offset), outputMask);
 

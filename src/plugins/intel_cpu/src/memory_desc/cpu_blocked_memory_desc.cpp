@@ -99,15 +99,15 @@ bool CpuBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     }
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc &rhs, uint32_t cmpMask) const {
+bool CpuBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask) const {
     return BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc &rhs, uint32_t cmpMask) const {
+bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask) const {
     return rhs.isCompatible(*this, cmpMask);
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, uint32_t cmpMask) const {
+bool CpuBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
     const BlockedMemoryDesc* pRhs = &rhs;
     if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*cpuBlkDesc, cmpMask);
