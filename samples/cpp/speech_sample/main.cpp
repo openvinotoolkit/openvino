@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
             std::vector<size_t> ports;
             for (const auto& outBlobName : output_names) {
                 int pos_layer = outBlobName.rfind(":");
-                if (pos_layer == -1) {
+                if (pos_layer == std::string::npos) {
                     throw std::logic_error(std::string("Output ") + std::string(outBlobName) +
                                            std::string(" doesn't have a port"));
                 }
