@@ -244,6 +244,8 @@ This error occurs when an incorrect combination of the `--input` and `--input_sh
 
 When using the `PORT:NODE` notation for the `--input` command line argument and `PORT` > 0, you should specify `--input_shape` for this input. This is a limitation of the current Model Optimizer implementation.
 
+**NOTE**: It is no longer relevant message since the limitation on input port index for model truncation has been resolved.
+
 #### 32. What does the message "No or multiple placeholders in the model, but only one shape is provided, cannot set it" mean? <a name="question-32"></a>
 
 Looks like you have provided only one shape for the placeholder, however there are no or multiple inputs in the model. Please, make sure that you have provided correct data for placeholder nodes.

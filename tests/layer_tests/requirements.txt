@@ -1,2 +1,3 @@
 requests>=2.25.1
-numpy~=1.19.5
+numpy~=1.19.5; platform_system != "Windows"
+numpy~=1.19.3; platform_system == "Windows"
