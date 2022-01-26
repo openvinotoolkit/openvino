@@ -19,14 +19,20 @@ You can install OpenVINO Model Development Tools via either of the following way
     1. If you have installed OpenVINO Runtime from an installer, APT or YUM repository, you can find a set of requirements files in `<installdir>\tools\` directory.
     2. You can manually install the same version of OpenVINO Model Development Tools by using the requirements files.
     To install mandatory requirements only, use the following command:
-    ```pip install -r <installdir>\tools\requirements.txt```
+    ```
+    pip install -r <installdir>\tools\requirements.txt
+    ```
     3. Make sure that you also install your additional frameworks with the corresponding requirements files. For example, if you are using a TensorFlow model, use the following command to install requirements for TensorFlow:
-    ```pip install -r <installdir>\tools\requirements_tensorflow2.txt```
+    ```
+    pip install -r <installdir>\tools\requirements_tensorflow2.txt
+    ```
 
 * Install from the openvino-dev package
 
     You can use the following command to install the latest package version available in the index:
-    ```pip install openvino-dev[EXTRAS]```
+    ```
+    pip install openvino-dev[EXTRAS]
+    ```
     where the EXTRAS parameter specifies one or more deep learning frameworks via these values: `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. Make sure that you install the corresponding frameworks for your models.
     For more details, see <https://pypi.org/project/openvino-dev/>.
 
@@ -38,7 +44,9 @@ You can install OpenVINO Model Development Tools via either of the following way
 ## For Python users
 
 You can use the following command to install the latest package version available in the index:
-```pip install openvino-dev[EXTRAS]```
+```
+pip install openvino-dev[EXTRAS]
+```
 where the EXTRAS parameter specifies one or more deep learning frameworks via these values: `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. Make sure that you install the corresponding frameworks for your models.
 
 >**Note**
