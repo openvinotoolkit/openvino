@@ -28,8 +28,8 @@ void lstm_shape_infer(const OpsType* op,
     // If rank is dynamic, then output_shape is undefined
     for (size_t i = 0; i < input_shapes.size() && i < 6; i++) {
         input_rank_static[i] = input_shapes[i].rank().is_static();
-        all_rank_dynamic &= !input_rank_static[i];
-        all_rank_static &= input_rank_static[i];
+        all_rank_dynamic = all_rank_dynamic && !input_rank_static[i];
+        all_rank_static = all_rank_static && input_rank_static[i];
     }
 
     if (all_rank_dynamic) {
