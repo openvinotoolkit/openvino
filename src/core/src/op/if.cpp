@@ -60,10 +60,10 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
 bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_If_visit_attributes);
     visitor.on_attribute("then_body", m_bodies[THEN_BODY_INDEX]);
-    visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
     visitor.on_attribute("then_inputs", m_input_descriptions[THEN_BODY_INDEX]);
-    visitor.on_attribute("else_inputs", m_input_descriptions[ELSE_BODY_INDEX]);
     visitor.on_attribute("then_outputs", m_output_descriptions[THEN_BODY_INDEX]);
+    visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
+    visitor.on_attribute("else_inputs", m_input_descriptions[ELSE_BODY_INDEX]);
     visitor.on_attribute("else_outputs", m_output_descriptions[ELSE_BODY_INDEX]);
     return true;
 }

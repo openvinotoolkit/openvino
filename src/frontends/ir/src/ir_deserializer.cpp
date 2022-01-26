@@ -383,6 +383,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
 void XmlDeserializer::on_adapter(const std::string& name,
                                  ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) {
     std::shared_ptr<ngraph::Function> ngraph_function;
+    io_map = {};
 
     if (!name.compare("body") || !name.compare("then_body") || !name.compare("else_body")) {
         auto body_node = m_node.child(name.c_str());
