@@ -58,6 +58,7 @@ jobs:
       - name: Run Pytest
         run: |
           pytest --doxygen="./build/docs/doxygen.log" \
+                 --include_pot \
                  --sphinx="./build/docs/sphinx.log" \
                  --suppress-warnings="./docs/suppress_warnings.txt" \
                  --confcutdir="./docs/scripts/tests/" \
