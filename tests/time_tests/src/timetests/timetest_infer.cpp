@@ -82,7 +82,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
           const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
           batchSize = batchSize != 0 ? batchSize : 1;
           if (reshape) {
-            setStaticShapesBlobs(inferRequest, inputsInfo, dataShapes);
+            setBlobsStaticShapes(inferRequest, inputsInfo, dataShapes);
             fillBlobs(inferRequest, inputsInfo, batchSize);
           } else {
             fillBlobs(inferRequest, inputsInfo, batchSize);
