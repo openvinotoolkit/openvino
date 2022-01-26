@@ -15,8 +15,7 @@ def add_openvino_libs_to_path() -> None:
         # add the location of openvino dlls to your system PATH.
         #
         # looking for the libs in the pip installation path by default.
-        openvino_libs = [os.path.join(os.path.dirname(__file__), "..", ".."),
-                         os.path.join(os.path.dirname(__file__), "..", "openvino", "libs")]
+        openvino_libs = [os.path.join(os.path.dirname(__file__), "libs")]
         # setupvars.bat script set all libs paths to OPENVINO_LIB_PATHS environment variable.
         openvino_libs_installer = os.getenv("OPENVINO_LIB_PATHS")
         if openvino_libs_installer:
@@ -24,8 +23,7 @@ def add_openvino_libs_to_path() -> None:
         for lib in openvino_libs:
             lib_path = os.path.join(os.path.dirname(__file__), lib)
             if os.path.isdir(lib_path):
+                os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
                 # On Windows, with Python >= 3.8, DLLs are no longer imported from the PATH.
                 if (3, 8) <= sys.version_info:
                     os.add_dll_directory(os.path.abspath(lib_path))
-                else:
-                    os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
