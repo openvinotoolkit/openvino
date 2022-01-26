@@ -73,28 +73,32 @@ void setBatch(const std::shared_ptr<ngraph::Function> func, size_t batch) {
 bool switchToImageAffinity(const ov::NodeVector& starts,
                            const ov::NodeVector& ends,
                            const bool share_constants) {
-    // TODO: support undefined amount of starts/ends
-    const auto start = starts[0];
-    const auto end = ends[0];
-    const size_t batch_size = end->get_input_partial_shape(0)[0].get_length();
-    const size_t reduced_batch_size = MKLDNNPlugin::get_optimal_bs(start);
+    const size_t batch_size = starts[0]->get_input_partial_shape(0)[0].get_length();
+    const size_t reduced_batch_size = MKLDNNPlugin::get_optimal_bs(starts[0]);
+    const size_t num_splits = batch_size / reduced_batch_size;
     if (batch_size == reduced_batch_size) {
         return false;
     }
 
-    // split original function
-    const size_t num_splits = batch_size / reduced_batch_size;
-    const auto axis = opset1::Constant::create(element::i32, {}, {0});
-    const auto split = std::make_shared<opset1::Split>(start->input_value(0), axis, num_splits);
+    // split original function at the start nodes
+    ov::NodeVector start_splits(starts.size());
+    ov::ParameterVector main_params(starts.size());
+    for (size_t i = 0; i < starts.size(); ++i) {
+        const auto& start = starts[i];
+        const auto axis = opset1::Constant::create(element::i32, {}, {0});
+        const auto split = std::make_shared<opset1::Split>(start->input_value(0), axis, num_splits);
+        const auto main_param = std::make_shared<ngraph::opset1::Parameter>(start->get_input_element_type(0),
+                                                                            start->get_input_partial_shape(0));
+        start->set_argument(0, main_param);
 
-    const auto main_param = std::make_shared<ngraph::opset1::Parameter>(start->get_input_element_type(0),
-                                                                        start->get_input_partial_shape(0));
-    start->set_argument(0, main_param);
-    const auto main_function = std::make_shared<ngraph::Function>(NodeVector{end}, ParameterVector{main_param});
+        start_splits[i] = split;
+        main_params[i] = main_param;
+    }
 
+    const auto main_function = std::make_shared<ngraph::Function>(ends, main_params);
     NodeMap constants;
     if (share_constants) {
-        for (const auto& op : main_function->get_ops()) {
+        for (const auto& op : main_function->get_ordered_ops()) {
             if (ov::is_type<opset1::Constant>(op)) {
                 constants[op.get()] = op;
             }
@@ -105,19 +109,22 @@ bool switchToImageAffinity(const ov::NodeVector& starts,
     const auto cur_function = ngraph::clone_function(*main_function, cloned_nodes);
     setBatch(cur_function, reduced_batch_size);
 
-    replace_output_update_name(cur_function->get_parameters()[0]->output(0), split->output(0));
-
     std::map<Output<Node>, OutputVector> concatenate_map;
     fillCandidatesOutsToConcatenateFromOriginalFunc(main_function, cloned_nodes, concatenate_map, num_splits);
-    addOutToConcatenate(cur_function, cloned_nodes, concatenate_map, 0);
+    for (size_t start_idx = 0; start_idx < start_splits.size(); ++start_idx) {
+        replace_output_update_name(cur_function->get_parameters()[start_idx]->output(0),
+                                   start_splits[start_idx]->output(0));
+        addOutToConcatenate(cur_function, cloned_nodes, concatenate_map, 0);
 
-    // insert per-batch graphs after split
-    for (size_t i = 1; i < num_splits; ++i) {
-        cloned_nodes = constants;
-        const auto cur_function = ngraph::clone_function(*main_function, cloned_nodes);
-        setBatch(cur_function, reduced_batch_size);
-        addOutToConcatenate(cur_function, cloned_nodes, concatenate_map, i);
-        replace_output_update_name(cur_function->get_parameters()[0]->output(0), split->output(i));
+        // insert per-batch graphs after splits
+        for (size_t i = 1; i < num_splits; ++i) {
+            cloned_nodes = constants;
+            const auto cur_function = ngraph::clone_function(*main_function, cloned_nodes);
+            setBatch(cur_function, reduced_batch_size);
+            addOutToConcatenate(cur_function, cloned_nodes, concatenate_map, i);
+            replace_output_update_name(cur_function->get_parameters()[start_idx]->output(0),
+                                       start_splits[start_idx]->output(i));
+        }
     }
 
     // concatenate per-batch graphs

@@ -78,6 +78,7 @@ MKLDNNPlugin::FormComponentsWithUnifiedBatch::FormComponentsWithUnifiedBatch() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto node = m.get_match_root();
         const auto pshape = node->get_output_partial_shape(0);
+        std::cout << node << std::endl;
 
         // start graph component from layer with batch preferences
         if (!has_graph_component(node)) {

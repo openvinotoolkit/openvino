@@ -38,6 +38,18 @@ public:
 
     const std::shared_ptr<GraphComponent>& get_value() { return value; }
     void set_value(const std::shared_ptr<GraphComponent>& _value) { value = _value; }
+    std::string to_string() const override {
+        std::ostringstream ss;
+        ss << "Pointer: " << (size_t)value.get() << "\nStarts: ";
+        /*for (const auto& v : value->get_starts()) {
+            ss << v->get_friendly_name() << " ";
+        }
+        ss << "\nEnds: ";
+        for (const auto& v : value->get_ends()) {
+            ss << v->get_friendly_name() << " ";
+        }*/
+        return ss.str();
+    }
 
 private:
     std::shared_ptr<GraphComponent> value;

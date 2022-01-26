@@ -19,7 +19,7 @@ size_t get_hueristic_optimal_batch(const std::shared_ptr<ov::Node>& node) {
                                  "resnet_model/conv2d_2/Conv2D",
                                  "resnet_model/conv2d_3/Conv2D",
                                  "resnet_model/conv2d_4/Conv2D",
-                                 "resnet_model/conv2d_1/Conv2D",
+                                 //"resnet_model/conv2d_1/Conv2D",
                                  "FIRST_COMPONENT",
                                  "resnet_model/conv2d_6/Conv2D",
                                  "resnet_model/conv2d_7/Conv2D",
@@ -27,6 +27,12 @@ size_t get_hueristic_optimal_batch(const std::shared_ptr<ov::Node>& node) {
                                  ""
     };
     std::set<std::string> batch2{"resnet_model/conv2d_5/Conv2D"};
+
+    //std::set<std::string> batch1{"resnet_model/conv2d_4/Conv2D",
+    //                            "resnet_model/conv2d_1/Conv2D",
+    //                            "resnet_model/conv2d_5/Conv2D",
+    //                            ""};
+    //std::set<std::string> batch2{};
 
     //std::set<std::string> batch1{"resnet_model/conv2d/Conv2D",
     //                             "resnet_model/conv2d_3/Conv2D"};
