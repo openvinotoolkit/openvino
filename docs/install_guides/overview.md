@@ -18,7 +18,7 @@ You can install OpenVINO according to your needs:
   * Post-Training Optimization Tool
   * Model Downloader and other Open Model Zoo tools
 
-For both C++ and Python developers, you can [install OpenVINO from PyPI](../installing-openvino-pip.md), which contains less steps and is much simpler. Besides, the open source version is also available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode) and you can build it for supported platforms using the Inference Engine Build Instructions.
+For both C++ and Python developers, you can [install OpenVINO from PyPI](../installing-openvino-pip.md), which contains both OpenVINO Runtime and Model Development Tools and less steps. Besides, the open source version is also available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).  You can build it for supported platforms using the Inference Engine Build Instructions.
 
 For C++ developers, you may also choose other installation methods to install OpenVINO Runtime on various operating systems:
 
@@ -27,6 +27,6 @@ For C++ developers, you may also choose other installation methods to install Op
 * [YUM for Linux](../installing-openvino-yum.md)
 * Docker for [Linux](../installing-openvino-docker-linux.md) and [Windows](../installing-openvino-docker-windows.md)
 * Install on [Raspbian OS](../installing-openvino-raspbian.md)
-* Install from [Anaconda Cloud](../installing-openvino-conda.md).
+* Install from [Anaconda Cloud](../installing-openvino-conda.md)
 
 > **NOTE**: From 2022.1 release, the OpenVINO Model Development Tools can **only** be installed via PyPI. See [Install OpenVINO Model Development Tools](../installing-model-dev-tools.md) for detailed steps.
