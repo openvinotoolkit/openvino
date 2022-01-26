@@ -44,6 +44,7 @@ The target is able to take the following command-line arguments:
 * `--report_unique_name` allows to save report with unique name (report_pid_timestamp.xml). Mutually exclusive with --extend_report.
 * `--save_report_timeout` allows to try to save report in cycle using timeout (in seconds).
 * `--output_folder` Paths to the output folder to save report.
+* `--extract_body` allows to count extracted operation bodies to report.
 * All `gtest` command-line parameters
 
 The result of execution is `report.xml` file. It demonstrates tests statistic like pass rate, passed, crashed, skipped failed tests and plugin implementation 

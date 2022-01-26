@@ -38,6 +38,7 @@ int main(int argc, char* argv[]) {
 
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = FLAGS_disable_test_config;
     LayerTestsUtils::Summary::setExtendReport(FLAGS_extend_report);
+    LayerTestsUtils::Summary::setExtractBody(FLAGS_extract_body);
     LayerTestsUtils::Summary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
     LayerTestsUtils::Summary::setOutputFolder(FLAGS_output_folder);
     LayerTestsUtils::Summary::setSaveReportTimeout(FLAGS_save_report_timeout);
