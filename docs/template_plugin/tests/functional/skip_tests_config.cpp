@@ -91,13 +91,6 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-71381
         R"(.*ReferenceExpLayerTest.*u32.*)",
         R"(.*ReferenceExpLayerTest.*u64.*)",
-        // CVS-64054
-        R"(.*ReferenceTopKTest.*aType=i8.*)",
-        R"(.*ReferenceTopKTest.*aType=i16.*)",
-        R"(.*ReferenceTopKTest.*aType=u8.*)",
-        R"(.*ReferenceTopKTest.*aType=u16.*)",
-        R"(.*ReferenceTopKTest.*aType=bf16.*)",
-        R"(.*ReferenceTopKTest.*aType=f64.*)",
         // CVS-63947
         R"(.*ReferenceConcatTest.*concat_zero_.*)",
         // CVS-64096
