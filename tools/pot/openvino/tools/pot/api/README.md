@@ -49,7 +49,7 @@ Before diving into the Python* POT API, it is highly recommended to read [Best P
 scenarios of using the Post-Training Optimization Tool are described. 
 
 The POT Python* API for model optimization can be used in the following cases:
-- [Accuracy Checker](@ref omz_tools_accuracy_checker_README) tool does not support the model or dataset.
+- [Accuracy Checker](@ref omz_tools_accuracy_checker) tool does not support the model or dataset.
 - POT does not support the model in the [Simplified Mode](@ref pot_docs_BestPractices) or produces the optimized model with low 
 accuracy in this mode.
 - You already have the Python* script to validate the accuracy of the model using the [OpenVINO&trade; Inference Engine](@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide).  
