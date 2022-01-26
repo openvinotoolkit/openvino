@@ -8,7 +8,6 @@ from .range_estimator import get_range_estimator_config
 from ...api.engine import Engine
 from ...configs.hardware_config import HardwareConfig
 from ...engines.ac_engine import ACEngine
-from ...graph.node_utils import get_input_shape
 from ...statistics.function_selector import ACTIVATIONS, WEIGHTS, get_stats_function, AGGREGATION_FN
 from ...statistics.statistics import TensorStatistic
 
