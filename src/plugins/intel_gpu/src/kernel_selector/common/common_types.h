@@ -156,6 +156,7 @@ enum class ActivationFunction {
     HSWISH,
     MISH,
     GELU,
+    GELU_TANH,
     ROUND_HALF_TO_EVEN,
     ROUND_HALF_AWAY_FROM_ZERO
 };
