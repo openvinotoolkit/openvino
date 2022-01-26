@@ -215,4 +215,6 @@ class FastBiasCorrection(Algorithm):
         _, inputs_shape = self._engine.predict(calculate_input_shape, sampler)
         for node_name, shape_node in inputs_shape.items():
             inputs_shape[node_name] = shape_node['shape_node'][0]
+            if len(inputs_shape[node_name]) > 1:
+                inputs_shape[node_name] = (1, *inputs_shape[node_name][1:])
         return inputs_shape
