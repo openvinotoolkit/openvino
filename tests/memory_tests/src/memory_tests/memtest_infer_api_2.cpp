@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <inference_engine.hpp>
+#include <openvino/runtime/infer_request.hpp>
 #include <iostream>
+#include <fstream>
 
 #include "common_utils.h"
 #include "memory_tests_helper/memory_counter.h"
 #include "memory_tests_helper/utils.h"
+#include "openvino/runtime/core.hpp"
 
 
 /**
@@ -17,37 +19,35 @@
  */
 int runPipeline(const std::string &model, const std::string &device) {
     auto pipeline = [](const std::string &model, const std::string &device) {
-        InferenceEngine::Core ie;
-        InferenceEngine::CNNNetwork cnnNetwork;
-        InferenceEngine::ExecutableNetwork exeNetwork;
-        InferenceEngine::InferRequest inferRequest;
-        size_t batchSize = 0;
+        ov::Core ie;
+        std::shared_ptr<ov::Model> network;
+        ov::CompiledModel compiled_model;
+        ov::InferRequest infer_request;
 
-        ie.GetVersions(device);
+        ie.get_versions(device);
         MEMORY_SNAPSHOT(load_plugin);
 
         if (MemoryTest::fileExt(model) == "blob") {
-            exeNetwork = ie.ImportNetwork(model, device);
+            std::ifstream streamModel{model};
+            compiled_model = ie.import_model(streamModel, device);
             MEMORY_SNAPSHOT(import_network);
         } else {
-            cnnNetwork = ie.ReadNetwork(model);
+            network = ie.read_model(model);
             MEMORY_SNAPSHOT(read_network);
 
-            exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+            compiled_model = ie.compile_model(network, device);
 
             MEMORY_SNAPSHOT(load_network);
-            batchSize = cnnNetwork.getBatchSize();
         }
         MEMORY_SNAPSHOT(create_exenetwork);
 
-        inferRequest = exeNetwork.CreateInferRequest();
+        infer_request = compiled_model.create_infer_request();
 
-        batchSize = batchSize != 0 ? batchSize : 1;
-        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-        fillBlobs(inferRequest, inputsInfo, batchSize);
+        std::vector<ov::Output<const ov::Node>> inputs = compiled_model.inputs();
+        fillTensors(infer_request, inputs);
         MEMORY_SNAPSHOT(fill_inputs)
 
-        inferRequest.Infer();
+        infer_request.infer();
         MEMORY_SNAPSHOT(first_inference);
         MEMORY_SNAPSHOT(full_run);
     };
