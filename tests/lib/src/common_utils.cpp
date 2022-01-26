@@ -66,7 +66,7 @@ void fillTensors(ov::InferRequest& infer_request, std::vector<ov::Output<const o
   for (size_t i = 0; i < inputs.size(); i++) {
     if (inputs[i].get_shape().size() == 4)
       // TODO: Check layout
-      input_image_sizes.emplace_back(inputs[i].get_shape()[1], inputs[i].get_shape()[2]);
+      input_image_sizes.emplace_back(inputs[i].get_shape()[2], inputs[i].get_shape()[3]);
   }
   for (size_t i = 0; i < inputs.size(); i++) {
     ov::Tensor input_tensor;

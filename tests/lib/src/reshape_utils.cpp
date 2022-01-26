@@ -150,7 +150,7 @@ void fillTensorsDynamic(ov::InferRequest& infer_request,
     ov::Shape inputShape = getTensorsStaticShapes(inputs[i], dataShape);
     if (inputShape.size() == 4)
       // TODO: Check layout
-      input_image_sizes.emplace_back(inputShape[1], inputShape[2]);
+      input_image_sizes.emplace_back(inputShape[2], inputShape[3]);
   }
 
   for (size_t i = 0; i < inputs.size(); i++) {
