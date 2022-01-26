@@ -453,9 +453,6 @@ public:
             const auto & m_output = pattern_map.at(eltwise);
             const auto & m_input = pattern_map.at(input);
 
-            // Case when input masks should be united instead of intersection
-            bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
-
             //const auto & input_rank = m_input.get_partial_shape().rank().get_length();
             //const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
             // Here assuming that masks can be propagated only through 3/4 dimensional tensors
@@ -484,13 +481,9 @@ public:
             auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
-            const auto out_mask_callback = [input_mask_row, weights_mask_row, union_eltwise_type](Mask::Ptr cur_mask) -> bool {
+            const auto out_mask_callback = [input_mask_row, weights_mask_row](Mask::Ptr cur_mask) -> bool {
                 Mask::Ptr result_mask;
-                if (union_eltwise_type) {
-                    result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
-                } else {
-                    result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
-                }
+                result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
                 cur_mask->copy_value_from_mask_reversed(result_mask.get());
 
                 auto input_iter = input_mask_row->rbegin();
