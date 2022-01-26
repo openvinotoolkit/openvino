@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-from _pyngraph import PartialShape, Dimension
+from openvino.runtime import PartialShape, Dimension
 
-import openvino.opset8 as ov
-from openvino.utils.types import make_constant_node
+import openvino.runtime.opset8 as ov
+from openvino.runtime.utils.types import make_constant_node
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 

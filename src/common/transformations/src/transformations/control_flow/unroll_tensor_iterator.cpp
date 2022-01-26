@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
 
-bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {
         auto sub_graph_op = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op);

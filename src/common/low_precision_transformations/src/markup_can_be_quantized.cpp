@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,17 +18,13 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupCanBeQuantized, "MarkupCanBeQuantized", 0);
 
-bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     auto setEmptyPrecisions = [](const std::shared_ptr<ngraph::Node>& node) {
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();
-
-            auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(std::vector<element::Type>());
-            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
-
             rt.emplace(
-                    ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name,
-                    attributeWrapper);
+                    PrecisionsAttribute::get_type_info_static(),
+                    PrecisionsAttribute(std::vector<element::Type>()));
         }
     };
 

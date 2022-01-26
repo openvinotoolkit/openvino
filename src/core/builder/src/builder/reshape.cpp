@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,8 +114,8 @@ shared_ptr<Node> builder::opset1::flatten(const Output<Node>& value, int axis) {
             make_shared<ngraph::opset1::StridedSlice>(value_shape,
                                                       ngraph::opset1::Constant::create(element::i64, {1}, {0}),
                                                       axis_node,
-                                                      vector<int64_t>{},
-                                                      vector<int64_t>{});
+                                                      vector<int64_t>{0},
+                                                      vector<int64_t>{0});
         const auto first_part_dims_length =
             make_shared<ngraph::opset1::ReduceProd>(first_part_dims,
                                                     ngraph::opset1::Constant::create(element::i64, {}, {0}),

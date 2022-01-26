@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,31 +10,34 @@
 #pragma once
 
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
-namespace runtime {
+
 class RemoteContext;
 
 /**
  * @brief Remote memory access and interpretation API
- *
- * It can throw exceptions safely for the application, where it is properly handled.
  */
 class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
-    friend class ov::runtime::RemoteContext;
+    friend class ov::RemoteContext;
 
 public:
     /**
      * @brief Checks openvino remote type
      * @param tensor tensor which type will be checked
      * @param type_info map with remote object runtime info
-     * @throw Exception if type check with specified paramters is not pass
+     * @throw Exception if type check with specified parameters failed
      */
     static void type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info = {});
 
+    /**
+     * @brief Access of host memory is not available for RemoteTensor
+     * To access a device specific memory, cast to specific RemoteTensor derived object and works with its
+     * properties or parse device memory properies via RemoteTensor::get_params
+     * @return Nothing, throws an exception
+     */
     void* data(const element::Type) = delete;
 
     template <typename T>
@@ -49,7 +52,7 @@ public:
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    runtime::ParamMap get_params() const;
+    ov::AnyMap get_params() const;
 
     /**
      * @brief Returns name of the device on which underlying object is allocated.
@@ -58,5 +61,9 @@ public:
      */
     std::string get_device_name() const;
 };
+
+namespace runtime {
+using ov::RemoteTensor;
 }  // namespace runtime
+
 }  // namespace ov

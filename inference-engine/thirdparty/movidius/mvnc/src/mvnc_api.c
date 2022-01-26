@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1483,7 +1483,11 @@ static void printfOverXLinkOpen(struct _devicePrivate_t *d) {
 
     int portNum = 7788;
     int connfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
+    if (connfd == -1) {
+        fprintf(stderr,"ERROR in socket function, return value is : %d\n", connfd);
+        close(connfd);
+        return;
+    }
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);

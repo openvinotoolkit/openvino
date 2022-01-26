@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,15 +42,16 @@ public:
     bool has_evaluate() const override;
 
     /// \return The index of the one-hot axis.
-    int64_t get_axis() const {
+    const int64_t& get_axis() const {
         return m_axis;
     }
-    void set_axis(int64_t axis) {
-        m_axis = axis;
-    }
+    void set_axis(int64_t axis);
 
 protected:
     int64_t m_axis;
+
+private:
+    friend void inline resolve_axis(OneHot* op);
 };
 }  // namespace v1
 }  // namespace op

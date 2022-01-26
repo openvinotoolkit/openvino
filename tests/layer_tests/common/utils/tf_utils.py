@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -7,7 +7,7 @@ import re
 import tensorflow as tf
 import numpy as np
 
-from mo.ops.op import PermuteAttrs
+from openvino.tools.mo.ops.op import PermuteAttrs
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node_output.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
 // The forward declaration of Node is needed here because Node has a deque of

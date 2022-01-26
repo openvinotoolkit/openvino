@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,7 @@ public:
     }
 
     // Final layout. Needed if user specified convert_layout without arguments
-    // For preprocessing it is parameter's network layout
+    // For preprocessing it is parameter's model layout
     // For post-processing it is result's tensor layout
     const Layout& target_layout() const {
         return m_target_layout;
@@ -105,26 +105,26 @@ class PreprocessingContext : public PrePostProcessingContextBase {
 public:
     explicit PreprocessingContext(const Layout& layout) : PrePostProcessingContextBase(layout) {}
 
-    const PartialShape& network_shape() const {
-        return m_network_shape;
+    const PartialShape& model_shape() const {
+        return m_model_shape;
     }
 
-    PartialShape& network_shape() {
-        return m_network_shape;
+    PartialShape& model_shape() {
+        return m_model_shape;
     }
 
-    size_t get_network_height_for_resize() const {
-        auto network_height_idx = get_and_check_height_idx(target_layout(), network_shape());
-        OPENVINO_ASSERT(network_shape()[network_height_idx].is_static(),
-                        "Dynamic resize: Network height dimension shall be static");
-        return network_shape()[network_height_idx].get_length();
+    size_t get_model_height_for_resize() const {
+        auto model_height_idx = get_and_check_height_idx(target_layout(), model_shape());
+        OPENVINO_ASSERT(model_shape()[model_height_idx].is_static(),
+                        "Dynamic resize: Model height dimension shall be static");
+        return model_shape()[model_height_idx].get_length();
     }
 
-    size_t get_network_width_for_resize() const {
-        auto network_width_idx = get_and_check_width_idx(target_layout(), network_shape());
-        OPENVINO_ASSERT(network_shape()[network_width_idx].is_static(),
-                        "Dynamic resize: Network width dimension shall be static");
-        return network_shape()[network_width_idx].get_length();
+    size_t get_model_width_for_resize() const {
+        auto model_width_idx = get_and_check_width_idx(target_layout(), model_shape());
+        OPENVINO_ASSERT(model_shape()[model_width_idx].is_static(),
+                        "Dynamic resize: Model width dimension shall be static");
+        return model_shape()[model_width_idx].get_length();
     }
 
     const ColorFormat& color_format() const {
@@ -136,15 +136,23 @@ public:
     }
 
 private:
-    PartialShape m_network_shape;
-    Layout m_network_layout;
+    PartialShape m_model_shape;
+    Layout m_model_layout;
     ColorFormat m_color_format = ColorFormat::UNDEFINED;
 };
 
 using InternalPreprocessOp =
     std::function<std::tuple<std::vector<Output<Node>>, bool>(const std::vector<Output<Node>>& nodes,
-                                                              const std::shared_ptr<Function>& function,
+                                                              const std::shared_ptr<Model>& function,
                                                               PreprocessingContext& context)>;
+
+struct InternalPreprocessAction {
+    InternalPreprocessAction(InternalPreprocessOp op, std::string name)
+        : m_op(std::move(op)),
+          m_name(std::move(name)) {}
+    InternalPreprocessOp m_op;
+    std::string m_name;
+};
 
 /// \brief PreProcessStepsImpl - internal data structure
 class PreStepsList {
@@ -157,47 +165,33 @@ public:
     void add_convert_layout_impl(const std::vector<uint64_t>& dims);
     void add_convert_color_impl(const ColorFormat& dst_format);
     void add_reverse_channels();
+    std::tuple<PartialShape, Layout> calculate_param_shape(const PartialShape& model_shape,
+                                                           const Layout& model_layout) const;
 
-    const std::list<InternalPreprocessOp>& actions() const {
+    const std::list<InternalPreprocessAction>& actions() const {
         return m_actions;
     }
-    std::list<InternalPreprocessOp>& actions() {
+    std::list<InternalPreprocessAction>& actions() {
         return m_actions;
     }
 
-    PartialShape calculate_param_shape(const PartialShape& network_shape) const {
-        if (network_shape.rank().is_dynamic()) {
-            return network_shape;
-        }
-
-        std::vector<Dimension> old_dims(network_shape.rank().get_length());
-        std::vector<Dimension> dims(network_shape.rank().get_length());
-        for (size_t i = 0; i < network_shape.rank().get_length(); i++) {
-            dims[i] = network_shape[i];
-        }
-        for (const auto& convert : m_layout_converts) {
-            old_dims = dims;
-            dims = std::vector<Dimension>(network_shape.rank().get_length());
-            for (size_t i = 0; i < convert.size(); i++) {
-                OPENVINO_ASSERT(convert[i] < dims.size(), "Convert dimension ", convert[i], " is out of bounds.");
-                dims[convert[i]] = old_dims[i];
-            }
-        }
-        return {dims};
-    }
+    Layout propagate_layout(const Layout& tensor_layout) const;
 
 private:
     static std::tuple<std::vector<Output<Node>>, bool> reverse_channels(const std::vector<Output<Node>>& nodes,
-                                                                        const std::shared_ptr<Function>& function,
+                                                                        const std::shared_ptr<Model>& function,
                                                                         PreprocessingContext& context);
 
     static std::tuple<std::vector<Output<Node>>, bool> cut_last_channel(const std::vector<Output<Node>>& nodes,
-                                                                        const std::shared_ptr<Function>& function,
+                                                                        const std::shared_ptr<Model>& function,
                                                                         PreprocessingContext& context);
 
 private:
-    std::list<InternalPreprocessOp> m_actions;
+    std::list<InternalPreprocessAction> m_actions;
     std::list<std::vector<uint64_t>> m_layout_converts;
+    std::list<std::vector<uint64_t>> m_forward_layout_converts;
+    Layout m_last_explicit_layout;
+    bool m_last_explicit_layout_set = false;
 };
 
 class PreProcessSteps::PreProcessStepsImpl : public PreStepsList {};
@@ -211,6 +205,14 @@ public:
 using InternalPostprocessOp = std::function<std::tuple<ov::Output<ov::Node>, bool>(const ov::Output<ov::Node>& node,
                                                                                    PostprocessingContext& context)>;
 
+struct InternalPostprocessAction {
+    InternalPostprocessAction(InternalPostprocessOp op, std::string name)
+        : m_op(std::move(op)),
+          m_name(std::move(name)) {}
+    InternalPostprocessOp m_op;
+    std::string m_name;
+};
+
 /// \brief PostProcessStepsImpl - internal data structure
 class PostStepsList {
 public:
@@ -218,15 +220,15 @@ public:
     void add_convert_layout_impl(const Layout& layout);
     void add_convert_layout_impl(const std::vector<uint64_t>& dims);
 
-    const std::list<InternalPostprocessOp>& actions() const {
+    const std::list<InternalPostprocessAction>& actions() const {
         return m_actions;
     }
-    std::list<InternalPostprocessOp>& actions() {
+    std::list<InternalPostprocessAction>& actions() {
         return m_actions;
     }
 
 private:
-    std::list<InternalPostprocessOp> m_actions;
+    std::list<InternalPostprocessAction> m_actions;
 };
 
 class PostProcessSteps::PostProcessStepsImpl : public PostStepsList {};

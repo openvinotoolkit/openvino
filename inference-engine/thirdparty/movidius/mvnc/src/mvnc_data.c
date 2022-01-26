@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,14 +156,14 @@ static ncStatus_t patchSetWdSwitchCommand(char **firmware, size_t *length, const
     size_t i = 0;
 
     for (i = currLength - 1; i >= 0; i--) {
-        if(currFirmware[i] == g_executeCommand) {
+        if (currFirmware[i] == g_executeCommand) {
             executeCommandIdx = i;
             executeCommandFound = 1;
             break;
         }
     }
 
-    if(!executeCommandFound) {
+    if (!executeCommandFound) {
         mvLog(MVLOG_WARN, "Fail to find execute command");
         return NC_ERROR;
     }

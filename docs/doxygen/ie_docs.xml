@@ -139,6 +139,7 @@ limitations under the License.
                 <tab type="user" title="DeformablePSROIPooling-1" url="@ref openvino_docs_ops_detection_DeformablePSROIPooling_1"/>
                 <tab type="user" title="DepthToSpace-1" url="@ref openvino_docs_ops_movement_DepthToSpace_1"/>
                 <tab type="user" title="DetectionOutput-1" url="@ref openvino_docs_ops_detection_DetectionOutput_1"/>
+                <tab type="user" title="DetectionOutput-8" url="@ref openvino_docs_ops_detection_DetectionOutput_8"/>
                 <tab type="user" title="DFT-7" url="@ref openvino_docs_ops_signals_DFT_7"/>
                 <tab type="user" title="Divide-1" url="@ref openvino_docs_ops_arithmetic_Divide_1"/>
                 <tab type="user" title="Einsum-7" url="@ref openvino_docs_ops_matrix_Einsum_7"/>

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ TEST(type_prop, group_convolution_auto_padding_same_lower) {
     auto groupConv =
         make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 5, 5}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({1, 2, 5, 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
@@ -46,7 +46,7 @@ TEST(type_prop, group_convolution_auto_padding_same_upper) {
     auto conv =
         make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 5, 5}));
+    ASSERT_EQ(conv->get_output_partial_shape(0), PartialShape({1, 2, 5, 5}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
@@ -67,7 +67,7 @@ TEST(type_prop, group_convolution_auto_padding_same_lower_spatial_dims_static) {
                                                            Strides{},
                                                            auto_pad);
 
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
@@ -88,7 +88,7 @@ TEST(type_prop, group_convolution_auto_padding_same_upper_spatial_dims_static) {
                                                            Strides{},
                                                            auto_pad);
 
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 5, 5}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({1, Dimension::dynamic(), 5, 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
@@ -109,7 +109,7 @@ TEST(type_prop, group_convolution_static_ranks_filters_groups_dyn) {
                                                            Strides{},
                                                            auto_pad);
 
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), 2, 5, 5}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 2, 5, 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
@@ -130,7 +130,7 @@ TEST(type_prop, group_convolution_static_ranks_filters_groups_cout_dyn) {
                                                            Strides{},
                                                            auto_pad);
 
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
@@ -151,7 +151,7 @@ TEST(type_prop, group_convolution_static_ranks_data_cin_filters_group_dyn) {
                                                            Strides{},
                                                            auto_pad);
 
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
@@ -172,7 +172,7 @@ TEST(type_prop, group_convolution_auto_padding_same_spatial_dims_dynamic) {
                                                            Strides{},
                                                            auto_pad);
 
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme({1, 2, Dimension::dynamic(), 5}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({1, 2, Dimension::dynamic(), 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 1}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 1}));
 }
@@ -196,8 +196,8 @@ TEST(type_prop, group_convolution_data_batch_dynamic) {
     ASSERT_EQ(groupConv->get_dilations(), (Strides{1, 1}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
-        PartialShape{Dimension::dynamic(), 2, Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0),
+              PartialShape({Dimension::dynamic(), 2, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, group_convolution_filters_dynamic_auto_pad_explicit) {
@@ -219,8 +219,8 @@ TEST(type_prop, group_convolution_filters_dynamic_auto_pad_explicit) {
     ASSERT_EQ(groupConv->get_dilations(), (Strides{1, 1}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
-        PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0),
+              PartialShape({1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, group_convolution_filters_dynamic_auto_pad_same) {
@@ -243,8 +243,8 @@ TEST(type_prop, group_convolution_filters_dynamic_auto_pad_same) {
     // pads should be as default since filters shape is dynamic
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
-        PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0),
+              PartialShape({1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, group_convolution_data_batch_and_filters_dynamic) {
@@ -260,7 +260,7 @@ TEST(type_prop, group_convolution_data_batch_and_filters_dynamic) {
                                                            CoordinateDiff{},
                                                            Strides{});
 
-    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
 TEST(type_prop, group_convolution_invalid_et_inputs) {
@@ -322,7 +322,7 @@ TEST(type_prop, group_convolution_invalid_input_ranks) {
         // data and weight have incompatible ranks
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Shapes for data batch and filters do not match."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch and filters rank do not match"));
     } catch (...) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }
@@ -341,7 +341,7 @@ TEST(type_prop, group_convolution_invalid_input_ranks) {
         // data and weight have incompatible ranks
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Shapes for data batch and filters do not match."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch and filters rank do not match"));
     } catch (...) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }
@@ -413,7 +413,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
             make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid strides spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Strides spatial dimensions validation check failed for unexpected reason";
     }
@@ -429,7 +429,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
             make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid strides spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Strides spatial dimensions validation check failed for unexpected reason";
     }
@@ -447,7 +447,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
             make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid dilations spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Dilations spatial dimensions validation check failed for unexpected reason";
     }
@@ -463,7 +463,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
             make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid dilations spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Dilations spatial dimensions validation check failed for unexpected reason";
     }
@@ -481,7 +481,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
             make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Pads should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Pads begin should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }
@@ -497,7 +497,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
             make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Pads should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Pads begin should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }

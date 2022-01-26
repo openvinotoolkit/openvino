@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,15 @@ class UpdateSharedPrecisionPreserved;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief UpdateSharedPrecisionPreserved transformation updates shared AttributeType attribute instance value to true
+ * for precision preserved operations if ExpectedAttributeType exist.
+ *
+ * For more details about the transformation, refer to
+ * [UpdateSharedPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_UpdateSharedPrecisionPreserved) page
+ * in the Inference Engine Developer Guide.
+ */
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>
 class ngraph::pass::low_precision::UpdateSharedPrecisionPreserved : public ngraph::pass::MatcherPass {
 public:
@@ -51,11 +60,9 @@ public:
 
                 // TODO: check if node can be quantized, if not, then doesn't update
                 for (auto input : node->inputs()) {
-                    auto precisionsAttributeWrapper = getAttribute<PrecisionsAttributePtr>(input);
-                    if (precisionsAttributeWrapper != nullptr) {
-                        const auto precisionsAttribute = precisionsAttributeWrapper->get();
-                        assert(precisionsAttribute != nullptr);
-                        if (precisionsAttribute->sharedValue->precisions.empty()) {
+                    auto precisionsAttributeWrapper = getAttribute<PrecisionsAttribute>(input);
+                    if (!precisionsAttributeWrapper.empty()) {
+                        if (precisionsAttributeWrapper.as<PrecisionsAttribute>().value().empty()) {
                             return false;
                         }
                     }
@@ -63,23 +70,22 @@ public:
 
                 for (auto input : node->inputs()) {
                     if (needToCheckExpectedAttributeType) {
-                        if (getAttribute<ExpectedAttributeType>(input) == nullptr) {
+                        if (getAttribute<ExpectedAttributeType>(input).empty()) {
                             return false;
                         }
                     }
                     auto parentAttribute = getSourceAttribute(input);
-                    if (parentAttribute == nullptr) {
+                    if (parentAttribute.empty()) {
                         continue;
                     }
-
-                    parentAttribute->get()->sharedValue->value = true;
+                    parentAttribute.template as<AttributeType>().value() = true;
                 }
             }
 
             return true;
         };
 
-        auto matcher = std::make_shared<ngraph::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
+        auto matcher = std::make_shared<ngraph::pattern::Matcher>(pattern::any_input(), "UpdateSharedPrecisionPreserved");
         this->register_matcher(matcher, callback);
     }
 
@@ -95,11 +101,11 @@ private:
         return input;
     }
 
-    std::shared_ptr<ngraph::VariantWrapper<AttributeType>> getSourceAttribute(const Input<Node>& input) {
+    ov::Any getSourceAttribute(const Input<Node>& input) {
         const auto dequantizationInput = getDequantizationInput(input);
         const auto output = dequantizationInput.get_source_output();
         auto attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node()->shared_from_this());
-        if (attribute == nullptr) {
+        if (attribute.empty()) {
             attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node_shared_ptr());
         }
         return attribute;

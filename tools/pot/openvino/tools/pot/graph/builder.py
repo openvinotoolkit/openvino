@@ -1,12 +1,11 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
-import numpy as np
 
-from mo.graph.graph import Graph
+from openvino.tools.mo.graph.graph import Graph
 
-from openvino.tools.pot.graph.node_utils import get_node_input, get_node_inputs
+from openvino.tools.pot.graph.node_utils import get_node_data_type, get_node_input, get_node_inputs
 from .editor import create_node, connect_nodes_by_name, get_node_by_name
 
 
@@ -105,8 +104,10 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
      :param remove_fake_quantize: remove fake quantize nodes in the generated graph
      :return: generated graph.
     """
+    input_data_type = get_node_data_type(node, 0)
     nodes, edges = [], []
-    nodes.append((input_name, 'Parameter', {'name': input_name, 'shape': input_shape, 'type': 'Parameter'}))
+    nodes.append((input_name, 'Parameter', {'name': input_name, 'shape': input_shape,
+                                            'type': 'Parameter', 'data_type': input_data_type}))
 
     node_attrs = deepcopy(node.attrs())
     if node.has_valid('output') and node.has_valid('get_output_feature_dim'):
@@ -146,6 +147,9 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
     weights_node = get_node_input(src_node, 1)
     weights_node = get_node_input(weights_node, 0) \
         if weights_node.type == 'FakeQuantize' else weights_node
-    if weights_node.out_port(0).get_data_type() == np.float16:
+    weights_out_dtype = weights_node.out_port(0).get_data_type()
+    src_out_dtype = src_node.out_port(0).get_data_type()
+    if weights_out_dtype != src_out_dtype:
         weights_node.out_node(0)['Insert_Convert_operation_after'] = True
+
     return graph

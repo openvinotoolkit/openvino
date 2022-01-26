@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,6 @@
 using namespace ov;
 
 bool OldApiMapOrder::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("value", m_value);
+    visitor.on_attribute("value", value);
     return true;
 }

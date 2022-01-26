@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ static const char* CAPSULE_NAME = "ngraph_partial_shape";
 
 void regclass_graph_PartialShape(py::module m) {
     py::class_<ov::PartialShape, std::shared_ptr<ov::PartialShape>> shape(m, "PartialShape");
-    shape.doc() = "openvino.impl.PartialShape wraps ov::PartialShape";
+    shape.doc() = "openvino.runtime.PartialShape wraps ov::PartialShape";
 
     shape.def(py::init([](const std::vector<int64_t>& dimensions) {
         return ov::PartialShape(std::vector<ov::Dimension>(dimensions.begin(), dimensions.end()));
@@ -33,7 +33,7 @@ void regclass_graph_PartialShape(py::module m) {
     shape.def(py::init<const ov::Shape&>());
     shape.def(py::init<const ov::PartialShape&>());
 
-    shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("r") = ov::Dimension());
+    shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("rank") = ov::Dimension());
 
     shape.def_property_readonly("is_dynamic",
                                 &ov::PartialShape::is_dynamic,
@@ -46,7 +46,7 @@ void regclass_graph_PartialShape(py::module m) {
                                 &ov::PartialShape::is_static,
                                 R"(
                                     True if this shape is static, else False.
-                                    A shape is considered static if it has static rank, 
+                                    A shape is considered static if it has static rank,
                                     and all dimensions of the shape are static.
                                 )");
     shape.def_property_readonly("rank",
@@ -57,20 +57,20 @@ void regclass_graph_PartialShape(py::module m) {
     shape.def_property_readonly("all_non_negative",
                                 &ov::PartialShape::all_non_negative,
                                 R"(
-                                    True if all static dimensions of the tensor are 
+                                    True if all static dimensions of the tensor are
                                     non-negative, else False.
                                 )");
 
     shape.def("compatible",
               &ov::PartialShape::compatible,
-              py::arg("s"),
+              py::arg("shape"),
               R"(
                 Check whether this shape is compatible with the argument, i.e.,
                 whether it is possible to merge them.
-                
+
                 Parameters
                 ----------
-                s : PartialShape
+                shape : PartialShape
                     The shape to be checked for compatibility with this shape.
 
 
@@ -81,15 +81,15 @@ void regclass_graph_PartialShape(py::module m) {
               )");
     shape.def("refines",
               &ov::PartialShape::refines,
-              py::arg("s"),
+              py::arg("shape"),
               R"(
                 Check whether this shape is a refinement of the argument.
 
                 Parameters
                 ----------
-                s : PartialShape
-                    The shape which is being compared against this shape.        
-        
+                shape : PartialShape
+                    The shape which is being compared against this shape.
+
                 Returns
                 ----------
                 refines : bool
@@ -97,15 +97,15 @@ void regclass_graph_PartialShape(py::module m) {
               )");
     shape.def("relaxes",
               &ov::PartialShape::relaxes,
-              py::arg("s"),
+              py::arg("shape"),
               R"(
                 Check whether this shape is a relaxation of the argument.
 
                 Parameters
                 ----------
-                s : PartialShape
-                    The shape which is being compared against this shape.        
-        
+                shape : PartialShape
+                    The shape which is being compared against this shape.
+
                 Returns
                 ----------
                 relaxes : bool
@@ -113,15 +113,15 @@ void regclass_graph_PartialShape(py::module m) {
               )");
     shape.def("same_scheme",
               &ov::PartialShape::same_scheme,
-              py::arg("s"),
+              py::arg("shape"),
               R"(
                 Check whether this shape represents the same scheme as the argument.
 
                 Parameters
                 ----------
-                s : PartialShape
-                    The shape which is being compared against this shape.        
-        
+                shape : PartialShape
+                    The shape which is being compared against this shape.
+
                 Returns
                 ----------
                 same_scheme : bool
@@ -191,6 +191,29 @@ void regclass_graph_PartialShape(py::module m) {
             return a == b;
         },
         py::is_operator());
+
+    shape.def("__len__", [](const ov::PartialShape& self) {
+        return self.size();
+    });
+
+    shape.def("__setitem__", [](ov::PartialShape& self, size_t key, ov::Dimension::value_type d) {
+        self[key] = d;
+    });
+
+    shape.def("__setitem__", [](ov::PartialShape& self, size_t key, ov::Dimension& d) {
+        self[key] = d;
+    });
+
+    shape.def("__getitem__", [](const ov::PartialShape& self, size_t key) {
+        return self[key];
+    });
+
+    shape.def(
+        "__iter__",
+        [](ov::PartialShape& self) {
+            return py::make_iterator(self.begin(), self.end());
+        },
+        py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
 
     shape.def("__str__", [](const ov::PartialShape& self) -> std::string {
         std::stringstream ss;

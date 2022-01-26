@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,11 @@ public:
     }
 
 private:
-    int64_t m_axis;
+    int64_t m_axis{0};
+    template <class T>
+    void friend shape_infer(const GatherElements* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

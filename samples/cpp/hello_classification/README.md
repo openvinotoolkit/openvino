@@ -6,11 +6,11 @@ Hello Classification C++ sample application demonstrates how to use the followin
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-| Basic Infer Flow | `InferenceEngine::Core::ReadNetwork`, `InferenceEngine::Core::LoadNetwork`, `InferenceEngine::ExecutableNetwork::CreateInferRequest`, `InferenceEngine::InferRequest::SetBlob`, `InferenceEngine::InferRequest::GetBlob`  | Common API to do inference: configure input and output blobs, loading model, create infer request
-| Synchronous Infer | `InferenceEngine::InferRequest::Infer` | Do synchronous inference
-| Network Operations | `ICNNNetwork::getInputsInfo`, `InferenceEngine::CNNNetwork::getOutputsInfo`, `InferenceEngine::InputInfo::setPrecision` |  Managing of network
-| Blob Operations| `InferenceEngine::Blob::getTensorDesc`, `InferenceEngine::TensorDesc::getDims`, , `InferenceEngine::TensorDesc::getPrecision`, `InferenceEngine::as`, `InferenceEngine::MemoryBlob::wmap`, `InferenceEngine::MemoryBlob::rmap`, `InferenceEngine::Blob::size` | Work with memory container for storing inputs, outputs of the network, weights and biases of the layers
-| Input auto-resize | `InferenceEngine::PreProcessInfo::setResizeAlgorithm`, `InferenceEngine::InputInfo::setLayout` | Set image of the original size as input for a network with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference
+| Basic Infer Flow | `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: configure input and output tensors, reading model, create infer request
+| Synchronous Infer | `ov::InferRequest::infer` | Do synchronous inference
+| Model Operations | `ov::Model::inputs`, `ov::Model::outputs` |  Managing of model
+| Tensor Operations| `ov::Tensor::get_element_type`, `ov::Tensor::get_shape`, `ov::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
+| Input auto-resize | `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputInfo::model::set_layout` | Set image of the original size as input for a model with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference
 
 | Options  | Values |
 |:---                              |:---

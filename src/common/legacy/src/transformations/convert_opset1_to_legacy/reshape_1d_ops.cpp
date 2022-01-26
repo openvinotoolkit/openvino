@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-#include "ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ngraph;

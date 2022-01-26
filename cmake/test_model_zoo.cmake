@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,7 +19,7 @@ function(ov_model_convert SRC DST OUT)
         get_filename_component(name_we "${in_file}" NAME_WE)
         set(model_source_dir "${SRC}/${rel_dir}")
 
-        if(NOT NGRAPH_ONNX_FRONTEND_ENABLE AND ext MATCHES "^\\.(onnx|prototxt)$")
+        if(NOT ENABLE_OV_ONNX_FRONTEND AND ext MATCHES "^\\.(onnx|prototxt)$")
             # don't copy / process ONNX / prototxt files
             continue()
         endif()
@@ -66,22 +66,22 @@ ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/tests"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/core"
                   onnx_out_files)
 
-set(rel_path "inference-engine/tests/functional/plugin/shared/models")
+set(rel_path "src/tests/functional/plugin/shared/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/func_tests/models"
                  ft_out_files)
 
-set(rel_path "inference-engine/tests/functional/inference_engine/onnx_reader")
+set(rel_path "src/tests/functional/inference_engine/onnx_reader")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_reader"
                  ie_onnx_out_files)
 
-set(rel_path "inference-engine/tests/functional/inference_engine/ir_serialization")
+set(rel_path "src/tests/functional/inference_engine/ir_serialization")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ir_serialization"
                  ie_serialize_out_files)
 
-set(rel_path "inference-engine/tests/unit/frontends/onnx_import/models")
+set(rel_path "src/tests/unit/frontends/onnx_import/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
                  ie_onnx_import_out_files)
@@ -92,7 +92,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  docs_onnx_out_files)
 
 if(ENABLE_TESTS)
-    if(NGRAPH_ONNX_FRONTEND_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
+    if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_REQUIREMENTS_INSTALL)
         find_package(PythonInterp 3 REQUIRED)
 
         get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
@@ -136,8 +136,8 @@ if(ENABLE_TESTS)
         add_dependencies(test_model_zoo test_pip_prerequsites)
     endif()
 
-    if (NGRAPH_PDPD_FRONTEND_ENABLE AND NGRAPH_UNIT_TEST_ENABLE)
-        add_dependencies(test_model_zoo paddlepaddle_test_models)
+    if (ENABLE_OV_PADDLE_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)
+        add_dependencies(test_model_zoo paddle_test_models)
     endif()
 
     install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"

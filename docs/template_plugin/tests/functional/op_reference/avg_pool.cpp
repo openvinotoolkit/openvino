@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,8 @@ struct AvgPoolParams {
     Shape m_output_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    runtime::Tensor m_input_data;
-    runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     Strides m_strides;
     Shape m_pads_begin;
     Shape m_pads_end;
@@ -87,7 +87,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type& input_type,
                                                     const Strides& strides,
                                                     const Shape& pads_begin,
@@ -105,7 +105,7 @@ private:
                                                                exclude_pad,
                                                                rounding_type,
                                                                pad_type);
-        return std::make_shared<Function>(NodeVector{avgPool}, ParameterVector{in});
+        return std::make_shared<Model>(NodeVector{avgPool}, ParameterVector{in});
     }
 };
 

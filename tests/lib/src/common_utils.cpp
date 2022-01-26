@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,8 @@ using namespace InferenceEngine;
  * @brief Fill InferRequest blobs with random values or image information
  */
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
-        const InferenceEngine::ConstInputsDataMap& inputsInfo,
-        const size_t& batchSize) {
+               const InferenceEngine::ConstInputsDataMap& inputsInfo,
+               const size_t& batchSize) {
   std::vector<std::pair<size_t, size_t>> input_image_sizes;
   for (const ConstInputsDataMap::value_type& item : inputsInfo) {
     if (isImage(item.second))

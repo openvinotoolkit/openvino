@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <fstream>
 
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "utils.hpp"
 
 using namespace ngraph;
@@ -47,15 +47,15 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePathWithExplicitVariants) {
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
 
-    std::vector<std::shared_ptr<ov::Variant>> variants;
-    variants.emplace_back(ov::make_variant(model_path));
+    std::vector<ov::Any> variants;
+    variants.emplace_back(model_path);
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(variants));
     ASSERT_NE(m_frontEnd, nullptr);
 
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(variants));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(function, nullptr);
 }

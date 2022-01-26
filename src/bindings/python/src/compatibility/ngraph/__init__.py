@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ngraph module namespace, exposing factory functions for all ops and other classes."""
@@ -15,15 +15,6 @@ from ngraph.impl import Dimension
 from ngraph.impl import Function
 from ngraph.impl import Node
 from ngraph.impl import PartialShape
-from ngraph.frontend import FrontEnd
-from ngraph.frontend import FrontEndManager
-from ngraph.frontend import GeneralFailure
-from ngraph.frontend import NotImplementedFailure
-from ngraph.frontend import InitializationFailure
-from ngraph.frontend import InputModel
-from ngraph.frontend import OpConversionFailure
-from ngraph.frontend import OpValidationFailure
-from ngraph.frontend import Place
 from ngraph.helpers import function_from_cnn
 from ngraph.helpers import function_to_cnn
 from ngraph.helpers import partial_shape_from_data
@@ -95,7 +86,10 @@ from ngraph.opset8 import hard_sigmoid
 from ngraph.opset8 import hsigmoid
 from ngraph.opset8 import hswish
 from ngraph.opset8 import idft
+from ngraph.opset8 import if_op
 from ngraph.opset8 import interpolate
+from ngraph.opset8 import i420_to_bgr
+from ngraph.opset8 import i420_to_rgb
 from ngraph.opset8 import less
 from ngraph.opset8 import less_equal
 from ngraph.opset8 import log
@@ -123,6 +117,8 @@ from ngraph.opset8 import non_max_suppression
 from ngraph.opset8 import non_zero
 from ngraph.opset8 import normalize_l2
 from ngraph.opset8 import not_equal
+from ngraph.opset8 import nv12_to_bgr
+from ngraph.opset8 import nv12_to_rgb
 from ngraph.opset8 import one_hot
 from ngraph.opset8 import pad
 from ngraph.opset8 import parameter

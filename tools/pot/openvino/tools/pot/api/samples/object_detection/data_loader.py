@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,7 +6,7 @@ import json
 import cv2
 import numpy as np
 
-from openvino.tools.pot.api import DataLoader
+from openvino.tools.pot import DataLoader
 
 
 class COCOLoader(DataLoader):

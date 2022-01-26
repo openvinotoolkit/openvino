@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,8 +33,8 @@ struct ReorgYoloParams {
     ov::PartialShape inputShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 
@@ -59,10 +59,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ReorgYoloParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ReorgYoloParams& params) {
         const auto p = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
         const auto ReorgYolo = std::make_shared<op::v0::ReorgYolo>(p, params.stride);
-        return std::make_shared<ov::Function>(NodeVector {ReorgYolo}, ParameterVector {p});
+        return std::make_shared<ov::Model>(NodeVector {ReorgYolo}, ParameterVector {p});
     }
 };
 

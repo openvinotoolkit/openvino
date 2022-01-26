@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 // #include <openvino/cc/selective_build.h>
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 #include "remarks.hpp"
 
 #include "snippets/pass/assign_registers.hpp"
-#include "snippets/register_info.hpp"
 #include "snippets/snippets_isa.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 
 #include <iterator>
 
-bool ngraph::snippets::pass::AssignRegisters::run_on_function(std::shared_ptr<Function> f) {
+bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(AssignRegisters);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::AssignRegisters")
     int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
     using Reg = size_t;
     auto ops = f->get_ordered_ops();
@@ -144,7 +144,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_function(std::shared_ptr<Fu
 
     for (auto n : f->get_ordered_ops()) {
         auto& rt = n->get_rt_info();
-        // nothing to do for function signature
+        // nothing to do for model signature
         if (std::dynamic_pointer_cast<opset1::Parameter>(n) || std::dynamic_pointer_cast<opset1::Result>(n)) {
             continue;
         }
@@ -152,7 +152,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_function(std::shared_ptr<Fu
         // store only effective address
         if (auto result = std::dynamic_pointer_cast<snippets::op::Store>(n)) {
             auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_result_index(result) + f->get_parameters().size());
-            rt["effectiveAddress"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(ea));
+            rt["effectiveAddress"] = ea;
             continue;
         }
         // store effective address and procced with vector registers
@@ -161,10 +161,10 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_function(std::shared_ptr<Fu
 
             if (auto param = ov::as_type_ptr<opset1::Parameter>(source)) {
                 auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_parameter_index(param));
-                rt["effectiveAddress"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(ea));
+                rt["effectiveAddress"] = ea;
             } else if (auto constant = ov::as_type_ptr<opset1::Constant>(source)) {
                 auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_parameters().size() + f->get_results().size() + 1 + constantID);
-                rt["effectiveAddress"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(ea));
+                rt["effectiveAddress"] = ea;
                 constantID++;
             } else {
                 throw ngraph_error("load/broadcast should follow only Parameter or non-Scalar constant");
@@ -176,7 +176,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_function(std::shared_ptr<Fu
             auto allocated = physical_regs[output.get_tensor_ptr()];
             regs.push_back(allocated);
         }
-        rt["reginfo"] = std::make_shared<VariantWrapper<std::vector<size_t>>>(VariantWrapper<std::vector<size_t>>(regs));
+        rt["reginfo"] = regs;
     }
 
     return false;

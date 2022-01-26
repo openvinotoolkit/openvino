@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,27 +16,19 @@ using namespace ov;
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
-QuantizationAlignmentAttribute::QuantizationAlignmentAttribute(const bool hasToBeAligned) {
-    sharedValue = std::make_shared<QuantizationAlignmentSharedValue>(hasToBeAligned);
+QuantizationAlignmentAttribute::QuantizationAlignmentAttribute(const bool hasToBeAligned) :
+    SharedAttribute(hasToBeAligned) {
 }
 
-template class ngraph::VariantImpl<QuantizationAlignmentAttributePtr>;
-
-constexpr VariantTypeInfo VariantWrapper<QuantizationAlignmentAttributePtr>::type_info;
-
-ov::Any VariantWrapper<QuantizationAlignmentAttributePtr>::init(const std::shared_ptr<ngraph::Node>& node) {
-    return nullptr;
-}
-
-std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>> VariantWrapper<QuantizationAlignmentAttributePtr>::create(
+ov::Any QuantizationAlignmentAttribute::create(
     const std::shared_ptr<ngraph::Node>& node,
     const AttributeParameters& params) {
-    if (getAttribute<std::shared_ptr<QuantizationAlignmentAttribute>>(node) != nullptr) {
-        return nullptr;
+    if (!getAttribute<QuantizationAlignmentAttribute>(node).empty()) {
+        return {};
     }
 
     if (!NetworkHelper::isPrecisionPreserved(node)) {
-        return nullptr;
+        return {};
     }
 
     bool leastOneOperationIsFakeQuantize = false;
@@ -66,26 +58,22 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>>
 
     if (leastOneOperationIsFakeQuantize && !leastOneOperationIsNotFakeQuantize) {
         auto& rt = node->get_rt_info();
-        const auto attribute = std::make_shared<ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>>(
-            make_shared_attribute<QuantizationAlignmentAttribute>());
-        rt[ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name] = attribute;
-        return attribute;
+        rt[QuantizationAlignmentAttribute::get_type_info_static()] = QuantizationAlignmentAttribute();
+        return rt[QuantizationAlignmentAttribute::get_type_info_static()];
     }
 
-    return nullptr;
+    return {};
 }
 
-void VariantWrapper<QuantizationAlignmentAttributePtr>::merge(
-    std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>>>& attributes) {
-    auto currentAttributte = get();
-    for (const auto& attribute : attributes) {
-        currentAttributte->sharedValue->value = currentAttributte->sharedValue->value || attribute->get()->sharedValue->value;
+void QuantizationAlignmentAttribute::merge(std::vector<ov::Any>& attributes) {
+    for (const auto& other_attribute : attributes) {
+        value() = value() || other_attribute.as<QuantizationAlignmentAttribute>().value();
     }
 }
 
-std::string VariantWrapper<QuantizationAlignmentAttributePtr>::to_string() {
+std::string QuantizationAlignmentAttribute::to_string() const {
     std::stringstream ss;
-    ss << m_value->get_string();
-    ss << "value: " << (m_value->sharedValue->value ? "true" : "false");
+    ss << attribute->get_string();
+    ss << "value: " << (value() ? "true" : "false");
     return ss.str();
 }

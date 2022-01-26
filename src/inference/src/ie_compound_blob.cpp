@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -311,11 +311,11 @@ CompoundBlob::CompoundBlob(std::vector<Blob::Ptr>&& blobs) : CompoundBlob(Tensor
     this->_blobs = std::move(blobs);
 }
 
-size_t CompoundBlob::byteSize() const noexcept {
+size_t CompoundBlob::byteSize() const {
     return 0;
 }
 
-size_t CompoundBlob::element_size() const noexcept {
+size_t CompoundBlob::element_size() const {
     return 0;
 }
 

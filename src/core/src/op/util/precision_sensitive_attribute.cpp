@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 void ov::mark_as_precision_sensitive(ov::Input<ov::Node> node_input) {
     auto& rt_info = node_input.get_rt_info();
-    rt_info[PrecisionSensitive::get_type_info_static()] = std::make_shared<PrecisionSensitive>();
+    rt_info[PrecisionSensitive::get_type_info_static()] = PrecisionSensitive{};
 }
 
 void ov::unmark_as_precision_sensitive(ov::Input<ov::Node> node_input) {

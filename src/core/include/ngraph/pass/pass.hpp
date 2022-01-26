@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ class Manager;
 }  // namespace ov
 namespace ngraph {
 namespace pass {
-using ov::pass::FunctionPass;
+using FunctionPass = ov::pass::ModelPass;
 using ov::pass::FusionType;
 using ov::pass::FusionTypeMask;
 using ov::pass::Manager;

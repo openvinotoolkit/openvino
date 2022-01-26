@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/ctc_greedy_decoder.hpp"
+
+#include <ctc_greedy_decoder_shape_inference.hpp>
 
 #include "itt.hpp"
 
@@ -23,55 +25,12 @@ void op::CTCGreedyDecoder::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_CTCGreedyDecoder_validate_and_infer_types);
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& seq_mask_pshape = get_input_partial_shape(1);
-    auto input_et = get_input_element_type(0);
+    const auto& input_et = get_input_element_type(0);
 
-    // output dynamic rank tensor if all inputs are of dynamic rank
-    if (logits_pshape.rank().is_dynamic() && seq_mask_pshape.rank().is_dynamic()) {
-        set_output_type(0, input_et, ov::PartialShape{Dimension::dynamic(), Dimension::dynamic(), 1, 1});
-    }
-
-    // check ranks of input tensors
-    if (logits_pshape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              logits_pshape.rank().get_length() == 3,
-                              "The rank of logits tensor must be equal to 3.");
-    }
-    if (seq_mask_pshape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              seq_mask_pshape.rank().get_length() == 2,
-                              "The rank of sequence mask tensor must be equal to 2.");
-    }
-
-    // validate input shapes and compute output shape
-    ngraph::Dimension batch_size = Dimension::dynamic();
-    ngraph::Dimension time_size = Dimension::dynamic();
-    if (logits_pshape.rank().is_static()) {
-        if (logits_pshape[0].is_static()) {
-            time_size = logits_pshape[0];
-        }
-        if (logits_pshape[1].is_static()) {
-            batch_size = logits_pshape[1];
-        }
-    }
-    if (seq_mask_pshape.rank().is_static()) {
-        if (seq_mask_pshape[0].is_static()) {
-            if (time_size != Dimension::dynamic()) {
-                NODE_VALIDATION_CHECK(this,
-                                      seq_mask_pshape[0] == time_size,
-                                      "The first dimensions of input tensors must match.");
-            }
-            time_size = seq_mask_pshape[0];
-        }
-        if (seq_mask_pshape[1].is_static()) {
-            if (batch_size != Dimension::dynamic()) {
-                NODE_VALIDATION_CHECK(this,
-                                      seq_mask_pshape[1] == batch_size,
-                                      "The second dimensions of input tensors must match.");
-            }
-            batch_size = seq_mask_pshape[1];
-        }
-    }
-    set_output_type(0, input_et, ov::PartialShape{batch_size, time_size, 1, 1});
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_mask_pshape};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, input_et, output_shapes[0]);
 }
 
 bool op::CTCGreedyDecoder::visit_attributes(AttributeVisitor& visitor) {

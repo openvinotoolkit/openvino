@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,9 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE);
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE2);
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3);
+class NonMaxSuppressionIE;
+class NonMaxSuppressionIE2;
+class NonMaxSuppressionIE3;
 
 }  // namespace op
 }  // namespace ngraph

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -39,23 +39,21 @@ packages = [
     "ngraph.impl.op",
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
-    "ngraph.frontend",
     "openvino",
-    # TODO: change the module name according to the description in 69196
-    "openvino.offline_transformations_pybind",
-    "openvino.opset1",
-    "openvino.opset2",
-    "openvino.opset3",
-    "openvino.opset4",
-    "openvino.opset5",
-    "openvino.opset6",
-    "openvino.opset7",
-    "openvino.opset8",
-    "openvino.utils",
-    "openvino.impl",
-    "openvino.impl.op",
-    "openvino.impl.op.util",
-    "openvino.impl.passes",
+    "openvino.frontend",
+    "openvino.offline_transformations",
+    "openvino.runtime.opset1",
+    "openvino.runtime.opset2",
+    "openvino.runtime.opset3",
+    "openvino.runtime.opset4",
+    "openvino.runtime.opset5",
+    "openvino.runtime.opset6",
+    "openvino.runtime.opset7",
+    "openvino.runtime.opset8",
+    "openvino.runtime.utils",
+    "openvino.runtime.op",
+    "openvino.runtime.op.util",
+    "openvino.runtime.passes",
 ]
 
 
@@ -178,7 +176,7 @@ class BuildCMakeExt(build_ext):
                     f"-DCMAKE_BUILD_TYPE={self.config}",
                     f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
                     "-DENABLE_PYTHON=ON",
-                    "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
+                    "-DENABLE_OV_ONNX_FRONTEND=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,16 +14,17 @@ namespace {
 struct ConcatParams {
     ConcatParams(
         const PartialShape& dynamicShape,
-        const Tensor& A, const Tensor& B, const Tensor& C, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B,
+        const reference_tests::Tensor& C, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         dynamicShape(dynamicShape), A(A), B(B), C(C), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
     PartialShape dynamicShape;
-    Tensor A;
-    Tensor B;
-    Tensor C;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
+    reference_tests::Tensor C;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -58,7 +59,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParams& params) {
         std::shared_ptr<opset1::Parameter> A, B, C;
         if (params.dynamicShape.is_dynamic()) {
             A = std::make_shared<opset1::Parameter>(params.A.type, params.dynamicShape);
@@ -69,7 +70,7 @@ private:
             B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
             C = std::make_shared<opset1::Parameter>(params.C.type, params.C.shape);
         }
-        auto f = std::make_shared<Function>(std::make_shared<opset1::Concat>(NodeVector{A, B, C}, params.axis), ParameterVector{A, B, C});
+        auto f = std::make_shared<Model>(std::make_shared<opset1::Concat>(NodeVector{A, B, C}, params.axis), ParameterVector{A, B, C});
         return f;
     }
 };
@@ -84,51 +85,51 @@ std::vector<ConcatParams> generateParams() {
     std::vector<ConcatParams> params {
         ConcatParams(
             PartialShape::dynamic(),
-            Tensor(ET, {2, 2}, std::vector<T>{2, 4, 8, 16}),
-            Tensor(ET, {2, 3}, std::vector<T>{1, 2, 4, 8, 16, 32}),
-            Tensor(ET, {2, 3}, std::vector<T>{2, 3, 5, 7, 11, 13}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{2, 4, 8, 16}),
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{1, 2, 4, 8, 16, 32}),
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{2, 3, 5, 7, 11, 13}),
             -1,
-            Tensor(ET, {2, 8}, std::vector<T>{2, 4, 1, 2, 4, 2, 3, 5, 8, 16, 8, 16, 32, 7, 11, 13}),
+            reference_tests::Tensor(ET, {2, 8}, std::vector<T>{2, 4, 1, 2, 4, 2, 3, 5, 8, 16, 8, 16, 32, 7, 11, 13}),
             "concat_negative_axis"),
         ConcatParams(
             {},
-            Tensor(ET, {2, 2}, std::vector<T>{2, 4, 8, 16}),
-            Tensor(ET, {2, 3}, std::vector<T>{1, 2, 4, 8, 16, 32}),
-            Tensor(ET, {2, 3}, std::vector<T>{2, 3, 5, 7, 11, 13}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{2, 4, 8, 16}),
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{1, 2, 4, 8, 16, 32}),
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{2, 3, 5, 7, 11, 13}),
             1,
-            Tensor(ET, {2, 8}, std::vector<T>{2, 4, 1, 2, 4, 2, 3, 5, 8, 16, 8, 16, 32, 7, 11, 13}),
+            reference_tests::Tensor(ET, {2, 8}, std::vector<T>{2, 4, 1, 2, 4, 2, 3, 5, 8, 16, 8, 16, 32, 7, 11, 13}),
             "concat_matrix_colwise"),
         ConcatParams(
             {},
-            Tensor(ET, {2, 2}, std::vector<T>{2, 4, 8, 16}),
-            Tensor(ET, {3, 2}, std::vector<T>{1, 2, 4, 8, 16, 32}),
-            Tensor(ET, {3, 2}, std::vector<T>{2, 3, 5, 7, 11, 13}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{2, 4, 8, 16}),
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{1, 2, 4, 8, 16, 32}),
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{2, 3, 5, 7, 11, 13}),
             0,
-            Tensor(ET, {8, 2}, std::vector<T>{2, 4, 8, 16, 1, 2, 4, 8, 16, 32, 2, 3, 5, 7, 11, 13}),
+            reference_tests::Tensor(ET, {8, 2}, std::vector<T>{2, 4, 8, 16, 1, 2, 4, 8, 16, 32, 2, 3, 5, 7, 11, 13}),
             "concat_matrix_rowwise"),
         ConcatParams(
             {},
-            Tensor(ET, {4}, std::vector<T>{2, 4, 8, 16}),
-            Tensor(ET, {6}, std::vector<T>{1, 2, 4, 8, 16, 32}),
-            Tensor(ET, {2}, std::vector<T>{18, 19}),
+            reference_tests::Tensor(ET, {4}, std::vector<T>{2, 4, 8, 16}),
+            reference_tests::Tensor(ET, {6}, std::vector<T>{1, 2, 4, 8, 16, 32}),
+            reference_tests::Tensor(ET, {2}, std::vector<T>{18, 19}),
             0,
-            Tensor(ET, {12}, std::vector<T>{2, 4, 8, 16, 1, 2, 4, 8, 16, 32, 18, 19}),
+            reference_tests::Tensor(ET, {12}, std::vector<T>{2, 4, 8, 16, 1, 2, 4, 8, 16, 32, 18, 19}),
             "concat_vector"),
         ConcatParams(
             {},
-            Tensor(ET, {1, 1, 1, 1}, std::vector<T>{1}),
-            Tensor(ET, {1, 1, 1, 1}, std::vector<T>{2}),
-            Tensor(ET, {1, 1, 1, 1}, std::vector<T>{3}),
+            reference_tests::Tensor(ET, {1, 1, 1, 1}, std::vector<T>{1}),
+            reference_tests::Tensor(ET, {1, 1, 1, 1}, std::vector<T>{2}),
+            reference_tests::Tensor(ET, {1, 1, 1, 1}, std::vector<T>{3}),
             0,
-            Tensor(ET, {3, 1, 1, 1}, std::vector<T>{1, 2, 3}),
+            reference_tests::Tensor(ET, {3, 1, 1, 1}, std::vector<T>{1, 2, 3}),
             "concat_4d_tensor"),
         ConcatParams(
             {},
-            Tensor(ET, {1, 1}, std::vector<T>{1}),
-            Tensor(ET, {1, 1}, std::vector<T>{2}),
-            Tensor(ET, {1, 1}, std::vector<T>{3}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{1}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{2}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{3}),
             0,
-            Tensor(ET, {3, 1}, std::vector<T>{1, 2, 3}),
+            reference_tests::Tensor(ET, {3, 1}, std::vector<T>{1, 2, 3}),
             "concat_2d_tensor"),
     };
     return params;
@@ -183,7 +184,7 @@ public:
             inputs_param.push_back(A);
             inputs.push_back(A);
         }
-        function = std::make_shared<Function>(std::make_shared<opset1::Concat>(inputs, 0), inputs_param);
+        function = std::make_shared<Model>(std::make_shared<opset1::Concat>(inputs, 0), inputs_param);
 
         std::vector<float> ref_result;
         for (uint32_t i = 0; i < params.numInputs; i++) {
@@ -239,16 +240,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestVe
 
 struct ConcatParamsInPlace2dTensor {
     ConcatParamsInPlace2dTensor(
-        const Tensor& A, const Tensor& B, const Tensor& C, const Tensor& D, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const reference_tests::Tensor& C, const reference_tests::Tensor& D, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), C(C), D(D), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
-    Tensor C;
-    Tensor D;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
+    reference_tests::Tensor C;
+    reference_tests::Tensor D;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -284,7 +285,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsInPlace2dTensor& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsInPlace2dTensor& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto add1 = std::make_shared<opset1::Add>(A, B);
@@ -292,7 +293,7 @@ private:
         const auto D = std::make_shared<opset1::Parameter>(params.D.type, params.D.shape);
         const auto add2 = std::make_shared<opset1::Add>(C, D);
         const auto subtract = std::make_shared<opset1::Subtract>(C, A);
-        const auto f = std::make_shared<Function>(
+        const auto f = std::make_shared<Model>(
             std::make_shared<opset1::Concat>(NodeVector{add1, add2, subtract}, params.axis),
                                              ParameterVector{A, B, C, D});
         return f;
@@ -308,12 +309,12 @@ std::vector<ConcatParamsInPlace2dTensor> generateParamsInPlace2dTensor() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsInPlace2dTensor> params {
         ConcatParamsInPlace2dTensor(
-            Tensor(ET, {1, 1}, std::vector<T>{1}),
-            Tensor(ET, {1, 1}, std::vector<T>{2}),
-            Tensor(ET, {1, 1}, std::vector<T>{3}),
-            Tensor(ET, {1, 1}, std::vector<T>{4}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{1}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{2}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{3}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{4}),
             0,
-            Tensor(ET, {3, 1}, std::vector<T>{3, 7, 2}),
+            reference_tests::Tensor(ET, {3, 1}, std::vector<T>{3, 7, 2}),
             "concat_in_place_2d_tensor"),
     };
     return params;
@@ -344,16 +345,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestIn
 
 struct ConcatParamsInPlacePropagate2dTensor {
     ConcatParamsInPlacePropagate2dTensor(
-        const Tensor& A, const Tensor& B, const Tensor& C, const Tensor& D, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const reference_tests::Tensor& C, const reference_tests::Tensor& D, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), C(C), D(D), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
-    Tensor C;
-    Tensor D;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
+    reference_tests::Tensor C;
+    reference_tests::Tensor D;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -389,7 +390,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsInPlacePropagate2dTensor& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsInPlacePropagate2dTensor& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto add1 = std::make_shared<opset1::Add>(A, B);
@@ -398,7 +399,7 @@ private:
         const auto add2 = std::make_shared<opset1::Add>(C, D);
         const auto concat1 = std::make_shared<opset1::Concat>(NodeVector{add1, add2}, params.axis);
         const auto subtract = std::make_shared<opset1::Subtract>(C, A);
-        const auto f = std::make_shared<Function>(
+        const auto f = std::make_shared<Model>(
             std::make_shared<opset1::Concat>(NodeVector{concat1, subtract}, params.axis),
                                              ParameterVector{A, B, C, D});
         return f;
@@ -414,12 +415,12 @@ std::vector<ConcatParamsInPlacePropagate2dTensor> generateParamsInPlacePropagate
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsInPlacePropagate2dTensor> params {
         ConcatParamsInPlacePropagate2dTensor(
-            Tensor(ET, {1, 1}, std::vector<T>{1}),
-            Tensor(ET, {1, 1}, std::vector<T>{2}),
-            Tensor(ET, {1, 1}, std::vector<T>{3}),
-            Tensor(ET, {1, 1}, std::vector<T>{4}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{1}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{2}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{3}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{4}),
             0,
-            Tensor(ET, {3, 1}, std::vector<T>{3, 7, 2}),
+            reference_tests::Tensor(ET, {3, 1}, std::vector<T>{3, 7, 2}),
             "concat_in_place_2d_tensor"),
     };
     return params;
@@ -450,14 +451,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestIn
 
 struct ConcatParamsInPlaceTree1 {
     ConcatParamsInPlaceTree1(
-        const Tensor& A, const Tensor& B, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -489,13 +490,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsInPlaceTree1& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsInPlaceTree1& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto add1 = std::make_shared<opset1::Add>(A, B);
         const auto add2 = std::make_shared<opset1::Add>(A, B);
         const auto concat = std::make_shared<opset1::Concat>(NodeVector{add1, add2}, params.axis);
-        const auto f = std::make_shared<Function>(std::make_shared<opset1::Add>(concat, concat),
+        const auto f = std::make_shared<Model>(std::make_shared<opset1::Add>(concat, concat),
                                                   ParameterVector{A, B});
         return f;
     }
@@ -510,10 +511,10 @@ std::vector<ConcatParamsInPlaceTree1> generateParamsInPlaceTree1() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsInPlaceTree1> params {
         ConcatParamsInPlaceTree1(
-            Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
-            Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
             1,
-            Tensor(ET, {1, 4, 2}, std::vector<T>{4, 4, 4, 4, 4, 4, 4, 4}),
+            reference_tests::Tensor(ET, {1, 4, 2}, std::vector<T>{4, 4, 4, 4, 4, 4, 4, 4}),
             "concat_in_place_tree_1"),
     };
     return params;
@@ -544,14 +545,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestIn
 
 struct ConcatParamsInPlaceTree2 {
     ConcatParamsInPlaceTree2(
-        const Tensor& A, const Tensor& B, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -583,7 +584,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsInPlaceTree2& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsInPlaceTree2& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto add1 = std::make_shared<opset1::Add>(A, B);
@@ -591,7 +592,7 @@ private:
         const auto concat1 = std::make_shared<opset1::Concat>(NodeVector{add1, add2}, params.axis);
         const auto concat2 = std::make_shared<opset1::Concat>(NodeVector{add1, add2}, params.axis);
         const auto concat12 = std::make_shared<opset1::Concat>(NodeVector{concat1, concat2}, params.axis);
-        const auto f = std::make_shared<Function>(std::make_shared<opset1::Add>(concat12, concat12),
+        const auto f = std::make_shared<Model>(std::make_shared<opset1::Add>(concat12, concat12),
                                                   ParameterVector{A, B});
         return f;
     }
@@ -606,10 +607,10 @@ std::vector<ConcatParamsInPlaceTree2> generateParamsInPlaceTree2() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsInPlaceTree2> params {
         ConcatParamsInPlaceTree2(
-            Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
-            Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
             1,
-            Tensor(ET, {1, 8, 2}, std::vector<T>{4, 4, 4, 4, 4, 4, 4, 4,
+            reference_tests::Tensor(ET, {1, 8, 2}, std::vector<T>{4, 4, 4, 4, 4, 4, 4, 4,
                                                  4, 4, 4, 4, 4, 4, 4, 4}),
             "concat_in_place_tree_2"),
     };
@@ -641,14 +642,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestIn
 
 struct ConcatParamsInPlaceTree3 {
     ConcatParamsInPlaceTree3(
-        const Tensor& A, const Tensor& B, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -680,7 +681,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsInPlaceTree3& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsInPlaceTree3& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto concat1 = std::make_shared<opset1::Concat>(NodeVector{A, B}, params.axis);
@@ -690,7 +691,7 @@ private:
         const auto concat12 = std::make_shared<opset1::Concat>(NodeVector{concat1, concat2}, params.axis);
         const auto concat34 = std::make_shared<opset1::Concat>(NodeVector{concat3, concat4}, params.axis);
         const auto concat14 = std::make_shared<opset1::Concat>(NodeVector{concat12, concat34}, params.axis);
-        const auto f = std::make_shared<Function>(std::make_shared<opset1::Add>(concat14, concat14),
+        const auto f = std::make_shared<Model>(std::make_shared<opset1::Add>(concat14, concat14),
                                                   ParameterVector{A, B});
         return f;
     }
@@ -705,10 +706,10 @@ std::vector<ConcatParamsInPlaceTree3> generateParamsInPlaceTree3() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsInPlaceTree3> params {
         ConcatParamsInPlaceTree3(
-            Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
-            Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
             1,
-            Tensor(ET, {1, 16, 2}, std::vector<T>{2, 2, 2, 2, 2, 2, 2, 2,
+            reference_tests::Tensor(ET, {1, 16, 2}, std::vector<T>{2, 2, 2, 2, 2, 2, 2, 2,
                                                   2, 2, 2, 2, 2, 2, 2, 2,
                                                   2, 2, 2, 2, 2, 2, 2, 2,
                                                   2, 2, 2, 2, 2, 2, 2, 2}),
@@ -742,14 +743,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestIn
 
 struct ConcatParamsInPlaceAddConcat {
     ConcatParamsInPlaceAddConcat(
-        const Tensor& A, const Tensor& B, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -781,14 +782,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsInPlaceAddConcat& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsInPlaceAddConcat& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto add1 = std::make_shared<opset1::Add>(A, B);
         const auto add2 = std::make_shared<opset1::Add>(add1, add1);
         const auto concat = std::make_shared<opset1::Concat>(NodeVector{add1, add2}, params.axis);
         const auto add3 = std::make_shared<opset1::Add>(concat, concat);
-        const auto f = std::make_shared<Function>(add3, ParameterVector{A, B});
+        const auto f = std::make_shared<Model>(add3, ParameterVector{A, B});
         return f;
     }
 };
@@ -802,10 +803,10 @@ std::vector<ConcatParamsInPlaceAddConcat> generateParamsInPlaceAddConcat() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsInPlaceAddConcat> params {
         ConcatParamsInPlaceAddConcat(
-            Tensor(ET, {2, 2}, std::vector<T>{1, 1, 1, 1}),
-            Tensor(ET, {2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{1, 1, 1, 1}),
             0,
-            Tensor(ET, {4, 2}, std::vector<T>{4, 4, 4, 4, 8, 8, 8, 8}),
+            reference_tests::Tensor(ET, {4, 2}, std::vector<T>{4, 4, 4, 4, 8, 8, 8, 8}),
             "concat_in_place_add_concat"),
     };
     return params;
@@ -836,14 +837,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestIn
 
 struct ConcatParamsInPlaceAddConcat2 {
     ConcatParamsInPlaceAddConcat2(
-        const Tensor& A, const Tensor& B, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -875,7 +876,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsInPlaceAddConcat2& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsInPlaceAddConcat2& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto add1 = std::make_shared<opset1::Add>(A, B);
@@ -886,7 +887,7 @@ private:
         const auto concat1 = std::make_shared<opset1::Concat>(NodeVector{add1, add2, add3}, params.axis);
         const auto concat2 = std::make_shared<opset1::Concat>(NodeVector{add4, add2, add5}, params.axis);
         const auto add6 = std::make_shared<opset1::Add>(concat1, concat2);
-        const auto f = std::make_shared<Function>(add6, ParameterVector{A, B});
+        const auto f = std::make_shared<Model>(add6, ParameterVector{A, B});
         return f;
     }
 };
@@ -900,10 +901,10 @@ std::vector<ConcatParamsInPlaceAddConcat2> generateParamsInPlaceAddConcat2() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsInPlaceAddConcat2> params {
         ConcatParamsInPlaceAddConcat2(
-            Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
-            Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor(ET, {1, 2, 2}, std::vector<T>{1, 1, 1, 1}),
             1,
-            Tensor(ET, {1, 6, 2}, std::vector<T>{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4}),
+            reference_tests::Tensor(ET, {1, 6, 2}, std::vector<T>{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4}),
             "concat_in_place_add_concat_2"),
     };
     return params;
@@ -934,15 +935,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestIn
 
 struct ConcatParams5d {
     ConcatParams5d(
-        const Tensor& A, const Tensor& B, const Tensor& C, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const reference_tests::Tensor& C, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), C(C), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
-    Tensor C;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
+    reference_tests::Tensor C;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -976,12 +977,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParams5d& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParams5d& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto C = std::make_shared<opset1::Parameter>(params.C.type, params.C.shape);
         const auto concat = std::make_shared<opset1::Concat>(NodeVector{A, B, C}, params.axis);
-        const auto f = std::make_shared<Function>(concat, ParameterVector{A, B, C});
+        const auto f = std::make_shared<Model>(concat, ParameterVector{A, B, C});
         return f;
     }
 };
@@ -995,27 +996,27 @@ std::vector<ConcatParams5d> generateParams5d() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParams5d> params {
         ConcatParams5d(
-            Tensor(ET, {2, 3, 4, 3, 2}, []() -> std::vector<T> {
+            reference_tests::Tensor(ET, {2, 3, 4, 3, 2}, []() -> std::vector<T> {
                 std::vector<T> data(2 * 3 * 4 * 3 * 2);
                 for (int i = 0; i < 2 * 3 * 4 * 3 * 2; i++) {
                      data[i] = static_cast<T>(i + 1);
                 }
                 return data;
             }()),
-            Tensor(ET, {2, 3, 3, 3, 2}, []() -> std::vector<T> {
+            reference_tests::Tensor(ET, {2, 3, 3, 3, 2}, []() -> std::vector<T> {
                 std::vector<T> data(2 * 3 * 3 * 3 * 2);
                 for (int i = 0; i < 2 * 3 * 3 * 3 * 2; i++) {
                     data[i] = 1000 + static_cast<T>(i + 1);
                 }
             return data;}()),
-            Tensor(ET, {2, 3, 2, 3, 2}, []() -> std::vector<T> {
+            reference_tests::Tensor(ET, {2, 3, 2, 3, 2}, []() -> std::vector<T> {
                 std::vector<T> data(2 * 3 * 2 * 3 * 2);
                 for (int i = 0; i < 2 * 3 * 2 * 3 * 2; i++) {
                     data[i] = 2000 + static_cast<T>(i + 1);
                 }
             return data;}()),
             2,
-            Tensor(ET, {2, 3, 9, 3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3, 9, 3, 2}, std::vector<T>{
                 1.,    2.,    3.,    4.,    5.,    6.,    7.,    8.,    9.,    10.,   11.,   12.,   13.,   14.,   15.,
                 16.,   17.,   18.,   19.,   20.,   21.,   22.,   23.,   24.,   1001., 1002., 1003., 1004., 1005., 1006.,
                 1007., 1008., 1009., 1010., 1011., 1012., 1013., 1014., 1015., 1016., 1017., 1018., 2001., 2002., 2003.,
@@ -1064,14 +1065,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTest5d
 
 struct ConcatParamsZeroLength1dLast {
     ConcatParamsZeroLength1dLast(
-        const Tensor& A, const Tensor& B, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -1103,11 +1104,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsZeroLength1dLast& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsZeroLength1dLast& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto concat = std::make_shared<opset1::Concat>(NodeVector{A, B}, params.axis);
-        const auto f = std::make_shared<Function>(concat, ParameterVector{A, B});
+        const auto f = std::make_shared<Model>(concat, ParameterVector{A, B});
         return f;
     }
 };
@@ -1121,10 +1122,10 @@ std::vector<ConcatParamsZeroLength1dLast> generateParamsZeroLength1dLast() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsZeroLength1dLast> params {
         ConcatParamsZeroLength1dLast(
-            Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(ET, {0}, std::vector<T>{0}),
+            reference_tests::Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(ET, {0}, std::vector<T>{0}),
             0,
-            Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
             "concat_zero_length_1d_last"),
     };
     return params;
@@ -1155,15 +1156,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestZe
 
 struct ConcatParamsZeroLength1dMiddle {
     ConcatParamsZeroLength1dMiddle(
-        const Tensor& A, const Tensor& B, const Tensor& C, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const reference_tests::Tensor& C, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), C(C), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
-    Tensor C;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
+    reference_tests::Tensor C;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -1197,12 +1198,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsZeroLength1dMiddle& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsZeroLength1dMiddle& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto C = std::make_shared<opset1::Parameter>(params.C.type, params.C.shape);
         const auto concat = std::make_shared<opset1::Concat>(NodeVector{A, B, C}, params.axis);
-        const auto f = std::make_shared<Function>(concat, ParameterVector{A, B, C});
+        const auto f = std::make_shared<Model>(concat, ParameterVector{A, B, C});
         return f;
     }
 };
@@ -1216,11 +1217,11 @@ std::vector<ConcatParamsZeroLength1dMiddle> generateParamsZeroLength1dMiddle() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsZeroLength1dMiddle> params {
         ConcatParamsZeroLength1dMiddle(
-            Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(ET, {0}, std::vector<T>{0}),
-            Tensor(ET, {4}, std::vector<T>{5, 6, 7, 8}),
+            reference_tests::Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(ET, {0}, std::vector<T>{0}),
+            reference_tests::Tensor(ET, {4}, std::vector<T>{5, 6, 7, 8}),
             0,
-            Tensor(ET, {8}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+            reference_tests::Tensor(ET, {8}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
             "concat_zero_length_1d_middle"),
     };
     return params;
@@ -1251,13 +1252,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestZe
 
 struct ConcatParamsZeroZero {
     ConcatParamsZeroZero(
-        const Tensor& A, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
+    reference_tests::Tensor A;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -1287,10 +1288,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsZeroZero& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsZeroZero& params) {
         const auto constant_1 = std::make_shared<opset1::Constant>(params.A.type, params.A.shape, params.A.data.data());
         const auto concat_1 = std::make_shared<opset1::Concat>(NodeVector{constant_1, constant_1}, params.axis);
-        const auto f = std::make_shared<Function>(concat_1, ParameterVector{});
+        const auto f = std::make_shared<Model>(concat_1, ParameterVector{});
         return f;
     }
 };
@@ -1304,9 +1305,9 @@ std::vector<ConcatParamsZeroZero> generateParamsZeroZero() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsZeroZero> params {
         ConcatParamsZeroZero(
-            Tensor(ET, {0}, std::vector<T>{1}),
+            reference_tests::Tensor(ET, {0}, std::vector<T>{1}),
             0,
-            Tensor(ET, {0}, std::vector<T>{}),
+            reference_tests::Tensor(ET, {0}, std::vector<T>{}),
             "concat_zero_zero"),
     };
     return params;
@@ -1337,15 +1338,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs, ReferenceConcatTestZe
 
 struct ConcatParamsZeroLength4dMiddle {
     ConcatParamsZeroLength4dMiddle(
-        const Tensor& A, const Tensor& B, const Tensor& C, const int32_t axis,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& B, const reference_tests::Tensor& C, const int32_t axis,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), B(B), C(C), axis(axis), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor B;
-    Tensor C;
+    reference_tests::Tensor A;
+    reference_tests::Tensor B;
+    reference_tests::Tensor C;
     int32_t axis;
-    Tensor expected;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -1379,12 +1380,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConcatParamsZeroLength4dMiddle& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConcatParamsZeroLength4dMiddle& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
         const auto C = std::make_shared<opset1::Parameter>(params.C.type, params.C.shape);
         const auto concat = std::make_shared<opset1::Concat>(NodeVector{A, B, C}, params.axis);
-        const auto f = std::make_shared<Function>(concat, ParameterVector{A, B, C});
+        const auto f = std::make_shared<Model>(concat, ParameterVector{A, B, C});
         return f;
     }
 };
@@ -1398,11 +1399,11 @@ std::vector<ConcatParamsZeroLength4dMiddle> generateParamsZeroLength4dMiddle() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParamsZeroLength4dMiddle> params {
         ConcatParamsZeroLength4dMiddle(
-            Tensor(ET, {2, 2, 1, 1}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(ET, {2, 2, 0, 1}, std::vector<T>{0}),
-            Tensor(ET, {2, 2, 1, 1}, std::vector<T>{5, 6, 7, 8}),
+            reference_tests::Tensor(ET, {2, 2, 1, 1}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(ET, {2, 2, 0, 1}, std::vector<T>{0}),
+            reference_tests::Tensor(ET, {2, 2, 1, 1}, std::vector<T>{5, 6, 7, 8}),
             2,
-            Tensor(ET, {2, 2, 2, 1}, std::vector<T>{1, 5, 2, 6, 3, 7, 4, 8}),
+            reference_tests::Tensor(ET, {2, 2, 2, 1}, std::vector<T>{1, 5, 2, 6, 3, 7, 4, 8}),
             "concat_zero_length_4d_middle"),
     };
     return params;

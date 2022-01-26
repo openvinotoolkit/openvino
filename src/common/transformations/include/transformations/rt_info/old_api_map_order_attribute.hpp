@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ class OldApiMapOrder;
  *  Order of the transpose which should be applied to Result with new API layout to
  *  obtain Result with old API layout.
  */
-class TRANSFORMATIONS_API OldApiMapOrder : public VariantImpl<std::vector<uint64_t>> {
+class TRANSFORMATIONS_API OldApiMapOrder : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("old_api_map_order", "0");
 
@@ -52,13 +52,15 @@ public:
      * Constructs a new OldApiMapOrder object.
      * @param[in]  value  The object that stores values of OldApiMapOrder.
      */
-    OldApiMapOrder(const value_type& value) : VariantImpl<value_type>(value) {}
+    OldApiMapOrder(const std::vector<uint64_t>& value) : value(value) {}
 
     bool is_copyable() const override {
         return false;
     }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
+
+    std::vector<uint64_t> value;
 };
 
 inline bool has_old_api_map_order(const std::shared_ptr<Node>& node) {
@@ -68,13 +70,12 @@ inline bool has_old_api_map_order(const std::shared_ptr<Node>& node) {
 
 inline OldApiMapOrder get_old_api_map_order(const std::shared_ptr<Node>& node) {
     const auto& rt_map = node->get_rt_info();
-    const auto& var = rt_map.at(OldApiMapOrder::get_type_info_static());
-    return ngraph::as_type_ptr<OldApiMapOrder>(var)->get();
+    return rt_map.at(OldApiMapOrder::get_type_info_static()).as<OldApiMapOrder>();
 }
 
 inline void set_old_api_map_order(std::shared_ptr<Node>& node, const OldApiMapOrder& old_api_map) {
     auto& rt_map = node->get_rt_info();
-    rt_map[OldApiMapOrder::get_type_info_static()] = std::make_shared<OldApiMapOrder>(old_api_map);
+    rt_map[OldApiMapOrder::get_type_info_static()] = old_api_map;
 }
 
 }  // namespace ov

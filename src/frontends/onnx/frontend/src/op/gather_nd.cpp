@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ OutputVector gather_nd(const Node& node) {
     const auto indices = ng_inputs.at(1);
     const auto batch_dims = node.get_attribute_value<int64_t>("batch_dims", 0);
 
-    return {std::make_shared<default_opset::GatherND>(data, indices, batch_dims)};
+    return {std::make_shared<ov::op::v8::GatherND>(data, indices, batch_dims)};
 }
 
 }  // namespace set_1

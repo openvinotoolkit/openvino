@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from openvino.exceptions import UserInputError
-from openvino.utils.input_validation import (
+from openvino.runtime.exceptions import UserInputError
+from openvino.runtime.utils.input_validation import (
     _check_value,
     check_valid_attribute,
     check_valid_attributes,

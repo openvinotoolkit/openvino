@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "utils.hpp"
 
-#include "common/frontend_exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/util/file_util.hpp"
 #include "plugin_loader.hpp"
 
@@ -26,6 +26,8 @@
 #    include <Windows.h>
 #endif
 
+namespace {
+
 static std::string _get_frontend_library_path() {
 #ifdef _WIN32
     CHAR ie_library_path[MAX_PATH];
@@ -45,6 +47,7 @@ static std::string _get_frontend_library_path() {
 #    error "Unsupported OS"
 #endif  // _WIN32
 }
+}  // namespace
 
 std::string ov::frontend::get_frontend_library_path() {
     return _get_frontend_library_path();

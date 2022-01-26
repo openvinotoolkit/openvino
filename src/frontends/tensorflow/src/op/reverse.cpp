@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_reverse_op(const NodeContext& node) {
@@ -18,9 +18,9 @@ OutputVector translate_reverse_op(const NodeContext& node) {
     auto axes = node.get_input(1);
 
     auto axes_const = dynamic_pointer_cast<Constant>(axes.get_node_shared_ptr());
-    TF_OP_VALIDATION_CHECK(node, axes_const != nullptr, "Axes input must be constant.");
-    TF_OP_VALIDATION_CHECK(node, axes_const->get_shape().size() == 1, "Axes input must be 1D.");
-    TF_OP_VALIDATION_CHECK(node, axes_const->get_shape()[0] == 1, "Axes input must have only one value.");
+    TENSORFLOW_OP_VALIDATION(node, axes_const != nullptr, "Axes input must be constant.");
+    TENSORFLOW_OP_VALIDATION(node, axes_const->get_shape().size() == 1, "Axes input must be 1D.");
+    TENSORFLOW_OP_VALIDATION(node, axes_const->get_shape()[0] == 1, "Axes input must have only one value.");
     auto seq_axis = axes_const->cast_vector<int64_t>().at(0);
     int64_t batch_axis = !seq_axis;
 
@@ -46,6 +46,6 @@ OutputVector translate_reverse_op(const NodeContext& node) {
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

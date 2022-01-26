@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,6 +96,33 @@ protected:
     CoordinateDiff m_pads_begin;
     CoordinateDiff m_pads_end;
     PadType m_auto_pad;
+    int64_t m_num_spatial = -1;
+
+private:
+    template <class ConvType>
+    friend int64_t calculate_num_spatial(const ConvType* op,
+                                         const PartialShape& input_shape,
+                                         const PartialShape& filters_shape,
+                                         const int64_t& num_non_spatial_data_dims,
+                                         const int64_t& num_non_spatial_filter_dims);
+
+    template <class ConvType>
+    friend void update_and_validate_attributes(ConvType* op);
+
+    template <class ConvType, class ShapeType>
+    friend bool resolve_auto_pad_for_shape(const ConvType* op,
+                                           CoordinateDiff& pads_begin,
+                                           CoordinateDiff& pads_end,
+                                           const std::vector<ShapeType>& input_shapes,
+                                           const int64_t& num_non_spatial_data_dims,
+                                           const int64_t& num_non_spatial_filter_dims);
+
+    template <class T>
+    friend void shape_infer(const GroupConvolution* op,
+                            const CoordinateDiff& pads_begin,
+                            const CoordinateDiff& pads_end,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 
 /// \brief Data batch backprop for batched convolution operation.
@@ -269,6 +296,47 @@ protected:
     CoordinateDiff m_pads_end;
     PadType m_auto_pad;
     CoordinateDiff m_output_padding;
+
+    int64_t m_num_spatial = -1;
+
+private:
+    template <class ConvType>
+    friend int64_t calculate_num_spatial(const ConvType* op,
+                                         const PartialShape& input_shape,
+                                         const PartialShape& filters_shape,
+                                         const PartialShape& output_shapes_shape,
+                                         const int64_t& num_non_spatial_data_dims,
+                                         const int64_t& num_non_spatial_filter_dims);
+
+    template <class ConvType>
+    friend int64_t calculate_num_spatial(const ConvType* op,
+                                         const PartialShape& input_shape,
+                                         const PartialShape& filters_shape,
+                                         const int64_t& num_non_spatial_data_dims,
+                                         const int64_t& num_non_spatial_filter_dims);
+
+    template <class ConvType>
+    friend void update_and_validate_attributes(ConvType* op);
+
+    template <class ConvType>
+    friend void update_and_validate_attributes_back_prop(ConvType* op);
+
+    template <class ConvType, class ShapeType>
+    friend bool resolve_auto_pad_for_shape_back_prop(const ConvType* op,
+                                                     CoordinateDiff& pads_begin,
+                                                     CoordinateDiff& pads_end,
+                                                     const std::vector<ShapeType>& input_shapes,
+                                                     ShapeType& output_spatial_shape,
+                                                     const int64_t& num_non_spatial_data_dims,
+                                                     const int64_t& num_non_spatial_filter_dims);
+
+    template <class T>
+    friend void shape_infer(const GroupConvolutionBackpropData* op,
+                            const CoordinateDiff& pads_begin,
+                            const CoordinateDiff& pads_end,
+                            const T& output_shape_from_input,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v1
 }  // namespace op

@@ -1,11 +1,11 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
 from copy import deepcopy
 from addict import Dict
 
-import mo
+import openvino.tools.mo
 
 from ..graph.utils import create_quantization_info_for_mo, create_cli_params_for_mo
 from ..utils.ac_imports import ConfigReader
@@ -15,11 +15,12 @@ from .utils import check_params
 
 logger = get_logger(__name__)
 
-MO_PATH = Path(mo.__file__).parent.parent
+MO_PATH = Path(openvino.tools.mo.__file__).parent.parent
 DEFAULT_TARGET_DEVICE = 'ANY'
 DEFAULT_PRESET = 'performance'
 
 
+# pylint: disable=W0212
 class Config(Dict):
     """ Tool configuration containing model, engine, and algorithms' parameters
     """
@@ -228,8 +229,6 @@ class Config(Dict):
                 'opt_backend': None,
             },
             'TunableQuantization': {
-                'tuning_scope': None,
-                'estimator_tuning_scope': None,
                 'outlier_prob_choices': None
             },
             'MagnitudeSparsity': {
@@ -307,8 +306,9 @@ class Config(Dict):
     def _configure_ac_params(self):
         """ Converts engine config into accuracy checker config
         """
+        filtering_params = {'target_devices': ['CPU'], 'target_framework': 'openvino', 'use_new_api': True}
         if 'config' in self.engine:
-            ac_conf, mode = ConfigReader.merge(self.engine)
+            ac_conf, mode = ConfigReader.merge(Dict({**self.engine, **filtering_params}))
             ac_conf = Dict(ac_conf)
         else:
             mode = 'evaluations' if self.engine.module else 'models'
@@ -326,25 +326,9 @@ class Config(Dict):
                         logger.debug('Local preprocessing configuration is used for {} dataset'.format(dataset_name))
             ConfigReader.check_local_config(ac_conf)
             ac_conf = ConfigReader.convert_paths(ac_conf)
-
-        # use only dlsdk configs
-        dlsdk_models = list()
-        for model in ac_conf[mode]:
-            launcher_conf = model.launchers[0] if mode == 'models' \
-                else model.module_config.launchers[0]
-            if launcher_conf.framework != 'dlsdk':
-                continue
-            if launcher_conf.cpu_extensions:
-                del launcher_conf.cpu_extensions
-            launcher_conf.device = 'CPU'
-
-            if 'model' in launcher_conf:
-                launcher_conf['model'] = Path(launcher_conf['model'])
-            if 'weights' in launcher_conf:
-                launcher_conf['weights'] = Path(launcher_conf['weights'])
-            dlsdk_models.append(model)
-        ac_conf[mode] = dlsdk_models
-
+            ConfigReader._filter_launchers(
+                ac_conf, filtering_params, mode=mode
+            )
         for req_num in ['stat_requests_number', 'eval_requests_number']:
             ac_conf[req_num] = self.engine[req_num] if req_num in self.engine else None
 

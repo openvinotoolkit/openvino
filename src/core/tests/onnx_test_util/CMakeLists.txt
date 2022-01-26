@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 file(GLOB_RECURSE ONNX_UTIL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 
-add_library(onnx_test_util STATIC ${ONNX_UTIL_SRC})
+add_library(onnx_test_util STATIC EXCLUDE_FROM_ALL ${ONNX_UTIL_SRC})
 
 ie_faster_build(onnx_test_util UNITY)
 

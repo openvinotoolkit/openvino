@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,7 +125,9 @@ struct AsTypePtr<std::shared_ptr<In>> {
 /// Type, nullptr otherwise
 template <typename T, typename U>
 auto as_type_ptr(const U& value) -> decltype(::ov::util::AsTypePtr<U>::template call<T>(value)) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ::ov::util::AsTypePtr<U>::template call<T>(value);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace ov
 

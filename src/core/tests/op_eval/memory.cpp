@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,7 +85,7 @@ TEST(op_eval, assign_readvalue_evaluation_context) {
     HostTensorPtr h_tensor = make_host_tensor<element::Type_t::f32>(Shape{3}, inputs);
     VariableContext variable_context;
     variable_context.set_variable_value(variables[0], std::make_shared<VariableValue>(h_tensor));
-    eval_context["VariableContext"] = std::make_shared<VariantWrapper<VariableContext>>(variable_context);
+    eval_context.emplace("VariableContext", variable_context);
 
     const int COUNT_RUNS = 10;
     for (int i = 0; i < COUNT_RUNS; ++i) {
@@ -106,10 +106,10 @@ TEST(op_eval, assign_readvalue_add) {
 
     // creating context
     EvaluationContext eval_context;
-    auto variable_context = std::make_shared<VariantWrapper<VariableContext>>(VariableContext());
+    auto variable_context = VariableContext();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs));
-    variable_context->get().set_variable_value(variables[0], variable_value);
-    eval_context["VariableContext"] = variable_context;
+    variable_context.set_variable_value(variables[0], variable_value);
+    eval_context.emplace("VariableContext", variable_context);
 
     auto result = make_shared<HostTensor>();
     const int COUNT_RUNS = 10;
@@ -134,11 +134,11 @@ TEST(op_eval, assign_readvalue_reset_before_evaluate) {
 
     // creating context
     EvaluationContext eval_context;
-    auto variable_context = std::make_shared<VariantWrapper<VariableContext>>(VariableContext());
+    auto variable_context = VariableContext();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs));
     variable_value->set_reset(false);
-    variable_context->get().set_variable_value(variables[0], variable_value);
-    eval_context["VariableContext"] = variable_context;
+    variable_context.set_variable_value(variables[0], variable_value);
+    eval_context.emplace("VariableContext", variable_context);
 
     auto result = make_shared<HostTensor>();
     const int COUNT_RUNS = 10;
@@ -162,10 +162,10 @@ TEST(op_eval, assign_readvalue_add_reset) {
 
     // creating a Context
     EvaluationContext eval_context;
-    auto variable_context = std::make_shared<VariantWrapper<VariableContext>>(VariableContext());
+    auto variable_context = VariableContext();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs));
-    variable_context->get().set_variable_value(variables[0], variable_value);
-    eval_context["VariableContext"] = variable_context;
+    variable_context.set_variable_value(variables[0], variable_value);
+    eval_context.emplace("VariableContext", variable_context);
 
     auto result = make_shared<HostTensor>();
     const int COUNT_RUNS = 10;
@@ -182,9 +182,7 @@ TEST(op_eval, assign_readvalue_add_reset) {
 
     const auto& found_context = eval_context.find("VariableContext");
     EXPECT_NE(found_context, eval_context.end());
-    auto var_context = std::dynamic_pointer_cast<VariantWrapper<VariableContext>>(found_context->second);
-    EXPECT_NE(var_context, nullptr);
-    variable_context->get().reset_variable_context();
+    found_context->second.as<VariableContext>().reset_variable_context();
 
     for (int i = 0; i < COUNT_RUNS; ++i) {
         ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs)}, eval_context));
@@ -206,10 +204,10 @@ TEST(op_eval, assign_readvalue_add_modify) {
 
     // creating context
     EvaluationContext eval_context;
-    auto variable_context = std::make_shared<VariantWrapper<VariableContext>>(VariableContext());
+    auto variable_context = VariableContext();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs));
-    variable_context->get().set_variable_value(variables[0], variable_value);
-    eval_context["VariableContext"] = variable_context;
+    variable_context.set_variable_value(variables[0], variable_value);
+    eval_context.emplace("VariableContext", variable_context);
 
     auto result = make_shared<HostTensor>();
     const int COUNT_RUNS = 10;
@@ -225,9 +223,7 @@ TEST(op_eval, assign_readvalue_add_modify) {
 
     const auto& found_context = eval_context.find("VariableContext");
     EXPECT_NE(found_context, eval_context.end());
-    auto var_context = std::dynamic_pointer_cast<VariantWrapper<VariableContext>>(found_context->second);
-    EXPECT_NE(var_context, nullptr);
-    const auto& var_value = variable_context->get().get_variable_value(variables[0]);
+    const auto& var_value = found_context->second.as<VariableContext>().get_variable_value(variables[0]);
     EXPECT_NE(var_value, nullptr);
     var_value->set_value(make_host_tensor<element::Type_t::f32>(Shape{3}, {1, 2, 3}));
 
@@ -253,14 +249,14 @@ TEST(op_eval, assign_readvalue_add_modify_multi_variables) {
 
     // creating context
     EvaluationContext eval_context;
-    auto variable_context = std::make_shared<VariantWrapper<VariableContext>>(VariableContext());
+    auto variable_context = VariableContext();
     auto variable_value_1 = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs_1));
     auto variable_value_2 = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs_2));
     variable_value_1->set_reset(false);
     variable_value_2->set_reset(false);
-    variable_context->get().set_variable_value(var_1, variable_value_1);
-    variable_context->get().set_variable_value(var_2, variable_value_2);
-    eval_context["VariableContext"] = variable_context;
+    variable_context.set_variable_value(var_1, variable_value_1);
+    variable_context.set_variable_value(var_2, variable_value_2);
+    eval_context.emplace("VariableContext", variable_context);
 
     auto result = make_shared<HostTensor>();
     const int COUNT_RUNS = 10;
@@ -279,14 +275,13 @@ TEST(op_eval, assign_readvalue_add_modify_multi_variables) {
 
     const auto& found_context = eval_context.find("VariableContext");
     EXPECT_NE(found_context, eval_context.end());
-    auto var_context = std::dynamic_pointer_cast<VariantWrapper<VariableContext>>(found_context->second);
-    EXPECT_NE(var_context, nullptr);
+    auto var_context = found_context->second.as<VariableContext>();
 
-    auto var_value = variable_context->get().get_variable_value(var_1);
+    auto var_value = variable_context.get_variable_value(var_1);
     EXPECT_NE(var_value, nullptr);
     var_value->set_value(make_host_tensor<element::Type_t::f32>(Shape{3}, {1, 2, 3}));
 
-    auto var_value_2 = variable_context->get().get_variable_value(var_2);
+    auto var_value_2 = variable_context.get_variable_value(var_2);
     EXPECT_NE(var_value_2, nullptr);
     var_value_2->set_reset(true);
 

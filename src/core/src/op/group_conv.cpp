@@ -1,18 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/group_conv.hpp"
 
-#include <numeric>
+#include <convolution_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/builder/split.hpp"
-#include "ngraph/op/concat.hpp"
-#include "ngraph/op/convolution.hpp"
-#include "ngraph/op/reshape.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
@@ -72,8 +67,6 @@ static Dimension infer_group_from_input_shapes(const ov::PartialShape& data_psha
 
 void op::v1::GroupConvolution::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
-    ov::PartialShape data_batch_pshape = get_input_partial_shape(0);
-    ov::PartialShape filters_pshape = get_input_partial_shape(1);
     element::Type data_batch_et = get_input_element_type(0);
     element::Type filters_et = get_input_element_type(1);
 
@@ -91,148 +84,21 @@ void op::v1::GroupConvolution::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    NODE_VALIDATION_CHECK(this,
-                          (data_batch_pshape.rank().compatible(5) && filters_pshape.rank().compatible(6)) ||
-                              (data_batch_pshape.rank().compatible(4) && filters_pshape.rank().compatible(5)) ||
-                              (data_batch_pshape.rank().compatible(3) && filters_pshape.rank().compatible(4)),
-                          "Shapes for data batch and filters do not match. (data batch shape: ",
-                          data_batch_pshape,
-                          ", filters shape: ",
-                          filters_pshape,
-                          ").");
+    auto& data_shape = get_input_partial_shape(0);
+    auto& filter_shape = get_input_partial_shape(1);
 
-    ov::PartialShape result_shape{ov::PartialShape::dynamic()};
-    if (data_batch_pshape.rank().is_static() || filters_pshape.rank().is_static()) {
-        const bool is_data_batch_ps_static = data_batch_pshape.rank().is_static();
-        const auto output_ps_rank =
-            is_data_batch_ps_static ? data_batch_pshape.rank().get_length() : filters_pshape.rank().get_length() - 1;
-        const size_t num_spatial_dims = output_ps_rank - 2;
+    m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 3);
+    update_and_validate_attributes(this);
 
-        if (m_strides.size() == 0) {
-            m_strides = Strides(num_spatial_dims, 1);
-        }
+    std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
 
-        if (m_dilations.size() == 0) {
-            m_dilations = Strides(num_spatial_dims, 1);
-        }
-
-        if (m_pads_begin.size() == 0 || m_auto_pad == PadType::VALID) {
-            m_pads_begin = CoordinateDiff(num_spatial_dims, 0);
-        }
-
-        if (m_pads_end.size() == 0 || m_auto_pad == PadType::VALID) {
-            m_pads_end = CoordinateDiff(num_spatial_dims, 0);
-        }
-
-        NODE_VALIDATION_CHECK(this,
-                              m_strides.size() == num_spatial_dims,
-                              "Strides should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(this,
-                              m_dilations.size() == num_spatial_dims,
-                              "Dilations should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(this,
-                              m_pads_begin.size() == num_spatial_dims && m_pads_end.size() == num_spatial_dims,
-                              "Pads should be defined for all and only spatial features.");
-
-        if (data_batch_pshape.rank().is_static() && filters_pshape.rank().is_static()) {
-            auto data_in_channels_dim = data_batch_pshape[1];
-            if (data_in_channels_dim.is_static()) {
-                auto groups_dim = filters_pshape[0];
-                if (groups_dim.is_static() && filters_pshape[2].is_static()) {
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        data_in_channels_dim.get_length() / groups_dim.get_length() == filters_pshape[2].get_length(),
-                        "Input channels dimension of data batch has incompatible value "
-                        "with filter shape.");
-                } else if (groups_dim.is_static()) {
-                    NODE_VALIDATION_CHECK(this,
-                                          data_in_channels_dim.get_length() % groups_dim.get_length() == 0,
-                                          "Input channels dimension of data batch not a multiple of group size.");
-                }
-            }
-        }
-
-        result_shape = std::vector<Dimension>(output_ps_rank, Dimension::dynamic());
-        if (data_batch_pshape.rank().is_static()) {
-            result_shape[0] = data_batch_pshape[0];  // batch size
-        }
-        if (filters_pshape.rank().is_static() && filters_pshape.rank().get_length() > 2) {
-            result_shape[1] = filters_pshape[0] * filters_pshape[1];
-        }
-        if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER) {
-            bool auto_padding_applied = false;
-            if (filters_pshape.rank().is_static() && filters_pshape.rank().get_length() > 2) {
-                m_pads_begin.clear();
-                m_pads_end.clear();
-
-                const ov::PartialShape filter_spatial_shape = [filters_pshape]() {
-                    vector<Dimension> filter_dims{filters_pshape};
-                    filter_dims.erase(filter_dims.begin(),
-                                      filter_dims.begin() + 3);  // Remove {GROUP, C_OUT, C_IN}
-                    return ov::PartialShape{filter_dims};
-                }();
-
-                if (filter_spatial_shape.is_static()) {
-                    auto_padding_applied = try_apply_auto_padding(data_batch_pshape,
-                                                                  filter_spatial_shape.to_shape(),
-                                                                  m_strides,
-                                                                  m_dilations,
-                                                                  m_auto_pad,
-                                                                  m_pads_end,
-                                                                  m_pads_begin);
-                }
-            }
-            if (!auto_padding_applied) {
-                set_output_type(0, result_et, result_shape);
-                return;
-            }
-        }
-
-        // we need to adjust channels input dim to reuse helpers for regular convolution
-        ov::PartialShape data_batch_ps = [&]() {
-            auto shape = ov::PartialShape{data_batch_pshape};
-            auto groups = filters_pshape.rank().is_static() ? filters_pshape[0] : Dimension();
-            if (groups.is_dynamic()) {
-                groups = infer_group_from_input_shapes(data_batch_pshape, filters_pshape);
-            }
-            if (data_batch_pshape.rank().is_static() && data_batch_pshape.rank().get_length()) {
-                if (data_batch_pshape[1].is_static() && groups.is_static()) {
-                    shape[1] = Dimension(data_batch_pshape[1].get_length() / groups.get_length());
-                } else {
-                    shape[1] = Dimension();
-                }
-            }
-            return shape;
-        }();
-
-        // we need to adjust filters shape to reuse helpers for regular convolution
-        ov::PartialShape filters_ps = [&]() {
-            auto shape = ov::PartialShape{filters_pshape};
-            if (shape.rank().is_static() && shape.rank().get_length() > 2) {
-                auto groups = filters_pshape.rank().is_static() ? filters_pshape[0] : Dimension();
-                if (groups.is_dynamic()) {
-                    groups = infer_group_from_input_shapes(data_batch_pshape, filters_pshape);
-                }
-                shape[1] = groups * shape[1];
-                vector<Dimension> dim_vec{shape};
-                dim_vec.erase(dim_vec.begin());
-                shape = ov::PartialShape{dim_vec};
-            }
-            return shape;
-        }();
-
-        result_shape = infer_convolution_forward(this,
-                                                 data_batch_ps,
-                                                 Strides(m_strides.size(), 1),  // dummy data dilations
-                                                 m_pads_begin,
-                                                 m_pads_end,
-                                                 filters_ps,
-                                                 m_strides,
-                                                 m_dilations);
+    if (m_num_spatial != -1) {
+        resolve_auto_pad_for_shape(this, m_pads_begin, m_pads_end, input_shapes, 2, 3);
+        shape_infer(this, m_pads_begin, m_pads_end, input_shapes, output_shapes);
     }
-    set_output_type(0, result_et, result_shape);
+
+    set_output_type(0, result_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -352,23 +218,19 @@ static Dimension infer_backprop_group_from_input_shapes(const ov::PartialShape& 
 }
 
 const ov::PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_shape() const {
+    ov::PartialShape shape;
+    if (get_input_size() == 3 && evaluate_as_partial_shape(input_value(2), shape))
+        return shape;
+
     auto data_pshape = get_input_partial_shape(0);
     auto filter_pshape = get_input_partial_shape(1);
 
-    ov::PartialShape shape;
-    if (inputs().size() == 3) {
-        if (const auto& const_op = get_constant_from_source(input_value(2))) {
-            return ov::PartialShape{const_op->get_shape_val()};
-        }
-    }
-
-    if (data_pshape.rank().is_static()) {
-        shape = ov::PartialShape{vector<Dimension>(data_pshape.rank().get_length() - 2)};
-    } else if (filter_pshape.rank().is_static()) {
-        shape = ov::PartialShape{vector<Dimension>(filter_pshape.rank().get_length() - 3)};
-    } else {
+    if (data_pshape.rank().is_static())
+        shape = ov::PartialShape::dynamic(data_pshape.rank().get_length() - 2);
+    else if (filter_pshape.rank().is_static())
+        shape = ov::PartialShape::dynamic(filter_pshape.rank().get_length() - 2);
+    else
         shape = ov::PartialShape::dynamic();
-    }
     return shape;
 }
 
@@ -405,9 +267,7 @@ void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_sh
 
 void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_GroupConvolutionBackpropData_validate_and_infer_types);
-    const ov::PartialShape& data_pshape = get_input_partial_shape(0);
     element::Type data_et = get_input_element_type(0);
-    const ov::PartialShape& filters_pshape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
     element::Type result_et;
@@ -424,207 +284,39 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    NODE_VALIDATION_CHECK(this,
-                          (data_pshape.rank().compatible(5) && filters_pshape.rank().compatible(6)) ||
-                              (data_pshape.rank().compatible(4) && filters_pshape.rank().compatible(5)) ||
-                              (data_pshape.rank().compatible(3) && filters_pshape.rank().compatible(4)),
-                          "Shapes for data batch and filters do not match. (data batch shape: ",
-                          data_pshape,
-                          ", filters shape: ",
-                          filters_pshape,
-                          ").");
-
-    bool is_output_shape_present = inputs().size() == 3;
-    if (is_output_shape_present) {
-        const ov::PartialShape& output_shape_pshape = get_input_partial_shape(2);
+    bool output_shape_input_present = get_input_size() == 3;
+    if (output_shape_input_present) {
         const element::Type output_shape_et = get_input_element_type(2);
-
         NODE_VALIDATION_CHECK(this,
                               output_shape_et.is_integral_number(),
                               "Element type for output shape should be of integer type ",
                               "(output_shape element type: ",
                               output_shape_et,
                               ").");
-
-        NODE_VALIDATION_CHECK(this,
-                              output_shape_pshape.rank().compatible(1),
-                              "Spatial shape of output input must be of rank 1 ",
-                              "(output_shape shape: ",
-                              output_shape_pshape,
-                              ").");
-    }
-    ov::PartialShape output_spatial_pshape = get_convolution_output_shape();
-
-    if (data_pshape.rank().is_static() || filters_pshape.rank().is_static()) {
-        const bool is_data_ps_static = data_pshape.rank().is_static();
-        const auto output_ps_rank =
-            is_data_ps_static ? data_pshape.rank().get_length() : filters_pshape.rank().get_length() - 1;
-        const size_t num_spatial_dims = output_ps_rank - 2;
-
-        if (m_strides.size() == 0) {
-            m_strides = Strides(num_spatial_dims, 1);
-        }
-        if (m_dilations.size() == 0) {
-            m_dilations = Strides(num_spatial_dims, 1);
-        }
-        if (m_pads_begin.size() == 0 || m_auto_pad == PadType::VALID) {
-            m_pads_begin = CoordinateDiff(num_spatial_dims, 0);
-        }
-        if (m_pads_end.size() == 0 || m_auto_pad == PadType::VALID) {
-            m_pads_end = CoordinateDiff(num_spatial_dims, 0);
-        }
-        if (m_output_padding.size() == 0) {
-            m_output_padding = CoordinateDiff(num_spatial_dims, 0);
-        }
-
-        NODE_VALIDATION_CHECK(this,
-                              m_strides.size() == num_spatial_dims,
-                              "Strides should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(this,
-                              m_dilations.size() == num_spatial_dims,
-                              "Dilations should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(this,
-                              m_pads_begin.size() == num_spatial_dims && m_pads_end.size() == num_spatial_dims,
-                              "Pads should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(this,
-                              m_output_padding.size() == num_spatial_dims,
-                              "Output padding should be defined for all and only "
-                              "spatial features.");
-
-        if (data_pshape.rank().is_static() && filters_pshape.rank().is_static()) {
-            if (filters_pshape[0].is_static() && filters_pshape[1].is_static() && data_pshape[1].is_static()) {
-                auto groups = filters_pshape[0].get_length();
-                auto input_channels = filters_pshape[1].get_length();
-                auto n_data_channels = data_pshape[1].get_length();
-
-                NODE_VALIDATION_CHECK(this,
-                                      n_data_channels % groups == 0,
-                                      "Number of data channels not a multiple of group size.");
-                NODE_VALIDATION_CHECK(this,
-                                      n_data_channels / groups == input_channels,
-                                      "Data second dimension has incompatible value "
-                                      "with number of input channels.");
-            }
-        }
-
-        if (is_output_shape_present && output_spatial_pshape.is_static()) {
-            ov::Shape output_shape = output_spatial_pshape.to_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  output_shape.size() == num_spatial_dims,
-                                  "Output shape should be specified only and for "
-                                  "all spatial dimensions.");
-        }
     }
 
-    ov::PartialShape result_pshape{ov::PartialShape::dynamic()};
-    // If output shape is provided, ignore current values for padding begin/end
-    // and infer them.
-    if (is_output_shape_present) {
-        if (output_spatial_pshape.rank().is_static()) {
-            if (data_pshape.rank().is_static() && filters_pshape.rank().is_static()) {
-                const ov::PartialShape data_spatial_shape = [data_pshape]() {
-                    vector<Dimension> data_dims{data_pshape};
-                    data_dims.erase(data_dims.begin(), data_dims.begin() + 2);  // remove {N, C_IN}
-                    return ov::PartialShape{data_dims};
-                }();
+    const auto& data_shape = get_input_partial_shape(0);
+    const auto& filter_shape = get_input_partial_shape(1);
 
-                const ov::PartialShape filters_spatial_shape = [filters_pshape]() {
-                    vector<Dimension> filters_dims{filters_pshape};
-                    filters_dims.erase(filters_dims.begin(),
-                                       filters_dims.begin() + 3);  // remove {GROUPS, C_OUT, C_IN}
-                    return ov::PartialShape{filters_dims};
-                }();
+    auto& output_shapes_shape = output_shape_input_present ? get_input_partial_shape(2) : PartialShape::dynamic();
 
-                // If auto_pad has one of following mode we infer paddings. Otherwise in
-                // EXPLICIT auto_pad mode we use what is provided.
-                if ((m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER) &&
-                    (data_spatial_shape.is_static() && filters_spatial_shape.is_static() &&
-                     output_spatial_pshape.is_static())) {
-                    opset1::infer_conv_backprop_auto_padding(data_spatial_shape.to_shape(),
-                                                             filters_spatial_shape.to_shape(),
-                                                             output_spatial_pshape.to_shape(),
-                                                             m_strides,
-                                                             m_dilations,
-                                                             m_auto_pad,
-                                                             m_output_padding,
-                                                             m_pads_begin,
-                                                             m_pads_end);
-                }
-            }
+    m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, output_shapes_shape, 2, 3);
+    update_and_validate_attributes_back_prop(this);
 
-            vector<Dimension> output_pshape{output_spatial_pshape};
-            // GROUPS * C_OUT
-            auto n_out_channels = Dimension::dynamic();
-            if (filters_pshape.rank().is_static()) {
-                auto group_dim = filters_pshape[0];
-                if (!group_dim.is_static()) {
-                    group_dim = infer_backprop_group_from_input_shapes(data_pshape, filters_pshape);
-                }
-                n_out_channels = group_dim * filters_pshape[2];
-            }
-            output_pshape.insert(output_pshape.begin(), n_out_channels);
-            // N
-            auto batches = data_pshape.rank().is_static() ? data_pshape[0] : Dimension::dynamic();
-            output_pshape.insert(output_pshape.begin(), batches);
-            result_pshape = ov::PartialShape{output_pshape};
-        }
-        set_input_is_relevant_to_shape(2);
+    std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
+    if (output_shape_input_present)
+        input_shapes.push_back(get_input_partial_shape(2));
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
+
+    if (m_num_spatial != -1) {
+        ov::PartialShape output_spatial_shape = get_convolution_output_shape();
+        resolve_auto_pad_for_shape_back_prop(this, m_pads_begin, m_pads_end, input_shapes, output_spatial_shape, 2, 3);
+        shape_infer(this, m_pads_begin, m_pads_end, output_spatial_shape, input_shapes, output_shapes);
     }
-    // Deduce output shape from input spatial shape, strides, dilations, output padding
-    // and padding values.
-    else {
-        if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER || m_auto_pad == PadType::VALID) {
-            m_pads_begin.assign(m_pads_begin.size(), 0);
-            m_pads_end.assign(m_pads_end.size(), 0);
-        }
+    set_output_type(0, result_et, output_shapes[0]);
 
-        vector<Dimension> output_pshape;
-        if (data_pshape.rank().is_static() && filters_pshape.rank().is_static()) {
-            auto data_spatial_shape = [data_pshape]() {
-                vector<Dimension> data_dims{data_pshape};
-                return vector<Dimension>{std::next(data_dims.begin(), 2), std::end(data_dims)};
-            }();
-
-            auto filters_spatial_shape = [filters_pshape]() {
-                vector<Dimension> filters_dims{filters_pshape};
-                return vector<Dimension>{std::next(filters_dims.begin(), 3), std::end(filters_dims)};
-            }();
-
-            infer_conv_backprop_output_spatial_shape(data_spatial_shape,
-                                                     filters_spatial_shape,
-                                                     m_strides,
-                                                     m_dilations,
-                                                     m_pads_begin,
-                                                     m_pads_end,
-                                                     m_output_padding,
-                                                     output_pshape);
-        } else {
-            output_pshape = vector<Dimension>{output_spatial_pshape};
-        }
-
-        if (output_pshape.size()) {
-            // GROUPS * C_OUT
-            auto n_out_channels = Dimension::dynamic();
-            if (filters_pshape.rank().is_static()) {
-                auto group_dim = filters_pshape[0];
-                if (!group_dim.is_static()) {
-                    group_dim = infer_backprop_group_from_input_shapes(data_pshape, filters_pshape);
-                }
-                n_out_channels = group_dim * filters_pshape[2];
-            }
-            output_pshape.insert(output_pshape.begin(), n_out_channels);
-            // N
-            auto batches = data_pshape.rank().is_static() ? data_pshape[0] : Dimension::dynamic();
-            output_pshape.insert(output_pshape.begin(), batches);
-            result_pshape = ov::PartialShape{output_pshape};
-        }
-    }
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
-    set_output_type(0, result_et, result_pshape);
 }
 
 shared_ptr<Node> op::v1::GroupConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const {

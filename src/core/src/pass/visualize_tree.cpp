@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -161,18 +161,24 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
     bool first = true;
     for (const auto& item : attributes) {
         ss << (first ? " " : delimiter) << item.first;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto attributeValue = item.second == nullptr ? "[EMPTY]" : item.second->to_string();
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        if (!attributeValue.empty())
-            ss << "{" << attributeValue << "}";
+        if (item.second.is<ov::RuntimeAttribute>()) {
+            ss << "{" << item.second.as<ov::RuntimeAttribute>().to_string() << "}";
+        } else if (!item.second.empty()) {
+            ss << "{";
+            item.second.print(ss);
+            ss << "}";
+        } else {
+            ss << "{"
+               << "[EMPTY]"
+               << "}";
+        }
 
         first = false;
     }
     return ss.str();
 }
 
-bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     unordered_map<Node*, HeightMap> height_maps;
 
     for (auto& node : f->get_ops()) {

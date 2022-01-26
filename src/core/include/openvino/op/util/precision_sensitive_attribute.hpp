@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
 
@@ -21,7 +21,7 @@ bool OPENVINO_API is_precision_sensitive(const ov::Input<ov::Node>& node_input);
  * input to an operation as a precision sensitive and disables compression to FP16
  * of the subgraph before this input.
  */
-class OPENVINO_API PrecisionSensitive : public VariantImpl<void> {
+class OPENVINO_API PrecisionSensitive : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("precision_sensitive", "0");
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,126 +13,73 @@
 namespace ov {
 namespace preprocess {
 
-class OPENVINO_API TensorInfoMemoryType : public VariantImpl<std::string> {
+class OPENVINO_API TensorInfoMemoryType : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("memory_type", "0");
 
     TensorInfoMemoryType() = default;
 
-    explicit TensorInfoMemoryType(const std::string& value) : VariantImpl<std::string>(value) {}
+    explicit TensorInfoMemoryType(const std::string& value) : value(value) {}
 
     bool visit_attributes(AttributeVisitor& visitor) override {
-        visitor.on_attribute("value", m_value);
+        visitor.on_attribute("value", value);
         return true;
     }
+
+    std::string value;
 };
 
 /// \brief Information about user's input tensor. By default, it will be initialized to same data (type/shape/etc) as
-/// network's input parameter User application can override particular parameters (like 'element_type') according to
+/// model's input parameter. User application can override particular parameters (like 'element_type') according to
 /// application's data and specify appropriate conversions in pre-processing steps
 ///
 /// \code{.cpp}
-/// auto proc =
-/// PrePostProcessor(function)
-///     .input(InputInfo()
-///            .tensor(InputTensorInfo()
-///                    .set_element_type(ov::element::u8))
-///            .preprocess(<add steps + conversion to network's input element type>)
-///     );
+/// auto proc = PrePostProcessor(function);
+/// proc.input().tensor().set_element_type(ov::element::u8);
 /// \endcode
 class OPENVINO_API InputTensorInfo final {
     class InputTensorInfoImpl;
     std::unique_ptr<InputTensorInfoImpl> m_impl;
     friend class InputInfo;
 
-public:
-    /// \brief Default empty constructor
+    /// \brief Default internal empty constructor
     InputTensorInfo();
 
-    /// \brief Default move constructor
-    InputTensorInfo(InputTensorInfo&&) noexcept;
-
-    /// \brief Default move assignment
-    InputTensorInfo& operator=(InputTensorInfo&&) noexcept;
-
+public:
     /// \brief Default destructor
     ~InputTensorInfo();
 
     /// \brief Set element type for user's input tensor
-    /// This version allows chaining for Lvalue objects
     ///
     /// \param type Element type for user's input tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputTensorInfo& set_element_type(const ov::element::Type& type) &;
-
-    /// \brief Set element type for user's input tensor
-    /// This version allows chaining for Rvalue objects
-    ///
-    /// \param type Element type for user's input tensor.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputTensorInfo&& set_element_type(const ov::element::Type& type) &&;
+    InputTensorInfo& set_element_type(const ov::element::Type& type);
 
     /// \brief Set layout for user's input tensor
-    /// This version allows chaining for Lvalue objects
     ///
     /// \param layout Layout for user's input tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputTensorInfo& set_layout(const ov::Layout& layout) &;
+    InputTensorInfo& set_layout(const ov::Layout& layout);
 
-    /// \brief Set layout for user's input tensor
-    /// This version allows chaining for Rvalue objects
-    ///
-    /// \param layout Layout for user's input tensor.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputTensorInfo&& set_layout(const ov::Layout& layout) &&;
-
-    /// \brief By default, input image shape is inherited from network input shape. This method specifies that user's
+    /// \brief By default, input image shape is inherited from model input shape. This method specifies that user's
     /// input image has dynamic spatial dimensions (width & height). This can be useful for adding resize preprocessing
-    /// from any input image to network's expected dimensions.
-    ///
-    /// This version allows chaining for Lvalue objects.
+    /// from any input image to model's expected dimensions.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
-    InputTensorInfo& set_spatial_dynamic_shape() &;
+    InputTensorInfo& set_spatial_dynamic_shape();
 
-    /// \brief By default, input image shape is inherited from network input shape. This method specifies that user's
-    /// input image has dynamic spatial dimensions (width & height). This can be useful for adding resize preprocessing
-    /// from any input image to network's expected dimensions.
-    ///
-    /// This version allows chaining for Rvalue objects.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
-    InputTensorInfo&& set_spatial_dynamic_shape() &&;
-
-    /// \brief By default, input image shape is inherited from network input shape. Use this method to specify different
+    /// \brief By default, input image shape is inherited from model input shape. Use this method to specify different
     /// width and height of user's input image. In case if input image size is not known, use
     /// `set_spatial_dynamic_shape` method.
-    ///
-    /// This version allows chaining for Lvalue objects.
     ///
     /// \param height Set fixed user's input image height.
     ///
     /// \param width Set fixed user's input image width.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
-    InputTensorInfo& set_spatial_static_shape(size_t height, size_t width) &;
-
-    /// \brief By default, input image shape is inherited from network input shape. Use this method to specify different
-    /// width and height of user's input image. In case if input image size is not known, use
-    /// `set_spatial_dynamic_shape` method.
-    ///
-    /// This version allows chaining for Rvalue objects.
-    ///
-    /// \param height Set fixed user's input image height.
-    ///
-    /// \param width Set fixed user's input image width.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
-    InputTensorInfo&& set_spatial_static_shape(size_t height, size_t width) &&;
+    InputTensorInfo& set_spatial_static_shape(size_t height, size_t width);
 
     /// \brief Set color format for user's input tensor.
     ///
@@ -141,8 +88,6 @@ public:
     /// convenient usage of plane parameters. During build stage, new parameters for each plane will be inserted to the
     /// place of original parameter. This means that all parameters located after will shift their positions accordingly
     /// (e.g. {param1, param2} will become {param1/Y, param1/UV, param2})
-    ///
-    /// This version allows chaining for Lvalue objects.
     ///
     /// \param format Color format of input image.
     ///
@@ -152,35 +97,27 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
     InputTensorInfo& set_color_format(const ov::preprocess::ColorFormat& format,
-                                      const std::vector<std::string>& sub_names = {}) &;
-
-    /// \brief Set color format for user's input tensor.
-    ///
-    /// In general way, some formats support multi-plane input, e.g. NV12 image can be represented as 2 separate tensors
-    /// (planes): Y plane and UV plane. set_color_format API also allows to set sub_names for such parameters for
-    /// convenient usage of plane parameters. During build stage, new parameters for each plane will be inserted to the
-    /// place of original parameter. This means that all parameters located after will shift their positions accordingly
-    /// (e.g. {param1, param2} will become {param1/Y, param1/UV, param2})
-    ///
-    /// This version allows chaining for Rvalue objects.
-    ///
-    /// \param format Color format of input image.
-    ///
-    /// \param sub_names Optional list of sub-names assigned for each plane (e.g. {"Y", "UV"}). If specified, number of
-    /// sub-names shall match with number of planes. If not specified, friendly name and tensor name for plane
-    /// parameters will be empty. It is not allowed to specify sub-names for single-plane inputs.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
-    InputTensorInfo&& set_color_format(const ov::preprocess::ColorFormat& format,
-                                       const std::vector<std::string>& sub_names = {}) &&;
+                                      const std::vector<std::string>& sub_names = {});
 
     /// \brief Set memory type runtime information for user's input tensor
     ///
     /// \param memory_type Memory type. Refer to specific plugin's documentation for exact string format
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputTensorInfo& set_memory_type(const std::string& memory_type) &;
-    InputTensorInfo&& set_memory_type(const std::string& memory_type) &&;
+    InputTensorInfo& set_memory_type(const std::string& memory_type);
+
+    /// \brief By default, input shape is inherited from model's input shape. Use this method to specify different
+    /// input data shape. If it is needed to change only input height & width of input image, consider define layout and
+    /// use `set_spatial_static_shape' or 'set_spatial_dynamic_shape' instead. This method allows defining any custom
+    /// input shape and can be useful for custom preprocessing operations
+    ///
+    /// \note Methods 'set_spatial_dynamic_shape', 'set_spatial_static_shape' are also intended to modify input shape,
+    /// using those methods together will throw ov::AssertFailure exception
+    ///
+    /// \param shape New shape for input tensor.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo& set_shape(const ov::PartialShape& shape);
 };
 
 }  // namespace preprocess

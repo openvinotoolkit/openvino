@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from .pattern_builder import PatternBuilder
@@ -145,6 +145,15 @@ def create_softmax_pattern():
 
 
 @registry_ignore_patterns('blocks')
+def create_softmax_div_pattern():
+    pattern = PatternBuilder()
+    exp_out = pattern.append_single_op('Exp', 'exp').get_last_node()
+    reduce_out = pattern.append_op_const('ReduceSum', 'reduce').get_last_node()
+    pattern.insert_single_op([exp_out, reduce_out], None, 'Divide', 'div')
+    return pattern.set_name('softmax_div').pattern
+
+
+@registry_ignore_patterns('blocks')
 def create_softmax_reshape_matmul_pattern():
     pattern = PatternBuilder()
     pattern_2 = PatternBuilder()
@@ -157,6 +166,20 @@ def create_softmax_reshape_matmul_pattern():
     pattern.pattern['edges'] += pattern_2.pattern['edges']
     pattern.insert_single_op([transp_out, reshape_out], None, 'MatMul', 'matmul')
     return pattern.set_name('softmax_reshape_matmul').pattern
+
+
+@registry_ignore_patterns('blocks')
+def create_softmax_reshape_transpose_matmul_pattern():
+    pattern = PatternBuilder()
+    pattern_2 = PatternBuilder()
+    softmax_out = pattern.append_single_op('SoftMax', 'softmax').get_last_node()
+    pattern_2.append_single_op('Add', 'add').get_last_node()
+    pattern_2.append_op_const('Reshape', 'reshape')
+    transp_out = pattern_2.append_single_op('Transpose', 'transpose').get_last_node()
+    pattern.pattern['nodes'] += pattern_2.pattern['nodes']
+    pattern.pattern['edges'] += pattern_2.pattern['edges']
+    pattern.insert_single_op([transp_out, softmax_out], None, 'MatMul', 'matmul')
+    return pattern.set_name('softmax_reshape_transpose_matmul').pattern
 
 
 @registry_ignore_patterns('blocks')

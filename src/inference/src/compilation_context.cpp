@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@
 #include "ngraph/opsets/opset6.hpp"
 #include "ngraph/variant.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/fix_rt_info.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -72,6 +73,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
     // 1. Calculate hash on function
     CNNNetwork net(network);
     ov::pass::Manager m;
+    m.register_pass<ngraph::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
     m.run_passes(net.getFunction());
 
@@ -85,18 +87,9 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
         const auto& rt = op->get_rt_info();
         for (const auto& rtMapData : rt) {
             seed = hash_combine(seed, rtMapData.first);
-
-            if (auto stringData = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(rtMapData.second)) {
-                seed = hash_combine(seed, stringData->get());
-            } else if (auto intData =
-                           std::dynamic_pointer_cast<ngraph::VariantWrapper<std::int64_t>>(rtMapData.second)) {
-                seed = hash_combine(seed, intData->get());
-            } else if (auto fNames =
-                           std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::FusedNames>>(rtMapData.second)) {
-                seed = hash_combine(seed, fNames->get().getNames());
-            } else if (auto prim = std::dynamic_pointer_cast<ov::PrimitivesPriority>(rtMapData.second)) {
-                seed = hash_combine(seed, prim->get());
-            }
+            std::stringstream strm;
+            rtMapData.second.print(strm);
+            seed = hash_combine(seed, strm.str());
         }
     }
 

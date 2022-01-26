@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace preprocess {
 
 /// \brief Internal guard to make preprocess builder exception-safe
 class FunctionGuard {
-    std::shared_ptr<Function> m_function;
+    std::shared_ptr<Model> m_function;
     ParameterVector m_parameters;
     ResultVector m_results;
     std::vector<std::unordered_set<std::string>> m_result_tensors;
@@ -19,7 +19,7 @@ class FunctionGuard {
     bool m_done = false;
 
 public:
-    FunctionGuard(const std::shared_ptr<Function>& f) : m_function(f) {
+    FunctionGuard(const std::shared_ptr<Model>& f) : m_function(f) {
         m_parameters = f->get_parameters();
         for (const auto& param : f->get_parameters()) {
             m_backup.insert({param, param->output(0).get_target_inputs()});

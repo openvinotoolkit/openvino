@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@ namespace pass {
 class TRANSFORMATIONS_API ConvertRNNSequenceToTensorIterator;
 class TRANSFORMATIONS_API ConvertGRUSequenceToTensorIterator;
 class TRANSFORMATIONS_API ConvertLSTMSequenceToTensorIterator;
+class TRANSFORMATIONS_API ConvertSequenceToTensorIterator;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -55,4 +56,10 @@ class ngraph::pass::ConvertLSTMSequenceToTensorIterator: public ngraph::pass::Ma
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertLSTMSequenceToTensorIterator();
+};
+
+class ngraph::pass::ConvertSequenceToTensorIterator : public GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertSequenceToTensorIterator();
 };

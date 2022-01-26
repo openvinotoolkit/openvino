@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/read_value.hpp"
+
+#include <read_value_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/util/variable_context.hpp"
@@ -23,8 +25,13 @@ op::v3::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& 
 void op::v3::ReadValue::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_ReadValue_validate_and_infer_types);
     auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    auto input_shape = get_input_partial_shape(0);
 
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {input_shape};
+    shape_infer(this, input_shapes, output_shapes);
+
+    const auto& output_shape = output_shapes[0];
     VariableInfo info = {output_shape, arg_t, m_variable_id};
     if (m_variable == nullptr)
         m_variable = std::make_shared<Variable>(info);
@@ -54,7 +61,11 @@ op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Va
 void op::v6::ReadValue::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_ReadValue_validate_and_infer_types);
     const auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    auto input_shape = get_input_partial_shape(0);
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {input_shape};
+    shape_infer(this, input_shapes, output_shapes);
+    const auto& output_shape = output_shapes[0];
     NGRAPH_CHECK(m_variable, "Variable is not initialized.");
     VariableInfo var_info = {output_shape, element::dynamic, m_variable->get_info().variable_id};
     NODE_VALIDATION_CHECK(this,
@@ -92,9 +103,7 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 
-    auto variable_context = std::dynamic_pointer_cast<VariantWrapper<VariableContext>>(found_context->second);
-    NODE_VALIDATION_CHECK(this, variable_context != nullptr, "Cannot cast found Context to VariableContext.");
-    const auto& variable_values = variable_context->get().get_variable_values();
+    const auto& variable_values = found_context->second.as<VariableContext>().get_variable_values();
     const auto& var_value = variable_values.find(m_variable);
 
     bool use_context = var_value != variable_values.end() && !var_value->second->get_reset();

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,13 +28,13 @@ ngraph::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantiz
     }
 }
 
-bool ngraph::pass::low_precision::MarkupPerTensorQuantization::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::MarkupPerTensorQuantization::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     auto setRestriction = [](const std::shared_ptr<Node>& node, const std::vector<size_t>& restrictedPorts) {
         auto createAttribute = [](Input<Node>& input){
             auto &rt = input.get_rt_info();
             rt.emplace(
-                    ngraph::VariantWrapper<PerTensorQuantizationAttribute>::type_info.name,
-                    std::make_shared<::ngraph::VariantWrapper<PerTensorQuantizationAttribute>>(PerTensorQuantizationAttribute()));
+                    PerTensorQuantizationAttribute::get_type_info_static(),
+                    PerTensorQuantizationAttribute());
         };
 
         if (restrictedPorts.empty()) {

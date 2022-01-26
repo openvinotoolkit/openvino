@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,44 +13,22 @@
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
 namespace ngraph {
-
-class LP_TRANSFORMATIONS_API PrecisionPreservedAttribute;
-
-class LP_TRANSFORMATIONS_API PrecisionPreservedSharedValue : public SharedValue<PrecisionPreservedAttribute> {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PrecisionPreservedAttribute defines the precision preserved operation. If the attribute is absent, then an operation is
+ * not precision preserved.
+ *
+ * For more details about the attribute, refer to
+ * [PrecisionPreservedAttribute](@ref openvino_docs_IE_DG_lpt_PrecisionPreserved) page in the Inference Engine Developer Guide.
+ */
+class LP_TRANSFORMATIONS_API PrecisionPreservedAttribute : public SharedAttribute<bool> {
 public:
-    PrecisionPreservedSharedValue() = default;
-    PrecisionPreservedSharedValue(const bool value) : value(value) {}
-    bool value;
-};
+    OPENVINO_RTTI("LowPrecision::PrecisionPreserved", "", ov::RuntimeAttribute, 0);
 
-class LP_TRANSFORMATIONS_API PrecisionPreservedAttribute : public SharedValueAttribute<PrecisionPreservedSharedValue> {
-public:
     PrecisionPreservedAttribute() = default;
     PrecisionPreservedAttribute(const bool value);
-};
 
-using PrecisionPreservedAttributePtr = std::shared_ptr<PrecisionPreservedAttribute>;
+    std::string to_string() const override;
+};
 
 } // namespace ngraph
-
-namespace ov {
-
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<ngraph::PrecisionPreservedAttributePtr>;
-
-template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<ngraph::PrecisionPreservedAttributePtr> : public VariantImpl<ngraph::PrecisionPreservedAttributePtr> {
-public:
-    static constexpr VariantTypeInfo type_info{ "LowPrecision::PrecisionPreserved", 0 };
-
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-
-    ngraph::PrecisionPreservedAttributePtr get() { return this->m_value; }
-
-    std::string to_string() override;
-};
-
-}  // namespace ov

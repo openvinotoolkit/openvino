@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@ namespace v8 {
 class OPENVINO_API AdaptiveMaxPool : public Op {
 public:
     OPENVINO_OP("AdaptiveMaxPool", "opset8");
+    BWDCMP_RTTI_DECLARATION;
 
     AdaptiveMaxPool() = default;
 

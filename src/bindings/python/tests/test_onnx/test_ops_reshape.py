@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -15,7 +15,6 @@ from tests.test_onnx.utils import (
     run_node,
 )
 from tests import (xfail_issue_35927,
-                   xfail_issue_44854,
                    xfail_issue_44858,
                    xfail_issue_44968)
 
@@ -306,7 +305,6 @@ def test_split_2d(node, expected_output):
     assert all_arrays_equal(ng_results, expected_output)
 
 
-@xfail_issue_44854
 def test_split_2d_splits_input():
     data = np.arange(8, dtype=np.int32).reshape(2, 4)
     splits = np.array([3, 1]).astype(np.int64)
@@ -321,7 +319,6 @@ def test_split_2d_splits_input():
     assert all_arrays_equal(ng_results, expected_outputs)
 
 
-@xfail_issue_44854
 def test_split_1d():
     # 1D
     data = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).astype(np.float32)
@@ -360,7 +357,7 @@ def test_split_1d():
 
     splits = np.array([2, 4]).astype(np.int64)
     node = onnx.helper.make_node(
-        "Split", inputs=["input", "splits"], outputs=["y", "z"], split=[2, 4]
+        "Split", inputs=["input", "splits"], outputs=["y", "z"]
     )
     expected_outputs = [
         np.array([1.0, 2.0]).astype(np.float32),

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,10 +10,7 @@ add_subdirectory(snippets)
 add_subdirectory(legacy)
 add_subdirectory(preprocessing)
 add_subdirectory(transformations)
+add_subdirectory(offline_transformations)
 add_subdirectory(low_precision_transformations)
 
-add_dependencies(ov_runtime_libraries inference_engine_legacy
-                                      inference_engine_transformations
-                                      inference_engine_lp_transformations
-                                      inference_engine_preproc
-                                      inference_engine_snippets)
+add_dependencies(ov_runtime_libraries inference_engine_preproc)

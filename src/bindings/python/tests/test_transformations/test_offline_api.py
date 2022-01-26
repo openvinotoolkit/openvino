@@ -1,22 +1,21 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import numpy as np
-# TODO: change the module name according to the description in 69196
-from openvino.offline_transformations_pybind import apply_moc_transformations, apply_pot_transformations, \
+from openvino.offline_transformations import apply_moc_transformations, apply_pot_transformations, \
     apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation, \
     compress_model_transformation, serialize
 
-from openvino import Function, PartialShape, Core
-import openvino as ov
+from openvino.runtime import Model, PartialShape, Core
+import openvino.runtime as ov
 
 
 def get_test_function():
     param = ov.opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
     relu = ov.opset8.relu(param)
     res = ov.opset8.result(relu, name="result")
-    return Function([res], [param], "test")
+    return Model([res], [param], "test")
 
 
 def test_moc_transformations():
@@ -93,7 +92,7 @@ def test_serialize_pass_v2():
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
     model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    func = Function(model, [parameter_a, parameter_b], "Function")
+    func = Model(model, [parameter_a, parameter_b], "Model")
 
     serialize(func, xml_path, bin_path)
 
@@ -111,9 +110,69 @@ def test_serialize_pass_v2():
 def test_compress_model_transformation():
     node_constant = ov.opset8.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.opset8.ceiling(node_constant)
-    func = Function(node_ceil, [], "TestFunction")
+    func = Model(node_ceil, [], "TestFunction")
     assert func.get_ordered_ops()[0].get_element_type().get_type_name() == "f32"
     compress_model_transformation(func)
 
     assert func is not None
     assert func.get_ordered_ops()[0].get_element_type().get_type_name() == "f16"
+
+
+def test_Version_default():
+    core = Core()
+    xml_path = "./serialized_function.xml"
+    bin_path = "./serialized_function.bin"
+    shape = [100, 100, 2]
+    parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
+    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    func = Model(model, [parameter_a, parameter_b], "Model")
+
+    serialize(func, xml_path, bin_path)
+    res_func = core.read_model(model=xml_path, weights=bin_path)
+
+    assert func.get_parameters() == res_func.get_parameters()
+    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
+def test_Version_ir_v10():
+    core = Core()
+    xml_path = "./serialized_function.xml"
+    bin_path = "./serialized_function.bin"
+    shape = [100, 100, 2]
+    parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
+    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    func = Model(model, [parameter_a, parameter_b], "Model")
+
+    serialize(func, xml_path, bin_path, "IR_V10")
+    res_func = core.read_model(model=xml_path, weights=bin_path)
+
+    assert func.get_parameters() == res_func.get_parameters()
+    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
+def test_Version_ir_v11():
+    core = Core()
+    xml_path = "./serialized_function.xml"
+    bin_path = "./serialized_function.bin"
+    shape = [100, 100, 2]
+    parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
+    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    func = Model(model, [parameter_a, parameter_b], "Model")
+
+    serialize(func, xml_path, bin_path, "IR_V11")
+    res_func = core.read_model(model=xml_path, weights=bin_path)
+
+    assert func.get_parameters() == res_func.get_parameters()
+    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+
+    os.remove(xml_path)
+    os.remove(bin_path)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,8 +75,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as
 
     ASSERT_EQ(gcbd->get_element_type(), element::f32);
     ASSERT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
-    ASSERT_TRUE(
-        gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_data_nc_dyn) {
@@ -94,10 +93,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_st
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 3, 3}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_filters_group_dyn) {
@@ -115,10 +111,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_st
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 3, 3}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_filters_group_cin_dyn) {
@@ -140,11 +133,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_st
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(
-        gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_data_cin_filters_group_dyn) {
@@ -162,10 +151,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_st
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3, 3}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 3, 3}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_filters_group_cout_dyn) {
@@ -187,11 +173,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_st
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(
-        gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_nc_dyn) {
@@ -213,10 +195,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_nc
                                                                   padding_end,
                                                                   dilations);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 8, 447, 447}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 8, 447, 447}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_group_dyn) {
@@ -238,10 +217,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters
                                                                   padding_end,
                                                                   dilations);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, 8, 447, 447}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{1, 8, 447, 447}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_group_cin_dyn) {
@@ -267,11 +243,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters
                                                                   padding_end,
                                                                   dilations);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
-        PartialShape{Dimension::dynamic(), Dimension::dynamic(), 447, 447}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 447, 447}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_cin_filters_group_dyn) {
@@ -293,10 +265,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_ci
                                                                   padding_end,
                                                                   dilations);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 447, 447}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 447, 447}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_group_cout_dyn) {
@@ -322,10 +291,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters
                                                                   padding_end,
                                                                   dilations);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 447, 447}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 447, 447}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_spatial_dim_dyn) {
@@ -347,10 +313,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_sp
                                                                   padding_end,
                                                                   dilations);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, 8, Dimension::dynamic(), 447}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{1, 8, Dimension::dynamic(), 447}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_spatial_dim_dyn) {
@@ -372,11 +335,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters
                                                                   padding_end,
                                                                   dilations);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
-        PartialShape{Dimension::dynamic(), 8, 447, Dimension::dynamic()}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 8, 447, Dimension::dynamic()}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_data_dyn) {
@@ -394,10 +353,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_da
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 3, 3}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_data_dyn) {
@@ -414,11 +370,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_data_dyn) {
                                                                   CoordinateDiff{},
                                                                   Strides{});
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
-        PartialShape{Dimension::dynamic(), 8, Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0),
+              (PartialShape{Dimension::dynamic(), 8, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_filters_dyn) {
@@ -436,10 +389,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_fi
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3, 3}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 3, 3}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_filters_dyn) {
@@ -456,11 +406,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_filters_dyn) {
                                                                   CoordinateDiff{},
                                                                   Strides{});
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
-        PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0),
+              (PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as_const_data_and_filters_dyn) {
@@ -478,11 +425,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{5}));
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
-        PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3, 3}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3, 3}));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as_param_data_and_filters_dyn) {
@@ -500,9 +443,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape::dynamic(5)));
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_data_and_filters_dyn) {
@@ -519,9 +460,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_data_and_filters_dyn
                                                                   CoordinateDiff{},
                                                                   Strides{});
 
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape::dynamic()));
 }
 
 TEST(type_prop, group_convolution_backprop_data_invalid_et_inputs) {
@@ -615,7 +554,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_input_ranks) {
         // data and filters have incompatible ranks
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Shapes for data batch and filters do not match."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data and filters rank do not match"));
     } catch (...) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }
@@ -639,7 +578,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_input_ranks) {
         // data and weight have incompatible ranks
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Shapes for data batch and filters do not match."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data and filters rank do not match"));
     } catch (...) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }
@@ -662,7 +601,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_input_ranks) {
         // Output shape optional input must be of rank 1
         FAIL() << "Incompatible output shape input rank not detected.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Spatial shape of output input must be of rank 1"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input delivering output shape must have rank 1"));
     } catch (...) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }
@@ -685,7 +624,9 @@ TEST(type_prop, group_convolution_backprop_data_invalid_input_channel_dims) {
         // data batch shape does not have correct dimension C_IN * GROUPS
         FAIL() << "Incompatibile input shapes not detected.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Number of data channels not a multiple of group size."));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Input channels dimension of data batch has incompatible value with filter shape."));
     } catch (...) {
         FAIL() << "Input shapes validation check failed for unexpected reason.";
     }
@@ -702,9 +643,9 @@ TEST(type_prop, group_convolution_backprop_data_invalid_input_channel_dims) {
         // dimension C_IN * GROUPS = 16
         FAIL() << "Incompatibile input shapes not detected.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Data second dimension has incompatible value "
-                                         "with number of input channels."));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Input channels dimension of data batch has incompatible value with filter shape."));
     } catch (...) {
         FAIL() << "Input shapes validation check failed for unexpected reason.";
     }
@@ -753,7 +694,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
             make_shared<op::v1::GroupConvolutionBackpropData>(data, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid strides spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Strides spatial dimensions validation check failed for unexpected reason";
     }
@@ -769,7 +710,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
             make_shared<op::v1::GroupConvolutionBackpropData>(data, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid strides spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Strides spatial dimensions validation check failed for unexpected reason";
     }
@@ -787,7 +728,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
             make_shared<op::v1::GroupConvolutionBackpropData>(data, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid dilations spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Dilations spatial dimensions validation check failed for unexpected reason";
     }
@@ -803,7 +744,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
             make_shared<op::v1::GroupConvolutionBackpropData>(data, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid dilations spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Dilations spatial dimensions validation check failed for unexpected reason";
     }
@@ -821,7 +762,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
             make_shared<op::v1::GroupConvolutionBackpropData>(data, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Pads should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Pads begin should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }
@@ -837,7 +778,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
             make_shared<op::v1::GroupConvolutionBackpropData>(data, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Pads should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Pads begin should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }
@@ -863,7 +804,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
                                                                       output_padding);
         FAIL() << "Invalid output padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Output padding should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Output padding spatial dimensions validation check failed for unexpected reason";
     }
@@ -887,7 +828,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
                                                                       output_padding);
         FAIL() << "Invalid output padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Output padding should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Output padding spatial dimensions validation check failed for unexpected reason";
     }

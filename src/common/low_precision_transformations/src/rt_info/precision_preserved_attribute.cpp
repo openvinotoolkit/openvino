@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,18 +10,13 @@
 using namespace ngraph;
 using namespace ov;
 
-PrecisionPreservedAttribute::PrecisionPreservedAttribute(const bool value) {
-    sharedValue->value = value;
+PrecisionPreservedAttribute::PrecisionPreservedAttribute(const bool value) :
+    SharedAttribute(value) {
 }
 
-template class ngraph::VariantImpl<PrecisionPreservedAttributePtr>;
-
-constexpr VariantTypeInfo VariantWrapper<PrecisionPreservedAttributePtr>::type_info;
-
-std::string VariantWrapper<PrecisionPreservedAttributePtr>::to_string() {
-    auto& value = this->m_value;
+std::string PrecisionPreservedAttribute::to_string() const {
     std::stringstream ss;
-    ss << m_value->get_string();
-    ss << "value: " << (value->sharedValue->value ? "true" : "false");
+    ss << attribute->get_string();
+    ss << "value: " << (value() ? "true" : "false");
     return ss.str();
 }

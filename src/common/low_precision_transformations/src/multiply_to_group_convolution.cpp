@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,10 +66,10 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
 
         // if restrictions are absent precisions attribute is used
         if (weightsPrecision == element::undefined) {
-            const auto precisionsAttribute = getAttribute<PrecisionsAttributePtr>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
+            const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
             const auto precisions = precisionsAttribute == nullptr ?
-                PrecisionsAttribute::defaultPrecisions :
-                precisionsAttribute->get()->sharedValue->precisions;
+                getDefaultPrecisions() :
+                precisionsAttribute.as<PrecisionsAttribute>().value();
             weightsPrecision = precisions[0];
         }
     } else {

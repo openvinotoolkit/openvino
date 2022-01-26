@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
+
+#include <ctc_greedy_decoder_seq_len_shape_inference.hpp>
 
 #include "itt.hpp"
 
@@ -40,21 +42,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_validate_and_infer_types);
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& seq_len_pshape = get_input_partial_shape(1);
-    const bool logits_is_static_rank = logits_pshape.rank().is_static();
-    const bool seq_len_is_static_rank = seq_len_pshape.rank().is_static();
-
-    // check ranks of input tensors
-    if (logits_is_static_rank) {
-        NODE_VALIDATION_CHECK(this,
-                              logits_pshape.rank().get_length() == 3,
-                              "The rank of logits tensor must be equal to 3.");
-    }
-    if (seq_len_is_static_rank) {
-        NODE_VALIDATION_CHECK(this,
-                              seq_len_pshape.rank().get_length() == 1,
-                              "The rank of sequence len tensor must be equal to 1.");
-    }
-
+    std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_len_pshape};
     // check optional input type: blank index
     if (get_input_size() == 3) {
         const auto& blank_index_type = get_input_element_type(2);
@@ -62,46 +50,13 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
                               blank_index_type.is_integral_number(),
                               "The blank index type is expected to be an integer type. Got: ",
                               blank_index_type);
-
-        const auto& blank_index_partial_shape = get_input_partial_shape(2);
-        if (blank_index_partial_shape.is_static()) {
-            ov::Shape blank_index_shape = blank_index_partial_shape.to_shape();
-            NODE_VALIDATION_CHECK(
-                this,
-                ngraph::is_scalar(blank_index_shape) || (is_vector(blank_index_shape) && (blank_index_shape[0] == 1)),
-                "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
-                blank_index_shape);
-        }
+        input_shapes.push_back(get_input_partial_shape(2));
     }
 
-    // validate input shapes and compute output shape
-    ngraph::Dimension batch_size = Dimension::dynamic();
-    ngraph::Dimension time_size = Dimension::dynamic();
-
-    if (logits_is_static_rank) {
-        if (logits_pshape[0].is_static()) {
-            batch_size = logits_pshape[0];
-        }
-        if (logits_pshape[1].is_static()) {
-            time_size = logits_pshape[1];
-        }
-    }
-
-    if (seq_len_is_static_rank && seq_len_pshape[0].is_static()) {
-        if (batch_size != Dimension::dynamic()) {
-            NODE_VALIDATION_CHECK(this,
-                                  seq_len_pshape[0] == batch_size,
-                                  "The first dimensions of input tensors must match.");
-        }
-        batch_size = seq_len_pshape[0];
-    }
-
-    if (logits_is_static_rank && seq_len_is_static_rank) {
-        batch_size = seq_len_pshape[0] & logits_pshape[0];
-    }
-
-    set_output_type(0, m_classes_index_type, ov::PartialShape{batch_size, time_size});
-    set_output_type(1, m_sequence_length_type, ov::PartialShape{batch_size});
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, m_classes_index_type, output_shapes[0]);
+    set_output_type(1, m_sequence_length_type, output_shapes[1]);
 }
 
 bool op::v6::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor) {

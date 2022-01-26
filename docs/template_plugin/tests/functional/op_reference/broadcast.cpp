@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,14 +14,14 @@ using namespace ov;
 namespace {
 struct BroadcastParams {
     BroadcastParams(
-        const Tensor& dataTensor, const Tensor& targetShapeTensor,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& targetShapeTensor,
+        const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
         dataTensor(dataTensor), targetShapeTensor(targetShapeTensor),
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor targetShapeTensor;
-    Tensor expectedTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor targetShapeTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -52,9 +52,9 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParams& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto f = std::make_shared<Function>(
+        const auto f = std::make_shared<Model>(
             std::make_shared<opset1::Broadcast>(A, opset1::Constant::create(params.targetShapeTensor.type,
                                                                             params.targetShapeTensor.shape,
                                                                             params.targetShapeTensor.data.data())),
@@ -69,9 +69,9 @@ TEST_P(ReferenceBroadcastTest, CompareWithRefs) {
 
 class ReferenceBroadcastTestV3 : public ReferenceBroadcastTest {
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParams& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto f = std::make_shared<Function>(
+        const auto f = std::make_shared<Model>(
             std::make_shared<opset3::Broadcast>(A, opset1::Constant::create(params.targetShapeTensor.type,
                                                                             params.targetShapeTensor.shape,
                                                                             params.targetShapeTensor.data.data())),
@@ -86,12 +86,13 @@ TEST_P(ReferenceBroadcastTestV3, CompareWithRefs) {
 
 struct BroadcastParamsExplicitAxis : BroadcastParams {
     BroadcastParamsExplicitAxis(
-        const Tensor& dataTensor, const Tensor& targetShapeTensor, const Tensor& axesMappingTensor,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& targetShapeTensor,
+        const reference_tests::Tensor& axesMappingTensor, const reference_tests::Tensor& expectedTensor,
+        const std::string& testcaseName = "") :
         BroadcastParams(dataTensor, targetShapeTensor, expectedTensor, testcaseName),
         axesMappingTensor(axesMappingTensor) {}
 
-    Tensor axesMappingTensor;
+    reference_tests::Tensor axesMappingTensor;
 };
 
 class ReferenceBroadcastTestExplicitAxis : public testing::TestWithParam<BroadcastParamsExplicitAxis>, public CommonReferenceTest {
@@ -123,9 +124,9 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParamsExplicitAxis& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParamsExplicitAxis& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto f = std::make_shared<Function>(
+        const auto f = std::make_shared<Model>(
             std::make_shared<opset1::Broadcast>(A,
                                                 opset1::Constant::create(params.targetShapeTensor.type,
                                                                          params.targetShapeTensor.shape,
@@ -191,7 +192,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParamsTestHelper& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParamsTestHelper& params) {
         const auto A = std::make_shared<opset1::Parameter>(element::f32, params.shapeA);
         const auto shape_const = opset1::Constant::create(element::u64, Shape{params.shapeR.size()}, params.shapeR);
         std::shared_ptr<Node> broadcast;
@@ -201,7 +202,7 @@ private:
         } else {
             broadcast = std::make_shared<opset1::Broadcast>(A, shape_const);
         }
-        auto f = std::make_shared<Function>(broadcast, ParameterVector{A});
+        auto f = std::make_shared<Model>(broadcast, ParameterVector{A});
         return f;
     }
 
@@ -226,7 +227,7 @@ TEST_P(ReferenceBroadcastTestTestHelper, CompareWithRefs) {
 
 class ReferenceBroadcastTestExplicitAxisReversed : public ReferenceBroadcastTestExplicitAxis {
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParamsExplicitAxis& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParamsExplicitAxis& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         auto broadcast = std::make_shared<opset1::Broadcast>(
             A,
@@ -239,7 +240,7 @@ private:
         auto reverse = std::make_shared<opset1::Reverse>(broadcast,
                                                          opset1::Constant::create(element::i64, {1}, {1}),
                                                          opset1::Reverse::Mode::INDEX);
-        auto f = std::make_shared<Function>(NodeVector{reverse}, ParameterVector{A});
+        auto f = std::make_shared<Model>(NodeVector{reverse}, ParameterVector{A});
         return f;
     }
 };
@@ -253,29 +254,29 @@ std::vector<BroadcastParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<BroadcastParams> params {
         BroadcastParams(
-            Tensor(ET, {}, std::vector<T>{6}),
-            Tensor(element::u64, {1}, std::vector<uint64_t>{4}),
-            Tensor(ET, {4}, std::vector<T>{6, 6, 6, 6}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{6}),
+            reference_tests::Tensor(element::u64, {1}, std::vector<uint64_t>{4}),
+            reference_tests::Tensor(ET, {4}, std::vector<T>{6, 6, 6, 6}),
             "broadcast_scalar_vector"),
         BroadcastParams(
-            Tensor(ET, {}, std::vector<T>{6}),
-            Tensor(element::u64, {2}, std::vector<uint64_t>{2, 2}),
-            Tensor(ET, {2, 2}, std::vector<T>{6, 6, 6, 6}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{6}),
+            reference_tests::Tensor(element::u64, {2}, std::vector<uint64_t>{2, 2}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{6, 6, 6, 6}),
             "broadcast_scalar_matrix"),
         BroadcastParams(
-            Tensor(ET, {}, std::vector<T>{6}),
-            Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
-            Tensor(ET, {2, 2, 2}, std::vector<T>{6, 6, 6, 6, 6, 6, 6, 6}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{6}),
+            reference_tests::Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{6, 6, 6, 6, 6, 6, 6, 6}),
             "broadcast_scalar_tensor"),
         BroadcastParams(
-            Tensor(ET, {2, 2, 2}, std::vector<T>{2, 4, 6, 8, 16, 32, 64, 127}),
-            Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
-            Tensor(ET, {2, 2, 2}, std::vector<T>{2, 4, 6, 8, 16, 32, 64, 127}),
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{2, 4, 6, 8, 16, 32, 64, 127}),
+            reference_tests::Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{2, 4, 6, 8, 16, 32, 64, 127}),
             "broadcast_trivial"),
         BroadcastParams(
-            Tensor(ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
-            Tensor(ET, {2, 2, 2}, std::vector<T>{1, 2, 3, 4, 1, 2, 3, 4}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{1, 2, 3, 4, 1, 2, 3, 4}),
             "broadcast_matrix_0"),
     };
     return params;
@@ -315,40 +316,40 @@ std::vector<BroadcastParamsExplicitAxis> generateParamsExplicitAxis() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<BroadcastParamsExplicitAxis> params {
         BroadcastParamsExplicitAxis(
-            Tensor(ET, {}, std::vector<T>{6}),
-            Tensor(element::u64, {2}, std::vector<uint64_t>{1, 2}),
-            Tensor(element::i64, {1}, std::vector<int64_t>{0}),
-            Tensor(ET, {1, 2}, std::vector<T>{6, 6}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{6}),
+            reference_tests::Tensor(element::u64, {2}, std::vector<uint64_t>{1, 2}),
+            reference_tests::Tensor(element::i64, {1}, std::vector<int64_t>{0}),
+            reference_tests::Tensor(ET, {1, 2}, std::vector<T>{6, 6}),
             "broadcast_scalar_vector_explicit_axis_0"),
         BroadcastParamsExplicitAxis(
-            Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
-            Tensor(element::u64, {2}, std::vector<uint64_t>{3, 4}),
-            Tensor(element::i64, {1}, std::vector<int64_t>{0}),
-            Tensor(ET, {3, 4}, std::vector<T>{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}),
+            reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
+            reference_tests::Tensor(element::u64, {2}, std::vector<uint64_t>{3, 4}),
+            reference_tests::Tensor(element::i64, {1}, std::vector<int64_t>{0}),
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}),
             "broadcast_vector_colwise"),
         BroadcastParamsExplicitAxis(
-            Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(element::u64, {2}, std::vector<uint64_t>{3, 4}),
-            Tensor(element::i64, {1}, std::vector<int64_t>{1}),
-            Tensor(ET, {3, 4}, std::vector<T>{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4}),
+            reference_tests::Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(element::u64, {2}, std::vector<uint64_t>{3, 4}),
+            reference_tests::Tensor(element::i64, {1}, std::vector<int64_t>{1}),
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4}),
             "broadcast_vector_rowwise"),
         BroadcastParamsExplicitAxis(
-            Tensor(ET, {1}, std::vector<T>{4}),
-            Tensor(element::u64, {2}, std::vector<uint64_t>{3, 1}),
-            Tensor(element::i64, {1}, std::vector<int64_t>{1}),
-            Tensor(ET, {3, 1}, std::vector<T>{4, 4, 4}),
+            reference_tests::Tensor(ET, {1}, std::vector<T>{4}),
+            reference_tests::Tensor(element::u64, {2}, std::vector<uint64_t>{3, 1}),
+            reference_tests::Tensor(element::i64, {1}, std::vector<int64_t>{1}),
+            reference_tests::Tensor(ET, {3, 1}, std::vector<T>{4, 4, 4}),
             "broadcast_scalar_to_matrix"),
         BroadcastParamsExplicitAxis(
-            Tensor(ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{0, 2}),
-            Tensor(ET, {2, 2, 2}, std::vector<T>{1, 2, 1, 2, 3, 4, 3, 4}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 2}),
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{1, 2, 1, 2, 3, 4, 3, 4}),
             "broadcast_matrix_1"),
         BroadcastParamsExplicitAxis(
-            Tensor(ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{0, 1}),
-            Tensor(ET, {2, 2, 2}, std::vector<T>{1, 1, 2, 2, 3, 3, 4, 4}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(element::u64, {3}, std::vector<uint64_t>{2, 2, 2}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 1}),
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{1, 1, 2, 2, 3, 3, 4, 4}),
             "broadcast_matrix_2"),
     };
     return params;
@@ -491,10 +492,10 @@ std::vector<BroadcastParamsExplicitAxis> generateParamsExplicitAxisReversed() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<BroadcastParamsExplicitAxis> params {
         BroadcastParamsExplicitAxis(
-            Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(element::u64, {2}, std::vector<uint64_t>{3, 4}),
-            Tensor(element::i64, {1}, std::vector<int64_t>{1}),
-            Tensor(ET, {3, 4}, std::vector<T>{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4}),
+            reference_tests::Tensor(ET, {4}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(element::u64, {2}, std::vector<uint64_t>{3, 4}),
+            reference_tests::Tensor(element::i64, {1}, std::vector<int64_t>{1}),
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4}),
             "broadcast_vector_rowwise_reversed"),
     };
     return params;

@@ -1,12 +1,11 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
 import os
 from addict import Dict
 
-from openvino.tools.pot.graph import load_model, save_model
-from openvino.tools.pot.pipeline.initializer import create_pipeline
+from openvino.tools.pot import load_model, save_model, create_pipeline
 from openvino.tools.pot.utils.logger import init_logger
 from openvino.tools.pot.api.samples.utils.argument_parser import get_common_argparser
 from openvino.tools.pot.api.samples.speech.data_loader import ArkDataLoader

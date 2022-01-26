@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,13 +20,13 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-ov_install_static_lib(${TARGET_NAME} ngraph)
+ov_install_static_lib(${TARGET_NAME} core)
 
 # developer package
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})

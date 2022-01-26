@@ -10,7 +10,7 @@ Based on that, the declaration of an extension class can look as follows:
 
 @snippet template_extension/old/extension.hpp extension:header
 
-The extension library should contain and export the InferenceEngine::CreateExtension method, which creates an `Extension` class:
+The extension library should use `IE_DEFINE_EXTENSION_CREATE_FUNCTION` macro to export a function, which creates an `Extension` class:
 
 @snippet template_extension/old/extension.cpp extension:CreateExtension
 
@@ -25,6 +25,5 @@ Also, an `Extension` object should implement the following methods:
 Implement the InferenceEngine::IExtension::getOpSets method if the extension contains custom layers. 
 Read [Custom nGraph Operation](AddingNGraphOps.md) for more information.
 
-To understand how to integrate execution kernels to the extension library, read the [documentation about development of custom CPU kernels](CPU_Kernel.md).
-
-To understand how to register custom ONNX operator to the extension library, read the [documentation about custom ONNX operators](Custom_ONNX_Ops.md).
+To integrate execution kernels to the extension library, read [How to Implement Custom CPU Operations](CPU_Kernel.md).
+To register a custom ONNX\* operator to the extension library, read [Custom ONNX Operators](Custom_ONNX_Ops.md).

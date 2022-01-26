@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,7 +24,7 @@ ie_faster_build(${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${BUILDER_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
@@ -35,8 +35,8 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::builder ALIAS ${TARGET_NAME})
 
-ov_install_static_lib(ngraph_builders ngraph)
+ov_install_static_lib(ngraph_builders core)
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::builder)
+openvino_developer_export_targets(COMPONENT core TARGETS ngraph::builder)

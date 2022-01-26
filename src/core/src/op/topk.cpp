@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/topk.hpp"
 
 #include <memory>
+#include <topk_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -186,15 +187,6 @@ bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::TopK::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_TopK_validate_and_infer_types);
-    const auto& input_partial_shape = get_input_partial_shape(0);
-    const auto input_rank = input_partial_shape.rank();
-
-    NODE_VALIDATION_CHECK(this,
-                          input_rank.is_dynamic() || input_rank.get_length() > 0,
-                          "Input rank must be greater than 0.");
-
-    const auto& k_partial_shape = get_input_partial_shape(1);
-    NODE_VALIDATION_CHECK(this, k_partial_shape.rank().compatible(0), "The 'K' input must be a scalar.");
 
     NODE_VALIDATION_CHECK(this,
                           m_index_element_type == element::i32 || m_index_element_type == element::i64,
@@ -206,35 +198,15 @@ void op::v1::TopK::validate_and_infer_types() {
         read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
     }
 
-    ov::PartialShape output_shape{input_partial_shape};
+    set_axis(get_input_partial_shape(0).rank(), get_provided_axis());
 
-    if (output_shape.rank().is_static()) {
-        m_normalized_axis = ngraph::normalize_axis(this, m_axis, output_shape.rank());
-
-        ov::PartialShape k_as_shape;
-        if (evaluate_as_partial_shape(input_value(1), k_as_shape)) {
-            if (k_as_shape.is_static()) {
-                output_shape[m_normalized_axis] = k_as_shape[0];
-            } else {
-                const auto in_min = output_shape[m_normalized_axis].get_min_length();
-                const auto in_max = output_shape[m_normalized_axis].get_max_length();
-
-                const auto k_min = k_as_shape[0].get_min_length();
-                const auto k_max = k_as_shape[0].get_max_length();
-
-                const auto lower = std::min<Dimension::value_type>(in_min, k_min);
-                const auto upper =
-                    in_max < 0 ? Dimension::dynamic().get_max_length() : std::max<Dimension::value_type>(in_max, k_max);
-                output_shape[m_normalized_axis] = Dimension(lower, upper);
-            }
-        } else {
-            output_shape[m_normalized_axis] = Dimension(0, input_partial_shape[m_normalized_axis].get_max_length());
-        }
-    }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
+    shape_infer(this, input_shapes, output_shapes);
 
     set_output_size(2);
-    set_output_type(0, get_input_element_type(0), output_shape);
-    set_output_type(1, m_index_element_type, output_shape);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, m_index_element_type, output_shapes[1]);
 }
 
 ov::Shape op::v1::TopK::compute_output_shape(const std::string& node_description,
@@ -319,8 +291,8 @@ size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::v0::Constant>& k_co
                           " elements).");
 
     NODE_VALIDATION_CHECK(this,
-                          k_const_contents[0] > 0,
-                          "The value of 'K' must be a positive number.",
+                          k_const_contents[0] >= 0,
+                          "The value of 'K' must be more or equal zero.",
                           " (got ",
                           k_const_contents[0],
                           ").");

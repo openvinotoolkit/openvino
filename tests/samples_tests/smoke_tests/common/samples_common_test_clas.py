@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2021 Intel Corporation
+ Copyright (C) 2018-2022 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -26,6 +26,7 @@ import zipfile
 
 import logging as log
 from common.common_utils import shell
+from distutils import spawn
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
@@ -135,10 +136,14 @@ def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
         print("\nExtracting of samples_smoke_tests_data.zip...")
         with zipfile.ZipFile(samples_path, 'r') as samples_zip:
             samples_zip.extractall(Environment.env['smoke_tests_path'])
+        nameFolder = str(Environment.env['samples_data_zip'])[Environment.env['samples_data_zip'].rfind('/')+1:][:-4]
+        smoke_tests_path = os.path.join(Environment.env['smoke_tests_path'])
+        if os.path.exists(os.path.join(smoke_tests_path,nameFolder)):
+            os.rename(os.path.join(smoke_tests_path, nameFolder), os.path.join(smoke_tests_path, 'samples_smoke_tests_data') )
         if os.path.exists(samples_path):
             print("\nRemoving samples_smoke_tests_data.zip...")
             os.remove(samples_path)	
-		
+
     except Exception:
         print(f"Exception during downloading samples_smoke_tests_data.zip")
 
@@ -146,12 +151,8 @@ class SamplesCommonTestClass():
 
     @classmethod
     def made_executable_path(cls, path1, path2, sample_type='C++'):
-        # This exception is made for benchmark_app, because it locates in another place.
-        if 'benchmark_app' in path2 and 'python' in sample_type.lower():
-            executable_path = os.path.join(path1, 'benchmark_tool', path2)
-        else:
-            executable_path = os.path.join(path1, path2, path2) if 'python' in sample_type.lower() \
-                else os.path.join(path1, path2)
+        executable_path = os.path.join(path1, path2, path2) if 'python' in sample_type.lower() \
+            else os.path.join(path1, path2)
         is_windows = sys.platform.startswith('win')
         if 'python' in sample_type.lower():
             executable_path += '.py'
@@ -164,15 +165,24 @@ class SamplesCommonTestClass():
         if is_windows and not 'python' in sample_type.lower():
             executable_path += '.exe'
 
+        # This exeption is made for benchmark_app, because it locates in another place.
+        if 'benchmark_app' in path2 and 'python' in sample_type.lower():
+            executable_path = spawn.find_executable(str('benchmark_app'))
         # if not hasattr(cls, 'executable_path'):
         cls.executable_path = executable_path
 
     @staticmethod
     def reset_models_path(model):
-        if ('FP32' in os.path.split(model)[0] or 'FP16' in os.path.split(model)[0]):
-            model = search_model_path_recursively(config_key=Environment.env['icv_model_zoo_models'], model_name=model)
-        else:
-            model = os.path.join(Environment.env['public_models'], model)
+        pathList = model.split(os.sep)
+        modelName = pathList[len(pathList)-1]
+        precision = pathList[len(pathList)-2]
+        for root, subFolder, files in os.walk(Environment.env['models_path']):
+            for item in files:
+                if item.endswith(modelName) :
+                    if precision in root :
+                        model = str(os.path.join(root,item))
+                    else :
+                        model = os.path.join(Environment.env['models_path'], model)
         return model
 
     @staticmethod
@@ -328,10 +338,8 @@ class SamplesCommonTestClass():
     def setup_class(cls):
         getting_samples_data_zip(Environment.env['samples_data_zip'], Environment.env['samples_path'])
         assert os.environ.get('IE_APP_PATH') is not None, "IE_APP_PATH environment variable is not specified!"
-        assert os.path.exists(Environment.env['public_models']), \
-            "Path for public models {} is not exist!".format(Environment.env['public_models'])
-        assert os.path.exists(Environment.env['icv_model_zoo_models']), \
-            "Path for icv models {} is not exist!".format(Environment.env['icv_model_zoo_models'])
+        assert os.path.exists(Environment.env['models_path']), \
+            "Path for public models {} is not exist!".format(Environment.env['models_path'])
         assert os.path.exists(Environment.env['test_data']), \
             "Path for test data {} is not exist!".format(Environment.env['test_data'])
         cls.output_dir = Environment.env['out_directory']
@@ -352,16 +360,10 @@ class SamplesCommonTestClass():
         param_cp = dict(param)
         sample_type = param_cp.get('sample_type', "C++")
         if 'python' in sample_type.lower():
-            if 'benchmark_app' in self.sample_name:
-                assert os.environ.get('IE_APP_PYTHON_TOOL_PATH') is not None, \
-                    "IE_APP_PYTHON_TOOL_PATH environment variable is not specified!"
-                self.made_executable_path(os.environ.get('IE_APP_PYTHON_TOOL_PATH'), self.sample_name,
-                                          sample_type=sample_type)
-            else:
-                assert os.environ.get('IE_APP_PYTHON_PATH') is not None, \
-                    "IE_APP_PYTHON_PATH environment variable is not specified!"
-                self.made_executable_path(os.environ.get('IE_APP_PYTHON_PATH'), self.sample_name,
-                                          sample_type=sample_type)
+            assert os.environ.get('IE_APP_PYTHON_PATH') is not None, \
+                "IE_APP_PYTHON_PATH environment variable is not specified!"
+            self.made_executable_path(os.environ.get('IE_APP_PYTHON_PATH'), self.sample_name,
+                                      sample_type=sample_type)
         else:
             self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=sample_type)
 

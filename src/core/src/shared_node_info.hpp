@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <memory>
 #include <openvino/core/except.hpp>
 #include <openvino/core/node.hpp>
-#include <openvino/core/variant.hpp>
 
 namespace ov {
 class SharedRTInfo {

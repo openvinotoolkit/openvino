@@ -1,24 +1,25 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/rt_info/attributes.hpp"
 
 ov::pass::Attributes::Attributes() {
-    register_factory<VariantWrapper<ngraph::FusedNames>>();
+    register_factory<ngraph::FusedNames>();
     register_factory<PrimitivesPriority>();
     register_factory<DisableConstantFolding>();
     register_factory<DisableFP16Compression>();
     register_factory<NmsSelectedIndices>();
-    register_factory<StridesPropagation>();
     register_factory<OldApiMapOrder>();
     register_factory<OldApiMapElementType>();
     register_factory<LayoutAttribute>();
     register_factory<Decompression>();
     register_factory<ov::preprocess::TensorInfoMemoryType>();
+    register_factory<StridesPropagation>();
+    register_factory<PreprocessingAttribute>();
 }
 
-std::shared_ptr<ov::Variant> ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) {
+ov::Any ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) {
     auto it_type = m_factory_registry.find(type_info);
     if (it_type != m_factory_registry.end()) {
         return it_type->second();
@@ -26,5 +27,3 @@ std::shared_ptr<ov::Variant> ov::pass::Attributes::create_by_type_info(const ov:
         return {};
     }
 }
-
-ov::pass::Attributes::~Attributes() = default;

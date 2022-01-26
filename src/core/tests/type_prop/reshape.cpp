@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <dimension_tracker.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -121,6 +123,23 @@ TEST(type_prop, interval_value_propagation_mul_div) {
     ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(4, 16), 2}));
 }
 
+TEST(type_prop, interval_value_propagation_mul_div_rhs_shape) {
+    auto param =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 5), Dimension(0, 4), Dimension(2, 3)});
+
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto mul = make_shared<op::v1::Multiply>(op::Constant::create(element::f32, {}, {2}), cast_fp);
+    auto div = make_shared<op::v1::Divide>(op::Constant::create(element::f32, {3}, {10, 16, 12}), mul);
+    auto cast_int = make_shared<op::Convert>(div, element::i32);
+
+    auto r = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(1, 5), Dimension(2, -1), Dimension(2, 3)}));
+}
+
 TEST(type_prop, interval_value_propagation_mul_div_lhs_scalar) {
     auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
@@ -149,7 +168,7 @@ TEST(type_prop, interval_value_propagation_mul_div_rhs_scalar) {
     ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(8, 32), 4}));
 }
 
-TEST(type_prop, interval_value_propagation_mul_div_lhs_1D) {
+TEST(type_prop, interval_value_propagation_mul_lhs_1D_div) {
     auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
     auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
@@ -163,7 +182,7 @@ TEST(type_prop, interval_value_propagation_mul_div_lhs_1D) {
     ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(8, 32), 4}));
 }
 
-TEST(type_prop, interval_value_propagation_mul_div_rhs_1D) {
+TEST(type_prop, interval_value_propagation_mul_rhs_1D_div) {
     auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
     auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
@@ -175,6 +194,20 @@ TEST(type_prop, interval_value_propagation_mul_div_rhs_1D) {
 
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(8, 32), 4}));
+}
+
+TEST(type_prop, interval_value_propagation_mul_div_lhs_1D) {
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto mul = make_shared<op::v1::Multiply>(cast_fp, op::Constant::create(element::f32, {1}, {2}));
+    auto div = make_shared<op::v1::Divide>(op::Constant::create(element::f32, {}, {192}), mul);
+    auto cast_int = make_shared<op::Convert>(div, element::i32);
+
+    auto r = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(12, 48), Dimension(6, 24), 16}));
 }
 
 TEST(type_prop, interval_value_propagation_reduce) {
@@ -574,4 +607,29 @@ TEST(type_prop, dynamic_shape_propagation_with_i32_precision) {
 
     ASSERT_EQ(reshape->get_element_type(), element::f32);
     ASSERT_EQ(reshape->get_output_partial_shape(0), (PartialShape{-1, -1, 1}));
+}
+
+TEST(type_prop, reshape_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> zero{0};
+    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto gather = std::make_shared<op::v7::Gather>(shape_0, indices, axis);
+
+    const auto output_pattern = std::make_shared<op::v0::Constant>(et, Shape{1}, std::vector<int64_t>{-1});
+    const auto unsqueeze = std::make_shared<op::v1::Reshape>(gather, output_pattern, false);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
+    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }

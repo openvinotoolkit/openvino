@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,13 +55,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
     auto tconfig = mergeConfigs(_config, config);
     auto it = tconfig.find("TARGET_FALLBACK");
     if (it == tconfig.end()) {
-        IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+        IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous device";
     }
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(it->second, tconfig);
 
     auto function = network.getFunction();
     if (function == nullptr) {
-        IE_THROW() << "HETERO plugin supports just ngraph network representation";
+        IE_THROW() << "HETERO device supports just ngraph network representation";
     }
 
     return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
@@ -71,18 +71,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     std::istream& heteroModel,
     const std::map<std::string, std::string>& config) {
     return std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this);
-}
-
-Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string& deviceName) const {
-    std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-    Engine::Configs supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = config.find(key);
-        if (config.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    return supportedConfig;
 }
 
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
@@ -98,7 +86,7 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
             tconfig[KEY_DEVICE_ID] = deviceIDLocal;
         }
 
-        return GetSupportedConfig(tconfig, deviceName);
+        return GetCore()->GetSupportedConfig(deviceName, tconfig);
     };
 
     auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
@@ -133,7 +121,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
     auto tconfig = mergeConfigs(_config, config);
     auto it = tconfig.find("TARGET_FALLBACK");
     if (it == tconfig.end()) {
-        IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+        IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous device";
     }
 
     std::string fallbackDevicesStr = it->second;
@@ -141,7 +129,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
 
     auto function = network.getFunction();
     if (function == nullptr) {
-        IE_THROW() << "HETERO plugin supports just ngraph network representation";
+        IE_THROW() << "HETERO device supports just ngraph network representation";
     }
 
     std::map<std::string, QueryNetworkResult> queryResults;
@@ -189,7 +177,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         }
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, DeviceArchitecture(targetFallback));
     } else {
-        IE_THROW() << "Unsupported Plugin metric: " << name;
+        IE_THROW() << "Unsupported metric key: " << name;
     }
 }
 std::string Engine::DeviceArchitecture(const std::string& targetFallback) const {

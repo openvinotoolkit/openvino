@@ -347,6 +347,18 @@ graph TB
 
 ---
 
+**Name:** softmax<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    exp(Exp) --> reduce(ReduceSum)
+    exp(Exp) --> divide(Divide)
+    reduce_const(Const) --> reduce(ReduceSum)
+    reduce(ReduceSum) --> divide(Divide)
+```
+---
+
 **Name:** softmax_reshape_matmul<br/>
 **Pattern:** <br/>
 
@@ -355,6 +367,20 @@ graph TB
     softmax(SoftMax) --> softmax_1(Reshape)
     softmax_const(Const) --> softmax_1(Reshape)
     softmax_1(Reshape) --> matmul(MatMul)
+    add(Add) --> reshape(Reshape)
+    reshape_const(Const) --> reshape(Reshape)
+    reshape(Reshape) --> transpose(Transpose)
+    transpose(Transpose) --> matmul(MatMul)
+```
+
+---
+
+**Name:** softmax_reshape_transpose_matmul<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    softmax(SoftMax) --> matmul(MatMul)
     add(Add) --> reshape(Reshape)
     reshape_const(Const) --> reshape(Reshape)
     reshape(Reshape) --> transpose(Transpose)

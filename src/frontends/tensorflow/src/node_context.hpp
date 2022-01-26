@@ -1,43 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+#include <openvino/core/any.hpp>
 
 #include "exceptions.hpp"
-#include "openvino/core/any.hpp"
-#include "openvino/core/variant.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
-#include "tensorflow_frontend/utility.hpp"
 #include "types.pb.h"
-
-#define OPENVINO_VARIANT_DECLARATION(TYPE, info)                                          \
-    template <>                                                                           \
-    class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                               \
-    public:                                                                               \
-        OPENVINO_RTTI(info);                                                              \
-        VariantWrapper<TYPE>(const value_type& value) : VariantImpl<value_type>(value) {} \
-    }
-
-namespace ov {
-OPENVINO_VARIANT_DECLARATION(int32_t, "Variant::int32");
-OPENVINO_VARIANT_DECLARATION(uint64_t, "Variant::uint64_t");
-OPENVINO_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
-OPENVINO_VARIANT_DECLARATION(float, "Variant::float");
-OPENVINO_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
-OPENVINO_VARIANT_DECLARATION(bool, "Variant::bool");
-OPENVINO_VARIANT_DECLARATION(ov::element::Type, "Variant::ov_element_type");
-OPENVINO_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
-OPENVINO_VARIANT_DECLARATION(ov::PartialShape, "Variant:ov_PartialShape");
-OPENVINO_VARIANT_DECLARATION(std::vector<std::string>, "Variant::string_vector");
-OPENVINO_VARIANT_DECLARATION(::tensorflow::DataType, "Variant::DataType");
-OPENVINO_VARIANT_DECLARATION(::tensorflow::TensorProto, "Variant::TensorProto");
-}  // namespace ov
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
+
 using InPortName = size_t;
 using OutPortName = size_t;
 using NamedOutputs = std::map<OutPortName, OutputVector>;
@@ -55,11 +31,9 @@ public:
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <typename T>
     T get_attribute(const std::string& name, const T& def) const {
-        auto res = m_decoder.get_attribute(name, VariantWrapper<T>::get_type_info_static());
-        if (res) {
-            auto ret = std::dynamic_pointer_cast<VariantWrapper<T>>(res);
-            FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
-            return ret->get();
+        auto res = m_decoder.get_attribute(name, typeid(T));
+        if (!res.empty()) {
+            return res.as<T>();
         }
         return def;
     }
@@ -67,17 +41,15 @@ public:
     /// Returns node attribute by name
     template <typename T>
     T get_attribute(const std::string& name) const {
-        auto res = m_decoder.get_attribute(name, VariantWrapper<T>::get_type_info_static());
-        FRONT_END_GENERAL_CHECK(res, "Attribute with name '", name, "' does not exist");
-        auto ret = std::dynamic_pointer_cast<VariantWrapper<T>>(res);
-        FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
-        return ret->get();
+        auto res = m_decoder.get_attribute(name, typeid(T));
+        FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
+        return res.as<T>();
     }
 
     /// Check if an attribute of a given name exists
     template <typename T>
     bool has_attribute(const std::string& name) const {
-        return m_decoder.get_attribute(name, VariantWrapper<T>::get_type_info_static()) != nullptr;
+        return !m_decoder.get_attribute(name, typeid(T)).empty();
     }
 
     /// Detects if there is at least one input attached with a given name
@@ -131,6 +103,6 @@ public:
     }
 };
 
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

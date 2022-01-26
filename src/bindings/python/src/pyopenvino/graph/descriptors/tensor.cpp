@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,11 +21,6 @@ void regclass_graph_descriptor_Tensor(py::module m) {
     py::class_<ov::descriptor::Tensor, std::shared_ptr<ov::descriptor::Tensor>> tensor(m, "DescriptorTensor");
 
     tensor.doc() = "openvino.descriptor.Tensor wraps ov::descriptor::Tensor";
-
-    tensor.def(py::init<const ov::element::Type, const ov::PartialShape, const std::string>(),
-               py::arg("element_type"),
-               py::arg("partial_shape"),
-               py::arg("name"));
 
     tensor.def("get_shape",
                &ov::descriptor::Tensor::get_shape,

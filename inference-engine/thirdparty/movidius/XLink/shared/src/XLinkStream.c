@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 
 XLinkError_t XLinkStreamInitialize(
     streamDesc_t* stream, streamId_t id, const char* name) {
-    mvLog(MVLOG_DEBUG, "name: %s, id: %ld\n", name, id);
+    mvLog(MVLOG_DEBUG, "name: %s, id: %u\n", name, id);
     ASSERT_XLINK(stream);
 
     memset(stream, 0, sizeof(*stream));

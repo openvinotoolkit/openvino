@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 
 namespace ngraph {
 namespace op {
-class INFERENCE_ENGINE_API_CLASS(SwishIE) : public Op {
+class SwishIE : public Op {
 public:
     OPENVINO_OP("SwishIE", "legacy");
     BWDCMP_RTTI_DECLARATION;

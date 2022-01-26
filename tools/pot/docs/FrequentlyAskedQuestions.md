@@ -79,7 +79,6 @@ It can happen due to the following reasons:
 
 Quantization time depends on multiple factors such as the size of the model and the dataset. It also depends on the algorithm:
 the [DefaultQuantization](../openvino/tools/pot/algorithms/quantization/default/README.md) algorithm takes less time than the [AccuracyAwareQuantization](../openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md) algorithm.
-The [Tree-Structured Parzen Estimator (TPE)](../openvino/tools/pot/optimization/tpe/README.md) algorithm might take even more time.
 The following configuration parameters also impact the quantization time duration
 (see details in [Post-Training Optimization Best Practices](BestPractices.md)):
 - `use_fast_bias`: when set to `false`, it increases the quantization time

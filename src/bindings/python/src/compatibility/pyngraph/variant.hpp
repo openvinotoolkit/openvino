@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestrin
     py::class_<AnyT<VT>, ov::Any>
         variant_wrapper(m, pyclass_name, py::module_local());
     variant_wrapper.doc() =
-        "openvino.impl.Variant[" + typestring + "] wraps ov::Any with " + typestring;
+        "openvino.runtime.Variant[" + typestring + "] wraps ov::Any with " + typestring;
 
     variant_wrapper.def(py::init<const VT&>());
 
