@@ -63,7 +63,6 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mk
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
             IE_THROW() << errorPrefix << "has incorrect input parameter axis value: " << axis;
     }
-    dataSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
 }
 
 void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
@@ -104,6 +103,7 @@ void MKLDNNGatherNode::prepareParams() {
     srcBatchStride = std::accumulate(srcDims.begin() + batchDims, srcDims.end(), 1, std::multiplies<size_t>());
     idxBatchStride = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1, std::multiplies<size_t>());
     dstBatchStride = std::accumulate(dstDims.begin() + batchDims, dstDims.end(), 1, std::multiplies<size_t>());
+    dataSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
     len = dataLength * dataSize;
     if (dataLength == 0)
         IE_THROW() << errorPrefix << "had incorrect input parameters dimension!";
