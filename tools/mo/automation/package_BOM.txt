@@ -788,6 +788,7 @@ openvino/tools/mo/middle/permute_tensor_iterator.py
 openvino/tools/mo/middle/PoolV2ToAttributedPool.py
 openvino/tools/mo/middle/preprocessing.py
 openvino/tools/mo/middle/PreserveRuntimeInfo.py
+openvino/tools/mo/middle/quantize_dequantize_linear_resolver.py
 openvino/tools/mo/middle/quantize_fuses.py
 openvino/tools/mo/middle/quantize_linear_resolver.py
 openvino/tools/mo/middle/ReluQuantizeFuse.py
