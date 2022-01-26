@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -279,7 +279,6 @@ class TestLoop(OnnxRuntimeLayerTest):
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
     def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir):
-        if ie_device == 'GPU':
-            pytest.skip('Loop not supported on GPU')
+        pytest.skip('The model used in the test is incorrect according to ONNX standart: 70158')
         self._test(*self.create_loop_in_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
                    infer_timeout=150)

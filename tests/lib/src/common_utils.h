@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,6 @@ inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::Ten
   }
 }
 
-
 /**
  * @brief Fill InferenceEngine blob with random values
  */
@@ -110,5 +109,5 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
  * @brief Fill InferRequest blobs with random values or image information
  */
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
-        const InferenceEngine::ConstInputsDataMap& inputsInfo,
-        const size_t& batchSize);
+               const InferenceEngine::ConstInputsDataMap& inputsInfo,
+               const size_t& batchSize);

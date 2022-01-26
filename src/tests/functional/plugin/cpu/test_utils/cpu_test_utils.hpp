@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,7 +137,7 @@ public:
                                                          std::string name);
 
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
-    void CheckPluginRelatedResults(ov::runtime::CompiledModel &execNet, std::string nodeType) const;
+    void CheckPluginRelatedResults(ov::CompiledModel &execNet, std::string nodeType) const;
 
 protected:
     virtual void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const;

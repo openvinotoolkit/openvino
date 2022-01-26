@@ -244,6 +244,8 @@ This error occurs when an incorrect combination of the `--input` and `--input_sh
 
 When using the `PORT:NODE` notation for the `--input` command line argument and `PORT` > 0, you should specify `--input_shape` for this input. This is a limitation of the current Model Optimizer implementation.
 
+**NOTE**: It is no longer relevant message since the limitation on input port index for model truncation has been resolved.
+
 #### 32. What does the message "No or multiple placeholders in the model, but only one shape is provided, cannot set it" mean? <a name="question-32"></a>
 
 Looks like you have provided only one shape for the placeholder, however there are no or multiple inputs in the model. Please, make sure that you have provided correct data for placeholder nodes.
@@ -626,12 +628,14 @@ The issue "SyntaxError: 'yield' inside list comprehension" might occur during co
 The following workarounds are suggested to resolve this issue:
 1. Use Python 3.6/3.7 to convert MXNet\* models on Windows
 2. Update MXNet: pip install mxnet=1.7.0.post2
-Note that you might have conflicts between previously installed PyPI dependencies.m
+Note that you might have conflicts between previously installed PyPI dependencies.
 
 #### 105. What does the message "The IR preparation was executed by the legacy MO path. ..." mean? <a name="question-105"></a>
 
 For the models in ONNX* format, there are two available paths of IR conversion. 
 The old one is handled by the old Python* implementation, while the new one uses new C++ frontends. 
 Starting from the 2022.1 version, the default IR conversion path for ONNX models is processed using the new ONNX frontend. 
-Certain features, such as `--extensions` and `--transformations_config`, are not yet supported on the new frontends. 
+Certain features, such as `--extensions` and `--transformations_config`, are not yet fully supported on the new frontends. 
+For `--extensions`, the new frontends support only paths to shared libraries (.dll and .so). For `--transformations_config`, they support JSON configurations with defined library fields. 
+Inputs freezing (enabled by `--freeze_placeholder_with_value` or `--input` arguments) is not supported on the new frontends. 
 The IR conversion falls back to the old path if a user does not select any expected path of conversion explicitly (by `--use_new_frontend` or `--use_legacy_frontend` MO arguments) and unsupported pre-defined scenario is detected on the new frontend path.

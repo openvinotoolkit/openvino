@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 #include <atomic>
 
 namespace MKLDNNPlugin {
-class MKLDNNInferRequest;
+class MKLDNNInferRequestBase;
 class MKLDNNGraph {
 public:
     typedef std::shared_ptr<MKLDNNGraph> Ptr;
@@ -57,7 +57,7 @@ public:
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
     void PullOutputData(InferenceEngine::BlobMap &out);
 
-    void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
+    void Infer(MKLDNNInferRequestBase* request = nullptr, int batch = -1);
 
     const std::vector<MKLDNNNodePtr>& GetNodes() const {
         return graphNodes;
@@ -233,8 +233,9 @@ protected:
     void ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const;
     void ExecuteConstantNodesOnly() const;
 
+    friend class MKLDNNInferRequestBase;
+    friend class MKLDNNLegacyInferRequest;
     friend class MKLDNNInferRequest;
-    friend class MKLDNNGraphlessInferRequest;
     friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:

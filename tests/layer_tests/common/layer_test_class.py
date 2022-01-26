@@ -1,16 +1,17 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
+import numpy as np
 import os
+import re
 import warnings
+import xml.etree.ElementTree as ET
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from pathlib import Path
 
-import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer
-from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
-
 from common.utils.common_utils import generate_ir
 from common.utils.parsers import mapping_parser
 
@@ -113,6 +114,31 @@ class CommonLayerTest:
                                                       mapping_dict=mapping_dict, framework_eps=fw_eps), \
             "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res, fw_res)
 
+        if len(inputs_dict.keys()) > 1 or len(infer_res.keys()) > 1:
+            tree = ET.parse(path_to_xml)
+            # findall returns elements in document order, this order should be the same as
+            # order of inputs/outputs in original model
+            inputs_ie = [child for child in tree.findall('.//layer[@type="Parameter"]')]
+            outputs_ie = [child for child in tree.findall('.//layer[@type="Result"]')]
+
+            if 'input_names' in kwargs:
+                input_names = kwargs['input_names']
+                for i, input_name in enumerate(input_names):
+                    assert inputs_ie[i].attrib['name'] == input_name, \
+                        'Input order does not match framework order. Input with index {} is {}, ' \
+                        'but expected {}'.format(i, inputs_ie[i].attrib['name'], input_name)
+
+            if 'output_names' in kwargs:
+                output_names = kwargs['output_names']
+                for i, output_name in enumerate(output_names):
+                    output_name_ie = outputs_ie[i].attrib['name']
+                    output_without_sink_port = re.sub(r'\/sink_port_.', '', output_name_ie)
+
+                    assert output_without_sink_port == output_name, \
+                        'Output order does not match framework order. Output with index {} is {}, ' \
+                        'but expected {}'.format(i, output_without_sink_port, output_name)
+
+
     # Feed dict for each input is filled with random number.
     # It is possible to redefine this function and generate your own input
     def _prepare_input(self, inputs_dict):
@@ -124,10 +150,13 @@ class CommonLayerTest:
         is_ok = True
         from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
-            if framework_out_name not in mapping_dict:
-                raise RuntimeError("Output {} not found in mapping file!".format(framework_out_name))
 
-            ie_out_name = mapping_dict[framework_out_name]
+            if framework_out_name not in list(infer_res.keys()):
+                if framework_out_name not in mapping_dict:
+                    raise RuntimeError("Output {} not found in mapping file!".format(framework_out_name))
+                ie_out_name = mapping_dict[framework_out_name]
+            else:
+                ie_out_name = framework_out_name
 
             if not allclose(infer_res[ie_out_name], framework_res[framework_out_name], atol=framework_eps,
                             rtol=framework_eps):

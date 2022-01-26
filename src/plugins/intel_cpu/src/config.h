@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,14 +39,34 @@ struct Config {
     bool manualEnforceBF16 = false;
 #endif
 
-#ifdef CPU_DEBUG_CAPS
-    DebugCaps::Config debugCaps;
-#endif
     std::string cache_dir{};
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();
     std::map<std::string, std::string> _config;
+
+#ifdef CPU_DEBUG_CAPS
+    enum FILTER {
+        BY_PORTS,
+        BY_EXEC_ID,
+        BY_TYPE,
+        BY_NAME,
+    };
+
+    enum class FORMAT {
+        BIN,
+        TEXT,
+    };
+
+    std::string execGraphPath;
+    std::string verbose;
+    std::string blobDumpDir = "mkldnn_dump";
+    FORMAT blobDumpFormat = FORMAT::TEXT;
+    // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
+    std::unordered_map<FILTER, std::string, std::hash<int>> blobDumpFilters;
+
+    void readDebugCapsProperties();
+#endif
 };
 
 }  // namespace MKLDNNPlugin

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,44 +6,96 @@ import numpy as np
 from openvino.tools.mo.back.ReshapeMutation import ReshapeMutation
 from openvino.tools.mo.back.ReverseInputChannels import ApplyReverseChannels
 from openvino.tools.mo.back.replacement import BackReplacementPattern
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
-from openvino.tools.mo.front.common.partial_infer.utils import shape_array, is_fully_defined, int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, is_fully_defined, int64_array, mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.elementwise import Div
+from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.shape import Shape
 from openvino.tools.mo.ops.strided_slice import StridedSlice
 from openvino.tools.mo.utils.error import Error
 
 
 def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
+    node_name = node.soft_get('name', node.id)
     input_shape = node.in_port(0).data.get_shape()
     assert len(input_shape) in [3, 4, 5]
 
     weights_shape = node.in_port(1).data.get_shape()
     assert weights_shape is not None
     assert len(weights_shape) in [3, 4, 5]
+    group = int64_array(group).item()
     assert weights_shape[0] % group == 0
 
     if ir_version == 'V7':
         if weights_shape[0] == node.output:
             # weights are already is in [G*O I X Y] format
             return
-        new_shape = shape_array([node.output, -1, *weights_shape[2:]])
+
+        num_spatial_dims = len(weights_shape[2:])
+        # Reshape has special_zero=True, if zeros are set then original shapes are copied
+        zeros_to_copy_spatial_dims = np.zeros(num_spatial_dims)
+        new_shape = shape_array([node.output, -1, *zeros_to_copy_spatial_dims])
+        reshape = create_op_node_with_second_input(node.graph, Reshape, new_shape,
+                                                   {'override_output_shape': True})
     elif ir_version == 'V10':
-        # TODO rewrite this transformation to generate a shape-computing sub-graph. Ticket 62076
         I = input_shape[1]
-        new_shape = shape_array([group, node.output // group, I // group, *weights_shape[2:]])
-        assert is_fully_defined(weights_shape[2:]) and is_fully_defined(I) and \
-               np.prod(weights_shape) == np.prod(new_shape), 'Initial weights shape {}, grouped weights shape {}' \
-                                                             ''.format(weights_shape, new_shape)
+        if is_fully_defined(weights_shape[2:]) and is_fully_defined(I):
+            new_shape = shape_array([group, node.output // group, I // group, *weights_shape[2:]])
+            assert np.prod(weights_shape) == np.prod(new_shape), 'Initial weights shape {}, grouped weights shape {}' \
+                                                                 ''.format(weights_shape, new_shape)
+            reshape = create_op_node_with_second_input(node.graph, Reshape, new_shape,
+                                                       {'override_output_shape': True, 'special_zero': True})
+        else:
+            # if weights/or input channel dimension is dynamic need to to compute new_shape in a new subgraph
+            weights_node = node.in_port(1).get_source().node
+            input_node = node.in_port(0).get_source().node
+
+            weights_shape = Shape(node.graph, {'name': node_name + '/ShapeOfWeights'}).create_node()
+            weights_shape.in_port(0).connect(weights_node.out_port(0))
+
+            weights_spatial_shape = create_op_with_const_inputs(node.graph, StridedSlice,
+                                                                port_value_dict={1: int64_array([2]),
+                                                                                 2: int64_array([-1])},
+                                                                op_attrs={'begin_mask': [1],
+                                                                          'end_mask': [0],
+                                                                          'new_axis_mask': [0],
+                                                                          'shrink_axis_mask': [0],
+                                                                          'ellipsis_mask': [0]},
+                                                                input_node=weights_shape)
+
+            const_part_of_shape = Const(node.graph, attrs=dict(name=node_name + '/GroupsAndOutputChannelsSize',
+                                                               value=int64_array(
+                                                                   [group, node.output // group]))).create_node()
+
+            input_shape_node = Shape(node.graph, {'name': node_name + '/ShapeOfInput'}).create_node()
+            input_shape_node.in_port(0).connect(input_node.out_port(0))
+
+            input_num_channels = create_op_with_const_inputs(node.graph, Gather,
+                                                             port_value_dict={1: int64_array([1]), 2: int64_array(0)},
+                                                             op_attrs={'name': node_name + '/GatherInputNumChannels'},
+                                                             input_node=input_shape_node)
+
+            # input channels num divided by number of groups to alight weights shape into [GROUPS C_OUT C_IN X Y]
+            C_IN = create_op_with_const_inputs(node.graph, Div,
+                                               port_value_dict={1: int64_array(group)},
+                                               op_attrs={'name': node_name + '/Div'},
+                                               input_node=input_num_channels)
+
+            new_shape_node = Concat(node.graph, {'axis': 0, 'in_ports_count': 3}).create_node()
+            new_shape_node.in_port(0).connect(const_part_of_shape.out_port(0))
+            new_shape_node.in_port(1).connect(C_IN.out_port(0))
+            new_shape_node.in_port(2).connect(weights_spatial_shape.out_port(0))
+            reshape = Reshape(node.graph, {'override_output_shape': True, 'special_zero': True}).create_node()
+            reshape.in_port(1).connect(new_shape_node.out_port(0))
+
         del node['group']
         node['type'] = 'GroupConvolution'
     else:
         raise Error("Unknown IR version: {}".format(ir_version))
-
-    reshape = create_op_node_with_second_input(node.graph, Reshape, int64_array(new_shape),
-                                               {'override_output_shape': True})
 
     node.in_port(1).get_connection().insert_node(reshape)
 
@@ -104,7 +156,8 @@ class ConvolutionWithGroupsResolver(BackReplacementPattern):
     force_clean_up = True
 
     def run_before(self):
-        return [ReshapeMutation]
+        from openvino.tools.mo.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
+        return [ReshapeMutation, StridedSliceMasksNormalizer]
 
     def run_after(self):
         return [ApplyReverseChannels]

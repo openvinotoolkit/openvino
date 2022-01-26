@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -18,7 +18,8 @@ __HARDWARE_CONFIGS_MAP = {'ANY': 'cpu.json',
                           'CPU': 'cpu.json',
                           'GNA': 'gna.json',
                           'GPU': 'cpu.json',
-                          'VPU': 'vpu.json'}
+                          'VPU': 'vpu.json',
+                          'CPU_SPR': 'cpu.json'}
 
 
 def load_hardware_config(config):

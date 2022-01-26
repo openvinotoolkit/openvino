@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -499,8 +499,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return ::testing::AssertionSuccess();
 }
 
-::testing::AssertionResult test::all_close_f(const ov::runtime::Tensor& a,
-                                             const ov::runtime::Tensor& b,
+::testing::AssertionResult test::all_close_f(const ov::Tensor& a,
+                                             const ov::Tensor& b,
                                              int tolerance_bits,
                                              float min_signal) {
     return test::all_close_f(std::make_shared<runtime::HostTensor>(a.get_element_type(), a.get_shape(), a.data()),
@@ -509,8 +509,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
                              min_signal);
 }
 
-::testing::AssertionResult test::all_close_f(const std::vector<ov::runtime::Tensor>& as,
-                                             const std::vector<ov::runtime::Tensor>& bs,
+::testing::AssertionResult test::all_close_f(const std::vector<ov::Tensor>& as,
+                                             const std::vector<ov::Tensor>& bs,
                                              int tolerance_bits,
                                              float min_signal) {
     if (as.size() != bs.size()) {

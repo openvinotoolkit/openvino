@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,14 +18,14 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/infer_request.hpp"
-#include "openvino/runtime/parameter.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 namespace InferenceEngine {
 class IExecutableNetworkInternal;
 }  // namespace InferenceEngine
+
 namespace ov {
-namespace runtime {
 
 class Core;
 class InferRequest;
@@ -47,8 +47,10 @@ class OPENVINO_RUNTIME_API CompiledModel {
      */
     CompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl,
                   const std::shared_ptr<void>& so);
-    friend class ov::runtime::Core;
-    friend class ov::runtime::InferRequest;
+    friend class ov::Core;
+    friend class ov::InferRequest;
+
+    void get_property(const std::string& name, ov::Any& to) const;
 
 public:
     /**
@@ -62,7 +64,7 @@ public:
     ~CompiledModel();
 
     /**
-     * @brief Get executable model information from a device
+     * @brief Get runtime model information from a device
      * This object represents the internal device specific model which is optimized for particular
      * accelerator. It contains device specific nodes, runtime information and can be used only
      * to understand how the source model is optimized and which kernels, element types and layouts
@@ -152,41 +154,59 @@ public:
 
     /**
      * @brief Exports the current compiled model to an output stream `std::ostream`.
-     * The exported model can also be imported via ov::runtime::Core::import_model method
-     * @see ov::runtime::Core::import_model
+     * The exported model can also be imported via ov::Core::import_model method
+     * @see ov::Core::import_model
      * @param model_stream Output stream to store the model to
      */
     void export_model(std::ostream& model_stream);
 
     /**
-     * @brief Sets configuration for current compiled model
-     * @param config Map of pairs: (config parameter name, config parameter value)
+     * @brief Sets properties for current compiled model
+     *
+     * @param properties Map of pairs: (property name, property value)
      */
-    void set_config(const ParamMap& config);
+    void set_property(const AnyMap& properties);
 
-    /** @brief Gets configuration for a compiled model.
+    /**
+     * @brief Sets properties for current compiled model
+     *
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param properties Optional pack of pairs: (property name, property value)
+     * @return nothing
+     */
+    template <typename... Properties>
+    util::EnableIfAllProperties<void, Properties...> set_property(Properties&&... properties) {
+        set_property(AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /** @brief Gets properties for current compiled model
      *
      * The method is responsible to extract information
      * which affects compiled model inference. The list of supported configuration values can be extracted via
-     * CompiledModel::get_metric with the SUPPORTED_CONFIG_KEYS key, but some of these keys cannot be changed
-     * dynamically, e.g. DEVICE_ID cannot changed if a compiled model has already been compiled for particular
+     * CompiledModel::get_property with the ov::supported_properties key, but some of these keys cannot be changed
+     * dynamically, e.g. ov::device::id cannot changed if a compiled model has already been compiled for particular
      * device.
      *
-     * @param key_name config key, can be found in ie_plugin_config.hpp
-     * @return Configuration parameter value
+     * @param name property key, can be found in openvino/runtime/properties.hpp
+     * @return Property value
      */
-    Any get_config(const std::string& key_name) const;
+    Any get_property(const std::string& name) const;
 
     /**
-     * @brief Gets general runtime metric for a compiled model.
+     * @brief Gets properties dedicated to device behaviour.
      *
-     * It can be model name, actual device ID on
-     * which compiled model is running or all other properties which cannot be changed dynamically.
+     * The method is targeted to extract information which can be set via set_property method.
      *
-     * @param metric_name metric name to request
-     * @return Metric parameter value
+     * @tparam T - type of returned value
+     * @param property  - property  object.
+     * @return Value of property.
      */
-    Any get_metric(const std::string& metric_name) const;
+    template <typename T, PropertyMutability mutability>
+    T get_property(const ov::Property<T, mutability>& property) const {
+        auto to = Any::make<T>();
+        get_property(property.name(), to);
+        return to.template as<T>();
+    }
 
     /**
      * @brief Returns pointer to device-specific shared context
@@ -208,5 +228,8 @@ public:
     explicit operator bool() const noexcept;
 };
 
+namespace runtime {
+using ov::CompiledModel;
 }  // namespace runtime
+
 }  // namespace ov

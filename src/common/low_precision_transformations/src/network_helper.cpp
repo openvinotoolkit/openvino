@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1776,7 +1776,8 @@ std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelpe
     }
     for (size_t i = 0; i < currConstants.size(); ++i) {
         std::vector<std::shared_ptr<ngraph::opset1::Constant>> newConstant;
-        if (currConstants[i]->output(0).get_shape()[concat_axis] == 1) {
+        const auto const_shape = currConstants[i]->get_shape();
+        if (ov::shape_size(const_shape) == 1 || const_shape[concat_axis] == 1) {
             newConstant.push_back(currConstants[i]);
             newConstants[i] = newConstant;
             continue;

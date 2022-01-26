@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 try:
@@ -42,13 +42,19 @@ class TFLoader(Loader):
                 log.info('Loading library "{}" with custom operations'.format(library))
                 tf_v1.load_op_library(library)
 
-        graph_def, variables_values, framework = load_tf_graph_def(graph_file_name=argv.input_model,
-                                                                   is_binary=not argv.input_model_is_text,
-                                                                   checkpoint=argv.input_checkpoint,
-                                                                   user_output_node_names_list=argv.output,
-                                                                   model_dir=argv.saved_model_dir,
-                                                                   meta_graph_file=argv.input_meta_graph,
-                                                                   saved_model_tags=argv.saved_model_tags)
+        graph_def, variables_values, framework, inputs_outputs_order = load_tf_graph_def(
+            graph_file_name=argv.input_model,
+            is_binary=not argv.input_model_is_text,
+            checkpoint=argv.input_checkpoint,
+            user_output_node_names_list=argv.output,
+            model_dir=argv.saved_model_dir,
+            meta_graph_file=argv.input_meta_graph,
+            saved_model_tags=argv.saved_model_tags)
+
+        if inputs_outputs_order is not None and isinstance(inputs_outputs_order, tuple):
+            graph.inputs_order = inputs_outputs_order[0]
+            graph.outputs_order = inputs_outputs_order[1]
+
         send_framework_info(framework)
 
         try:

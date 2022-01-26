@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,6 +104,8 @@ op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
     : Op({image, output_shape, scales}),
       m_attrs(attrs) {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 

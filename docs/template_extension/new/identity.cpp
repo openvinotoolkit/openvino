@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ bool Identity::visit_attributes(ov::AttributeVisitor& visitor) {
 //! [op:visit_attributes]
 
 //! [op:evaluate]
-bool Identity::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const {
+bool Identity::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     auto in = inputs[0];
     auto out = outputs[0];
     out.set_shape(in.get_shape());

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -181,6 +181,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
     manager.register_pass<vpu::ConvertGatherND8ToGatherND5>();
     manager.register_pass<vpu::MergeGatherGatherElements>();

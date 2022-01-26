@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "behavior/ov_executable_network/exec_graph_info.hpp"
-#include "api_conformance_helpers.hpp"
+#include "ov_api_conformance_helpers.hpp"
 
 #include "ie_plugin_config.hpp"
 #include <common_test_utils/test_constants.hpp>
 
+
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
-
 namespace {
 const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
         ov::element::i8,
@@ -29,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                 ::testing::ValuesIn(emptyConfig)),
+                                 ::testing::ValuesIn(empty_config)),
                          OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
@@ -37,7 +37,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI))),
                          OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
@@ -45,14 +45,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
         ::testing::Combine(
                 ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO))),
         OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
          OVExecGraphImportExportTest,
         ::testing::Combine(::testing::ValuesIn(ovExecGraphInfoElemTypes),
                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                           ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
+                           ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_HETERO))),
         OVExecGraphImportExportTest::getTestCaseName);
 
 }  // namespace

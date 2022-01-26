@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,9 @@ const std::vector<std::pair<std::vector<std::size_t>, int>> inputShapes = {
 
 const std::vector<InferenceEngine::Precision> networkPrecisions = {
     InferenceEngine::Precision::I32,
+    InferenceEngine::Precision::U32,
+    InferenceEngine::Precision::I64,
+    InferenceEngine::Precision::U64,
     InferenceEngine::Precision::FP32,
 };
 
@@ -77,8 +80,8 @@ private:
         const auto& inputShape       = std::get<1>(params).first;
         const auto& axis             = std::get<1>(params).second;
         const auto& networkPrecision = std::get<2>(params);
-        const auto& inputPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-        const auto& outputPrecision  = InferenceEngine::Precision::UNSPECIFIED;
+        const auto& inputPrecision   = networkPrecision;
+        const auto& outputPrecision  = networkPrecision;
         const auto& inputLayout      = InferenceEngine::Layout::ANY;
         const auto& outputLayout     = InferenceEngine::Layout::ANY;
 

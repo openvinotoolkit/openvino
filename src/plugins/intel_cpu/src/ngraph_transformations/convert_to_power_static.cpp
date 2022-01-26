@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,11 +58,10 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
 template <>
 bool isConvertableToPowerStatic(const std::shared_ptr<ngraph::opset1::Power> &node) {
     auto input_rank = node->get_input_partial_shape(0).rank();
-    auto const_shape = node->get_input_shape(1);
     if (input_rank.is_dynamic())
         return false;
-    return std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1)) != nullptr &&
-           input_rank.get_length() >= const_shape.size() && ngraph::shape_size(const_shape) == 1;
+    auto const_node =  std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1));
+    return const_node && input_rank.get_length() >= const_node->get_shape().size() && ngraph::shape_size(const_node->get_shape()) == 1;
 }
 
 template <class BaseOp>

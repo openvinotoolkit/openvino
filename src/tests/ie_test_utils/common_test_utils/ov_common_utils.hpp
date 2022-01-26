@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,10 @@
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/function.hpp>
 #include <openvino/core/any.hpp>
+#include <openvino/runtime/common.hpp>
 
 namespace ov {
-namespace test {
     static void PrintTo(const Any& any, std::ostream* os) {
         any.print(*os);
     }
-}  // namespace test
 }  // namespace ov
