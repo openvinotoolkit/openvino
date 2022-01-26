@@ -62,11 +62,6 @@ OutputVector conv(const Node& node,
     if (ngraph::op::is_null(bias)) {
         return {conv_node};
     } else {
-        const auto& bias_ps = bias.get_partial_shape();
-
-        NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
-                     "The bias input needs to be 1D vector");
-
         return {add_bias(conv_node, bias)};
     }
 }
