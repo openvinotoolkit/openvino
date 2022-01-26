@@ -16,6 +16,7 @@ using namespace MKLDNNPlugin;
 
 MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const std::deque<MKLDNNMemoryPtr>& to,
                                            const mkldnn::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
+    size = 0;
     if (srcMemPtr->getDesc().isDefined())
         size = srcMemPtr->GetSize();
 }

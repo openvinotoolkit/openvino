@@ -332,7 +332,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
 void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false) {
     mkldnn::post_ops ops;
-    bool useLegacyPostOps = true; // @todo remove after issue with performance of binary post ops fixed
+    const bool useLegacyPostOps = true; // @todo remove after issue with performance of binary post ops fixed
 
     auto getBinPostOpShape = [&](){
         const auto outShape = getOutputShapeAtPort(0).getStaticDims();
