@@ -22,7 +22,7 @@ const std::vector<ov::AnyMap> configs = {
     {}
 };
 
-const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
+const std::vector<ov::AnyMap> HeteroConfigs = {
     {{"TARGET_FALLBACK", "MYRIAD,CPU"}}
 };
 
