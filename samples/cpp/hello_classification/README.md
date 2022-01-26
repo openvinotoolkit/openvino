@@ -1,29 +1,29 @@
 # Hello Classification C++ Sample {#openvino_inference_engine_samples_hello_classification_README}
 
-This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API, input auto-resize feature and support of UNICODE paths.
+This sample demonstrates how to do inference of image classification networks using Synchronous Inference Request API.  
+Models with only 1 input and output are supported.
 
-Hello Classification C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
+The following Inference Engine C++ API is used in the application:
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-| Basic Infer Flow | `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: configure input and output tensors, reading model, create infer request
+| OpenVINO Runtime Version | `ov::get_openvino_version` | Get Openvino API version |
+| Basic Infer Flow | `ov::Core`, `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: configure input and output tensors, reading and compile model, create infer request
 | Synchronous Infer | `ov::InferRequest::infer` | Do synchronous inference
-| Model Operations | `ov::Model::inputs`, `ov::Model::outputs` |  Managing of model
-| Tensor Operations| `ov::Tensor::get_element_type`, `ov::Tensor::get_shape`, `ov::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
-| Input auto-resize | `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputInfo::model::set_layout` | Set image of the original size as input for a model with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference
+| Model Operations | `ov::Model::inputs`, `ov::Model::outputs` | Get inputs and outputs of the model |
+| Tensor Operations| `ov::Tensor`, `ov::Tensor::get_shape` | Work with input tensor |
+| Preprocessing     | `ov::preprocess::PrePostProcessor`, `ov::preprocess::InputTensorInfo::set_element_type`, `ov::preprocess::InputTensorInfo::set_layout`, `ov::preprocess::InputTensorInfo::set_spatial_static_shape`, `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputModelInfo::set_layout`, `ov::preprocess::OutputTensorInfo::set_element_type`, `ov::preprocess::PrePostProcessor::build` | Set image of the original size as input for a model with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference |
 
 | Options  | Values |
 |:---                              |:---
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
-| Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C](../../../samples/c/hello_classification/README.md), [Python](../../../samples/python/hello_classification/README.md) |
 
 ## How It Works
 
-Upon the start-up, the sample application reads command line parameters, loads specified network and an image to the Inference Engine plugin.
-Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin and performs synchronous inference. Then processes output data and write it to a standard output stream.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
@@ -62,7 +62,7 @@ python <path_to_omz_tools>/converter.py --name alexnet
 3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
 
 ```
-<path_to_sample>/hello_classification <path_to_model>/alexnet.xml <path_to_image>/car.bmp GPU
+hello_classification alexnet.xml car.bmp GPU
 ```
 
 ## Sample Output
@@ -72,22 +72,20 @@ The application outputs top-10 inference results.
 ```
 Top 10 results:
 
-Image /opt/intel/openvino/samples/scripts/car.png
+Image \images\car.bmp
 
 classid probability
 ------- -----------
-656     0.6664789
-654     0.1129405
-581     0.0684867
-874     0.0333845
-436     0.0261321
-817     0.0167310
-675     0.0109796
-511     0.0105919
-569     0.0081782
-717     0.0063356
-
-This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+656     0.6655273
+654     0.1129761
+581     0.0685425
+874     0.0344849
+436     0.0256042
+817     0.0171967
+675     0.0109482
+511     0.0106812
+569     0.0081253
+717     0.0061836
 ```
 
 ## See Also
