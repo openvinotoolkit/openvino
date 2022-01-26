@@ -62,7 +62,7 @@ struct IdleGuard {
     }
     ~IdleGuard() {
         if (nullptr != _notBusyWorkerRequests) {
-            _notBusyWorkerRequests->try_push(_workerInferRequestPtr);
+            _notBusyWorkerRequests->try_push(std::make_pair(_workerInferRequestPtr->_index, _workerInferRequestPtr));
         }
     }
     MultiDeviceExecutableNetwork::NotBusyWorkerRequests* Release() {
@@ -118,10 +118,12 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
+    int num = 0;
     for (auto&& workerRequest : workerRequests) {
         workerRequest._inferRequest = {executableNetwork->CreateInferRequest(), executableNetwork._so};
         auto* workerRequestPtr = &workerRequest;
-        IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
+        workerRequestPtr->_index = num++;
+        IE_ASSERT(idleWorkerRequests.try_push(std::make_pair(workerRequestPtr->_index, workerRequestPtr)) == true);
         workerRequest._inferRequest->SetCallback(
             [workerRequestPtr, this, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
                 IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
@@ -131,7 +133,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                     capturedTask();
                 }
                 // try to return the request to the idle list (fails if the overall object destruction has began)
-                if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                if (idleGuard.Release()->try_push(std::make_pair(workerRequestPtr->_index, workerRequestPtr))) {
                     // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                     // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                     Task t;
@@ -279,8 +281,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 // late enough to check the idle queue now
                 // second, check the idle queue if all requests are in place
                 size_t destroynum = 0;
-                WorkerInferRequest *workerRequestPtr = nullptr;
-                while (_idleWorkerRequests["CPU_HELP"].try_pop(workerRequestPtr))
+                std::pair<int, WorkerInferRequest*> worker;
+                while (_idleWorkerRequests["CPU_HELP"].try_pop(worker))
                     destroynum++;
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(_confMutex);
@@ -473,7 +475,9 @@ bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
                                             NotBusyWorkerRequests& idleWorkerRequests,
                                             const DeviceName& preferred_device) {
   WorkerInferRequest *workerRequestPtr = nullptr;
-  if (idleWorkerRequests.try_pop(workerRequestPtr)) {
+  std::pair<int, WorkerInferRequest*> worker;
+  if (idleWorkerRequests.try_pop(worker)) {
+      workerRequestPtr = worker.second;
       IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
       _thisWorkerInferRequest = workerRequestPtr;
       {
@@ -697,21 +701,45 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 std::unique_lock<std::mutex> lock(_confMutex);
                 auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
                 lock.unlock();
-                if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
+                unsigned int optimalBatchSize = 0;
+                unsigned int requests = 0;
+                std::map<std::string, InferenceEngine::Parameter> options;
+                options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
+                try {
+                    optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
+                                    METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+                    LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size", optimalBatchSize);
+                } catch (...) {
+                    LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
+                }
+                if (optimalBatchSize > 1) {
                     const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
-                    if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
-                         std::map<std::string, InferenceEngine::Parameter> options;
-                         options["MODEL_PTR"] = _network.getFunction(); // CNNntework
-                         try {
-                             auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
-                                     METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-                             auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
-                                     METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
-                             real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);
-                         } catch (const InferenceEngine::Exception &iie) {
-                             LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
-                         }
+                    try {
+                        // for benchmark through AUTO:CPU,GPU
+                        // SetConfig directly set to CPU/GPU in this case
+                        auto bThroughputEnabledInPlugin =
+                            _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+                        if (bThroughputEnabledInPlugin ||
+                            (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
+                            // check if app have set preferred value
+                            auto res =
+                                _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+                            requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
+                            const auto& reqs = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+                            if (reqs != deviceInfo.config.end())
+                                requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
+                            LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "user requested size", requests);
+                            if (!requests) { // no limitations from user
+                                auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
+                                                        METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                                requests = optimalBatchSize * std::get<1>(rangeOfStreams);
+                                LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "deduced size:", requests);
+                            }
+                        }
+                    } catch (const InferenceEngine::Exception &iie) {
+                            LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for auto-batch failed :%s", iie.what());
                     }
+                    real = (std::max)(real, (std::max)(requests, optimalBatchSize));
                 }
             }
             unsigned int res = (std::max)(8u, real);
