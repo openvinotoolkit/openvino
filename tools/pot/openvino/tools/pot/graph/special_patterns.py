@@ -145,6 +145,15 @@ def create_softmax_pattern():
 
 
 @registry_ignore_patterns('blocks')
+def create_softmax_div_pattern():
+    pattern = PatternBuilder()
+    exp_out = pattern.append_single_op('Exp', 'exp').get_last_node()
+    reduce_out = pattern.append_op_const('ReduceSum', 'reduce').get_last_node()
+    pattern.insert_single_op([exp_out, reduce_out], None, 'Divide', 'div')
+    return pattern.set_name('softmax_div').pattern
+
+
+@registry_ignore_patterns('blocks')
 def create_softmax_reshape_matmul_pattern():
     pattern = PatternBuilder()
     pattern_2 = PatternBuilder()

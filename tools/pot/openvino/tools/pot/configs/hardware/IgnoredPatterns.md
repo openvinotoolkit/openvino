@@ -347,6 +347,18 @@ graph TB
 
 ---
 
+**Name:** softmax<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    exp(Exp) --> reduce(ReduceSum)
+    exp(Exp) --> divide(Divide)
+    reduce_const(Const) --> reduce(ReduceSum)
+    reduce(ReduceSum) --> divide(Divide)
+```
+---
+
 **Name:** softmax_reshape_matmul<br/>
 **Pattern:** <br/>
 
