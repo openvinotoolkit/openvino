@@ -10,7 +10,7 @@ If you are planning to develop your own inference solutions, install OpenVINO Mo
 
 From 2022.1 release, the OpenVINO Developer Tools can only be installed via PyPI.
 
-## For C++ users
+## For C++ developers
 
 You can install OpenVINO Model Development Tools via either of the following ways:
 
@@ -19,13 +19,13 @@ You can install OpenVINO Model Development Tools via either of the following way
     1. If you have installed OpenVINO Runtime from an installer, APT or YUM repository, you can find a set of requirements files in `<installdir>\tools\` directory.
     2. You can manually install the same version of OpenVINO Model Development Tools by using the requirements files.
     To install mandatory requirements only, use the following command:
-    ```
-    pip install -r <installdir>\tools\requirements.txt
-    ```
+       ```
+       pip install -r <installdir>\tools\requirements.txt
+       ```
     3. Make sure that you also install your additional frameworks with the corresponding requirements files. For example, if you are using a TensorFlow model, use the following command to install requirements for TensorFlow:
-    ```
-    pip install -r <installdir>\tools\requirements_tensorflow2.txt
-    ```
+       ```
+       pip install -r <installdir>\tools\requirements_tensorflow2.txt
+       ```
 
 * Install from the openvino-dev package
 
@@ -38,10 +38,12 @@ You can install OpenVINO Model Development Tools via either of the following way
 
     >**Note**
     >* If you have installed OpenVINO Runtime via the installer, to avoid version conflicts, specify your version in the command:
-    `pip install openvino-dev[EXTRAS]==<version>` 
+        ```
+        pip install openvino-dev[EXTRAS]==<version>
+        ``` 
     >* For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
 
-## For Python users
+## For Python developers
 
 You can use the following command to install the latest package version available in the index:
 ```
