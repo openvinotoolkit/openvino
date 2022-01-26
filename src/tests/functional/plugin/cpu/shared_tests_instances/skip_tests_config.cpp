@@ -173,6 +173,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 75022
         R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
         R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
+        // Issue: 76369
+        // Not supported Gather operation version. CPU plug-in supports only 7 version.
+        R"(.*smoke_SequenceCPUTest.*)",
     };
 
 #define FIX_62820 0
