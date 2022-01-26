@@ -6,6 +6,7 @@
 #include "mask_attribute.hpp"
 
 #include <algorithm>
+#include <memory>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -225,42 +226,49 @@ public:
             }
             auto weights_mask_row = weights_mask.get();
 
-            if (auto input_mask = getMask(m_input)) {
-                auto input_mask_row = input_mask.get();
+            // Create output mask that describes which channel dimensions will be removed
+            auto conv_mask = std::make_shared<Mask>(m_weights.get_shape().size());
+            auto conv_mask_row = conv_mask.get();
+            auto input_mask = getMask(m_input);
+            Mask* input_mask_row = nullptr;
+            if (input_mask)
+                input_mask_row = input_mask.get();
+
+            const auto conv_mask_callback = [input_mask_row, weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                    cur_mask->at(1/*input data channel*/) = weights_mask_row->at(0 /* weights output channel dim*/);
+                    if (input_mask_row && input_mask_row->at(1) != weights_mask_row->at(1))
+                        cur_mask->initialize_dependencies();
+                    return true;
+            };
+
+            if (input_mask) {
                 // Weights input channel is connected to the convolution input channel dimension
                 // so we update weights mask to be aligned with input shape.
-                weights_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
-                    cur_mask->at(1/* weights input channel */) = input_mask_row->at(1 /* input data channel */);
-                    return true;
-                }, input_mask);
+                conv_mask->add_callback(conv_mask_callback, input_mask);
 
                 input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(1) = weights_mask_row->at(1);
                     return true;
-                }, weights_mask);
-
-                if (!weights_mask->apply_callback(input_mask)) {
-                    return false;
-                }
+                }, conv_mask);
             }
 
-            // Create output mask that describes which channel dimensions will be removed
-            auto conv_mask = std::make_shared<Mask>(m_weights.get_shape().size());
-            auto conv_mask_row = conv_mask.get();
+            conv_mask->add_callback(conv_mask_callback, weights_mask);
 
-            conv_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(1) = weights_mask_row->at(0/*weights output channel dim */);
-                return true;
-            }, weights_mask);
-
-            weights_mask->add_callback([conv_mask_row](Mask::Ptr cur_mask) -> bool {
+            weights_mask->add_callback([input_mask_row, conv_mask_row](Mask::Ptr cur_mask) -> bool {
                 cur_mask->at(0) = conv_mask_row->at(1);
+                if (input_mask_row)
+                    cur_mask->at(1) = input_mask_row->at(1);
                 return true;
             }, conv_mask);
 
-            if (!conv_mask->apply_callback(weights_mask)) {
+            bool status;
+            if (input_mask)
+                status = conv_mask->apply_callback(input_mask);
+            else
+                status = conv_mask->apply_callback(weights_mask);
+
+            if (!status)
                 return false;
-            }
 
             setMask(m_output, conv_mask);
             return true;
@@ -310,37 +318,30 @@ public:
             }
             auto weights_mask_row = weights_mask.get();
 
-            // Weights input channel is connected to the convolution input channel dimension
-            // so we update weights mask to be aligned with input shape.
-            weights_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(0) = input_mask_row->at(1);
-                return true;
-            }, input_mask);
+            const auto conv_mask_callback = [input_mask_row, weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                    cur_mask->at(1/*input data channel*/) = weights_mask_row->at(0 /* weights output channel dim*/);
+                    if (input_mask_row && input_mask_row->at(1) != weights_mask_row->at(1))
+                        cur_mask->initialize_dependencies();
+                    return true;
+            };
 
-            input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(1) = weights_mask_row->at(0);
-                return true;
-            }, weights_mask);
-
-            if (!weights_mask->apply_callback(input_mask)) {
-                return false;
-            }
-
-            // Update output channels mask dims
             auto conv_mask = std::make_shared<Mask>(input_shape.rank().get_length());
             auto conv_mask_row = conv_mask.get();
 
-            conv_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(1) = weights_mask_row->at(0);
-                return true;
-            }, weights_mask);
-
-            weights_mask->add_callback([conv_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(0) = conv_mask_row->at(1);
+            conv_mask->add_callback(conv_mask_callback, input_mask);
+            input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(1) = weights_mask_row->at(1);
                 return true;
             }, conv_mask);
 
-            if (!conv_mask->apply_callback(weights_mask)) {
+            conv_mask->add_callback(conv_mask_callback, weights_mask);
+            weights_mask->add_callback([input_mask_row, conv_mask_row](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(0) = conv_mask_row->at(1);
+                cur_mask->at(1) = input_mask_row->at(1);
+                return true;
+            }, conv_mask);
+
+            if (!conv_mask->apply_callback(input_mask)) {
                 return false;
             }
 

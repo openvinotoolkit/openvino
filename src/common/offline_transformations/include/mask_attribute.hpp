@@ -187,11 +187,14 @@ public:
         m_need_initialization = false;
         // recursively apply callbacks for each dependent mask
         for (const auto & m_dependency : m_dependencies) {
+            if (m_dependency == mask.get())
+                continue;
             if (!m_dependency->apply_callback(shared_from_this())) {
                 return false;
             }
         }
-        return true;
+
+        return mask->apply_callback(shared_from_this());
     }
 
     void invalidate() {

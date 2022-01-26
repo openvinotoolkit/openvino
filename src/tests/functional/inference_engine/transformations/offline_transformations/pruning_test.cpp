@@ -580,7 +580,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
     input->set_friendly_name("input");
 
-    auto weights1 = create_constant_with_zeros(weights_shape, {{0, 1, 2, 3}, {}, {}, {}});
+    auto weights1 = create_constant_with_zeros(weights_shape, {{0, 1, 2, 3, 4}, {}, {}, {}});
     auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides(2, 1),
                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto weights_group = opset5::Constant::create(element::i8, weights_group_shape, {0});
@@ -589,7 +589,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     auto convert = std::make_shared<opset5::Convert>(weights_group, element::f32);
     convert->set_friendly_name("convert");
 
-    auto sub_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3}, {}, {}, {}});
+    auto sub_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3, 4}, {}, {}, {}});
 
     auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
     sub->set_friendly_name("sub");
@@ -841,7 +841,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     auto convert = std::make_shared<opset5::Convert>(weights_1, element::f32);
     convert->set_friendly_name("convert");
 
-    auto sub_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3}, {}, {}, {}});
+    auto sub_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3, 4}, {}, {}, {}});
 
     auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
     sub->set_friendly_name("sub");
