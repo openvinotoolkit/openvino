@@ -200,6 +200,20 @@ graph TB
 
 ---
 
+**Name:** input_convert_transpose_add<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> convert(Convert)
+    convert(Convert) --> transpose(Transpose)
+    transpose(Transpose) --> add(Add)
+    add_const(Const) --> add(Add)
+    style input fill:#73C2FB
+```
+
+---
+
 **Name:** input_multiply<br/>
 **Pattern:** <br/>
 
@@ -211,13 +225,25 @@ graph TB
 
 ---
 
-
 **Name:** input_transpose_multiply<br/>
 **Pattern:** <br/>
 
 ```mermaid
 graph TB
     input(Parameter) --> transpose(Transpose)
+    transpose(Transpose) --> multiply(Multiply)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_convert_transpose_multiply<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> convert(Convert)
+    convert(Convert) --> transpose(Transpose)
     transpose(Transpose) --> multiply(Multiply)
     style input fill:#73C2FB
 ```
@@ -245,6 +271,25 @@ graph TB
 ```mermaid
 graph TB
     input(Parameter) --> transpose(Transpose)
+    transpose(Transpose) --> split(Split)
+    split_const(Const) --> split(Split)
+    split(Split) --> concat(Concat)
+    concat(Concat) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply_const(Const) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply(Multiply) --> scaleshift_add(Add)
+    scaleshift_add_const(Const) --> scaleshift_add(Add)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_convert_transpose_reverse_input_channels_scale_shift<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> convert(Convert)
+    convert(Convert) --> transpose(Transpose)
     transpose(Transpose) --> split(Split)
     split_const(Const) --> split(Split)
     split(Split) --> concat(Concat)
@@ -288,13 +333,28 @@ graph TB
 
 ---
 
-
 **Name:** input_transpose_scale_shift<br/>
 **Pattern:** <br/>
 
 ```mermaid
 graph TB
     input(Parameter) --> transpose(Transpose)
+    transpose(Transpose) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply_const(Const) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply(Multiply) --> scaleshift_add(Add)
+    scaleshift_add_const(Const) --> scaleshift_add(Add)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_convert_transpose_scale_shift<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> convert(Convert)
+    convert(Convert) --> transpose(Transpose)
     transpose(Transpose) --> scaleshift_multiply(Multiply)
     scaleshift_multiply_const(Const) --> scaleshift_multiply(Multiply)
     scaleshift_multiply(Multiply) --> scaleshift_add(Add)

@@ -211,10 +211,7 @@ TEST_MODELS_WITH_PATTERNS = [
     ('scaleshift_fuse', 'dldt'),
     ('scaleshift_no_fuse_1', 'dldt'),
     ('scaleshift_no_fuse_2', 'dldt'),
-    ('matmul_divide_const', 'dldt'),
-    ('inception-resnet-v2', 'tf'),
-    ('faster_rcnn_resnet101_coco', 'tf'),
-    ('facenet-20180408-102900', 'tf')
+    ('matmul_divide_const', 'dldt')
 ]
 
 
