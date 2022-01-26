@@ -11,14 +11,13 @@
 
 #define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)            \
-    static const ::ov::DiscreteTypeInfo& get_type_info_static() {            \
-        static ::ov::DiscreteTypeInfo type_info{TYPE_NAME, 0, VERSION_NAME}; \
-        type_info.hash();                                                    \
-        return type_info;                                                    \
-    }                                                                        \
-    const ::ov::DiscreteTypeInfo& get_type_info() const override {           \
-        return get_type_info_static();                                       \
+#define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                           \
+    static const ::ov::DiscreteTypeInfo& get_type_info_static() {                           \
+        static ::ov::DiscreteTypeInfo type_info{TYPE_NAME, 0, VERSION_NAME, nullptr, true}; \
+        return type_info;                                                                   \
+    }                                                                                       \
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {                          \
+        return get_type_info_static();                                                      \
     }
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
@@ -29,8 +28,8 @@
         static ::ov::DiscreteTypeInfo type_info{TYPE_NAME,                                           \
                                                 OLD_VERSION,                                         \
                                                 VERSION_NAME,                                        \
-                                                &PARENT_CLASS::get_type_info_static()};              \
-        type_info.hash();                                                                            \
+                                                &PARENT_CLASS::get_type_info_static(),               \
+                                                true};                                               \
         return type_info;                                                                            \
     }                                                                                                \
     const ::ov::DiscreteTypeInfo& get_type_info() const override {                                   \

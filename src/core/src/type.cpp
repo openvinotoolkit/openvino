@@ -13,6 +13,13 @@ size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTyp
 }  // namespace std
 
 namespace ov {
+DiscreteTypeInfo::DiscreteTypeInfo(const DiscreteTypeInfo& type) {
+    name = type.name;
+    version_id = type.version_id;
+    version = type.version;
+    hash_value = type.hash_value;
+    static_var = false;
+}
 
 size_t DiscreteTypeInfo::hash() const {
     if (hash_value != 0)
@@ -21,7 +28,10 @@ size_t DiscreteTypeInfo::hash() const {
     size_t version_hash = std::hash<decltype(version)>()(version);
     size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
 
-    return ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
+    name_hash += version_hash + version_id_hash;
+    const_cast<DiscreteTypeInfo*>(this)->hash_value =
+        ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
+    return hash_value;
 }
 
 size_t DiscreteTypeInfo::hash() {
@@ -75,13 +85,14 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
                                                        : false;
         }
     }
-
     return false;
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
+    if (static_var && b.static_var)
+        return this == &b;
     if (hash_value != 0 && b.hash_value != 0)
-        return hash() == b.hash();
-    return version == b.version && (name == b.name || strcmp(name, b.name) == 0);
+        return hash_value == b.hash_value;
+    return hash() == b.hash();
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;
