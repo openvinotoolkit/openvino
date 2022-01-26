@@ -271,7 +271,7 @@ void OVInferRequestCheckTensorPrecision::TearDown() {
     req = {};
 }
 
-TEST_P(OVInferRequestCheckTensorPrecision, CheckInputsOutputs) {
+void OVInferRequestCheckTensorPrecision::Run() {
     EXPECT_EQ(element_type, compModel.input(0).get_element_type());
     EXPECT_EQ(element_type, compModel.input(1).get_element_type());
     EXPECT_EQ(element_type, compModel.output().get_element_type());
@@ -279,6 +279,11 @@ TEST_P(OVInferRequestCheckTensorPrecision, CheckInputsOutputs) {
     EXPECT_EQ(element_type, req.get_input_tensor(1).get_element_type());
     EXPECT_EQ(element_type, req.get_output_tensor().get_element_type());
 }
+
+TEST_P(OVInferRequestCheckTensorPrecision, CheckInputsOutputs) {
+    Run();
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
