@@ -21,7 +21,7 @@ namespace behavior {
 typedef std::tuple<
         ov::element::Type_t,                // Element type
         std::string,                        // Device name
-        std::map<std::string, std::string>  // Config
+        ov::AnyMap                          // Config
 > OVCompiledModelImportExportParams;
 
 class OVCompiledModelImportExport : public testing::WithParamInterface<OVCompiledModelImportExportParams>,
@@ -30,7 +30,7 @@ class OVCompiledModelImportExport : public testing::WithParamInterface<OVCompile
     static std::string getTestCaseName(testing::TestParamInfo<OVCompiledModelImportExportParams> obj) {
         ov::element::Type_t elementType;
         std::string targetDevice;
-        std::map<std::string, std::string> configuration;
+        ov::AnyMap configuration;
         std::tie(elementType, targetDevice, configuration) = obj.param;
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
@@ -38,7 +38,9 @@ class OVCompiledModelImportExport : public testing::WithParamInterface<OVCompile
         if (!configuration.empty()) {
             result << "config=(";
             for (const auto& config : configuration) {
-                result << config.first << "=" << config.second << "_";
+                result << config.first << "=";
+                config.second.print(result);
+                result << "_";
             }
             result << ")";
         }
@@ -60,7 +62,7 @@ class OVCompiledModelImportExport : public testing::WithParamInterface<OVCompile
     protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
-    std::map<std::string, std::string> configuration;
+    ov::AnyMap configuration;
     ov::element::Type_t elementType;
     std::shared_ptr<ov::Model> function;
 };
@@ -307,6 +309,23 @@ TEST_P(OVCompiledModelImportExport, readFromV10IR) {
     EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
 }
 
+static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
+    auto to_config_string = [] (const Any& any) -> std::string {
+        if (any.is<bool>()) {
+            return any.as<bool>() ? "YES" : "NO";
+        } else {
+            std::stringstream strm;
+            any.print(strm);
+            return strm.str();
+        }
+    };
+    std::map<std::string, std::string> result;
+    for (auto&& value : params) {
+        result.emplace(value.first, to_config_string(value.second));
+    }
+    return result;
+}
+
 TEST_P(OVCompiledModelImportExport, importExportedIENetwork) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
@@ -337,7 +356,7 @@ TEST_P(OVCompiledModelImportExport, importExportedIENetwork) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleReLU");
     }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration);
+    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
 
     std::stringstream strm;
     execNet.Export(strm);
@@ -391,7 +410,7 @@ TEST_P(OVCompiledModelImportExport, importExportedIENetworkParameterResultOnly) 
                                                       ngraph::ParameterVector{param});
         function->set_friendly_name("ParamResult");
     }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration);
+    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
 
     std::stringstream strm;
     execNet.Export(strm);
@@ -439,7 +458,7 @@ TEST_P(OVCompiledModelImportExport, importExportedIENetworkConstantResultOnly) {
                                                       ngraph::ParameterVector{});
         function->set_friendly_name("ConstResult");
     }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration);
+    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
 
     std::stringstream strm;
     execNet.Export(strm);
@@ -499,7 +518,7 @@ TEST_P(OVCompiledModelImportExport, ieImportExportedFunction) {
     std::stringstream strm;
     execNet.export_model(strm);
 
-    InferenceEngine::ExecutableNetwork importedExecNet = ie->ImportNetwork(strm, targetDevice, configuration);
+    InferenceEngine::ExecutableNetwork importedExecNet = ie->ImportNetwork(strm, targetDevice, any_copy(configuration));
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.GetInputsInfo().size());
     EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param1"]);
