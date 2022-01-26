@@ -87,8 +87,15 @@ ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion() {
             input = node->input_value(0);
         }
 
-        reshape->input(0).replace_source_output(input);
-        copy_runtime_info(nodes, reshape);
+        // remove redundant reshapes
+        if (input.get_node_shared_ptr()->get_output_partial_shape(0).is_static() && reshape->get_output_partial_shape(0).is_static() &&
+            input.get_node_shared_ptr()->get_output_shape(0) == reshape->get_output_shape(0)) {
+            return replace_output_update_name(reshape->output(0), input);
+        } else {
+            reshape->input(0).replace_source_output(input);
+            copy_runtime_info(nodes, reshape);
+        }
+
         return false;
     };
 

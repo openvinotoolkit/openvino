@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API ReshapeSequenceFusion;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ReshpaeSequenceFusion fuses sequence of Reshape operation into single Reshape
+ * @brief ReshapeSequenceFusion fuses sequence of Reshape operation into single Reshape or eliminates full redundant sequence
  */
 
 class ngraph::pass::ReshapeSequenceFusion: public ngraph::pass::MatcherPass {

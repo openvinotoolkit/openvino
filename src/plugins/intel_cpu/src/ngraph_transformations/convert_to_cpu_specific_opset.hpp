@@ -18,7 +18,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 
 namespace MKLDNNPlugin {
 
@@ -35,7 +35,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         manager.register_pass<ReshapeFullyConnectedFusion>();
     }
-    manager.register_pass<ngraph::pass::EliminateReshape>();
+    manager.register_pass<ngraph::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
 
