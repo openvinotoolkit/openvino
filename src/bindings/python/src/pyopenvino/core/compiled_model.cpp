@@ -51,9 +51,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "get_config",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
-                         "get_config() is deprecated, use get_property() instead.",
-                         1);
+            PyErr_WarnEx(PyExc_DeprecationWarning, "get_config() is deprecated, use get_property() instead.", 1);
             return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },
         py::arg("name"));
@@ -69,9 +67,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "get_metric",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
-                         "get_metric() is deprecated, use get_property() instead.",
-                         1);
+            PyErr_WarnEx(PyExc_DeprecationWarning, "get_metric() is deprecated, use get_property() instead.", 1);
             return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },
         py::arg("name"));

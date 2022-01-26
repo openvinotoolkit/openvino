@@ -8,12 +8,12 @@ import sys
 from openvino.runtime import Core
 
 
-def param_to_string(metric) -> str:
+def param_to_string(parameters) -> str:
     """Convert a list / tuple of parameters returned from IE to a string"""
-    if isinstance(metric, (list, tuple)):
-        return ', '.join([str(x) for x in metric])
+    if isinstance(parameters, (list, tuple)):
+        return ', '.join([str(x) for x in parameters])
     else:
-        return str(metric)
+        return str(parameters)
 
 
 def main():
@@ -27,13 +27,13 @@ def main():
     for device in core.available_devices:
         log.info(f'{device} :')
         log.info('\tSUPPORTED_METRICS:')
-        for metric in core.get_property(device, 'SUPPORTED_METRICS'):
-            if metric not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS'):
+        for property_key in core.get_property(device, 'SUPPORTED_METRICS'):
+            if property_key not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS'):
                 try:
-                    metric_val = core.get_property(device, metric)
+                    property_val = core.get_property(device, property_key)
                 except TypeError:
-                    metric_val = 'UNSUPPORTED TYPE'
-                log.info(f'\t\t{metric}: {param_to_string(metric_val)}')
+                    property_val = 'UNSUPPORTED TYPE'
+                log.info(f'\t\t{property_key}: {param_to_string(property_val)}')
         log.info('')
 
         log.info('\tSUPPORTED_CONFIG_KEYS (default values):')
