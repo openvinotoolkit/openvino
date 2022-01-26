@@ -1,5 +1,15 @@
 # Post-Training Optimization Tool API {#pot_compression_api_README}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   API Samples <pot_sample_README>
+
+@endsphinxdirective
+
 ## Overview
 The Post-Training Optimization Tool (POT) Python* API allows injecting optimization methods supported by POT into a 
 model inference script written with OpenVINO&trade; [Python* API](ie_python_api/api.html). 

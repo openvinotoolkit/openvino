@@ -1,5 +1,23 @@
 # Post-Training Optimization Tool {#pot_README}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   pot_InstallationGuide
+   pot_docs_modelrepresentation
+   pot_docs_LowPrecisionOptimizationGuide
+   pot_compression_algorithms_quantization_README
+   Best Practices <pot_docs_BestPractices>
+   Command-line Interface <pot_compression_cli_README>
+   pot_compression_api_README
+   pot_configs_README
+   pot_docs_FrequentlyAskedQuestions
+
+@endsphinxdirective
+
 ## Introduction
 
 Post-training Optimization Tool (POT) is designed to accelerate the inference of deep learning models by applying

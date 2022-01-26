@@ -1,5 +1,15 @@
 # Use Post-Training Optimization Tool Command-Line Interface {#pot_compression_cli_README}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   End-to-end CLI example <pot_configs_examples_README>
+
+@endsphinxdirective
+
 POT command-line interface (CLI) is designed to optimize models that are supported by the [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README) used for accuracy measurement. 
 If your model is exactly from the OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or it is similar to one of 
 its models then you can employ POT CLI to optimize your model.
