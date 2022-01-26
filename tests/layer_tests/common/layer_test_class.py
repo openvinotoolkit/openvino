@@ -22,10 +22,12 @@ class CommonLayerTest:
     input_model_key = "input_model"
 
     def produce_model_path(self, framework_model, save_path):
-        pass
+        raise RuntimeError("This is base class, please implement produce_model_path function for"
+                           " the specific framework")
 
     def get_framework_results(self, inputs_dict, model_path):
-        pass
+        raise RuntimeError("This is base class, please implement get_framework_results function for"
+                           " the specific framework")
 
     def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, api_2,
               use_new_frontend=False, infer_timeout=60, enabled_transforms='',

@@ -31,7 +31,7 @@ class BaseInfer:
         raise RuntimeError("This is base class, please implement get_inputs_info function for the specific framework")
 
     def infer(self, input_data, infer_timeout=10):
-        self.res = multiprocessing_run(self.fw_infer, [input_data.copy()], self.name, infer_timeout)
+        self.res = multiprocessing_run(self.fw_infer, [input_data], self.name, infer_timeout)
         return self.res
 
 
