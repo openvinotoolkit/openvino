@@ -352,9 +352,9 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const Vecto
                 ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps || eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-                    eltwiseNode->appendPostOps(ops, dims);
+                    eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
                 } else {
-                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
                 }
             }
             continue;
@@ -362,9 +362,9 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const Vecto
 
         if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
             if (useLegacyPostOps) {
-                fakeQuantizeNode->appendPostOps(ops, dims);
+                fakeQuantizeNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
-                fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+                fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             }
             continue;
         }
@@ -586,15 +586,35 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<MemoryDescPtr>& i
     }
 }
 
-void MKLDNNConvolutionNode::addZeroPoints(mkldnn::primitive_attr& attr) const {
-    if (!inputZeroPoints.empty())
-        attr.set_input_zero_points(1 << 1 /*through C dim*/, inputZeroPoints);
+void MKLDNNConvolutionNode::addZeroPoints(mkldnn::primitive_attr& attr) {
+    if (!inputZeroPoints.empty()) {
+        attr.set_input_zero_points(inputZeroPoints.size(), 1 << 1 /*through C dim*/);
 
-    if (!weightsZeroPoints.empty())
-        attr.set_weights_zero_points(1 << 1 /*through C dim*/, weightsZeroPoints);
+        if (!inputZeroPointsMemPtr) {
+            inputZeroPointsMemPtr.reset(new MKLDNNMemory(getEngine()));
+            DnnlBlockedMemoryDesc memoryDesc(Precision::U8, {inputZeroPoints.size()});
+            inputZeroPointsMemPtr->Create(memoryDesc, inputZeroPoints.data());
+        }
+    }
+
+    if (!weightsZeroPoints.empty()) {
+        attr.set_weights_zero_points(weightsZeroPoints.size(), 1 << 1 /*through C dim*/);
+
+        if (!weightsZeroPointsMemPtr) {
+            weightsZeroPointsMemPtr.reset(new MKLDNNMemory(getEngine()));
+            DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {weightsZeroPoints.size()});
+            weightsZeroPointsMemPtr->Create(memoryDesc, weightsZeroPoints.data());
+        }
+    }
 
     if (!outputCompensation.empty()) {
-        attr.set_output_compensations(1 << 1 /*through C dim*/, outputCompensation);
+        attr.set_output_compensations(outputCompensation.size(), 1 << 1 /*through C dim*/);
+
+        if (!outputCompensationMemPtr) {
+            outputCompensationMemPtr.reset(new MKLDNNMemory(getEngine()));
+            DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {outputCompensation.size()});
+            outputCompensationMemPtr->Create(memoryDesc, outputCompensation.data());
+        }
     }
 }
 
@@ -1038,7 +1058,8 @@ void MKLDNNConvolutionNode::prepareParams() {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
         }
 
-        MKLDNNNode::appendPostOpArgs(*pAttrLocal, primArgs, binaryPostOpsArgs);
+        appendZeroPointsArgs();
+        MKLDNNNode::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
@@ -1080,6 +1101,18 @@ void MKLDNNConvolutionNode::updatePadding() {
     if (isDynamicNode() && autoPadding) {
         paddingL = shapeInference->get_pads_begin();
         paddingR = shapeInference->get_pads_end();
+    }
+}
+
+void MKLDNNConvolutionNode::appendZeroPointsArgs() {
+    if (inputZeroPointsMemPtr != nullptr) {
+        primArgs.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, inputZeroPointsMemPtr->GetPrimitive()});
+    }
+    if (weightsZeroPointsMemPtr != nullptr) {
+        primArgs.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, weightsZeroPointsMemPtr->GetPrimitive()});
+    }
+    if (outputCompensationMemPtr != nullptr) {
+        primArgs.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_DST, outputCompensationMemPtr->GetPrimitive()});
     }
 }
 

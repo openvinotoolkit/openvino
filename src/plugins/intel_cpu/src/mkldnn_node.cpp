@@ -557,8 +557,15 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    auto attr = initPrimitiveAttr();
+
     for (auto& desc : descs) {
-        auto itpd = desc.createPrimitiveDescriptorIterator(engine);
+        primitive_desc_iterator itpd;
+        if (attr) {
+            itpd = desc.createPrimitiveDescriptorIterator(engine, *attr);
+        } else {
+            itpd = desc.createPrimitiveDescriptorIterator(engine);
+        }
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
@@ -1068,12 +1075,12 @@ void MKLDNNNode::setDynamicBatchLim(int lim) {
 
 void MKLDNNNode::appendPostOpArgs(const mkldnn::primitive_attr& attr,
                                   std::unordered_map<int, mkldnn::memory>& primArgs,
-                                  const std::vector<MKLDNNMemoryPtr>& binaryPostOpsArgs) {
+                                  const std::vector<MKLDNNMemoryPtr>& postOpsArgs) {
     auto post_ops = attr.get_post_ops();
     int idx = 0;
     for (int i = 0; i < post_ops.len(); i++) {
-        if (post_ops.kind(i) == mkldnn::primitive::kind::binary) {
-            primArgs.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1, binaryPostOpsArgs[idx++]->GetPrimitive()});
+        if (one_of(post_ops.kind(i), mkldnn::primitive::kind::binary, mkldnn::primitive::kind::depthwise, mkldnn::primitive::kind::quantization)) {
+            primArgs.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1, postOpsArgs[idx++]->GetPrimitive()});
         }
     }
 }
@@ -1108,7 +1115,11 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
     }
 }
 
-void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) {
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem) {
+    IE_THROW() << "Fusing of " << this->getType() << " operation is not implemented";
+}
+
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
     IE_THROW() << "Fusing of " << this->getType() << " operation is not implemented";
 }
 
