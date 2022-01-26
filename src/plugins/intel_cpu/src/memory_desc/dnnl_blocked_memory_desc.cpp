@@ -262,17 +262,13 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMa
     if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any))
         return false;
 
-    int stride_start = 0;
-    while (!cmpMask.test(stride_start) && stride_start <= wrappedThis.ndims()) {
-        ++stride_start;
-    }
-
-    bool checkOffset = cmpMask.test(BLOCKED_DESC_OFFSET_MASK_POS);
+    const uint64_t stride_mask = (0xffffffffffffffff << cmpMask.size()) | cmpMask.to_ullong();
+    const bool checkOffset = cmpMask.test(BLOCKED_DESC_OFFSET_MASK_POS);
 
     const auto thisExtra = this->desc.data.extra;
     const auto rhsExtra = rhs.desc.data.extra;
     return this->getOrder() == rhs.getOrder() && (thisExtra.flags == rhsExtra.flags && thisExtra.compensation_mask == rhsExtra.compensation_mask &&
-           thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, stride_start, true, checkOffset);
+           thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, true, checkOffset, stride_mask);
 }
 
 static VectorDims extractOrder(const mkldnn::memory::desc& desc) {
