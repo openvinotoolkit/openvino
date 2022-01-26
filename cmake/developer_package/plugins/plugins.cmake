@@ -203,7 +203,7 @@ macro(ie_register_plugins_dynamic)
                     -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
                     -P "${IEDevScripts_DIR}/plugins/unregister_plugin_cmake.cmake"
                   COMMENT
-                    "Remove ${plugin} from the plugins.xml file"
+                    "Remove ${device_name} from the plugins.xml file"
                   VERBATIM)
     endforeach()
 
