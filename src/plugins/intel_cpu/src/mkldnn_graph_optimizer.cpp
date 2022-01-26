@@ -1173,8 +1173,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
                 peerNode = isBranch2Quantized && parent1CanBeMerged ? parent2 : parent1;
             } else {
                 // original FP32
-                mergedConv = isSuitableParent1 ? parent1 : parent2;
-                peerNode = isSuitableParent1 ? parent2 : parent1;
+                mergedConv = parent1;
+                peerNode = parent2;
             }
         } else {
             mergedConv = isSuitableParent1 ? parent1 : parent2;
