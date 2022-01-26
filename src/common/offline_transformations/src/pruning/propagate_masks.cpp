@@ -92,103 +92,29 @@ public:
             const auto matmul_cols_dim = matmul_range - 1;
             const auto matmul_rows_dim = matmul_range - 2;
 
-            // Connect a and b
-            a_mask->add_callback([b_mask_row, matmul_mask_row, a_inner_dim, b_inner_dim, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(a_inner_dim) = b_mask_row->at(b_inner_dim);
-                //cur_mask->at(a_inner_dim).insert(b_mask_row->at(b_inner_dim).begin(), b_mask_row->at(b_inner_dim).end());
-                //// Check is a_mask and b_mask in valid state
-                //if (cur_mask->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
-                //    cur_mask->initialize_dependencies();
-                // Check is b_mask and matmul_mask in valid state
-                if (b_mask_row->at(b_outer_dim) != matmul_mask_row->at(matmul_cols_dim))
+            const auto matmul_callback = [=](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
+                cur_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
+                if (a_mask_row->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
                     cur_mask->initialize_dependencies();
                 return true;
-            }, b_mask);
-
-            b_mask->add_callback([a_mask_row, matmul_mask_row, a_inner_dim, b_inner_dim, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
-                //cur_mask->at(b_inner_dim).insert(a_mask_row->at(a_inner_dim).begin(), a_mask_row->at(a_inner_dim).end());
-                cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
-                //// Check is b_mask and a_mask in valid state
-                //if (cur_mask->at(b_inner_dim) != a_mask_row->at(a_inner_dim))
-                //    cur_mask->initialize_dependencies();
-                return true;
-            }, a_mask);
-
+            };
             // Connect a with matmul mask
-            a_mask->add_callback([matmul_mask_row, b_mask_row, a_outer_dim, b_outer_dim, matmul_rows_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
+            matmul_mask->add_callback(matmul_callback, a_mask);
+            a_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(a_inner_dim) = b_mask_row->at(b_inner_dim);
                 cur_mask->at(a_outer_dim) = matmul_mask_row->at(matmul_rows_dim);
-                // Check is b_mask and matmul_mask in valid state
-                if (b_mask_row->at(b_outer_dim) != matmul_mask_row->at(matmul_cols_dim))
-                    cur_mask->initialize_dependencies();
+                return true;
+            }, matmul_mask);
+            // connect b with matmul mask
+            matmul_mask->add_callback(matmul_callback, b_mask);
+            b_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
+                cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
                 return true;
             }, matmul_mask);
 
-            matmul_mask->add_callback([a_mask_row, b_mask_row, a_outer_dim, b_outer_dim,
-                                       matmul_rows_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
-                cur_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
-                return true;
-            }, a_mask);
-
-            // Connect b with matmul mask
-            //b_mask->add_callback([matmul_mask_row, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
-            //    cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
-            //    return true;
-            //}, matmul_mask);
-
-            //matmul_mask->add_callback([b_mask_row, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
-            //    cur_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
-            //    return true;
-            //}, b_mask);
-
-
-
-            //if (transpose_a)
-            //    last_two_dims_a = std::vector<size_t>({shape_a.end()[-1], shape_a.end()[-2]});
-            //else
-            //    last_two_dims_a = std::vector<size_t>({shape_a.end()[-2], shape_a.end()[-1]});
-            //if (transpose_b)
-            //    last_two_dims_b = std::vector<size_t>({shape_b.end()[-1], shape_b.end()[-2]});
-            //else
-            //    last_two_dims_b = std::vector<size_t>({shape_b.end()[-2], shape_b.end()[-1]});
-
-            //if (auto input_mask = getMask(m_input)) {
-            //    auto input_mask_row = input_mask.get();
-            //    // Weights input channel is connected to the convolution input channel dimension
-            //    // so we update weights mask to be aligned with input shape.
-            //    weights_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
-            //        cur_mask->at(1/* weights input channel */) = input_mask_row->at(1 /* input data channel */);
-            //        return true;
-            //    }, input_mask);
-
-            //    input_mask->add_callback([a_mask_row](Mask::Ptr cur_mask) -> bool {
-            //        cur_mask->at(1) = a_mask_row->at(1);
-            //        return true;
-            //    }, weights_mask);
-
-            //    if (!weights_mask->apply_callback(input_mask)) {
-            //        return false;
-            //    }
-            //}
-
-            //// Create output mask that describes which channel dimensions will be removed
-            //auto conv_mask = std::make_shared<Mask>(m_matmul.get_shape().size());
-            //auto conv_mask_row = conv_mask.get();
-
-            //conv_mask->add_callback([a_mask_row](Mask::Ptr cur_mask) -> bool {
-            //    cur_mask->at(1) = a_mask_row->at(0/*weights output channel dim */);
-            //    return true;
-            //}, weights_mask);
-
-            //weights_mask->add_callback([conv_mask_row](Mask::Ptr cur_mask) -> bool {
-            //    cur_mask->at(0) = conv_mask_row->at(1);
-            //    return true;
-            //}, conv_mask);
-
-            bool status = matmul_mask->apply_callback(a_mask);
-            status &= b_mask->apply_callback(a_mask);
-            if (!status) {
+            if (!matmul_mask->apply_callback(a_mask)) {
                 return false;
             }
 
@@ -245,7 +171,6 @@ public:
                 // Weights input channel is connected to the convolution input channel dimension
                 // so we update weights mask to be aligned with input shape.
                 conv_mask->add_callback(conv_mask_callback, input_mask);
-
                 input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(1) = weights_mask_row->at(1);
                     return true;
@@ -253,7 +178,6 @@ public:
             }
 
             conv_mask->add_callback(conv_mask_callback, weights_mask);
-
             weights_mask->add_callback([input_mask_row, conv_mask_row](Mask::Ptr cur_mask) -> bool {
                 cur_mask->at(0) = conv_mask_row->at(1);
                 if (input_mask_row)
