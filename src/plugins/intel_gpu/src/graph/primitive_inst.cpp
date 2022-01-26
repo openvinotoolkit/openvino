@@ -68,7 +68,9 @@ bool is_user_cpu(const program_node* user) {
         }
         return false;
     }
-    return user->get_selected_impl()->is_cpu();
+    if (auto impl = user->get_selected_impl())
+        return impl->is_cpu();
+    return false;
 }
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
@@ -83,13 +85,20 @@ uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
 void primitive_inst::update_shape() {
     // Do nothing for static nodes
-    if (!_node.is_dynamic())
-        return;
+    // if (!_node.is_dynamic())
+    //     return;
 
     auto new_layout = _node.type()->calc_output_layout(_node);
     // TODO: Get rid of this const_cast ASAP
     const_cast<program_node&>(_node).set_output_layout(new_layout);
     reset_shape_change();
+}
+
+void primitive_inst::realloc_if_needed() {
+    if (!_output  || _output->get_layout().count() < _node.get_output_layout().count()) {
+        std::cerr << "realloc memory for node: " << id() << std::endl;
+        _output = allocate_output();
+    }
 }
 
 void primitive_inst::update_impl() {
@@ -301,7 +310,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
-    auto use_lockable_memory = is_output_buffer(_node) || _node.get_selected_impl()->is_cpu() || is_any_user_cpu(_node.get_users()) ||
+    bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
+    auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
 
     GPU_DEBUG_GET_INSTANCE(debug_config);

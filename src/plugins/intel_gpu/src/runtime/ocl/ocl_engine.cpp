@@ -86,12 +86,12 @@ const cl::UsmHelper& ocl_engine::get_usm_helper() const {
 }
 
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
-    if (layout.bytes_count() > get_device_info().max_alloc_mem_size) {
-        throw std::runtime_error("[GPU] Exceeded max size of memory object allocation");
-    }
-
     if (layout.is_dynamic()) {
         throw std::runtime_error("[GPU] Can't allocate memory for dynamic layout");
+    }
+
+    if (layout.bytes_count() > get_device_info().max_alloc_mem_size) {
+        throw std::runtime_error("[GPU] Exceeded max size of memory object allocation");
     }
 
     if (type != allocation_type::cl_mem && !supports_allocation(type)) {

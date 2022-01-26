@@ -120,7 +120,7 @@ std::vector<tensor::value_type> layout::get_dims() const {
 
 std::vector<tensor::value_type> layout::get_padded_dims() const {
     if (is_dynamic())
-        throw std::runtime_error("[GPU] get_dims() is called for dynamic shape");
+        throw std::runtime_error("[GPU] get_padded_dims() is called for dynamic shape");
 
     auto default_fmt = get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
     auto t = get_tensor();
@@ -177,7 +177,7 @@ std::string layout::to_string() const {
 }
 
 bool layout::is_dynamic() const {
-    return false;
+    return size.is_dynamic();
 }
 
 tensor layout::get_buffer_size() const {

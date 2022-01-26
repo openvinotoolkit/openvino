@@ -640,7 +640,7 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
     const auto& pad = l.data_padding;
-    const auto& vals = l.get_tensor().sizes(l.format);
+    const auto& vals = l.get_dims();
     const auto& add_offsets = view_offset.sizes(l.format);
     const auto& lower_pad = pad.lower_size().sizes(l.format);
     const auto& upper_pad = pad.upper_size().sizes(l.format);

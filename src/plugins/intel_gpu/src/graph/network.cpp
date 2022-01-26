@@ -322,7 +322,8 @@ void network::set_arguments() {
         return;
 
     for (auto const& prim : _exec_order) {
-        prim->set_arguments();
+        if (!prim->is_dynamic())
+            prim->set_arguments();
     }
     _reset_arguments = false;
 }
@@ -675,11 +676,13 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
     std::vector<memory::ptr> in_out_mem;
     for (auto& inst : _inputs) {
-        in_out_mem.push_back(inst->output_memory_ptr());
+        if (inst->output_memory_ptr())
+            in_out_mem.push_back(inst->output_memory_ptr());
     }
 
     for (auto& inst : _outputs) {
-        in_out_mem.push_back(inst->output_memory_ptr());
+        if (inst->output_memory_ptr())
+            in_out_mem.push_back(inst->output_memory_ptr());
     }
 
     auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
@@ -713,6 +716,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             static std::mutex m;
             std::lock_guard<std::mutex> lock(m);
             inst->update_impl();
+            inst->realloc_if_needed();
             inst->set_arguments();
         }
 
