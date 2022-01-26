@@ -1168,6 +1168,11 @@ public:
         std::lock_guard<std::mutex> lock(pluginsMutex);
         for (const auto& ext : extensions) {
             ov_extensions.emplace_back(ext);
+            if (auto op_base_ext = std::dynamic_pointer_cast<BaseOpExtension>(ext)) {
+                for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+                    ov_extensions.emplace_back(attached_ext);
+                }
+            }
         }
     }
 

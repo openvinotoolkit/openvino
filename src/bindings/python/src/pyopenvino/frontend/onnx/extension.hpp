@@ -9,3 +9,4 @@
 namespace py = pybind11;
 
 void regclass_frontend_onnx_ConversionExtension(py::module m);
+void regclass_frontend_onnx_OpExtension(py::module m);

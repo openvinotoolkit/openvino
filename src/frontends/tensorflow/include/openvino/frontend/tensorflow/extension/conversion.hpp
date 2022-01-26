@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/frontend/extension/conversion.hpp"
+#include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
@@ -30,7 +31,6 @@ public:
 private:
     ov::frontend::CreatorFunction m_converter;
 };
-
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

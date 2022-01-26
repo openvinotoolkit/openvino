@@ -12,4 +12,5 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(py_onnx_frontend, m) {
     regclass_frontend_onnx_ConversionExtension(m);
+    regclass_frontend_onnx_OpExtension(m);
 }

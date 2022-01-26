@@ -10,6 +10,7 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/frontend/onnx/extension/conversion.hpp"
+#include "openvino/frontend/onnx/extension/op.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
 
@@ -40,4 +41,24 @@ void regclass_frontend_onnx_ConversionExtension(py::module m) {
     }));
 
     ext.def_property_readonly_static("m_converter", &ConversionExtension::get_converter);
+}
+
+void regclass_frontend_onnx_OpExtension(py::module m) {
+    py::class_<OpExtension<void>, std::shared_ptr<OpExtension<void>>, ConversionExtension> ext(
+            m,
+            "OpExtensionONNX",
+            py::dynamic_attr());
+
+    ext.def(py::init([](const std::string& fw_type_name,
+                        const std::map<std::string, std::string>& attr_names_map = {},
+                        const std::map<std::string, ov::Any>& attr_values_map = {}) {
+        return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, attr_values_map);
+    }));
+
+    ext.def(py::init([](const std::string& ov_type_name,
+                               const std::string& fw_type_name,
+                               const std::map<std::string, std::string>& attr_names_map = {},
+                               const std::map<std::string, ov::Any>& attr_values_map = {}) {
+        return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, attr_values_map);
+    }));
 }

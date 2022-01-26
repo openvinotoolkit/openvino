@@ -12,4 +12,5 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(py_tensorflow_frontend, m) {
     regclass_frontend_tensorflow_ConversionExtension(m);
+    regclass_frontend_tensorflow_OpExtension(m);
 }
