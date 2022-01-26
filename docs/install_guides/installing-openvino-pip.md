@@ -7,13 +7,13 @@ You can install Intel® Distribution of OpenVINO™ Toolkit through the PyPI rep
 
 ## Install OpenVINO Runtime
 
-For system requirements and troubleshooting, see <https://pypi.org/project/openvino-dev> for more details.
+For system requirements and troubleshooting, see <https://pypi.org/project/openvino> for more details.
 
 **Step 1. Set Up Python Virtual Environment**
 
 To avoid dependency conflicts, use a virtual environment. Skip this step only if you do want to install all dependencies globally.
 
-To create virtual environment, run the following command:
+To create virtual environment, run the following commands:
 ```python
 python -m pip install --user virtualenv
 python -m venv openvino_env
@@ -23,15 +23,14 @@ python -m venv openvino_env
 
 **Step 2. Activate Virtual Environment**
 
-On Linux and macOS, run the following command:
-```
-source openvino_env/bin/activate
-```
-
-On Windows, run the following command:
-```
-openvino_env\Scripts\activate
-```
+* On Linux and macOS, run the following command:
+  ```
+  source openvino_env/bin/activate
+  ```
+* On Windows, run the following command:
+  ```
+  openvino_env\Scripts\activate
+  ```
 
 **Step 3. Set Up and Update PIP to the Highest Version**
 
