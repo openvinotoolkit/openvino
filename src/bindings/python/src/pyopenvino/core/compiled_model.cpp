@@ -41,14 +41,14 @@ void regclass_CompiledModel(py::module m) {
     cls.def("export_model", &ov::CompiledModel::export_model, py::arg("model_stream"));
 
     cls.def(
-        "get_config",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
+        "set_property",
+        [](ov::CompiledModel& self, const std::map<std::string, std::string>& properties) {
+            self.set_property({properties.begin(), properties.end()});
         },
-        py::arg("name"));
+        py::arg("properties"));
 
     cls.def(
-        "get_metric",
+        "get_property",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
             return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },

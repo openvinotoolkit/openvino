@@ -28,12 +28,19 @@ void regclass_Core(py::module m) {
     cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
 
     cls.def(
-        "set_config",
-        [](ov::Core& self, const std::map<std::string, std::string>& config, const std::string& device_name) {
-            self.set_property(device_name, {config.begin(), config.end()});
+        "set_property",
+        [](ov::Core& self, const std::map<std::string, std::string>& properties) {
+            self.set_property({properties.begin(), properties.end()});
         },
-        py::arg("config"),
-        py::arg("device_name") = "");
+        py::arg("properties"));
+
+    cls.def(
+        "set_property",
+        [](ov::Core& self, const std::string& device_name, const std::map<std::string, std::string>& properties) {
+            self.set_property(device_name, {properties.begin(), properties.end()});
+        },
+        py::arg("device_name"),
+        py::arg("properties"));
 
     cls.def(
         "compile_model",
@@ -132,16 +139,8 @@ void regclass_Core(py::module m) {
         py::arg("config") = py::none());
 
     cls.def(
-        "get_config",
+        "get_property",
         [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
-        },
-        py::arg("device_name"),
-        py::arg("name"));
-
-    cls.def(
-        "get_metric",
-        [](ov::Core& self, const std::string device_name, const std::string name) -> py::object {
             return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
