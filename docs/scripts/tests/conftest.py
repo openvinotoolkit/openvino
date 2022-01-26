@@ -49,27 +49,27 @@ def pytest_addoption(parser):
         help='A file with relative paths to a files to exclude from validation')
     parser.addoption(
         '--include_omz',
-        action="store",
+        action="store_true",
         default=False,
         help='Include link check for omz docs')
     parser.addoption(
         '--include_wb',
-        action="store",
+        action="store_true",
         default=False,
         help='Include link check for workbench docs')
     parser.addoption(
         '--include_pot',
-        action="store",
+        action="store_true",
         default=False,
         help='Include link check for pot docs')
     parser.addoption(
         '--include_gst',
-        action="store",
+        action="store_true",
         default=False,
         help='Include link check for gst docs')
     parser.addoption(
         '--include_ovms',
-        action="store",
+        action="store_true",
         default=False,
         help='Include link check for ovms')
 
