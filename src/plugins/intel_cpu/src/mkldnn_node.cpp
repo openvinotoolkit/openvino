@@ -586,7 +586,7 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 portConfig.constant(false);
                 auto desc = getSrcMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), 0x0);
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                 } else {
                     portConfig.setMemDesc(std::move(desc));
                 }
@@ -599,7 +599,7 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 portConfig.constant(false);
                 auto desc = getDstMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), 0x0);
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                 } else {
                     portConfig.setMemDesc(std::move(desc));
                 }
@@ -618,8 +618,8 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
     // Compare by format tag
     auto areCompatible = [](const MemoryDesc& desc, mkldnn::memory::format_tag fmt) -> bool {
         auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
-                                                 MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
-                                                 fmt);
+                                               MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
+                                               fmt);
         return desc.isCompatible(fmt_tdesc);
     };
 
@@ -715,13 +715,11 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
             return;
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
-            //if (!selectedConfig.inConfs[i].getMemDesc()->isCompatible(*config.inConfs[i].getMemDesc()))
             if (!selectedConfig.inConfs[i].getPortDesc()->isCompatible(*config.inConfs[i].getPortDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " intput port";
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
-            //if (!selectedConfig.outConfs[i].getMemDesc()->isCompatible(*config.outConfs[i].getMemDesc()))
             if (!selectedConfig.outConfs[i].getPortDesc()->isCompatible(*config.outConfs[i].getPortDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " output port";
         }
@@ -982,7 +980,7 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
         for (size_t i = 0; i < config.outConfs.size(); i++) {
             auto outMemDesc = config.outConfs[i].getMemDesc();
             if (outMemDesc && (outMemDesc->getType() & Blocked)) {
-                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), 0xffffffff);
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
             }
         }
     } else {

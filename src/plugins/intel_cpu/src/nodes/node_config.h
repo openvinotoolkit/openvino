@@ -59,13 +59,15 @@ private:
 
 class PortDescBlocked : public PortDescBase_<PortDescBlocked> {
 public:
-    PortDescBlocked(BlockedMemoryDescPtr memDesc, uint32_t cmpMask) : _memDesc(memDesc), _cmpMask(cmpMask) {
+    using CmpMask = BlockedMemoryDesc::CmpMask;
+public:
+    PortDescBlocked(BlockedMemoryDescPtr memDesc, CmpMask cmpMask) : _memDesc(memDesc), _cmpMask(cmpMask) {
         if (nullptr == _memDesc) {
             IE_THROW(ParameterMismatch) << "PortDescBlocked constructor got nullptr";
         }
     }
     bool isCompatible(const PortDescBlocked& rhs) const {
-        return _memDesc->isCompatible(*rhs._memDesc, _cmpMask) && (~((~_cmpMask) | rhs._cmpMask) == 0x0);
+        return _memDesc->isCompatible(*rhs._memDesc, _cmpMask) && (((~_cmpMask) | rhs._cmpMask).all());
     }
     MemoryDescPtr getMemDesc() const override {
         return _memDesc;
@@ -73,7 +75,7 @@ public:
 
 private:
     BlockedMemoryDescPtr _memDesc;
-    uint32_t _cmpMask = 0xffffffff;
+    CmpMask _cmpMask = BLOCKED_DESC_FULL_MASK;
 };
 
 class PortConfig {
@@ -122,13 +124,13 @@ public:
 
     void setMemDesc(MemoryDescPtr desc) {
         if (desc->getType() & Blocked) {
-            setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), 0xffffffff);
+            setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_FULL_MASK);
         } else {
             _desc = std::make_shared<PortDescGeneric>(desc);
         }
     }
 
-    void setMemDesc(BlockedMemoryDescPtr desc, uint32_t cmpMask) {
+    void setMemDesc(BlockedMemoryDescPtr desc, BlockedMemoryDesc::CmpMask cmpMask) {
         _desc = std::make_shared<PortDescBlocked>(desc, cmpMask);
     }
 

@@ -7,7 +7,7 @@
 
 using namespace MKLDNNPlugin;
 
-bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, uint32_t cmpMask) const {
+bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
     if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision())
         return false;
 
@@ -26,7 +26,7 @@ bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, uint3
         return false;
 
     for (size_t i = 0; i < thisStrides.size(); i++) {
-        if ((cmpMask & (1u << i)) && !dimsEqualWeak(thisStrides[i], rhsStrides[i]))
+        if (cmpMask.test(i) && !dimsEqualWeak(thisStrides[i], rhsStrides[i]))
             return false;
     }
 
@@ -34,8 +34,7 @@ bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, uint3
         return false;
     }
 
-    constexpr uint32_t offsetMask = 0x80000000u;
-    if (cmpMask & offsetMask) {
+    if (cmpMask.test(BLOCKED_DESC_OFFSET_MASK_POS)) {
         return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
     }
 

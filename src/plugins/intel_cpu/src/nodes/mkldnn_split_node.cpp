@@ -180,12 +180,12 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             SizeVector strides(numOfDim);
             strides.back() = 1lu;
             size_t offset = Shape::UNDEFINED_DIM;
-            uint32_t mask = 0xffffffff ^ (1 << 31); // accepts any offset
+            BlockedMemoryDesc::CmpMask mask = BLOCKED_DESC_SKIP_OFFSET_MASK; // accepts any offset
 
             for (size_t i = 2; i <= numOfDim; i++) {
                 if (numOfDim - i < axis) {
                     strides[numOfDim - i] = Shape::UNDEFINED_DIM;
-                    mask ^= (1 << (numOfDim - i)); // accepts any strides on axis
+                    mask.reset(numOfDim - i); // accepts any strides on axis
                 } else {
                     strides[numOfDim - i] = strides[numOfDim - i + 1] * blkDims[numOfDim - i + 1];
                 }
@@ -360,7 +360,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
                                                                              firstInBlockingDesc->getOffsetPadding() + offset,
                                                                              firstInBlockingDesc->getOffsetPaddingToData(),
                                                                              (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
-                                                                              firstInBlockingDesc->getStrides())), 0xffffffff);
+                                                                              firstInBlockingDesc->getStrides())), BLOCKED_DESC_FULL_MASK);
 
             size_t axisSize = 1;
             for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {

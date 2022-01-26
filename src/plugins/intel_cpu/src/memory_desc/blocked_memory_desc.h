@@ -4,11 +4,21 @@
 
 #pragma once
 
+#include <bitset>
+
 #include "cpu_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
+#define BLOCKED_DESC_FULL_MASK 0xffffffff
+#define BLOCKED_DESC_EMPTY_MASK 0x0
+#define BLOCKED_DESC_SKIP_OFFSET_MASK 0x7fffffff
+#define BLOCKED_DESC_OFFSET_MASK_POS 31
+
 class BlockedMemoryDesc : public virtual MemoryDesc {
+public:
+    using CmpMask = std::bitset<32>;
+
 public:
     BlockedMemoryDesc() {}
 
@@ -69,7 +79,7 @@ public:
      *
      * @return the result of the compatibility check
      */
-    virtual bool isCompatible(const BlockedMemoryDesc &rhs, uint32_t cmpMask) const = 0;
+    virtual bool isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const = 0;
 
     virtual ~BlockedMemoryDesc() = default;
 
@@ -83,7 +93,7 @@ protected:
      * Doesn't perform descs specific attributes check
      * @return true if compatible, otherwise false
      */
-    bool isCompatibleInternal(const BlockedMemoryDesc &rhs, uint32_t compMask = 0xffffffff) const;
+    bool isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
 
     mutable VectorDims blockedDims;
     mutable VectorDims strides;

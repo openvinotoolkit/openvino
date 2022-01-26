@@ -138,29 +138,28 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         };
 
         size_t offset = 0;
-        constexpr uint32_t anyOffsetMask = 0xffffffff ^ (1 << 31); // accepts any offset
         NodeConfig config;
         config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
-            uint32_t inputMask = anyOffsetMask;
+            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace((!i && canBeInPlace()) ? 0 : -1);
             portConfig.constant(false);
             if (inputShapes[i].getDims()[0] == 1) {
-                inputMask ^= 0x1; // accepts any stride on batch axis
+                inputMask.reset(0); // accepts any stride on batch axis
             }
             portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset), inputMask);
             config.inConfs[i] = portConfig;
         }
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
-            uint32_t outputMask = anyOffsetMask;
+            BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
             if (outputShapes[i].getDims()[0] == 1) {
-                outputMask ^= 0x1; // accepts any stride on batch axis
+                outputMask.reset(0); // accepts any stride on batch axis
             }
             portConfig.setMemDesc(createMemoryDesc(outputShapes[i], supportedPrecision, offset), outputMask);
             config.outConfs[i] = portConfig;
