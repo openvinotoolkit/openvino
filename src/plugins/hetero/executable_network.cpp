@@ -31,6 +31,7 @@
 #include <cstdint>
 
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_algorithm.hpp"
@@ -93,12 +94,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     if (queryNetworkResult.supportedLayersMap.empty()) {
         auto it = _config.find("TARGET_FALLBACK");
         if (it == _config.end()) {
-            it = _config.find(ov::device::priorities.str());
+            it = _config.find(ov::device::priorities.name());
         }
         if (it != _config.end()) {
             queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
         } else {
-            IE_THROW() << "The '" << ov::device::priorities.str() << "' option was not defined for heterogeneous plugin";
+            IE_THROW() << "The '" << ov::device::priorities.name()
+                       << "' option was not defined for heterogeneous plugin";
         }
     }
 
@@ -822,7 +824,7 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string& name) const {
     InferenceEngine::Parameter result;
-    if (name == "TARGET_FALLBACK" || name == ov::device::prioririties.str()) {
+    if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
         auto it = _config.find(name);
         if (it != _config.end()) {
             result = it->second;
@@ -911,7 +913,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> heteroConfigKeys = {"TARGET_FALLBACK",
-                                                     ov::device::prioririties.str(),
+                                                     ov::device::priorities.name(),
                                                      HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
                                                      CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)};
 

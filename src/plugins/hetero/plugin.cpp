@@ -41,7 +41,7 @@ Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs& loca
 const std::vector<std::string>& getSupportedConfigKeys() {
     static const std::vector<std::string> supported_configKeys = {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
                                                                   "TARGET_FALLBACK",
-                                                                  ov::device::prioririties.str(),
+                                                                  ov::device::priorities.name(),
                                                                   CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)};
 
     return supported_configKeys;
@@ -57,10 +57,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
     auto tconfig = mergeConfigs(_config, config);
     auto it = tconfig.find("TARGET_FALLBACK");
     if (it == tconfig.end()) {
-        it = tconfig.find(ov::device::prioririties.str());
+        it = tconfig.find(ov::device::priorities.name());
     }
     if (it == tconfig.end()) {
-        IE_THROW() << "The '" << ov::device::prioririties.str() << "' option was not defined for heterogeneous plugin";
+        IE_THROW() << "The '" << ov::device::priorities.name() << "' option was not defined for heterogeneous plugin";
     }
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(it->second, tconfig);
 
@@ -126,10 +126,10 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
     auto tconfig = mergeConfigs(_config, config);
     auto it = tconfig.find("TARGET_FALLBACK");
     if (it == tconfig.end()) {
-        it = tconfig.find(ov::device::priorities.str());
+        it = tconfig.find(ov::device::priorities.name());
     }
     if (it == tconfig.end()) {
-        IE_THROW() << "The '" << ov::device::priorities.str() << "' option was not defined for heterogeneous plugin";
+        IE_THROW() << "The '" << ov::device::priorities.name() << "' option was not defined for heterogeneous plugin";
     }
 
     std::string fallbackDevicesStr = it->second;
@@ -181,11 +181,11 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         if (deviceIt != options.end()) {
             targetFallback = deviceIt->second.as<std::string>();
         } else {
-            deviceIt = options.find(ov::device::prioririties.str());
+            deviceIt = options.find(ov::device::priorities.name());
             if (deviceIt != options.end()) {
                 targetFallback = deviceIt->second.as<std::string>();
             } else {
-                targetFallback = GetConfig(ov::device::prioririties.str(), {}).as<std::string>();
+                targetFallback = GetConfig(ov::device::priorities.name(), {}).as<std::string>();
             }
         }
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, DeviceArchitecture(targetFallback));
@@ -216,7 +216,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         IE_ASSERT(it != _config.end());
         bool dump = it->second == YES;
         return {dump};
-    } else if (name == "TARGET_FALLBACK" || name == ov::device::priorities.str()) {
+    } else if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
         auto it = _config.find(name);
         if (it == _config.end()) {
             IE_THROW() << "Value for" << name << " is not set";
