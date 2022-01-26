@@ -981,28 +981,26 @@ void InsertCopyLayerPass::run() {
     }
 
     for (auto & l : *pLayers) {
-        if (!l->insData.empty()) continue;
+        if (!l->outData.size() == 0 &&
+            !getInputTo(l->outData[0]).size() == 0) continue;
 
-        for (auto output : l->outData) {
-            auto& inputTo = getInputTo(output);
-            for (auto& childLayer : inputTo) {
-                auto current_layer = childLayer.second;
-                auto previous_layer = l;
-                std::vector<int> connections = CNNLayerFindInsDataIdxes(output, childLayer.second);
+        bool bNeedInsertCopyLayer = true;
+        CNNNetDFS(l, [&l, &bNeedInsertCopyLayer](CNNLayerPtr layer) {
+            if (!LayerInfo(layer).isNonValuesChangable() && !LayerInfo(layer).isCrop() && !layer->insData.empty()) {
+                bNeedInsertCopyLayer = false;
+            }
+            }, true, [&bNeedInsertCopyLayer](InferenceEngine::CNNLayer* from) {
+                    // aborting UFS If no functional layers (excluding Splits, Concats and Crops)
+                    return make_upstream_order(bNeedInsertCopyLayer ? from : nullptr);
+            });
 
-                for (auto input_idx : connections) {
-                    while (LayerInfo(current_layer).isNonFunctional()) {
-                        if (current_layer->outData.size() == 0) break;
-                        if (getInputTo(current_layer->outData[0]).size() == 0) break;
-                        previous_layer = current_layer;
-                        current_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, input_idx, [](CNNLayerPtr origin){return false;}).first;
-                    }
-                    // exit by a while condition -> we found functional layer
-                    if (!LayerInfo(current_layer).isNonFunctional()) continue;
-
-                    // exit by break -> subgraph has only non-func layers -> need to insert copy-layer
-                    InsertCopyLayer(previous_layer, current_layer, input_idx, this->getPassManager(), CopyLayerName);
-                }
+        if (bNeedInsertCopyLayer) {
+            for (size_t inputIdx = 0; inputIdx < l->insData.size(); ++inputIdx) {
+                IE_ASSERT(l->insData[inputIdx].lock() != nullptr);
+                auto inputData = l->insData[inputIdx].lock();
+                auto parentLayer = getCreatorLayer(inputData);
+                IE_ASSERT(parentLayer.lock() != nullptr);
+                InsertCopyLayer(parentLayer.lock(), l, inputIdx, this->getPassManager(), CopyLayerName);
             }
         }
     }
