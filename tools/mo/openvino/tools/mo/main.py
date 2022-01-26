@@ -117,6 +117,10 @@ def get_moc_frontends(argv: argparse.Namespace):
     if not fem or use_legacy_frontend:
         return None, []
 
+    if use_legacy_frontend:
+        # check which precommit CI's use new frontend
+        raise Exception("TJ-TEST-NEW-FE-PRECOMMIT-CI")
+
     available_moc_front_ends = fem.get_available_front_ends()
 
     if not argv.framework and argv.input_model:
