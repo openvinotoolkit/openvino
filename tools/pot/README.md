@@ -7,7 +7,7 @@
    :hidden:
    
    pot_InstallationGuide
-   pot_docs_modelrepresentation
+   pot_docs_ModelRepresentation
    pot_docs_LowPrecisionOptimizationGuide
    pot_compression_algorithms_quantization_README
    Best Practices <pot_docs_BestPractices>
