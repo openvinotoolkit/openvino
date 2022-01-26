@@ -199,7 +199,6 @@ jobs:
     workingDirectory: $(INSTALL_DIR)
     displayName: 'Samples Smoke Tests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: rd /Q /S $(BUILD_DIR)
     displayName: 'Clean build dir'
@@ -235,7 +234,6 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
