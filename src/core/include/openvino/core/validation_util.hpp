@@ -113,7 +113,7 @@ int64_t normalize_axis(const std::string& node_description,
 /// \param[in]  axes              The requested vector of axes.
 ///
 OPENVINO_API
-void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes);
+void normalize_axes(const Node* node, int64_t tensor_rank, std::vector<int64_t>& axes);
 
 /// \brief Evaluates lower and upper value estimations for the output tensor. Estimation would
 /// be represented as partial shape object using Dimension(min, max) for each element.

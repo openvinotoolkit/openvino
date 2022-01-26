@@ -848,9 +848,9 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
     return dim;
 }
 
-void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
-    const auto& min_value = -tensor_rank;
-    const auto& max_value = tensor_rank ? (tensor_rank - 1) : 0;
+void ov::normalize_axes(const Node* node, int64_t tensor_rank, std::vector<int64_t>& axes) {
+    const auto min_value = -tensor_rank;
+    const auto max_value = tensor_rank ? (tensor_rank - 1) : 0;
     transform(axes.begin(), axes.end(), axes.begin(), [=](int64_t& axis) {
         NODE_VALIDATION_CHECK(node,
                               ((axis >= min_value) && (axis <= max_value)),
