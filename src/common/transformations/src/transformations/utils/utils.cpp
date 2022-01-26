@@ -193,12 +193,13 @@ void visit_shape_path(const std::shared_ptr<ov::Node>& node,
             continue;
         }
 
-        visited.insert(curr_node);
         func(curr_node);
         for (auto& input_value : curr_node->input_values()) {
             // continue searching
             const auto& input_node = input_value.get_node_shared_ptr();
+            if (visited.count(input_node)) continue;
             nodes.push_front(input_node);
+            visited.insert(input_node);
         }
     }
 }
