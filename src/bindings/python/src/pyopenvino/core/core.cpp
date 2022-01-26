@@ -31,6 +31,9 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_config",
         [](ov::Core& self, const std::map<std::string, std::string>& config, const std::string& device_name) {
+            PyErr_WarnEx(PyExc_DeprecationWarning,
+                         "set_config() is deprecated, use set_property() instead.",
+                         1);
             self.set_property(device_name, {config.begin(), config.end()});
         },
         py::arg("config"),
@@ -147,15 +150,18 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("config") = py::none());
 
+    // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(
         "get_config",
         [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
+            PyErr_WarnEx(PyExc_DeprecationWarning,
+                         "get_config() is deprecated, use get_property() instead.",
+                         1);
             return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
 
-    // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(
         "get_property",
         [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
@@ -168,6 +174,9 @@ void regclass_Core(py::module m) {
     cls.def(
         "get_metric",
         [](ov::Core& self, const std::string device_name, const std::string name) -> py::object {
+            PyErr_WarnEx(PyExc_DeprecationWarning,
+                         "get_metric() is deprecated, use get_property() instead.",
+                         1);
             return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
