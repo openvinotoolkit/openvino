@@ -66,6 +66,21 @@ void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(const std
 }
 
 bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_ptr<ngraph::Function>& f) {
+    for (auto && node : f->get_ordered_ops()) {
+        const auto& inputs = node->input_values();
+        auto& rt_info = node->get_rt_info();
+        bool can_be_folded = true;
+        if (rt_info.count(DisableConstantFolding::get_type_info_static())) {
+            can_be_folded = false;
+        } else if (std::any_of(inputs.cbegin(), inputs.cend(), [](const Output<Node> & output) {
+            const auto & rt_info = output.get_node()->get_rt_info();
+            return rt_info.count("can_be_folded") && !rt_info.at("can_be_folded").as<bool>();
+        })) {
+            can_be_folded = false;
+        }
+        rt_info["can_be_folded"] = can_be_folded;
+    }
+
     deque<shared_ptr<Node>> nodes;
     set<shared_ptr<Node>> visited;
     for (auto& r : f->get_results())
@@ -81,31 +96,20 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
             continue;
         visited.insert(curr_node);
 
-        for (auto& input_value : curr_node->input_values()) {
-            // Check that ConstantFolding is not disabled on this path
-            std::vector<Node*> order;
-            auto status = ngraph::could_propagate(input_value, order);
-            if (status) {
-                for (const auto& node : order) {
-                    const auto& rt_info = node->get_rt_info();
-                    if (rt_info.count(DisableConstantFolding::get_type_info_static())) {
-                        status = false;
-                        break;
-                    }
-                }
-            }
-
-            if (status && input_value.get_tensor().has_and_set_bound()) {
-                auto input_node = input_value.get_node_shared_ptr();
-                auto replacement = std::make_shared<ngraph::op::Constant>(input_value.get_tensor().get_lower_value());
+        for (auto& output : curr_node->input_values()) {
+            const auto & rt_info = output.get_node()->get_rt_info();
+            auto can_be_folded = !rt_info.count("can_be_folded") || rt_info.at("can_be_folded").as<bool>();
+            if (can_be_folded && output.get_tensor().has_and_set_bound()) {
+                auto input_node = output.get_node_shared_ptr();
+                auto replacement = std::make_shared<ngraph::op::Constant>(output.get_tensor().get_lower_value());
                 if (replacement && !ov::is_type<ngraph::op::Constant>(input_node)) {
                     if (input_node->get_output_size() == 1) {
                         replacement->set_friendly_name(input_node->get_friendly_name());
                     } else {
                         replacement->set_friendly_name(input_node->get_friendly_name() + "." +
-                                                       std::to_string(input_value.get_index()));
+                                                       std::to_string(output.get_index()));
                     }
-                    input_value.replace(replacement);
+                    output.replace(replacement);
                     // Propagate runtime info attributes to replacement consumer nodes
                     copy_runtime_info_to_target_inputs(input_node, replacement);
 
@@ -113,7 +117,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
                 }
             } else {
                 // continue searching
-                const auto& input_node = input_value.get_node_shared_ptr();
+                const auto& input_node = output.get_node_shared_ptr();
                 nodes.push_front(input_node);
             }
         }
