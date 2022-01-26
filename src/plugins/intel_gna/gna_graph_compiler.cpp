@@ -2384,7 +2384,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             if (quantized->lowPrecision) {
                 inputs_ptr_->at(prevLayer->name).set_precision(InferenceEngine::Precision::I8);
             } else {
-              inputs_ptr_->at(prevLayer->name).set_precision(InferenceEngine::Precision::I16);
+                inputs_ptr_->at(prevLayer->name).set_precision(InferenceEngine::Precision::I16);
             }
         }
         if (0 == inputs_ptr_->at(prevLayer->name).get_allocated_size()) {

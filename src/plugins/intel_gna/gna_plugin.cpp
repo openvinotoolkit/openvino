@@ -196,71 +196,65 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                   uint32_t num_vector_stride,
                   Precision precision_in,
                   Precision precision_out) {
+    if (precision_out != Precision::I32 && precision_out != Precision::FP32) {
+        THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << precision_out.name();
+    }
     // source scores are possibly padded to multiple of 8 and possibly interleaved
     // rotate if necessary and only copy actual scores (not padding)
     if (orientation == kDnnInterleavedOrientation) {
-        if (precision_out == Precision::I32 || precision_out == Precision::FP32) {
-            int32_t *dst = reinterpret_cast<int32_t *>(ptr_dst);
-            const int8_t *src = reinterpret_cast<const int8_t*>(ptr_src);
-            for (uint32_t i = 0; i < num_frames; i++) {
-                for (uint32_t j = 0; j < num_active_elements; j++) {
-                    auto input_ptr = src + (j * num_group + i) * precision_in.size();
-                    auto dst_ptr = dst + (i * num_vector_elements + j);
+        int32_t *dst = reinterpret_cast<int32_t *>(ptr_dst);
+        const int8_t *src = reinterpret_cast<const int8_t*>(ptr_src);
+        for (uint32_t i = 0; i < num_frames; i++) {
+            for (uint32_t j = 0; j < num_active_elements; j++) {
+                auto input_ptr = src + (j * num_group + i) * precision_in.size();
+                auto dst_ptr = dst + (i * num_vector_elements + j);
 
-                    switch (precision_in) {
-                        case Precision::I8 : {
-                            *dst_ptr = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(input_ptr));
-                            break;
-                        }
-                        case Precision::I16 : {
-                            *dst_ptr  = static_cast<int32_t>(*reinterpret_cast<const int16_t*>(input_ptr));
-                            break;
-                        }
-                        case Precision::I32 :
-                        case Precision::FP32 : {
-                            *dst_ptr = *reinterpret_cast<const int32_t *>(input_ptr);
-                            break;
-                        }
-                        default:
-                            THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << precision_in.name();
+                switch (precision_in) {
+                    case Precision::I8 : {
+                        *dst_ptr = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(input_ptr));
+                        break;
                     }
-                }
-                for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
-                    dst[i * num_vector_elements + j] = 0;
+                    case Precision::I16 : {
+                        *dst_ptr  = static_cast<int32_t>(*reinterpret_cast<const int16_t*>(input_ptr));
+                        break;
+                    }
+                    case Precision::I32 : {
+                        *dst_ptr = *reinterpret_cast<const int32_t *>(input_ptr);
+                        break;
+                    }
+                    default:
+                        THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << precision_in.name();
                 }
             }
-        } else {
-            THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << precision_out.name();
+            for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
+                dst[i * num_vector_elements + j] = 0;
+            }
         }
     } else {
-        if (precision_out == Precision::I32 || precision_out == Precision::FP32) {
-            switch (precision_in) {
-                case Precision::I8 :
-                case Precision::I32 : {
-                    for (uint32_t i = 0; i < num_frames; i++) {
-                        void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * precision_out.size();
-                        const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * precision_in.size();
-                        memset(ptr_dst_vec, 0, num_vector_elements * precision_out.size());
-                        ie_memcpy(ptr_dst_vec, num_active_elements * precision_out.size(),
-                            ptr_src_vec, num_active_elements * precision_in.size());
-                    }
-                    break;
+        switch (precision_in) {
+            case Precision::I8 :
+            case Precision::I32 : {
+                for (uint32_t i = 0; i < num_frames; i++) {
+                    void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * precision_out.size();
+                    const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * precision_in.size();
+                    memset(ptr_dst_vec, 0, num_vector_elements * precision_out.size());
+                    ie_memcpy(ptr_dst_vec, num_active_elements * precision_out.size(),
+                        ptr_src_vec, num_active_elements * precision_in.size());
                 }
-                case Precision::I16 : {
-                    for (uint32_t i = 0; i < num_frames; i++) {
-                        auto ptr_dst_vec = reinterpret_cast<int32_t*>(ptr_dst) + i * num_vector_elements;
-                        auto ptr_src_vec = reinterpret_cast<const int16_t*>(ptr_src) + i * num_vector_stride;
-                        for (uint32_t j = 0; j < num_vector_elements; j++) {
-                            ptr_dst_vec[j] = ptr_src_vec[j];
-                        }
-                    }
-                    break;
-                }
-                default:
-                    THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << precision_in.name();
+                break;
             }
-        } else {
-            THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << precision_out.name();
+            case Precision::I16 : {
+                for (uint32_t i = 0; i < num_frames; i++) {
+                    auto ptr_dst_vec = reinterpret_cast<int32_t*>(ptr_dst) + i * num_vector_elements;
+                    auto ptr_src_vec = reinterpret_cast<const int16_t*>(ptr_src) + i * num_vector_stride;
+                    for (uint32_t j = 0; j < num_vector_elements; j++) {
+                        ptr_dst_vec[j] = ptr_src_vec[j];
+                    }
+                }
+                break;
+            }
+            default:
+                THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << precision_in.name();
         }
     }
 }
