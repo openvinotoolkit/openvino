@@ -38,13 +38,13 @@ public:
         auto mapItr = _cacheMapper.find(key);
         if (mapItr != _cacheMapper.end()) {
             touch(mapItr->second);
-            mapItr->second->second = std::move(val);
+            mapItr->second->second = val;
         } else {
             if (_cacheMapper.size() == _capacity) {
                 evict(1);
             }
-            auto itr = _lruList.insert(_lruList.begin(), {key, std::move(val)});
-            _cacheMapper.insert({std::move(key), itr});
+            auto itr = _lruList.insert(_lruList.begin(), {key, val});
+            _cacheMapper.insert({key, itr});
         }
     }
 
