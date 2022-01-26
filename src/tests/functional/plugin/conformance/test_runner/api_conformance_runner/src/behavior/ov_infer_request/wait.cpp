@@ -6,7 +6,7 @@
 
 #include "behavior/ov_infer_request/wait.hpp"
 
-#include "api_conformance_helpers.hpp"
+#include "ov_api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
@@ -15,24 +15,24 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::conformance::targetDevice),
-                                ::testing::ValuesIn(emptyConfig)),
+                                ::testing::ValuesIn(empty_config)),
                             OVInferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
+                                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI))),
                             OVInferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO))),
                             OVInferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestWaitTests,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_HETERO))),
                          OVInferRequestWaitTests::getTestCaseName);
 }  // namespace
