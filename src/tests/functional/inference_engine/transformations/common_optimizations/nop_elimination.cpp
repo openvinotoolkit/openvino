@@ -140,17 +140,13 @@ TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
     pass_manager.register_pass<pass::NopElimination>();
     pass_manager.run_passes(f);
 
-    bool reshape_is_missing = true;
+    bool movement_are_missing = true;
     for (auto node : f->get_ops()) {
-        if (node->get_friendly_name() == "reshape") {
-            reshape_is_missing = false;
-            ASSERT_TRUE(std::dynamic_pointer_cast<opset4::Reshape>(node));
-            auto original_names = ngraph::getFusedNamesVector(node);
-            sort(original_names.begin(), original_names.end());
-            ASSERT_EQ(original_names, std::vector<std::string>({"reshape", "squeeze"}));
+        if (node->get_friendly_name() == "reshape" || node->get_friendly_name() == "squeeze") {
+            movement_are_missing = false;
         }
     }
-    ASSERT_FALSE(reshape_is_missing);
+    ASSERT_TRUE(movement_are_missing);
 }
 
 TEST(nop_elimination, squeeze_unsqueeze_elimination) {

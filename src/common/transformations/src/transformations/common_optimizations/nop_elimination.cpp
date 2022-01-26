@@ -104,7 +104,8 @@ static bool eliminate_reshape_v1(const std::shared_ptr<Node>& node) {
         return false;
 
     if (ov::as_type_ptr<opset3::Squeeze>(input_node) ||
-        ov::as_type_ptr<opset3::Unsqueeze>(input_node)) {
+        ov::as_type_ptr<opset3::Unsqueeze>(input_node) ||
+        ov::as_type_ptr<opset3::Reshape>(input_node)) {
         auto shape = node->get_output_shape(0);
 
         // remove interchangeable nodes
