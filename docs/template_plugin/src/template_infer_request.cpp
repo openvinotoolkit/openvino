@@ -285,6 +285,9 @@ void TemplateInferRequest::inferPreprocess() {
             size_t exp_stride = 1;
             for (size_t i = 0; i < desc.getBlockDims().size(); i++) {
                 size_t rev_idx = desc.getBlockDims().size() - i - 1;
+                OPENVINO_ASSERT(desc.getOrder()[rev_idx] == rev_idx,
+                                "Template plugin: unsupported tensors with mixed axes order: ",
+                                ngraph::vector_to_string(desc.getOrder()));
                 if (desc.getStrides()[rev_idx] != exp_stride || desc.getOffsetPaddingToData()[rev_idx] != 0) {
                     return false;
                 }
@@ -298,6 +301,10 @@ void TemplateInferRequest::inferPreprocess() {
                                                                                         parameterShape,
                                                                                         mem_blob->rmap().as<void*>());
         } else {
+            OPENVINO_ASSERT(parameterType.bitwidth() % 8 == 0,
+                            "Template plugin: Unsupported ROI tensor with element type having ",
+                            std::to_string(parameterType.bitwidth()),
+                            " bits size");
             // Perform manual extraction of ROI tensor
             // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
             // Performance of manual extraction is not optimal, but it is ok for template implementation
