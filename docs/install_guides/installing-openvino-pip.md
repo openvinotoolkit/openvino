@@ -41,7 +41,7 @@ python -m pip install --upgrade pip
 
 **Step 4. Install the package**
 
-Run the command below:
+Run the following command:
 ```
 pip install openvino
 ```
