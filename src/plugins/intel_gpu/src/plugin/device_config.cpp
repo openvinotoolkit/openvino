@@ -117,74 +117,24 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 default:
                     IE_THROW(ParameterMismatch) << "Unsupported queue priority value: " << uVal;
             }
-        } else if (key.compare(GPUConfigParams::KEY_GPU_MODEL_PRIORITY) == 0 ||
-                   key.compare(ov::hint::model_priority.name()) == 0) {
-            const bool new_api = key.compare(ov::hint::model_priority.name()) == 0;
-            bool found_matched_value = false;
-            if (new_api) {
-                std::stringstream ss(val);
-                ov::hint::ModelPriority priority;
-                ss >> priority;
-                switch (priority) {
-                    case ov::hint::ModelPriority::LOW:
-                        queuePriority = cldnn::priority_mode_types::low;
-                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
-                        break;
-                    case ov::hint::ModelPriority::MEDIUM:
-                        queuePriority = cldnn::priority_mode_types::med;
-                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
-                        break;
-                    case ov::hint::ModelPriority::HIGH:
-                        queuePriority = cldnn::priority_mode_types::high;
-                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
-                        break;
-                }
-            } else {
-                if (val.find(GPUConfigParams::GPU_MODEL_PRIORITY_HIGH) != std::string::npos) {
-                    queuePriority = cldnn::priority_mode_types::high;
-                    task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
-                    found_matched_value = true;
-                } else if (val.find(GPUConfigParams::GPU_MODEL_PRIORITY_LOW) != std::string::npos) {
+        } else if (key.compare(ov::hint::model_priority.name()) == 0) {
+            std::stringstream ss(val);
+            ov::hint::ModelPriority priority;
+            ss >> priority;
+            switch (priority) {
+                case ov::hint::ModelPriority::LOW:
                     queuePriority = cldnn::priority_mode_types::low;
                     task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
-                    found_matched_value = true;
-                } else {
-                    if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_HIGH) != std::string::npos) {
-                        queuePriority = cldnn::priority_mode_types::high;
-                        found_matched_value = true;
-                    } else if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_MED) != std::string::npos) {
-                        queuePriority = cldnn::priority_mode_types::med;
-                        found_matched_value = true;
-                    } else if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_LOW) != std::string::npos) {
-                        queuePriority = cldnn::priority_mode_types::low;
-                        found_matched_value = true;
-                    } else if (val.find(GPUConfigParams::GPU_QUEUE_PRIORITY_DEFAULT) != std::string::npos) {
-                        queuePriority = cldnn::priority_mode_types::disabled;
-                        found_matched_value = true;
-                    } else { // default is disabled
-                        queuePriority = cldnn::priority_mode_types::disabled;
-                    }
-                    if (val.find(GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH) != std::string::npos) {
-                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
-                        found_matched_value = true;
-                    } else if (val.find(GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW) != std::string::npos) {
-                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
-                        found_matched_value = true;
-                    } else if (val.find(GPUConfigParams::GPU_HOST_TASK_PRIORITY_ANY) != std::string::npos) {
-                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
-                        found_matched_value = true;
-                    } else { // default is any
-                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
-                    }
-                }
-                if (!found_matched_value) {
-                    IE_THROW() << "Not found appropriate value for property key " << GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY
-                        << ".\n Expected Plugin priority such as GPU_PLUGIN_PRIORITY_HIGH / GPU_PLUGIN_PRIORITY_LOW or\n"
-                        << " Combination of queue priority(HIGH, MED, LOW, and DISABLED) and host task priority(HIGH, LOW, and ANY)"
-                        << " such as GPU_QUEUE_PRIORITY_HIGH | GPU_HOST_TASK_PRIORITY_HIGH";
-                }
+                    break;
+                case ov::hint::ModelPriority::MEDIUM:
+                    queuePriority = cldnn::priority_mode_types::med;
+                    task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+                    break;
+                case ov::hint::ModelPriority::HIGH:
+                    queuePriority = cldnn::priority_mode_types::high;
+                    task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
+                    break;
             }
-
             if (getAvailableCoresTypes().size() > 1) {
                 if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG
                     || task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
@@ -416,28 +366,14 @@ void Config::adjustKeyMapValues() {
     {
         std::stringstream s;
         if (queuePriority == cldnn::priority_mode_types::high && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
-            key_config_map[GPUConfigParams::KEY_GPU_MODEL_PRIORITY] = GPUConfigParams::GPU_MODEL_PRIORITY_HIGH;
             s << ov::hint::ModelPriority::HIGH;
+            key_config_map[ov::hint::model_priority.name()] = s.str();
+        } else if (queuePriority == cldnn::priority_mode_types::med && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::ANY) {
+            s << ov::hint::ModelPriority::MEDIUM;
             key_config_map[ov::hint::model_priority.name()] = s.str();
         } else if (queuePriority == cldnn::priority_mode_types::low && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
             s << ov::hint::ModelPriority::LOW;
-            key_config_map[GPUConfigParams::KEY_GPU_MODEL_PRIORITY] = GPUConfigParams::GPU_MODEL_PRIORITY_LOW;
             key_config_map[ov::hint::model_priority.name()] = s.str();
-        } else {
-            std::string val_plugin_priority;
-            switch (queuePriority) {
-            case cldnn::priority_mode_types::low:   val_plugin_priority = GPUConfigParams::GPU_QUEUE_PRIORITY_LOW; break;
-            case cldnn::priority_mode_types::med:   val_plugin_priority = GPUConfigParams::GPU_QUEUE_PRIORITY_MED; break;
-            case cldnn::priority_mode_types::high:  val_plugin_priority = GPUConfigParams::GPU_QUEUE_PRIORITY_HIGH; break;
-            default:                                val_plugin_priority = GPUConfigParams::GPU_QUEUE_PRIORITY_DEFAULT; break;
-            }
-            val_plugin_priority += "|";
-            switch (task_exec_config._threadPreferredCoreType) {
-            case IStreamsExecutor::Config::LITTLE:      val_plugin_priority += GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH; break;
-            case IStreamsExecutor::Config::BIG:         val_plugin_priority += GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW; break;
-            case IStreamsExecutor::Config::ANY:default: val_plugin_priority += GPUConfigParams::GPU_HOST_TASK_PRIORITY_ANY; break;
-            }
-            key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY]        = val_plugin_priority;
         }
     }
     {

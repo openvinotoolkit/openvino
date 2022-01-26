@@ -619,32 +619,32 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
 
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {
-        // Metrices
-        ov::supported_properties.name(),
-        ov::available_devices.name(),
-        ov::range_for_async_infer_requests.name(),
-        ov::range_for_streams.name(),
-        ov::optimal_batch_size.name(),
-        ov::device::full_name.name(),
-        ov::device::type.name(),
-        ov::device::gops.name(),
-        ov::device::capabilities.name(),
-        ov::intel_gpu::device_total_mem_size.name(),
-        ov::intel_gpu::uarch_version.name(),
-        ov::intel_gpu::execution_units_count.name(),
-        ov::intel_gpu::memory_statistics.name(),
-        ov::intel_gpu::max_batch_size.name(),
-        ov::intel_gpu::hw_matmul.name(),
+        // Metrics
+        ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::range_for_async_infer_requests.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::max_batch_size.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::hw_matmul.name(), PropertyMutability::RO},
 
         // Configs
-        ov::enable_profiling.name(),
-        ov::hint::model_priority.name(),
-        ov::intel_gpu::hint::host_task_priority.name(),
-        ov::intel_gpu::hint::queue_priority.name(),
-        ov::intel_gpu::hint::queue_throttle.name(),
-        ov::intel_gpu::enable_loop_unrolling.name(),
-        ov::cache_dir.name(),
-        ov::hint::performance_mode.name()};
+        PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
+        PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
+        PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
+        PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
+        PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
+        PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
+        PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
+        PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW}};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(AVAILABLE_DEVICES));

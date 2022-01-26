@@ -16,29 +16,31 @@ namespace ov {
 namespace intel_gpu {
 
 /**
- * @brief Metric which defines size of memory in bytes available for the device. For iGPU it returns host memory size,
- * for dGPU - dedicated gpu memory size
+ * @brief Read-only property which defines size of memory in bytes available for the device. For iGPU it returns host
+ * memory size, for dGPU - dedicated gpu memory size
  */
 static constexpr Property<uint64_t, PropertyMutability::RO> device_total_mem_size{"GPU_DEVICE_TOTAL_MEM_SIZE"};
 
 /**
- * @brief Metric to get microarchitecture identifier in major.minor.revision format
+ * @brief Read-only property to get microarchitecture identifier in major.minor.revision format
  */
 static constexpr Property<std::string, PropertyMutability::RO> uarch_version{"GPU_UARCH_VERSION"};
 
 /**
- * @brief Metric to get count of execution units for current GPU
+ * @brief Read-only property to get count of execution units for current GPU
  */
 static constexpr Property<int32_t, PropertyMutability::RO> execution_units_count{"GPU_EXECUTION_UNITS_COUNT"};
 
 /**
- * @brief Metric to get statistics of GPU memory allocated by engine for each allocation type
+ * @brief Read-only property to get statistics of GPU memory allocated by engine for each allocation type
  * It contains information about current memory usage
  */
-static constexpr Property<std::map<std::string, uint64_t>, PropertyMutability::RO> memory_statistics{"GPU_MEMORY_STATISTICS"};
+static constexpr Property<std::map<std::string, uint64_t>, PropertyMutability::RO> memory_statistics{
+    "GPU_MEMORY_STATISTICS"};
 
 /**
- * @brief Metric to get maximum batch size which does not cause performance degradation due to memory swap impact.
+ * @brief Read-only property to get maximum batch size which does not cause performance degradation due to memory swap
+ * impact.
  */
 static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"GPU_MAX_BATCH_SIZE"};
 

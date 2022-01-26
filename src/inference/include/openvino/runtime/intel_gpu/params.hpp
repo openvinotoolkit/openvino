@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
  * @brief A header for advanced hardware related properties for GPU plugin
  *        To use in SetConfig() method of plugins
  *
- * @file gpu_config.hpp
+ * @file params.hpp
  */
 #pragma once
 
@@ -33,7 +33,7 @@ inline std::ostream& operator<<(std::ostream& os, const ContextType& context_typ
     case ContextType::VA_SHARED:
         return os << "VA_SHARED";
     default:
-        throw ov::Exception{"Unsupported context type"};
+        IE_THROW() << "Unsupported context type";
     }
 }
 
@@ -45,7 +45,7 @@ inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
     } else if (str == "VA_SHARED") {
         context_type = ContextType::VA_SHARED;
     } else {
-        throw ov::Exception{"Unsupported context type: " + str};
+        IE_THROW() << "Unsupported context type: " + str;
     }
     return is;
 }
@@ -87,7 +87,7 @@ static constexpr Property<gpu_handle_param> ocl_queue{"OCL_QUEUE"};
 static constexpr Property<gpu_handle_param> va_device{"VA_DEVICE"};
 
 /**
- * @brief Enum to define possible host task priorities
+ * @brief Enum to define possible shared memory type
  */
 enum class SharedMemType {
     OCL_BUFFER = 0,
@@ -117,7 +117,7 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
     case SharedMemType::DX_BUFFER:
         return os << "DX_BUFFER";
     default:
-        throw ov::Exception{"Unsupported host task priority"};
+        IE_THROW() << "Unsupported memory type";
     }
 }
 
@@ -139,7 +139,7 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
     } else if (str == "DX_BUFFER") {
         share_mem_type = SharedMemType::DX_BUFFER;
     } else {
-        throw ov::Exception{"Unsupported host task priority: " + str};
+        IE_THROW() << "Unsupported memory type: " + str;
     }
     return is;
 }
