@@ -17,6 +17,7 @@
 #include "threading/ie_itask_executor.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "ie_icore.hpp"
+#include <ie_performance_hints.hpp>
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -82,8 +83,9 @@ public:
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
+        int                                       _index = 0;
     };
-    using NotBusyWorkerRequests = InferenceEngine::ThreadSafeBoundedQueue<WorkerInferRequest*>;
+    using NotBusyWorkerRequests = InferenceEngine::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
 
     explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::SoExecutableNetworkInternal>&        networksPerDevice,
                                           const std::vector<DeviceInformation>&                                 networkDevices,
