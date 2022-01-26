@@ -33,6 +33,7 @@ from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patt
 from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, get_weights_for_node
 from ..graph.special_patterns import get_ignored_patterns
 from ..utils.logger import get_logger
+from .utils import get_hardware_config_operation_type
 
 logger = get_logger(__name__)
 
@@ -870,8 +871,9 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
             fq_group = fq_type[idx]
 
         fq_configs = []
-        if hw_config is not None and hw_config[node.type]:
-            fq_configs = hw_config[node.type][fq_group]
+        node_type = get_hardware_config_operation_type(node, list(hw_config.keys()))
+        if hw_config is not None and hw_config[node_type]:
+            fq_configs = hw_config[node_type][fq_group]
 
         fq_options = {'fq_group': fq_group, 'fq_configs': copy(fq_configs)}
         fq_name = '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx)

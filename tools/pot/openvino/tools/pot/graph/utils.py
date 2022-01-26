@@ -13,7 +13,7 @@ from .gpu_patterns import get_gpu_ignored_patterns
 from .vpu_patterns import get_vpu_ignored_patterns
 from .gna_patterns import get_gna_ignored_patterns
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
-from .node_utils import get_all_node_outputs
+from .node_utils import get_all_node_outputs, get_input_shape
 
 HARDWARE_AWARE_IGNORED_PATTERNS = {
     'CPU': get_cpu_ignored_patterns(),
@@ -229,3 +229,30 @@ def check_agnostic_and_ignored_params(model, ignored_params):
 
 def is_data_type_quantizable(type_node):
     return type_node not in (np.int32, np.int64, bool)
+
+
+def get_hardware_config_operation_type(node, available_types):
+    """ This function gets type by child
+    for hardware configuration of FQ node
+    :param node: node-type object
+    :param available_types: available types with config
+    :return: default or special type of layer as string
+    """
+
+    def _is_depth_wise(node):
+        if node.type == 'Convolution' and node.has_valid('group'):
+            group = node['group']
+            output = node['output']
+            input_shape = get_input_shape(node, 0)
+            if group == output and input_shape[1] == output:
+                return True
+        return False
+
+    type_checkers = {
+        'DepthWiseConvolution': _is_depth_wise
+    }
+
+    for real_type in type_checkers:
+        if real_type in available_types and type_checkers[real_type](node):
+            return real_type
+    return node.type

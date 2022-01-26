@@ -5,9 +5,10 @@ from collections import deque, defaultdict
 from copy import deepcopy
 
 from .range_estimator import get_range_estimator_config
-from .utils import get_hardware_config_operation_type, load_hardware_config
+from .utils import load_hardware_config
 from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS, CONCAT_UNIFY_INPUTS
-from ...graph.utils import find_operation_matches, get_operation_list, is_data_type_quantizable
+from ...graph.utils import find_operation_matches, get_operation_list, is_data_type_quantizable, \
+    get_hardware_config_operation_type
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_input_shape, get_all_node_outputs,\
 get_node_input, get_node_inputs, get_node_data_type, check_const_input
