@@ -187,6 +187,8 @@ macro(ie_register_plugins_dynamic)
     # Unregister <device_name>.xml files for plugins from current build tree
 
     set(plugins_to_remove ${IE_REGISTER_POSSIBLE_PLUGINS})
+    # Remove legacy plugin names from plugins.xml in case of incremental build
+    set(plugins_to_remove ${plugins_to_remove} AutoPlugin MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
     set(config_output_file "$<TARGET_FILE_DIR:${IE_REGISTER_MAIN_TARGET}>/plugins.xml")
 
     foreach(plugin IN LISTS plugins_to_remove)
