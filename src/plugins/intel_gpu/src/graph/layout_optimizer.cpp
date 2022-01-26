@@ -1652,14 +1652,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.
-        if (all_users_simple_format(node, node, 0, 10)) {
+        if (all_users_simple_format_until_output(node, node, 0, 10)) {
             const auto& dim = format::dimension(node.get_output_layout().format);
-            switch (dim) {
-                case 4 : expected = format::bfyx; break;
-                case 5 : expected = format::bfzyx; break;
-                case 6 : expected = format::bfwzyx; break;
-                default : throw std::runtime_error("Unknown rank " + dim);
-            }
+            expected = format::get_default_format(dim, false, false);
         } else {
             expected = format::any;
         }
@@ -1668,7 +1663,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     return expected;
 }
 
-bool layout_optimizer::all_users_simple_format(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth) {
+bool layout_optimizer::all_users_simple_format_until_output(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth) {
     if (cur_node.is_output()) return true;
     if (cur_depth > max_depth) return false;
 
@@ -1681,7 +1676,7 @@ bool layout_optimizer::all_users_simple_format(program_node& origin_node, progra
 
     bool res = true;
     for (const auto& usr : cur_node.get_users()) {
-        res &= all_users_simple_format(origin_node, *usr, cur_depth + 1, max_depth);
+        res &= all_users_simple_format_until_output(origin_node, *usr, cur_depth + 1, max_depth);
     }
     return res;
 }
