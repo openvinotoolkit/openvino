@@ -11,7 +11,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 const std::vector<std::map<std::string, std::string>> multiConfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GNA}}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GNA)}
 };
 
 

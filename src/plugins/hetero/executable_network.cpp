@@ -68,11 +68,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     auto function = network.getFunction();
     IE_ASSERT(function != nullptr);
     auto clonedFunction = ngraph::clone_function(*function);
-    auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
-    bool dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
-    //#ifndef NDEBUG
-    //    dumpDotFile  = true;
-    //#endif
+    bool dumpDotFile = false;
+    if (std::getenv("OPENVINO_HETERO_VISUALIZE")) {
+        dumpDotFile = true;
+    } else {
+        auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
+        dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
+    }
 
     QueryNetworkResult queryNetworkResult;
     auto orderedOps = clonedFunction->get_ordered_ops();
@@ -90,10 +92,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 
     if (queryNetworkResult.supportedLayersMap.empty()) {
         auto it = _config.find("TARGET_FALLBACK");
+        if (it == _config.end()) {
+            it = _config.find(ov::device::priorities.str());
+        }
         if (it != _config.end()) {
             queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
         } else {
-            IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous device";
+            IE_THROW() << "The '" << ov::device::priorities.str() << "' option was not defined for heterogeneous plugin";
         }
     }
 
@@ -817,7 +822,7 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string& name) const {
     InferenceEngine::Parameter result;
-    if (name == "TARGET_FALLBACK") {
+    if (name == "TARGET_FALLBACK" || name == ov::device::prioririties.str()) {
         auto it = _config.find(name);
         if (it != _config.end()) {
             result = it->second;
@@ -906,6 +911,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> heteroConfigKeys = {"TARGET_FALLBACK",
+                                                     ov::device::prioririties.str(),
                                                      HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
                                                      CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)};
 

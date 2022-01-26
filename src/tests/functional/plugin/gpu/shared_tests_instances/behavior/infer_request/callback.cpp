@@ -11,7 +11,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 const std::vector<std::map<std::string, std::string>> multiConfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
 };
 
 const std::vector<std::map<std::string, std::string>> autoConfigs = {
