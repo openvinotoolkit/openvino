@@ -1,0 +1,1 @@
+# Configurations for on Intel® Neural Compute Stick 2 {#openvino_docs_install_guides_configurations_for_ncs2}

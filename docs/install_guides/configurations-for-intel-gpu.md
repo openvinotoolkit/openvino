@@ -1,0 +1,1 @@
+# Configurations for Intel® Processor Graphics (GPU) {#openvino_docs_install_guides_configurations_for_intel_gpu}

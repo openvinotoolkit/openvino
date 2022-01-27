@@ -1,0 +1,1 @@
+# Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs for Linux {#openvino_docs_configurations_vpu_linux}
