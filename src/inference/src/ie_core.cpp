@@ -532,7 +532,9 @@ public:
             const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
-                // no need for this config key in the rest of loading
+                // virtual plugins like AUTO/MULTI will need the config
+                // e.g to deduce the #requests correctly
+                // otherwise, no need for this config key in the rest of loading
                 if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
                     config.erase(batch_mode);
                 if (disabled)

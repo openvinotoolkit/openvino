@@ -714,14 +714,16 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                     (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
                     std::map<std::string, InferenceEngine::Parameter> options;
                     options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
-                    try {
-                        optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
-                                        METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-                        LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size", optimalBatchSize);
-                    } catch (...) {
-                        LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
+                    if (!_context.batchingDisabled) {
+                        try {
+                            optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
+                                            METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+                            LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size", optimalBatchSize);
+                        } catch (...) {
+                            LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
+                        }
                     }
-                    if (optimalBatchSize > 1 && !_context.batchingDisabled) {
+                    if (optimalBatchSize > 1) {
                         // batching is supported with the device
                         // go with auto-batching
                         try {
