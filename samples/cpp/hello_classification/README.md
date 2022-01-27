@@ -5,21 +5,21 @@ Models with only 1 input and output are supported.
 
 The following Inference Engine C++ API is used in the application:
 
-| Feature    | API  | Description |
-|:---     |:--- |:---
+| Feature | API | Description |
+| :--- | :--- | :--- |
 | OpenVINO Runtime Version | `ov::get_openvino_version` | Get Openvino API version |
-| Basic Infer Flow | `ov::Core`, `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: configure input and output tensors, reading and compile model, create infer request
-| Synchronous Infer | `ov::InferRequest::infer` | Do synchronous inference
-| Model Operations | `ov::Model::inputs`, `ov::Model::outputs` | Get inputs and outputs of the model |
-| Tensor Operations| `ov::Tensor`, `ov::Tensor::get_shape` | Work with input tensor |
-| Preprocessing     | `ov::preprocess::PrePostProcessor`, `ov::preprocess::InputTensorInfo::set_element_type`, `ov::preprocess::InputTensorInfo::set_layout`, `ov::preprocess::InputTensorInfo::set_spatial_static_shape`, `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputModelInfo::set_layout`, `ov::preprocess::OutputTensorInfo::set_element_type`, `ov::preprocess::PrePostProcessor::build` | Set image of the original size as input for a model with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference |
+| Basic Infer Flow | `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: reading and compile model, create infer request, configure input and output tensors |
+| Synchronous Infer | `ov::InferRequest::infer` | Do synchronous inference |
+| Model Operations | `ov::Model::inputs`, `ov::Model::outputs` | Get inputs and outputs of a model |
+| Tensor Operations | `ov::Tensor::get_shape` | Get a tensor shape |
+| Preprocessing | `ov::preprocess::InputTensorInfo::set_element_type`, `ov::preprocess::InputTensorInfo::set_layout`, `ov::preprocess::InputTensorInfo::set_spatial_static_shape`, `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputModelInfo::set_layout`, `ov::preprocess::OutputTensorInfo::set_element_type`, `ov::preprocess::PrePostProcessor::build` | Set image of the original size as input for a model with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference |
 
-| Options  | Values |
-|:---                              |:---
-| Validated Models                 | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)
-| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
-| Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization       | [C](../../../samples/c/hello_classification/README.md), [Python](../../../samples/python/hello_classification/README.md) |
+| Options | Values |
+| :--- | :--- |
+| Validated Models | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) |
+| Model Format | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
+| Supported devices | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Other language realization | [C](../../../samples/c/hello_classification/README.md), [Python](../../../samples/python/hello_classification/README.md) |
 
 ## How It Works
 
@@ -33,6 +33,10 @@ each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_custo
 To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 ## Running
+
+```
+hello_classification <path_to_model> <path_to_image> <device_name>
+```
 
 To run the sample, you need specify a model and image:
 
@@ -72,20 +76,20 @@ The application outputs top-10 inference results.
 ```
 Top 10 results:
 
-Image \images\car.bmp
+Image /images/car.bmp
 
 classid probability
 ------- -----------
-656     0.6655273
-654     0.1129761
-581     0.0685425
-874     0.0344849
-436     0.0256042
-817     0.0171967
-675     0.0109482
-511     0.0106812
-569     0.0081253
-717     0.0061836
+656     0.8139648
+654     0.0550537
+468     0.0178375
+436     0.0165405
+705     0.0111694
+817     0.0105820
+581     0.0086823
+575     0.0077515
+734     0.0064468
+785     0.0043983
 ```
 
 ## See Also
