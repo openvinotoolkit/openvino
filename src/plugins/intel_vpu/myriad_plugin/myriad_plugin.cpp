@@ -67,8 +67,11 @@
 #include <vpu/configuration/options/none_layers.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
 #include <vpu/configuration/options/enable_mx_boot.hpp>
+#include "vpu/configuration/options/performance_hint.hpp"
+#include "vpu/configuration/options/performance_hint_num_requests.hpp"
 
 #include "myriad_plugin.h"
+
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/intel_myriad/myriad_properties.hpp"
 
@@ -237,6 +240,8 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _parsedConfig.registerOption<NoneLayersOption>();
     _parsedConfig.registerOption<EnableAsyncDMAOption>();
     _parsedConfig.registerOption<EnableMXBootOption>();
+    _parsedConfig.registerOption<PerformanceHintOption>();
+    _parsedConfig.registerOption<PerformanceHintNumRequestsOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
