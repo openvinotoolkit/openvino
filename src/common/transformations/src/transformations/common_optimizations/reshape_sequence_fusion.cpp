@@ -18,11 +18,12 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeSequenceFusion, "ReshapeSequenceFusi
 
 namespace {
 OPENVINO_SUPPRESS_DEPRECATED_START
-bool has_valid_pattern(const std::shared_ptr<ngraph::Node> & node) {
-    auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node);
+bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
+    const auto node = node_out.get_node_shared_ptr();
+    const auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node);
     if (!const_node) {
         // Lower bound of the value
-        ngraph::HostTensorPtr lb = std::make_shared<ngraph::HostTensor>(node->output(0));
+        ngraph::HostTensorPtr lb = std::make_shared<ngraph::HostTensor>(node_out);
         const bool is_lb_evaluated = node->evaluate_lower({lb});
         if (!is_lb_evaluated || !lb) return false;
         const auto lb_const_node = std::make_shared<ngraph::opset8::Constant>(lb);
@@ -35,7 +36,7 @@ bool has_valid_pattern(const std::shared_ptr<ngraph::Node> & node) {
         }
 
         // Upper bound of the value
-        ngraph::HostTensorPtr ub = std::make_shared<ngraph::HostTensor>(node->output(0));
+        ngraph::HostTensorPtr ub = std::make_shared<ngraph::HostTensor>(node_out);
         const bool is_ub_evaluated = node->evaluate_upper({ub});
         if (!is_ub_evaluated || !ub) return false;
         const auto ub_const_node = std::make_shared<ngraph::opset8::Constant>(ub);
@@ -71,8 +72,8 @@ ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion() {
         auto input = pattern_map.at(reshape_input);
         auto reshape = m.get_match_root();
 
-        auto pattern_a = pattern_map.at(reshape_a_pattern).get_node_shared_ptr();
-        auto pattern_b = pattern_map.at(reshape_b_pattern).get_node_shared_ptr();
+        auto pattern_a = pattern_map.at(reshape_a_pattern);
+        auto pattern_b = pattern_map.at(reshape_b_pattern);
         // skip reshapes which patterns contain special numbers like -1 or 0
         if (!has_valid_pattern(pattern_a) || !has_valid_pattern(pattern_b)) {
             return false;
