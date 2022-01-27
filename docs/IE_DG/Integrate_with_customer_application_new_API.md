@@ -82,7 +82,7 @@ Optionally, configure input and output of the model using the steps below:
          
          auto network = core.ReadNetwork("model.onnx");
 
-      You can find more information about the ONNX format support in the document `ONNX format support in the OpenVINO™ <https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_ONNX_Support.html>`_   
+      You can find more information about the ONNX format support in the document `ONNX format support in the OpenVINO™ <https://docs.openvino.ai/latest/openvino_docs_IE_DG_ONNX_Support.html>`_   
    
    .. tab:: nGraph
       
@@ -90,7 +90,7 @@ Optionally, configure input and output of the model using the steps below:
          
          std::shared_ptr<Function> createNetwork() {
             // To construct a network, please follow 
-            // https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_build_function.html
+            // https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_build_function.html
          }
          auto network = CNNNetwork(createNetwork());
 
@@ -192,7 +192,7 @@ Load the model to the device using `InferenceEngine::Core::LoadNetwork()`:
 
       std::shared_ptr<Function> createNetwork() {
          // To construct a network, please follow 
-         // https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_build_function.html
+         // https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_build_function.html
       }
       auto network = CNNNetwork(createNetwork());
       executable_network = core.LoadNetwork(network, "CPU");

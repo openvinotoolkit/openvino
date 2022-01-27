@@ -47,7 +47,7 @@ assignees: ''
  - [ ] I checked the problem with documentation, FAQ, open issues, Stack Overflow, etc and have not found solution
    <!--
    Places to check:
-   * OpenVINO documentation: https://docs.openvinotoolkit.org/
+   * OpenVINO documentation: https://docs.openvino.ai/
    * OpenVINO forum: https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit
    * OpenVINO issue tracker: https://github.com/openvinotoolkit/openvino/issues?q=is%3Aissue
    * Stack Overflow branch: https://stackoverflow.com/questions/tagged/openvino

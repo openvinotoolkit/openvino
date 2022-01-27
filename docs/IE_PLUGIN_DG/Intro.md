@@ -9,8 +9,11 @@
 
    Implement Plugin Functionality <openvino_docs_ie_plugin_dg_plugin>
    Implement Executable Network Functionality <openvino_docs_ie_plugin_dg_executable_network>
+   openvino_docs_ie_plugin_dg_quantized_networks
    Implement Synchronous Inference Request <openvino_docs_ie_plugin_dg_infer_request>
    Implement Asynchronous Inference Request <openvino_docs_ie_plugin_dg_async_infer_request>
+   openvino_docs_ie_plugin_dg_plugin_build
+   openvino_docs_ie_plugin_dg_plugin_testing
 
 @endsphinxdirective
 

@@ -1,4 +1,4 @@
-# "Hot Topic" How-To Links {#openvino_docs_how_tos_how_to_links}
+# "Hot Topic" How-To Links
 
 ## Blogs & Articles
 

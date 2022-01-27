@@ -45,7 +45,6 @@
    :hidden:
    :caption: Get Started Guides
    
-   Get Started with One-Command Demo <openvino_docs_get_started_get_started_scripts>
    Get Started with Step-by-step Demo <openvino_docs_get_started_get_started_demos>
    Get Started with Tutorials <tutorials>
 
@@ -55,18 +54,6 @@
    :caption: Inference Engine Code Samples
 
    openvino_docs_IE_DG_Samples_Overview
-
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Reference Implementations For Speech Recognition Apps
-
-   openvino_inference_engine_samples_speech_libs_and_demos_Speech_libs_and_demos
-   openvino_inference_engine_samples_speech_libs_and_demos_Speech_library
-   openvino_inference_engine_samples_speech_libs_and_demos_Offline_speech_recognition_demo
-   openvino_inference_engine_samples_speech_libs_and_demos_Live_speech_recognition_demo
-   openvino_inference_engine_samples_speech_libs_and_demos_Kaldi_SLM_conversion_tool
 
 @endsphinxdirective
    
@@ -86,10 +73,6 @@
    <h3>Choose how you want to progress:</h3>
    
    <div id="GSG_nextstepchoice">
-     <a href="openvino_docs_get_started_get_started_scripts.html" >
-        <h4>One-command demo 		</h4>
-        <p>Execute just one command and watch all the steps happening before your eyes. </p>
-     </a>  		
      <a href="openvino_docs_get_started_get_started_demos.html" >
         <h4>Step-by-step demo		</h4>
         <p>Follow the step-by-step instructions to execute simple tasks with OpenVINO. </p>

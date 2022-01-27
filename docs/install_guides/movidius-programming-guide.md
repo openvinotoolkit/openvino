@@ -51,4 +51,4 @@ Inside the Lambda body use the completion callback function:
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
 
-- [Intel Distribution of OpenVINO Toolkit documentation](https://docs.openvinotoolkit.org)
+- [Intel Distribution of OpenVINO Toolkit documentation](https://docs.openvino.ai)

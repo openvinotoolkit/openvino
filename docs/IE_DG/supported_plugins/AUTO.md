@@ -50,7 +50,7 @@ The Auto-device plugin supports query device optimization capabilities in metric
 ### Enumerating Devices and Selection Logic
 
 The Inference Engine now features a dedicated API to enumerate devices and their capabilities. 
-See [Hello Query Device C++ Sample](../../../inference-engine/samples/hello_query_device/README.md).
+See [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md).
 This is the example output from the sample (truncated to device names only):
 
 ```sh
@@ -163,9 +163,9 @@ From the application's point of view, this is just another device that handles a
 
 With the 2021.4 release, Auto-device setup is done in three major steps:
 
-1. Configure each device as usual (for example, via the conventional [IECore.set_config](https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a2c738cee90fca27146e629825c039a05) method).
+1. Configure each device as usual (for example, via the conventional [IECore.set_config](https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#a2c738cee90fca27146e629825c039a05) method).
 2. Load a network to the Auto-device plugin. This is the only change needed in your application.
-3. As with any other executable network resulting from [IECore.load_network](https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc), create as many requests as needed to saturate the devices. 
+3. As with any other executable network resulting from [IECore.load_network](https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc), create as many requests as needed to saturate the devices. 
 
 These steps are covered below in detail.
 

@@ -96,7 +96,7 @@ The only device that supports this method is [Multi-Device](supported_plugins/MU
     <div id="switcher-python" class="switcher-anchor">Python</div>
 @endsphinxdirective
 
-This section provides a high-level description of the process of querying of different device properties and configuration values. Refer to the [Hello Query Device Python Sample](../../inference-engine/ie_bridges/python/sample/hello_query_device/README.md) sources and the [Multi-Device Plugin documentation](supported_plugins/MULTI.md) for examples of using the Inference Engine Query API in user applications.
+This section provides a high-level description of the process of querying of different device properties and configuration values. Refer to the [Hello Query Device Python Sample](../../samples/python/hello_query_device/README.md) sources and the [Multi-Device Plugin documentation](supported_plugins/MULTI.md) for examples of using the Inference Engine Query API in user applications.
 
 ### Using the Inference Engine Query API in Your Code
 

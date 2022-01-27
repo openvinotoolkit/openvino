@@ -15,7 +15,6 @@
 
 namespace SubgraphTestsDefinitions {
 
-// ! [test_convolution:definition]
 typedef struct {
     InferenceEngine::SizeVector kernelSize;
     InferenceEngine::SizeVector strides;
@@ -48,6 +47,5 @@ public:
 protected:
     void SetUp() override;
 };
-// ! [test_convolution_relu_sequence:definition]
 
 }  // namespace SubgraphTestsDefinitions

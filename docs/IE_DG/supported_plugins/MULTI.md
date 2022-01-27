@@ -182,7 +182,7 @@ You can set the configuration directly as a string, or use the metric key `MULTI
 
 
 ### Enumerating Available Devices
-The Inference Engine features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../../inference-engine/ie_bridges/python/sample/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
+The Inference Engine features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../../samples/python/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
 
 ```sh
   ./hello_query_device
@@ -268,7 +268,7 @@ Note that while the performance of accelerators works well with Multi-Device, th
 
 ### Using the Multi-Device with OpenVINO Samples and Benchmarking the Performance
 
-Every OpenVINO sample that supports the `-d` (which stands for "device") command-line option transparently accepts Multi-Device. The [Benchmark application](../../../inference-engine/tools/benchmark_tool/README.md) is the best reference for the optimal usage of Multi-Device. As discussed earlier, you do not need to set up the number of requests, CPU streams or threads because the application provides optimal performance out of the box. Below is an example command to evaluate CPU+GPU performance with the Benchmark application:
+Every OpenVINO sample that supports the `-d` (which stands for "device") command-line option transparently accepts Multi-Device. The [Benchmark application](../../../tools/benchmark_tool/README.md) is the best reference for the optimal usage of Multi-Device. As discussed earlier, you do not need to set up the number of requests, CPU streams or threads because the application provides optimal performance out of the box. Below is an example command to evaluate CPU+GPU performance with the Benchmark application:
 
 ```sh
 ./benchmark_app.py –d MULTI:CPU,GPU –m <model>

@@ -19,6 +19,19 @@ The Inference Engine provides unique capabilities to infer deep learning models 
 
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
 
+The table below shows the plugin libraries and additional dependencies for Linux, Windows and macOS platforms.
+
+| Plugin | Library name for Linux      | Dependency libraries for Linux                              | Library name for Windows | Dependency libraries for Windows                                                                       | Library name for macOS       | Dependency libraries for macOS              |
+|--------|-----------------------------|-------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|---------------------------------------------|
+| CPU    | `libov_intel_cpu_plugin.so`        | | `ov_intel_cpu_plugin.dll`       | | `libov_intel_cpu_plugin.so`      | |
+| GPU    | `libov_intel_gpu_plugin.so`         | `libOpenCL.so` | `ov_intel_gpu_plugin.dll`        | `OpenCL.dll` |  Is not supported            |  -                                          |
+| MYRIAD | `libov_intel_vpu_plugin.so` | `libusb.so`                                                 | `ov_intel_vpu_plugin.dll`| `usb.dll`                                                                                              | `libov_intel_vpu_plugin.so`   | `libusb.dylib`                              |
+| HDDL   | `libHDDLPlugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
+| GNA    | `libov_intel_gna_plugin.so`           | `libgna.so`,                                                | `ov_intel_gna_plugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |
+| HETERO | `libov_hetero_plugin.so`        | Same as for selected plugins                                | `ov_hetero_plugin.dll`       | Same as for selected plugins                                                                           | `libov_hetero_plugin.so`      |  Same as for selected plugins               |
+| MULTI  | `libov_auto_plugin.so`   | Same as for selected plugins                                | `ov_auto_plugin.dll`  | Same as for selected plugins                                                                           | `libov_auto_plugin.so` |  Same as for selected plugins               |
+| AUTO | `libov_auto_plugin.so`   | Same as for selected plugins                                | `ov_auto_plugin.dll`  | Same as for selected plugins                                                                           | `libov_auto_plugin.so` |  Same as for selected plugins               |
+
 ## Supported Configurations
 
 The Inference Engine can inference models in different formats with various input and output formats.

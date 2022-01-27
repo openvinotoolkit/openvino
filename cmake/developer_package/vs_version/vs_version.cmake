@@ -10,7 +10,7 @@ set(IE_VS_VER_COMPANY_NAME_STR "Intel Corporation")
 set(IE_VS_VER_PRODUCTVERSION_STR "${CI_BUILD_NUMBER}")
 set(IE_VS_VER_PRODUCTNAME_STR "OpenVINO toolkit")
 set(IE_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2021, Intel Corporation")
-set(IE_VS_VER_COMMENTS_STR "https://docs.openvinotoolkit.org/")
+set(IE_VS_VER_COMMENTS_STR "https://docs.openvino.ai/")
 
 #
 # ie_add_vs_version_file(NAME <name>

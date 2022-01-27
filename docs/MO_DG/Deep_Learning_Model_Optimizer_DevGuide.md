@@ -33,8 +33,8 @@ The IR is a pair of files describing the model:
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-> **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) (DL Workbench).
-> [DL Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) is a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
+> **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) (DL Workbench).
+> [DL Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) is a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
 
 ## Install Model Optimizer Pre-Requisites
 
@@ -636,15 +636,15 @@ mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 
 You need to have have write permissions for an output directory.
 
-> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](Converting_Model.md).
+> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md).
 
-To adjust the conversion process, you may use general parameters defined in the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) and 
+To adjust the conversion process, you may use general parameters defined in the [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md) and 
 framework-specific parameters for:
-* [Caffe](Convert_Model_From_Caffe.md)
-* [TensorFlow](Convert_Model_From_TensorFlow.md)
-* [MXNet](Convert_Model_From_MxNet.md)
-* [ONNX](Convert_Model_From_ONNX.md)
-* [Kaldi](Convert_Model_From_Kaldi.md)
+* [Caffe](prepare_model/convert_model/Convert_Model_From_Caffe.md)
+* [TensorFlow](prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+* [MXNet](prepare_model/convert_model/Convert_Model_From_MxNet.md)
+* [ONNX](prepare_model/convert_model/Convert_Model_From_ONNX.md)
+* [Kaldi](prepare_model/convert_model/Convert_Model_From_Kaldi.md)
 
 ## Videos
 

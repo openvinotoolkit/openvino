@@ -1,8 +1,23 @@
 # Post-training Optimization Tool API samples {#pot_sample_README}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   Image Classification Quantization Sample <pot_sample_classification_README>
+   Accuracy-Aware Quantization Sample <pot_sample_object_detection_README>
+   Cascaded Model Quantization Sample <pot_sample_face_detection_README>
+   Semantic segmentation quantization sample <pot_sample_segmentation_README>
+   3D Segmentation quantization sample <pot_sample_3d_segmentation_README>
+   GNA speech sample <pot_sample_speech_README>
+
+@endsphinxdirective
+
 The Post-training Optimization Tool contains multiple samples that demonstrate how to use its [Software API](@ref pot_compression_api_README) 
 to optimize DL models which require special inference pipeline, data loading or metric calculation that 
-are not supported through the `AccuracyCheker` or `Simplified` engines (see [this tutorial](@ref pot_docs_BestPractices) for more details).
+are not supported through the `AccuracyCheker` or `Simplified` engines (see [Best Practices](../../../../../docs/BestPractices.md) for more details).
 
 All available samples can be found in `<POT_DIR>/api/samples` folder, where `<POT_DIR>` is a directory where the Post-Training Optimization Tool is installed.
 > **NOTE**: - `<POT_DIR>` is referred to `<ENV>/lib/python<version>/site-packages/` in the case of PyPI installation, where `<ENV>` is a Python* 

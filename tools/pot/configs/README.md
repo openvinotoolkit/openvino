@@ -40,15 +40,15 @@ which specify the engine that is used for model inference and validation (if sup
 using a subset of images. It does not use the Accuracy Checker tool and annotation. To measure accuracy, you should implement 
 your own validation pipeline with OpenVINO API.  
   - To run the simplified mode, define engine section similar to the example `mobilenetV2_tf_int8_simple_mode.json` file from the `<POT_DIR>/configs/examples/quantization/classification/` directory.
-- **Accuracy Checker** engine. It relies on the [Deep Learning Accuracy Validation Framework](@ref omz_tools_accuracy_checker_README) (Accuracy Checker) when inferencing DL models and working with datasets.
+- **Accuracy Checker** engine. It relies on the [Deep Learning Accuracy Validation Framework](@ref omz_tools_accuracy_checker) (Accuracy Checker) when inferencing DL models and working with datasets.
 The benefit of this mode is you can compute accuracy in case you have annotations. It is possible to use accuracy aware
 algorithms family when this mode is selected.
 There are two options to define engine parameters in that mode:
   - Refer to the existing Accuracy Checker configuration file which is represented by the YAML file. It can be a file used for full-precision model validation. In this case, you should define only the `"config"` parameter containing a path to the AccuracyChecker configuration file.
-  - Define all the [required Accuracy Checker parameters](@ref omz_tools_accuracy_checker_accuracy_checker_launcher_dlsdk_launcher_readme)
+  - Define all the [required Accuracy Checker parameters](@ref omz_tools_accuracy_checker_dlsdk_launcher)
     directly in the JSON file. In this case, POT just passes the corresponding dictionary of parameters to the Accuracy Checker when instantiating it.
     For more details, refer to the corresponding Accuracy Checker information and examples of configuration files provided with the tool:
-    - For the SSD-MobileNet model:<br>\<POT_DIR\>/configs/examples/quantization/object_detection/ssd_mobilenetv1_int8.json
+    - For the SSD-MobileNet model:<br>`<POT_DIR>/configs/examples/quantization/object_detection/ssd_mobilenetv1_int8.json`
 
 ## Compression Parameters
 
@@ -61,4 +61,4 @@ For a quick start, many examples of configuration files are provided and placed 
  folder. There you can find ready-to-use configurations for the models from various domains: Computer Vision (Image 
  Classification, Object Detection, Segmentation), Natural Language Processing, Recommendation Systems. We basically 
  put configuration files for the models which require non-default configuration settings in order to get accurate results.
-For details on how to run the Post-Training Optimization Tool with a sample configuration file, see the [example](@ref pot_configs_examples_README).
+For details on how to run the Post-Training Optimization Tool with a sample configuration file, see the [instructions](@ref pot_configs_examples_README).

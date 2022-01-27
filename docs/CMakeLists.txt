@@ -50,7 +50,6 @@ set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation c
 set(ENABLE_OPENVINO_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks")
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation dir.")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
-set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation dir.")
 set(OVMS_DOCS_DIR "" CACHE PATH "Path to model server documentation dir.")
 set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
 set(GRAPH_CSV_DIR "" CACHE PATH "Path to the folder containing csv data for rendering graphs.")
@@ -152,15 +151,6 @@ function(build_docs)
             --output_dir=${DOCS_BUILD_DIR}/workbench)
     endif()
 
-    # pot doc files
-    if(EXISTS "${POT_DOCS_DIR}")
-        get_filename_component(POT_DOCS_DIR "${POT_DOCS_DIR}" ABSOLUTE)
-
-        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir=${POT_DOCS_DIR}
-        --output_dir=${DOCS_BUILD_DIR}/pot)
-    endif()
-
     # ovms doc files
     if(EXISTS "${OVMS_DOCS_DIR}")
         get_filename_component(OVMS_DOCS_DIR "${OVMS_DOCS_DIR}" ABSOLUTE)
@@ -216,7 +206,7 @@ function(build_docs)
 
     add_custom_target(sphinx_docs
                       DEPENDS doxygen_xml
-                      COMMAND sphinx-build -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
+                      COMMAND sphinx-build -j auto -w ${DOCS_BUILD_DIR}/sphinx.log -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
                       WORKING_DIRECTORY ${RST_OUTPUT}
                       VERBATIM)
 

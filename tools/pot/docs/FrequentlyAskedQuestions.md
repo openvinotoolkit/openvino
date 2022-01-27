@@ -21,7 +21,7 @@ What else can I do?</a>
 
 ### <a name="opensourced">Is the Post-training Optimization Tool (POT) opensourced?</a>
 
-Yes, POT is developed on GitHub as a part of https://github.com/openvinotoolkit/openvino under Apache-2.0 License.
+Yes, POT is developed on GitHub as a part of [https://github.com/openvinotoolkit/openvino](https://github.com/openvinotoolkit/openvino) under Apache-2.0 License.
 
 ### <a name="dataset">Can I quantize my model without a dataset?</a>
 
@@ -37,7 +37,7 @@ The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) f
 
 ### <a name="noac">I'd like to quantize a model and I've converted it to IR but I don't have the Accuracy Checker config. What can I do?</a>
 
-To create the Accuracy Checker configuration file, refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker_README) and
+To create the Accuracy Checker configuration file, refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) and
 try to find the configuration file for your model among the ones available in the Accuracy Checker examples. An alternative way is to quantize the model
 in the Simplified mode but you will not be able to measure the accuracy. See [Post-Training Optimization Best Practices](BestPractices.md) for more details.
 Also, you can use [POT API](../openvino/tools/pot/api/README.md) to integrate the post-training quantization into your pipeline without the Accuracy Checker.
@@ -73,7 +73,7 @@ which is usually more accurate and takes more time but requires less memory. See
 
 It can happen due to the following reasons:
 - A wrong or not representative dataset was used during the quantization and accuracy validation. Please make sure that your data and labels are correct and they sufficiently reflect the use case.
-- A wrong Accuracy Checker configuration file was used during the quantization. Refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker_README) for more information.
+- A wrong Accuracy Checker configuration file was used during the quantization. Refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) for more information.
 
 ### <a name="longtime">The quantization process of my model takes a lot of time. Can it be decreased somehow?</a>
 

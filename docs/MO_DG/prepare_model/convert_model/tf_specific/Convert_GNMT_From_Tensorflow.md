@@ -274,4 +274,4 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 result_ie = exec_net.infer(input_data)
 ```
 
-For more information about Python API, refer to [Inference Engine Python API Overview](../../../../../src/bindings/python/docs/api_overview.md).
+For more information about Python API, refer to [Inference Engine Python API](ie_python_api/api.html).

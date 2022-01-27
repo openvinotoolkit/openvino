@@ -131,9 +131,6 @@ def setup(app):
     logger = logging.getLogger(__name__)
     app.add_config_value('doxygen_mapping_file', doxygen_mapping_file, rebuild=True)
     app.add_config_value('repositories', repositories, rebuild=True)
-    app.add_css_file('css/viewer.min.css')
-    app.add_css_file('css/custom.css')
-    app.add_js_file('js/viewer.min.js')
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
     try:

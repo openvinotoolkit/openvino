@@ -2,7 +2,7 @@
 
 ## Introduction
 
-By default, the [OpenVINO™ Toolkit](https://docs.openvinotoolkit.org/latest/index.html) installation on this page installs the following components:
+By default, the [OpenVINO™ Toolkit](https://docs.openvino.ai/latest/index.html) installation on this page installs the following components:
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -231,11 +231,11 @@ Your `PATH` environment variable is updated. If the changes don't take effect im
 
 ## <a name="get-started"></a>Step 6: Start Using the Toolkit
 
-Now you are ready to try out the toolkit. To continue, see the [Get Started Guide](../get_started/get_started.md) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
+Now you are ready to try out the toolkit. To continue, see the [Get Started Guide](../get_started.md) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 
-To uninstall the toolkit, follow the steps on the [Uninstalling](uninstalling_openvino.md) page.
+To uninstall the toolkit, follow the steps on the [Uninstalling](uninstalling-openvino.md) page.
 
 ## Additional Resources
 

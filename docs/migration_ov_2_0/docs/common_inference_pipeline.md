@@ -1,4 +1,4 @@
-# OpenVINO™ Inference Pipeline {#ov_inference_pipeline}
+# OpenVINO™ Inference Pipeline {#openvino_inference_pipeline}
 
 Usually to inference network with the OpenVINO™ toolkit users need to do next steps:
  1. Create Core
@@ -32,7 +32,7 @@ OpenVINO™ 2.0 API:
 
 @snippet snippets/ov_common.cpp ov_api_2_0:read_model
 
-Read model has the same structure as in the example from [OpenVINO™ Graph Construction](@ref ov_graph_construction) guide.
+Read model has the same structure as in the example from [OpenVINO™ Graph Construction](@ref openvino_graph_construction) guide.
 
 ### 2.1 Configure Input and Output of the Model
 

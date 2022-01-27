@@ -135,4 +135,4 @@ This setting reports the total FPS for the dispatching hddl_service (which will 
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
 
-- [Intel Distribution of OpenVINO Toolkit documentation](https://docs.openvinotoolkit.org)
+- [Intel Distribution of OpenVINO Toolkit documentation](https://docs.openvino.ai)

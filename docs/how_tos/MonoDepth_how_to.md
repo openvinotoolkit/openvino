@@ -3,7 +3,7 @@
 This tutorial describes the example from the following YouTube* video:
 ///
 
-To learn more about how to run the MonoDepth Python* demo application, refer to the [documentation](https://docs.openvinotoolkit.org/latest/omz_demos_monodepth_demo_python.html).
+To learn more about how to run the MonoDepth Python* demo application, refer to the [documentation](https://docs.openvino.ai/latest/omz_demos_monodepth_demo_python.html).
 
 Tested on OpenVINO™ 2021, Ubuntu 18.04.
 

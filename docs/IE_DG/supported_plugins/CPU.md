@@ -1,5 +1,5 @@
-CPU Plugin {#openvino_docs_IE_DG_supported_plugins_CPU}
-=======
+# CPU Plugin {#openvino_docs_IE_DG_supported_plugins_CPU}
+
 
 ## Introducing the CPU Plugin
 The CPU plugin was developed to achieve high performance of neural networks on CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN).

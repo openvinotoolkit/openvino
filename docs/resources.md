@@ -9,9 +9,8 @@
    :caption: Additional Resources
    
    Release Notes <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
-   Supported Frameworks
    openvino_docs_IE_DG_supported_plugins_Supported_Devices
-   glossary
+   openvino_docs_IE_DG_Glossary
    openvino_docs_Legal_Information
 
 

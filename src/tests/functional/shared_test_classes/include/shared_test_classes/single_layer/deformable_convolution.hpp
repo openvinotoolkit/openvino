@@ -15,7 +15,6 @@
 
 namespace LayerTestsDefinitions {
 
-// ! [test_convolution:definition]
 typedef std::tuple<
         InferenceEngine::SizeVector,    // Deformable values size
         InferenceEngine::SizeVector,    // Kernel size
@@ -50,6 +49,5 @@ public:
 protected:
     void SetUp() override;
 };
-// ! [test_convolution:definition]
 
 }  // namespace LayerTestsDefinitions

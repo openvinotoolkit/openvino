@@ -254,8 +254,6 @@ Now it is possible to convert the model using the following command line:
 mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
 ```
 
-@endsphinxdirective
-
 The sub-graph corresponding to the originally non-supported one is depicted in the image below:
 
 ![Converted sub-graph](img/converted_subgraph.png)
@@ -271,7 +269,7 @@ below is based on the template extension described in [Inference Engine Extensib
 The first step is to create a CMake configuration file which builds the extension. The content of the "CMakeLists.txt"
 file is the following:
 
-@snippet ../template_extension/CMakeLists.txt cmake:extension
+@snippet template_extension/old/CMakeLists.txt cmake:extension
 
 The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the extension library is linked with
 `opencv_core` which comes with the OpenVINO.
@@ -279,12 +277,12 @@ The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the
 #### Custom nGraph Operation "FFT" Implementation
 The next step is to create the nGraph operation FFT. The header file "fft_op.hpp" has the following content:
 
-@snippet ../template_extension/fft_op.hpp fft_op:header
+@snippet template_extension/old/fft_op.hpp fft_op:header
 
 The operation has just one boolean attribute `inverse`. Implementation of the necessary nGraph operation functions are
 in the `fft_op.cpp` file with the following content:
 
-@snippet ../template_extension/fft_op.cpp fft_op:implementation
+@snippet template_extension/old/fft_op.cpp fft_op:implementation
 
 Refer to the [Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md) for more details.
 
@@ -292,11 +290,11 @@ Refer to the [Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps
 The operation implementation for CPU plugin uses OpenCV to perform the FFT. The header file "fft_kernel.hpp" has the
 following content:
 
-@snippet ../template_extension/fft_kernel.hpp fft_kernel:header
+@snippet template_extension/old/fft_kernel.hpp fft_kernel:header
 
 The "fft_kernel.cpp" with the implementation of the CPU has the following content:
 
-@snippet ../template_extension/fft_kernel.cpp fft_kernel:implementation
+@snippet template_extension/old/fft_kernel.cpp fft_kernel:implementation
 
 Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more details.
 
@@ -334,7 +332,7 @@ python3 mri_reconstruction_demo.py \
 ## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
-- OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
+- OpenVINO™ toolkit online documentation: [https://docs.openvino.ai](https://docs.openvino.ai)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
 - [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md)

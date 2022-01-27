@@ -95,7 +95,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
   - The container base image must be `mcr.microsoft.com/windows:1809` or higher. Windows Server Core and Nano Server container images are not currently supported.
   - The container host must be running Docker Engine 19.03 or higher.
   - The container host must have GPU running display drivers of version WDDM 2.5 or higher.
-- [OpenVINO™ GPU requirement](https://docs.openvinotoolkit.org/latest/openvino_docs_install_guides_installing_openvino_windows.html#Install-GPU):
+- [OpenVINO™ GPU requirement](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows.html#Install-GPU):
   - Intel Graphics Driver for Windows of version 15.65 or higher.
 - [Docker isolation mode requirement](https://docs.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container):
   - Windows host and container version tags must match.

@@ -1,5 +1,4 @@
-OpenVINO™ Python* package {#openvino_docs_IE_DG_PythonPackage_Overview}
-========================
+# OpenVINO™ Python* Package
 
 OpenVINO™ Python\* package includes types to measure model and calibrate to low precision. 
 
@@ -12,4 +11,4 @@ The OpenVINO™ Python\* package includes the following sub-packages:
  - `openvino.tools.benchmark` - Measure latency and throughput.
 
 ## See Also
-* [Introduction to Inference Engine](inference_engine_intro.md)
+* [Integrate with Customer Application New API](Integrate_with_customer_application_new_API.md)

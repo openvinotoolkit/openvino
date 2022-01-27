@@ -1,13 +1,22 @@
 # Use Post-Training Optimization Tool Command-Line Interface {#pot_compression_cli_README}
 
-POT command-line interface (CLI) is designed to optimize models that are supported by the [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README) used for accuracy measurement. 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   End-to-end CLI example <pot_configs_examples_README>
+
+@endsphinxdirective
+
+POT command-line interface (CLI) is designed to optimize models that are supported by the [Accuracy Checker Tool](@ref omz_tools_accuracy_checker) used for accuracy measurement. 
 If your model is exactly from the OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or it is similar to one of 
 its models then you can employ POT CLI to optimize your model.
 In other cases, you should consider using POT [API](@ref pot_compression_api_README). To start with POT CLI please refer to the
 following [example](@ref pot_configs_examples_README).
 
-Note: There is also the so-called [**Simplified mode**](@ref pot_configs_README) that is basically aimed at INT8 quantization if the model is from the Computer Vision
-domain and has a simple dataset preprocessing, like image resize and crop. In this case, you can also use POT CLI for 
+Note: There is also the so-called [**Simplified mode**](@ref pot_configs_README) that is basically aimed at INT8 quantization if the model is from the Computer Vision domain and has a simple dataset preprocessing, like image resize and crop. In this case, you can also use POT CLI for 
 optimization. However, the accuracy results are not guaranteed in this case. Moreover, you are also limited in the 
 optimization methods choice since the accuracy measurement is not available.
  
@@ -25,7 +34,7 @@ installed it from form the distribution file:
    ```sh
    source <INSTALL_DIR>/bin/setupvars.sh
    ```
-   Note: this step is not required if you use PyPI distribution.
+   > **NOTE**: This step is not required if you use PyPI distribution.
 
 ## Run POT CLI 
 There are two ways how to run POT via command line:

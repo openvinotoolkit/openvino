@@ -137,7 +137,7 @@ models:
 
 ```
 where `data_source: ./ImageNet` is the dataset and `annotation_file: ./ImageNet/val.txt` is the annotation file prepared on the previous step. 
-For more information about the Accuracy Checker configuration file refer to [Accuracy Checker Tool documentation](@ref omz_tools_accuracy_checker_README).
+For more information about the Accuracy Checker configuration file refer to [Accuracy Checker Tool documentation](@ref omz_tools_accuracy_checker).
 
 3. Evaluate the accuracy of the full-precision model in the IR format by executing the following command in `<EXAMPLE_DIR>`:
    ```sh

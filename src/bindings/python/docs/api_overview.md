@@ -1,4 +1,4 @@
-# Overview of Inference Engine Python* API {#openvino_inference_engine_ie_bridges_python_docs_api_overview}
+# Overview of Inference Engine Python* API
 
 This API provides a simplified interface for Inference Engine functionality that allows you to:
 
@@ -37,4 +37,4 @@ If you want to use certain version of Python\*, set the environment variable `PY
 after running the environment configuration script.
 
 ## API Reference
-For the complete API Reference, see  [Inference Engine Python* API Reference](ie_python_api/annotated.html)
+For the complete API Reference, see  [Inference Engine Python* API Reference](ie_python_api/api.html)

@@ -6,7 +6,7 @@
    :hidden:
    
    openvino_docs_performance_benchmarks_faq
-   Download Performance Data Spreadsheet in MS Excel* Format <https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.4-Download-Excel.xlsx>
+   Download Performance Data Spreadsheet in MS Excel* Format <https://docs.openvino.ai/downloads/benchmark_files/OV-2021.4-Download-Excel.xlsx>
    openvino_docs_performance_int8_vs_fp32
 
       
@@ -365,6 +365,6 @@ Testing by Intel done on: see test date for each HW platform below.
 | BIOS Release                            | September 21, 2018                    | September 21, 2018                    |
 | Test Date                               | June 18, 2021                        | June 18, 2021                      |        
 
-Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvinotoolkit.org/resources/benchmark_files/system_configurations_2021.4.html)
+Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2021.4.html)
 
 Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).

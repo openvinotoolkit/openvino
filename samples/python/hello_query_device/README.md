@@ -105,6 +105,6 @@ The application prints all available devices with their supported metrics and de
 
 - [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
 
-[IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
-[IECore.get_metric]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#af1cdf2ecbea6399c556957c2c2fdf8eb
-[IECore.get_config]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a48764dec7c235d2374af8b8ef53c6363
+[IECore]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html
+[IECore.get_metric]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#af1cdf2ecbea6399c556957c2c2fdf8eb
+[IECore.get_config]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#a48764dec7c235d2374af8b8ef53c6363

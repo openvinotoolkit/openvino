@@ -9,7 +9,7 @@
 
 You can download TensorFlow\* Object Detection API models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> or <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a>.
 
-<strong>NOTE</strong>: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../Config_Model_Optimizer.md).
+<strong>NOTE</strong>: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/tools/model_optimizer` directory and run the `mo` script with the following required parameters:
 

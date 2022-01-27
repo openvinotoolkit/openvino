@@ -38,6 +38,7 @@
    openvino_docs_ops_arithmetic_Cosh_1
    openvino_docs_ops_sequence_CTCLoss_4
    openvino_docs_ops_arithmetic_CumSum_3
+   openvino_docs_ops_convolution_DeformableConvolution_1
    openvino_docs_ops_convolution_DeformableConvolution_8
    openvino_docs_ops_detection_DeformablePSROIPooling_1
    openvino_docs_ops_movement_DepthToSpace_1
@@ -84,7 +85,7 @@
    openvino_docs_ops_image_I420toBGR_8
    openvino_docs_ops_image_I420toRGB_8
    openvino_docs_ops_signals_IDFT_7
-   openvino_docs_ops_condition_If_8
+   openvino_docs_ops_infrastructure_If_8
    openvino_docs_ops_image_Interpolate_1
    openvino_docs_ops_image_Interpolate_4
    openvino_docs_ops_normalization_LRN_1
@@ -102,8 +103,9 @@
    openvino_docs_ops_normalization_MVN_1
    openvino_docs_ops_normalization_MVN_6
    openvino_docs_ops_matrix_MatMul_1
-   openvino_docs_ops_sort_MatrixNonMaxSuppression_8
+   openvino_docs_ops_sort_MatrixNms_8
    openvino_docs_ops_pooling_MaxPool_1
+   openvino_docs_ops_pooling_MaxPool_8
    openvino_docs_ops_arithmetic_Maximum_1
    openvino_docs_ops_arithmetic_Minimum_1
    openvino_docs_ops_activation_Mish_4
@@ -169,6 +171,7 @@
    openvino_docs_ops_arithmetic_Sign_1
    openvino_docs_ops_arithmetic_Sin_1
    openvino_docs_ops_arithmetic_Sinh_1
+   openvino_docs_ops_movement_Slice_8
    openvino_docs_ops_activation_SoftMax_1
    openvino_docs_ops_activation_SoftMax_8
    openvino_docs_ops_activation_SoftPlus_4
