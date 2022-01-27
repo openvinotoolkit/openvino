@@ -21,7 +21,11 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& f
         }
 
         OutputVector replacements(node->get_output_size());
-        if (node->constant_fold(replacements, node->input_values())) {
+
+        // We have to check node for DisableConstantFolding because operations can override constant_folding
+        // method, so we can't always rely on attribute check inside default node->constant_fold method
+        if (node->get_rt_info().count(DisableConstantFolding::get_type_info_static()) == 0 &&
+            node->constant_fold(replacements, node->input_values())) {
             NGRAPH_CHECK(replacements.size() == node->get_output_size(),
                          "constant_fold_default returned incorrect number of replacements for ",
                          node);
