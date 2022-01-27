@@ -20,6 +20,7 @@ features:
 * Multiple domains: Computer Vision, Natural Language Processing, Recommendation Systems, Speech Recognition.
 * [Command-line tool](docs/CLI.md) that provides a simple .
 * [API](openvino/tools/pot/api/README.md) that helps to apply optimization methods within a custom inference script written with OpenVINO Python* API.
+* (Experimental) Ranger algorithm for model prodection in safity critical cases.
 
 The tool is aimed to fully automate the model transformation process without a need to change the model on the user's side. For details about 
 the low-precision flow in OpenVINO&trade;, see the [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md).
@@ -33,7 +34,7 @@ dataset preparation, model optimization, as well as with the OpenVINO&trade; too
 as  [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) 
 and [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README).
 
-## Use options
+## Usage options
 ![](docs/images/use_cases.png) 
 
 The POT provides three basic usage options:
