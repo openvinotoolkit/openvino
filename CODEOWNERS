@@ -51,7 +51,6 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 # IE VPU:
 /src/plugins/intel_myriad  @openvinotoolkit/openvino-ie-vpu-maintainers
 /src/inference/include/ie/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
-/inference-engine/thirdparty/movidius/  @openvinotoolkit/openvino-ie-vpu-maintainers
 /src/tests_deprecated/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
 /src/tests_deprecated/functional/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
 /src/tests_deprecated/behavior/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
