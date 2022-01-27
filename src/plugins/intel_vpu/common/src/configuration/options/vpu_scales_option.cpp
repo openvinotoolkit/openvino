@@ -64,8 +64,12 @@ VPUScalesOption::value_type VPUScalesOption::parse(const std::string& value) {
     for (const auto& vpuScale : parsedStrings) {
         const auto delimeterPos = vpuScale.find(':');
         VPU_THROW_UNLESS(delimeterPos != std::string::npos, "Unable to parse string \"{}\"", vpuScale);
-        vpuScaleMap.insert({std::string(vpuScale.substr(0, delimeterPos)),
-                            std::stof(vpuScale.substr(delimeterPos + 1))});
+        try {
+            vpuScaleMap.insert({std::string(vpuScale.substr(0, delimeterPos)),
+                                std::stof(vpuScale.substr(delimeterPos + 1))});
+        } catch (...) {
+            VPU_THROW_EXCEPTION << "Cannot convert string to float. Wrong input";
+        }
     }
 
     #endif
