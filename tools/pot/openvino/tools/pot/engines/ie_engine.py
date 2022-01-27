@@ -308,7 +308,7 @@ class IEEngine(Engine):
         # Load model to the plugin
         compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
 
-        optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS').value
         requests_num = optimal_requests_num if requests_num == 0 else requests_num
         logger.debug('Async mode requests number: %d', requests_num)
         infer_queue = AsyncInferQueue(compiled_model, requests_num)

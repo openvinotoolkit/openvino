@@ -156,14 +156,14 @@ def test_available_devices(device):
 def test_get_property():
     ie = Core()
     conf = ie.get_property("CPU", "CPU_BIND_THREAD")
-    assert conf == "YES"
+    assert conf.value == "YES"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_property_list_of_str():
     ie = Core()
-    param = ie.get_property("CPU", "OPTIMIZATION_CAPABILITIES")
+    param = ie.get_property("CPU", "OPTIMIZATION_CAPABILITIES").value
     assert isinstance(param, list), "Parameter value for 'OPTIMIZATION_CAPABILITIES' " \
                                     f"metric must be a list but {type(param)} is returned"
     assert all(isinstance(v, str) for v in param), \
@@ -174,7 +174,7 @@ def test_get_property_list_of_str():
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_property_tuple_of_two_ints():
     ie = Core()
-    param = ie.get_property("CPU", "RANGE_FOR_STREAMS")
+    param = ie.get_property("CPU", "RANGE_FOR_STREAMS").value
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
                                      f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), \
@@ -185,7 +185,7 @@ def test_get_property_tuple_of_two_ints():
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_property_tuple_of_three_ints():
     ie = Core()
-    param = ie.get_property("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
+    param = ie.get_property("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS").value
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' " \
                                      f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), "Not all of the parameter values for " \
@@ -196,7 +196,7 @@ def test_get_property_tuple_of_three_ints():
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_property_str():
     ie = Core()
-    param = ie.get_property("CPU", "FULL_DEVICE_NAME")
+    param = ie.get_property("CPU", "FULL_DEVICE_NAME").value
     assert isinstance(param, str), "Parameter value for 'FULL_DEVICE_NAME' " \
                                    f"metric must be string but {type(param)} is returned"
 
