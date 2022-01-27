@@ -11,7 +11,7 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> Multiconfigs = {
-            {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
+            {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
     };
 
     const std::vector<std::map<std::string, std::string>> AutoConfigs = {

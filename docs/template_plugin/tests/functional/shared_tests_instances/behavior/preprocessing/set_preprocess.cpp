@@ -25,7 +25,7 @@ const std::vector<std::map<std::string, std::string>> multiConfigs = {
 };
 
 const std::vector<std::map<std::string, std::string>> heteroConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE)}}
+        {{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE }}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,

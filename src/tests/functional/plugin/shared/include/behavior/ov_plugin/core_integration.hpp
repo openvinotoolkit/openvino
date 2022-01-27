@@ -284,9 +284,9 @@ TEST_P(OVClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(deviceName)));
 }
 
-TEST(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
+TEST_P(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    std::string value = false;
+    std::string value;
 
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(deviceName)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities));
