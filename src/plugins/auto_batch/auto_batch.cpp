@@ -398,6 +398,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                             t.first->_inferRequest->CopyInputsIfNeeded();
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
+                        std::cout << "BATCH!!!!!!!!!!!!!" << std::endl;
                     } else if ((status == std::cv_status::timeout) && sz) {
                         // timeout to collect the batch is over, have to execute the requests in the batch1 mode
                         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
@@ -676,6 +677,14 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     std::map<size_t, ov::PartialShape> batched_inputs;
     // check that the auto-batching is applicable in general
     try {
+        // if applicable, the Auto-Batching is implicitly enabled via the performance hints
+        const auto tput = CONFIG_VALUE(THROUGHPUT);
+        const bool bTputInPlg =
+            GetCore()->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == tput;
+        const auto& mode = deviceConfig.find(CONFIG_KEY(PERFORMANCE_HINT));
+        const bool bTputInLoadCfg = (mode != deviceConfig.end() && mode->second == tput);
+        // if the auto-batching is enabled implicitly, we shall check the dims carefully, to avoid outstanding failures
+        const bool check_dims = (bTputInPlg || bTputInLoadCfg);
         CNNNetwork clonedNetwork(InferenceEngine::details::cloneNetwork(network));
         auto function = clonedNetwork.getFunction();
         // find the batch dim
@@ -694,15 +703,22 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             if (shape.is_dynamic())
                 IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
             // check the batch dim: either 0th (and the original batch size of 1) or none
-            if (ov::DimensionTracker::get_label(shape[0])) {
-                const auto& static_shape = input->get_shape();
-                if (static_shape[0] != 1)
-                    IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
-                batched_inputs[input_id] = shape;  // batched dim for the input
+            if (check_dims) {
+                if (ov::DimensionTracker::get_label(shape[0])) {
+                    const auto& static_shape = input->get_shape();
+                    if (static_shape[0] != 1)
+                        IE_THROW(NotImplemented)
+                            << "Auto-batching does not reshape/re-batch originally batched networks!";
+                    batched_inputs[input_id] = shape;  // batched dim for the input
+                } else {
+                    // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
+                    for (size_t s = 0; s < shape.size(); s++)
+                        atLeastOneInputIsBatched &= !ov::DimensionTracker::get_label(shape[s]);
+                }
             } else {
-                // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
-                for (size_t s = 0; s < shape.size(); s++)
-                    atLeastOneInputIsBatched &= !ov::DimensionTracker::get_label(shape[s]);
+                auto layout = input->get_layout();
+                if (ov::layout::has_batch(layout) && 0 == ov::layout::batch_idx(layout))
+                    batched_inputs[input_id] = shape;  // batched dim for the input
             }
         }
         // output(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
