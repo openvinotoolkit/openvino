@@ -16,7 +16,7 @@ critical_modules = ["networkx", "defusedxml", "numpy"]
 
 message = "\nDetected not satisfied dependencies:\n" \
           "{}\n" \
-          "Please install required versions of components or use:\n{}"
+          "Please install required versions of components or run pip installation\n{}"
 
 
 def get_imported_module_version(imported_module):
@@ -285,17 +285,17 @@ def check_requirements(framework=None):
             continue
 
     if len(not_satisfied_versions) != 0:
-        if framework == 'tf':
-            extra = 'tensorflow'
-        elif framework == 'tf2':
-            extra = 'tensorflow2'
-        else:
-            extra = framework
 
-        if extra is None:
-            helper_command = "pip install openvino-dev"
+        if framework == 'tf':
+            extra = '[tensorflow]'
+        elif framework == 'tf2':
+            extra = '[tensorflow2]'
+        elif framework is None:
+            extra = ''
         else:
-            helper_command = "pip install openvino-dev[{}]".format(extra)
+            extra = '[{}]'.format(framework)
+        helper_command = "pip install openvino-dev{}".format(extra)
+
         missed_modules_message = ""
         for module in not_satisfied_versions:
             missed_modules_message += "\t{}: {}, {}\n".format(module[0], module[1], module[2])
