@@ -171,7 +171,7 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{data});
 
-        ov::pass::MarkPrecisionSensitiveDivides().run_on_model(function);
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
         manager.register_pass<ngraph::pass::ConvertDivide>();
     }
 }

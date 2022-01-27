@@ -167,12 +167,12 @@ void erase(T port) {
 namespace init {
 class SplitConcat : public ngraph::pass::MatcherPass {
 public:
-    SplitConcat(bool & has_ric) {
+    SplitConcat() {
         MATCHER_SCOPE(SplitConcat);
         auto split_p = pattern::wrap_type<opset8::Split>();
         auto pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p});
 
-        auto callback = [=, &has_ric](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
             auto concat = ov::as_type_ptr<opset8::Concat>(pattern_map.at(pattern_root).get_node_shared_ptr());
             auto split = ov::as_type_ptr<opset8::Split>(pattern_map.at(split_p).get_node_shared_ptr());
@@ -208,7 +208,6 @@ public:
 
             // Mark-up RIC output
             ric_attr::init(concat, order, concat->get_axis());
-            has_ric = true;
             return true;
         };
 
@@ -219,14 +218,14 @@ public:
 
 class Gather : public ngraph::pass::MatcherPass {
 public:
-    Gather(bool & has_ric) {
+    Gather() {
         MATCHER_SCOPE(Gather);
         auto input_p = pattern::any_input(pattern::has_static_rank());
         auto indices_p = pattern::any_input();
         auto axis_p = pattern::wrap_type<opset8::Constant>();
         auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, indices_p, axis_p});
 
-        auto callback = [=, &has_ric](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
             const auto & output = pattern_map.at(pattern_root);
 
@@ -265,7 +264,6 @@ public:
                 return false;
             }
             ric_attr::init(output, order_values, axis_value);
-            has_ric = true;
             return true;
         };
 
@@ -664,20 +662,14 @@ public:
 }// namespace fuse
 
 bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model> & model) {
-    Manager m_init, m_fuse;
-    m_init.set_per_pass_validation(false);
-    m_fuse.set_per_pass_validation(false);
+    Manager m;
+    m.set_per_pass_validation(false);
 
     // First we need to initialize and propagate RIC attributes through entire graph
-    bool has_ric = false;
-    auto ric_init = m_init.register_pass<GraphRewrite>();
-    ric_init->add_matcher<init::SplitConcat>(has_ric);
-    ric_init->add_matcher<init::Gather>(has_ric);
+    auto ric_prop = m.register_pass<GraphRewrite>();
+    ric_prop->add_matcher<init::SplitConcat>();
+    ric_prop->add_matcher<init::Gather>();
 
-    m_init.run_passes(model);
-    if (!has_ric) return false;
-
-    auto ric_prop = m_fuse.register_pass<GraphRewrite>();
     ric_prop->add_matcher<prop::Convolution>();
     ric_prop->add_matcher<prop::GroupConvolution>();
     ric_prop->add_matcher<prop::Binary>();
@@ -689,12 +681,12 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
-    auto ric_fuse = m_fuse.register_pass<GraphRewrite>();
+    auto ric_fuse = m.register_pass<GraphRewrite>();
     ric_fuse->add_matcher<fuse::InsertReverseInputChannel>();
     ric_fuse->add_matcher<fuse::EraseSplitConcat>();
     ric_fuse->add_matcher<fuse::EraseGather>();
 
-    m_fuse.run_passes(model);
+    m.run_passes(model);
     return false;
 }
 }// namespace pass
