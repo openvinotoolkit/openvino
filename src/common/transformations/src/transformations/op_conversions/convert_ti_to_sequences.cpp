@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ bool convertTensorIteratorToSequence(
             ordered_out_descs[0] = output_desc;
         } else if (res->input_value(0) == found_cell->output(0)) {
             ordered_out_descs[1] = output_desc;
-        } else if (found_cell->get_output_size() == 3 && res->input_value(0) == found_cell->output(1)) {
+        } else if (found_cell->get_output_size() == 2 && res->input_value(0) == found_cell->output(1)) {
             ordered_out_descs[2] = output_desc;
         } else {
             return false;

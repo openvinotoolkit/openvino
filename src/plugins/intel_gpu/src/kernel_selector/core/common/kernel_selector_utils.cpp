@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,12 +180,23 @@ JitConstants GetTensorFriendlyWorkGroupsJit(const DataTensor& t) {
 
 std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t) {
     std::vector<size_t> sizes;
+    auto x = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::X);
     auto y = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::Y);
     auto z = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::Z);
     auto w = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::W);
+
+    auto primary_spatial_axis = x;
+    if (y < primary_spatial_axis && y != -1) primary_spatial_axis = y;
+    if (z < primary_spatial_axis && z != -1) primary_spatial_axis = z;
+    if (w < primary_spatial_axis && w != -1) primary_spatial_axis = w;
+
     for (size_t i = 0; i < t.GetDims().size(); i++) {
         const auto& o = t.GetDims()[i];
-        if (y == static_cast<int>(i) || z == static_cast<int>(i) || w == static_cast<int>(i)) {
+        auto cur_axis_is_spatial = x == static_cast<int>(i) ||
+                                   y == static_cast<int>(i) ||
+                                   z == static_cast<int>(i) ||
+                                   w == static_cast<int>(i);
+        if (cur_axis_is_spatial && primary_spatial_axis != static_cast<int>(i)) {
             sizes.back() *= o.v;
         } else {
             sizes.push_back(o.v);

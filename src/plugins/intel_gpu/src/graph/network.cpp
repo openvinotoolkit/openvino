@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,9 @@
 #ifdef GPU_DEBUG_CONFIG
 #include <iomanip>
 #include <fstream>
+#include <sys/stat.h>
+#include <chrono>
+#include <thread>
 #endif
 
 namespace cldnn {
@@ -203,11 +206,32 @@ static void log_memory_to_file(memory::ptr mem, stream& stream, std::string laye
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(mem, stream, file_stream);
 }
+static void wait_for_the_turn() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    bool need_to_wait;
+    do {
+        need_to_wait = false;
+        struct stat buffer;
+        for (auto pid : debug_config->after_proc) {
+            auto path = "/proc/" + pid;
+            std::cout << "check " + path << std::endl;
+            if (stat(path.c_str(), &buffer) == 0) {
+                need_to_wait = true;
+                std::cout << "Being nice.. Wait for process " << pid << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            }
+        }
+    } while (need_to_wait);
+}
+
 #else
 static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
     (void)mem;
     (void)stream;
     (void)layerName;
+}
+
+static void wait_for_the_turn() {
 }
 #endif
 
@@ -225,6 +249,11 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     static std::atomic<uint32_t> id_gen{0};
     if (!_internal) {
         net_id = ++id_gen;
+    }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->after_proc.size() != 0) {
+        wait_for_the_turn();
     }
 
     allocate_primitives();

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -275,7 +275,7 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
 
             const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
             if ((fakeQuantize != nullptr) &&
-                QuantizationDetails::outputLayoutIsSupported(fakeQuantize) &&
+                QuantizationDetails::outputLayoutIsSupported(fakeQuantize, true) &&
                 QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
                 return true;
             }
@@ -292,12 +292,10 @@ bool ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
         const std::set<size_t>& levels) {
     std::vector<std::shared_ptr<ngraph::Node>> nodes = function->get_ops();
     for (auto& node : nodes) {
-        for (size_t i = 0; i < node->inputs().size(); ++i) {
-            const auto fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(node);
-            if (fakeQuantize != nullptr) {
-                if (levels.count(fakeQuantize->get_levels()) == 1) {
-                    return true;
-                }
+        const auto fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(node);
+        if (fakeQuantize != nullptr) {
+            if (levels.count(fakeQuantize->get_levels()) == 1) {
+                return true;
             }
         }
     }

@@ -1,11 +1,14 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mark_input_bins, shape_array, shape_insert
+from openvino.tools.mo.front.common.partial_infer.utils import mark_input_bins, shape_insert, dynamic_dimension, \
+    shape_array
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
-from openvino.tools.mo.graph.graph import Node, Graph, add_opoutput
+from openvino.tools.mo.graph.graph import Node, Graph, add_opoutput, Error
 from openvino.tools.mo.ops.op import Op
 
 
@@ -20,6 +23,7 @@ class RNN(Op):
             'has_num_directions': False,
             'direction': 'forward',
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'multiplier': 1,
             'gate_order': mo_array([0]),  # Only one gate in this cell
             'normalized': False,
@@ -67,6 +71,20 @@ class RNN(Op):
         assert len(node.out_nodes()) <= 2
 
         rnn_infer(node, [1])
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        if node.in_port(0).data.get_shape() is not None:
+            return
+
+        input_size = get_rnn_input_size(node)
+        batch_size, seq_len = get_rnn_batch_size_and_seq_len(node)
+        # MXNet, ONNX has the same input layout
+        input_shape = shape_array([seq_len, batch_size, input_size])
+        if node.format == 'tf':
+            input_shape = shape_array([batch_size, seq_len, input_size])
+
+        node.in_port(0).data.set_shape(input_shape)
 
 
 def rnn_infer(node: Node, out_ports=None):
@@ -154,3 +172,100 @@ def rnn_infer(node: Node, out_ports=None):
         else:
             data_node = node.out_node(i)
         data_node.shape = shape_array(state_size)
+
+
+def get_rnn_batch_size_and_seq_len(node: Node):
+    """
+    Gets batch_size and sequence_length from RNN constant inputs
+    and output shapes retrieved during reverse_infer
+
+    :param node:
+    :return:
+    """
+    node_name = node.soft_get('name', node.id)
+    out_shape = node.out_port(0).data.get_shape()
+    batch_size = dynamic_dimension
+    seq_len = dynamic_dimension
+    in_port_with_initial_states = 3  # initial hidden size values is framework dependent
+
+    if out_shape is not None:
+        # note that op is not in opset state but in the state of the original framework
+        if node.batch_dim == 1:
+            seq_len = out_shape[0]
+
+            if node.format == 'mxnet':
+                assert len(out_shape) == 3, 'incorrect out_shape rank for node {}'.format(node_name)
+                # for MXNet out_shape = [seq_len, batch_size, hidden_size]
+                batch_size = out_shape[1]
+                in_port_with_initial_states = 2
+            elif node.format == 'onnx':
+                assert len(out_shape) == 4, 'incorrect out_shape rank for node {}'.format(node_name)
+                # even for ONNX in extractor 'batch_dim': 1 (front/onnx/lstm_ext.py:26) despite the fact that
+                # out_shape = [seq_len, num_directions, batch_size, hidden_size]
+                batch_size = out_shape[2]
+                in_port_with_initial_states = 5
+            elif node.format == 'tf':
+                log.error('reverse infer for TensorFlow RNN operation {} is not implemented yet'.format(node_name),
+                          extra={'is_warning': True})
+            else:
+                raise Error('Incorrect framework name')
+        elif node.batch_dim == 0:
+            # out_shape = [batch_size, num_directions, seq_len, hidden_size]
+            batch_size = out_shape[0]
+            seq_len = out_shape[2]
+            in_port_with_initial_states = 3
+        else:
+            raise Error('incorrect batch_dim for node {}'.format(node_name))
+
+    if batch_size is dynamic_dimension:
+        if node.is_in_port_connected(in_port_with_initial_states):
+            initial_hidden_state_size = node.in_port(in_port_with_initial_states).data.get_shape()
+            if initial_hidden_state_size is not None:
+                batch_size = initial_hidden_state_size[1]
+
+    if seq_len is dynamic_dimension and node.format == 'onnx':
+        # ONNX can store seq_len in optional input
+        if node.is_in_port_connected(4):
+            seq_len_val = node.in_port(4).data.get_value()
+            if seq_len_val is not None:
+                seq_len = seq_len.item()
+
+    return [batch_size, seq_len]
+
+
+def get_rnn_input_size(node: Node):
+    node_name = node.soft_get('name', node.id)
+    assert node.is_in_port_connected(1), 'weights input is not connected'
+
+    if node.format == 'onnx':
+        # ONNX weights on input 1 contain only W part, R, and B are connected separately
+        # weights_shape = `[num_directions, 4 * hidden_size, input_size]`
+        weights_size = node.in_port(1).data.get_shape()
+        assert len(weights_size) == 3, 'incorrect weights ranks for MXNet {} node {}'.format(node.op, node_name)
+        input_size = weights_size[2]
+        return input_size
+    elif node.format == 'mxnet':
+        multiplier = node.multiplier
+        hidden_size = node.hidden_size
+        num_layers = node.num_layers
+        direction = 2 if node.has_num_directions else 1
+
+        # for MXNet models we always get flattened weights which contains WRB
+        weights_size = node.in_port(1).data.get_shape()
+        assert len(weights_size) == 1, 'incorrect weights ranks for MXNet {} node {}'.format(node.op, node_name)
+        weights_size = weights_size[0]
+
+        size = hidden_size * direction * multiplier
+        other_layer_params_size = (hidden_size * direction + hidden_size + 2) * size
+        first_layer_params_size = weights_size - (num_layers - 1) * other_layer_params_size
+        # lhe lines above to find first_layer_params_size was taken from MXNetSplitMultiLayers.py:79
+        # input_size can be calculated from the first_layer_params_size
+        # if first_layer_params_size = (input_size + hidden_size + 2) * size
+        # then input_size = first_layer_params_size / size - 2 - hidden_size
+        input_size = first_layer_params_size / size - 2 - hidden_size
+        return input_size
+    elif node.format == 'tf':
+        log.error('reverse infer for TensorFlow RNN operation {} is not implemented yet'.format(node_name),
+                  extra={'is_warning': True})
+    else:
+        raise Error('Incorrect framework name')

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@ class Blob;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 class Core;
 class InferRequest;
@@ -47,10 +46,10 @@ protected:
      */
     Tensor(const std::shared_ptr<InferenceEngine::Blob>& impl, const std::shared_ptr<void>& so);
 
-    friend class ov::runtime::Core;
-    friend class ov::runtime::InferRequest;
-    friend class ov::runtime::RemoteContext;
-    friend class ov::runtime::VariableState;
+    friend class ov::Core;
+    friend class ov::InferRequest;
+    friend class ov::RemoteContext;
+    friend class ov::VariableState;
 
 public:
     /// @brief Default constructor
@@ -75,7 +74,7 @@ public:
     Tensor& operator=(Tensor&& other) = default;
 
     /**
-     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @brief Destructor preserves unloading order of implementation object and reference to library
      */
     ~Tensor();
 
@@ -210,5 +209,10 @@ public:
 };
 
 using TensorVector = std::vector<Tensor>;
+
+namespace runtime {
+using ov::Tensor;
+using ov::TensorVector;
 }  // namespace runtime
+
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,7 +119,7 @@ public:
     /// \brief Finish visiting a nested structure
     virtual std::string finish_structure();
     using node_id_t = std::string;
-    static constexpr char invalid_node_id[] = "";
+    static constexpr const char* invalid_node_id = "";
     /// \brief Associate a node with an id.
     ///
     /// No node may be used as an attribute unless it has already been registered with an ID.

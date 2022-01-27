@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2021 Intel Corporation
+ Copyright (C) 2018-2022 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -20,28 +20,15 @@ from common.common_utils import parse_avg_err
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data_nthreads = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.ark')],
+test_data = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.ark')],
                                            'm': [os.path.join('wsj', 'FP32', 'wsj_dnn5b.xml')],
                                            'bs': [1, 2],
                                            'o': ['res_output.ark'],
                                            'r': [os.path.join('ark', 'dev93_scores_10.ark')],
                                            'qb': [8, 16],
-                                           'nthreads': [1],
-                                           'd': ['GNA_SW']},
+                                           'd': ['GNA_SW_EXACT']},
                                use_device=False
                                )
-
-test_data_nthreads_negative = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.ark')],
-                                                    'm': [os.path.join('wsj', 'FP32', 'wsj_dnn5b.xml')],
-                                                    'bs': [1],
-                                                    'o': ['res_output.ark'],
-                                                    'r': [os.path.join('ark', 'dev93_scores_10.ark')],
-                                                    'qb': [8],
-                                                    'nthreads': [0, -2],
-                                                    'd': ['GNA_SW']},
-                                        use_device=False
-                                        )
-
 
 class TestSpeechSample(SamplesCommonTestClass):
     @classmethod
@@ -50,7 +37,7 @@ class TestSpeechSample(SamplesCommonTestClass):
         cls.threshold = 0.06
         super().setup_class()
 
-    @pytest.mark.parametrize("param", test_data_nthreads)
+    @pytest.mark.parametrize("param", test_data)
     def test_speech_sample_nthreads(self, param):
         stdout = self._test(param).split('\n')
         assert os.path.isfile(param['o']), "Ark file after infer was not found"
@@ -58,9 +45,3 @@ class TestSpeechSample(SamplesCommonTestClass):
         avg_error = parse_avg_err(stdout)
         log.info('Average scores diff: {}'.format(avg_error))
         assert avg_error <= self.threshold
-
-    @pytest.mark.parametrize("param", test_data_nthreads_negative)
-    def test_speech_sample_nthreads_negative(self, param):
-        retcode, stdout, stderr = self._test(param, get_shell_result=True)
-        expected_error_msg = "[ ERROR ] Invalid value for 'nthreads' argument"
-        assert expected_error_msg in stderr.rstrip(), "Expected error message {}".format(expected_error_msg)

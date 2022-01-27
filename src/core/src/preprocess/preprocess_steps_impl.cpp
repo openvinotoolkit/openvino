@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,171 +28,236 @@ static Shape construct_mean_scale_shape(const Output<Node>& node,
                     "Number of channels and mean/values size mismatch: Channels = ",
                     node_shape[channels_index].get_length(),
                     ", mean/scale = ",
-                    values_size);
+                    values_size,
+                    ", shape = ",
+                    node_shape,
+                    ", layout = ",
+                    context.layout().to_string());
     v[channels_index] = values_size;
     return {v};
 }
 
+template <typename T>
+static std::string vector_to_string(const std::vector<T>& values) {
+    if (values.empty()) {
+        return {};
+    }
+    std::stringstream s;
+    s << "(" << values[0];
+    for (size_t i = 1; i < values.size(); i++) {
+        s << "," << values[i];
+    }
+    s << ")";
+    return s.str();
+}
+
 void PreStepsList::add_scale_impl(const std::vector<float>& values) {
-    m_actions.emplace_back([values](const std::vector<Output<Node>>& nodes,
-                                    const std::shared_ptr<ov::Model>& function,
-                                    PreprocessingContext& context) -> std::tuple<std::vector<Output<Node>>, bool> {
-        OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't apply scale preprocessing for empty input.");
-        OPENVINO_ASSERT(nodes.size() == 1,
-                        "Can't apply scale preprocessing for multi-plane input. Suggesting to convert current "
-                        "image to RGB/BGR color format using 'convert_color'");
-        Shape shape;
-        if (values.size() == 1) {
-            shape = Shape{1};
-        } else {
-            shape = construct_mean_scale_shape(nodes[0], values.size(), context);
-        }
-        auto element_type = nodes[0].get_element_type();
-        OPENVINO_ASSERT(element_type.is_real(),
-                        "Scale preprocessing can be applied to 'float' inputs. Consider using of "
-                        "'convert_element_type' before scaling. Current type is: ",
-                        element_type);
+    m_actions.emplace_back(
+        [values](const std::vector<Output<Node>>& nodes,
+                 const std::shared_ptr<ov::Model>& function,
+                 PreprocessingContext& context) -> std::tuple<std::vector<Output<Node>>, bool> {
+            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't apply scale preprocessing for empty input.");
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't apply scale preprocessing for multi-plane input. Suggesting to convert current "
+                            "image to RGB/BGR color format using 'convert_color'");
+            Shape shape;
+            if (values.size() == 1) {
+                shape = Shape{1};
+            } else {
+                shape = construct_mean_scale_shape(nodes[0], values.size(), context);
+            }
+            auto element_type = nodes[0].get_element_type();
+            OPENVINO_ASSERT(element_type.is_real(),
+                            "Scale preprocessing can be applied to 'float' inputs. Consider using of "
+                            "'convert_element_type' before scaling. Current type is: ",
+                            element_type);
 
-        auto constant = op::v0::Constant::create(element_type, shape, values);
+            auto constant = op::v0::Constant::create(element_type, shape, values);
 
-        auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
-        set_is_preprocessing_node(new_op);
-        return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
-    });
+            auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
+            set_is_preprocessing_node(new_op);
+            return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
+        },
+        "scale " + vector_to_string(values));
 }
 
 void PreStepsList::add_mean_impl(const std::vector<float>& values) {
-    m_actions.emplace_back([values](const std::vector<Output<Node>>& nodes,
-                                    const std::shared_ptr<ov::Model>& function,
-                                    PreprocessingContext& context) {
-        OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't apply mean preprocessing for empty input.");
-        OPENVINO_ASSERT(nodes.size() == 1,
-                        "Can't apply scale preprocessing for multi-plane input. Suggesting to convert current "
-                        "image to RGB/BGR color format using 'convert_color'");
-        Shape shape;
-        if (values.size() == 1) {
-            shape = Shape{1};
-        } else {
-            shape = construct_mean_scale_shape(nodes[0], values.size(), context);
-        }
-        auto element_type = nodes[0].get_element_type();
-        OPENVINO_ASSERT(element_type.is_real(),
-                        "Mean preprocessing can be applied to 'float' inputs. Consider using of 'convert_element_type' "
-                        "before scaling. Current type is: ",
-                        element_type);
+    m_actions.emplace_back(
+        [values](const std::vector<Output<Node>>& nodes,
+                 const std::shared_ptr<ov::Model>& function,
+                 PreprocessingContext& context) {
+            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't apply mean preprocessing for empty input.");
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't apply scale preprocessing for multi-plane input. Suggesting to convert current "
+                            "image to RGB/BGR color format using 'convert_color'");
+            Shape shape;
+            if (values.size() == 1) {
+                shape = Shape{1};
+            } else {
+                shape = construct_mean_scale_shape(nodes[0], values.size(), context);
+            }
+            auto element_type = nodes[0].get_element_type();
+            OPENVINO_ASSERT(
+                element_type.is_real(),
+                "Mean preprocessing can be applied to 'float' inputs. Consider using of 'convert_element_type' "
+                "before scaling. Current type is: ",
+                element_type);
 
-        auto constant = op::v0::Constant::create(element_type, shape, values);
+            auto constant = op::v0::Constant::create(element_type, shape, values);
 
-        auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
-        set_is_preprocessing_node(new_op);
-        return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
-    });
+            auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
+            set_is_preprocessing_node(new_op);
+            return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
+        },
+        "mean " + vector_to_string(values));
 }
 
 void PreStepsList::add_convert_impl(const element::Type& type) {
-    m_actions.emplace_back([type](const std::vector<Output<Node>>& nodes,
-                                  const std::shared_ptr<Model>& function,
-                                  PreprocessingContext& ctxt) {
-        OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't set element type for empty input.");
-        std::vector<Output<Node>> res;
-        element::Type t = type;
-        if (t == element::Type{}) {
-            t = ctxt.target_element_type();
-        }
-        for (const auto& node : nodes) {
-            OPENVINO_ASSERT(node.get_element_type().is_static(),
-                            "Can't insert 'convert_element_type' for dynamic source tensor type.");
-            if (t != node.get_element_type()) {
-                auto convert = std::make_shared<op::v0::Convert>(node, t);
-                res.emplace_back(convert);
-            } else {
-                res.emplace_back(node);
+    m_actions.emplace_back(
+        [type](const std::vector<Output<Node>>& nodes,
+               const std::shared_ptr<Model>& function,
+               PreprocessingContext& ctxt) {
+            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't set element type for empty input.");
+            std::vector<Output<Node>> res;
+            element::Type t = type;
+            if (t == element::Type{}) {
+                t = ctxt.target_element_type();
             }
-        }
-        // return false to avoid excess function revalidations as conversion of types
-        // doesn't require shape or type propagation.
-        return std::make_tuple(res, false);
-    });
+            for (const auto& node : nodes) {
+                OPENVINO_ASSERT(node.get_element_type().is_static(),
+                                "Can't insert 'convert_element_type' for dynamic source tensor type.");
+                if (t != node.get_element_type()) {
+                    auto convert = std::make_shared<op::v0::Convert>(node, t);
+                    res.emplace_back(convert);
+                } else {
+                    res.emplace_back(node);
+                }
+            }
+            // return false to avoid excess function revalidations as conversion of types
+            // doesn't require shape or type propagation.
+            return std::make_tuple(res, false);
+        },
+        "convert type (" + type.get_type_name() + ")");
 }
 
 void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width) {
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
-    m_actions.emplace_back([alg, dst_width, dst_height](const std::vector<Output<Node>>& nodes,
-                                                        const std::shared_ptr<Model>& function,
-                                                        PreprocessingContext& ctxt) {
-        OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't add resize for empty input.");
-        OPENVINO_ASSERT(nodes.size() == 1,
-                        "Can't resize multi-plane input. Suggesting to convert current image to "
-                        "RGB/BGR color format using 'PreProcessSteps::convert_color'");
-        auto to_mode = [](ResizeAlgorithm alg) -> InterpolateMode {
-            switch (alg) {
-            case ResizeAlgorithm::RESIZE_NEAREST:
-                return InterpolateMode::NEAREST;
-            case ResizeAlgorithm::RESIZE_CUBIC:
-                return InterpolateMode::CUBIC;
-            case ResizeAlgorithm::RESIZE_LINEAR:
-            default:
-                return InterpolateMode::LINEAR;
+    std::string name;
+    if (dst_width > 0 && dst_height > 0) {
+        name = "resize to (" + std::to_string(dst_height) + ", " + std::to_string(dst_width) + ")";
+    } else {
+        name = "resize to model width/height";
+    }
+    m_actions.emplace_back(
+        [alg, dst_width, dst_height](const std::vector<Output<Node>>& nodes,
+                                     const std::shared_ptr<Model>& function,
+                                     PreprocessingContext& ctxt) {
+            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't add resize for empty input.");
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't resize multi-plane input. Suggesting to convert current image to "
+                            "RGB/BGR color format using 'PreProcessSteps::convert_color'");
+            auto to_mode = [](ResizeAlgorithm alg) -> InterpolateMode {
+                switch (alg) {
+                case ResizeAlgorithm::RESIZE_NEAREST:
+                    return InterpolateMode::NEAREST;
+                case ResizeAlgorithm::RESIZE_CUBIC:
+                    return InterpolateMode::CUBIC;
+                case ResizeAlgorithm::RESIZE_LINEAR:
+                default:
+                    return InterpolateMode::LINEAR;
+                }
+            };
+            auto node = nodes.front();
+            auto layout = ctxt.layout();
+            OPENVINO_ASSERT(ov::layout::has_height(layout) && ov::layout::has_width(layout),
+                            "Can't add resize for layout without W/H specified. Use 'set_layout' API to define layout "
+                            "of image data, like `NCHW`");
+            auto node_rank = node.get_partial_shape().rank();
+            OPENVINO_ASSERT(node_rank.is_static(), "Resize operation is not supported for fully dynamic shape");
+
+            auto height_idx = static_cast<int64_t>(get_and_check_height_idx(layout, node.get_partial_shape()));
+            auto width_idx = static_cast<int64_t>(get_and_check_width_idx(layout, node.get_partial_shape()));
+            if (dst_height < 0 || dst_width < 0) {
+                OPENVINO_ASSERT(ctxt.model_shape().rank().is_static(),
+                                "Resize is not fully specified while target model shape is dynamic");
             }
-        };
-        auto node = nodes.front();
-        auto layout = ctxt.layout();
-        OPENVINO_ASSERT(ov::layout::has_height(layout) && ov::layout::has_width(layout),
-                        "Can't add resize for layout without W/H specified. Use 'set_layout' API to define layout "
-                        "of image data, like `NCHW`");
-        auto node_rank = node.get_partial_shape().rank();
-        OPENVINO_ASSERT(node_rank.is_static(), "Resize operation is not supported for fully dynamic shape");
+            int new_image_width = dst_width < 0 ? static_cast<int>(ctxt.get_model_width_for_resize()) : dst_width;
+            int new_image_height = dst_height < 0 ? static_cast<int>(ctxt.get_model_height_for_resize()) : dst_height;
 
-        auto height_idx = static_cast<int64_t>(get_and_check_height_idx(layout, node.get_partial_shape()));
-        auto width_idx = static_cast<int64_t>(get_and_check_width_idx(layout, node.get_partial_shape()));
-        if (dst_height < 0 || dst_width < 0) {
-            OPENVINO_ASSERT(ctxt.model_shape().rank().is_static(),
-                            "Resize is not fully specified while target model shape is dynamic");
-        }
-        int new_image_width = dst_width < 0 ? static_cast<int>(ctxt.get_model_width_for_resize()) : dst_width;
-        int new_image_height = dst_height < 0 ? static_cast<int>(ctxt.get_model_height_for_resize()) : dst_height;
+            auto target_spatial_shape =
+                op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {new_image_height, new_image_width});
+            auto scales = op::v0::Constant::create<float>(element::f32, Shape{2}, {1, 1});
+            // In future consider replacing this to set of new OV operations like `getDimByName(node, "H")`
+            // This is to allow specifying layout on 'evaluation' stage
+            auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {height_idx, width_idx});
 
-        auto target_spatial_shape =
-            op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {new_image_height, new_image_width});
-        auto scales = op::v0::Constant::create<float>(element::f32, Shape{2}, {1, 1});
-        // In future consider replacing this to set of new OV operations like `getDimByName(node, "H")`
-        // This is to allow specifying layout on 'evaluation' stage
-        auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {height_idx, width_idx});
+            op::v4::Interpolate::InterpolateAttrs attrs(to_mode(alg),
+                                                        op::v4::Interpolate::ShapeCalcMode::SIZES,
+                                                        {0, 0},
+                                                        {0, 0});
 
-        op::v4::Interpolate::InterpolateAttrs attrs(to_mode(alg),
-                                                    op::v4::Interpolate::ShapeCalcMode::SIZES,
-                                                    {0, 0},
-                                                    {0, 0});
+            auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
+            return std::make_tuple(std::vector<Output<Node>>{interp}, true);
+        },
+        name);
+}
 
-        auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
-        return std::make_tuple(std::vector<Output<Node>>{interp}, true);
-    });
+Layout PreStepsList::propagate_layout(const Layout& tensor_layout) const {
+    auto res = m_last_explicit_layout_set ? m_last_explicit_layout : tensor_layout;
+    for (const auto& convert : m_forward_layout_converts) {
+        res = layout::utils::apply_permutation(res, convert);
+    }
+    return res;
 }
 
 void PreStepsList::add_convert_layout_impl(const Layout& layout) {
-    m_actions.emplace_back([layout](const std::vector<Output<Node>>& nodes,
-                                    const std::shared_ptr<Model>& function,
-                                    PreprocessingContext& context) {
-        OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
-        OPENVINO_ASSERT(nodes.size() == 1,
-                        "Can't convert layout for multi-plane input. Suggesting to convert current image to "
-                        "RGB/BGR color format using 'convert_color'");
-        Layout dst_layout = layout.empty() ? context.target_layout() : layout;
-        auto permutation = layout::utils::find_permutation(context.layout(), nodes[0].get_partial_shape(), dst_layout);
-        if (permutation.empty()) {
-            // No transpose is needed, just update layout
-            if (!layout.empty()) {
-                context.layout() = layout;
+    m_forward_layout_converts.clear();
+    m_last_explicit_layout = layout;
+    m_last_explicit_layout_set = true;
+    m_actions.emplace_back(
+        [layout](const std::vector<Output<Node>>& nodes,
+                 const std::shared_ptr<Model>& function,
+                 PreprocessingContext& context) {
+            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't convert layout for multi-plane input. Suggesting to convert current image to "
+                            "RGB/BGR color format using 'convert_color'");
+            Layout dst_layout = layout.empty() ? context.target_layout() : layout;
+            auto node = nodes[0];
+            auto shape = node.get_partial_shape();
+            size_t add_cnt;
+            Layout unsqueeze_layout;
+            std::tie(shape, unsqueeze_layout, add_cnt) =
+                layout::utils::find_unsqueeze(context.layout(), shape, dst_layout);
+            if (add_cnt) {
+                std::vector<size_t> dims;
+                dims.push_back(add_cnt);
+                Shape const_shape(dims);
+                std::vector<int64_t> vals(add_cnt);
+                for (auto i = 0; i < add_cnt; i++) {
+                    vals[i] = i;
+                }
+                auto axes = op::v0::Constant::create<int64_t>(element::i64, const_shape, vals);
+                // Add unsqueeze on top
+                node = std::make_shared<opset8::Unsqueeze>(node, axes);
             }
-            return std::make_tuple(nodes, false);
-        }
-        auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
-        auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
-        context.layout() = dst_layout;  // Update context's current layout
-        // return false to avoid excess function revalidations as layout conversion
-        // doesn't require shape or type propagation.
-        return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
-    });
+            auto permutation = layout::utils::find_permutation(unsqueeze_layout, shape, dst_layout);
+            if (permutation.empty()) {
+                // No transpose is needed, just update layout
+                if (!layout.empty()) {
+                    context.layout() = layout;
+                }
+                return std::make_tuple(nodes, false);
+            }
+            auto perm_constant =
+                op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
+            auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
+            context.layout() = dst_layout;  // Update context's current layout
+            // return false to avoid excess function revalidations as layout conversion
+            // doesn't require shape or type propagation.
+            return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
+        },
+        "convert layout " + layout.to_string());
 }
 
 void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
@@ -200,21 +265,24 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         return;
     }
     m_layout_converts.emplace_front(dims);
-    m_actions.emplace_back([dims](const std::vector<Output<Node>>& nodes,
-                                  const std::shared_ptr<Model>& function,
-                                  PreprocessingContext& context) {
-        OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
-        OPENVINO_ASSERT(nodes.size() == 1,
-                        "Can't convert layout for multi-plane input. Suggesting to convert current image to "
-                        "RGB/BGR color format using 'convert_color'");
-        auto new_layout = layout::utils::apply_permutation(context.layout(), dims);
-        auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
-        auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
-        context.layout() = std::move(new_layout);  // Update context's current layout
-        // return false to avoid excess function revalidations as layout conversion
-        // doesn't require shape or type propagation.
-        return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
-    });
+    m_forward_layout_converts.emplace_back(dims);
+    m_actions.emplace_back(
+        [dims](const std::vector<Output<Node>>& nodes,
+               const std::shared_ptr<Model>& function,
+               PreprocessingContext& context) {
+            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't convert layout for multi-plane input. Suggesting to convert current image to "
+                            "RGB/BGR color format using 'convert_color'");
+            auto new_layout = layout::utils::apply_permutation(context.layout(), dims);
+            auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
+            auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
+            context.layout() = std::move(new_layout);  // Update context's current layout
+            // return false to avoid excess function revalidations as layout conversion
+            // doesn't require shape or type propagation.
+            return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
+        },
+        "convert layout " + vector_to_string(dims));
 }
 
 std::tuple<PartialShape, Layout> PreStepsList::calculate_param_shape(const PartialShape& model_shape,
@@ -243,134 +311,144 @@ std::tuple<PartialShape, Layout> PreStepsList::calculate_param_shape(const Parti
 }
 
 void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
-    m_actions.emplace_back([dst_format](const std::vector<Output<Node>>& nodes,
-                                        const std::shared_ptr<Model>& function,
-                                        PreprocessingContext& context) {
-        if (context.color_format() == dst_format) {
-            return std::make_tuple(nodes, false);
-        }
-        if (context.color_format() == ColorFormat::NV12_SINGLE_PLANE) {
-            OPENVINO_ASSERT(nodes.size() == 1, "Internal error: single plane NV12 image can't have multiple inputs");
-            std::shared_ptr<Node> convert;
-            switch (dst_format) {
-            case ColorFormat::RGB:
-                convert = std::make_shared<op::v8::NV12toRGB>(nodes[0]);
-                break;
-            case ColorFormat::BGR:
-                convert = std::make_shared<op::v8::NV12toBGR>(nodes[0]);
-                break;
-            default:
-                OPENVINO_ASSERT(false,
-                                "Unsupported conversion from NV12 to '",
-                                color_format_name(dst_format),
-                                "' format:");
+    m_actions.emplace_back(
+        [dst_format](const std::vector<Output<Node>>& nodes,
+                     const std::shared_ptr<Model>& function,
+                     PreprocessingContext& context) {
+            if (context.color_format() == dst_format) {
+                return std::make_tuple(nodes, false);
             }
-            context.color_format() = dst_format;
-            return std::make_tuple(std::vector<Output<Node>>{convert}, true);
-        } else if (context.color_format() == ColorFormat::NV12_TWO_PLANES) {
-            OPENVINO_ASSERT(nodes.size() == 2, "Internal error: two-plane NV12 image must have exactly two inputs");
-            std::shared_ptr<Node> convert;
-            switch (dst_format) {
-            case ColorFormat::RGB:
-                convert = std::make_shared<op::v8::NV12toRGB>(nodes[0], nodes[1]);
-                break;
-            case ColorFormat::BGR:
-                convert = std::make_shared<op::v8::NV12toBGR>(nodes[0], nodes[1]);
-                break;
-            default:
-                OPENVINO_ASSERT(false,
-                                "Unsupported conversion from NV12 to '",
-                                color_format_name(dst_format),
-                                "' format:");
+            if (context.color_format() == ColorFormat::NV12_SINGLE_PLANE) {
+                OPENVINO_ASSERT(nodes.size() == 1,
+                                "Internal error: single plane NV12 image can't have multiple inputs");
+                std::shared_ptr<Node> convert;
+                switch (dst_format) {
+                case ColorFormat::RGB:
+                    convert = std::make_shared<op::v8::NV12toRGB>(nodes[0]);
+                    break;
+                case ColorFormat::BGR:
+                    convert = std::make_shared<op::v8::NV12toBGR>(nodes[0]);
+                    break;
+                default:
+                    OPENVINO_ASSERT(false,
+                                    "Unsupported conversion from NV12 to '",
+                                    color_format_name(dst_format),
+                                    "' format:");
+                }
+                context.color_format() = dst_format;
+                return std::make_tuple(std::vector<Output<Node>>{convert}, true);
+            } else if (context.color_format() == ColorFormat::NV12_TWO_PLANES) {
+                OPENVINO_ASSERT(nodes.size() == 2, "Internal error: two-plane NV12 image must have exactly two inputs");
+                std::shared_ptr<Node> convert;
+                switch (dst_format) {
+                case ColorFormat::RGB:
+                    convert = std::make_shared<op::v8::NV12toRGB>(nodes[0], nodes[1]);
+                    break;
+                case ColorFormat::BGR:
+                    convert = std::make_shared<op::v8::NV12toBGR>(nodes[0], nodes[1]);
+                    break;
+                default:
+                    OPENVINO_ASSERT(false,
+                                    "Unsupported conversion from NV12 to '",
+                                    color_format_name(dst_format),
+                                    "' format:");
+                }
+                context.color_format() = dst_format;
+                return std::make_tuple(std::vector<Output<Node>>{convert}, true);
+            } else if (context.color_format() == ColorFormat::I420_SINGLE_PLANE) {
+                OPENVINO_ASSERT(nodes.size() == 1,
+                                "Internal error: single plane I420 image can't have multiple inputs");
+                std::shared_ptr<Node> convert;
+                switch (dst_format) {
+                case ColorFormat::RGB:
+                    convert = std::make_shared<op::v8::I420toRGB>(nodes[0]);
+                    break;
+                case ColorFormat::BGR:
+                    convert = std::make_shared<op::v8::I420toBGR>(nodes[0]);
+                    break;
+                default:
+                    OPENVINO_ASSERT(false,
+                                    "Unsupported conversion from I420 to '",
+                                    color_format_name(dst_format),
+                                    "' format:");
+                }
+                context.color_format() = dst_format;
+                return std::make_tuple(std::vector<Output<Node>>{convert}, true);
+            } else if (context.color_format() == ColorFormat::I420_THREE_PLANES) {
+                OPENVINO_ASSERT(nodes.size() == 3,
+                                "Internal error: three-plane I420 image must have exactly three inputs");
+                std::shared_ptr<Node> convert;
+                switch (dst_format) {
+                case ColorFormat::RGB:
+                    convert = std::make_shared<op::v8::I420toRGB>(nodes[0], nodes[1], nodes[2]);
+                    break;
+                case ColorFormat::BGR:
+                    convert = std::make_shared<op::v8::I420toBGR>(nodes[0], nodes[1], nodes[2]);
+                    break;
+                default:
+                    OPENVINO_ASSERT(false,
+                                    "Unsupported conversion from I420 to '",
+                                    color_format_name(dst_format),
+                                    "' format:");
+                }
+                context.color_format() = dst_format;
+                return std::make_tuple(std::vector<Output<Node>>{convert}, true);
             }
-            context.color_format() = dst_format;
-            return std::make_tuple(std::vector<Output<Node>>{convert}, true);
-        } else if (context.color_format() == ColorFormat::I420_SINGLE_PLANE) {
-            OPENVINO_ASSERT(nodes.size() == 1, "Internal error: single plane I420 image can't have multiple inputs");
-            std::shared_ptr<Node> convert;
-            switch (dst_format) {
-            case ColorFormat::RGB:
-                convert = std::make_shared<op::v8::I420toRGB>(nodes[0]);
-                break;
-            case ColorFormat::BGR:
-                convert = std::make_shared<op::v8::I420toBGR>(nodes[0]);
-                break;
-            default:
-                OPENVINO_ASSERT(false,
-                                "Unsupported conversion from I420 to '",
-                                color_format_name(dst_format),
-                                "' format:");
-            }
-            context.color_format() = dst_format;
-            return std::make_tuple(std::vector<Output<Node>>{convert}, true);
-        } else if (context.color_format() == ColorFormat::I420_THREE_PLANES) {
-            OPENVINO_ASSERT(nodes.size() == 3, "Internal error: three-plane I420 image must have exactly three inputs");
-            std::shared_ptr<Node> convert;
-            switch (dst_format) {
-            case ColorFormat::RGB:
-                convert = std::make_shared<op::v8::I420toRGB>(nodes[0], nodes[1], nodes[2]);
-                break;
-            case ColorFormat::BGR:
-                convert = std::make_shared<op::v8::I420toBGR>(nodes[0], nodes[1], nodes[2]);
-                break;
-            default:
-                OPENVINO_ASSERT(false,
-                                "Unsupported conversion from I420 to '",
-                                color_format_name(dst_format),
-                                "' format:");
-            }
-            context.color_format() = dst_format;
-            return std::make_tuple(std::vector<Output<Node>>{convert}, true);
-        }
-        if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
-            (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
-            auto res = reverse_channels(nodes, function, context);
-            context.color_format() = dst_format;
-            return res;
-        }
-        if (context.color_format() == ColorFormat::RGBX) {
-            if (dst_format == ColorFormat::RGB) {
-                auto res = cut_last_channel(nodes, function, context);
+            if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
+                (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
+                auto res = reverse_channels(nodes, function, context);
                 context.color_format() = dst_format;
                 return res;
-            } else if (dst_format == ColorFormat::BGR) {
-                auto cut = cut_last_channel(nodes, function, context);
-                auto reverse = reverse_channels(std::get<0>(cut), function, context);
-                bool updated = std::get<1>(cut) | std::get<1>(reverse);
-                context.color_format() = dst_format;
-                return std::make_tuple(std::get<0>(reverse), updated);
             }
-        }
-        if (context.color_format() == ColorFormat::BGRX) {
-            if (dst_format == ColorFormat::BGR) {
-                auto res = cut_last_channel(nodes, function, context);
-                context.color_format() = dst_format;
-                return res;
-            } else if (dst_format == ColorFormat::RGB) {
-                auto cut = cut_last_channel(nodes, function, context);
-                auto reverse = reverse_channels(std::get<0>(cut), function, context);
-                bool updated = std::get<1>(cut) | std::get<1>(reverse);
-                context.color_format() = dst_format;
-                return std::make_tuple(std::get<0>(reverse), updated);
+            if (context.color_format() == ColorFormat::RGBX) {
+                if (dst_format == ColorFormat::RGB) {
+                    auto res = cut_last_channel(nodes, function, context);
+                    context.color_format() = dst_format;
+                    return res;
+                } else if (dst_format == ColorFormat::BGR) {
+                    auto cut = cut_last_channel(nodes, function, context);
+                    auto reverse = reverse_channels(std::get<0>(cut), function, context);
+                    bool updated = std::get<1>(cut) | std::get<1>(reverse);
+                    context.color_format() = dst_format;
+                    return std::make_tuple(std::get<0>(reverse), updated);
+                }
             }
-        }
-        OPENVINO_ASSERT(false,
-                        "Source color format '",
-                        color_format_name(context.color_format()),
-                        "' is not convertible to any other");
-    });
+            if (context.color_format() == ColorFormat::BGRX) {
+                if (dst_format == ColorFormat::BGR) {
+                    auto res = cut_last_channel(nodes, function, context);
+                    context.color_format() = dst_format;
+                    return res;
+                } else if (dst_format == ColorFormat::RGB) {
+                    auto cut = cut_last_channel(nodes, function, context);
+                    auto reverse = reverse_channels(std::get<0>(cut), function, context);
+                    bool updated = std::get<1>(cut) | std::get<1>(reverse);
+                    context.color_format() = dst_format;
+                    return std::make_tuple(std::get<0>(reverse), updated);
+                }
+            }
+            OPENVINO_ASSERT(false,
+                            "Source color format '",
+                            color_format_name(context.color_format()),
+                            "' is not convertible to '",
+                            color_format_name(dst_format),
+                            "'");
+        },
+        "convert color (" + color_format_name(dst_format) + ")");
 }
 
 void PreStepsList::add_reverse_channels() {
-    m_actions.emplace_back([](const std::vector<Output<Node>>& nodes,
-                              const std::shared_ptr<Model>& function,
-                              PreprocessingContext& context) {
-        auto resp = reverse_channels(nodes, function, context);
-        auto outputs = std::get<0>(resp);
-        OPENVINO_ASSERT(outputs.size() == 1, "Internal error: reverse_channels returned unexpected number of outputs");
-        set_is_preprocessing_node(outputs.at(0).get_node_shared_ptr());
-        return resp;
-    });
+    m_actions.emplace_back(
+        [](const std::vector<Output<Node>>& nodes,
+           const std::shared_ptr<Model>& function,
+           PreprocessingContext& context) {
+            auto resp = reverse_channels(nodes, function, context);
+            auto outputs = std::get<0>(resp);
+            OPENVINO_ASSERT(outputs.size() == 1,
+                            "Internal error: reverse_channels returned unexpected number of outputs");
+            set_is_preprocessing_node(outputs.at(0).get_node_shared_ptr());
+            return resp;
+        },
+        "reverse channels");
 }
 
 std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const std::vector<Output<Node>>& nodes,
@@ -444,52 +522,59 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const
 
 //------------- Post processing ------
 void PostStepsList::add_convert_impl(const element::Type& type) {
-    m_actions.emplace_back([type](const Output<Node>& node, PostprocessingContext& ctxt) {
-        element::Type t = type;
-        if (t == element::Type{}) {
-            t = ctxt.target_element_type();
-        }
-        if (t == node.get_element_type()) {
-            return std::make_tuple(node, false);
-        }
-        OPENVINO_ASSERT(
-            !t.is_dynamic() && t != element::undefined,
-            "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
-        auto convert = std::make_shared<op::v0::Convert>(node, t);
-        return std::make_tuple(Output<Node>(convert), true);
-    });
+    m_actions.emplace_back(
+        [type](const Output<Node>& node, PostprocessingContext& ctxt) {
+            element::Type t = type;
+            if (t == element::Type{}) {
+                t = ctxt.target_element_type();
+            }
+            if (t == node.get_element_type()) {
+                return std::make_tuple(node, false);
+            }
+            OPENVINO_ASSERT(
+                !t.is_dynamic() && t != element::undefined,
+                "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
+            auto convert = std::make_shared<op::v0::Convert>(node, t);
+            return std::make_tuple(Output<Node>(convert), true);
+        },
+        "convert type (" + type.get_type_name() + ")");
 }
 
 void PostStepsList::add_convert_layout_impl(const Layout& layout) {
-    m_actions.emplace_back([layout](const Output<Node>& node, PostprocessingContext& context) {
-        Layout dst_layout = layout.empty() ? context.target_layout() : layout;
-        auto permutation = layout::utils::find_permutation(context.layout(), node.get_partial_shape(), dst_layout);
-        if (permutation.empty()) {
-            // No transpose is needed, just update layout
-            if (!layout.empty()) {
-                context.layout() = layout;
+    m_actions.emplace_back(
+        [layout](const Output<Node>& node, PostprocessingContext& context) {
+            Layout dst_layout = layout.empty() ? context.target_layout() : layout;
+            auto permutation = layout::utils::find_permutation(context.layout(), node.get_partial_shape(), dst_layout);
+            if (permutation.empty()) {
+                // No transpose is needed, just update layout
+                if (!layout.empty()) {
+                    context.layout() = layout;
+                }
+                return std::make_tuple(node, false);
             }
-            return std::make_tuple(node, false);
-        }
-        auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
-        auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-        context.layout() = dst_layout;  // Update context's current layout
-        return std::make_tuple(Output<Node>(transpose), true);
-    });
+            auto perm_constant =
+                op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
+            auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
+            context.layout() = dst_layout;  // Update context's current layout
+            return std::make_tuple(Output<Node>(transpose), true);
+        },
+        "convert layout " + layout.to_string());
 }
 
 void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
     if (dims.empty()) {
         return;
     }
-    m_actions.emplace_back([dims](const Output<Node>& node, PostprocessingContext& context) {
-        auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
-        auto new_layout = layout::utils::apply_permutation(context.layout(), dims);
-        auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-        auto res = std::make_tuple(Output<Node>(transpose), true);
-        context.layout() = std::move(new_layout);  // Update context's current layout
-        return res;
-    });
+    m_actions.emplace_back(
+        [dims](const Output<Node>& node, PostprocessingContext& context) {
+            auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
+            auto new_layout = layout::utils::apply_permutation(context.layout(), dims);
+            auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
+            auto res = std::make_tuple(Output<Node>(transpose), true);
+            context.layout() = std::move(new_layout);  // Update context's current layout
+            return res;
+        },
+        "convert layout " + vector_to_string(dims));
 }
 }  // namespace preprocess
 }  // namespace ov

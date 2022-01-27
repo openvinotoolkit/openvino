@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -31,7 +31,7 @@ def convert(filename: str, is_text: bool):
     new_ext = ".pbtxt" if is_text else ".pb"
     head, tail = os.path.split(os.path.abspath(filename))
     print("Convert: {} \n     to: {}".format(filename, os.path.join(head, tail + new_ext)))
-    graph_def, _ = load_tf_graph_def(graph_file_name=filename, is_binary=is_text)
+    graph_def, _, _, _ = load_tf_graph_def(graph_file_name=filename, is_binary=is_text)
     tf_v1.import_graph_def(graph_def, name='')
     tf_v1.train.write_graph(graph_def, head, tail + new_ext, as_text=is_text)
 

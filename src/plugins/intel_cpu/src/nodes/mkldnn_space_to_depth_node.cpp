@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <utils/general_utils.h>
 
 #include <cmath>
+#include <common/primitive_hashing_utils.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <string>
@@ -20,6 +21,32 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
+
+size_t MKLDNNSpaceToDepthNode::SpaceToDepthAttrs::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, layoutType);
+    seed = hash_combine(seed, mode);
+    seed = hash_combine(seed, blockSize);
+    seed = hash_combine(seed, blockStep);
+    seed = hash_combine(seed, dataSize);
+    seed = hash_combine(seed, nSpatialDims);
+    seed = get_vector_hash(seed, srcBlockedDims);
+    seed = get_vector_hash(seed, destBlockedDims);
+
+    return seed;
+}
+
+bool MKLDNNSpaceToDepthNode::SpaceToDepthAttrs::operator==(const SpaceToDepthAttrs& rhs) const {
+    bool result = layoutType == rhs.layoutType && mode == rhs.mode &&
+                  blockSize == rhs.blockSize && blockStep == rhs.blockStep &&
+                  dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
+                  srcBlockedDims == rhs.srcBlockedDims && destBlockedDims == rhs.destBlockedDims;
+
+    return result;
+}
 
 bool MKLDNNSpaceToDepthNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                                                   std::string& errorMessage) noexcept {
@@ -162,24 +189,36 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
 }
 
 void MKLDNNSpaceToDepthNode::prepareParams() {
-    const VectorDims& srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    const VectorDims& dstBlockedDims = getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    execPtr = std::make_shared<SpaceToDepthExecutor>(attrs, srcBlockedDims, dstBlockedDims);
+    attrs.srcBlockedDims =
+        getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.destBlockedDims =
+        getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto builder = [](const SpaceToDepthAttrs& key) -> std::shared_ptr<SpaceToDepthExecutor> {
+        return std::make_shared<SpaceToDepthExecutor>(key);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(attrs, builder);
+    if (!result.first) {
+        IE_THROW() << "SpaceToDepthExecutor was not found for node " << getName() << ".";
+    }
+
+    execPtr = result.first;
 }
 
-MKLDNNSpaceToDepthNode::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs,
-                                                                   const VectorDims& srcBlockedDims,
-                                                                   const VectorDims& dstBlockedDims) {
+MKLDNNSpaceToDepthNode::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs) {
     if (!MKLDNNPlugin::one_of(attrs.layoutType,
                               LayoutType::nCsp16c,
                               LayoutType::nCsp8c,
                               LayoutType::nspc,
                               LayoutType::ncsp))
-        IE_THROW() << "DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', "
+        IE_THROW() << "SpaceToDepth executor supports only 'nCsp16c', 'nCsp8c', "
                       "'nspc' or 'ncsp' layouts.";
 
     const bool isBlocked = MKLDNNPlugin::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
+    const auto& srcBlockedDims = attrs.srcBlockedDims;
+    const auto& dstBlockedDims = attrs.destBlockedDims;
 
     size_t nDims = srcBlockedDims.size();
 

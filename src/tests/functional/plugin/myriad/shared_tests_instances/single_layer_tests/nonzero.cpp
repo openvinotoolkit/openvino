@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,9 @@ std::vector<std::vector<size_t>> inShapes = {
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::U32,
+        InferenceEngine::Precision::I64,
+        InferenceEngine::Precision::U64,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::U8,
 };

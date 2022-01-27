@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,6 +194,10 @@ void regclass_graph_PartialShape(py::module m) {
 
     shape.def("__len__", [](const ov::PartialShape& self) {
         return self.size();
+    });
+
+    shape.def("__setitem__", [](ov::PartialShape& self, size_t key, ov::Dimension::value_type d) {
+        self[key] = d;
     });
 
     shape.def("__setitem__", [](ov::PartialShape& self, size_t key, ov::Dimension& d) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,16 +19,16 @@ namespace subgraph {
 using OpImplParams = std::tuple<
         std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>,       // Function to check
         std::string,                         // Target Device
-        std::map<std::string, std::string>>; // Plugin Config
+        ov::AnyMap>; // Plugin Config
 
 class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
                         public CommonTestUtils::TestsCommon {
 protected:
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
-    std::shared_ptr<ov::runtime::Core> core = ov::test::utils::PluginCache::get().core();
+    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function;
     std::string targetDevice;
-    std::map<std::string, std::string> configuration;
+    ov::AnyMap configuration;
 
 public:
     void run();

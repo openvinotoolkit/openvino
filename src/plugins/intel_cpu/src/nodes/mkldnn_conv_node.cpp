@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -332,7 +332,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
 void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false) {
     mkldnn::post_ops ops;
-    bool useLegacyPostOps = true; // @todo remove after issue with performance of binary post ops fixed
+    const bool useLegacyPostOps = true; // @todo remove after issue with performance of binary post ops fixed
 
     auto getBinPostOpShape = [&](){
         const auto outShape = getOutputShapeAtPort(0).getStaticDims();
@@ -907,7 +907,6 @@ std::shared_ptr<MKLDNNDescriptor> MKLDNNConvolutionNode::createMkldnnConvDesc(co
                                                                               const mkldnn::memory::desc& wghDesc,
                                                                               const mkldnn::memory::desc& dstDesc,
                                                                               const mkldnn::memory::desc& biasDesc) {
-    std::shared_ptr<mkldnn::convolution_forward::desc> dnnlConvDesc;
     auto alg = isWinograd() ? mkldnn::algorithm::convolution_winograd : mkldnn::algorithm::convolution_direct;
 
     if (withBiases) {
@@ -931,11 +930,11 @@ void MKLDNNConvolutionNode::prepareParams() {
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory was not allocated.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory was not allocated.";
     if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Weight memory didn't allocate.";
+        IE_THROW() << "Weight memory was not allocated.";
     MKLDNNMemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
@@ -1067,15 +1066,10 @@ void MKLDNNConvolutionNode::executeDynamicImpl(mkldnn::stream strm) {
 }
 
 void MKLDNNConvolutionNode::updatePadding() {
-    //update padding. TODO [DS] : rewrite when the final shape inference interface is available
+    //update padding.
     if (isDynamicNode() && autoPadding) {
-        if (auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(opToShapeInfer)) {
-            paddingL = convolutionOp->get_pads_begin();
-            paddingR = convolutionOp->get_pads_end();
-        } else if (auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(opToShapeInfer)) {
-            paddingL = groupConvolutionOp->get_pads_begin();
-            paddingR = groupConvolutionOp->get_pads_end();
-        }
+        paddingL = shapeInference->get_pads_begin();
+        paddingR = shapeInference->get_pads_end();
     }
 }
 

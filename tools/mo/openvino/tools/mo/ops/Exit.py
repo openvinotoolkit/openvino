@@ -1,7 +1,6 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -20,8 +19,11 @@ class Exit(Op):
 
     @staticmethod
     def exit_infer(node: Node):
-        output_shape = node.in_node(0).shape
-        output_value = node.in_node(0).value
-        for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = mo_array(output_shape)
-            node.graph.node[out_node]['value'] = None if output_value is None else mo_array(output_value)
+        output_shape = node.in_port(0).data.get_shape()
+        output_value = node.in_port(0).data.get_value()
+
+        for port in node.out_ports():
+            if not node.out_port(port).disconnected():
+                node.out_port(port).data.set_shape(output_shape)
+                if output_value is not None:
+                    node.out_port(port).data.set_value(output_value)

@@ -148,8 +148,8 @@ Options:
     -report_folder              Optional. Path to a folder where statistics report is stored.
     -exec_graph_path            Optional. Path to a file where to store executable graph information serialized.
     -pc                         Optional. Report performance counters.
-    -dump_config                Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.
-    -load_config                Optional. Path to XML/YAML/JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+    -dump_config                Optional. Path to JSON file to dump IE parameters, which were set by application.
+    -load_config                Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority than parameters from configuration file.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

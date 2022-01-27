@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,8 @@ namespace behavior {
 
 
 typedef std::tuple<
-        std::string,                        // Device name
-        std::map<std::string, std::string>  // Config
+        std::string,            // Device name
+        ov::AnyMap   // Config
 > InferRequestParams;
 
 class OVInferRequestTests : public testing::WithParamInterface<InferRequestParams>,
@@ -31,14 +31,15 @@ class OVInferRequestTests : public testing::WithParamInterface<InferRequestParam
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
-        std::map<std::string, std::string> configuration;
+        ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             using namespace CommonTestUtils;
             for (auto &configItem : configuration) {
-                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+                result << "configItem=" << configItem.first << "_";
+                configItem.second.print(result);
             }
         }
         return result.str();
@@ -49,7 +50,11 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
-        execNet = core->compile_model(function, targetDevice, configuration);
+        ov::AnyMap params;
+        for (auto&& v : configuration) {
+            params.emplace(v.first, v.second);
+        }
+        execNet = core->compile_model(function, targetDevice, params);
     }
 
     void TearDown() override {
@@ -59,16 +64,16 @@ public:
     }
 
 protected:
-    ov::runtime::CompiledModel execNet;
-    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    ov::CompiledModel execNet;
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
-    std::map<std::string, std::string> configuration;
+    ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
 };
 
-inline ov::runtime::Core createCoreWithTemplate() {
+inline ov::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
-    ov::runtime::Core core;
+    ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "ov_template_plugin";
     pluginName += IE_BUILD_POSTFIX;

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
@@ -415,10 +415,56 @@ def add_meta_data(net: Element, meta_info: dict):
         meta = SubElement(net, 'meta_data')
         SubElement(meta, 'MO_version').set('value', get_version())
         parameters = SubElement(meta, 'cli_parameters')
+        if 'inputs_list' in meta_info:
+            del meta_info['inputs_list']
         [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
          key not in ('unset', 'quantization_parameters')]
         if 'unset' in meta_info:
             SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
+
+
+def serialize_node(graph: Graph, node: Node, layers: SubElement, edges: SubElement, unsupported: UnsupportedOps):
+    if node.kind == 'op' and (not node.has('type') or node.type is None):
+        unsupported.add(node)
+        return
+    if not node.has('IE'):
+        return
+    try:
+        serialize_node_attributes(graph, node, node.IE, layers, edges, unsupported)
+    except Error as e:
+        raise Error(str(e).replace('<SUB-ELEMENT>', '{} (id = {})'.format(node.soft_get('name'), node.id))) from e
+
+
+def get_tensor_names_of_result_node(graph):
+    result_nodes = graph.get_op_nodes(type='Result')
+    result_names_to_tensor_names = {}
+    for res_node in result_nodes:
+
+        # After port renumbering port/connection API is not applicable
+        assert len(res_node.in_nodes()) > 0, \
+            "Result node with name {} has no input node.".format(res_node.soft_get('name'))
+        res_data_node = res_node.in_node(0)
+        assert len(res_data_node.in_nodes()) > 0, \
+            "Data node of Result with name {} has no input node.".format(res_node.soft_get('name'))
+        res_in_node = res_data_node.in_node(0)
+
+        # We cannot use out_ports() after port renumbering
+        for v, d in res_in_node.get_sorted_outputs():
+            port_id = d['out'] - len(res_in_node.in_nodes()) if res_in_node.type != 'Const' else d['out']
+            tensor_names = res_in_node.out_port(port_id).get_tensor_names(port_renumber=True)
+            result_names_to_tensor_names[res_node.soft_get('name')] = tensor_names
+    return result_names_to_tensor_names
+
+
+def find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_names):
+    for res_node in result_nodes:
+        res_name = res_node.soft_get('name')
+        tensor_names = result_names_to_tensor_names[res_name]
+        if output_name in tensor_names:
+            # In this case output tensor name is in tensor names list of previous op
+            return res_name
+
+    return None
 
 
 def serialize_network(graph, net_element, unsupported):
@@ -427,17 +473,86 @@ def serialize_network(graph, net_element, unsupported):
     if graph is None:
         return
     nodes = sorted(graph.nodes())
+
+    result_nodes = graph.get_op_nodes(type='Result')
+    result_names_to_tensor_names = get_tensor_names_of_result_node(graph)
+
+    ordered_results = []
+    for output_name in graph.outputs_order:
+        node = graph.get_op_nodes(name=output_name)
+
+        if len(node) == 0:
+            # As graph does not contain node with name=output_name
+            # in the following code we look for output_name among tensor names
+            # incoming to Result nodes
+            found_result_name = find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_names)
+
+            if found_result_name is not None:
+                ordered_results.append(found_result_name)
+            else:
+                log.warning("Output node with name {} is not found in graph.".format(output_name))
+            continue
+        node = node[0]
+
+        # In this case Result node has the same name as output tensor
+        if node.soft_get('type') == 'Result':
+            ordered_results.append(node.soft_get('name'))
+            continue
+
+        # Here output data node count is checked. Each port cannot have more than one data node.
+        assert len(node.out_nodes()) == 1, "Incorrect graph. Non-Result node with name {} " \
+                                           "has no output data node.".format(output_name)
+
+        # After port renumbering port/connection API is not applicable, and output port numbering
+        # starts from len(node.in_nodes()).
+        data_node = node.out_node(len(node.in_nodes()))
+
+        found_result = False
+        for op_node in data_node.out_nodes():
+            if op_node.soft_get('type') == 'Result':
+                found_result = True
+                ordered_results.append(op_node.soft_get('name'))
+                break
+
+        if not found_result:
+            log.warning("Node that expected to be output with name {} is not connected with Result node.".format(output_name))
+
+    param_nodes = graph.get_op_nodes(type='Parameter')
+    serialized_inputs = []
+    for input_name in graph.inputs_order:
+        node = graph.get_op_nodes(name=input_name)
+        if len(node) != 0:
+            serialize_node(graph, node[0], layers, edges, unsupported)
+            serialized_inputs.append(input_name)
+            continue
+        found_tensor_name = False
+        for param_node in param_nodes:
+            param_name = param_node.soft_get('name')
+            if not param_node.is_out_port_connected(0):
+                continue
+            tensor_names = param_node.out_port(0).get_tensor_names(port_renumber=True)
+            if input_name in tensor_names:
+                # In this case input name is in tensor names list of Parameter op
+                serialize_node(graph, param_node, layers, edges, unsupported)
+                serialized_inputs.append(param_name)
+                found_tensor_name = True
+                break
+
+        if not found_tensor_name:
+            log.warning("Input node with name {} is not found in graph.".format(param_name))
+
     for node in nodes:
         node = Node(graph, node)
-        if node.kind == 'op' and (not node.has('type') or node.type is None):
-            unsupported.add(node)
+        if node.soft_get('name') in serialized_inputs:
             continue
-        if not node.has('IE'):
+        if node.soft_get('name') in ordered_results:
             continue
-        try:
-            serialize_node_attributes(graph, node, node.IE, layers, edges, unsupported)
-        except Error as e:
-            raise Error(str(e).replace('<SUB-ELEMENT>', '{} (id = {})'.format(node.soft_get('name'), node.id))) from e
+        serialize_node(graph, node, layers, edges, unsupported)
+
+    for output_name in ordered_results:
+        node = graph.get_op_nodes(name=output_name)
+        assert len(node) == 1, "Output node with name {} is not found in graph.".format(output_name)
+        serialize_node(graph, node[0], layers, edges, unsupported)
 
 
 def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_offset: tuple = (),

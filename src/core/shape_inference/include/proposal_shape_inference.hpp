@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ void infer_prop_shape(const OpType* op,
     auto out_dim = DimType{};
 
     if (class_probs_ps.rank().is_static() && bbox_deltas_ps.rank().is_static()) {
-        DimType::merge(out_dim, class_probs_ps[0], bbox_deltas_ps[0]);
+        OPENVINO_ASSERT(DimType::merge(out_dim, class_probs_ps[0], bbox_deltas_ps[0]));
     } else if (class_probs_ps.rank().is_static()) {
         out_dim = class_probs_ps[0];
     } else if (bbox_deltas_ps.rank().is_static()) {

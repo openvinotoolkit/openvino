@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; };
     void executeDynamicImpl(mkldnn::stream strm) override;
 

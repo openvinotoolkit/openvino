@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransparentBaseTransformation is base type for precision preserved operation transformation.
+ */
 class LP_TRANSFORMATIONS_API TransparentBaseTransformation : public LayerTransformation {
 public:
     TransparentBaseTransformation(const Params& params) : LayerTransformation(params) {}

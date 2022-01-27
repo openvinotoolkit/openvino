@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,11 @@ namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
     ngraph::element::f16
+};
+
+const std::vector<bool> isConvertOnConstants = {
+        false,
+        true
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
@@ -65,6 +70,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeTransformation,
         ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(fakeQuantizeOnDataValues)),
+        ::testing::ValuesIn(fakeQuantizeOnDataValues),
+        ::testing::ValuesIn(isConvertOnConstants)),
     FakeQuantizeTransformation::getTestCaseName);
 }  // namespace
