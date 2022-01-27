@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/utils/utils.hpp"
+#include "ngraph/validation_util.hpp"
 
 #include <memory>
 #include <vector>
@@ -17,15 +18,13 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeSequenceFusion, "ReshapeSequenceFusion", 0);
 
 namespace {
-OPENVINO_SUPPRESS_DEPRECATED_START
 bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
     const auto node = node_out.get_node_shared_ptr();
     const auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node);
     if (!const_node) {
         // Lower bound of the value
-        ngraph::HostTensorPtr lb = std::make_shared<ngraph::HostTensor>(node_out);
-        const bool is_lb_evaluated = node->evaluate_lower({lb});
-        if (!is_lb_evaluated || !lb) return false;
+        auto lb = ngraph::evaluate_lower_bound(node_out);
+        if (!lb) return false;
         const auto lb_const_node = std::make_shared<ngraph::opset8::Constant>(lb);
         if (!lb_const_node) return false;
 
@@ -36,9 +35,8 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
         }
 
         // Upper bound of the value
-        ngraph::HostTensorPtr ub = std::make_shared<ngraph::HostTensor>(node_out);
-        const bool is_ub_evaluated = node->evaluate_upper({ub});
-        if (!is_ub_evaluated || !ub) return false;
+        auto ub = ngraph::evaluate_upper_bound(node_out);
+        if (!ub) return false;
         const auto ub_const_node = std::make_shared<ngraph::opset8::Constant>(ub);
         if (!ub_const_node) return false;
 
@@ -56,7 +54,6 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
     // We can not fuse Reshapes if their pattern values have special numbers like -1 and 0
     return std::all_of(values.cbegin(), values.cend(), [](int64_t value) { return value > 0;});
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 } // namespace
 
 ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion() {
