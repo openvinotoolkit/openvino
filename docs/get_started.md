@@ -5,83 +5,97 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install From Release Packages
+   :caption: Install OpenVINO
    
-   Linux <openvino_docs_install_guides_installing_openvino_linux>
+   Overview <openvino_docs_install_guides_overview>
+   Install from PyPI <openvino_docs_install_guides_installing_openvino_pip>
+   Linux
+       Installer <openvino_docs_install_guides_installing_openvino_linux>
+       APT <openvino_docs_install_guides_installing_openvino_apt>
+       YUM <openvino_docs_install_guides_installing_openvino_yum>
+       Docker for Linux<openvino_docs_install_guides_installing_openvino_docker_linux>
    Windows <openvino_docs_install_guides_installing_openvino_windows>
+        Installer <openvino_docs_install_guides_installing_openvino_windows>
+        Docker for Windows <openvino_docs_install_guides_installing_openvino_docker_windows>
    macOS <openvino_docs_install_guides_installing_openvino_macos>
    Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>
+   Install from Anaconda Cloud <openvino_docs_install_guides_installing_openvino_conda>
+   Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
+   Install OpenVINO Model Development Tools <#openvino_docs_install_guides_install_dev_tools>
+   Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Additional Configurations
+   
+   Configurations for Intel® Processor Graphics (GPU)
+   Configurations for Intel® Neural Compute Stick 2
+   Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+        Linux <openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
+        Windows 
+        Configurations for IEI Mustang-V100-MX8-R10 card <openvino_docs_install_guides_movidius_setup_guide>
+        Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install From Images and Repositories
+   :caption: Troubleshooting
    
-   Overview <openvino_docs_install_guides_installing_openvino_images>
-   PIP<openvino_docs_install_guides_installing_openvino_pip>
-   Docker for Linux <openvino_docs_install_guides_installing_openvino_docker_linux>
-   Docker for Windows <openvino_docs_install_guides_installing_openvino_docker_windows>
-   Docker with DL Workbench <workbench_docs_Workbench_DG_Run_Locally>
-   APT <openvino_docs_install_guides_installing_openvino_apt>
-   YUM <openvino_docs_install_guides_installing_openvino_yum>
-   Conda <openvino_docs_install_guides_installing_openvino_conda>
-   Yocto <openvino_docs_install_guides_installing_openvino_yocto>
-   Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
-
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Configuration for Hardware
-   
-   Configure Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux*<openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
-   Intel® Movidius™ VPUs Setup Guide <openvino_docs_install_guides_movidius_setup_guide>
-   Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
+   Troubleshooting <openvino_docs_get_started_guide_troubleshooting>
    
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Get Started Guides
+   :caption: Learning Path
    
+   Learning Path <openvino_docs_get_started_guide_learning_path>
+
+@endsphinxdirective
+   
+<!--
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Get Started Guides-->
+<!--   
    Get Started with One-Command Demo <openvino_docs_get_started_get_started_scripts>
    Get Started with Step-by-step Demo <openvino_docs_get_started_get_started_demos>
    Get Started with Tutorials <tutorials>
-
+-->
+<!--
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Inference Engine Code Samples
-
-   openvino_docs_IE_DG_Samples_Overview
-
-
+-->
+<!--
+   openvino_docs_IE_DG_Samples_Overview-->
+<!--
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Reference Implementations For Speech Recognition Apps
-
+   :caption: Reference Implementations For Speech Recognition Apps-->
+<!--
    openvino_inference_engine_samples_speech_libs_and_demos_Speech_libs_and_demos
    openvino_inference_engine_samples_speech_libs_and_demos_Speech_library
    openvino_inference_engine_samples_speech_libs_and_demos_Offline_speech_recognition_demo
    openvino_inference_engine_samples_speech_libs_and_demos_Live_speech_recognition_demo
    openvino_inference_engine_samples_speech_libs_and_demos_Kaldi_SLM_conversion_tool
-
-@endsphinxdirective
-   
-   
+-->
+ 
 @sphinxdirective
 .. raw:: html
     
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
-   <p id="GSG_introtext">To get started with OpenVINO, the first thing to do is to actually install it. If you haven't done it yet, choose the installation type that best suits   your needs and follow the instructions:<br />
+   <p id="GSG_introtext">To get started with OpenVINO, the first thing to do is to actually install it. If you haven't done it yet, choose the installation type that best suits your needs and follow the instructions:<br />
      <a href="openvino_docs_install_guides_installing_openvino_linux.html" >Install<br /> Package </a>
      <a href="openvino_docs_install_guides_installing_openvino_images.html" >Install from <br /> images or repositories</a>
      <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode" >Build <br /> from source</a>
    </p>
    <div style="clear:both;"> </div>   
-   <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. <br /> Here is a set of hands-on demonstrations of various complexity levels to    guide you through the process: from performing sample inference with just one command, to running code samples, demo application or Jupyter notebooks. If you prefer working   with  GUI, you can also get started with the DL Workbench application. This way you can choose the right level for you.<br /></p>
+   <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. <br /> Here is a set of hands-on demonstrations of various complexity levels to guide you through the process: from performing sample inference with just one command, to running code samples, demo application or Jupyter notebooks. If you prefer working with GUI, you can also get started with the DL Workbench application. This way you can choose the right level for you.<br /></p>
    
    <h3>Choose how you want to progress:</h3>
    
