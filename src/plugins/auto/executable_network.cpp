@@ -556,16 +556,18 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
     if (_workModeIsAUTO) {
-        try {
-            ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
-        } catch (InferenceEngine::Exception& ex) {
-            // plugin does not support context, say CPU
-            LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
-                            _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
-            // for dynamic shape support
-            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            if (num < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+        if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
+            try {
+                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
+            } catch (InferenceEngine::Exception& ex) {
+                // plugin does not support context, say CPU
+                LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
+                                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
+                // for dynamic shape support
+                auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
+                if (num < dev_requests.size()) {
+                    request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+                }
             }
         }
         return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, ctx);
@@ -592,15 +594,17 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
     if (_workModeIsAUTO) {
-        try {
-            ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
-        } catch (InferenceEngine::Exception& ex) {
-            // plugin does not support context
-            LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
-                            _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
-            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            if (num < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+        if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
+            try {
+                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
+            } catch (InferenceEngine::Exception& ex) {
+                // plugin does not support context
+                LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
+                                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
+                auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
+                if (num < dev_requests.size()) {
+                    request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+                }
             }
         }
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, ctx);
