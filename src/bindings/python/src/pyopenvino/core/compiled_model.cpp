@@ -44,8 +44,12 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def(
         "set_property",
-        [](ov::CompiledModel& self, const std::map<std::string, PyAny>& properties) {
-            self.set_property({properties.begin(), properties.end()});
+        [](ov::CompiledModel& self, const std::map<std::string, py::object>& properties) {
+            std::map<std::string, PyAny> properties_to_cpp;
+            for (const auto& property : properties) {
+                properties_to_cpp[property.first] = PyAny(property.second);
+            }
+            self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
         },
         py::arg("properties"));
 

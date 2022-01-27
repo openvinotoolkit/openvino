@@ -27,19 +27,19 @@ def main():
     for device in core.available_devices:
         log.info(f'{device} :')
         log.info('\tSUPPORTED_METRICS:')
-        for property_key in core.get_property(device, 'SUPPORTED_METRICS'):
+        for property_key in core.get_property(device, 'SUPPORTED_METRICS').value:
             if property_key not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS'):
                 try:
-                    property_val = core.get_property(device, property_key)
+                    property_val = core.get_property(device, property_key).value
                 except TypeError:
                     property_val = 'UNSUPPORTED TYPE'
                 log.info(f'\t\t{property_key}: {param_to_string(property_val)}')
         log.info('')
 
         log.info('\tSUPPORTED_CONFIG_KEYS (default values):')
-        for config_key in core.get_property(device, 'SUPPORTED_CONFIG_KEYS'):
+        for config_key in core.get_property(device, 'SUPPORTED_CONFIG_KEYS').value:
             try:
-                config_val = core.get_property(device, config_key)
+                config_val = core.get_property(device, config_key).value
             except TypeError:
                 config_val = 'UNSUPPORTED TYPE'
             log.info(f'\t\t{config_key}: {param_to_string(config_val)}')
