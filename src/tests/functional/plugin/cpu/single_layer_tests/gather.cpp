@@ -81,7 +81,12 @@ protected:
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
-        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+
+        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+            selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
+        } else {
+            selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+        }
 
         if (!isAxisConstant) {
             inputDynamicShapes.push_back({1});
@@ -211,7 +216,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_1D, GatherLayerTestCPU,
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes1D = {
@@ -228,7 +233,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_1D, GatherLayerTestCPU,
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(true, false),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 
 ///// 4D JIT /////
@@ -326,7 +331,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit16, GatherLayerTestCPU,
                     ::testing::Values(ElementType::bf16),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit8, GatherLayerTestCPU,
@@ -336,7 +341,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_jit8, GatherLayerTestCPU,
                     ::testing::Values(ElementType::i8),
                     ::testing::Values(true),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 
 
@@ -416,7 +421,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit16, GatherLayerTestCPU,
                     ::testing::Values(ElementType::bf16),
                     ::testing::ValuesIn(isAxisConst),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit8, GatherLayerTestCPU,
@@ -426,7 +431,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D_jit8, GatherLayerTestCPU,
                     ::testing::Values(ElementType::i8),
                     ::testing::ValuesIn(isAxisConst),
                     ::testing::ValuesIn(getCPUInfo()),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 
 
@@ -527,7 +532,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref16, GatherLayerTestCPU,
                     ::testing::Values(ElementType::bf16),
                     ::testing::Values(true),
                     ::testing::Values(cpuParamsRef),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8, GatherLayerTestCPU,
@@ -537,7 +542,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8, GatherLayerTestCPU,
                     ::testing::Values(ElementType::i8),
                     ::testing::Values(true),
                     ::testing::Values(cpuParamsRef),
-                    ::testing::ValuesIn(additionalConfig)),
+                    ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
