@@ -158,7 +158,6 @@ using ov::check_new_args_count;
     const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                             \
         static ::ngraph::Node::type_info_t type_info_static{TYPE_NAME,                             \
                                                             _VERSION_INDEX,                        \
-                                                            nullptr,                               \
                                                             &PARENT_CLASS::get_type_info_static(), \
                                                             true};                                 \
         type_info_static.hash();                                                                   \
@@ -166,11 +165,11 @@ using ov::check_new_args_count;
     }                                                                                              \
     _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
 
-#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)                                     \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                                          \
-        static ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX, nullptr, nullptr, true}; \
-        return type_info_static;                                                                                \
-    }                                                                                                           \
+#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)                            \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                                 \
+        static ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX, nullptr, true}; \
+        return type_info_static;                                                                       \
+    }                                                                                                  \
     _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
 #define NGRAPH_RTTI_DEFINITION(...)                                                               \
     _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                         \
