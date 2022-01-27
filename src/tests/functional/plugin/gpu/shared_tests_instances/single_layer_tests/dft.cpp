@@ -9,7 +9,7 @@ namespace {
 
 const std::initializer_list<ngraph::helpers::DFTOpType> opTypes {
     ngraph::helpers::DFTOpType::FORWARD,
-//    ngraph::helpers::DFTOpType::INVERSE // TODO: idft is not implemented yet
+    ngraph::helpers::DFTOpType::INVERSE
 };
 
 const std::initializer_list<InferenceEngine::Precision> inputPrecision {
@@ -69,7 +69,7 @@ const auto smokeCase2d = testing::Combine(
     testing::Values(InferenceEngine::Precision::FP32),
     testing::Values(std::vector<int64_t>{2, -4}),
     testing::Values(std::vector<int64_t>{5, 2}),
-    testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+    testing::ValuesIn(opTypes),
     testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 

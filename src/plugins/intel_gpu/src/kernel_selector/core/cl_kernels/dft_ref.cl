@@ -7,6 +7,7 @@ typedef float2 cfloat;
 #define real(a) ((a).s0)
 #define imag(a) ((a).s1)
 #define cmult(a, b) ((cfloat)(real(a) * real(b) - imag(a) * imag(b), real(a) * imag(b) + imag(a) * real(b)))
+#define crmult(a, b) ((cfloat)(real(a) * (b), imag(a) * (b)))
 #define cadd(a, b) ((cfloat)(real(a) + real(b), imag(a) + imag(b)))
 #define expi(x) ((cfloat)(cos(x), sin(x)))
 #define expmi(x) ((cfloat)(cos(x), -sin(x)))
@@ -97,7 +98,11 @@ KERNEL (dft_ref)(const __global INPUT0_TYPE *data, __global OUTPUT_TYPE *output)
                     a += a4 * x4;
 #endif
                     const cfloat x = cload(data, inputOffset, INPUT0_PITCHES[0]);
+#ifdef INVERSE_DFT_MULTIPLIER
+                    const cfloat e = expi(a);
+#else
                     const cfloat e = expmi(a);
+#endif
                     y = cadd(y, cmult(x, e));
                     inputOffset += INPUT0_PITCHES[1];
                 }
@@ -107,6 +112,9 @@ KERNEL (dft_ref)(const __global INPUT0_TYPE *data, __global OUTPUT_TYPE *output)
         }
         inputOffset = saveOffset + INPUT0_PITCHES[4];
     }
+#ifdef INVERSE_DFT_MULTIPLIER
+    y = crmult(y, INVERSE_DFT_MULTIPLIER);
+#endif
     ptrdiff_t outputOffset = OUTPUT_OFFSET + OUTPUT_PITCHES[1] * y1;
 #if OUTPUT_DIMS > 2
     outputOffset += OUTPUT_PITCHES[2] * y2;
@@ -123,6 +131,7 @@ KERNEL (dft_ref)(const __global INPUT0_TYPE *data, __global OUTPUT_TYPE *output)
 #undef real
 #undef imag
 #undef cmult
+#undef crmult
 #undef cadd
 #undef expi
 #undef expmi

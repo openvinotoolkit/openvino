@@ -10,6 +10,10 @@ namespace kernel_selector {
 
 struct dft_params: public base_params {
     std::vector<int64_t> axes;
+    enum Kind {
+        forward,
+        inverse,
+    } kind = forward;
     dft_params() :
         base_params { KernelType::DFT } {
     }

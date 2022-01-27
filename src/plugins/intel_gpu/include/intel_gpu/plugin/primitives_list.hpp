@@ -214,6 +214,7 @@ REGISTER_FACTORY(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 REGISTER_FACTORY(v7, DFT);
 REGISTER_FACTORY(v7, Gather);
 REGISTER_FACTORY(v7, Gelu);
+REGISTER_FACTORY(v7, IDFT);
 
 // ------------------------------ Supported v8 ops ------------------------------ //
 REGISTER_FACTORY(v8, Slice);

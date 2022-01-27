@@ -77,7 +77,14 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         axis = n1 - axis;   // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest index, b is largest
         jit_constants.AddConstant(MakeJitConstant('A' + std::to_string(axis), std::min(output_sizes[axis], input_sizes[axis])));
     }
-
+    if (params.kind == dft_params::inverse) {
+        size_t s = 1;
+        for (auto axis : params.axes) {
+            axis = n1 - axis;   // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest index, b is largest
+            s *= output_sizes[axis];
+        }
+        jit_constants.AddConstant(MakeJitConstant("INVERSE_DFT_MULTIPLIER", 1.f / s));
+    }
     return jit_constants;
 }
 
