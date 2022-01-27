@@ -50,25 +50,25 @@ void regclass_CompiledModel(py::module m) {
     // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(
         "get_config",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
+        [](ov::CompiledModel& self, const std::string& name) {
             PyErr_WarnEx(PyExc_DeprecationWarning, "get_config() is deprecated, use get_property() instead.", 1);
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
+            return Common::from_ov_any(self.get_property(name));
         },
         py::arg("name"));
 
     cls.def(
         "get_property",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
+        [](ov::CompiledModel& self, const std::string& name) {
+            return Common::from_ov_any(self.get_property(name));
         },
         py::arg("name"));
 
     // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(
         "get_metric",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
+        [](ov::CompiledModel& self, const std::string& name) {
             PyErr_WarnEx(PyExc_DeprecationWarning, "get_metric() is deprecated, use get_property() instead.", 1);
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
+            return Common::from_ov_any(self.get_property(name));
         },
         py::arg("name"));
 
