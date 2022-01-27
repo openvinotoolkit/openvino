@@ -24,7 +24,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 - OpenVINO
 
 ### Installation (Temporary)
-1) Clone DLDT repo: `git clone https://github.com/openvinotoolkit/openvino`
+1) Clone the openvino repo: `git clone https://github.com/openvinotoolkit/openvino`
 2) Download submodules:
    ```
    git submodule init

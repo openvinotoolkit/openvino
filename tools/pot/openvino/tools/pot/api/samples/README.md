@@ -17,7 +17,7 @@
 
 The Post-training Optimization Tool contains multiple samples that demonstrate how to use its [Software API](@ref pot_compression_api_README) 
 to optimize DL models which require special inference pipeline, data loading or metric calculation that 
-are not supported through the `AccuracyCheker` or `Simplified` engines (see [this tutorial](@ref pot_docs_BestPractices) for more details).
+are not supported through the `AccuracyCheker` or `Simplified` engines (see [Best Practices](../../../../../docs/BestPractices.md) for more details).
 
 All available samples can be found in `<POT_DIR>/api/samples` folder, where `<POT_DIR>` is a directory where the Post-Training Optimization Tool is installed.
 > **NOTE**: - `<POT_DIR>` is referred to `<ENV>/lib/python<version>/site-packages/` in the case of PyPI installation, where `<ENV>` is a Python* 
