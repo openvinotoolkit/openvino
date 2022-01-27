@@ -17,8 +17,8 @@ graph {
   }
   node {
     input: "K"
-    output: "Y"
-    output: "output_2"
+    output: "T0"
+    output: "T1"
     op_type: "Split"
     attribute {
       name: "axis"
@@ -67,7 +67,7 @@ graph {
     }
   }
   output {
-    name: "Y"
+    name: "T0"
     type {
       tensor_type {
         elem_type: 1
@@ -80,7 +80,7 @@ graph {
     }
   }
   output {
-    name: "Y"
+    name: "T0"
     type {
       tensor_type {
         elem_type: 1
@@ -93,7 +93,7 @@ graph {
     }
   }
   output {
-    name: "Y"
+    name: "T1"
     type {
       tensor_type {
         elem_type: 1
@@ -106,7 +106,7 @@ graph {
     }
   }
   output {
-    name: "output_2"
+    name: "T0"
     type {
       tensor_type {
         elem_type: 1
