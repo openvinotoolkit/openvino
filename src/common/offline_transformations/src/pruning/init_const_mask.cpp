@@ -29,9 +29,9 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
         auto mask = std::make_shared<Mask>(shape);
 
         for (const auto & dim : dims) {
-            if (dim >= shape.size()) {
-                throw ngraph_error("Dim value " + std::to_string(dim) + " is out of range [0;" +std::to_string(shape.size() - 1) + "]");
-            }
+            if (dim >= shape.size())
+                continue;
+
             for (size_t value = 0; value < shape[dim]; ++value) {
                 Coordinate begin(shape.size(), 0);
                 Coordinate end(shape);
