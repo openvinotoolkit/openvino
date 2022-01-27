@@ -53,6 +53,7 @@
 | Symbol Name in MXNet\*| Limitations|
 | :----------| :----------|
 | _Plus |  |
+| _contrib_arange_like |  |
 | _contrib_box_nms |  |
 | _contrib_DeformableConvolution |  |
 | _contrib_DeformablePSROIPooling |  |
