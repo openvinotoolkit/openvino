@@ -32,10 +32,9 @@ public:
         std::pair<ngraph::helpers::InputLayerType, bool> inputType;
         size_t depth;
         float onValue, offValue;
-//        InferenceEngine::Precision outPrc;
-        std::vector<InferenceEngine::Precision> outPrc;
+        InferenceEngine::Precision outPrc;
         CPUSpecificParams cpuParams;
-        std::tie(inputShape, axis, inputType, depth, onValue, offValue, outPrc.front(), cpuParams) = obj.param;
+        std::tie(inputShape, axis, inputType, depth, onValue, offValue, outPrc, cpuParams) = obj.param;
 
         std::ostringstream result;
         if (inputShape.first.size() != 0) {
@@ -55,7 +54,7 @@ public:
         }
         result << "OnVal=" << onValue << "_";
         result << "OffVal=" << offValue << "_";
-        result << "outPRC=" << outPrc.front().name();
+        result << "outPRC=" << outPrc.name();
         result << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
     }
@@ -83,9 +82,9 @@ protected:
 
         InputShape inputShape;
         std::pair<ngraph::helpers::InputLayerType, bool> inputType;
-        std::vector<InferenceEngine::Precision> outPrc;
+        InferenceEngine::Precision outPrc;
         CPUSpecificParams cpuParams;
-        std::tie(inputShape, Axis, inputType, Depth, OnValue, OffValue, outPrc.front(), cpuParams) = this->GetParam();
+        std::tie(inputShape, Axis, inputType, Depth, OnValue, OffValue, outPrc, cpuParams) = this->GetParam();
 
         if (inputType.second && inputType.first == ngraph::helpers::InputLayerType::CONSTANT) {
             generateDepth();
@@ -93,7 +92,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = std::string("ref_any_I32");
-        outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc.front());
+        outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
 
         init_input_shapes({inputShape});
         if (inputType.second) {

@@ -42,8 +42,7 @@ void LSTMCellTest::SetUp() {
     size_t batch;
     size_t hidden_size;
     size_t input_size;
-    std::vector<std::string> activations;
-    std::vector<float> activations_alpha;
+    std::vector<std::string> activations;  std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
     float clip;
     InferenceEngine::Precision netPrecision;

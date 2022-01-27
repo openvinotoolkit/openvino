@@ -38,7 +38,6 @@ std::string CTCGreedyDecoderLayerTest::getTestCaseName(
 void CTCGreedyDecoderLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc;
-    std::vector<InferenceEngine::Precision> outPrc;
     InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
     bool mergeRepeated;

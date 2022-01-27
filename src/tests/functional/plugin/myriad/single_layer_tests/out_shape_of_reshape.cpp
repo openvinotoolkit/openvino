@@ -60,7 +60,7 @@ protected:
         OutShapeOfReshapeParam shapesParam;
         std::tie(shapesParam, targetDevice) = this->GetParam();
         inPrc = InferenceEngine::Precision::I32;
-        outPrc.push_back(InferenceEngine::Precision::I32);
+        outPrc.front() = InferenceEngine::Precision::I32;
 
         const auto& inputShape = std::get<0>(shapesParam);
         const auto& outShapeDescriptor = std::get<1>(shapesParam);

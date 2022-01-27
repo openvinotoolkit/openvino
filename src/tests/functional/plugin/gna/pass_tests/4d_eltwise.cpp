@@ -54,7 +54,7 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
             ngraph::helpers::EltwiseTypes eltwiseType;
             std::tie(netPrecision, targetDevice, configuration, eltwiseType) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-            outPrc.push_back(InferenceEngine::Precision::FP32);
+            outPrc.front() = InferenceEngine::Precision::FP32;
 
             auto params = ngraph::builder::makeParams(ngPrc, { {1, 72} });
 
@@ -101,7 +101,7 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, eltwiseType) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        outPrc.push_back(InferenceEngine::Precision::FP32);
+        outPrc.front() = InferenceEngine::Precision::FP32;
 
         auto params = ngraph::builder::makeParams(ngPrc, { {1, 72}, {1, 72} });
 

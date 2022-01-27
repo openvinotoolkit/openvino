@@ -63,7 +63,7 @@ protected:
 
         StaticShapeBroadcastParam shapes;
         std::tie(shapes, inPrc, targetDevice) = this->GetParam();
-        outPrc.push_back(inPrc);
+        outPrc.front() = inPrc;
 
         const auto inputShape = std::get<0>(shapes);
         const auto targetShape = std::get<1>(shapes);
