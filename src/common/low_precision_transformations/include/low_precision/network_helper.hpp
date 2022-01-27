@@ -209,10 +209,6 @@ public:
             const std::vector<element::Type>& v1,
             const std::vector<element::Type>& v2) noexcept;
 
-    static bool isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq);
-
-    static bool isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx = 0);
-
     static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 
     static void insertDequantizationAfter(

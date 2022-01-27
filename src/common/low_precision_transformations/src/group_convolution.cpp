@@ -51,6 +51,13 @@ bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<con
     return WeightableLayerTransformation::isQuantizedStatic(layer, true);
 }
 
+size_t GroupConvolutionTransformation::getInputChannels(const std::shared_ptr<ngraph::Node> conv) const {
+    const auto groups = conv->get_input_partial_shape(1)[0];
+    const auto channels = conv->get_input_partial_shape(1)[2];
+    assert(channels.is_static() && groups.is_static());
+    return channels.get_length() * groups.get_length();
+}
+
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

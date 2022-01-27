@@ -36,10 +36,6 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    if (NetworkHelper::isDQByDynamicDimension(reduce)) {
-        return false;
-    }
-
     const auto axesConstant = ov::as_type_ptr<ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
     if (axesConstant == nullptr) {
         return false;

@@ -189,10 +189,6 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    if (NetworkHelper::isDQByDynamicDimension(layer, 1)) {
-        return false;
-    }
-
     std::shared_ptr<opset1::MatMul> matMul = ov::as_type_ptr<opset1::MatMul>(layer);
     if (matMul == nullptr) {
         return false;

@@ -39,10 +39,6 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return false;
     }
 
-    if (NetworkHelper::isFQByDynamicDimension(layer)) {
-        return false;
-    }
-
     bool wasHandled = false;
     std::shared_ptr<opset1::FakeQuantize> fakeQuantize = layer;
     do {

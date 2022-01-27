@@ -45,10 +45,6 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
-    if (NetworkHelper::isDQByDynamicDimension(layer)) {
-        return false;
-    }
-
     return canBeTransformedStatic(layer);
 }
 
@@ -107,10 +103,6 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 
 bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!isQuantized(layer)) {
-        return false;
-    }
-
-    if (NetworkHelper::isDQByDynamicDimension(layer)) {
         return false;
     }
 
