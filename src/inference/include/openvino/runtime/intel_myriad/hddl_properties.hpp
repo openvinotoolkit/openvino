@@ -114,7 +114,7 @@ static constexpr Property<std::string, PropertyMutability::RW> setDeviceTag{"HDD
 
 /**
  * @brief [Only for HDDLPlugin]
- * Type: "YES/NO", default is "NO".
+ * Type: "bool", default is "false".
  * This config is a sub-config of DEVICE_TAG, and only available when "DEVICE_TAG" is set. After a user load a
  * network, the user got a handle for the network.
  * If "YES", the network allocated is bind to the device (with the specified "DEVICE_TAG"), which means all afterwards
@@ -137,7 +137,7 @@ static constexpr Property<std::string, PropertyMutability::RW> runtimePriority{"
 
 /**
  * @brief [Only for HDDLPlugin]
- * Type: "YES/NO", default is "NO".
+ * Type: "bool", default is "false".
  * SGAD is short for "Single Graph All Device". With this scheduler, once application allocates 1 network, all devices
  * (managed by SGAD scheduler) will be loaded with this graph. The number of network that can be loaded to one device
  * can exceed one. Once application deallocates 1 network from device, all devices will unload the network from them.

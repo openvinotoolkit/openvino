@@ -116,20 +116,5 @@ inline std::istream& operator>>(std::istream& is, DDRType& ddrType) {
 
 static constexpr Property<DDRType, PropertyMutability::RW> ddrType{"MYRIAD_DDR_TYPE"};
 
-/**
- * @brief Optimize vpu plugin execution to maximize throughput.
- * This option should be used with integer value which is the requested number of streams.
- * The only possible values are:
- *     1
- *     2
- *     3
- */
-static constexpr Property<unsigned int, PropertyMutability::RW> myriadThroughputStreams{"MYRIAD_THROUGHPUT_STREAMS"};
-/**
- * @brief Default key definition for InferenceEngine::MYRIAD_THROUGHPUT_STREAMS option.
- */
-static constexpr Property<unsigned int, PropertyMutability::RW> myriadThroughputStreamsAuto{
-    "MYRIAD_THROUGHPUT_STREAMS_AUTO"};
-
 }  // namespace intel_myriad
 };  // namespace ov
