@@ -66,9 +66,6 @@
         },
         {
             "type": "Add",
-            "attributes": {
-                "scales": "unified"
-            },
             "quantization": {
                 "activations": "q16_a",
                 "weights": "q16_w",
@@ -181,6 +178,13 @@
             "type": "Parameter",
             "quantization": {
                 "outputs": "q16_o"
+            }
+        },
+        {
+            "type": "Subtract",
+            "quantization": {
+                "activations": "q16_a",
+                "weights": "q16_w"
             }
         },
         {"type": "MaxPool"},
