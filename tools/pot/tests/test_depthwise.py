@@ -42,7 +42,7 @@ def test_per_channel_activations_for_depthwise(tmp_path, models, model_name, mod
         ALGORITHM_CONFIG, hardware_config, model)
     ALGORITHM_CONFIG.preset = ALGORITHM_CONFIG.params.preset
     ALGORITHM_CONFIG.target_device = ALGORITHM_CONFIG.params.target_device
-    fq_configuration = get_configurations_by_preset(ALGORITHM_CONFIG, model, fq_configurations)
+    fq_configuration = get_configurations_by_preset(ALGORITHM_CONFIG, model, fq_configurations, hardware_config)
     fq_dw_names = ['Conv_4/WithoutBiases/fq_input_0', 'Conv_13/WithoutBiases/fq_input_0',
                    'Conv_22/WithoutBiases/fq_input_0', 'Conv_32/WithoutBiases/fq_input_0',
                    'Conv_41/WithoutBiases/fq_input_0', 'Conv_51/WithoutBiases/fq_input_0',

@@ -44,7 +44,7 @@ def get_fake_quantize_configuration(config):
     return q_config
 
 
-def intersect_configs(left, right):
+def intersect_configs(left, right, primary_bitwidth=None):
     """ intersect two sets of configurations """
     def _get_main_param_for_config(config):
         """ check main parameters intersection """
@@ -62,7 +62,11 @@ def intersect_configs(left, right):
             for idx, r_ in enumerate(right_[offset:]):
                 r_main = _get_main_param_for_config(r_)
                 if l_main == r_main:
-                    if l_['bits'] <= r_['bits']:
+                    if primary_bitwidth and l_['bits'] == primary_bitwidth:
+                        result.append(l_)
+                    elif primary_bitwidth and r_['bits'] == primary_bitwidth:
+                        result.append(r_)
+                    elif l_['bits'] <= r_['bits']:
                         result.append(l_)
                     else:
                         result.append(r_)
@@ -131,18 +135,19 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
                 confs = [conf for conf in op['quantization'][fq_type_]
                          if _is_subset(q_config[fq_type_], conf)]
                 if confs:
-                    res_conf = intersect_configs(res_conf, confs) if res_conf else confs
+                    res_conf = intersect_configs(res_conf, confs, primary_bitwidth) if res_conf else confs
                 else:
                     logger.warning('Fake quantize node %s does not support configuration '
                                    'from tool config file (mismatch with hardware config)',
                                    fq_name_)
-                    res_conf = intersect_configs(res_conf, q_config[fq_type_]) \
+                    res_conf = intersect_configs(res_conf, q_config[fq_type_], primary_bitwidth) \
                         if res_conf else [q_config[fq_type_]]
                 if not res_conf:
                     raise Exception('Fake quantize configuration cannot be empty')
         return res_conf
 
     q_config = get_fake_quantize_configuration(config)
+    primary_bitwidth = hardware_config[1]['primary_bitwidth']
 
     res_fq_to_hw_conf = {}
     for fq_name, (types, fq_group) in _fake_quantize_to_types(model, hardware_config).items():
@@ -168,7 +173,7 @@ def add_range_estimator_configs(fq_to_hw_confs, config):
     return fq_to_hw_confs
 
 
-def get_configurations_by_preset(config, model, fq_to_hw_confs):
+def get_configurations_by_preset(config, model, fq_to_hw_confs, hardware_config):
     """ Choose fake quantize configuration by preset
     :param config: dictionary with params algo section from toolkit config
     :param model: NXModel instance
@@ -209,7 +214,7 @@ def get_configurations_by_preset(config, model, fq_to_hw_confs):
                                 configuration = [c for c in cur_conf[fq][key] if c['granularity'] == 'pertensor']
                             else:
                                 configuration = cur_conf[fq][key]
-                    res_conf = intersect_configs(res_conf, configuration) if res_conf else configuration
+                    res_conf = intersect_configs(res_conf, configuration, primary_bitwidth) if res_conf else configuration
                 if not res_conf:
                     raise Exception('Fake quantize nodes {} cannot be unified'.format(fqs))
                 for fq in fqs:
@@ -218,6 +223,7 @@ def get_configurations_by_preset(config, model, fq_to_hw_confs):
                             cur_conf[fq][key] = _apply_preset_rule(preset_, fq, key, res_conf)
             return cur_conf
 
+        primary_bitwidth = hardware_config[1]['primary_bitwidth']
         res = {}
         for key, value in fq_to_hw_confs_.items():
             conf = dict()
@@ -225,7 +231,7 @@ def get_configurations_by_preset(config, model, fq_to_hw_confs):
                 if i_type in value:
                     res_conf = []
                     for _, configuration in value[i_type]:
-                        res_conf = intersect_configs(res_conf, configuration) if res_conf else configuration
+                        res_conf = intersect_configs(res_conf, configuration, primary_bitwidth) if res_conf else configuration
                     if not res_conf:
                         raise Exception('Fake quantize node {} does not have a suitable configuration'
                                         ' for layers {}'.format(key, [layer for layer, _ in value[i_type]]))
