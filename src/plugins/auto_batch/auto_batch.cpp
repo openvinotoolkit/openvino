@@ -680,13 +680,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     m.register_pass<ngraph::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(function);
-    auto params = function->get_parameters();
+    const auto& params = function->get_parameters();
     std::map<size_t, ov::PartialShape> batched_inputs;
+    const auto orig_function = network.getFunction();
     // check that the auto-batching is applicable in general
     try {
         // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
-        auto orig_function = network.getFunction();
-        auto orig_params = orig_function->get_parameters();
+        const auto& orig_params = orig_function->get_parameters();
         // input(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
         bool atLeastOneInputIsBatched = true;
         for (size_t input_id = 0; input_id < orig_params.size(); input_id++) {
@@ -701,7 +701,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 const auto& static_shape = input->get_shape();
                 if (static_shape[0] != 1)
                     IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
-                batched_inputs[input_id] = shape;  // batched dim for the input
+                batched_inputs[input_id] = orig_shape;  // batched dim for the input
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 0; s < shape.size(); s++)
@@ -709,15 +709,16 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             }
         }
         // output(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
-        auto results = function->get_results();
+        const auto& results = function->get_results();
         // we need original shapes from unmodified (by batch-tracking transformation) network to check the dynamism
-        auto orig_results = orig_function->get_results();
+        const auto& orig_results = orig_function->get_results();
         bool atLeastOneOutputIsBatched = true;
         for (size_t output_id = 0; output_id < orig_results.size(); output_id++) {
             const auto& output = orig_results[output_id];
-            const auto& shape = output->get_output_partial_shape(0);
-            if (shape.is_dynamic())
+            const auto& orig_shape = output->get_output_partial_shape(0);
+            if (orig_shape.is_dynamic())
                 IE_THROW(NotImplemented) << "Auto-batching does not support dynamic networks!";
+            const auto& shape = results[output_id]->get_output_partial_shape(0);
             if (ov::DimensionTracker::get_label(shape[0])) {
                 const auto& static_shape = output->get_shape();
                 if (static_shape[0] != 1)
@@ -794,24 +795,15 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     }
 
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
-    if (metaDevice.batchForDevice > 1) {
+    if (metaDevice.batchForDevice > 1 && batched_inputs.size()) {
         try {
-            const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
-            ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
-            for (const InputsDataMap::value_type& item : inputInfo) {
-                auto layout = item.second->getTensorDesc().getLayout();
-                // the below code is a placeholder for the WIP (22.1) functionality
-                // that will check the reshaping by the batch is robust (CVS-51744)
-                std::stringstream str; str << layout;
-                if (str.str().find("N") == 0) {
-                    assert(1 == shapes[item.first][0]);  // do not reshape/re-batch originally batched networks
-                    shapes[item.first][0] = metaDevice.batchForDevice;
-                }
-            }
-            clonedNetwork.reshape(shapes);
+            for (auto& input: batched_inputs)
+                input.second[0] = metaDevice.batchForDevice;
+            CNNNetwork reshapedNetwork(InferenceEngine::details::cloneNetwork(network));
+            reshapedNetwork.getFunction()->reshape(batched_inputs);
             executableNetworkWithBatch =
-                ctx ? GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, ctx, deviceConfigNoAutoBatch)
-                    : GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfigNoAutoBatch);
+                ctx ? GetCore()->LoadNetwork(CNNNetwork{reshapedNetwork.getFunction()}, ctx, deviceConfigNoAutoBatch)
+                    : GetCore()->LoadNetwork(CNNNetwork{reshapedNetwork.getFunction()}, deviceName, deviceConfigNoAutoBatch);
         } catch (...) {
             executableNetworkWithBatch = {nullptr, nullptr};
         }
