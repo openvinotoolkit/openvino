@@ -16,6 +16,7 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
+#include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -61,6 +62,7 @@ namespace {
                     res.push_back(PluginConfigParams::KEY_PERF_COUNT);
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
                     res.push_back(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY);
+                    res.push_back(ov::hint::model_priority.name());
                     return res;
                 }();
 }  // namespace
@@ -577,6 +579,27 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
         } else if (kvp.first == MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY) {
             try {
                 int priority = std::stoi(kvp.second);
+                if (priority < 0) {
+                    IE_THROW() << "Unsupported config value: " << kvp.second
+                        << " for key: " << kvp.first;
+                }
+                context.modelPriority = priority;
+            } catch(...) {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
+            }
+        } else if (kvp.first == ov::hint::model_priority.name()) {
+            try {
+                int priority = -1;
+                if (kvp.second == "LOW") {
+                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::LOW);
+                }
+                if (kvp.second == "MEDIUM") {
+                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::MEDIUM);
+                }
+                if (kvp.second == "HIGH") {
+                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::HIGH);
+                }
                 if (priority < 0) {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                         << " for key: " << kvp.first;
