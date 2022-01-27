@@ -217,7 +217,10 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         bool dump = it->second == YES;
         return {dump};
     } else if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
-        auto it = _config.find(name);
+        auto it = _config.find("TARGET_FALLBACK");
+        if (it == _config.end()) {
+            it = _config.find(ov::device::priorities.name());
+        }
         if (it == _config.end()) {
             IE_THROW() << "Value for" << name << " is not set";
         } else {
