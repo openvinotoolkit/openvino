@@ -90,6 +90,7 @@ class Gather(Op):
         data_value = node.in_port(0).data.get_value()
         indices_value = node.in_port(1).data.get_value()
         if data_value is not None and indices_value is not None and is_fully_defined(indices_value):
+            indices_value = int64_array(indices_value)
             if batch_dims == 0:
                 node.out_port(0).data.set_value(np.ma.take(data_value, indices_value, axis))
             else:
