@@ -23,6 +23,7 @@ constexpr uint32_t convFiltersNumDivider = 4;
 constexpr uint32_t convFilterSizeDivider = 8;
 constexpr uint32_t convFilterMaxSize = 768;
 constexpr uint32_t convEachKernelByteAlignment = 16;
+constexpr uint32_t inputByteAlignment = 64;
 constexpr uint32_t noOfInputsDivisor = 8;
 constexpr uint32_t noOfInputsLowPrecDivisor = 16;
 
