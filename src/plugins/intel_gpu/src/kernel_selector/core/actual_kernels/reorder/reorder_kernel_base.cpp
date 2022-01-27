@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,10 +152,13 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     DispatchData dispatchData;
 
     auto& input = params.inputs[0];
+    auto& output = params.output;
+    auto input_l = input.GetLayout();
+    auto output_l = output.GetLayout();
     DataTensor input_tensor = input;
     // Image formats reorders use read_image and write_image functions that operate on 4 channels at once, and support only single batch,
     // make sure that reorder size is equal to spatials sizes only
-    if (params.inputs[0].GetLayout() == DataLayout::image_2d_rgba || params.output.GetLayout() == DataLayout::image_2d_rgba) {
+    if (input_l == DataLayout::image_2d_rgba || output_l == DataLayout::image_2d_rgba) {
         std::vector<size_t> input_sizes(4, 1);
         input_sizes[0] = input.X().v;
         input_sizes[1] = input.Y().v;
@@ -165,7 +168,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     dispatchData.gws = GetTensorFriendlyWorkGroups(input_tensor);
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
+    if (input_l == DataLayout::fs_b_yx_fsv32) {
         std::vector<size_t> sizes = { 32, 16, 8, 4 };
         for (auto& s : sizes) {
             if (dispatchData.gws[2] % s == 0) {
@@ -175,13 +178,11 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
                 break;
             }
         }
-    }
-
-    if ((params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
-         params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
-         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16) &&
-        params.inputs[0].Feature().v % 16 == 0) {
+    } else if ((output_l == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                output_l == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+                output_l == DataLayout::b_fs_yx_fsv16 ||
+                output_l == DataLayout::bs_fs_yx_bsv32_fsv16) &&
+               input.Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 16;
         dispatchData.lws[2] = 1;

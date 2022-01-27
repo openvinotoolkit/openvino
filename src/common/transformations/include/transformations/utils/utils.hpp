@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,6 +180,10 @@ TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<N
 
 TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected, const ngraph::PartialShape& actual);
 
+TRANSFORMATIONS_API void visit_shape_path(const std::shared_ptr<ov::Node>& node,
+                                          std::unordered_set<std::shared_ptr<ov::Node>>& visited,
+                                          std::function<void(std::shared_ptr<ov::Node>)> func);
+
 template <typename T, typename... Args>
 std::shared_ptr<Node> make_try_fold(Args&&... args) {
     auto unary_output_node = std::make_shared<T>(std::forward<Args>(args)...);
@@ -206,6 +210,10 @@ TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_ind
 
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(
         const ngraph::Output<ngraph::Node>& shape_source, const std::vector<size_t>& indices);
+
+TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
+
+TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Output<Node>& constant, const Output<Node>& non_constant_input);
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

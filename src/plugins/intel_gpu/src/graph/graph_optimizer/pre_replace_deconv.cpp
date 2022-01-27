@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,7 +84,7 @@ void pre_replace_deconv::run(program& p) {
                     p.remove_connection(*weights_node_ptr, deconv_node);
                 }
 
-                auto filter_z = deconv_prim->grouped_weights_shape ? 1 : (filter_size.spatial[2] - 1);
+                auto filter_z = deconv_prim->grouped_weights_shape ? 0 : (filter_size.spatial[2] - 1);
                 pad.spatial[0] = (filter_size.spatial[0] - 1) - std::abs(pad.spatial[0]);
                 pad.spatial[1] = (filter_size.spatial[1] - 1) - std::abs(pad.spatial[1]);
                 pad.spatial[2] = filter_z - std::abs(pad.spatial[2]);

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,13 +91,13 @@ const std::vector<InputShape> inputShapes = {
         // dynamic
         {-1, -1, -1, -1},
         // static
-        {{15, 5, 7, 8}, {10, 10, 3, 8}, {1, 3, 5, 5}}
+        {{15, 5, 7, 8}, {10, 10, 3, 8}, {1, 3, 5, 5}, {10, 10, 3, 8}}
     },
     InputShape{
         // dynamic
         {{1, 15}, {3, 10}, {3, 7}, {5, 8}},
         // static
-        {{15, 5, 7, 8}, {10, 10, 3, 8}, {1, 3, 5, 5}}
+        {{15, 5, 7, 8}, {10, 10, 3, 8}, {1, 3, 5, 5}, {10, 10, 3, 8}}
     },
 };
 

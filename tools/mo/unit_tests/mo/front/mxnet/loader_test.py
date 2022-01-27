@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 from unittest.mock import patch
 
 from openvino.tools.mo.front.mxnet.loader import load_symbol_nodes, parse_input_model
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
 class MockSymbolLoadObj():
@@ -12,7 +12,7 @@ class MockSymbolLoadObj():
         pass
 
 
-class TestLoader(unittest.TestCase):
+class TestLoader(UnitTestWithMockedTelemetry):
     @patch('json.load')
     @patch('json.loads')
     @patch('os.path.isfile')

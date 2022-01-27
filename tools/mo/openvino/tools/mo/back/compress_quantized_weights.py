@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
@@ -143,7 +143,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         assert mode in ["signed", "unsigned"]
         i_min_value = -(levels // 2) if mode == "signed" else 0
 
-        i_min = mo_array([i_min_value], dtype=dst_type)
+        i_min = mo_array(i_min_value, dtype=dst_type) if not quantize.in_node(0).shape.size else mo_array([i_min_value], dtype=dst_type)
         i_max = mo_array(levels + i_min - 1, dtype=dst_type)
 
         assert i_max - i_min == levels - 1
@@ -231,6 +231,9 @@ class CompressQuantizeWeights(BackReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         fake_quantize = match['fake_quantize']
+
+        if fake_quantize.has_and_set('stop_compression'):
+            return
 
         if 'convert' in match:
             dst_type = match['convert'].dst_type

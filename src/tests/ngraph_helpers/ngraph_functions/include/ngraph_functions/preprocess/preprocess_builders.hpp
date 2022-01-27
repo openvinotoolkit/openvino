@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -302,6 +302,16 @@ inline std::shared_ptr<Model> convert_layout_by_dims() {
     return function;
 }
 
+inline std::shared_ptr<Model> convert_layout_hwc_to_nchw() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 30, 20});
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_layout("HWC").set_element_type(element::u8);
+    p.input().model().set_layout("NCHW");
+    function = p.build();
+    return function;
+}
+
 inline std::shared_ptr<Model> resize_and_convert_layout_i8() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::i8, PartialShape{1, 30, 20, 3});
@@ -413,6 +423,7 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(resize_cubic, "resize_cubic", 0.01f),
             preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, { Shape {1, 3, 123, 123} }),
             preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
+            preprocess_func(convert_layout_hwc_to_nchw, "convert_layout_hwc_to_nchw", 0.01f),
             preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
             preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f),
             preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 1.f),

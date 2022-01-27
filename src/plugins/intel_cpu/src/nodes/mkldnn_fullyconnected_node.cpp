@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,18 +15,66 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+namespace {
+
+struct FCKey {
+    DnnlMemoryDescCPtr inp0;
+    DnnlMemoryDescCPtr inp1;
+    DnnlMemoryDescCPtr bias;
+    DnnlMemoryDescCPtr out;
+    mkldnn::primitive_attr attr;
+    impl_desc_type implType;
+
+    size_t hash() const;
+    bool operator==(const FCKey& rhs) const;
+};
+
+size_t FCKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+
+    for (const auto& ptr : {inp0, inp1, bias, out}) {
+        if (ptr) {
+            seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
+        }
+    }
+
+    seed = hash_combine(seed, get_attr_hash(*attr.get()));
+    seed = hash_combine(seed, implType);
+    return seed;
+}
+
+bool FCKey::operator==(const FCKey &rhs) const {
+    bool retVal = true;
+    if (inp0 != rhs.inp0) {
+        retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
+    }
+    if (inp1 != rhs.inp1) {
+        retVal = retVal && inp1 && rhs.inp1 && inp1->getDnnlDesc() == rhs.inp1->getDnnlDesc();
+    }
+    if (bias != rhs.bias) {
+        retVal = retVal && bias && rhs.bias && bias->getDnnlDesc() == rhs.bias->getDnnlDesc();
+    }
+    if (out != rhs.out) {
+        retVal = retVal && out && rhs.out && out->getDnnlDesc() == rhs.out->getDnnlDesc();
+    }
+    retVal = retVal && *attr.get() == *rhs.attr.get() &&
+             implType == rhs.implType;
+    return retVal;
+}
+
+} // namespace
+
 bool MKLDNNFullyConnectedNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-
         const auto fc = std::dynamic_pointer_cast<const FullyConnectedNode>(op);
         if (!fc) {
             errorMessage = "Only legacy FullyConnected operation is supported";
@@ -36,8 +84,15 @@ bool MKLDNNFullyConnectedNode::isSupportedOperation(const std::shared_ptr<const 
             errorMessage = "Only Constant operation on 'bias' input is supported";
             return false;
         }
-        if (!one_of(fc->get_input_shape(DATA_ID).size(), 2, 3, 4)) {
-            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(fc->get_input_shape(DATA_ID).size());
+        const auto inRank = fc->get_input_partial_shape(DATA_ID).size();
+        const auto weightRank = fc->get_input_partial_shape(WEIGHTS_ID).size();
+        if (!one_of(inRank, 2, 3, 4)) {
+            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
+            return false;
+        }
+        if ((one_of(inRank, 2, 3) && weightRank != 2) || (inRank == 4 && weightRank != 4)) {
+            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank) +
+                           " and 'weight' input with rank: " + std::to_string(weightRank);
             return false;
         }
     } catch (...) {
@@ -52,7 +107,7 @@ MKLDNNFullyConnectedNode::MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph:
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "FullyConnected node with name '" + getName() + "'";
 
-        withBiases = op->get_input_size() == 3;
+        withBiases = inputShapes.size() == 3;
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
@@ -72,6 +127,33 @@ std::vector<memory::format_tag> MKLDNNFullyConnectedNode::getAvailableFormatsFor
     else if (dims.getRank() == 5)
         return {memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
     return {memory::format_tag::any};
+}
+
+VectorDims MKLDNNFullyConnectedNode::makeDummyInputDims() const {
+    const auto& inShape = getInputShapeAtPort(DATA_ID);
+    const auto& weightDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
+
+    auto inMinDims = inShape.getMinDims();
+    auto inMaxDims = inShape.getMaxDims();
+
+    if (inMinDims.size() == 3) {
+        inMinDims.back() = weightDims.back();
+        inMaxDims.back() = weightDims.back();
+    } else {
+        for (size_t i = 1; i < inMinDims.size(); i++) {
+            inMinDims[i] = weightDims[i];
+            inMaxDims[i] = weightDims[i];
+        }
+    }
+    return MemoryDescUtils::makeDummyShape(Shape(inMinDims, inMaxDims)).getStaticDims();
+}
+
+VectorDims MKLDNNFullyConnectedNode::makeDummyOutputDims(const VectorDims& inDims) const {
+    std::vector<Shape> inShapes = {Shape(inDims), getInputShapeAtPort(WEIGHTS_ID)};
+    if (inputShapes.size() > 2) {
+        inShapes.emplace_back(getInputShapeAtPort(BIAS_ID));
+    }
+    return shapeInferGeneric(inShapes).front();
 }
 
 void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
@@ -108,17 +190,8 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         outputDataType = memory::data_type::bf16;
     }
 
-    const auto& inDims = getInputShapeAtPort(0).getStaticDims();
-    const auto& outDims = getOutputShapeAtPort(0).getStaticDims();
-
-    if (inDims.size() == 3) {
-        weightsDims = InferenceEngine::SizeVector({static_cast<size_t>(outDims[2]), static_cast<size_t>(inDims[2])});
-    } else {
-        weightsDims.push_back(outDims[1]);
-        for (int i = 1; i < inDims.size(); i++)
-            weightsDims.push_back(inDims[i]);
-    }
-    biasesDims.push_back(weightsDims[0]);
+    inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
+    outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
 
     for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
         auto in_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
@@ -128,56 +201,163 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNFullyConnectedNode::createPrimitive() {
-    if (prim)
-        return;
+void MKLDNNFullyConnectedNode::prepareParams() {
+    auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+    auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
+    auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Destination memory hasn't been allocated.";
+    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Input memory hasn't been allocated.";
+    if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Weight memory hasn't been allocated.";
+    MKLDNNMemoryPtr biasMemPtr = nullptr;
+    if (withBiases) {
+        biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
+        if (!biasMemPtr || !biasMemPtr->GetPrimitivePtr())
+            IE_THROW() << "Input memory hasn't been allocated.";
+    }
 
-    AttrPtr attr = initPrimitiveAttr();
-    std::shared_ptr<inner_product_forward::primitive_desc> prim_desc;
-    prim_desc = std::make_shared<inner_product_forward::primitive_desc>(
-            createPrimitiveDescriptor<inner_product_forward::primitive_desc, inner_product_forward::desc>(*attr));
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    prim.reset(new inner_product_forward(*prim_desc));
+    AttrPtr attr = std::make_shared<mkldnn::primitive_attr>();
+    setPostOps(*attr, dstMemPtr->getStaticDims());
 
-    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    if (withBiases)
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getParentEdgeAt(WEIGHTS_ID)->getMemory().GetPrimitive()},
-                    {DNNL_ARG_BIAS, getParentEdgeAt(BIAS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
-    else
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getParentEdgeAt(WEIGHTS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
+    DnnlMemoryDescCPtr weightDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescCPtr biasDesc = nullptr;
+    if (biasMemPtr) {
+        biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
+    }
+
+    DnnlMemoryDescCPtr inDesc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescCPtr outDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
+
+    FCKey key = {inDesc,
+                 weightDesc,
+                 biasDesc,
+                 outDesc,
+                 *attr,
+                 selected_pd->getImplementationType()};
+
+    auto engine = getEngine();
+
+    auto builder = [&engine](const FCKey& key) -> std::shared_ptr<mkldnn::primitive> {
+        auto inDesc = key.inp0->getDnnlDesc();
+        if (inDesc.dims().size() == 3) {
+            auto inDims = inDesc.dims();
+            auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
+            inDesc = inDesc.reshape(normalizedInDims);
+        }
+
+        auto outDesc = key.out->getDnnlDesc();
+        if (outDesc.dims().size() == 3) {
+            auto outDims = outDesc.dims();
+            auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
+            outDesc = outDesc.reshape(normalizedOutDims);
+        }
+
+        std::shared_ptr<mkldnn::inner_product_forward::desc> fcDsc;
+        if (key.bias) {
+            fcDsc = std::make_shared<mkldnn::inner_product_forward::desc>(mkldnn::prop_kind::forward_scoring,
+                                                                          inDesc,
+                                                                          key.inp1->getDnnlDesc(),
+                                                                          key.bias->getDnnlDesc(),
+                                                                          outDesc);
+        } else {
+            fcDsc = std::make_shared<mkldnn::inner_product_forward::desc>(mkldnn::prop_kind::forward_scoring,
+                                                                          inDesc,
+                                                                          key.inp1->getDnnlDesc(),
+                                                                          outDesc);
+        }
+        MKLDNNDescriptor desc(fcDsc);
+        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
+        inner_product_forward::primitive_desc prim_desc;
+
+        while (static_cast<bool>(itpd))  {
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+            if (impl_type == key.implType) {
+                prim_desc = itpd.get();
+                break;
+            }
+            if (!itpd.next_impl()) {
+                return nullptr;
+            }
+        }
+
+        return std::make_shared<inner_product_forward>(prim_desc);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+
+    if (!result.first) {
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    prim = result.first;
+
+    primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
+    primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
+    primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+
+    if (withBiases) {
+        primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
+    }
 
     appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
+
+    auto reshapeMemory = [this](int argType) {
+        auto param = primArgs.find(argType);
+        if (param != primArgs.end()) {
+            auto oldMem = param->second;
+            auto dims = oldMem.get_desc().dims();
+            if (dims.size() == 3) {
+                std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
+                mkldnn::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
+                mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+                primArgs.at(argType) = newMem;
+            }
+        }
+    };
+    reshapeMemory(DNNL_ARG_SRC);
+    reshapeMemory(DNNL_ARG_DST);
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
     if (prim) {
-        auto reshapeMemory = [this](int argType) {
+        // in cases parameter -> FullyConnected or dynamic shapes
+        // we keep old pointer to data in primArgs on second iteration with same input shapes
+        auto updateMemoryPtr = [this](int argType) {
             auto param = primArgs.find(argType);
             if (param != primArgs.end()) {
-                auto oldMem = param->second;
-                auto dims = oldMem.get_desc().dims();
-                if (dims.size() == 3) {
-                    std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
-                    mkldnn::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
-                    mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-                    primArgs.at(argType) = newMem;
+                if (argType == DNNL_ARG_SRC && getInputShapeAtPort(DATA_ID).getRank() == 3) {
+                    primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
+                }
+                if (argType == DNNL_ARG_DST && getOutputShapeAtPort(0).getRank() == 3) {
+                    primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
                 }
             }
         };
 
-        reshapeMemory(DNNL_ARG_SRC);
-        reshapeMemory(DNNL_ARG_DST);
+        updateMemoryPtr(DNNL_ARG_SRC);
+        updateMemoryPtr(DNNL_ARG_DST);
 
         (*prim).execute(strm, primArgs);
     }
+}
+
+void MKLDNNFullyConnectedNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 bool MKLDNNFullyConnectedNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) {
+void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights) {
     mkldnn::post_ops ops;
 
     auto getBinPostOpShape = [&](){
@@ -185,7 +365,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
         VectorDims binaryShape(binaryShapeRank, 1);
         const size_t channelAxis = getFusingAxis();
         // always use 1 as channelAxis for binary Shape, since oneDNN primitive is actually always 2D
-        binaryShape[1] = getOutputShapeAtPort(0).getStaticDims()[channelAxis];
+        binaryShape[1] = dims[channelAxis];
 
         return binaryShape;
     };
@@ -197,9 +377,8 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
         }
 
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
-            // TODO [DS]: change to shape from memory
             if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
+                eltwiseNode->appendPostOps(ops, dims);
             } else {
                 eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
             }
@@ -246,8 +425,8 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
     };
 
     // WA: brgemm kernel contains bug that may lead to segfault in case of added post-ops and unaligned number of channels
-    size_t simdWidth = 16;
-    auto inputDims = inputShapes[0].getDims();
+    const size_t simdWidth = 16;
+    auto inputDims = getInputShapeAtPort(DATA_ID).getDims();
     if (inputDims.back() != Shape::UNDEFINED_DIM && inputDims.back() % simdWidth == 0) {
         priorities.insert(priorities.begin() + 1, impl_desc_type::brgemm_avx512_amx);
         priorities.insert(priorities.begin() + 2, impl_desc_type::brgemm_avx512);
@@ -263,7 +442,7 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
 MKLDNNNode::AttrPtr MKLDNNFullyConnectedNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
-    setPostOps(*attr);
+    setPostOps(*attr, outDims);
 
     return attr;
 }
@@ -300,10 +479,11 @@ void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::de
                                          MKLDNNExtensionUtils::GetPlainFormatByRank(normalizedOutDims.size()));
     }
 
-    mkldnn::memory::desc wgh_candidate(MKLDNNExtensionUtils::convertToDnnlDims(weightsDims), wdt, mkldnn::memory::format_tag::any);
+    mkldnn::memory::desc wgh_candidate(MKLDNNExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
+                                       wdt, mkldnn::memory::format_tag::any);
 
     if (withBiases) {
-        mkldnn::memory::desc bias_candidate(MKLDNNExtensionUtils::convertToDnnlDims(inputShapes[BIAS_ID].getStaticDims()), bdt,
+        mkldnn::memory::desc bias_candidate(MKLDNNExtensionUtils::convertToDnnlDims(getInputShapeAtPort(BIAS_ID).getStaticDims()), bdt,
                                             mkldnn::memory::format_tag::any);
         MKLDNNDescriptor desc(std::shared_ptr<inner_product_forward::desc>(
                 new inner_product_forward::desc(prop_kind::forward_scoring, in_candidate, wgh_candidate,
@@ -319,8 +499,21 @@ void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::de
 
 void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                                 const std::vector<MemoryDescPtr> &outputDesc) {
-    createDescriptorInternal(MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc(),
-                             MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0])->getDnnlDesc());
+    MemoryDescPtr inpDesc;
+    if (inputDesc[0]->isDefined()) {
+        inpDesc = inputDesc[0];
+    } else {
+        inpDesc = inputDesc[0]->cloneWithNewDims(inDims);
+    }
+
+    MemoryDescPtr outDesc;
+    if (outputDesc[0]->isDefined()) {
+        outDesc = outputDesc[0];
+    } else {
+        outDesc = outputDesc[0]->cloneWithNewDims(outDims);
+    }
+    createDescriptorInternal(MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc)->getDnnlDesc(),
+                             MemoryDescUtils::convertToDnnlMemoryDesc(outDesc)->getDnnlDesc());
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
@@ -330,6 +523,11 @@ std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::prim
         return std::make_shared<CpuBlockedMemoryDesc>(MKLDNNExtensionUtils::DataTypeToIEPrecision(
             static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getInputShapeAtPort(idx));
     }
+
+    if (getInputShapeAtPort(idx).isDynamic()) {
+        return MKLDNNExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
+    }
+
     return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 
@@ -340,6 +538,11 @@ std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn::prim
         return std::make_shared<CpuBlockedMemoryDesc>(MKLDNNExtensionUtils::DataTypeToIEPrecision(
             static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getOutputShapeAtPort(idx));
     }
+
+    if (getOutputShapeAtPort(idx).isDynamic()) {
+        return MKLDNNExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
+    }
+
     return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 

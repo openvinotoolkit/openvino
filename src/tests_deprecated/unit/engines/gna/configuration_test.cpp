@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,15 +59,6 @@ TEST_F(GNAConfigTest, canNOTMatchWith128AsyncThreads) {
         .withAcceleratorThreadsNumber("128")
         .gna().propagate_forward().called_without().pwl_inserted_into_nnet()
         .throws();
-}
-
-TEST_F(GNAConfigTest, canMatchWithSingleMultipleOMPThreads) {
-    assert_that()
-        .onInferModel(GNATestIRs::Fc2DOutputModel())
-        .inNotCompactMode()
-        .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
-        .enable_omp_multithreading()
-        .gna().propagate_forward().called_without().pwl_inserted_into_nnet();
 }
 
 TEST_F(GNAConfigTest, failToCreatePluginWithDifferentInputScaleFactors) {

@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <dimension_tracker.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -16,6 +18,29 @@ using namespace ngraph;
 template <typename T>
 class BroadcastTests : public ::testing::Test {};
 TYPED_TEST_SUITE_P(BroadcastTests);
+
+TYPED_TEST_P(BroadcastTests, broadcast_dynamic_value_propagation) {
+    Dimension marked = Dimension(3);
+    ov::DimensionTracker::set_label(marked, 10);
+    PartialShape target = PartialShape{1, 2, marked, 4};
+
+    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 1});
+    auto param_1 = make_shared<op::Parameter>(element::f32, target);
+    auto shape = make_shared<op::ShapeOf>(param_1);
+
+    auto indices = op::Constant::create(element::i32, {}, {2});
+    auto axis = op::Constant::create(element::i32, {1}, {0});
+    auto gather = make_shared<op::v1::Gather>(shape, indices, axis);
+    auto unsqueeze = make_shared<op::v0::Unsqueeze>(gather, axis);
+
+    auto five = op::Constant::create(element::i64, {1}, {5});
+    auto target_shape = std::make_shared<op::Concat>(OutputVector{unsqueeze, five}, 0);
+
+    auto bc = make_shared<TypeParam>(param, target_shape);
+    ASSERT_EQ(bc->get_element_type(), element::f32);
+    ASSERT_EQ(bc->get_shape(), (Shape{3, 5}));
+    ASSERT_EQ(ov::DimensionTracker::get_label(bc->get_output_partial_shape(0)[0]), 10);
+}
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
@@ -302,10 +327,15 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_i
 
     // const axes mapping
     const auto axes_mapping_const = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 2, 1, 3});
-    bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
-    ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_shape(), (Shape{1, 1, 5, 10}));
+    try {
+        auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
+        FAIL() << "Broadcast: Broadcast axes_mapping shape doesn't match rank of input tensor";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Broadcast axes_mapping shape {4} doesn't match rank of input tensor 3"));
+    } catch (...) {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_input_shape) {
@@ -545,7 +575,8 @@ REGISTER_TYPED_TEST_SUITE_P(BroadcastTests,
                             broadcast_numpy_input_target_shape_static_rank,
                             broadcast_numpy_input_static_shape,
                             broadcast_numpy_input_partially_dynamic,
-                            broadcast_numpy_static_dims_incorrect);
+                            broadcast_numpy_static_dims_incorrect,
+                            broadcast_dynamic_value_propagation);
 
 typedef ::testing::Types<op::v1::Broadcast, op::v3::Broadcast> BroadcastTypes;
 // the last empty argument resolves compiler warning on MAC:

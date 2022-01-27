@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,19 +69,6 @@ namespace {
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
 
-std::map<std::string, std::string> MultiDeviceInferencePlugin::GetSupportedConfig(
-    const std::map<std::string, std::string> & config, const std::string & deviceName) const {
-    std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-    std::map<std::string, std::string> supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = config.find(key);
-        if (config.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    return supportedConfig;
-}
-
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
                                                                           const std::map<std::string, std::string> & config) const {
     std::vector<DeviceInformation> metaDevices;
@@ -109,13 +96,13 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
 
-        return GetSupportedConfig(tconfig, deviceName);
+        return GetCore()->GetSupportedConfig(deviceName, tconfig);
     };
 
     auto getDefaultDeviceID = [this](std::string deviceName) -> std::string {
-        std::vector<std::string> supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+        auto supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
         if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) != supportedMetrics.end()) {
-            std::vector<std::string> supportKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            auto supportKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
 
             if (std::find(supportKeys.begin(), supportKeys.end(), CONFIG_KEY(DEVICE_ID)) != supportKeys.end()) {
                 return GetCore()->GetConfig(deviceName, CONFIG_KEY(DEVICE_ID)).as<std::string>();
@@ -294,7 +281,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
         }
-
         return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
@@ -442,31 +428,40 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
 
     // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
     std::list<DeviceInformation>  devices;
-    devices.splice(devices.end(), dGPU);
-    devices.splice(devices.end(), VPUX);
+    if (networkPrecision == "INT8") {
+        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), dGPU);
+    } else {
+        devices.splice(devices.end(), dGPU);
+        devices.splice(devices.end(), VPUX);
+    }
     devices.splice(devices.end(), iGPU);
     devices.splice(devices.end(), MYRIAD);
     devices.splice(devices.end(), CPU);
 
     std::list<DeviceInformation> validDevices;
 
-    auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
-        for (auto iter = devices.begin(); iter != devices.end();) {
-            std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
-            if (supportNetwork != capability.end()) {
-                validDevices.push_back(std::move(*iter));
-                devices.erase(iter++);
-                continue;
+    if (metaDevices.size() > 1) {
+        auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
+            for (auto iter = devices.begin(); iter != devices.end();) {
+                std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
+                if (supportNetwork != capability.end()) {
+                    validDevices.push_back(std::move(*iter));
+                    devices.erase(iter++);
+                    continue;
+                }
+                iter++;
             }
-            iter++;
+        };
+        selectSupportDev(networkPrecision);
+        // If network is FP32, continue to collect the device support FP16 but not support FP32.
+        if (networkPrecision == "FP32") {
+            const std::string f16 = "FP16";
+            selectSupportDev(f16);
         }
-    };
-    selectSupportDev(networkPrecision);
-    // If network is FP32, continue to collect the device support FP16 but not support FP32.
-    if (networkPrecision == "FP32") {
-       const std::string f16 = "FP16";
-       selectSupportDev(f16);
+    } else {
+        validDevices.push_back(metaDevices[0]);
     }
 
     if (validDevices.empty()) {
@@ -484,7 +479,7 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
                 continue;
             }
             auto& filterDevices = kvp.second;
-            auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](DeviceInformation device) {
+            auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](const DeviceInformation& device) {
                     auto iter = std::find_if(filterDevices.begin(), filterDevices.end(), [&device](std::string uniqueName) {
                             return (uniqueName == device.uniqueName);
                             });
@@ -614,9 +609,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDevice(const st
     std::vector<DeviceInformation> filterDevice;
     for (auto&& item : metaDevices) {
         bool support = true;
-        std::vector<std::string> supportedMetrics = GetCore()->GetMetric(item.deviceName, METRIC_KEY(SUPPORTED_METRICS));
+        auto supportedMetrics = GetCore()->GetMetric(item.deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
         if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) != supportedMetrics.end()) {
-            std::vector<std::string> supportKeys = GetCore()->GetMetric(item.deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            auto supportKeys = GetCore()->GetMetric(item.deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
             for (auto&& kvp : config) {
                 auto targetKey = std::find(supportKeys.begin(), supportKeys.end(), kvp.first);
                 // if device have the key, we think the device support it

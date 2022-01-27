@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ std::string SimpleIfTest::getTestCaseName(const testing::TestParamInfo<SimpleIfP
     return results.str();
 }
 
-void SimpleIfTest::compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) {
+void SimpleIfTest::compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) {
     // in bodies there aren't nodes that work with dimension 0. So we shouldn't call SubgraphBaseTest::compare
     bool hasZero = false;
     for (auto shape : targetStaticShapes[inferNum]) {
@@ -152,10 +152,10 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ngraph::Sh
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        ov::runtime::Tensor tensor;
+        ov::Tensor tensor;
 
         if (i + 1 == funcInputs.size()) {
-            tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             auto *dataPtr = tensor.data<bool>();
             dataPtr[0] = condition;
         } else {
@@ -241,13 +241,48 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
                                            params, "SimpleIfNotConstConditionAndDimsIncreaseTest");
 }
 
-void SimpleIfNotConstConditionAndDimsIncreaseTest::compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) {
+void SimpleIfNotConstConditionAndDimsIncreaseTest::compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) {
     const auto shape = targetStaticShapes[inferNum++].front();
     if (!condition && std::any_of(shape.begin(), shape.end(), [](size_t dim) { return dim == 0; })) {
         return;
     }
 
     SubgraphBaseTest::compare(expected, actual);
+}
+
+void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
+    std::vector<ov::test::InputShape> shapes;
+    ov::test::ElementType inType;
+    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+
+    init_input_shapes(shapes);
+    for (auto &target : targetStaticShapes)
+        target.emplace_back(ov::Shape{});
+    auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+    params.emplace_back(std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
+
+    auto p1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+    auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+
+    const size_t axis = 1;
+    const size_t dim = inputDynamicShapes[0][axis].get_length();  // should be static for this test suit
+    auto thenOp = ngraph::builder::makeSplit(p1, inType, dim, axis);
+    auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp->output(dim / 2));
+
+    auto elseOp = ngraph::builder::makeSplit(p2, inType, dim, axis);
+    auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp->output(dim - 1));
+
+    auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
+    auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{elseRes}, ov::ParameterVector{p2});
+
+    auto ifOp = std::make_shared<ov::op::v8::If>(params[1]);
+    ifOp->set_then_body(thenBody);
+    ifOp->set_else_body(elseBody);
+    ifOp->set_input(params[0], p1, p2);
+    auto ifRes = ifOp->set_output(thenRes, elseRes);
+
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ifRes)};
+    function = std::make_shared<ov::Model>(results, params, "SimpleIfNotConstConditionUnusedOutputPortsTest");
 }
 
 } // namespace SubgraphTestsDefinitions

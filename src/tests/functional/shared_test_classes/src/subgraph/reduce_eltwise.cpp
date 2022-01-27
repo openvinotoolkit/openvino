@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,8 @@ void ReduceEltwiseTest::SetUp() {
 
     auto reduce = std::make_shared<ngraph::opset3::ReduceSum>(paramOuts[0], reductionAxesNode, keepDims);
 
-    std::vector<size_t> constShape(reduce.get()->get_output_size(), 1);
+    std::vector<size_t> constShape(reduce.get()->get_output_partial_shape(0).rank().get_length(), 1);
+    ASSERT_GT(constShape.size(), 2);
     constShape[2] = inputShape.back();
     auto constant = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
     auto eltw = ngraph::builder::makeEltwise(reduce, constant, ngraph::helpers::EltwiseTypes::MULTIPLY);

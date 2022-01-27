@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,6 @@ program::program(engine& engine_ref,
                  bool is_body_program)
     : _engine(engine_ref),
       _stream(_engine.create_stream()),
-      _kernels_cache(std::unique_ptr<kernels_cache>(new kernels_cache(_engine))),
       options(options),
       processing_order(),
       tuning_cache(nullptr),
@@ -103,7 +102,8 @@ program::program(engine& engine_ref,
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
-    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
     if (no_optimizations) {
         init_graph();
     } else {
@@ -116,13 +116,13 @@ program::program(engine& engine_ref,
                  build_options const& options,
                  bool is_internal)
     : _engine(engine_ref),
-      _kernels_cache(std::unique_ptr<kernels_cache>(new kernels_cache(_engine))),
       options(options),
       processing_order(),
       tuning_cache(nullptr) {
     init_primitives();
     set_options();
-    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
@@ -474,6 +474,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // handle symmetric and asymmetric padding for input
     apply_opt_pass<handle_input_padding>();
+
+    apply_opt_pass<handle_permute>();
 
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
@@ -1055,7 +1057,7 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
         fused_node.dependencies.push_back(&dep);
-        local_desc.deps.emplace(dep.id(), deps_idx++);
+        local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
     local_desc.total_num_deps = std::min(local_desc.total_num_deps, deps_idx);
@@ -1138,8 +1140,14 @@ data_types program::get_inference_precision(const program_node& node) const {
     }
     std::vector<data_types> input_dts;
     for (auto& dep : node.get_dependencies()) {
-        input_dts.push_back(dep->get_output_layout().data_type);
+        if (dep->is_valid_output_layout())
+            input_dts.push_back(dep->get_output_layout().data_type);
     }
+
+    // Return f32 data_type as default inference precision if any layout is invalid
+    if (input_dts.size() != node.get_dependencies().size() || !node.is_valid_output_layout())
+        return data_types::f32;
+
     data_types output_dt = node.get_output_layout().data_type;
 
     assert(!input_dts.empty());
@@ -1205,15 +1213,22 @@ program::primitives_info program::get_current_stage_info() const {
             }
         }
 
+        // Initialize output_layout with dummy values and use them if layout is invalid
+        layout output_layout{ cldnn::data_types::f32, cldnn::format::any, {1, 1, 1, 1} };
+
+        if (p->is_valid_output_layout())
+            output_layout = p->get_output_layout();
+
         primitive_info pi(p->id(),
                           type_to_str(p->get_primitive()),
                           dependencies,
                           users,
                           fused,
-                          p->get_output_layout(),
-                          fmt_to_str(p->get_output_layout().format),
+                          output_layout,
+                          fmt_to_str(output_layout.format),
                           get_implementation_info(p->id()),
-                          get_inference_precision(*p),
+                          p->is_valid_output_layout() ?
+                            get_inference_precision(*p) : cldnn::data_types::f32,
                           p->selected_impl ? p->selected_impl->is_cpu() : false,
                           exec_id++);
 
@@ -1225,13 +1240,8 @@ program::primitives_info program::get_current_stage_info() const {
 
 void program::save_pass_info(std::string pass_name) {
     // TODO: Directory path here can be probably changed to some bool flag
-    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty()) {
-        for (auto& node : this->get_processing_order()) {
-            if (!node->is_type<data>())
-                node->get_output_layout();
-        }
+    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty())
         optimizer_passes_info.emplace_back(pass_name, get_current_stage_info());
-    }
 }
 
 void program::add_optimized_primitive_info(primitive_id optimized_primitive_id,

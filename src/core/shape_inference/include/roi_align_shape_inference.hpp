@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_sha
     // if either of those 2 dimensions is static its value will be used
     // for the first dimension of the output shape - 'NUM_ROIS'
     if (rois_ps_rank.is_static() && batch_indices_ps_rank.is_static()) {
-        DimType::merge(output_shape[0], batch_indices_ps[0], rois_ps[0]);
+        OPENVINO_ASSERT(DimType::merge(output_shape[0], batch_indices_ps[0], rois_ps[0]));
     } else if (rois_ps_rank.is_static()) {
         output_shape[0] = rois_ps[0];
     } else if (batch_indices_ps_rank.is_static()) {

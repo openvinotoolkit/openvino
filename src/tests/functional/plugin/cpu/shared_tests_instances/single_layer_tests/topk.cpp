@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,12 +19,15 @@ const std::vector<int64_t> axes = {
         0,
         1,
         2,
+        3
 };
 
 const std::vector<int64_t> k = {
         1,
         5,
-        10,
+        7,
+        18,
+        21
 };
 
 const std::vector<ngraph::opset4::TopK::Mode> modes = {
@@ -48,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK, TopKLayerTest,
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({10, 10, 10})),
+                ::testing::Values(std::vector<size_t>({21, 21, 21, 21})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         TopKLayerTest::getTestCaseName);
 }  // namespace

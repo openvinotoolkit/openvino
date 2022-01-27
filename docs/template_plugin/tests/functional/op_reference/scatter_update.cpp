@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,11 +24,11 @@ namespace {
 // ---------------------- V3 ------------------------------
 
 struct ScatterUpdate3Params {
-    Tensor data;
-    Tensor indices;
-    Tensor updates;
-    Tensor axis;
-    Tensor expected;
+    reference_tests::Tensor data;
+    reference_tests::Tensor indices;
+    reference_tests::Tensor updates;
+    reference_tests::Tensor axis;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<ScatterUpdate3Params> {

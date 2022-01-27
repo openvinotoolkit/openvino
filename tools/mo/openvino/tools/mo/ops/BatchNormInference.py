@@ -1,6 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -19,8 +20,10 @@ class BatchNormInference(Op):
             'op': self.op,
             'in_ports_count': 5,
             'out_ports_count': 1,
-            'infer': self.infer
+            'infer': self.infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
         }, attrs)
+
     @staticmethod
     def infer(node):
         node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())

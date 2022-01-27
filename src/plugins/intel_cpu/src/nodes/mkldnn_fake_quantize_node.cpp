@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/ngraph_utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <common/primitive_hashing_utils.hpp>
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -885,6 +886,31 @@ bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
+namespace {
+struct FakeQuantKey {
+    jit_quantize_params jqp;
+    size_t hash() const {
+        size_t seed = 0;
+        seed = hash_combine(seed, jqp.c);
+        seed = hash_combine(seed, jqp.is_planar);
+        seed = hash_combine(seed, jqp.src_prc.getPrecVal());
+        seed = hash_combine(seed, jqp.wei_prc.getPrecVal());
+        seed = hash_combine(seed, jqp.dst_prc.getPrecVal());
+        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, jqp.s_str);
+        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, jqp.d_str);
+        seed = hash_combine(seed, jqp.op_type);
+        return seed;
+    }
+
+    bool operator==(const FakeQuantKey& rhs) const {
+        bool result = jqp.c == rhs.jqp.c && jqp.is_planar == rhs.jqp.is_planar && jqp.src_prc == rhs.jqp.src_prc &&
+                      jqp.wei_prc == rhs.jqp.wei_prc && jqp.dst_prc == rhs.jqp.dst_prc &&
+                      jqp.op_type == rhs.jqp.op_type && jqp.s_str == rhs.jqp.s_str && jqp.d_str == rhs.jqp.d_str;
+        return result;
+    }
+};
+}  // namespace
+
 MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
@@ -1363,27 +1389,28 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
-
         const auto& inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-
-        jit_quantize_params jqp = {};
-        jqp.c = inDims.size() > 1 ? inDims[1] : 1;
-
-        jqp.src_prc = config.inConfs[0].desc->getPrecision();
-        jqp.wei_prc = Precision::FP32;
-        jqp.dst_prc = config.outConfs[0].desc->getPrecision();
+        //Form FakeQuanKey
+        FakeQuantKey key = {};
+        key.jqp.c = inDims.size() > 1 ? inDims[1] : 1;
+        key.jqp.src_prc = config.inConfs[0].desc->getPrecision();
+        key.jqp.wei_prc = Precision::FP32;
+        key.jqp.dst_prc = config.outConfs[0].desc->getPrecision();
 
         auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        jqp.s_str = srcDesc->getStrides();
-
+        key.jqp.s_str = srcDesc->getStrides();
         auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        jqp.d_str = dstDesc->getStrides();
 
-        jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
+        key.jqp.d_str = dstDesc->getStrides();
+        key.jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
+        key.jqp.op_type = getAlgorithm();
 
-        jqp.op_type = getAlgorithm();
-
-        execPtr = std::make_shared<FakeQuantizeJitExecutor>(jqp);
+        auto cache = getRuntimeCache();
+        auto buildExecutor = [](const FakeQuantKey& key) {
+            return std::make_shared<FakeQuantizeJitExecutor>(key.jqp);
+        };
+        auto result = cache->getOrCreate(key, buildExecutor);
+        execPtr = result.first;
     }
 }
 
@@ -1611,6 +1638,36 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
             arg.dst_step = (size_t) blk_size * dst_type_size;
             arg.block_size = (size_t) blk_size;
             arg.work_amount = (size_t)H;
+
+            (*pKernel)(&arg);
+        });
+    } else if (jqp.is_planar && srcDims.size() > 2) {
+        const int batch_size = 256;
+        const int B = div_up(H * W, batch_size);
+        parallel_nd(N, CB, D, B, [&](int n, int cb, int d, int b) {
+            auto arg = jit_quantize_call_args();
+
+            const int c = cb * blk_size;
+            const int h = b * batch_size / W;
+            const int w = b * batch_size % W;
+
+            const size_t data_off = srcDims.size() == 3 || srcDims.size() == 4 ?
+                                    n * s_str[0] + c * s_str[1] + h * s_str[2] + w :
+                                    n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w;
+
+            arg.from = &src[data_off * src_type_size];
+            arg.to = &dst[data_off * dst_type_size];
+            arg.crop_low = &crop_low[c];
+            arg.crop_high = &crop_high[c];
+            arg.input_scale = &input_scale[c];
+            arg.input_shift = &input_shift[c];
+            arg.output_scale = &output_scale[c];
+            arg.output_shift = &output_shift[c];
+
+            arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
+            arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
+            arg.block_size = is_blk_format ? (size_t) blk_size : nstl::min(blk_size, C - c);
+            arg.work_amount = (size_t)std::min(batch_size, H * W - b * batch_size);
 
             (*pKernel)(&arg);
         });

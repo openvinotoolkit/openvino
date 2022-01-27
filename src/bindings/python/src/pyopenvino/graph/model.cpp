@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -699,8 +699,8 @@ void regclass_graph_Model(py::module m) {
     function.def(
         "evaluate",
         [](ov::Model& self,
-           ov::runtime::TensorVector& output_tensors,
-           const ov::runtime::TensorVector& input_tensors,
+           ov::TensorVector& output_tensors,
+           const ov::TensorVector& input_tensors,
            PyRTMap evaluation_context) -> bool {
             return self.evaluate(output_tensors, input_tensors, evaluation_context);
         },

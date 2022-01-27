@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ using namespace CommonTestUtils;
 
 class OVExtensionTests : public TestsCommon {
 public:
-    ov::runtime::Core core;
+    ov::Core core;
 
     void test() {
         std::string model = R"V0G0N(
@@ -75,7 +75,7 @@ public:
     </edges>
 </net>
 )V0G0N";
-        ov::runtime::Tensor weights;
+        ov::Tensor weights;
         ov::PartialShape refBeforeReshape{1, 3, 22, 22};
         ov::PartialShape refAfterReshape{8, 9, 33, 66};
 
@@ -157,7 +157,7 @@ public:
     </edges>
 </net>
 )V0G0N";
-        ov::runtime::Tensor weights;
+        ov::Tensor weights;
         ov::PartialShape refBeforeReshape{1, 3, 22, 22};
         ov::PartialShape refAfterReshape{8, 9, 33, 66};
 

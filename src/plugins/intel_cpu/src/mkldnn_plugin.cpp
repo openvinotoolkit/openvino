@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -446,14 +446,11 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         bool updatePrecision = true;
         bool hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
                 nGraphFunc,
-                {65535, 65536, 4294967295, 4294967296});
+                {levels::int16, levels::int16_narrow_range,
+                 levels::int32, levels::int32_narrow_range});
         if (hasINT16orINT32Levels) {
             updatePrecision = false;
-            LowPrecision::setDefaultPrecisions({
-                ngraph::element::u8,  ngraph::element::i8,
-                ngraph::element::u16, ngraph::element::i16,
-                ngraph::element::u32, ngraph::element::i32,
-            });
+            LowPrecision::setDefaultPrecisions(precision_set::int8_int16_int32_support);
 
             supportedPrecisions = std::vector<OperationPrecisionRestriction>({});
         }

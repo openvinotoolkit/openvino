@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ void freeReg(jit_kernel::reg_indices & freeRegs, const registers<RegType> & regs
     //     throw std::runtime_error("Some register was freed twice");
     freeRegs.emplace_back(idx);
     if (freeRegs.size() > regs.size())
-        throw std::runtime_error("Some register was freed twice");
+        IE_THROW() << "Some register was freed twice";
 }
 
 const registers<Reg64> & x64regs() {

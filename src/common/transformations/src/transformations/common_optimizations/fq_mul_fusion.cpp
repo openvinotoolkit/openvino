@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,7 +105,7 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         auto get_adjusted_output_range = [&] (const Output<Node>& node) -> std::shared_ptr<Node> {
             auto ret = std::make_shared<ngraph::opset4::Multiply>(node, mul_constant);
             copy_runtime_info(node.get_node_shared_ptr(), ret);
-            auto constant =  get_constant_from_source(ret);
+            auto constant = get_constant_from_source(ret);
             if (constant)
                 return constant;
             return ret;
@@ -116,7 +116,8 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             fq_node->input_value(2),
             get_adjusted_output_range(original_output_low),
             get_adjusted_output_range(original_output_high)});
-        if (transformation_callback(new_fq_node))
+        bool fq_on_weights = is_type<opset4::Constant>(data.get_node());
+        if (!fq_on_weights && transformation_callback(new_fq_node))
             return false;
 
         const auto mul_node = pattern_map.at(mul_node_p).get_node_shared_ptr();

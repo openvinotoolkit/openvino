@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,7 +85,7 @@ template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Funct
 template void MKLDNNGraph::CreateGraph(const CNNNetwork&,
         const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 
-void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr) {
+void MKLDNNGraph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr) {
     this->_name = "subgraph";
     this->reuse_io_tensors = false;
 
@@ -93,7 +93,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
                       ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(subgraph);
 
     // Map data object onto producer node
-    std::map<std::shared_ptr<ngraph::Node>, std::pair<MKLDNNNodePtr, int>> op2node;
+    std::map<std::shared_ptr<ov::Node>, MKLDNNNodePtr> op2node;
 
     // nodes which has no consumers (output or just unused). But doesn't marked as graph output.
     // Will be stored as fake output separately.
@@ -130,13 +130,13 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
             outputNodesMap[inputID] = node;
         }
 
+        op2node[op] = node;
+
         for (size_t port = 0; port < op->get_input_size(); port++) {
             auto parentOp = op->get_input_node_shared_ptr(port);
+            auto parentNode = op2node[parentOp];
 
-            auto portInfo = op2node[parentOp];
-            auto parentNode = portInfo.first;
-
-            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentOutputPort(op, parentOp, port), port));
+            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port)));
             node->addEdge(edge);
             graphEdges.push_back(edge);
         }
@@ -145,9 +145,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
-            int outPortIdx = 0;
             for (int oi = 0; oi < op->get_output_size(); oi++) {
-                op2node[op->output(oi).get_node_shared_ptr()] = {node, outPortIdx++};
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -157,9 +155,8 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
 
     // Add stub output node for unused data
     for (auto unusedOutput : unusedOutputs) {
-        auto portInfo = op2node[unusedOutput.get_node_shared_ptr()];
-        auto parentNode = portInfo.first;
-        auto port = portInfo.second;
+        auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
+        const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const MKLDNNNodePtr outNode = std::make_shared<MKLDNNInputNode>(parentNode->outputShapes[port],
                                                                         parentNode->getOriginalOutputPrecisionAtPort(port),
@@ -314,7 +311,6 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
 void MKLDNNGraph::InitGraph() {
     MKLDNNGraphOptimizer optimizer;
-    CPU_DEBUG_CAP_ENABLE(initNodeDumper(config.debugCaps));
 
     SortTopologically();
     InitNodes();
@@ -841,7 +837,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
 }
 
 inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const {
-    DUMP(node, infer_count);
+    DUMP(node, config, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
 
     if (node->isDynamicNode()) {
@@ -851,7 +847,7 @@ inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::st
     }
 }
 
-void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
+void MKLDNNGraph::Infer(MKLDNNInferRequestBase* request, int batch) {
     if (!IsReady()) {
         IE_THROW() << "Wrong state. Topology is not ready.";
     }
@@ -859,7 +855,7 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
     mkldnn::stream stream(eng);
 
     for (const auto& node : executableGraphNodes) {
-        VERBOSE(node, config.debugCaps.verbose);
+        VERBOSE(node, config.verbose);
         PERF(node, config.collectPerfCounters);
 
         if (request)

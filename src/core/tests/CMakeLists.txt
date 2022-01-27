@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
+    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
 endif()
@@ -78,6 +79,7 @@ set(SRC
     pass/serialization/const_compression.cpp
     pass/serialization/deterministicity.cpp
     pass/serialization/serialize.cpp
+    pass/serialization/from_model.cpp
     pattern.cpp
     preprocess.cpp
     replace_node.cpp
@@ -159,6 +161,7 @@ set(SRC
     type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
     type_prop/idft.cpp
+    type_prop/if.cpp
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
@@ -202,6 +205,7 @@ set(SRC
     type_prop/reduce_min.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/region_yolo.cpp
     type_prop/relu.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
@@ -411,10 +415,6 @@ set(SRC
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
-# Add include path to so_extension.hpp
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
-                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
-
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
@@ -462,8 +462,6 @@ endif()
 # TODO: Enable these tests in new infrastructure
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/interpolate.in.cpp
-    backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
 )
 
@@ -478,6 +476,7 @@ set(OP_EVAL_TEST_SRC
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
+    op_eval/loop.cpp
     op_eval/matmul.cpp
     op_eval/memory.cpp
     op_eval/mish.cpp
@@ -581,8 +580,7 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads
                                         openvino::conditional_compilation
-                                        openvino::util
-                                        frontend_common)
+                                        openvino::runtime::dev)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled

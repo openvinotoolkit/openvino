@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, compatible_dims
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, compatible_dims, \
+    undefined_shape_of_rank, set_input_shapes
 from openvino.tools.mo.front.extractor import bool_to_str
-from openvino.tools.mo.graph.graph import Graph
-from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.error import Error
 
@@ -23,6 +23,7 @@ class DetectionOutput(Op):
             'in_ports_count': 3,
             'out_ports_count': 1,
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'input_width': 1,
             'input_height': 1,
             'normalized': True,
@@ -104,3 +105,20 @@ class DetectionOutput(Op):
 
         # the line below is needed for the TF framework so the MO will not change the layout
         node.graph.node[node.out_node(0).id]['nchw_layout'] = True
+
+    @staticmethod
+    def reverse_infer(node):
+        num_in_ports = len(node.in_ports())
+        assert num_in_ports in [3, 6], 'incorrect number of input ports for DetectionOutput node {}'.format(node.soft_get('name', node.id))
+        if num_in_ports == 3:
+            set_input_shapes(node,
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(3))
+        elif num_in_ports == 6:
+            set_input_shapes(node,
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(3),
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(2))

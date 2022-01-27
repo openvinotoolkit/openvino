@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,11 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
+};
+
+const std::vector<bool> isConvertOnConstants = {
+    false,
+    true
 };
 
 const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
@@ -82,6 +87,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeTransformation,
         ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(fakeQuantizeOnDataValues)),
+        ::testing::ValuesIn(fakeQuantizeOnDataValues),
+        ::testing::ValuesIn(isConvertOnConstants)),
     FakeQuantizeTransformation::getTestCaseName);
 }  // namespace
