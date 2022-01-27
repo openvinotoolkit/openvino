@@ -69,6 +69,8 @@
 #include <vpu/configuration/options/enable_mx_boot.hpp>
 
 #include "myriad_plugin.h"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_myriad/myriad_properties.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
@@ -281,45 +283,55 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
         return availableDevices.front();
     };
     const auto getDeviceByName = [&devicePool](const std::string& deviceName) {
-        const auto deviceIt = std::find_if(
-                devicePool.begin(), devicePool.end(), [&deviceName](DevicePtr device) {
-                    return device->_name == deviceName;
-                });
+        const auto deviceIt = std::find_if(devicePool.begin(), devicePool.end(), [&deviceName](DevicePtr device) {
+            return device->_name == deviceName;
+        });
         if (deviceIt == devicePool.end()) {
             return DevicePtr();
         }
         return *deviceIt;
     };
 
-    if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics->AvailableDevicesNames(_mvnc, _devicePool));
-    } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics->FullName(getSpecifiedDeviceName()));
+    if (ov::available_devices == name) {
+        return _metrics->AvailableDevicesNames(_mvnc, _devicePool);
+    } else if (ov::device::full_name == name) {
+        return _metrics->FullName(getSpecifiedDeviceName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         const auto& supportedMetrics = _metrics->SupportedMetrics();
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{supportedMetrics.cbegin(), supportedMetrics.cend()});
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
+                             std::vector<std::string>{supportedMetrics.cbegin(), supportedMetrics.cend()});
+    } else if (ov::supported_properties == name) {
+        return decltype(ov::supported_properties)::value_type  {
+            ov::available_devices.name(),
+            ov::device::full_name.name(),
+            ov::supported_properties.name(),
+            ov::device::capabilities.name(),
+            ov::range_for_async_infer_requests.name(),
+            ov::device::thermal.name(),
+            ov::device::architecture.name(),
+        };
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         // TODO: remove once all options are migrated
         auto supportedConfigKeys = _metrics->SupportedConfigKeys();
         const auto& publicKeys = _parsedConfig.getPublicKeys();
         supportedConfigKeys.insert(publicKeys.cbegin(), publicKeys.cend());
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{supportedConfigKeys.cbegin(), supportedConfigKeys.cend()});
-    } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
-        const auto& optimizationCapabilities = _metrics->OptimizationCapabilities();
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{optimizationCapabilities.cbegin(), optimizationCapabilities.cend()});
-    } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->RangeForAsyncInferRequests(_config));
-    } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
-        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->DeviceArchitecture(options));
-    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
-        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS,
+                             std::vector<std::string>{supportedConfigKeys.cbegin(), supportedConfigKeys.cend()});
+    } else if (ov::device::capabilities == name) {
+        return std::vector<std::string> {_metrics->OptimizationCapabilities().begin(), _metrics->OptimizationCapabilities().end()};
+    } else if (ov::range_for_async_infer_requests == name) {
+        return _metrics->RangeForAsyncInferRequests(_config);
+    } else if (ov::device::architecture == name) {
+        return _metrics->DeviceArchitecture(options);
+    } else if (ov::device::thermal == name) {
         const auto& device = getDeviceByName(getSpecifiedDeviceName());
         if (device != nullptr) {
-            IE_SET_METRIC_RETURN(DEVICE_THERMAL, _metrics->DevicesThermal(device));
+            return _metrics->DevicesThermal(device);
         } else {
             return Parameter();
         }
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     }
     IE_THROW(NotImplemented);
 }
