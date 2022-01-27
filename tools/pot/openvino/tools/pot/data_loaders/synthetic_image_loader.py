@@ -1,9 +1,10 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 from multiprocessing import Pool
 from pathlib import Path
+import os
+import re
 import requests
 
 import cv2 as cv
@@ -137,20 +138,25 @@ class SyntheticImageLoader(ImageLoader):
         self._num_of_points = None
         self._instances = None
         self._categories = None
+        if isinstance(self._shape, str):
+            self._shape = list(map(int, re.findall(r'\d+', self._shape)))
 
         super().get_layout()
         if self._shape is None or len(self._shape) < 2:
             raise ValueError('Input shape should be specified. Please, use `--shape')
 
-        if not os.path.exists(self.data_source):
-            logger.info(f'Synthetic dataset will be stored in {self.data_source}')
-            os.mkdir(self.data_source)
+
+        if os.path.exists(self.data_source) and os.listdir(self.data_source) and not config.generate_data:
+            logger.info(f'Dataset was found in `{self.data_source}`')
         else:
-            logger.info(f'Dataset was found in {self.data_source}')
+            logger.info(f'Synthetic dataset will be stored in `{self.data_source}`')
+            if not os.path.exists(self.data_source):
+                os.mkdir(self.data_source)
 
         assert os.path.isdir(self.data_source)
         if config.generate_data or not os.listdir(self.data_source):
             self.download_colorization_model()
+            logger.info(f'Start generating {self.subset_size} synthetic images')
             self.generate_dataset()
 
         self._img_files = collect_img_files(self.data_source)

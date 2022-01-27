@@ -63,11 +63,14 @@ class Config(Dict):
         self.model['output_dir'] = args.output_dir
         self.model['direct_dump'] = args.direct_dump
         self.engine['evaluate'] = args.evaluate
-        if args.engine == 'data_free':
-            self.engine['shape'] = args.shape
-            self.engine['generate_data'] = args.generate_data
-            self.engine['data_type'] = args.data_type
-            if args.generate_data:
+        if self.engine.type == 'data_free':
+            if 'data_type' not in self.engine:
+                self.engine['data_type'] = args.data_type
+            if 'generate_data' not in self.engine:
+                self.engine['generate_data'] = args.generate_data
+            if 'shape' not in self.engine:
+                self.engine['shape'] = args.shape
+            if self.engine['generate_data']:
                 subset_size = 0
                 for algo in self.compression['algorithms']:
                     subset_size = max(subset_size, algo.get('stat_subset_size', 300))
@@ -307,7 +310,7 @@ class Config(Dict):
             self.engine.type = 'accuracy_checker'
         elif engine.type == 'simplified' or engine.type == 'data_free':
             if 'data_source' not in engine:
-                raise KeyError('Missed data dir for sample engine')
+                raise KeyError(f'Missed data dir for {engine.type} engine')
             self.engine.device = engine.device if engine.device else 'CPU'
             engine.data_source = Path(engine.data_source)
         else:

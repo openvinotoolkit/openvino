@@ -35,9 +35,12 @@ def app(argv):
         _update_config_path(args)
 
     config = Config.read_config(args.config)
-    # we need set type and source before configure_params to avoid _configure_ac_params for data_free
-    config.engine['type'] = args.engine
-    config.engine['data_source'] = args.data_source
+
+    if args.engine:
+        config.engine['type'] = args.engine if args.engine else 'accuracy_checker'
+    if 'data_source' not in config.engine:
+        config.engine['data_source'] = args.data_source
+
     config.configure_params(args.ac_config)
     config.update_from_args(args)
 
