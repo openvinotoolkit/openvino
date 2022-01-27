@@ -4,7 +4,6 @@
 
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/utils/utils.hpp"
-#include "ngraph/validation_util.hpp"
 
 #include <memory>
 #include <vector>
@@ -30,10 +29,11 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
         if (!lb_const_node) return false;
 
         const auto & lb_values = lb_const_node->cast_vector<int64_t>();
-        bool is_valid = std::all_of(lb_values.cbegin(), lb_values.cend(), [](int64_t value) { return value > 0;});
-        if (is_valid) {
-            return true;
-        }
+
+        // The pattern is valid if all lower bound values are higher than zero (not a special number)
+        // or if the lower and upper bounds values are a sign of full dynamism
+        const bool lb_has_special_val = std::any_of(lb_values.cbegin(), lb_values.cend(), [](int64_t value) { return value < 1;});
+        if (!lb_has_special_val) return true;
 
         // Upper bound of the value
         auto ub = ngraph::evaluate_upper_bound(node_out);
@@ -44,12 +44,11 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
         const auto & ub_values = ub_const_node->cast_vector<int64_t>();
         if (lb_values.size() != ub_values.size()) return false;
 
-        is_valid = std::all_of(lb_values.cbegin(), lb_values.cend(), [](int64_t value) { return value == 0;});
-
-        int64_t ub_max = node->get_output_element_type(0) == ov::element::i32 ? std::numeric_limits<int32_t>::max() : std::numeric_limits<int64_t>::max();
-        is_valid = is_valid && std::all_of(ub_values.cbegin(), ub_values.cend(), [ub_max](int64_t value) { return value == ub_max;});
-
-        return is_valid;
+        // Check if zero values are paired with max value as a sign of full dynamism
+        const int64_t ub_max = node->get_output_element_type(0) == ov::element::i32 ? std::numeric_limits<int32_t>::max() : std::numeric_limits<int64_t>::max();
+        const auto mismatch_iters = std::mismatch(lb_values.cbegin(), lb_values.cend(), ub_values.cbegin(),
+                                            [ub_max](int64_t lb_val, int64_t ub_val){ return lb_val > 0 || (lb_val == 0 && ub_val == ub_max);});
+        return mismatch_iters.first == lb_values.cend();
     }
     const auto & values = const_node->cast_vector<int64_t>();
     // We can not fuse Reshapes if their pattern values have special numbers like -1 and 0
