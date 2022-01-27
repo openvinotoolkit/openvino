@@ -986,11 +986,11 @@ void InsertCopyLayerPass::run() {
 
         bool bNeedInsertCopyLayer = true;
         CNNNetDFS(l, [&l, &bNeedInsertCopyLayer](CNNLayerPtr layer) {
-            if (!LayerInfo(layer).isNonValuesChangable() && !LayerInfo(layer).isCrop() && !layer->insData.empty()) {
+            if (!(LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isSplit() || LayerInfo(layer).isCrop() || LayerInfo(layer).isInput())) {
                 bNeedInsertCopyLayer = false;
             }
             }, true, [&bNeedInsertCopyLayer](InferenceEngine::CNNLayer* from) {
-                    // aborting UFS If no functional layers (excluding Splits, Concats and Crops)
+                    // aborting UFS if we found functional layer (excluding Splits and Crops)
                     return make_upstream_order(bNeedInsertCopyLayer ? from : nullptr);
             });
 
