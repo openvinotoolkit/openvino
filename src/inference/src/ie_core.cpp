@@ -497,6 +497,11 @@ public:
         return newAPI;
     }
 
+    ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override {
+        auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ParamMap{});
+        return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._ptr;
+    }
+
     ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
                                                           const std::shared_ptr<ie::RemoteContext>& context,
                                                           const std::map<std::string, std::string>& config) override {
@@ -1429,9 +1434,7 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     if (deviceName.find("AUTO") == 0) {
         IE_THROW() << "AUTO device does not support remote context";
     }
-
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ParamMap());
-    return _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._ptr;
+    return _impl->GetDefaultContext(deviceName);
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
