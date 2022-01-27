@@ -1016,39 +1016,58 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, effectiveGnaCompileTarget);
     }
 
-    // creating same gna RW segment for parallel infer requests
-    for (int i = 1; i != gnaFlags->gna_lib_async_threads_num; i++) {
-        gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
-        // this can be improved by just copy all structures, but we are too lazy
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
-        // relocate rw pointers to new offset
-        auto basePtr = reinterpret_cast<uint8_t*>(pParallelExecutionData) + rwSegmentSize * (i - 1);
-
-        auto relocate = [basePtr, this](void *& ptr_out, void * ptr_in) {
-            if (ptr_in == nullptr) {
-                ptr_out = nullptr;
-            } else {
-                auto offset = reinterpret_cast<uint8_t *>(ptr_in) - reinterpret_cast<uint8_t *>(gnamem->getBasePtr());
-                ptr_out = basePtr + offset;
+    if (gnaFlags->gna_lib_async_threads_num == 1) {
+        auto numberOfOperations = std::get<0>(gnaModels.front())->obj.NumberOfOperations;
+        /// actual trim of array
+        auto fullModelHold = std::get<0>(gnaModels.front());
+        auto fullModel = fullModelHold->obj;
+        auto layersLimit = 10;
+        gnaModels.resize((numberOfOperations + layersLimit - 1) / layersLimit);
+        for (int i = 0; i != gnaModels.size(); i++) {
+            auto startIdx = layersLimit * i;
+            auto operationsThisBatch  =
+                    ((i + 1) == gnaModels.size()) ? (numberOfOperations - startIdx) : layersLimit;
+            gnaModels[i] = std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(operationsThisBatch));
+            for (int j = 0; j != operationsThisBatch; j++) {
+                /// transferring operations from full model
+                auto & newOp = std::get<0>(gnaModels[i]);
+                CPPWrapper<Gna2Model>::moveOperation(&newOp->obj.Operations[j], &fullModel.Operations[startIdx + j]);
             }
-        };
-
-        for (auto &input : inputs_ptr_->Get()) {
-            relocate(input.ptrs[i], input.ptrs[0]);
         }
+    } else {
+        // creating same gna RW segment for parallel infer requests
+        for (int i = 1; i != gnaFlags->gna_lib_async_threads_num; i++) {
+            gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
+            // this can be improved by just copy all structures, but we are too lazy
+            dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
+            // relocate rw pointers to new offset
+            auto basePtr = reinterpret_cast<uint8_t*>(pParallelExecutionData) + rwSegmentSize * (i - 1);
 
-        // relocating all output pointers
-        for (auto &output : outputs_.Get()) {
-            relocate(output.ptrs[i], output.ptrs[0]);
-        }
+            auto relocate = [basePtr, this](void *& ptr_out, void * ptr_in) {
+                if (ptr_in == nullptr) {
+                    ptr_out = nullptr;
+                } else {
+                    auto offset = reinterpret_cast<uint8_t *>(ptr_in) - reinterpret_cast<uint8_t *>(gnamem->getBasePtr());
+                    ptr_out = basePtr + offset;
+                }
+            };
 
-        for (int j = 0; j != std::get<0>(gnaModels.front())->obj.NumberOfOperations; j++) {
-            auto & gnaOperation = std::get<0>(gnaModels[i])->obj.Operations[j];
-            relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[0])->Data, gnaOperation.Operands[0]->Data);
-            relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[1])->Data, gnaOperation.Operands[1]->Data);
+            for (auto &input : inputs_ptr_->Get()) {
+                relocate(input.ptrs[i], input.ptrs[0]);
+            }
+
+            // relocating all output pointers
+            for (auto &output : outputs_.Get()) {
+                relocate(output.ptrs[i], output.ptrs[0]);
+            }
+
+            for (int j = 0; j != std::get<0>(gnaModels.front())->obj.NumberOfOperations; j++) {
+                auto & gnaOperation = std::get<0>(gnaModels[i])->obj.Operations[j];
+                relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[0])->Data, gnaOperation.Operands[0]->Data);
+                relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[1])->Data, gnaOperation.Operands[1]->Data);
+            }
         }
     }
-
     // calculating input orientation without memory layers, since their orientation not changed during infer right now
     std::unordered_map<string, std::vector<string>> skippedLayers;
 
@@ -1275,7 +1294,10 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         const auto reqConfigId = std::get<0>(*freeNnet);
         if (ptr_active_indices != nullptr && num_active_indices > 0 && activeLayerIndex != 0xffffffff)
             gnadevice->setUpActiveList(reqConfigId, activeLayerIndex, ptr_active_indices, num_active_indices);
-        std::get<1>(*freeNnet) = gnadevice->propagate(reqConfigId, config.pluginGna2AccMode);
+        // propagate all subnetworks
+        for (int i = 0; i != gnaModels.size(); i++) {
+            std::get<1>(gnaRequestConfigToRequestIdMap[i]) = gnadevice->propagate(std::get<0>(gnaRequestConfigToRequestIdMap[i]), config.pluginGna2AccMode);
+        }
     }
 
 #ifdef PLOT
@@ -1304,13 +1326,16 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
     if (gnadevice && !trivialTopology) {
-        const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
-        if (waitStatus == GNA_REQUEST_ABORTED) {
-            std::get<1>(nnets[request_idx]) = -1;
-            return GNA_REQUEST_ABORTED;
-        }
-        if (waitStatus == GNA_REQUEST_PENDING) {
-            return GNA_REQUEST_PENDING;
+        //const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
+        for (auto &nnet : nnets) {
+            const auto waitStatus = gnadevice->wait(std::get<1>(nnet), millisTimeout);
+            if (waitStatus == GNA_REQUEST_ABORTED) {
+                std::get<1>(nnets[request_idx]) = -1;
+                return GNA_REQUEST_ABORTED;
+            }
+            if (waitStatus == GNA_REQUEST_PENDING) {
+                return GNA_REQUEST_PENDING;
+            }
         }
     }
 
