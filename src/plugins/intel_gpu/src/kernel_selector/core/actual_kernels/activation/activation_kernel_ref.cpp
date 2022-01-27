@@ -56,4 +56,13 @@ KernelsData ActivationKernelRef::GetKernelsData(const Params& params, const opti
 KernelsPriority ActivationKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
+
+bool ActivationKernelRef::Validate(const Params& p, const optional_params& o) const {
+    if (!Parent::Validate(p, o)) return false;
+    const auto& params = static_cast<const activation_params&>(p);
+    if (params.inputs[0].GetDims().size() != params.output.GetDims().size())
+        return false;
+
+    return true;
+}
 }  // namespace kernel_selector
