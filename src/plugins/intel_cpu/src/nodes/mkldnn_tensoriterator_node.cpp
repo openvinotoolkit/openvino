@@ -713,8 +713,8 @@ void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
             redefineToMemories(to_mems, *desc);
 
             if (!newShape.isDynamic()) {
-                PortMapHelper *mapper = new BackEdgePortHelper(from_mem, to_mems.front(), eng);
-                mapper->execute(strm);
+                BackEdgePortHelper mapper(from_mem, to_mems.front(), eng);
+                mapper.execute(strm);
             }
         }
     }
