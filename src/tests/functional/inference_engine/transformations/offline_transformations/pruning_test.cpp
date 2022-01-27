@@ -17,6 +17,7 @@
 #include <ngraph/coordinate_transform.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <inference_engine.hpp>
+#include <openvino/util/env_util.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -2351,7 +2352,7 @@ TEST_F(TransformationTestsF, PruneLinearIsClosingAndInGroup) {
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
         auto weights = create_constant_with_zeros({
-                                                       weightsShape[0] - 3,
+                                                       weightsShape[0] - 2,
                                                        weightsShape[1],
                                                        weightsShape[2],
                                                        weightsShape[3]
@@ -2361,22 +2362,22 @@ TEST_F(TransformationTestsF, PruneLinearIsClosingAndInGroup) {
                                                                           CoordinateDiff(2, 0),
                                                                           Strides(2, 1));
 
-        auto reshape_const = opset5::Constant::create(element::i64, Shape{2}, {1, linear_input_features / 2});
+        auto reshape_const = opset5::Constant::create(element::i64, Shape{2}, {1, 4 * linear_input_features / 6});
         auto reshape = std::make_shared<opset5::Reshape>(conv, reshape_const, true);
 
         auto linear_const = create_constant_with_zeros({
-                                                       linearShape[0] / 2,
-                                                       linearShape[1] / 2,
+                                                       4 * linearShape[0] / 6,
+                                                       4 * linearShape[1] / 6,
                                                    }, {{}, {}});
         auto linear = std::make_shared<opset5::MatMul>(reshape, linear_const);
 
         auto add_1 = std::make_shared<opset5::Add>(linear, reshape);
 
         auto weights_end_linear = create_constant_with_zeros({
-                                                       lastLinearShape[1] / 2,
-                                                       lastLinearShape[0]
+                                                       lastLinearShape[0],
+                                                       4 * lastLinearShape[1] / 6
                                                     }, {{}, {}});
-        auto last_linear = std::make_shared<opset5::MatMul>(add_1, weights_end_linear);
+        auto last_linear = std::make_shared<opset5::MatMul>(add_1, weights_end_linear, false, true);
         function_ref = std::make_shared<ngraph::Function>(OutputVector{last_linear}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -2852,3 +2853,4 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
     disable_rt_info_check();
     enable_accuracy_check();
 }*/
+
