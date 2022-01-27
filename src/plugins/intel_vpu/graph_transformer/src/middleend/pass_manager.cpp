@@ -19,7 +19,6 @@
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 #include <vpu/configuration/options/enable_permute_merging.hpp>
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
-#include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
 #include <vpu/configuration/options/enable_custom_reshape_param.hpp>
 
@@ -105,7 +104,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(convertShapeNotation);
     ADD_DUMP_PASS("convertShapeNotation");
 
-    if (!env.config.get<DisableReorderOption>() && !env.config.get<HwAccelerationOption>()) {
+    if (!env.config.get<HwAccelerationOption>()) {
         ADD_PASS(reorderInputsToChannelMinor);
         ADD_DUMP_PASS("reorderInputsToChannelMinor");
     }

@@ -14,7 +14,6 @@
 
 using namespace vpu::MyriadPlugin;
 using namespace InferenceEngine;
-using namespace VPUConfigParams;
 using namespace PluginConfigParams;
 
 //------------------------------------------------------------------------------
@@ -41,13 +40,8 @@ IE_SUPPRESS_DEPRECATED_START
         ov::intel_myriad::enableForceReset.name(),
         MYRIAD_ENABLE_MX_BOOT,
 
-        // deprecated
-        KEY_VPU_CUSTOM_LAYERS,
-        KEY_VPU_MYRIAD_FORCE_RESET,
-
         CONFIG_KEY(CONFIG_FILE),
     };
-IE_SUPPRESS_DEPRECATED_END
 
     _optimizationCapabilities = {ov::device::capability::FP16, ov::device::capability::EXPORT_IMPORT};
     _rangeForAsyncInferRequests = RangeType(3, 6, 1);

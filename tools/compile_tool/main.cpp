@@ -16,7 +16,6 @@
 
 #include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
-#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/string.hpp>
 

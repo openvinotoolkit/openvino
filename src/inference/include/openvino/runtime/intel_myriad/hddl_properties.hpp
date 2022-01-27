@@ -18,8 +18,7 @@ static constexpr Property<int, PropertyMutability::RO> deviceNum{"HDDL_DEVICE_NU
 /**
  * @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_HDDL_DEVICE_NAME
  */
-static constexpr Property<std::vector<std::string>, PropertyMutability::RO> deviceName{
-    "HDDL_DEVICE_NAME"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> deviceName{"HDDL_DEVICE_NAME"};
 
 /**
  * @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_HDDL_DEVICE_THERMAL

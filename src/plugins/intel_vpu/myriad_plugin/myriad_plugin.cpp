@@ -12,9 +12,7 @@
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <legacy/ie_util_internal.hpp>
 
-#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
-#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/frontend/frontend.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
@@ -52,8 +50,6 @@
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 #include <vpu/configuration/options/dump_all_passes_directory.hpp>
 #include <vpu/configuration/options/dump_all_passes.hpp>
-#include <vpu/configuration/options/disable_convert_stages.hpp>
-#include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/detect_network_batch.hpp>
@@ -77,7 +73,6 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
-using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
 
@@ -242,19 +237,6 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _parsedConfig.registerOption<EnableMXBootOption>();
     _parsedConfig.registerOption<PerformanceHintOption>();
     _parsedConfig.registerOption<PerformanceHintNumRequestsOption>();
-
-IE_SUPPRESS_DEPRECATED_START
-    _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
-    _parsedConfig.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
-    _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
-    _parsedConfig.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
-    _parsedConfig.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
-    _parsedConfig.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
-    _parsedConfig.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
-    _parsedConfig.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
-    _parsedConfig.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
-    _parsedConfig.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
-IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
