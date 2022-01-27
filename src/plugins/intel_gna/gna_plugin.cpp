@@ -1022,7 +1022,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         auto fullModelHold = std::get<0>(gnaModels.front());
         auto fullModel = fullModelHold->obj;
         auto layersLimit = 10;
+        std::cout << "[DEBUG]: " << "gna operations: " << numberOfOperations << std::endl;
+        std::cout << "[DEBUG]: " << "gna operations limit: " << layersLimit << std::endl;
         gnaModels.resize((numberOfOperations + layersLimit - 1) / layersLimit);
+        std::cout << "[DEBUG]: " << "models count: " << gnaModels.size() << std::endl;
         for (int i = 0; i != gnaModels.size(); i++) {
             auto startIdx = layersLimit * i;
             auto operationsThisBatch  =
