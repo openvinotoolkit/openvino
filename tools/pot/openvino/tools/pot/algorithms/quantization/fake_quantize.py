@@ -408,17 +408,21 @@ def set_rescaling_factors(config, model, scaling_factor=2.0):
     input_nodes = get_nodes_by_type(model, ['Parameter'], recursively=False)
     fc_layers = get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS], recursively=False)
 
+    fc_layers_to_rescale = []
     if saturation_fix == 'first_layer':
-        fc_layers_to_fix = get_first_convolutions(input_nodes)
+        fc_layers_to_rescale = get_first_convolutions(input_nodes)
     elif saturation_fix == 'all':
-        fc_layers_to_fix = fc_layers
+        fc_layers_to_rescale = fc_layers
 
-    for node in fc_layers_to_fix:
+    for node in fc_layers_to_rescale:
         fqs_to_rescale.append(get_node_input(node, 1).name)
 
-    conv_fqs_to_rescale = [get_node_input(node, 1).name for node in fc_layers if
-                           'need_rescale' in node and node['need_rescale']]
-    fqs_to_rescale.extend(conv_fqs_to_rescale)
+    for fc_layer in fc_layers:
+        fq_input_name = get_node_input(node, 1).name
+        if 'need_rescale' in fc_layer and fc_layer['need_rescale'] and \
+                fq_input_name not in fqs_to_rescale:
+            fqs_to_rescale.append(fq_input_name)
+
     return {'scaling_factor': scaling_factor,
             'fqs_to_rescale': fqs_to_rescale}
 
