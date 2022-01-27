@@ -29,8 +29,12 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
         auto mask = std::make_shared<Mask>(shape);
 
         for (const auto & dim : dims) {
-            if (dim >= shape.size())
+            if (dim >= shape.size()) {
+                NGRAPH_DEBUG << "[WARNING] Attemt to initialize masks on " << dim
+                             << " dimension which is out of shape " << shape
+                             << " for node (" << const_node->get_friendly_name() << ")";
                 continue;
+            }
 
             for (size_t value = 0; value < shape[dim]; ++value) {
                 Coordinate begin(shape.size(), 0);

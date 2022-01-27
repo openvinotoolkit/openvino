@@ -242,26 +242,26 @@ public:
             }
             auto weights_mask_row = weights_mask.get();
 
-            const auto conv_mask_callback = [input_mask_row, weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                    cur_mask->at(1/*input data channel*/) = weights_mask_row->at(0 /* weights output channel dim*/);
-                    if (input_mask_row && input_mask_row->at(1) != weights_mask_row->at(1))
-                        cur_mask->initialize_dependencies();
-                    return true;
-            };
-
             auto conv_mask = std::make_shared<Mask>(input_shape.rank().get_length());
             auto conv_mask_row = conv_mask.get();
 
-            conv_mask->add_callback(conv_mask_callback, input_mask);
-            input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(1) = weights_mask_row->at(1);
+            conv_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(1/*input data channel*/) = input_mask_row->at(1/*output data channel*/);
+                return true;
+            }, input_mask);
+
+            input_mask->add_callback([conv_mask_row](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(1/*output data channel*/) = conv_mask_row->at(1/*input data channel*/);
                 return true;
             }, conv_mask);
 
-            conv_mask->add_callback(conv_mask_callback, weights_mask);
-            weights_mask->add_callback([input_mask_row, conv_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(0) = conv_mask_row->at(1);
-                cur_mask->at(1) = input_mask_row->at(1);
+            conv_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(1/*input data channel*/) = weights_mask_row->at(0/*weights output channel dim*/);
+                return true;
+            }, weights_mask);
+
+            weights_mask->add_callback([conv_mask_row](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(0/*weights output channel dim*/) = conv_mask_row->at(1/*output data channel*/);
                 return true;
             }, conv_mask);
 
