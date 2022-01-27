@@ -668,8 +668,12 @@ variable_base<T>::variable_base(variable_base && rhs)
 
 template<typename T>
 variable_base<T>::~variable_base() {
-    if (_manage_lifetime)
-        kernel.free(_reg);
+    try {
+        if (_manage_lifetime)
+            kernel.free(_reg);
+    } catch (std::exception &e) {
+        std::cerr << e.what() << std::endl;
+    }
 }
 
 template<typename T>
