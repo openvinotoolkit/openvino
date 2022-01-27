@@ -6,10 +6,12 @@
    :maxdepth: 1
    :hidden:
    
+   openvino_2_0_transition_guide
    openvino_docs_IE_DG_Integrate_with_customer_application_new_API
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_IE_DG_Device_Plugins
    Direct ONNX Format Support <openvino_docs_IE_DG_ONNX_Support>
+   openvino_docs_IE_DG_Paddle_Support
    openvino_docs_IE_DG_Int8Inference
    openvino_docs_IE_DG_Bfloat16Inference
    openvino_docs_IE_DG_DynamicBatching
@@ -33,7 +35,7 @@ The scheme below illustrates the typical workflow for deploying a trained deep l
 
 ![](img/BASIC_FLOW_IE_C.svg)
 
-\\* _nGraph_ is the internal graph representation in the OpenVINO™ toolkit. Use it to [build a model from source code](https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_build_function.html).
+\\* _nGraph_ is the internal graph representation in the OpenVINO™ toolkit. Use it to [build a model from source code](https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_build_function.html).
 
 
 ## Video

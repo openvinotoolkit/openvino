@@ -1,5 +1,4 @@
-Glossary {#openvino_docs_IE_DG_Glossary}
-=======
+# Glossary {#openvino_docs_IE_DG_Glossary}
 
 ## Acronyms and Abbreviations
 
