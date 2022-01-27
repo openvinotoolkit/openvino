@@ -435,6 +435,10 @@ void kernels_cache::build_all() {
     _task_executor->runAndWait(tasks);
     tasks.clear();
 
+    if (exception) {
+        std::rethrow_exception(exception);
+    }
+
     {
         std::lock_guard<std::mutex> lock(_mutex);
         _kernels_code.clear();
