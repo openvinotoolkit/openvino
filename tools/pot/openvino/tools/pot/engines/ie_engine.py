@@ -231,7 +231,12 @@ class IEEngine(Engine):
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
-            return {input_blob_name: np.stack(image_batch, axis=0)}
+            image_batch = {input_blob_name: np.stack(image_batch, axis=0)}
+            if image_batch[input_blob_name].shape != input_info[0].shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {image_batch[input_blob_name].shape} into {input_info[0].shape}."
+                                 "Try to specify the layout of the model.")
+            return image_batch
 
         if len(input_info) == 2:
             image_info_nodes = list(filter(

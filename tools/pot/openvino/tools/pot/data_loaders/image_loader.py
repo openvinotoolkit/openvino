@@ -39,8 +39,9 @@ class ImageLoader(DataLoader):
         if image is None:
             raise Exception('Can not read the image: {}'.format(img_path))
 
-        sh = (self._shape[self._layout.get_index_by_name('H')], self._shape[self._layout.get_index_by_name('W')])
-        return prepare_image(image, self._layout, sh, self._crop_central_fraction)
+        height, width = (self._shape[self._layout.get_index_by_name('H')],
+                         self._shape[self._layout.get_index_by_name('W')])
+        return prepare_image(image, self._layout, (height, width), self._crop_central_fraction)
 
     def get_layout(self, input_node):
         if self._layout is not None:
