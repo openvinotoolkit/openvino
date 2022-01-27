@@ -118,7 +118,7 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
              config.outConfs[0].getMemDesc()->isDefined() && !config.outConfs[0].getPortDesc()->isCompatible(*config.inConfs[0].getPortDesc())))
             IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
-        config.inConfs[0].setMemDesc(getConsistentInputDesc(config, 0));
+        config.inConfs[0].setMemDesc(getConsistentInputDesc(config, 0)->getMemDesc());
         config.outConfs[0].setMemDesc(config.inConfs[0].getMemDesc());
     }
     initDescriptor(config);

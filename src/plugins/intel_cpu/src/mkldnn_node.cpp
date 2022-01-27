@@ -915,16 +915,23 @@ const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
     return implPriorities;
 }
 
-MemoryDescPtr MKLDNNNode::getConsistentInputDesc(const NodeConfig &config, size_t idx) const {
+PortDescBasePtr MKLDNNNode::getConsistentInputDesc(const NodeConfig &config, size_t idx) const {
     int num = getParentEdgeAt(idx)->getInputNum();
     auto *selectedPD = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         IE_THROW() << "Cannot get selected primitive descriptor for node: " << getParentEdgeAt(idx)->getParent()->getName();
 
     if (config.inConfs[idx].inPlace() >= 0) {
-        auto outPortDesc = config.outConfs[static_cast<size_t>(config.inConfs[idx].inPlace())].getPortDesc();
+        auto inplaceIndx = static_cast<size_t>(config.inConfs[idx].inPlace());
+        PortDescBasePtr outPortDesc;
+        const auto& outConf = config.outConfs[inplaceIndx];
+        if (outConf.inPlace() == idx) {
+            outPortDesc = outConf.getPortDesc();
+        } else {
+            outPortDesc = getConsistentOutputDesc(config, inplaceIndx);
+        }
         if (config.inConfs[idx].getPortDesc()->isCompatible(*outPortDesc)) {
-            return outPortDesc->getMemDesc();
+            return outPortDesc;
         }
     }
 
@@ -935,23 +942,30 @@ MemoryDescPtr MKLDNNNode::getConsistentInputDesc(const NodeConfig &config, size_
             getParentEdgeAt(idx)->getParent()->initOptimalPrimitiveDescriptor();
         parentConf = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
         if (parentConf.getMemDesc()->isDefined() && config.inConfs[idx].getPortDesc()->isCompatible(*parentConf.getPortDesc())) {
-            return parentConf.getMemDesc();
+            return parentConf.getPortDesc();
         }
     }
 
-    return config.inConfs[idx].getMemDesc();
+    return config.inConfs[idx].getPortDesc();
 }
 
-MemoryDescPtr MKLDNNNode::getConsistentOutputDesc(const NodeConfig &config, size_t idx) const {
+PortDescBasePtr MKLDNNNode::getConsistentOutputDesc(const NodeConfig &config, size_t idx) const {
     int num = getChildEdgeAt(idx)->getOutputNum();
     auto *selectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         IE_THROW() << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
 
     if (config.outConfs[idx].inPlace() >= 0) {
-        auto inpPortDesc = config.inConfs[static_cast<size_t>(config.outConfs[idx].inPlace())].getPortDesc();
+        auto inplaceIndx = static_cast<size_t>(config.outConfs[idx].inPlace());
+        PortDescBasePtr inpPortDesc;
+        const auto& inpConf = config.inConfs[inplaceIndx];
+        if (inpConf.inPlace() == idx) {
+            inpPortDesc = inpConf.getPortDesc();
+        } else {
+            inpPortDesc = getConsistentInputDesc(config, inplaceIndx);
+        }
         if (config.outConfs[idx].getPortDesc()->isCompatible(*inpPortDesc)) {
-            return inpPortDesc->getMemDesc();
+            return inpPortDesc;
         }
     }
 
@@ -962,11 +976,11 @@ MemoryDescPtr MKLDNNNode::getConsistentOutputDesc(const NodeConfig &config, size
             getChildEdgeAt(idx)->getChild()->initOptimalPrimitiveDescriptor();
         childConf = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
         if (childConf.getMemDesc()->isDefined() && config.outConfs[idx].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
-            return childConf.getMemDesc();
+            return childConf.getPortDesc();
         }
     }
 
-    return config.outConfs[idx].getMemDesc();
+    return config.outConfs[idx].getPortDesc();
 }
 
 void MKLDNNNode::initOptimalPrimitiveDescriptor() {
@@ -985,11 +999,13 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
         }
     } else {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].setMemDesc(getConsistentInputDesc(config, i));
+            auto inpPortDesc = getConsistentInputDesc(config, i);
+            config.inConfs[i].setMemDesc(inpPortDesc->getMemDesc());
         }
 
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].setMemDesc(getConsistentOutputDesc(config, i));
+            auto outPortDesc = getConsistentOutputDesc(config, i);
+            config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
         }
     }
     if (getType() != RNNSeq && getType() != RNNCell) {
