@@ -2,7 +2,7 @@
 
 This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit Runtime for Linux* distributed through the YUM repository.
 
-From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Model Development Tools](../installing-model-dev-tools.md) for detailed steps.
+From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Model Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 > **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please review the content inside the `<openvino_install_root>/licensing` folder for more details.
 
@@ -35,10 +35,12 @@ The complete list of supported hardware is available in the [Release Notes](http
     ```sh
     sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
     ```
+    
 3.	Verify that the new repo is properly setup by running the following command:
     ```
     yum repolist | grep -i openvino
     ```
+    
     You will see the available list of packages.
 
 To list available OpenVINO packages, use the following command:
@@ -67,15 +69,16 @@ Run the following command:
 ```sh
 sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
 ```
+
 For example:
-```
-sudo yum install openvino-2021.1.0
+```sh
+sudo yum install openvino-2022.1.0
 ```
 
 #### To check for installed packages and version
 
 Run the following command:
-```
+```sh
 yum list installed 'openvino*'
 ```
 

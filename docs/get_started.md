@@ -21,7 +21,7 @@
    Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>
    Install from Anaconda Cloud <openvino_docs_install_guides_installing_openvino_conda>
    Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
-   Install OpenVINO Model Development Tools <#openvino_docs_install_guides_install_dev_tools>
+   Install OpenVINO Model Development Tools <openvino_docs_install_guides_install_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
@@ -30,13 +30,9 @@
    :hidden:
    :caption: Additional Configurations
    
-   Configurations for Intel® Processor Graphics (GPU)
-   Configurations for Intel® Neural Compute Stick 2
-   Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-        Linux <openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
-        Windows 
-        Configurations for IEI Mustang-V100-MX8-R10 card <openvino_docs_install_guides_movidius_setup_guide>
-        Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
+   Configurations for Intel® Processor Graphics (GPU) <openvino_docs_install_guides_configurations_for_intel_gpu>
+   Configurations for Intel® Neural Compute Stick 2 <openvino_docs_install_guides_configurations_for_ncs2>
+   Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs <openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
 
 .. toctree::
    :maxdepth: 1

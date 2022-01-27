@@ -3,7 +3,7 @@
 You can install Intel® Distribution of OpenVINO™ Toolkit through the PyPI repository, including:
 
 * OpenVINO Runtime with the Inference Engine inside. This page provides basic steps for installing OpenVINO Runtime. For more details, see <https://pypi.org/project/openvino/>.
-* OpenVINO Model Development Tools that includes Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools. From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. See [Install OpenVINO Model Development Tools](../installing-model-dev-tools.md) or <https://pypi.org/project/openvino-dev> for detailed steps.
+* OpenVINO Model Development Tools that includes Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools. From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. See [Install OpenVINO Model Development Tools](installing-model-dev-tools.md) or <https://pypi.org/project/openvino-dev> for detailed steps.
 
 ## Install OpenVINO Runtime
 
@@ -19,7 +19,7 @@ python -m pip install --user virtualenv
 python -m venv openvino_env
 ```
 
->**NOTE**: On Linux and macOS, you may need to type `python3` instead of `python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
+> **NOTE**: On Linux and macOS, you may need to type `python3` instead of `python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
 
 **Step 2. Activate virtual environment**
 

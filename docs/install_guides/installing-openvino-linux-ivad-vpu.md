@@ -1,4 +1,19 @@
-# Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit and the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux* {#openvino_docs_install_guides_installing_openvino_linux_ivad_vpu}
+# Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs  {#openvino_docs_install_guides_installing_openvino_linux_ivad_vpu}
+
+
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Install OpenVINO
+
+   Linux <openvino_docs_configurations_vpu_linux>
+   Windows <openvino_docs_configurations_vpu_windows>
+   Configurations for IEI Mustang-V100-MX8-R10 card <openvino_docs_install_guides_movidius_setup_guide>
+   Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
+        
+@endsphinxdirective
 
 > **NOTES**: 
 > - These steps are only required if you want to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.

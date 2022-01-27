@@ -2,7 +2,7 @@
 
 This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit Runtime for Linux* distributed through the APT repository.
 
-From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Model Development Tools](../installing-model-dev-tools.md) for detailed steps.
+From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Model Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 > **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please review the content inside the `<openvino_install_root>/licensing` folder for more details.
 
@@ -21,30 +21,34 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 1. Install the GPG key for the Repository
 
-    1. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB). You can also use the following command:
-       ```
-       wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-       ```
-    2. Add this key to the system keyring:
-       ```sh
-       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-       ```
-        > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`
+    a. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB). You can also use the following command:
+        ```sh
+        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+        ```
+        
+    b. Add this key to the system keyring:
+        ```sh
+        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+        ```
+        
+    > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`
 
 2.	Add the repository via either of the following commands:
     * On Ubuntu 18:
-      ```sh
-      echo "deb https://apt.repos.intel.com/openvino/2022/bionic all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-      ```
+        ```sh
+        echo "deb https://apt.repos.intel.com/openvino/2022/bionic all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+        ```
+        
     * On Ubuntu 20:
-      ```sh
-      echo "deb https://apt.repos.intel.com/openvino/2022/focal all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-      ```
+        ```sh
+        echo "deb https://apt.repos.intel.com/openvino/2022/focal all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+        ```
 
 3.	Update the list of packages via the update command:
     ```sh
     sudo apt update
     ```
+    
 4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
     ```sh
     apt-cache search openvino

@@ -2,7 +2,7 @@
 
 This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit Runtime for Linux* distributed through  the Anaconda* Cloud.
 
-From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Model Development Tools](../installing-model-dev-tools.md) for detailed steps.
+From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Model Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 ## System requirements
 
@@ -58,8 +58,8 @@ Now you can start developing your application.
 
 ## Additional Resources
 
-- Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit).
-- OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org).
+- Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
+- OpenVINO™ toolkit online documentation: <https://docs.openvinotoolkit.ai>.
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).

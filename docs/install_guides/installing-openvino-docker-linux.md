@@ -167,8 +167,8 @@ Use the following steps for Intel® Neural Compute Stick 2:
 
 1. Get rid of UDEV by rebuilding `libusb` without UDEV support in the Docker* image by adding the following commands to a `Dockerfile`:
    - **Ubuntu 18.04/20.04**:
-       ```sh
-       ARG BUILD_DEPENDENCIES="autoconf \
+        ```sh
+        ARG BUILD_DEPENDENCIES="autoconf \
                         automake \
                         build-essential \
                         libtool \
@@ -211,38 +211,43 @@ While the steps above is not working, you can also run container in the privileg
 ```sh
 docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 ```
-> **NOTES**: This option is not recommended, as conflicts with Kubernetes* and other tools that use orchestration and private networks may occur. Please use it with caution and only for troubleshooting purposes.
+
+> **NOTE**: This option is not recommended, as conflicts with Kubernetes* and other tools that use orchestration and private networks may occur. Please use it with caution and only for troubleshooting purposes.
+
 
 ### Using OpenVINO Docker* image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
 #### Step 1: Configure OpenVINO Docker* image
 
->**NOTE**: When building the Docker image, create a user in the Dockerfile that has the same UID (User Identifier) and GID (Group Identifier) as the user which that runs hddldaemon on the host, and then run the application in the Docker image with this user. This step is necessary to run the container as a non-root user.
+> **NOTE**: When building the Docker image, create a user in the Dockerfile that has the same UID (User Identifier) and GID (Group Identifier) as the user which that runs hddldaemon on the host, and then run the application in the Docker image with this user. This step is necessary to run the container as a non-root user.
+
 
 To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following steps:
 1. Set up the environment on the host machine to be used for running Docker*. It is required to execute hddldaemon, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configuration Guide for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](installing-openvino-linux-ivad-vpu.md).
 2. Prepare the Docker* image by adding the following commands to a Dockerfile:
    - **Ubuntu 18.04**:
-    ```sh
-    WORKDIR /tmp
-    RUN apt-get update && \
-        apt-get install -y --no-install-recommends \
-            libboost-filesystem1.65-dev \
-            libboost-thread1.65-dev \
-            libjson-c3 libxxf86vm-dev && \
+        ```sh
+        WORKDIR /tmp
+        RUN apt-get update && \
+            apt-get install -y --no-install-recommends \
+                libboost-filesystem1.65-dev \
+                libboost-thread1.65-dev \
+                libjson-c3 libxxf86vm-dev && \
         rm -rf /var/lib/apt/lists/* && rm -rf /tmp/*
-    ```
+        ```
+        
    - **Ubuntu 20.04**:
-    ```sh
-    WORKDIR /tmp
-    RUN apt-get update && \
-        apt-get install -y --no-install-recommends \
-            libboost-filesystem-dev \
-            libboost-thread-dev \
-            libjson-c4 \
-            libxxf86vm-dev && \
+        ```sh
+        WORKDIR /tmp
+        RUN apt-get update && \
+            apt-get install -y --no-install-recommends \
+                libboost-filesystem-dev \
+                libboost-thread-dev \
+                libjson-c4 \
+                libxxf86vm-dev && \
         rm -rf /var/lib/apt/lists/* && rm -rf /tmp/*
-    ```
+        ```
+        
 3. Run `hddldaemon` on the host in a separate terminal session using the following command:
     ```sh
     $HDDL_INSTALL_DIR/hddldaemon
@@ -257,21 +262,9 @@ docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
 ```
 
 > **NOTES**:
->
 > - The device `/dev/ion` needs to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
 > - Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
 
-In some cases, the ion driver is not enabled (for example, due to a newer kernel version or iommu (Input-Output Memory Management Unit) incompatibility). `lsmod | grep myd_ion` returns empty output. To resolve, use the following command:
-
-```sh
-docker run -it --rm --net=host -v /var/tmp:/var/tmp –-ipc=host <image_name>
-```
-
-> **NOTES**:
->
-> - When building Docker images, create a user in the Dockerfile that has the same UID(User Identifier) and GID(Group Identifier) as the user which runs hddldaemon on the host.
-> - Run the application in the Docker image with this user.
-> - Alternatively, you can start hddldaemon with the root user on host, but this approach is not recommended.
 
 **If the ion driver is not enabled**
 
@@ -283,7 +276,7 @@ If that still does not solve the issue, try starting `hddldaemon` with the root 
 
 ## Running samples in OpenVINO Docker* image
 
-To run the Hello Classification Sample on a specific inference device, run the following commands:
+To run the `Hello Classification Sample` on a specific inference device, run the following commands:
 
 **CPU**:
 
