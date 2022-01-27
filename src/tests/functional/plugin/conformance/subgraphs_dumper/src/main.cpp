@@ -71,15 +71,15 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
 
                 InferenceEngine::CNNNetwork net = ie.ReadNetwork(model.xml, model.bin);
                 auto function = net.getFunction();
-                if (FLAGS_eliminate_dynamism) {
-                    try {
-                        SubgraphsDumper::resolve_dynamic_shapes(function);
-                    } catch (std::exception &e) {
-                        std::cout << "Failed to eliminate dynamism from model " << model.xml
-                                  << "\n Exception occurred:\n" << e.what() << "\nModel will be processed as is."
-                                  << std::endl;
-                    }
-                }
+//                if (FLAGS_eliminate_dynamism) {
+//                    try {
+//                        SubgraphsDumper::resolve_dynamic_shapes(function);
+//                    } catch (std::exception &e) {
+//                        std::cout << "Failed to eliminate dynamism from model " << model.xml
+//                                  << "\n Exception occurred:\n" << e.what() << "\nModel will be processed as is."
+//                                  << std::endl;
+//                    }
+//                }
                 cache->update_ops_cache(function, extract_body, model.xml);
             } catch (std::exception &e) {
                 std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
     auto cache = SubgraphsDumper::OPCache::make_cache();
     cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
     cacheModels(cache, ret_code, models, FLAGS_extract_body);
-    cache->serialize_cached_ops(FLAGS_output_folder);
+//    cache->serialize_cached_ops(FLAGS_output_folder);
 
     return ret_code;
 }

@@ -11,7 +11,8 @@ namespace test {
 namespace subgraph {
 
 TEST_P(EltwiseLayerTest, EltwiseTests) {
-    run();
+    serialize();
+//    run();
 }
 
 } // namespace subgraph

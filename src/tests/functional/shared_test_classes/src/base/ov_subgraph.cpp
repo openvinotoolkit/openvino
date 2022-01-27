@@ -88,8 +88,8 @@ void SubgraphBaseTest::serialize() {
 
     std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
 
-    std::string out_xml_path = output_name + ".xml";
-    std::string out_bin_path = output_name + ".bin";
+    std::string out_xml_path = "/opt/repo/eltwise/" + output_name + ".xml";
+    std::string out_bin_path = "/opt/repo/eltwise/" + output_name + ".bin";
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
@@ -110,7 +110,7 @@ void SubgraphBaseTest::serialize() {
 
     EXPECT_TRUE(success) << message;
 
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+//    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 void SubgraphBaseTest::query_model() {

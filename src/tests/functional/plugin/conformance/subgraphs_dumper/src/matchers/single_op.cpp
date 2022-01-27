@@ -85,9 +85,11 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
                            ref->get_input_tensor(i).get_partial_shape().rank();
         bool elemTypeIsEqual = node->get_input_tensor(i).get_element_type() ==
                                ref->get_input_tensor(i).get_element_type();
-        bool is_dynamic = node->get_input_node_ptr(i)->is_dynamic() ==
-                          ref->get_input_node_ptr(i)->is_dynamic();
-        if (!(rankIsEqual && elemTypeIsEqual && is_dynamic)) {
+        bool dynamismIsEqual = node->get_input_node_ptr(i)->is_dynamic() ==
+                               ref->get_input_node_ptr(i)->is_dynamic();
+        if (ref->get_input_node_ptr(i)->is_dynamic())
+            std::cout << "[ DEBUG ] " << ref->get_friendly_name() << std::endl;
+        if (!rankIsEqual || !elemTypeIsEqual || !dynamismIsEqual) {
             return false;
         }
     }
@@ -150,6 +152,12 @@ bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node,
 bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node,
                             const std::shared_ptr<ngraph::Node> &ref,
                             const LayerTestsUtils::OPInfo &op_info) const {
+    for (const auto& input_node : node->inputs()) {
+        if (input_node.get_partial_shape().is_dynamic()) {
+            std::cout << "[ DEBUG ] " << node->get_friendly_name() << std::endl;
+            break;
+        }
+    }
     const auto &cfg = get_config(node);
     if (match_only_configured_ops() && cfg->is_fallback_config) {
         return false;
