@@ -10,6 +10,7 @@
 #include <ops/gna_convolution.hpp>
 #include <ngraph/pass/manager.hpp>
 
+#include <ops/gna_convolution.hpp> // TODO: remove it after debug
 
 using namespace GNAPluginNS;
 
@@ -21,7 +22,7 @@ template <class T>
 std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<T> node, ngraph::NodeVector & new_ops);
 
 template <>
-std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<ngraph::opset8::Convolution> node, ngraph::NodeVector & new_ops) {
+std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<ngraph::opset8::Convolution/*GNAPluginNS::Op::GNAConvolution*/> node, ngraph::NodeVector & new_ops) {
     // Update Convolution attributes with additional dimension
     auto new_strides = node->get_strides();
     auto new_dilations = node->get_dilations();
@@ -38,7 +39,7 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
     auto weights = ngraph::op::util::reshapeTo(node->input_value(1), new_weights_shape);
     new_ops.push_back(weights);
 
-    return std::make_shared<ngraph::opset8::Convolution>(data,
+    return std::make_shared<ngraph::opset8::Convolution/*GNAPluginNS::Op::GNAConvolution*/>(data,
                                                    weights,
                                                    new_strides,
                                                    new_pads_begin,
@@ -67,7 +68,7 @@ ngraph::matcher_pass_callback get_callback() {
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/reshape_begin");
         new_ops.push_back(last.get_node_shared_ptr());
 
-        if (auto conv = std::dynamic_pointer_cast<ngraph::opset8::Convolution>(node))
+        if (auto conv = std::dynamic_pointer_cast<ngraph::opset8::Convolution/*GNAPluginNS::Op::GNAConvolution*/>(node))
             last = convert(last, conv, new_ops);
 
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/new");
@@ -88,7 +89,7 @@ ngraph::matcher_pass_callback get_callback() {
 Reshape1DConvolution::Reshape1DConvolution() {
     MATCHER_SCOPE(Reshape1DConvolution);
 
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset8::Convolution>(ngraph::pattern::has_static_shape());
+    auto conv = ngraph::pattern::wrap_type<ngraph::opset8::Convolution/*GNAPluginNS::Op::GNAConvolution*/>(ngraph::pattern::has_static_shape());
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
     this->register_matcher(m, get_callback());
 }

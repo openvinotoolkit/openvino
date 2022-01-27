@@ -17,7 +17,7 @@
 using namespace ngraph;
 
 #define DEBUG_CHECKPOINT std::cout << __FILE__ << ":" << __LINE__ << ":" << __FUNCTION__ << std::endl;
-#define DEBUG_VALUE(val) std::cout << __FILE__ << ":" << __LINE__ << ":" << __FUNCTION__ << #val << " " <<  val << std::endl;
+#define DEBUG_VALUE(val) std::cout << __FILE__ << ":" << __LINE__ << ":" << __FUNCTION__ << " " << #val << " " <<  val << std::endl;
 
 namespace {
 
@@ -42,8 +42,16 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
     auto weights = op::util::reshapeTo(node->input_value(1), new_weights_shape);
     new_ops.push_back(weights);
 
+    DEBUG_VALUE(node->get_dilations());
+    DEBUG_VALUE(new_dilations);
+    DEBUG_VALUE(node->get_strides());
+    DEBUG_VALUE(new_strides);
+    DEBUG_VALUE(node->get_pads_begin());
+    DEBUG_VALUE(new_pads_begin);
+    DEBUG_VALUE(node->get_pads_end());
+    DEBUG_VALUE(new_pad_end);
+
     if (node->inputs().size() == 2) {
-        DEBUG_CHECKPOINT;
         return std::make_shared<op::ConvolutionIE>(data,
                                                    weights,
                                                    new_strides,
@@ -54,7 +62,6 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
                                                    node->get_group(),
                                                    node->get_auto_pad());
     } else {
-        DEBUG_CHECKPOINT;
         return std::make_shared<op::ConvolutionIE>(data,
                                                    weights,
                                                    node->input_value(2),
