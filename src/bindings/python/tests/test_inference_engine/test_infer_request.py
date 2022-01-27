@@ -8,7 +8,9 @@ import pytest
 import datetime
 import time
 
-import openvino.runtime.opset3 as ops
+import openvino.runtime.opset8 as ops
+import openvino.runtime.opset6 as ops6
+import openvino.runtime.opset1 as ops1
 from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, Type
 from openvino.preprocess import PrePostProcessor
 
@@ -20,9 +22,9 @@ test_net_xml, test_net_bin = model_path(is_myriad)
 
 def create_model_with_memory(input_shape, data_type):
     input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
-    rv = ops.read_value(input_data, "var_id_667")
-    add = ops.add(rv, input_data, name="MemoryAdd")
-    node = ops.assign(add, "var_id_667")
+    rv = ops6.read_value(input_data, "var_id_667")
+    add = ops1.add(rv, input_data, name="MemoryAdd")
+    node = ops6.assign(add, "var_id_667")
     res = ops.result(add, "res")
     model = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
     return model
