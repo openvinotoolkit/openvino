@@ -71,8 +71,6 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mk
     if (batchDims < 0 || batchDims >= std::min(static_cast<int>(dataSrcRank), static_cast<int>(indicesRank)))
         THROW_ERROR << "has incorrect batch_dims " << batchDims << "!";
 
-    dataTypeSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
-
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))) {
         isAxisInputConst = true;
         axis = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0];
@@ -80,26 +78,31 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mk
             axis += dataSrcRank;
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
             THROW_ERROR << "has incorrect input parameter axis value: " << axis;
-
-        if (isDataShapeStat) {
-            const auto& dataDims = dataShape.getDims();
-            axisDim = dataDims[axis];
-            beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
-            betweenBatchAndAxisSize = std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
-            afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<Dim>());
-
-            afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
-            axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
-            srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
-        }
     }
+}
 
+void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
+
+    dataTypeSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
+
+    const auto& dataDims = getInputShapeAtPort(GATHER_DATA).getDims();
+    if (isAxisInputConst && isDataShapeStat) {
+        axisDim = dataDims[axis];
+        beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
+        betweenBatchAndAxisSize = std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
+        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<Dim>());
+
+        afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+        axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
+        srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
+    }
     if (isDataShapeStat) {
-        const auto& dataDims = dataShape.getDims();
         beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<Dim>());
     }
     if (isIdxShapeStat) {
-        const auto& idxDims = idxShape.getDims();
+        const auto& idxDims = getInputShapeAtPort(GATHER_INDICES).getDims();
         specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<Dim>());
 
         if (isDataShapeStat) {
@@ -107,11 +110,6 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mk
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
     }
-}
-
-void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
 
     // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
     Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
