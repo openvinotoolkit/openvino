@@ -80,7 +80,7 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
              mvnAttrs.src_prc == rhs.mvnAttrs.src_prc &&
              mvnAttrs.dst_prc == rhs.mvnAttrs.dst_prc &&
              mvnAttrs.is_nhwc == rhs.mvnAttrs.is_nhwc &&
-             mvnAttrs.planar_layout == mvnAttrs.planar_layout;
+             mvnAttrs.planar_layout == rhs.mvnAttrs.planar_layout;
     retVal = retVal && *attr.get() == *rhs.attr.get();
     return retVal;
 }
