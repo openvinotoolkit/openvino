@@ -161,10 +161,10 @@ public:
                 input_mask_row = input_mask.get();
 
             const auto conv_mask_callback = [input_mask_row, weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                    cur_mask->at(1/*input data channel*/) = weights_mask_row->at(0 /* weights output channel dim*/);
-                    if (input_mask_row && input_mask_row->at(1) != weights_mask_row->at(1))
-                        cur_mask->initialize_dependencies();
-                    return true;
+                cur_mask->at(1/*input data channel*/) = weights_mask_row->at(0 /* weights output channel dim*/);
+                if (input_mask_row && input_mask_row->at(1) != weights_mask_row->at(1))
+                    cur_mask->initialize_dependencies();
+                return true;
             };
 
             if (input_mask) {
@@ -406,9 +406,14 @@ public:
             auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
-            const auto out_mask_callback = [input_mask_row, weights_mask_row](Mask::Ptr cur_mask) -> bool {
+            bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
+            const auto out_mask_callback = [input_mask_row, weights_mask_row, union_eltwise_type](Mask::Ptr cur_mask) -> bool {
                 Mask::Ptr result_mask;
-                result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
+                if (/*union_eltwise_type*/ false) {
+                    result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
+                } else {
+                    result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
+                }
                 cur_mask->copy_value_from_mask_reversed(result_mask.get());
 
                 auto input_iter = input_mask_row->rbegin();
@@ -986,8 +991,8 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::Elementwise>();
     add_matcher<mask_propagation::PassThrough>();
     add_matcher<mask_propagation::Reduce>();
-    add_matcher<mask_propagation::Reshape>();
     add_matcher<mask_propagation::FakeQuantize>();
+    add_matcher<mask_propagation::Reshape>();
     add_matcher<mask_propagation::Concat>();
     add_matcher<mask_propagation::SkipPropagation>();
     add_matcher<mask_propagation::StopPropagation>();
