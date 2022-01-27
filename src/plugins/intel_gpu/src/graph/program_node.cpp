@@ -302,7 +302,7 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 
 bool program_node::need_lockable_memory() const {
     bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
-        return n->get_selected_impl()->is_cpu();
+        return n->get_selected_impl() ? n->get_selected_impl()->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
     });
 
     return need_lockable_mem;

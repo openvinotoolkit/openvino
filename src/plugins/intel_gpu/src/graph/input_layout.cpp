@@ -43,8 +43,8 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
 void input_layout_inst::set_data(memory::ptr mem) {
     auto ol = node.get_output_layout();
 
-    if (!_node.is_dynamic())
-        check_memory_to_set(*mem, ol);
+    // if (!_node.is_dynamic())
+    //     check_memory_to_set(*mem, ol);
 
     if (mem->get_layout().is_dynamic())
         throw std::runtime_error("[GPU] set_data: invalid memory object passed. Layout can't be dynamic");

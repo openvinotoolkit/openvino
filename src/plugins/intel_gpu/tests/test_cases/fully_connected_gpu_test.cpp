@@ -1709,3 +1709,49 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     }
 }
 #endif
+
+
+TEST(fully_connected_gpu, dynamic) {
+    const int32_t input_f = 3, input_b = 1,  // size of whole input buffer
+        weight_b = 4;
+
+    auto& engine = get_test_engine();
+
+    auto input_dyn_layout = layout{ data_types::f32,format::bfyx, ov::PartialShape{ ov::Dimension(1, 10), input_f, 1, 1} };
+    auto input_actual_layout = layout{ data_types::f32,format::bfyx, ov::PartialShape{ input_b, input_f, 1, 1} };
+    auto input_prim = engine.allocate_memory(input_actual_layout);
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, ov::PartialShape{ weight_b, input_f, 1, 1 } });
+
+    set_values(input_prim, { -0.5f, 2.0f, 0.5f });
+    set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
+
+    auto input = input_layout("input", input_dyn_layout);
+    auto w_data = data("weights", weights_prim);
+    auto fc = fully_connected("full_con_prim", "input", "weights");
+    topology topology;
+    topology.add(input);
+    topology.add(w_data);
+    topology.add(fc);
+
+    network network(engine, topology);
+    network.set_input_data("input", input_prim);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto out_l = output_prim->get_layout();
+    EXPECT_EQ(out_l.batch(), input_b);
+    EXPECT_EQ(out_l.feature(), weight_b);
+    EXPECT_EQ(out_l.spatial(0), 1);
+    EXPECT_EQ(out_l.spatial(1), 1);
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+    EXPECT_EQ(1.5f, output_ptr[0]);
+    EXPECT_EQ(0.75f, output_ptr[1]);
+    EXPECT_EQ(-2.25f, output_ptr[2]);
+    EXPECT_EQ(3.0f, output_ptr[3]);
+}

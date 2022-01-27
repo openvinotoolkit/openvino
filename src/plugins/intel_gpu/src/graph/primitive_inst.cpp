@@ -98,6 +98,8 @@ void primitive_inst::realloc_if_needed() {
     if (!_output  || _output->get_layout().count() < _node.get_output_layout().count()) {
         std::cerr << "realloc memory for node: " << id() << std::endl;
         _output = allocate_output();
+    } else {
+        _output = _network.get_engine().reinterpret_buffer(*_output, _node.get_output_layout());
     }
 }
 

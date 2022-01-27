@@ -42,6 +42,9 @@ bool is_batch_after_spatial(const std::string order) {
 format::type get_preferred_format(const fully_connected_node& node) {
     auto input_layout = node.input().get_output_layout();
 
+    if (input_layout.is_dynamic())
+        return format::bfyx;
+
     // for 3d output we have to chose bfyx format
     if (node.get_primitive()->input_size == 3)
         return format::bfyx;
@@ -101,13 +104,26 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         output_type = node.get_fused_output_layout().data_type;
     }
 
-    auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
-    if (desc->input_size == 3) {
-        output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
-    }
     format output_format = get_preferred_format(node);
+    if (input_layout.is_dynamic()) {
+        auto batch = input_layout.size[0];
+        auto feature = input_layout.size[1];
+        auto output_size = ov::PartialShape{batch, weights_layout.batch(), 1, 1};
+        if (desc->input_size == 3) {
+            output_size = ov::PartialShape{batch, feature, 1, weights_layout.batch()};
+        }
 
-    return layout(output_type, output_format, output_size);
+        std::cerr << "FC output shape: " << output_size << std::endl;
+
+        return layout(output_type, output_format, output_size);
+    } else {
+        auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+        if (desc->input_size == 3) {
+            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+        }
+
+        return layout(output_type, output_format, output_size);
+    }
 }
 
 std::string fully_connected_inst::to_string(fully_connected_node const& node) {
