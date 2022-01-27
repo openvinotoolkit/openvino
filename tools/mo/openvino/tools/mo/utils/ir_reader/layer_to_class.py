@@ -356,7 +356,8 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
                 node = Op(new_graph, op.attrs()).create_node()
                 assert 'type' in node, 'Operation {} have no `type` attribute.'.format(node.soft_get('name'))
                 node['op'] = node.type
-                node['infer'] = Extender.use_shapes_from_ir
+                if not op.has_and_set('infer'):
+                    node['infer'] = Extender.use_shapes_from_ir
                 if 'ir_data_attrs' in op:
                     node['IE'] = [('layer',
                                    [('id', lambda node: node.node), 'name', 'type', 'version'],
