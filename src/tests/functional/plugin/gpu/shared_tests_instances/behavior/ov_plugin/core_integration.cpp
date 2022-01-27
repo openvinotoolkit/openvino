@@ -3,7 +3,7 @@
 //
 
 #include "behavior/ov_plugin/core_integration.hpp"
-#include <openvino/runtime/intel_gpu/properties.hpp>
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 #ifdef _WIN32
 #    include "gpu/gpu_context_api_dx.hpp"
@@ -126,21 +126,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
 
 
 using OVClassGetPropertyTest_GPU = OVClassBaseTestP;
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricSupporetedPropertiesAndPrintNoThrow) {
-    ov::Core ie;
-
-    std::vector<ov::PropertyName> properties;
-    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
-
-    std::cout << "SUPPORTED_PROPERTIES: ";
-    for (const auto& prop : properties) {
-        std::cout << prop << " ";
-    }
-    std::cout << std::endl;
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::supported_properties);
-}
-
 TEST_P(OVClassGetPropertyTest_GPU, GetMetricAvailableDevicesAndPrintNoThrow) {
     ov::Core ie;
 
@@ -298,6 +283,32 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricMaxBatchSizeAndPrintNoThrow) {
     std::cout << "GPU_MAX_BATCH_SIZE: " << property << std::endl;
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::max_batch_size);
+}
+
+TEST_P(OVClassGetPropertyTest_GPU, CanSetDefaultValueBackToPluginNewAPI) {
+    ov::Core ie;
+
+    std::vector<ov::PropertyName> properties;
+    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
+
+    std::cout << "SUPPORTED_PROPERTIES:" << std::endl;
+    for (const auto& property : properties) {
+        ov::Any prop;
+        if (property.is_mutable()) {
+            std::cout << "RW: " << property << " ";
+            ASSERT_NO_THROW(prop = ie.get_property(deviceName, property));
+            prop.print(std::cout);
+            std::cout << std::endl;
+            ASSERT_NO_THROW(ie.set_property(deviceName, {{property, prop}}));
+        } else {
+            std::cout << "RO: " << property << " ";
+            ASSERT_NO_THROW(prop = ie.get_property(deviceName, property));
+            prop.print(std::cout);
+            std::cout << std::endl;
+        }
+    }
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::supported_properties);
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,

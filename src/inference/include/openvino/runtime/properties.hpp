@@ -584,6 +584,11 @@ static constexpr Property<int32_t, PropertyMutability::RW> num{"NUM_STREAMS"};
 }  // namespace streams
 
 /**
+ * @brief Maximum number of threads that can be used by executor
+ */
+static constexpr Property<int32_t, PropertyMutability::RW> num_threads{"NUM_THREADS"};
+
+/**
  * @brief Maximum number of threads that can be used for inference tasks
  */
 static constexpr Property<int32_t, PropertyMutability::RW> inference_num_threads{"INFERENCE_NUM_THREADS"};

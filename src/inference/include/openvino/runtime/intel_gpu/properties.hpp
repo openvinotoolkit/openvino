@@ -45,12 +45,6 @@ static constexpr Property<std::map<std::string, uint64_t>, PropertyMutability::R
 static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"GPU_MAX_BATCH_SIZE"};
 
 /**
- * @brief Possible return value for OPTIMIZATION_CAPABILITIES metric
- *  - "HW_MATMUL" - Defines if device has hardware block for matrix multiplication
- */
-static constexpr Property<bool, PropertyMutability::RO> hw_matmul{"GPU_HW_MATMUL"};
-
-/**
  * @brief Turning on this key enables to unroll recurrent layers such as TensorIterator or Loop with fixed iteration
  * count. This key is turned on by default. Turning this key on will achieve better inference performance for loops with
  * not too many iteration counts (less than 16, as a rule of thumb). Turning this key off will achieve better
@@ -77,12 +71,13 @@ static constexpr Property<uint32_t> queue_throttle{"GPU_QUEUE_THROTTLE"};
 static constexpr Property<uint32_t> queue_priority{"GPU_QUEUE_PRIORITY"};
 
 /**
- * @brief Enum to define possible host task priorities
+ * @brief Enum to define possible host task priorities which is set cpu core type of TBB affinity used in load network.
+ * It is only affected on Hybrid CPUs. If the device doesn't support Hybrid CPUs, it is set to the ANY.
  */
 enum class HostTaskPriority {
-    LOW = 0,
-    HIGH = 1,
-    ANY = 2,
+    LOW = 0,   //!< Mapped to IStreamsExecutor::Config::LITTLE (E-cores)
+    HIGH = 1,  //!< Mapped to IStreamsExecutor::Config::BIG (P-cores)
+    ANY = 2,   //!< Mapped to IStreamsExecutor::Config::ANY (Any cores)
 };
 
 /** @cond INTERNAL */
@@ -126,8 +121,8 @@ namespace memory_type {
 /**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
  */
-static constexpr auto surface = "GPU_SURFACE";
-static constexpr auto buffer = "GPU_BUFFER";
+static constexpr auto surface = "GPU_SURFACE";  //!< Native video decoder surface
+static constexpr auto buffer = "GPU_BUFFER";    //!< OpenCL buffer
 }  // namespace memory_type
 }  // namespace intel_gpu
 }  // namespace ov

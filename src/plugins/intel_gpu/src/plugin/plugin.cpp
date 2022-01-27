@@ -15,8 +15,8 @@
 #include "ie_plugin_config.hpp"
 #include <ie_ngraph_utils.hpp>
 #include <ie_algorithm.hpp>
-#include <openvino/runtime/intel_gpu/properties.hpp>
 
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
@@ -619,32 +619,33 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
 
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {
-        // Metrics
-        ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::range_for_async_infer_requests.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::intel_gpu::max_batch_size.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::intel_gpu::hw_matmul.name(), PropertyMutability::RO},
+            // Metrics
+            ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::range_for_async_infer_requests.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::max_batch_size.name(), PropertyMutability::RO},
 
-        // Configs
-        PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
-        PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
-        PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
-        PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
-        PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
-        PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
-        PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
-        PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW}};
+            // Configs
+            PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
+            PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
+            PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
+            PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
+            PropertyName{ov::num_threads.name(), PropertyMutability::RW}
+        };
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(AVAILABLE_DEVICES));
@@ -783,8 +784,11 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::device::full_name)::value_type {deviceName};
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto opt : _impl->m_configs.GetConfig(device_id).key_config_map)
-            configKeys.push_back(opt.first);
+        for (auto opt : _impl->m_configs.GetConfig(device_id).key_config_map) {
+            // Exclude new API properties
+            if (!Config::isNewApiProperty(opt.first))
+                configKeys.push_back(opt.first);
+        }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
@@ -797,7 +801,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         if (device_info.supports_imad || device_info.supports_immad)
             capabilities.push_back(METRIC_VALUE(INT8));
         if (device_info.supports_immad)
-            capabilities.push_back(ov::intel_gpu::hw_matmul.name());
+            capabilities.push_back(METRIC_VALUE(GPU_HW_MATMUL));
 
         return decltype(ov::device::capabilities)::value_type {capabilities};
     } else if (name == ov::range_for_async_infer_requests) {

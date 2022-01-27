@@ -3,10 +3,10 @@
 //
 
 /**
- * @brief A header for advanced hardware related properties for GPU plugin
- *        To use in SetConfig() method of plugins
+ * @brief A header for properties of shared device contexts and shared device memory blobs for GPU plugin
+ *        To use in constructors of Remote objects
  *
- * @file params.hpp
+ * @file openvino/runtime/intel_gpu/remote_properties.hpp
  */
 #pragma once
 
@@ -18,11 +18,11 @@ namespace intel_gpu {
 using gpu_handle_param = void*;
 
 /**
- * @brief Enum to define context type
+ * @brief Enum to define the type of the shared context
  */
 enum class ContextType {
-    OCL = 0,
-    VA_SHARED = 1,
+    OCL = 0,        //!< Pure OpenCL context
+    VA_SHARED = 1,  //!< Context shared with a video decoding device
 };
 
 /** @cond INTERNAL */
@@ -87,16 +87,16 @@ static constexpr Property<gpu_handle_param> ocl_queue{"OCL_QUEUE"};
 static constexpr Property<gpu_handle_param> va_device{"VA_DEVICE"};
 
 /**
- * @brief Enum to define possible shared memory type
+ * @brief Enum to define the type of the shared memory buffer
  */
 enum class SharedMemType {
-    OCL_BUFFER = 0,
-    OCL_IMAGE2D = 1,
-    USM_USER_BUFFER = 2,
-    USM_HOST_BUFFER = 3,
-    USM_DEVICE_BUFFER = 4,
-    VA_SURFACE = 5,
-    DX_BUFFER = 6
+    OCL_BUFFER = 0,         //!< Shared OpenCL buffer blob
+    OCL_IMAGE2D = 1,        //!< Shared OpenCL 2D image blob
+    USM_USER_BUFFER = 2,    //!< Shared USM pointer allocated by user
+    USM_HOST_BUFFER = 3,    //!< Shared USM pointer type with host allocation type allocated by plugin
+    USM_DEVICE_BUFFER = 4,  //!< Shared USM pointer type with device allocation type allocated by plugin
+    VA_SURFACE = 5,         //!< Shared video decoder surface or D3D 2D texture blob
+    DX_BUFFER = 6           //!< Shared D3D buffer blob
 };
 
 /** @cond INTERNAL */

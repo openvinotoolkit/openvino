@@ -8,8 +8,9 @@
 #include <string>
 
 #include "intel_gpu/plugin/custom_layer.hpp"
-#include <ie_performance_hints.hpp>
 #include "intel_gpu/graph/network.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include <ie_performance_hints.hpp>
 #include <threading/ie_cpu_streams_executor.hpp>
 
 namespace ov {
@@ -53,6 +54,7 @@ struct Config {
     }
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
     void adjustKeyMapValues();
+    static bool isNewApiProperty(std::string property);
 
     std::string device_id;
     uint16_t throughput_streams;

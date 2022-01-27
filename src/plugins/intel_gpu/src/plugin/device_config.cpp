@@ -11,7 +11,7 @@
 #include "file_utils.h"
 #include "intel_gpu/plugin/device_config.hpp"
 #include "intel_gpu/plugin/itt.hpp"
-#include <openvino/runtime/intel_gpu/properties.hpp>
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include <ie_system_conf.h>
 #include <thread>
 
@@ -289,8 +289,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 IE_THROW(NotFound) << "Unsupported KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS flag value: " << val;
             }
         } else if (key.compare(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS) == 0 ||
-                   // Should be replaced with ov::threads_num after Properties update
-                   /* key.compare(ov::inference_num_threads.name()) == 0 */ false) {
+                   key.compare(ov::num_threads.name()) == 0) {
             int max_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
             try {
                 int val_i = std::stoi(val);
@@ -312,6 +311,18 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 IE_THROW(ParameterMismatch) << "Unsupported KEY_GPU_ENABLE_LOOP_UNROLLING flag value: " << val;
             }
+        } else if (key.compare(ov::intel_gpu::hint::host_task_priority.name()) == 0) {
+            std::stringstream ss(val);
+            ov::intel_gpu::hint::HostTaskPriority priority;
+            ss >> priority;
+            if (priority == ov::intel_gpu::hint::HostTaskPriority::HIGH)
+                task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
+            else if (priority == ov::intel_gpu::hint::HostTaskPriority::LOW)
+                task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
+            else if (priority == ov::intel_gpu::hint::HostTaskPriority::ANY)
+                task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+            else
+                IE_THROW(NotFound) << "Unsupported host task priority by plugin: " << val;
         } else {
             IE_THROW(NotFound) << "Unsupported property key by plugin: " << key;
         }
@@ -368,11 +379,12 @@ void Config::adjustKeyMapValues() {
         if (queuePriority == cldnn::priority_mode_types::high && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
             s << ov::hint::ModelPriority::HIGH;
             key_config_map[ov::hint::model_priority.name()] = s.str();
-        } else if (queuePriority == cldnn::priority_mode_types::med && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::ANY) {
-            s << ov::hint::ModelPriority::MEDIUM;
-            key_config_map[ov::hint::model_priority.name()] = s.str();
         } else if (queuePriority == cldnn::priority_mode_types::low && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
             s << ov::hint::ModelPriority::LOW;
+            key_config_map[ov::hint::model_priority.name()] = s.str();
+        } else if ((queuePriority == cldnn::priority_mode_types::med && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::ANY) ||
+                   (queuePriority == cldnn::priority_mode_types::disabled && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::ANY)) {
+            s << ov::hint::ModelPriority::MEDIUM;
             key_config_map[ov::hint::model_priority.name()] = s.str();
         }
     }
@@ -438,8 +450,7 @@ void Config::adjustKeyMapValues() {
     key_config_map[PluginConfigParams::KEY_CONFIG_FILE] = "";
 
     key_config_map[GPUConfigParams::KEY_GPU_MAX_NUM_THREADS] = std::to_string(task_exec_config._streams);
-    // Should be replaced with ov::threads_num after Properties update
-    // key_config_map[ov::inference_num_threads.name()] = std::to_string(task_exec_config._streams);
+    key_config_map[ov::num_threads.name()] = std::to_string(task_exec_config._streams);
 
     if (enable_loop_unrolling) {
         key_config_map[GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING] = PluginConfigParams::YES;
@@ -454,6 +465,18 @@ void Config::adjustKeyMapValues() {
 
     key_config_map[PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS] =
         std::to_string(perfHintsConfig.ovPerfHintNumRequests);
+}
+
+bool Config::isNewApiProperty(std::string property) {
+    static std::set<std::string> new_api_keys {
+        ov::hint::model_priority.name(),
+        ov::intel_gpu::hint::host_task_priority.name(),
+        ov::intel_gpu::hint::queue_priority.name(),
+        ov::intel_gpu::hint::queue_throttle.name(),
+        ov::hint::performance_mode.name(),
+        ov::num_threads.name()
+    };
+    return new_api_keys.find(property) != new_api_keys.end();
 }
 
 void Configs::CreateConfig(std::string device_id) {
