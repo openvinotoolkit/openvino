@@ -334,14 +334,13 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
                            return out.get_tensor_ptr();
                        });
 
-        const auto duplicates_count = outputs.size() - output_tensors.size();
-        OPENVINO_ASSERT((outputs.size() - outputsInfo.size()) == duplicates_count,
+        OPENVINO_ASSERT(outputsInfo.size() == output_tensors.size(),
                         "outputsInfo.size() is: ",
                         outputsInfo.size(),
                         ", and function->get_output_size() is: ",
                         function->get_output_size(),
                         ". Number of duplicated outputs: ",
-                        duplicates_count);
+                        outputs.size() - output_tensors.size());
     }
 
     for (const auto& param : function->get_parameters()) {
