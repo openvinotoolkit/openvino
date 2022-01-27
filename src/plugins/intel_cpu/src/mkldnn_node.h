@@ -581,8 +581,8 @@ protected:
     virtual size_t getMaxBatch() const;
 
 
-    virtual MemoryDescPtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
+    virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
+    virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
     virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
     virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
