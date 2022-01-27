@@ -7,6 +7,8 @@
 #include <ngraph/op/constant.hpp>
 
 #include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -79,6 +81,12 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
         bool can_be_folded = true;
         if (rt_info.count(DisableConstantFolding::get_type_info_static())) {
             can_be_folded = false;
+        } else if (is_type<ngraph::opset1::ShapeOf>(node) || is_type<ngraph::opset3::ShapeOf>(node)) {
+            // In case if node is ShapeOf operation we stop propagation of can_be_folded attribute. We have to limit
+            // propagation because we can't detect borders of shape_of sub-graphs, so we propagate can_be_folded
+            // attribute through all nodes including nodes on data path. So to limit the spread of attribute to other
+            // shape-of sub-graphs we do not propagate it through ShapeOf nodes.
+            can_be_folded = true;
         } else if (std::any_of(inputs.cbegin(), inputs.cend(), [](const Output<Node>& output) {
                        const auto& rt_info = output.get_node()->get_rt_info();
                        return rt_info.count("can_be_folded") && !rt_info.at("can_be_folded").as<bool>();

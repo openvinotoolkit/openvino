@@ -3274,6 +3274,33 @@ TEST(constant_folding, disable_constant_folding_simple) {
     }
 }
 
+TEST(constant_folding, disable_constant_folding_check) {
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto shapeof1 = std::make_shared<opset5::ShapeOf>(data);
+    auto reshape1 = std::make_shared<opset5::Reshape>(data, shapeof1, true);
+    auto shapeof2 = std::make_shared<opset5::ShapeOf>(reshape1);
+    auto reshape2 = std::make_shared<opset5::Reshape>(reshape1, shapeof2, true);
+    auto f = std::make_shared<Function>(NodeVector{reshape2}, ParameterVector{data});
+
+    ov::disable_constant_folding(shapeof1);
+
+    class ConstantFoldingAccessor : public pass::ConstantFolding {
+    public:
+        ConstantFoldingAccessor() = default;
+        using ConstantFolding::pre_calculated_values_folding;
+    };
+
+    ConstantFoldingAccessor().pre_calculated_values_folding(f);
+
+    ASSERT_TRUE(shapeof1->get_rt_info().count("can_be_folded"));
+    ASSERT_FALSE(shapeof1->get_rt_info().at("can_be_folded").as<bool>());
+
+    ASSERT_TRUE(shapeof2->get_rt_info().count("can_be_folded"));
+    ASSERT_TRUE(shapeof2->get_rt_info().at("can_be_folded").as<bool>());
+
+    ASSERT_TRUE(ov::is_type<op::Constant>(reshape2->get_input_node_shared_ptr(1)));
+}
+
 TEST(constant_folding, constant_loop) {
     auto X = make_shared<opset5::Constant>(element::f32, Shape{2, 1, 3}, std::vector<int64_t>{0, 1, 2, 3, 4, 5});
     auto Y = make_shared<opset5::Constant>(element::f32, Shape{1, 1, 3}, std::vector<int64_t>{1, 2, 3});
