@@ -15,7 +15,7 @@ file(STRINGS "${IE_CONFIG_OUTPUT_FILE}" content)
 
 set(skip_plugin OFF)
 foreach(line IN LISTS content)
-    if("${line}" MATCHES "${IE_PLUGIN_NAME}")
+    if("${line}" MATCHES "name=\"${IE_PLUGIN_NAME}\"")
         set(skip_plugin ON)
     endif()
 
