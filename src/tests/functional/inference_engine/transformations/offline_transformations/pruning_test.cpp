@@ -2317,7 +2317,7 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
 }
 
 
-TEST(TransformationTests, PruneLinearIsClosingAndInGroup) {
+TEST_F(TransformationTestsF, PruneLinearIsClosingAndInGroup) {
     const auto linear_input_features = 6 * 2 * 2;
     auto inputShapes = PartialShape{1, 6, 2, 2};
     auto weightsShape = Shape{6, 6, 1, 1};
@@ -2334,7 +2334,7 @@ TEST(TransformationTests, PruneLinearIsClosingAndInGroup) {
     auto reshape_const = opset5::Constant::create(element::i64, Shape{2}, {1, linear_input_features});
     auto reshape = std::make_shared<opset5::Reshape>(conv, reshape_const, true);
 
-    auto linear_mask = Mask();//std::vector<std::set<size_t>>();
+    auto linear_mask = Mask();
     auto outer_dim_zeros = std::set<size_t>();
     for (auto i = 0; i < linear_input_features / 2; ++i)
         outer_dim_zeros.insert(i);
@@ -2347,41 +2347,38 @@ TEST(TransformationTests, PruneLinearIsClosingAndInGroup) {
 
     auto weights_end_linear = create_constant_with_zeros(lastLinearShape, {{1, 2, 3}, {3, 4, 6}});
     auto last_linear = std::make_shared<opset5::MatMul>(add_1, weights_end_linear, false, true);
-    auto function = std::make_shared<ngraph::Function>(OutputVector{last_linear}, ParameterVector{input});
-    //{
-    //    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
-    //    auto weights = create_constant_with_zeros({
-    //                                                    weightsShape[0] - 3,
-    //                                                    weightsShape[1],
-    //                                                    weightsShape[2],
-    //                                                    weightsShape[3],
-    //                                               }, {{}, {}, {}, {}});
-    //    auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
-    //                                                                      CoordinateDiff(2, 0),
-    //                                                                      CoordinateDiff(2, 0),
-    //                                                                      Strides(2, 1));
+    function = std::make_shared<ngraph::Function>(OutputVector{last_linear}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+        auto weights = create_constant_with_zeros({
+                                                       weightsShape[0] - 3,
+                                                       weightsShape[1],
+                                                       weightsShape[2],
+                                                       weightsShape[3]
+                                                   }, {{}, {}, {}, {}});
+        auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                                          CoordinateDiff(2, 0),
+                                                                          CoordinateDiff(2, 0),
+                                                                          Strides(2, 1));
 
-    //    auto reduce_const = opset5::Constant::create(element::i64, Shape{2}, {2, 3});
-    //    auto reduce_mean = std::make_shared<opset5::ReduceMean>(conv, reduce_const, true);
+        auto reshape_const = opset5::Constant::create(element::i64, Shape{2}, {1, linear_input_features / 2});
+        auto reshape = std::make_shared<opset5::Reshape>(conv, reshape_const, true);
 
-    //    auto conv_1_shape = Shape{weightsShape[0] - 3, weightsShape[0] - 3, 1, 1};
-    //    auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{}, {}, {}, {}});
-    //    auto conv_1 = std::make_shared<opset5::Convolution>(reduce_mean, conv_1_weights, Strides(2, 1),
-    //                                                                                 CoordinateDiff(2, 0),
-    //                                                                                 CoordinateDiff(2, 0),
-    //                                                                                 Strides(2, 1));
+        auto linear_const = create_constant_with_zeros({
+                                                       linearShape[0] / 2,
+                                                       linearShape[1] / 2,
+                                                   }, {{}, {}});
+        auto linear = std::make_shared<opset5::MatMul>(reshape, linear_const);
 
+        auto add_1 = std::make_shared<opset5::Add>(linear, reshape);
 
-    //    auto add_1 = std::make_shared<opset5::Add>(conv_1, conv);
-
-    //    auto end_conv_shape = Shape{weightsShape[1], weightsShape[0] - 3, 1, 1};
-    //    auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{}, {}, {}, {}});
-    //    auto end_conv = std::make_shared<opset5::Convolution>(add_1, weights_end_conv, Strides(2, 1),
-    //                                                                                 CoordinateDiff(2, 0),
-    //                                                                                 CoordinateDiff(2, 0),
-    //                                                                                 Strides(2, 1));
-    //    function_ref = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input});
-    //}
+        auto weights_end_linear = create_constant_with_zeros({
+                                                       lastLinearShape[1] / 2,
+                                                       lastLinearShape[0]
+                                                    }, {{}, {}});
+        auto last_linear = std::make_shared<opset5::MatMul>(add_1, weights_end_linear);
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{last_linear}, ParameterVector{input});
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneLinearIsClosingAndInGroup.svg").run_on_function(function);
     {
@@ -2415,8 +2412,8 @@ TEST(TransformationTests, PruneLinearIsClosingAndInGroup) {
         m.register_pass<pass::ShrinkWeights>();
         m.run_passes(function);
     }
-    //disable_rt_info_check();
-    //enable_accuracy_check();
+    disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 
