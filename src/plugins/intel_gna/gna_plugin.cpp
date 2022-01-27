@@ -88,6 +88,7 @@
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ops/gna_convolution.hpp>
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 
 #include "ngraph/pass/visualize_tree.hpp" // DEBUG 
 #include "transformations/serialize.hpp" // DEBUG
@@ -647,6 +648,51 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 }
 #endif
 
+namespace {
+#if 0
+void PrintDilationStrides(const std::string & pass_name, const ngraph::Strides& strides)
+{
+    std::cout << "EMUTEX DEBUG [" << pass_name << "] dilation strides " << strides << std::endl;
+}
+
+void PrintConvolutionDilation(const std::string & pass_name, std::shared_ptr<ngraph::Function> function)
+{
+    for (const shared_ptr<ngraph::Node>& node : function->get_ops())
+    {
+        {
+            auto convolution_node = std::dynamic_pointer_cast<ngraph::opset8::Convolution>(node);
+            if (convolution_node)
+                return PrintDilationStrides(pass_name, convolution_node->get_dilations());
+        }
+        {
+            auto convolution_node = std::dynamic_pointer_cast<GNAPluginNS::Op::GNAConvolution>(node);
+            if (convolution_node)
+                return PrintDilationStrides(pass_name, convolution_node->get_dilations());
+        }
+        {
+            auto convolution_node = std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node);
+            if (convolution_node)
+                return PrintDilationStrides(pass_name, convolution_node->get_dilations());
+        }
+    }
+}
+
+void PrintConvolutionDilationLegacy(const std::string & pass_name, InferenceEngine::CNNNetwork network)
+{
+    // TODO
+    for (const auto& layer : details::CNNNetSortTopologically(network))
+    {
+        if (!LayerInfo(layer).isConvolution()) {
+            continue;
+        }
+        auto& convolution = dynamic_cast<ConvolutionLayer&>(*layer.get());
+        std::cout << "EMUTEX DEBUG [" << layer->name << "] convolution._dilation_x " << convolution._dilation_x << std::endl;
+        std::cout << "EMUTEX DEBUG [" << layer->name << "] convolution._dilation_y " << convolution._dilation_y << std::endl;
+    }
+}
+#endif
+} // namespace
+
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
@@ -668,7 +714,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
         manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/start.png"); // DEBUG
-        manager.register_pass<Reshape1DConvolution>();
         manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
         manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
         manager.register_pass<DecomposeMVN>();
@@ -703,8 +748,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SwapInputMatMul>();
         manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
+        // EMUTEX DEBUG CHECKPOINT START
+        //manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_before.png"); // DEBUG
         manager.register_pass<Unfuse2dto4dReshapeAndTranspose>();
+        //manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_after.png"); // DEBUG
         manager.register_pass<Unfuse4dto2dReshapeAndTranspose>();
+        // EMUTEX DEBUG CHECKPOINT END
         manager.register_pass<RemoveExtraReshapes>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();

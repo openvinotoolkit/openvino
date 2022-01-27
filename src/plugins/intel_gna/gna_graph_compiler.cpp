@@ -222,10 +222,28 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
 void GNAGraphCompiler::assertConvolutionLayoutProper(const InferenceEngine::DataPtr& data) {
     if (data->getLayout() != Layout::NHWC &&
         data->getLayout() != Layout::NCHW &&
-        data->getLayout() != Layout::NC) {
+        data->getLayout() != Layout::NC &&
+        data->getLayout() != Layout::CHW) {
         THROW_GNA_EXCEPTION << "layer: \"Convolution\" with layout " << data->getLayout() << " isn't currently supported on GNA";
     }
 }
+
+#ifdef DEBUG_USE_NEW_PASS
+namespace {
+
+template <typename T>
+PropertyVector<T> PropertyVectorAppend(PropertyVector<T> properties, T value)
+{
+    std::vector<T> new_values;
+    for (size_t i = 0; i < properties.size(); ++i)
+        new_values.push_back(properties[i]);
+    new_values.push_back(value);
+
+    return PropertyVector<T>(new_values);
+}
+
+} // namespace
+#endif
 
 /**
  * Create AMIntelDNN Convolutional1DComponent from ConvolutionLayer
@@ -261,6 +279,17 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     const auto out_channels = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::C);
     auto out_height = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::H);
     auto out_width = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::W);
+
+    if (inputs->getLayout() == Layout::CHW)
+    {
+        convolution._kernel_y = 1;
+        convolution._dilation_y = 1;
+        convolution._stride_y = 1;
+
+        convolution._padding = PropertyVectorAppend<unsigned int>(convolution._padding, 0);
+        convolution._pads_end = PropertyVectorAppend<unsigned int>(convolution._pads_end, 0);
+    }
+
 #else
     const auto in_batch = GetDataDimSize(inputs, InferenceEngine::DataDimName::N);
     const auto in_channels = GetDataDimSize(inputs, InferenceEngine::DataDimName::C);

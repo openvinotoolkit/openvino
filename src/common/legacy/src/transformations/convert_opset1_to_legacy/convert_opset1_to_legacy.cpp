@@ -85,8 +85,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngr
     // Convolution/Deconvolution/FullyConnected fusions
     manager.register_pass<ngraph::pass::ConvertConvolutions>();
 
-    manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_start.png"); // DEBUG
-
     // Convolution/Deconvolution/FullyConnected fusions
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
     fusion->add_matcher<ngraph::pass::ConvAddFusion>();
@@ -96,8 +94,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngr
 
     // CF is required after fusions
     manager.register_pass<ngraph::pass::ConstantFolding>();
-
-    manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_end.png"); // DEBUG
 
     // List of passes that convert opset1 operations to legacy
     // plus transformations that are required by InferenceEngine

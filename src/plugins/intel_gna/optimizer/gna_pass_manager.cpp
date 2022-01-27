@@ -2427,9 +2427,10 @@ template <typename GraphFunctionT>
 class FunctionTracer
 {
 public:
-    FunctionTracer(GraphFunctionT);
+    FunctionTracer(std::function<void (const std::string& pass_name, InferenceEngine::CNNNetwork)> OnNextPassReturnHook, GraphFunctionT);
     void OnNextPassReturn(const std::string& pass_name, GraphFunctionT);
 private:
+    std::function<void (const std::string& pass_name, InferenceEngine::CNNNetwork)> m_OnNextPassReturnHook;
     Graph m_graph;
 };
 
@@ -2481,8 +2482,9 @@ std::vector<std::string> FindNewLayers(const Graph & src_graph, const Graph & ds
 //---------------------------------------------------------------------------------------
 
 template <typename GraphFunctionT>
-FunctionTracer<GraphFunctionT>::FunctionTracer(GraphFunctionT function)
-    : m_graph(BuildGraph(function))
+FunctionTracer<GraphFunctionT>::FunctionTracer(std::function<void (const std::string& pass_name, InferenceEngine::CNNNetwork)> OnNextPassReturnHook, GraphFunctionT function)
+    : m_OnNextPassReturnHook(OnNextPassReturnHook),
+      m_graph(BuildGraph(function))
 {
 }
 
@@ -2507,6 +2509,8 @@ void FunctionTracer<GraphFunctionT>::OnNextPassReturn(const std::string& pass_na
 
      m_graph = new_graph;
 
+    if (m_OnNextPassReturnHook)
+        m_OnNextPassReturnHook(pass_name, function);
 }
 #endif // EMUTEX_TRACE_ENABLED
 
@@ -2531,7 +2535,7 @@ int PassManager::run(int index) {
 #endif
 
 #ifdef EMUTEX_TRACE_ENABLED
-    FunctionTracer<InferenceEngine::CNNNetwork> func_tracer(network);
+    FunctionTracer<InferenceEngine::CNNNetwork> func_tracer(m_OnNextPassReturnHook, network);
 #endif
 
 #if defined PLOT || defined ENABLE_V7_SERIALIZE

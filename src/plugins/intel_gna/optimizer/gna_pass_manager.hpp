@@ -9,6 +9,8 @@
 #include <map>
 #include <ie_common.h>
 
+#define EMUTEX_TRACE_ENABLED 1
+
 namespace GNAPluginNS {
 /**
  * @brief interface for gna-pass, special transformer that will be run on input network in order to generate GNABlob
@@ -242,6 +244,15 @@ public:
      * @param index - start index start index of first pass - used only in logging right now
      */
     int run(int index = 0);
+#ifdef EMUTEX_TRACE_ENABLED
+    void set_on_pass_hook(std::function<void (const std::string& pass_name, InferenceEngine::CNNNetwork)> OnNextPassReturnHook) {
+        m_OnNextPassReturnHook = OnNextPassReturnHook;
+    }
+#endif
+
+#ifdef EMUTEX_TRACE_ENABLED
+    std::function<void (const std::string& pass_name, InferenceEngine::CNNNetwork)> m_OnNextPassReturnHook;
+#endif
 };
 
 }  // namespace GNAPluginNS

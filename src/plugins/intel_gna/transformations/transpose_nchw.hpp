@@ -11,11 +11,23 @@ namespace GNAPluginNS {
 /**
  * @brief TODO
  */
-
-class TransposeNCHW : public ngraph::pass::MatcherPass {
+class SubstituteGNAConvolutionNoReshape : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    TransposeNCHW();
+    SubstituteGNAConvolutionNoReshape();
+};
+#if 0
+class SubstituteGNAConvolutionWithReshape : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    SubstituteGNAConvolutionWithReshape();
+};
+#endif
+
+class TransposeNCHW : public ngraph::pass::FunctionPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };
 
 } // namespace GNAPluginNS

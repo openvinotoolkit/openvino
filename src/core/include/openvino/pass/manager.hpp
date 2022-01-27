@@ -11,6 +11,9 @@
 
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/validate.hpp"
+#include "ngraph/function.hpp"
+
+#define EMUTEX_TRACE_ENABLED 1
 
 namespace ov {
 namespace pass {
@@ -109,6 +112,12 @@ public:
         return m_pass_config;
     }
 
+#ifdef EMUTEX_TRACE_ENABLED
+    void set_on_pass_hook(std::function<void (const std::string& pass_name, std::shared_ptr<ngraph::Function>)> OnNextPassReturnHook) {
+        m_OnNextPassReturnHook = OnNextPassReturnHook;
+    }
+#endif
+
 protected:
     template <typename T, class... Args>
     std::shared_ptr<T> push_pass(Args&&... args) {
@@ -123,6 +132,9 @@ protected:
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
     bool m_visualize = false;
     bool m_per_pass_validation = true;
+#ifdef EMUTEX_TRACE_ENABLED
+    std::function<void (const std::string& pass_name, std::shared_ptr<ngraph::Function>)> m_OnNextPassReturnHook;
+#endif
 };
 }  // namespace pass
 }  // namespace ov
