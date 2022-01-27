@@ -70,16 +70,16 @@ void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(const std
 }
 
 bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_ptr<ngraph::Function>& f) {
-    for (auto && node : f->get_ordered_ops()) {
+    for (auto&& node : f->get_ordered_ops()) {
         const auto& inputs = node->input_values();
         auto& rt_info = node->get_rt_info();
         bool can_be_folded = true;
         if (rt_info.count(DisableConstantFolding::get_type_info_static())) {
             can_be_folded = false;
-        } else if (std::any_of(inputs.cbegin(), inputs.cend(), [](const Output<Node> & output) {
-            const auto & rt_info = output.get_node()->get_rt_info();
-            return rt_info.count("can_be_folded") && !rt_info.at("can_be_folded").as<bool>();
-        })) {
+        } else if (std::any_of(inputs.cbegin(), inputs.cend(), [](const Output<Node>& output) {
+                       const auto& rt_info = output.get_node()->get_rt_info();
+                       return rt_info.count("can_be_folded") && !rt_info.at("can_be_folded").as<bool>();
+                   })) {
             can_be_folded = false;
         }
         rt_info["can_be_folded"] = can_be_folded;
@@ -101,7 +101,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
         visited.insert(curr_node);
 
         for (auto& output : curr_node->input_values()) {
-            const auto & rt_info = output.get_node()->get_rt_info();
+            const auto& rt_info = output.get_node()->get_rt_info();
             auto can_be_folded = !rt_info.count("can_be_folded") || rt_info.at("can_be_folded").as<bool>();
             if (can_be_folded && output.get_tensor().has_and_set_bound()) {
                 auto input_node = output.get_node_shared_ptr();

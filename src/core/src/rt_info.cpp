@@ -51,7 +51,7 @@ ov::Any get_opset(const ngraph::Node::RTMap& rt_info) {
 
 void assign_runtime_info(const ngraph::Node::RTMap& from, ngraph::Node::RTMap& to) {
     auto opset = get_opset(to);
-    for (auto & item : from) {
+    for (auto& item : from) {
         to[item.first] = item.second;
     }
     if (!opset.empty()) {

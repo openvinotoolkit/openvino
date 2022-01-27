@@ -30,12 +30,12 @@ public:
     }
 
     static void set(std::shared_ptr<Node> node) {
-        auto & rt_info = node->get_rt_info();
+        auto& rt_info = node->get_rt_info();
         rt_info[TestAttributeNoCopyable::get_type_info_static()] = TestAttributeNoCopyable();
     }
 
     static bool exists_in(std::shared_ptr<Node> node) {
-        const auto & rt_info = node->get_rt_info();
+        const auto& rt_info = node->get_rt_info();
         return rt_info.count(TestAttributeNoCopyable::get_type_info_static());
     }
 };
@@ -46,12 +46,12 @@ public:
     TestAttributeCopyable() = default;
 
     static void set(std::shared_ptr<Node> node) {
-        auto & rt_info = node->get_rt_info();
+        auto& rt_info = node->get_rt_info();
         rt_info[TestAttributeCopyable::get_type_info_static()] = TestAttributeCopyable();
     }
 
     static bool exists_in(std::shared_ptr<Node> node) {
-        const auto & rt_info = node->get_rt_info();
+        const auto& rt_info = node->get_rt_info();
         return rt_info.count(TestAttributeCopyable::get_type_info_static());
     }
 };
@@ -62,12 +62,12 @@ public:
     TestAttributeMergable() = default;
 
     static void set(std::shared_ptr<Node> node) {
-        auto & rt_info = node->get_rt_info();
+        auto& rt_info = node->get_rt_info();
         rt_info[TestAttributeMergable::get_type_info_static()] = TestAttributeMergable();
     }
 
     static bool exists_in(std::shared_ptr<Node> node) {
-        const auto & rt_info = node->get_rt_info();
+        const auto& rt_info = node->get_rt_info();
         return rt_info.count(TestAttributeMergable::get_type_info_static());
     }
 
@@ -142,7 +142,7 @@ TEST(copy_runtime_info, nodes_to_node_1) {
     TestAttributeCopyable::set(b);
     TestAttributeNoCopyable::set(b);
 
-    copy_runtime_info({a ,b}, c);
+    copy_runtime_info({a, b}, c);
 
     ASSERT_FALSE(TestAttributeCopyable::exists_in(c));
     ASSERT_FALSE(TestAttributeNoCopyable::exists_in(c));
@@ -157,7 +157,7 @@ TEST(copy_runtime_info, nodes_to_node_2) {
     TestAttributeMergable::set(b);
     TestAttributeNoCopyable::set(c);
 
-    copy_runtime_info({a ,b}, c);
+    copy_runtime_info({a, b}, c);
 
     ASSERT_TRUE(TestAttributeMergable::exists_in(c));
     ASSERT_TRUE(TestAttributeNoCopyable::exists_in(c));
@@ -170,7 +170,7 @@ TEST(copy_runtime_info, nodes_to_node_3) {
     TestAttributeCopyable::set(a);
     TestAttributeNoCopyable::set(b);
 
-    copy_runtime_info({a ,b}, b);
+    copy_runtime_info({a, b}, b);
 
     ASSERT_TRUE(TestAttributeCopyable::exists_in(b));
     ASSERT_TRUE(TestAttributeNoCopyable::exists_in(b));

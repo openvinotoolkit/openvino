@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <transformations/utils/utils.hpp>
 #include "ngraph/pass/constant_folding.hpp"
+
+#include <transformations/utils/utils.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -3241,7 +3242,8 @@ TEST(constant_folding, disable_constant_folding_simple) {
     // so CF triggers another branch where it goes through nodes and trying to fold one by one.
     auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
     auto reshape = std::make_shared<opset5::Reshape>(op::Constant::create(element::f32, Shape{3}, {1, 2, 3}),
-                                                     op::Constant::create(element::i64, Shape{3}, {3, 1, 1}), true);
+                                                     op::Constant::create(element::i64, Shape{3}, {3, 1, 1}),
+                                                     true);
     auto divide = std::make_shared<opset5::Divide>(data, reshape);
     auto f = std::make_shared<Function>(NodeVector{divide}, ParameterVector{data});
 
