@@ -70,6 +70,9 @@ void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(const std
 }
 
 bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_ptr<ngraph::Function>& f) {
+    // To avoid excess graph traversals we have to manually propagate DisableConstantFolding with some
+    // temporary attribute which indicates that the node which is marked with this attribute can't be folded because
+    // it is included into not foldable sub-graph.
     for (auto&& node : f->get_ordered_ops()) {
         const auto& inputs = node->input_values();
         auto& rt_info = node->get_rt_info();

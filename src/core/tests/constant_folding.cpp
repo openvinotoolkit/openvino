@@ -3235,6 +3235,11 @@ TEST(constant_folding, disable_constant_folding) {
 
     // After we enabled CF the sub-graph will be folded to Constant
     ASSERT_TRUE(ov::is_type<op::Constant>(interpolate->get_input_node_shared_ptr(1)));
+
+    // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
+    for (auto node : f->get_ordered_ops()) {
+        ASSERT_FALSE(ov::pass::constant_folding_is_disabled(node));
+    }
 }
 
 TEST(constant_folding, disable_constant_folding_simple) {
@@ -3262,6 +3267,11 @@ TEST(constant_folding, disable_constant_folding_simple) {
 
     // After we enabled CF the sub-graph will be folded to Constant
     ASSERT_TRUE(ov::is_type<op::Constant>(divide->get_input_node_shared_ptr(1)));
+
+    // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
+    for (auto node : f->get_ordered_ops()) {
+        ASSERT_FALSE(ov::pass::constant_folding_is_disabled(node));
+    }
 }
 
 TEST(constant_folding, constant_loop) {

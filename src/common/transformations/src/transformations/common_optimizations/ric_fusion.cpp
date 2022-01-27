@@ -607,7 +607,6 @@ public:
                 const auto & ric = ric_attr::get(input);
                 if (ric.can_be_fused() && ric.is_final()) {
                     ric(input);
-                    std::cout << "RIC fusion: " << node->get_friendly_name() << std::endl;
                 }
             }
             return false;
@@ -669,7 +668,6 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     auto ric_prop = m.register_pass<GraphRewrite>();
     ric_prop->add_matcher<init::SplitConcat>();
     ric_prop->add_matcher<init::Gather>();
-
     ric_prop->add_matcher<prop::Convolution>();
     ric_prop->add_matcher<prop::GroupConvolution>();
     ric_prop->add_matcher<prop::Binary>();
