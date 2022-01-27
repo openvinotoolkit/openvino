@@ -316,9 +316,9 @@ const std::vector<DeconvInputData> Planar_2D_inputs_smoke = {
         {}
     },
     DeconvInputData{
-        InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
+        InputShape{{-1, 12, -1, -1}, {{ 1, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 7, 7}}},
         ngraph::helpers::InputLayerType::PARAMETER,
-        {{15, 15}, {9, 10}, {9, 9}}
+        {{15, 15}, {9, 10}, {15, 15}}
     }
 };
 
@@ -329,7 +329,7 @@ const std::vector<DeconvInputData> Planar_2D_inputs_nightly = {
         {}
     },
     DeconvInputData{
-        InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
+        InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}, { 2, 12, 5, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     },
@@ -408,7 +408,7 @@ const std::vector<DeconvInputData> Planar_3D_inputs_smoke = {
 
 const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
     DeconvInputData{
-        InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
+        InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}, { 2, 12, 5, 7, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {}
     },
@@ -497,7 +497,7 @@ const std::vector<DeconvInputData> Blocked_2D_inputs_nightly = {
         {}
     },
     DeconvInputData{
-        InputShape{{-1, 64, -1, -1}, {{ 2, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}}},
+        InputShape{{-1, 64, -1, -1}, {{ 2, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}, { 2, 64, 7, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     },
@@ -576,7 +576,7 @@ const std::vector<DeconvInputData> Blocked_3D_inputs_smoke = {
 
 const std::vector<DeconvInputData> Blocked_3D_inputs_nightly = {
     DeconvInputData{
-        InputShape{{-1, 64, -1, -1, -1}, {{ 1, 64, 5, 5, 5}, { 2, 64, 5, 7, 5}}},
+        InputShape{{-1, 64, -1, -1, -1}, {{ 1, 64, 5, 5, 5}, { 2, 64, 5, 7, 5}, { 1, 64, 5, 5, 5}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {}
     },
@@ -665,7 +665,7 @@ const std::vector<DeconvInputData> dw_2D_inputs_nightly = {
         {}
     },
     DeconvInputData{
-        InputShape{{-1, 32, -1, -1}, {{ 1, 32, 5, 5}, { 2, 32, 5, 7}}},
+        InputShape{{-1, 32, -1, -1}, {{ 1, 32, 5, 5}, { 2, 32, 5, 7}, { 1, 32, 5, 5}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{7, 7}}
     },
@@ -740,9 +740,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_reorder_GroupDeconv_2D, GroupDeconvolutionLayerCP
                            ::testing::ValuesIn(numGroups_Blocked),
                            ::testing::Values(ngraph::op::PadType::EXPLICIT),
                            ::testing::ValuesIn(emptyOutputPadding)),
-        ::testing::Values(DeconvInputData{InputShape{{-1, 64, -1, -1}, {{ 2, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}}},
+        ::testing::Values(DeconvInputData{InputShape{{-1, 64, -1, -1}, {{ 1, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}, { 1, 64, 7, 7}}},
                                                      ngraph::helpers::InputLayerType::PARAMETER,
-                                                     {{15, 15}, {9, 10}, {9, 9}}}),
+                                                     {{15, 15}, {9, 10}, {9, 9}, {15, 15}}}),
         ::testing::Values(ElementType::f32),
         ::testing::Values(emptyFusingSpec),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
@@ -762,7 +762,7 @@ const std::vector<DeconvInputData> inputs_2D_AutoPadding = {
         {}
     },
     DeconvInputData{
-        InputShape{{-1, 64, -1, -1}, {{ 2, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}}},
+        InputShape{{-1, 64, -1, -1}, {{ 1, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 7, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     },
