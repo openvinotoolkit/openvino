@@ -849,9 +849,18 @@ void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(
         }
     };
 
-    parallel_nd(MB, DG, OH, OW, [&](int mb, int dg, int oh, int ow)  {
-        precompKer(mb, dg, oh, ow);
-    });
+    // parallel_nd(MB, DG, OH, OW, [&](int mb, int dg, int oh, int ow)  {
+    //     precompKer(mb, dg, oh, ow);
+    // });
+    for (int mb = 0; mb < MB; mb++) {
+        for (int dg = 0; dg < DG; dg++) {
+            for (int oh = 0; oh < OH; oh++) {
+                for (int ow = 0; ow < OW; ow++) {
+                    precompKer(mb, dg, oh, ow);
+                }
+            }
+        }
+    }
 }
 
 MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
@@ -1004,10 +1013,21 @@ void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(const float* src,
         return d;
     };
 
-    parallel_nd(G, MB, OC, OH, OW,
-                [&](int g, int mb, int oc, int oh, int ow)  {
-                    dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] = compKer(g, mb, oc, oh, ow);
-                });
+    // parallel_nd(G, MB, OC, OH, OW,
+    //             [&](int g, int mb, int oc, int oh, int ow)  {
+    //                 dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] = compKer(g, mb, oc, oh, ow);
+    //             });
+    for (int g = 0; g < G; g++) {
+        for (int mb = 0; mb < MB; mb++) {
+            for (int oc = 0; oc < OC; oc++) {
+                for (int oh = 0; oh < OH; oh++) {
+                    for (int ow = 0; ow < OW; ow++) {
+                        dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] = compKer(g, mb, oc, oh, ow);
+                    }
+                }
+            }
+        }
+    }
 }
 
 void MKLDNNDeformableConvolutionNode::prepareParams() {
@@ -1085,26 +1105,50 @@ void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(const float* src,
     std::vector<float> input_buffer(buffer_size, 0);
     float* input_buffer_ptr = input_buffer.data();
 
-    parallel_for3d(jcp.mb, jcp.ngroups, jcp.oh, [&](size_t n, size_t g, size_t oh) {
-        auto ithr = parallel_get_thread_num();
+    // parallel_for3d(jcp.mb, jcp.ngroups, jcp.oh, [&](size_t n, size_t g, size_t oh) {
+    //     auto ithr = parallel_get_thread_num();
 
-        auto par_conv = jit_def_conv_call_args();
+    //     auto par_conv = jit_def_conv_call_args();
 
-        const size_t _oc = g * jcp.nb_oc;
-        const size_t _ic = g * jcp.nb_ic;
+    //     const size_t _oc = g * jcp.nb_oc;
+    //     const size_t _ic = g * jcp.nb_ic;
 
-        par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1] +
-                            (oh * jcp.stride_h - jcp.t_pad) * srcStrides[2] - jcp.l_pad * srcStrides[3]];
-        par_conv.sampledWei = &(pInterpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
-        par_conv.sampledCoords = &(pSampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
-        par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
-        par_conv.dst = &dst[n * dstStrides[0] + _oc * jcp.oc_block * dstStrides[1] + oh * dstStrides[2]];
-        par_conv.buf = input_buffer_ptr + ithr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic;
+    //     par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1] +
+    //                         (oh * jcp.stride_h - jcp.t_pad) * srcStrides[2] - jcp.l_pad * srcStrides[3]];
+    //     par_conv.sampledWei = &(pInterpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+    //     par_conv.sampledCoords = &(pSampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+    //     par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
+    //     par_conv.dst = &dst[n * dstStrides[0] + _oc * jcp.oc_block * dstStrides[1] + oh * dstStrides[2]];
+    //     par_conv.buf = input_buffer_ptr + ithr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic;
 
-        par_conv.oh_pos = oh;
+    //     par_conv.oh_pos = oh;
 
-        (*def_conv_kernel)(&par_conv);
-    });
+    //     (*def_conv_kernel)(&par_conv);
+    // });
+    for (int n = 0; n < jcp.mb; n++) {
+        for (int g = 0; g < jcp.ngroups; g++) {
+            for (int oh = 0; oh < jcp.oh; oh++) {
+                auto ithr = parallel_get_thread_num();
+
+                auto par_conv = jit_def_conv_call_args();
+
+                const size_t _oc = g * jcp.nb_oc;
+                const size_t _ic = g * jcp.nb_ic;
+
+                par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1] +
+                                    (oh * jcp.stride_h - jcp.t_pad) * srcStrides[2] - jcp.l_pad * srcStrides[3]];
+                par_conv.sampledWei = &(pInterpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+                par_conv.sampledCoords = &(pSampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+                par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
+                par_conv.dst = &dst[n * dstStrides[0] + _oc * jcp.oc_block * dstStrides[1] + oh * dstStrides[2]];
+                par_conv.buf = input_buffer_ptr + ithr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic;
+
+                par_conv.oh_pos = oh;
+
+                (*def_conv_kernel)(&par_conv);
+            }
+        }
+    }
 }
 
 void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
