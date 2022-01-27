@@ -78,7 +78,8 @@ const std::vector<std::map<std::string, std::string>> configs = {
 const std::vector<std::vector<size_t>> inputShape = {
     {1, 67000},
     {1, 500000},
-    {1, 936, 513}
+    {1, 936, 513},
+    {1, 64, 64, 64}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,
