@@ -33,7 +33,7 @@ jobs:
   timeoutInMinutes: 120
 
   pool:
-    name: WIN_VMSS_VENV_F8S_WU2
+    name: WIN_VMSS_VENV_D8S_WU2
 
   variables:
     system.debug: true
@@ -44,9 +44,9 @@ jobs:
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)\..\openvino_contrib
     MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
-    BUILD_DIR: D:\build
-    BUILD_SAMPLES_DIR: D:\build_samples
-    BUILD_SAMPLES_TESTS_DIR: D:\build_samples_tests
+    BUILD_DIR: $(WORK_DIR)\build
+    BUILD_SAMPLES_DIR: $(WORK_DIR)\build_samples
+    BUILD_SAMPLES_TESTS_DIR: $(WORK_DIR)\build_samples_tests
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     INSTALL_DIR: $(WORK_DIR)\install_pkg
