@@ -112,18 +112,17 @@ def get_common_argument_parser():
         default=False,
         help='Keep Convolution, Deconvolution and FullyConnected weights uncompressed')
 
-    parser.add_argument(
+    data_free_opt = parser.add_argument_group('DataFreeEngine options')
+
+    data_free_opt.add_argument(
         '--data-source',
         default='../../../pot_dataset',
-        help='Valid only for DataFreeEngine. '
-             'Specify path to directory where synthetic dataset is located or will be generated and saved. '
+        help='Specify path to directory where synthetic dataset is located or will be generated and saved. '
              'Default: `../../../pot_dataset`')
 
-    parser.add_argument(
+    data_free_opt.add_argument(
         '--shape',
-        help='Provide model input shape for DataFreeEngine if model has dynamic shapes')
-
-    data_free_opt = parser.add_argument_group('DataFree options')
+        help='Provide model input shape if model has dynamic shapes')
 
     data_free_opt.add_argument(
         '--data-type',

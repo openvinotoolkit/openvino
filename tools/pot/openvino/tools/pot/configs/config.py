@@ -63,8 +63,8 @@ class Config(Dict):
         self.model['output_dir'] = args.output_dir
         self.model['direct_dump'] = args.direct_dump
         self.engine['evaluate'] = args.evaluate
-        self.engine['shape'] = args.shape
         if args.engine == 'data_free':
+            self.engine['shape'] = args.shape
             self.engine['generate_data'] = args.generate_data
             self.engine['data_type'] = args.data_type
             if args.generate_data:
