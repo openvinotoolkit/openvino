@@ -10,6 +10,7 @@
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
 #include <pyopenvino/core/tensor.hpp>
+#include <pyopenvino/graph/any.hpp>
 
 #include "common.hpp"
 
@@ -39,14 +40,14 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "set_property",
-        [](ov::Core& self, const std::map<std::string, std::string>& properties) {
+        [](ov::Core& self, const std::map<std::string, PyAny>& properties) {
             self.set_property({properties.begin(), properties.end()});
         },
         py::arg("properties"));
 
     cls.def(
         "set_property",
-        [](ov::Core& self, const std::string& device_name, const std::map<std::string, std::string>& properties) {
+        [](ov::Core& self, const std::string& device_name, const std::map<std::string, PyAny>& properties) {
             self.set_property(device_name, {properties.begin(), properties.end()});
         },
         py::arg("device_name"),
@@ -160,8 +161,8 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "get_property",
-        [](ov::Core& self, const std::string& device_name, const std::string& name) {
-            return Common::from_ov_any(self.get_property(device_name, name));
+        [](ov::Core& self, const std::string& device_name, py::object& name) {
+            return Common::from_ov_any(self.get_property(device_name, PyAny(name)));
         },
         py::arg("device_name"),
         py::arg("name"));

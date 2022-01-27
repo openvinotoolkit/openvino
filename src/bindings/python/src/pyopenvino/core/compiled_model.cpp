@@ -6,6 +6,8 @@
 
 #include <pybind11/stl.h>
 
+#include <pyopenvino/graph/any.hpp>
+
 #include "common.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/infer_request.hpp"
@@ -42,7 +44,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def(
         "set_property",
-        [](ov::CompiledModel& self, const std::map<std::string, std::string>& properties) {
+        [](ov::CompiledModel& self, const std::map<std::string, PyAny>& properties) {
             self.set_property({properties.begin(), properties.end()});
         },
         py::arg("properties"));
@@ -58,8 +60,8 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def(
         "get_property",
-        [](ov::CompiledModel& self, const std::string& name) {
-            return Common::from_ov_any(self.get_property(name));
+        [](ov::CompiledModel& self, py::object& name) {
+            return Common::from_ov_any(self.get_property(PyAny(name)));
         },
         py::arg("name"));
 
