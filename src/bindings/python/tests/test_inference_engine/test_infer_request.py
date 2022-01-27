@@ -11,7 +11,6 @@ import time
 import openvino.runtime.opset8 as ops
 import openvino.runtime.opset6 as ops6
 import openvino.runtime.opset1 as ops1
-import openvino.runtime.opset0 as ops0
 from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, Type
 from openvino.preprocess import PrePostProcessor
 
@@ -22,20 +21,20 @@ test_net_xml, test_net_bin = model_path(is_myriad)
 
 
 def create_model_with_memory(input_shape, data_type):
-    input_data = ops0.parameter(input_shape, name="input_data", dtype=data_type)
+    input_data = ops1.parameter(input_shape, name="input_data", dtype=data_type)
     rv = ops6.read_value(input_data, "var_id_667")
     add = ops1.add(rv, input_data, name="MemoryAdd")
     node = ops6.assign(add, "var_id_667")
-    res = ops0.result(add, "res")
+    res = ops1.result(add, "res")
     model = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
     return model
 
 
 def create_simple_request_and_inputs(device):
     input_shape = [2, 2]
-    param_a = ops.parameter(input_shape, np.float32)
-    param_b = ops.parameter(input_shape, np.float32)
-    model = Model(ops.add(param_a, param_b), [param_a, param_b])
+    param_a = ops1.parameter(input_shape, np.float32)
+    param_b = ops1.parameter(input_shape, np.float32)
+    model = Model(ops1.add(param_a, param_b), [param_a, param_b])
 
     core = Core()
     compiled = core.compile_model(model, device)
@@ -166,8 +165,8 @@ def test_set_tensors(device):
 def test_inputs_outputs_property(device):
     num_inputs = 10
     input_shape = [1]
-    params = [ops.parameter(input_shape, np.uint8) for _ in range(num_inputs)]
-    model = Model(ops.split(ops.concat(params, 0), 0, num_inputs), params)
+    params = [ops1.parameter(input_shape, np.uint8) for _ in range(num_inputs)]
+    model = Model(ops1.split(ops1.concat(params, 0), 0, num_inputs), params)
     core = Core()
     compiled = core.compile_model(model, device)
     request = compiled.create_infer_request()
@@ -228,8 +227,8 @@ def test_infer_list_as_inputs(device):
     num_inputs = 4
     input_shape = [2, 1]
     dtype = np.float32
-    params = [ops.parameter(input_shape, dtype) for _ in range(num_inputs)]
-    model = Model(ops.relu(ops.concat(params, 1)), params)
+    params = [ops1.parameter(input_shape, dtype) for _ in range(num_inputs)]
+    model = Model(ops1.relu(ops1.concat(params, 1)), params)
     core = Core()
     compiled_model = core.compile_model(model, device)
 
@@ -391,8 +390,8 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
 
 def test_get_results(device):
     core = Core()
-    data = ops.parameter([10], np.float64)
-    model = Model(ops.split(data, 0, 5), [data])
+    data = ops1.parameter([10], np.float64)
+    model = Model(ops1.split(data, 0, 5), [data])
     compiled = core.compile_model(model, device)
     request = compiled.create_infer_request()
     inputs = [np.random.normal(size=list(compiled.input().shape))]
@@ -511,9 +510,9 @@ def test_infer_float16(device):
 
 def test_ports_as_inputs(device):
     input_shape = [2, 2]
-    param_a = ops.parameter(input_shape, np.float32)
-    param_b = ops.parameter(input_shape, np.float32)
-    model = Model(ops.add(param_a, param_b), [param_a, param_b])
+    param_a = ops1.parameter(input_shape, np.float32)
+    param_b = ops1.parameter(input_shape, np.float32)
+    model = Model(ops1.add(param_a, param_b), [param_a, param_b])
 
     core = Core()
     compiled = core.compile_model(model, device)
