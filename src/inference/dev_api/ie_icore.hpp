@@ -181,6 +181,13 @@ public:
     virtual bool isNewAPI() const = 0;
 
     /**
+     * @brief Get a pointer to default shared context object for the specified device.
+     * @param deviceName  - A name of a device to get create shared context from.
+     * @return A shared pointer to a default remote context.
+     */
+    virtual RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) = 0;
+
+    /**
      * @brief Default virtual destructor
      */
     virtual ~ICore() = default;
