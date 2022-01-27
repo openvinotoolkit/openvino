@@ -1,4 +1,4 @@
-# Overview
+# Overview {#openvino_docs_install_guides_overview}
 
 Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud by:
 

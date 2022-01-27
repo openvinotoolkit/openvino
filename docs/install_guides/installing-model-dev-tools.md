@@ -1,4 +1,4 @@
-# Install OpenVINO Model Development Tools
+# Install OpenVINO Model Development Tools {#openvino_docs_install_guides_install_dev_tools}
 
 If you are planning to develop your own inference solutions, install OpenVINO Model Development Tools, which provides the following tools:
 
