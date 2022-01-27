@@ -47,12 +47,12 @@ if(NOT ENABLE_DOCKER)
 endif()
 
 set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check dir.")
+set(ENABLE_OPENVINO_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks")
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation dir.")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
 set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation dir.")
 set(OVMS_DOCS_DIR "" CACHE PATH "Path to model server documentation dir.")
 set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
-set(GITHUB_API_TOKEN "" CACHE PATH "Path to file containing github api token.")
 set(GRAPH_CSV_DIR "" CACHE PATH "Path to the folder containing csv data for rendering graphs.")
 
 function(build_docs)
@@ -118,11 +118,11 @@ function(build_docs)
 
     # include additional repositories
 
-    # openvino notebooks dir
-    if(GITHUB_API_TOKEN)
+    # build with openvino notebooks
+    if(ENABLE_OPENVINO_NOTEBOOKS)
         set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
         list(APPEND commands
-            COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${GITHUB_API_TOKEN}" "${RST_OUTPUT}/notebooks"
+            COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${RST_OUTPUT}/notebooks"
         )
     endif()
 
