@@ -52,7 +52,7 @@ docker build . -t <image_name> `
 --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
 ```
 
-**Install Microsoft Visual Studio* Build Tools**
+**Install Microsoft Visual Studio\* Build Tools**
 
 You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
 Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license.
@@ -143,7 +143,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    ```bat
    copy C:\tmp\OpenCL.dll C:\Windows\System32\ && reg add "HKLM\SOFTWARE\Khronos\OpenCL\Vendors" /v "C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409\ocl\bin\x64\intelocl64.dll" /t REG_DWORD /d 0
    ```
-   For example, run the `Hello Classification Python` sample with the following command::
+   For example, run the `Hello Classification Python` sample with the following command:
    ```bat
    omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -kO https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python samples\python\hello_classification\hello_classification.py public\googlenet-v1\FP16\googlenet-v1.xml car_1.bmp GPU
    ```
