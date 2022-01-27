@@ -351,7 +351,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' for example: --layout name1(nchw),name2(nc). It is possible to instruct '
                                    'ModelOptimizer to change layout, for example: '
                                    '--layout name1(nhwc->nchw),name2(cn->nc). Also "*" in long layout form can be used'
-                                   ' to fuse dimensions, for example [n,c,...]->[n*c,…].',
+                                   ' to fuse dimensions, for example [n,c,...]->[n*c,...].',
                               default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
