@@ -80,25 +80,6 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
       {
         SCOPED_TIMER(fill_inputs);
         std::vector<ov::Output<const ov::Node>> inputs = exeNetwork.inputs();
-
-        //debug info
-        for (size_t i = 0; i < inputs.size(); i++) {
-          std::string name;
-          try {
-            name = inputs[i].get_any_name();
-          } catch (const ov::Exception &iex) {
-            // Attempt to get a name for a Tensor without names
-          }
-
-          if (!inputs[i].get_partial_shape().is_dynamic()) {
-            std::cerr << "Tensor: " << name << " not dynamic: " << inputs[i].get_partial_shape() << ".Layout: " << ov::layout::get_layout(inputs[i]).to_string() <<  "\n";
-          }
-          else {
-            std::cerr << "Tensor: " << name << " is dynamic: " << inputs[i].get_partial_shape() << ".Layout: " << ov::layout::get_layout(inputs[i]).to_string() << "\n";
-          }
-        }
-        //
-
         if (reshape) {
           fillTensorsDynamic(inferRequest, inputs, dataShapes);
         } else {
@@ -113,11 +94,11 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
     pipeline(model, device, isCacheEnabled, reshapeShapes, dataShapes);
   } catch (const ov::Exception &iex) {
     std::cerr
-        << "OpenVINO runtime pipeline failed with OpenVINO runtime exception:\n"
+        << "Inference Engine pipeline failed with Inference Engine exception:\n"
         << iex.what();
     return 1;
   } catch (const std::exception &ex) {
-    std::cerr << "OpenVINO runtime pipeline failed with exception:\n"
+    std::cerr << "Inference Engine pipeline failed with exception:\n"
               << ex.what();
     return 2;
   } catch (...) {

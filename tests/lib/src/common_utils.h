@@ -23,6 +23,19 @@ static bool isImage(const T &blob) {
 
 
 /**
+ * @brief Determine if model input means image or not
+ */
+static bool isImageInput(ov::Output<const ov::Node> input) {
+  auto shape = input.get_shape();
+  if (ov::layout::get_layout(input).to_string() != "NCHW") {
+    return false;
+  }
+  auto channels = shape[1];
+  return channels == 3;
+}
+
+
+/**
  * @brief Determine if InferenceEngine blob means image information or not
  */
 template<typename T>
@@ -60,6 +73,27 @@ inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::Ten
     throw std::logic_error("Tensor does not have height and width dimensions");
   }
 }
+
+
+/**
+ * @brief Return height and width from provided model input
+ */
+inline std::pair<size_t, size_t> getInputTensorHeightWidth(ov::Output<const ov::Node> input) {
+  auto shape = input.get_shape();
+  const auto& size = shape.size();
+  std::string layout = ov::layout::get_layout(input).to_string();
+  if ((size >= 2) &&
+      (layout == "NCHW"  || layout == "NHWC"  || layout == "NCDHW" ||
+       layout == "NDHWC" || layout == "OIHW"  || layout == "GOIHW" ||
+       layout == "OIDHW" || layout == "GOIDHW" || layout == "CHW"  ||
+       layout == "HW")) {
+    // Regardless of layout, dimensions are stored in fixed order
+    return std::make_pair(shape.back(), shape.at(size - 2));
+  } else {
+    throw std::logic_error("Tensor does not have height and width dimensions");
+  }
+}
+
 
 /**
  * @brief Fill InferenceEngine blob with random values

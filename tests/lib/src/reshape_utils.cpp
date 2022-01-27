@@ -145,16 +145,17 @@ void fillTensorsDynamic(ov::InferRequest& infer_request,
                         std::vector<ov::Output<const ov::Node>>& inputs,
                         std::map<std::string, std::vector<size_t>> dataShape) {
   std::vector<std::pair<size_t, size_t>> input_image_sizes;
+  ov::Shape inputShape;
 
   for (size_t i = 0; i < inputs.size(); i++) {
-    ov::Shape inputShape = getTensorsStaticShapes(inputs[i], dataShape);
-    if (inputShape.size() == 4)
-      // TODO: Check layout
+    inputShape = getTensorsStaticShapes(inputs[i], dataShape);
+    if (inputShape.size() == 4) {
+      // if tensor does not have specified layout
       input_image_sizes.emplace_back(inputShape[2], inputShape[3]);
+    }
   }
 
   for (size_t i = 0; i < inputs.size(); i++) {
-    ov::Shape inputShape = getTensorsStaticShapes(inputs[i], dataShape);
     ov::Tensor input_tensor;
 
     if ((inputShape.size() == 2) && (input_image_sizes.size() == 1)) {
