@@ -193,9 +193,9 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         IE_SET_METRIC(OPTIMAL_BATCH_SIZE, optimalBatchNum, 8);
         IE_SET_METRIC(RANGE_FOR_STREAMS, rangeOfStreams, std::make_tuple<unsigned int, unsigned int>(1, 3));
         ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
-             .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
+            .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
         ON_CALL(*core.get(), GetMetric(_, StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
-             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
+            .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
         ON_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT))))
             .WillByDefault(Return(CONFIG_VALUE(THROUGHPUT)));
         EXPECT_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT)))).Times(AnyNumber());

@@ -721,7 +721,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                     } catch (...) {
                         LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
                     }
-                    if (optimalBatchSize > 1) {
+                    if (optimalBatchSize > 1 && !_context.batchingDisabled) {
                         // batching is supported with the device
                         // go with auto-batching
                         try {

@@ -533,7 +533,8 @@ public:
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
                 // no need for this config key in the rest of loading
-                config.erase(batch_mode);
+                if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
+                    config.erase(batch_mode);
                 if (disabled)
                     return;
             }
