@@ -554,7 +554,7 @@ The sections below contain detailed list of changes made to the Inference Engine
 
 ### Removed API
 
- Removed all [Inference Engine API which deprecated in 2019'R2](https://docs.openvinotoolkit.org/2019_R3/_docs_IE_DG_API_Changes.html#deprecated_api)
+ Removed all [Inference Engine API which deprecated in 2019'R2](https://docs.openvino.ai/2019_R3/_docs_IE_DG_API_Changes.html#deprecated_api)
 
 ## 2019 R3
 
