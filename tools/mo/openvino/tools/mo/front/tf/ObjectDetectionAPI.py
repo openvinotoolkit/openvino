@@ -651,7 +651,15 @@ def get_preprocessing_ops(graph: Graph, start_node_id_suffix: str, end_node_id_s
     if len(preprocessing_nodes) == 0:
         preprocessing_nodes = get_specific_ops_with_const_inputs(end_node, allowed_ops, True)
         trailing = True
-    return preprocessing_nodes, trailing
+
+    # try to detect floating-point casting inside the body graph
+    # that also needs to stay in the resulted graph
+    casting = False
+    cast_nodes = backward_bfs_for_operation(start_node, ['Cast'])
+    if len(cast_nodes) == 1 and cast_nodes[0].dst_type == np.float32:
+        casting = True
+
+    return preprocessing_nodes, trailing, casting
 
 
 """ 
@@ -848,11 +856,11 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
             # we stick to the nodes with ids 'map/while/Preprocessor/unstack' and 'map/while/Preprocessor/stack' as they
             # "wrap" nodes performing image resize. The scale/mean values nodes are located strictly before or after
             # them
-            pre_processing_ops, trailing = get_preprocessing_ops(body_graph,
+            pre_processing_ops, trailing, casting = get_preprocessing_ops(body_graph,
                                                                  'map/while/Preprocessor/unstack',
                                                                  'map/while/Preprocessor/stack')
         else:
-            pre_processing_ops, trailing = get_preprocessing_ops(graph, start_node.id, end_node.id)
+            pre_processing_ops, trailing, casting = get_preprocessing_ops(graph, start_node.id, end_node.id)
 
         mean_scale_kept = True
         if len(pre_processing_ops):
@@ -863,6 +871,12 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
             if pre_processing_in_loop:  # case 4 and 5
                 # build a sub-graph containing a sequence of pre_processing_ops if they came from the Loop
                 new_preprocessing_ops = []
+
+                # cast data before start pre-processing with mean/scale values
+                if casting:
+                    cast_node = Cast(graph, {'dst_type': np.float32}).create_node()
+                    new_preprocessing_ops.append(cast_node)
+
                 ops_mapping = {'Add': Add, 'Div': Div, 'Mul': Mul, 'Sub': Sub}
                 for idx in range(len(pre_processing_ops)):
                     origin_node, const_port_ind, value = pre_processing_ops[idx]
