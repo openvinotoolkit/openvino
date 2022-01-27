@@ -86,3 +86,4 @@ possible hints:
 no module named openvino
 title level inconsistent
 create a pipeline
+run pot cli

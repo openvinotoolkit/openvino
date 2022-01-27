@@ -82,7 +82,7 @@ jobs:
           name: doxygen_log
           path: build/docs/doxygen.log
 
-      - name: 'Upload sphinx.log results'
+      - name: 'Upload sphinx.log'
         if: always()
         uses: actions/upload-artifact@v2
         with:
