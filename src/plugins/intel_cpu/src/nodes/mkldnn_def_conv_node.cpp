@@ -867,6 +867,8 @@ MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvA
     offStrides = descVector[OFF_ID]->getStrides();
     weiStrides = descVector[WEI_ID]->getStrides();
     dstStrides = std::vector<size_t>(dstDesc->getStrides().size());
+    pSampledCoordsVector = nullptr;
+    pInterpWeightsVector = nullptr;
     for (int i = 0; i < srcDesc->getStrides().size(); i++) {
         srcStrides[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }
