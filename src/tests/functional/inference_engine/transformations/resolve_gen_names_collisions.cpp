@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/resolve_gen_names_collisions.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset8.hpp"
