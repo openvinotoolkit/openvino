@@ -140,7 +140,3 @@ INTERPRETER.onnx_dyn_shapes_flatten_neg_axis
 INTERPRETER.onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
 INTERPRETER.onnx_model_instance_normalization_dyn_shape
 INTERPRETER.onnx_controlflow_loop_2d_no_identity_termination_cond_false
-
-# Segmentation fault (core dumped)
-INTERPRETER.onnx_duplicated_output_name
-INTERPRETER.onnx_duplicated_more_output_names
