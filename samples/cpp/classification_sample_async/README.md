@@ -81,18 +81,26 @@ To run the sample, you need specify a model and image:
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
-```
-python <path_to_omz_tools>/downloader.py --name googlenet-v1
-```
 
-2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
 
 ```
-python <path_to_omz_tools>/converter.py --name googlenet-v1
+python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 ```
 
-3. Perform inference of `dog.bmp` using `googlenet-v1` model on a `GPU`, for example:
+2. Download a pre-trained model using:
+
+```
+omz_downloader --name googlenet-v1
+```
+
+3. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter:
+
+```
+omz_converter --name googlenet-v1
+```
+
+4. Perform inference of `dog.bmp` using `googlenet-v1` model on a `GPU`, for example:
 
 ```
 classification_sample_async -m googlenet-v1.xml -i dog.bmp -d GPU
