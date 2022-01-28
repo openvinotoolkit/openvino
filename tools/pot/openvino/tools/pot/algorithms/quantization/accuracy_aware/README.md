@@ -5,9 +5,7 @@ AccuracyAware algorithm is designed to perform accurate 8-bit quantization and a
 pre-defined range of accuracy drop, for example 1%, defined by the user in the configuration file. This may cause a 
 degradation in performance in comparison to [DefaultQuantization](../default/README.md) algorithm because some layers can be reverted back to the original precision.
 
-> **NOTE**:
-In case of GNA `target_device`, POT moves INT8 weights to INT16 to stay in the pre-defined range of the accuracy drop. Thus, the algorithm works for the `performance` (INT8) preset only.
-For the `accuracy` preset, this algorithm is not performed, but the parameters tuning is available (if `tune_hyperparams` option is enabled).
+> **NOTE**: In case of GNA `target_device`, POT moves INT8 weights to INT16 to stay in the pre-defined range of the accuracy drop. Thus, the algorithm works for the `performance` (INT8) preset only. For the `accuracy` preset, this algorithm is not performed, but the parameters tuning is available (if `tune_hyperparams` option is enabled).
 
 Generally, the algorithm consists of the following steps:
 1. The model gets fully quantized using the DefaultQuantization algorithm.
@@ -25,7 +23,7 @@ without a need to wait until it finishes.
 
 The figure below shows the diagram of the algorithm.
 
-![](../../../../docs/images/aa_quantization_pipeline.png)
+![](../../../../../../docs/images/aa_quantization_pipeline.png)
 
 ## Parameters
 Since the [DefaultQuantization](../default/README.md) algorithm is used as an initialization, all its parameters are also valid and can be specified. Here we
