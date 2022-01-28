@@ -61,6 +61,12 @@ bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_
     return WeightableLayerTransformation::isQuantizedStatic(layer, false);
 }
 
+size_t ConvolutionBackpropDataTransformation::getInputChannels(const std::shared_ptr<ngraph::Node> conv) const {
+    const auto channels = conv->get_input_partial_shape(1)[0];
+    assert(channels.is_static());
+    return channels.get_length();
+}
+
 bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
     auto convolutionBackpropData = m.get_match_root();
 

@@ -410,11 +410,11 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
             if op.has_and_set('rt_info'):
                 op.out_node(0)['rt_info'] = op.rt_info
 
-        restore_tensor_names(op)
-
         # operations postprocessing with some special types
         if op.soft_get('type') in postprocessing_op_nodes:
             postprocessing_op_nodes[op.type](op)
+
+        restore_tensor_names(op)
 
     # clean up graph to shape inference
     new_graph.clean_up()
