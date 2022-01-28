@@ -91,7 +91,8 @@ private:
                                                                      score_threshold,
                                                                      soft_nms_sigma,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
@@ -128,7 +129,8 @@ private:
                                                                      score_threshold,
                                                                      soft_nms_sigma,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(),
                                                ParameterVector{boxes, scores, max_output_boxes_per_class,
                                                                iou_threshold, score_threshold, soft_nms_sigma});
@@ -549,7 +551,8 @@ private:
                                                                      iou_threshold,
                                                                      score_threshold,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
@@ -581,7 +584,8 @@ private:
                                                                      iou_threshold,
                                                                      score_threshold,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(),
                                                ParameterVector{boxes, scores, max_output_boxes_per_class,
                                                                iou_threshold, score_threshold});
@@ -935,7 +939,8 @@ private:
                                                                      iou_threshold,
                                                                      score_threshold,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
@@ -967,7 +972,8 @@ private:
                                                                      iou_threshold,
                                                                      score_threshold,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(),
                                                ParameterVector{boxes, scores, max_output_boxes_per_class,
                                                                iou_threshold, score_threshold});
@@ -1528,9 +1534,6 @@ std::vector<NonMaxSuppression1Params> generateParams1() {
 
 std::vector<NonMaxSuppression1Params> generateCombinedParams1() {
     const std::vector<std::vector<NonMaxSuppression1Params>> generatedParams {
-        generateParams1<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams1<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams1<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
         generateParams1<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
         generateParams1<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
         generateParams1<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
@@ -1576,9 +1579,6 @@ std::vector<NonMaxSuppression1Params> generateParams1WithoutConstants() {
 
 std::vector<NonMaxSuppression1Params> generateCombinedParams1WithoutConstants() {
     const std::vector<std::vector<NonMaxSuppression1Params>> generatedParams {
-        generateParams1WithoutConstants<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams1WithoutConstants<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams1WithoutConstants<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
         generateParams1WithoutConstants<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
         generateParams1WithoutConstants<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
         generateParams1WithoutConstants<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
