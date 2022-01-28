@@ -1,6 +1,6 @@
 # Image Classification Async C++ Sample {#openvino_inference_engine_samples_classification_sample_async_README}
 
-This sample demonstrates how to do inference of image classification networks using Asynchronous Inference Request API.  
+This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API.  
 Models with only 1 input and output are supported.
 
 In addition to regular images, the sample also supports single-channel `ubyte` images as an input for LeNet model.
@@ -25,8 +25,8 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 
 ## How It Works
 
-Upon the start-up, the sample application reads command line parameters and loads specified network and input images (or a
-folder with images) to the Inference Engine plugin. The batch size of the network is set according to the number of read images. The batch mode is an independent attribute on the asynchronous mode. Asynchronous mode works efficiently with any batch size.
+Upon the start-up, the sample application reads command line parameters and loads specified model and input images (or a
+folder with images) to the Inference Engine plugin. The batch size of the model is set according to the number of read images. The batch mode is an independent attribute on the asynchronous mode. Asynchronous mode works efficiently with any batch size.
 
 Then, the sample creates an inference request object and assigns completion callback for it. In scope of the completion callback
 handling the inference request is executed again.
@@ -61,7 +61,7 @@ Options:
 
     -h                      Print a usage message.
     -m "<path>"             Required. Path to an .xml file with a trained model.
-    -i "<path>"             Required. Path to a folder with images or path to an image files: a .ubyte file for LeNet and a .bmp file for the other networks.
+    -i "<path>"             Required. Path to a folder with images or path to an image files: a .ubyte file for LeNet and a .bmp file for the other models.
     -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma_separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified.
 
 Available target devices: <devices>

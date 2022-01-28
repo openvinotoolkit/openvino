@@ -1,6 +1,6 @@
 # Hello Classification C++ Sample {#openvino_inference_engine_samples_hello_classification_README}
 
-This sample demonstrates how to do inference of image classification networks using Synchronous Inference Request API.  
+This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.  
 Models with only 1 input and output are supported.
 
 The following Inference Engine C++ API is used in the application:
@@ -54,19 +54,19 @@ To run the sample, you need specify a model and image:
 ### Example
 1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
 ```
-python <path_to_omz_tools>/downloader.py --name alexnet
+python <path_to_omz_tools>/downloader.py --name googlenet-v1
 ```
 
 2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
 
 ```
-python <path_to_omz_tools>/converter.py --name alexnet
+python <path_to_omz_tools>/converter.py --name googlenet-v1
 ```
 
-3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
+3. Perform inference of `car.bmp` using `googlenet-v1` model on a `GPU`, for example:
 
 ```
-hello_classification alexnet.xml car.bmp GPU
+hello_classification googlenet-v1.xml car.bmp GPU
 ```
 
 ## Sample Output
@@ -74,6 +74,20 @@ hello_classification alexnet.xml car.bmp GPU
 The application outputs top-10 inference results.
 
 ```
+[ INFO ] OpenVINO Runtime version ......... <version>
+[ INFO ] Build ........... <build>
+[ INFO ]
+[ INFO ] Loading model files: /models/googlenet-v1.xml
+[ INFO ] model name: GoogleNet
+[ INFO ]     inputs
+[ INFO ]         input name: data
+[ INFO ]         input type: f32
+[ INFO ]         input shape: {1, 3, 224, 224}
+[ INFO ]     outputs
+[ INFO ]         output name: prob
+[ INFO ]         output type: f32
+[ INFO ]         output shape: {1, 1000}
+
 Top 10 results:
 
 Image /images/car.bmp
