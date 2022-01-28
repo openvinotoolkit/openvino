@@ -33,7 +33,10 @@ static constexpr Property<std::string, PropertyMutability::RW> custom_layers{"MY
 /**
  * @brief Enum to define possible device protocols
  */
-enum class Protocol { PCIE = 0, USB };
+enum class Protocol {
+    PCIE = 0,
+    USB = 1,
+};
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const Protocol& protocol) {
@@ -77,10 +80,10 @@ static constexpr Property<bool, PropertyMutability::RW> enable_force_reset{"MYRI
  */
 enum class DDRType {
     MYRIAD_DDR_AUTO = 0,
-    MYRIAD_DDR_MICRON_2GB,
-    MYRIAD_DDR_SAMSUNG_2GB,
-    MYRIAD_DDR_HYNIX_2GB,
-    MYRIAD_DDR_MICRON_1GB
+    MYRIAD_DDR_MICRON_2GB = 1,
+    MYRIAD_DDR_SAMSUNG_2GB = 2,
+    MYRIAD_DDR_HYNIX_2GB = 3,
+    MYRIAD_DDR_MICRON_1GB = 4,
 };
 
 /** @cond INTERNAL */
