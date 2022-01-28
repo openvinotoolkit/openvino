@@ -214,7 +214,8 @@ def get_configurations_by_preset(config, model, fq_to_hw_confs, hardware_config)
                                 configuration = [c for c in cur_conf[fq][key] if c['granularity'] == 'pertensor']
                             else:
                                 configuration = cur_conf[fq][key]
-                    res_conf = intersect_configs(res_conf, configuration, primary_bitwidth) if res_conf else configuration
+                    res_conf = intersect_configs(res_conf, configuration, primary_bitwidth) if res_conf \
+                        else configuration
                 if not res_conf:
                     raise Exception('Fake quantize nodes {} cannot be unified'.format(fqs))
                 for fq in fqs:
@@ -231,7 +232,8 @@ def get_configurations_by_preset(config, model, fq_to_hw_confs, hardware_config)
                 if i_type in value:
                     res_conf = []
                     for _, configuration in value[i_type]:
-                        res_conf = intersect_configs(res_conf, configuration, primary_bitwidth) if res_conf else configuration
+                        res_conf = intersect_configs(res_conf, configuration, primary_bitwidth) if res_conf \
+                            else configuration
                     if not res_conf:
                         raise Exception('Fake quantize node {} does not have a suitable configuration'
                                         ' for layers {}'.format(key, [layer for layer, _ in value[i_type]]))
