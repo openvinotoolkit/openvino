@@ -17,19 +17,19 @@ using TFOpExtensionTest = FrontEndOpExtensionTest;
 static const std::string translator_name = "Relu";
 
 class Relu1 : public Relu {
-    OPENVINO_FRAMEWORK_MAP(tensorflow);
+    OPENVINO_FRAMEWORK_MAP(tensorflow)
 };
 
 class Relu2 : public Relu {
-    OPENVINO_FRAMEWORK_MAP(tensorflow, "Relu2");
+    OPENVINO_FRAMEWORK_MAP(tensorflow, "Relu2")
 };
 
 class Relu3 : public Relu {
-    OPENVINO_FRAMEWORK_MAP(tensorflow, "Relu3", {});
+    OPENVINO_FRAMEWORK_MAP(tensorflow, "Relu3", {})
 };
 
 class Relu4 : public Relu {
-    OPENVINO_FRAMEWORK_MAP(tensorflow, "Relu4", {}, {});
+    OPENVINO_FRAMEWORK_MAP(tensorflow, "Relu4", {}, {})
 };
 
 static OpExtensionFEParam getTestData() {

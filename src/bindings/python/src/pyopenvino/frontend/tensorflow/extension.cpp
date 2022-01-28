@@ -49,14 +49,14 @@ void regclass_frontend_tensorflow_OpExtension(py::module m) {
 
     ext.def(py::init([](const std::string& fw_type_name,
                         const std::map<std::string, std::string>& attr_names_map = {},
-                        const std::map<std::string, std::string>& attr_values_map = {}) {
+                        const std::map<std::string, ov::Any>& attr_values_map = {}) {
         return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, attr_values_map);
     }));
 
     ext.def(py::init([](const std::string& ov_type_name,
                         const std::string& fw_type_name,
                         const std::map<std::string, std::string>& attr_names_map = {},
-                        const std::map<std::string, std::string>& attr_values_map = {}) {
+                        const std::map<std::string, ov::Any>& attr_values_map = {}) {
         return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, attr_values_map);
     }));
 }

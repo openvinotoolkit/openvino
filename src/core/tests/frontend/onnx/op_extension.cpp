@@ -17,19 +17,19 @@ using TFOpExtensionTest = FrontEndOpExtensionTest;
 static const std::string translator_name = "Relu";
 
 class Relu1 : public Relu {
-    OPENVINO_FRAMEWORK_MAP(onnx);
+    OPENVINO_FRAMEWORK_MAP(onnx)
 };
 
 class Relu2 : public Relu {
-    OPENVINO_FRAMEWORK_MAP(onnx, "Relu2");
+    OPENVINO_FRAMEWORK_MAP(onnx, "Relu2")
 };
 
 class Relu3 : public Relu {
-    OPENVINO_FRAMEWORK_MAP(onnx, "Relu3", {});
+    OPENVINO_FRAMEWORK_MAP(onnx, "Relu3", {})
 };
 
 class Relu4 : public Relu {
-    OPENVINO_FRAMEWORK_MAP(onnx, "Relu4", {}, {});
+    OPENVINO_FRAMEWORK_MAP(onnx, "Relu4", {}, {})
 };
 
 static OpExtensionFEParam getTestData() {
