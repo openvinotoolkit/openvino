@@ -21,7 +21,7 @@
 using namespace ngraph;
 using namespace std;
 
-class OPENVINO_API TestAttributeNoCopyable : public ov::RuntimeAttribute {
+class TestAttributeNoCopyable : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("TestAttributeNoCopyable");
     TestAttributeNoCopyable() = default;
@@ -40,7 +40,7 @@ public:
     }
 };
 
-class OPENVINO_API TestAttributeCopyable : public ov::RuntimeAttribute {
+class TestAttributeCopyable : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("TestAttributeCopyable");
     TestAttributeCopyable() = default;
@@ -56,7 +56,7 @@ public:
     }
 };
 
-class OPENVINO_API TestAttributeMergable : public ov::RuntimeAttribute {
+class TestAttributeMergable : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("TestAttributeMergable");
     TestAttributeMergable() = default;
