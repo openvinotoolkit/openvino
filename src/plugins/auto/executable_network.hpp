@@ -45,6 +45,7 @@ struct DeviceInformation {
 struct AutoContext {
     bool           needPerfCounters = {false};
     unsigned int   modelPriority = 0;
+    bool           batchingDisabled = {false};
 };
 
 struct AutoLoadContext {
