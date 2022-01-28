@@ -20,6 +20,10 @@ namespace ov {
 
 // constexpr CRC64 algorithm
 namespace util {
+
+constexpr size_t strlen(const char* str) {
+    return (*str) == '\0' ? 0 : strlen(str + 1) + 1;
+}
 static constexpr uint64_t crc_table[256] = {
     0x0000000000000000, 0x42F0E1EBA9EA3693, 0x85E1C3D753D46D26, 0xC711223CFA3E5BB5, 0x493366450E42ECDF,
     0x0BC387AEA7A8DA4C, 0xCCD2A5925D9681F9, 0x8E224479F47CB76A, 0x9266CC8A1C85D9BE, 0xD0962D61B56FEF2D,
@@ -74,6 +78,10 @@ static constexpr uint64_t crc_table[256] = {
     0x913F6188692D6F4B, 0xD3CF8063C0C759D8, 0x5DEDC41A34BBEEB2, 0x1F1D25F19D51D821, 0xD80C07CD676F8394,
     0x9AFCE626CE85B507};
 
+
+constexpr uint64_t crc64(const char* str, size_t len) {
+    return len == size_t(-1) ? 0xFFFFFFFFFFFFFFFF : (crc64(str, len - 1) >> 8) ^ crc_table[(crc64(str, len - 1) ^ str[len]) & 0x000000FF];
+}
 template <size_t idx>
 constexpr uint64_t crc64(const char* str) {
     return (crc64<idx - 1>(str) >> 8) ^ crc_table[(crc64<idx - 1>(str) ^ str[idx]) & 0x000000FF];
@@ -101,7 +109,6 @@ constexpr uint64_t combine_hash(uint64_t seed, uint64_t v) {
 }
 
 }  // namespace util
-#define HASH_STR(x) (util::crc64<sizeof(x) - 2>(x) ^ 0xFFFFFFFFFFFFFFFF)
 
 /// Supports three functions, ov::is_type<Type>, ov::as_type<Type>, and ov::as_type_ptr<Type> for type-safe
 /// dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
@@ -152,15 +159,16 @@ struct OPENVINO_API DiscreteTypeInfo {
     operator std::string() const;
 
     size_t hash() const;
-    size_t hash();
 
 private:
     uint64_t hash_value;
 
     constexpr uint64_t compute_hash() const {
-        return util::combine_hash(util::combine_hash(util::combine_hash(0, name == nullptr ? 0 : HASH_STR(name)),
-                                                     version_id == nullptr ? 0 : HASH_STR(version_id)),
-                                  version);
+        // return util::crc64(name, std::char_traits<char>::length(name));
+        return util::crc64(name, util::strlen(name));
+        // return util::combine_hash(util::combine_hash(util::combine_hash(0, name == nullptr ? 0 : util::crc64(name, util::strlen(name))),
+        //                                              version_id == nullptr ? 0 : util::crc64(version_id, util::strlen(version_id))),
+        //                           version);
     }
 };
 

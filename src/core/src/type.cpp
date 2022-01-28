@@ -3,33 +3,21 @@
 //
 
 #include "ngraph/type.hpp"
+#include <iostream>
 
 #include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace std {
 size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTypeInfo& k) const {
+    static uint64_t count = 0;
+    std::cout << count++ << "AAA " << k.name << " " << k.version_id << " " << k.hash() << std::endl;
     return k.hash();
 }
 }  // namespace std
 
 namespace ov {
 size_t DiscreteTypeInfo::hash() const {
-    if (hash_value != 0)
-        return hash_value;
-    size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
-    size_t version_hash = std::hash<decltype(version)>()(version);
-    size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
-
-    name_hash += version_hash + version_id_hash;
-    const_cast<DiscreteTypeInfo*>(this)->hash_value =
-        ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
-    return hash_value;
-}
-
-size_t DiscreteTypeInfo::hash() {
-    if (hash_value == 0)
-        hash_value = static_cast<const DiscreteTypeInfo*>(this)->hash();
     return hash_value;
 }
 
