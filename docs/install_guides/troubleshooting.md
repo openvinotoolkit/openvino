@@ -7,7 +7,7 @@
 If you met proxy issues during the installation with Docker, please set up proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from Docker Hub* ](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) topic.
 
 
-## Issues with VPU configuration
+## Issues with configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs 
 
 <!-- this part is from installing-openvino-linux-ivad-vpu.md -->
 
@@ -163,4 +163,3 @@ sudo apt install mokutil
 ```sh
 sudo mokutil --disable-validation
 ```
-

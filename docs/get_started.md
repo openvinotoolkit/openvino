@@ -27,51 +27,51 @@
    Configurations for Intel® Processor Graphics (GPU) <openvino_docs_install_guides_configurations_for_intel_gpu>
    Configurations for Intel® Neural Compute Stick 2 <openvino_docs_install_guides_configurations_for_ncs2>
    Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs <openvino_docs_install_guides_installing_openvino_ivad_vpu>
-
+   
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :caption: Troubleshooting
    
    Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>
    
 .. toctree::
    :maxdepth: 1
    :hidden:
-   
-   Learning Path <openvino_docs_get_started_guide_learning_path>
-
-@endsphinxdirective
-   
-<!--
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Get Started Guides-->
-<!--   
+   :caption: Get Started Guides
+  
    Get Started with One-Command Demo <openvino_docs_get_started_get_started_scripts>
    Get Started with Step-by-step Demo <openvino_docs_get_started_get_started_demos>
    Get Started with Tutorials <tutorials>
--->
-<!--
+
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Inference Engine Code Samples
--->
-<!--
-   openvino_docs_IE_DG_Samples_Overview-->
-<!--
+
+   openvino_docs_IE_DG_Samples_Overview
+
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Reference Implementations For Speech Recognition Apps-->
-<!--
+   :caption: Reference Implementations For Speech Recognition Apps
+
    openvino_inference_engine_samples_speech_libs_and_demos_Speech_libs_and_demos
    openvino_inference_engine_samples_speech_libs_and_demos_Speech_library
    openvino_inference_engine_samples_speech_libs_and_demos_Offline_speech_recognition_demo
    openvino_inference_engine_samples_speech_libs_and_demos_Live_speech_recognition_demo
    openvino_inference_engine_samples_speech_libs_and_demos_Kaldi_SLM_conversion_tool
+
+<!--
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Learning Path -->
+<!--   
+   Learning Path <openvino_docs_get_started_guide_learning_path>
 -->
+
+@endsphinxdirective
  
 @sphinxdirective
 .. raw:: html
@@ -84,13 +84,11 @@
    </p>
    <div style="clear:both;"> </div>   
    <p>You can also review more installation options on the <a href="openvino_docs_install_guides_overview.html" >Overview</a> page. </p>
-   <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. Refer to the [learning path](get-started-learning-path.md) section for instructions on getting started with OpenVINO. </p>
-
-<!--
+   
    <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. <br /> Here is a set of hands-on demonstrations of various complexity levels to guide you through the process: from performing sample inference with just one command, to running code samples, demo application or Jupyter notebooks. If you prefer working with GUI, you can also get started with the DL Workbench application. This way you can choose the right level for you.<br /></p>
-<!--   
+ 
    <h3>Choose how you want to progress:</h3>
-<!--   
+ 
    <div id="GSG_nextstepchoice">
      <a href="openvino_docs_get_started_get_started_scripts.html" >
         <h4>One-command demo 		</h4>
@@ -122,5 +120,5 @@
      </a> 
    </div>
    <div style="clear:both;"> </div>
---> 
+
 @endsphinxdirective

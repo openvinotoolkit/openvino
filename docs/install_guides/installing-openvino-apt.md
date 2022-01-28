@@ -21,42 +21,34 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 
 1. Install the GPG key for the Repository
-
-    a. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB). You can also use the following command::
+    a. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB). You can also use the following command:
+      ```sh
+      wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      ```    
+    b. Add this key to the system keyring:
+      ```sh
+      sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      ```
+        
+      > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`
     
-        ```sh
-        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-        ```    
-    b. Add this key to the system keyring::
-    
-        ```sh
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-        ```    
-    >>  **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`
 2.	Add the repository via either of the following commands:
-
-    * On Ubuntu 18::
-    
-        ```sh
-        echo "deb https://apt.repos.intel.com/openvino/2022/bionic all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-        ```   
-    * On Ubuntu 20::
-    
-        ```sh
-        echo "deb https://apt.repos.intel.com/openvino/2022/focal all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-        ```
-3.	Update the list of packages via the update command::
-
-        ```sh
-        sudo apt update
-        ```
-    
-4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components::
-
-        ```sh
-        apt-cache search openvino
-        ```
-
+    * On Ubuntu 18:
+      ```sh
+      echo "deb https://apt.repos.intel.com/openvino/2022/bionic all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      ```   
+    * On Ubuntu 20:
+      ```sh
+      echo "deb https://apt.repos.intel.com/openvino/2022/focal all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      ```
+3.	Update the list of packages via the update command:
+      ```sh
+      sudo apt update
+      ```
+4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
+   ```sh
+   apt-cache search openvino
+   ```
 
 ### Step 2: Install OpenVINO Runtime using the APT Package Manager
 
@@ -74,23 +66,18 @@ sudo apt install openvino
 #### To install a specific version
 
 
-1.	Get a list of OpenVINO packages available for installation::
-
-        ```sh
-        sudo apt-cache search openvino
-        ```
-    
-2.	Install a specific version of an OpenVINO package::
-
-        ```sh
-        sudo apt install openvino-<VERSION>.<UPDATE>.<PATCH>
-        ```
-    For example::
-    
-        ```sh
-        sudo apt install openvino-2022.1.0
-        ```
-
+1.	Get a list of OpenVINO packages available for installation:
+   ```sh
+   sudo apt-cache search openvino
+   ```
+2.	Install a specific version of an OpenVINO package:
+   ```sh
+   sudo apt install openvino-<VERSION>.<UPDATE>.<PATCH>
+   ```
+    For example:
+   ```sh
+   sudo apt install openvino-2022.1.0
+   ```
 
 #### To check for installed packages and versions
 
@@ -113,7 +100,7 @@ Run the following command:
 sudo apt autoremove openvino-<PACKAGE_TYPE>-<VERSION>.<UPDATE>.<PATCH>
 ```
 
-### Additional resources
+## Additional resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
 - OpenVINO™ toolkit online documentation: <https://docs.openvino.ai/>.
@@ -121,3 +108,38 @@ sudo apt autoremove openvino-<PACKAGE_TYPE>-<VERSION>.<UPDATE>.<PATCH>
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 - For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
+
+
+
+1. Install the GPG key for the Repository
+
+    a. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB). You can also use the following command:
+      ```sh
+      wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      ```    
+    b. Add this key to the system keyring:
+      ```sh
+      sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      ```
+      > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`
+      
+2.	Add the repository via either of the following commands:
+
+    * On Ubuntu 18:
+      ```sh
+      echo "deb https://apt.repos.intel.com/openvino/2022/bionic all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      ```   
+    * On Ubuntu 20:
+      ```sh
+      echo "deb https://apt.repos.intel.com/openvino/2022/focal all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      ```
+3.	Update the list of packages via the update command:
+      ```sh
+      sudo apt update
+      ```
+4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
+   ```sh
+   apt-cache search openvino
+   ```
+   
+   

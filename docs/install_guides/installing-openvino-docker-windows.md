@@ -25,7 +25,6 @@ You can find prebuilt images on [Docker Hub](https://hub.docker.com/u/openvino).
 
 You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci)which can generate a Dockerfile, build, test, and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
 
-
 ## Using OpenVINO Docker image on different devices
 
 ### Using OpenVINO Docker* image on CPU
@@ -35,7 +34,6 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 **Install CMake**
 
 To add CMake to the image, add the following commands to the Dockerfile:
-
 ```bat
 RUN powershell.exe -Command `
     Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
@@ -46,14 +44,14 @@ RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
 ```
 
 In case of proxy issues, please add the `ARG HTTPS_PROXY` and `-Proxy %%HTTPS_PROXY%` settings to the `powershell.exe` command to the Dockerfile. Then build a Docker image:
-
 ```bat
 docker build . -t <image_name> `
 --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
 ```
 
-
 **Install Microsoft Visual Studio\* Build Tools**
+
+**Install Microsoft Visual Studio* Build Tools**
 
 You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
 Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license.

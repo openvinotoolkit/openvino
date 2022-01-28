@@ -30,24 +30,21 @@ The complete list of supported hardware is available in the [Release Notes](http
     gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
     EOF
     ```
-
 2.	Move the new openvino-2022.repo file to the YUM configuration directory `/etc/yum.repos.d`:
     ```sh
     sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
     ```
-    
 3.	Verify that the new repo is properly setup by running the following command:
-    ```
+    ```sh
     yum repolist | grep -i openvino
     ```
-    
     You will see the available list of packages.
 
 To list available OpenVINO packages, use the following command:
 ```
 yum list 'openvino*'
 ```
-  
+
 ### Step 2: Install OpenVINO Runtime using the YUM Package Manager
 
 Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
@@ -97,7 +94,7 @@ sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 ```
 
 
-## Additional Resources
+## Additional resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
 - OpenVINO™ toolkit online documentation: <https://docs.openvino.ai/>.
@@ -106,3 +103,50 @@ sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 - For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 
+
+1. Create the YUM repo file in the `/tmp` directory as a normal user:
+   ```
+   tee > /tmp/openvino-2022.repo << EOF
+   [OpenVINO]
+   name=Intel(R) Distribution of OpenVINO 2022
+   baseurl=https://yum.repos.intel.com/openvino/2022
+   enabled=1
+   gpgcheck=1
+   repo_gpgcheck=1
+   gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+   EOF
+   ```
+2.	Move the new openvino-2022.repo file to the YUM configuration directory `/etc/yum.repos.d`:
+   ```sh
+   sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
+   ```
+3.	Verify that the new repo is properly setup by running the following command:
+   ```sh
+   yum repolist | grep -i openvino
+   ```
+    You will see the available list of packages.
+    
+
+1. Create the YUM repo file in the `/tmp` directory as a normal user:
+    ```
+    tee > /tmp/openvino-2022.repo << EOF
+    [OpenVINO]
+    name=Intel(R) Distribution of OpenVINO 2022
+    baseurl=https://yum.repos.intel.com/openvino/2022
+    enabled=1
+    gpgcheck=1
+    repo_gpgcheck=1
+    gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+    EOF
+    ```
+    
+2.	Move the new openvino-2022.repo file to the YUM configuration directory `/etc/yum.repos.d`:
+    ```sh
+    sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
+    ```
+    
+3.	Verify that the new repo is properly setup by running the following command:
+    ```sh
+    yum repolist | grep -i openvino
+    ```
+    You will see the available list of packages.

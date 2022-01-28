@@ -14,7 +14,7 @@ For system requirements and troubleshooting, see <https://pypi.org/project/openv
 To avoid dependency conflicts, use a virtual environment. Skip this step only if you do want to install all dependencies globally.
 
 To create virtual environment, run the following commands:
-```python
+```
 python -m pip install --user virtualenv
 python -m venv openvino_env
 ```

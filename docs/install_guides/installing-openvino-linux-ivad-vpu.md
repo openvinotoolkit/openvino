@@ -1,6 +1,5 @@
 # Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs  {#openvino_docs_install_guides_installing_openvino_ivad_vpu}
 
-
 @sphinxdirective
 
 .. toctree::
@@ -15,8 +14,8 @@
         
 @endsphinxdirective
 
-> **NOTES**: 
-> - These steps are only required if you want to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
+> **NOTE**: 
+> - The steps in this guide are only required if you want to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 > - If you installed the Intel® Distribution of OpenVINO™ to the non-default install directory, replace `/opt/intel` with the directory in which you installed the software.
 
 
