@@ -149,12 +149,11 @@ void InferAPI2::change_batch_size(int multiplier, int cur_iter) {
 
 void InferAPI2::set_config(const std::string &device, const std::string &property, int nstreams) {
     config[device + "_" + property] = std::to_string(nstreams);
-    //ie.set_config(device, config);
+    ie.set_property(device, config);
 }
 
 unsigned int InferAPI2::get_property(const std::string &name) {
-    //return compiled_model.get_property(name).as<unsigned int>();
-    return 0;
+    return compiled_model.get_property(name).as<unsigned int>();
 }
 
 void InferAPI2::set_input_params(const std::string &model) {
