@@ -6,13 +6,14 @@
 
 #include <sstream>
 
+#include "ie_plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::function<std::string(const Any&)> to_config_string = [&](const Any& any) -> std::string {
         if (any.is<bool>()) {
-            return any.as<bool>() ? "YES" : "NO";
+            return any.as<bool>() ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
         } else if (any.is<AnyMap>()) {
             std::stringstream strm;
             for (auto&& val : any.as<AnyMap>()) {
@@ -40,9 +41,9 @@ void any_lexical_cast(const ov::Any& from, ov::Any& to) {
         if (to.is<std::string>()) {
             to = from;
         } else if (to.is<bool>()) {
-            if (str == "YES") {
+            if (str == CONFIG_VALUE(YES)) {
                 to = true;
-            } else if (str == "NO") {
+            } else if (str == CONFIG_VALUE(NO)) {
                 to = false;
             } else {
                 OPENVINO_UNREACHABLE("Unsupported lexical cast to bool from: ", str);
