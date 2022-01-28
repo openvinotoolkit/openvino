@@ -825,7 +825,10 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
 InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string& name) const {
     InferenceEngine::Parameter result;
     if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
-        auto it = _config.find(name);
+        auto it = _config.find("TARGET_FALLBACK");
+        if (it == _config.end()) {
+            it = _config.find(ov::device::priorities.name());
+        }
         if (it != _config.end()) {
             result = it->second;
         } else {
