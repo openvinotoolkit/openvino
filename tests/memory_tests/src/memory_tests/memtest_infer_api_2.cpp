@@ -43,7 +43,7 @@ int runPipeline(const std::string &model, const std::string &device) {
 
         infer_request = compiled_model.create_infer_request();
 
-        std::vector<ov::Output<const ov::Node>> inputs = compiled_model.inputs();
+        auto inputs = network->inputs();
         fillTensors(infer_request, inputs);
         MEMORY_SNAPSHOT(fill_inputs)
 
