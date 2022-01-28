@@ -35,6 +35,12 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Round with f16 is not supported
         R"(.*smoke_Hetero_BehaviorTests.*OVCompiledModelImportExport.*readFromV10IR.*)",
 
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i8|u8).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i16|u16).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i64|u64).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=u32.*)",
+        R"(.*importExportedIENetworkConstantResultOnly.*elementType=(u32|u64).*)",
+
         // CVS-64094
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
         // CVS-64080
