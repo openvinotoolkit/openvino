@@ -4,8 +4,11 @@
 
 #include "ngraph/pass/constant_folding.hpp"
 
+#include <transformations/utils/utils.hpp>
+
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "util/all_close_f.hpp"
@@ -3195,19 +3198,107 @@ TEST(constant_folding, constant_dyn_reshape_v1_pattern_with_zero_dims) {
 }
 
 TEST(constant_folding, disable_constant_folding) {
-    auto input = make_shared<op::Parameter>(element::f32, Shape{1, 3});
-    auto constant_shape = op::Constant::create(element::i64, Shape{1}, {3});
-    auto dyn_reshape = make_shared<op::v1::Reshape>(input, constant_shape, true);
-    auto& rt_info = dyn_reshape->get_rt_info();
-    rt_info[ov::pass::DisableConstantFolding::get_type_info_static()];
-    auto f = make_shared<Function>(dyn_reshape, ParameterVector{input});
+    auto data = std::make_shared<op::Parameter>(element::f16, Shape{1, 3, 22, 22});
 
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
+    // In this test case following sub-graph will be consumed by Interpolate, so during shape inference Interpolate
+    // will request values from this sub-graph and ConstantFolding pass will try to use this pre-calculated values
+    // to fold it. But in our case we are disabling CF for this sub-graph first and then enable CF to check that all
+    // checks inside ConstantFolding transformation are working and doesn't cache anytihng.
+    auto gather = op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+    auto convert = std::make_shared<opset5::Convert>(gather, element::f16);
+    auto divide_constant = op::Constant::create(element::f16, Shape{1}, {0.5});
+    auto divide = std::make_shared<opset5::Divide>(convert, divide_constant);
+    auto convert_after = std::make_shared<opset5::Convert>(divide, element::i32);
 
-    ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    opset1::Interpolate::Attributes interp_attr;
+    interp_attr.antialias = false;
+    interp_attr.axes = {2, 3};
+    interp_attr.mode = "nearest";
+    interp_attr.pads_begin = {0, 0, 0, 0};
+    interp_attr.pads_end = {0, 0, 0, 0};
+
+    auto interpolate = std::make_shared<opset1::Interpolate>(data, convert_after, interp_attr);
+    auto f = std::make_shared<Function>(NodeVector{interpolate}, ParameterVector{data});
+
+    ov::disable_constant_folding(convert);
+
+    pass::Manager m;
+    m.register_pass<pass::ConstantFolding>();
+    m.run_passes(f);
+
+    // Check that sub-graph on second Interpolate input wasn't folded
+    ASSERT_EQ(interpolate->input_value(1), convert_after->output(0));
+
+    ov::enable_constant_folding(convert);
+
+    m.run_passes(f);
+
+    // After we enabled CF the sub-graph will be folded to Constant
+    ASSERT_TRUE(ov::is_type<op::Constant>(interpolate->get_input_node_shared_ptr(1)));
+
+    // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
+    for (auto node : f->get_ordered_ops()) {
+        ASSERT_FALSE(ov::pass::constant_folding_is_disabled(node));
+    }
+}
+
+TEST(constant_folding, disable_constant_folding_simple) {
+    // This test case checks the behaviour of CF pass when output values are not precalculated
+    // so CF triggers another branch where it goes through nodes and trying to fold one by one.
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto reshape = std::make_shared<opset5::Reshape>(op::Constant::create(element::f32, Shape{3}, {1, 2, 3}),
+                                                     op::Constant::create(element::i64, Shape{3}, {3, 1, 1}),
+                                                     true);
+    auto divide = std::make_shared<opset5::Divide>(data, reshape);
+    auto f = std::make_shared<Function>(NodeVector{divide}, ParameterVector{data});
+
+    ov::disable_constant_folding(reshape);
+
+    pass::Manager m;
+    m.register_pass<pass::ConstantFolding>();
+    m.run_passes(f);
+
+    // Check that Reshape is not folded
+    ASSERT_EQ(divide->input_value(1), reshape->output(0));
+
+    ov::enable_constant_folding(reshape);
+
+    m.run_passes(f);
+
+    // After we enabled CF the sub-graph will be folded to Constant
+    ASSERT_TRUE(ov::is_type<op::Constant>(divide->get_input_node_shared_ptr(1)));
+
+    // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
+    for (auto node : f->get_ordered_ops()) {
+        ASSERT_FALSE(ov::pass::constant_folding_is_disabled(node));
+    }
+}
+
+TEST(constant_folding, disable_constant_folding_check) {
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto shapeof1 = std::make_shared<opset5::ShapeOf>(data);
+    auto reshape1 = std::make_shared<opset5::Reshape>(data, shapeof1, true);
+    auto shapeof2 = std::make_shared<opset5::ShapeOf>(reshape1);
+    auto reshape2 = std::make_shared<opset5::Reshape>(reshape1, shapeof2, true);
+    auto f = std::make_shared<Function>(NodeVector{reshape2}, ParameterVector{data});
+
+    ov::disable_constant_folding(shapeof1);
+
+    class ConstantFoldingAccessor : public pass::ConstantFolding {
+    public:
+        ConstantFoldingAccessor() = default;
+        using ConstantFolding::pre_calculated_values_folding;
+    };
+
+    ConstantFoldingAccessor().pre_calculated_values_folding(f);
+
+    ASSERT_TRUE(shapeof1->get_rt_info().count("can_be_folded"));
+    ASSERT_FALSE(shapeof1->get_rt_info().at("can_be_folded").as<bool>());
+
+    ASSERT_TRUE(shapeof2->get_rt_info().count("can_be_folded"));
+    ASSERT_TRUE(shapeof2->get_rt_info().at("can_be_folded").as<bool>());
+
+    ASSERT_TRUE(ov::is_type<op::Constant>(reshape2->get_input_node_shared_ptr(1)));
 }
 
 TEST(constant_folding, constant_loop) {
