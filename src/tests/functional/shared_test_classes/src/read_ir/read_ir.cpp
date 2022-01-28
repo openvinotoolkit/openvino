@@ -148,13 +148,11 @@ void ReadIRTest::SetUp() {
             staticShapes.push_back(param->get_partial_shape().get_max_shape());
         }
     }
-
     for (const auto& param : function->get_parameters()) {
         inputDynamicShapes.push_back(param->get_partial_shape());
     }
     targetStaticShapes.push_back(staticShapes);
 }
-
 
 } // namespace subgraph
 } // namespace test

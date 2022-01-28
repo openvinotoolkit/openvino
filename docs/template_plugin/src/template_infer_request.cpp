@@ -336,18 +336,7 @@ void TemplateInferRequest::inferPostprocess() {
         }
         auto outputBlob = _outputs.at(output.first);
         auto networkOutput = _networkOutputBlobs[output.first];
-        if (result->get_output_partial_shape(0).is_dynamic() &&
-            networkOutput->getTensorDesc().getPrecision() != outputBlob->getTensorDesc().getPrecision() &&
-            networkOutput->getTensorDesc().getPrecision() == Precision::I64 &&
-            outputBlob->getTensorDesc().getPrecision() == Precision::I32) {
-            auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
-            std::vector<std::int64_t> tensor_data(tensor->get_size_in_bytes() / 8);
-            tensor->read(tensor_data.data(), tensor->get_size_in_bytes());
-            auto* write_data = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<std::int32_t*>();
-            for (size_t j = 0; j < tensor->get_size_in_bytes() / 8; ++j) {
-                write_data[j] = tensor_data[j];
-            }
-        } else if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
+        if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
             blobCopy(networkOutput, outputBlob);
         } else if (result->get_output_partial_shape(0).is_dynamic()) {
             auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];

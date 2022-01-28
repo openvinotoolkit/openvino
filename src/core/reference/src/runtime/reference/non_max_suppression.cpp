@@ -178,15 +178,10 @@ void non_max_suppression(const float* boxes_data,
         std::cout << std::endl;
     }
 
-//    for (std::size_t i = 0; i < boxes_amount; ++i) {
-//        std::cout << boxes_data[i] << " ";
-//    }
-//    std:: cout << std::endl;
     std::cout << "reference: " << "max_output_boxes_per_class = " << max_output_boxes_per_class << std::endl;
     std::cout << "reference: " << "iou_threshold = " << iou_threshold << std::endl;
     std::cout << "reference: " << "score_threshold = " << score_threshold << std::endl;
     std::cout << "reference: " << "soft_nms_sigma = " << soft_nms_sigma << std::endl;
-//    iou_threshold = 0.7;
     float scale = 0.0f;
     if (soft_nms_sigma > 0.0f) {
         scale = -0.5f / soft_nms_sigma;

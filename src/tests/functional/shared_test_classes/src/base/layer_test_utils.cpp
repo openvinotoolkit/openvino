@@ -446,6 +446,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
             break;
         }
     }
+
     auto results = function->get_results();
     std::vector<std::pair<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>, std::string>> named_outputs(results.size());
     for (std::size_t i = 0; i < results.size(); ++i) {

@@ -140,6 +140,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         output.second.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
         outputTensors[resultIndex]->read(output.second.data(), output.second.size());
     }
+
     return outputs;
 }
 
@@ -203,6 +204,7 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &funct
         outTensor->read(tmpBuffer.data(), tmpBuffer.get_byte_size());
         outputs.push_back(tmpBuffer);
     }
+
     return outputs;
 }
 
