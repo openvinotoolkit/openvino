@@ -33,6 +33,7 @@ soupsieve==2.3.1
 Sphinx==4.4.0
 sphinx-copybutton==0.4.0
 sphinx-inline-tabs==2022.1.2b11
+sphinx-panels==0.6.0
 sphinx-sitemap==2.2.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
