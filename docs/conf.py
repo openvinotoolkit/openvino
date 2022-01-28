@@ -47,6 +47,8 @@ extensions = [
 
 html_baseurl = 'https://docs.openvino.ai/latest/'
 
+panels_add_bootstrap_css = False
+
 sitemap_url_scheme = "{link}"
 
 html_favicon = '_static/favicon.ico'
