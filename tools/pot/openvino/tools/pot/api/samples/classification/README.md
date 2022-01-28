@@ -6,7 +6,7 @@ A custom `DataLoader` is created to load the [ImageNet](http://www.image-net.org
 
 ## How to prepare the data
 
-To run this sample, you will need to download the validation part of the ImageNet image database http://www.image-net.org/download-faq and place it in a separate folder, 
+To run this sample, you need to [download](http://www.image-net.org/download-faq) the validation part of the ImageNet image database and place it in a separate folder, 
 which will be later referred as `<IMAGES_DIR>`. Annotations to images should be stored in a separate .txt file (`<IMAGENET_ANNOTATION_FILE>`) in the format `image_name label`.
 
 

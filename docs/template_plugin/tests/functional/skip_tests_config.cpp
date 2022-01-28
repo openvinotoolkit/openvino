@@ -100,14 +100,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceTopKTest.*aType=f64.*)",
         // CVS-63947
         R"(.*ReferenceConcatTest.*concat_zero_.*)",
-        // CVS-64096
-        R"(.*ReferenceNonMaxSuppressionTest.*esiType=i32.*evoType=i32.*)",
-        // CVS-64081
-        R"(.*ReferenceNonMaxSuppression4Test.*esiType=i32.*)",
-        // CVS-64067
-        R"(.*ReferenceNonMaxSuppression3Test.*esiType=i32.*)",
-        // CVS-64034
-        R"(.*ReferenceNonMaxSuppression1Test.*esiType=i32.*)",
         // CVS-64102
         R"(.*ReferenceExperimentalPGGLayerTest.*iType=bf16.*stride_x=(32|64).*)",
         // CVS-72215
