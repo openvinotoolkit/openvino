@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ public:
 
     ModelPtr buildInitialModel(const ie::CNNNetwork& network);
 
-    std::set<std::string> checkSupportedLayers(const ie::CNNNetwork& network);
+    std::set<std::string> checkSupportedLayers(const ie::CNNNetwork& network, const std::set<std::string>& namesToExclude = {});
 
     const std::vector<ie::CNNLayerPtr>& origLayers() const {
         return _ieParsedNetwork.orderedLayers;
@@ -191,6 +191,7 @@ public:
 
     static CustomLayer::Ptr getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr&cnnLayer);
     static ie::CNNNetwork convertNetwork(ie::CNNNetwork& network);
+    static std::vector<ie::CNNNetwork> checkSupportedNetworks(const ie::CNNNetwork& network, std::set<std::string>& namesToExclude);
 
 private:
     Data getVpuData(const ie::DataPtr& ieData) const;

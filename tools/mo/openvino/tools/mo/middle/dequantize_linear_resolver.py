@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -25,6 +25,10 @@ class DequantizeLinearResolver(MiddleReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
 
+    def run_after(self):
+        from openvino.tools.mo.middle.quantize_dequantize_linear_resolver import QuantizeDequantizeLinearResolver
+        return [QuantizeDequantizeLinearResolver]
+
     def find_and_replace_pattern(self, graph: Graph):
         for dequantize_node in graph.get_op_nodes(op='DequantizeLinear'):
             node_name = dequantize_node.soft_get('name', dequantize_node.id)
@@ -33,11 +37,13 @@ class DequantizeLinearResolver(MiddleReplacementPattern):
             model_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
             cast = Cast(graph, {'dst_type': model_data_type, 'name': node_name + '/Cast'}).create_node()
             dequantize_node.in_port(0).get_connection().set_destination(cast.in_port(0))
-            mul = Mul(graph, {}).create_node()
+            mul = Mul(graph, {'can_be_fused': False}).create_node()
 
             is_second_port_connected = dequantize_node.is_in_port_connected(2)
             if is_second_port_connected:
-                sub = Sub(graph, {'name': node_name + '/Sub'}).create_node()
+                # its is necessary not to replace subrtract for pattern in offline transformations
+                # See ConvertQuantizeDequantize transformation in ngraph
+                sub = Sub(graph, {'name': node_name + '/Sub', 'zero_point_sub': True}).create_node()
                 cast.out_port(0).connect(sub.in_port(0))
                 dequantize_node.in_port(2).get_connection().set_destination(sub.in_port(1))
                 sub.out_port(0).connect(mul.in_port(0))
@@ -55,12 +61,12 @@ class DequantizeLinearResolver(MiddleReplacementPattern):
                 target_shape[axis] = input_shape[axis]
 
                 mul_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array(target_shape)},
-                                                                          {'name': node_name + '/Reshape/Mul'})
+                                                          {'name': node_name + '/Reshape/Mul'})
                 mul.in_port(1).get_connection().set_destination(mul_reshape.in_port(0))
                 mul_reshape.out_port(0).connect(mul.in_port(1))
 
                 if is_second_port_connected:
                     sub_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array(target_shape)},
-                                                                              {'name': node_name + '/Reshape/Sub'})
+                                                              {'name': node_name + '/Reshape/Sub'})
                     sub.in_port(1).get_connection().set_destination(sub_reshape.in_port(0))
                     sub_reshape.out_port(0).connect(sub.in_port(1))

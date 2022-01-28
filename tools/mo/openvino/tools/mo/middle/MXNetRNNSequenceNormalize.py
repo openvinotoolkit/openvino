@@ -1,15 +1,16 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from openvino.tools.mo.ops.transpose import Transpose
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_insert, mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_insert, mo_array, shape_array, \
+    unmask_shape
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.transpose import Transpose
 
 
 class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
@@ -184,9 +185,9 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         mxnet_shape = lstm.out_node(0).shape.copy()
 
         if lstm.batch_dim == 0:
-            mo_shape = int64_array([input.shape[lstm.batch_dim], input.shape[lstm.sequence_dim], lstm.hidden_size])
+            mo_shape = shape_array([input.shape[lstm.batch_dim], input.shape[lstm.sequence_dim], lstm.hidden_size])
         else:
-            mo_shape = int64_array([input.shape[lstm.sequence_dim], input.shape[lstm.batch_dim], lstm.hidden_size])
+            mo_shape = shape_array([input.shape[lstm.sequence_dim], input.shape[lstm.batch_dim], lstm.hidden_size])
 
         if lstm.has_num_directions:
             mo_shape = shape_insert(mo_shape, 1, np.int64(num_directions))
@@ -206,7 +207,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         # Add Reshape
         reshape = Reshape(graph, {'name': lstm_name + '/Reshape_mxnet/'})
         reshape_dim_data = Const(graph, {'name': lstm_name + '/Reshape_mxnet_dim',
-                                         'value': mxnet_shape}).create_node_with_data()
+                                         'value': int64_array(unmask_shape(mxnet_shape))}).create_node_with_data()
 
         reshape.create_node_with_data([permute_data, reshape_dim_data], dict(), data_nodes=[old_data_node])
 

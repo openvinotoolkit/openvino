@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -674,9 +674,8 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
 
     auto &weiDims = getInputShapeAtPort(WEI_ID).getDims();
     if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
-        defConvAttr.group != 1 ||  // temporary workaround until jit impl. will correctly handle multigroup cases
-        (weiDims[1] % simd_w != 0)  // in_channels_per_gr !% simd_w
-        || ((weiDims[0] / defConvAttr.group) % simd_w != 0)) {  // out_channels_per_gr !% simd_w
+        (defConvAttr.group != 1 && ((weiDims[1] % simd_w != 0)  // in_channels_per_gr !% simd_w
+        || ((weiDims[0] / defConvAttr.group) % simd_w != 0)))) {  // out_channels_per_gr !% simd_w
         enforceRef = true;
     } else {
         enforceRef = false;
@@ -822,8 +821,8 @@ void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(
                     lh = (h_high < cur_h_end ? lh : 0);
                     lw = (w_high < cur_w_end ? lw : 0);
 
-                    const int h_off_low = h_ind_low * srcStrides[2] / srcStrides[3];
-                    const int h_off_high = h_ind_high * srcStrides[2] / srcStrides[3];
+                    const int h_off_low = h_ind_low * (srcStrides[2] / srcStrides[3]);
+                    const int h_off_high = h_ind_high * (srcStrides[2] / srcStrides[3]);
                     const int w_off_low  = w_ind_low;
                     const int w_off_high = w_ind_high;
                     pSampledCoordsVector[sampledCoordIndex] = h_off_high + w_off_high;
@@ -868,6 +867,8 @@ MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvA
     offStrides = descVector[OFF_ID]->getStrides();
     weiStrides = descVector[WEI_ID]->getStrides();
     dstStrides = std::vector<size_t>(dstDesc->getStrides().size());
+    pSampledCoordsVector = nullptr;
+    pInterpWeightsVector = nullptr;
     for (int i = 0; i < srcDesc->getStrides().size(); i++) {
         srcStrides[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }

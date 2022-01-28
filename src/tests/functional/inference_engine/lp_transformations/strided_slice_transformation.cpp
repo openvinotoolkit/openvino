@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -183,7 +183,7 @@ StridedSliceTransformationTestValues::LayerParams sliceWithAdditionalAxis = {
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> inputShapes = {
     {1, 3, 24, 24},
-    {Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}
+    {-1, -1, -1, -1}
 };
 
 const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformationTestValues = {
@@ -504,7 +504,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> inputShapes = {
-    { Dimension::dynamic(), Dimension::dynamic(), 4, Dimension::dynamic() },
+    { -1, -1, -1, -1 },
     { 1, 3, 4, 4 }
 };
 
@@ -545,7 +545,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues3 {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
-    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
     PartialShape::dynamic()
 };
 

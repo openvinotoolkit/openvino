@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,15 +75,15 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailable
 //
 using OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie;
+    ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
     uint64_t t = p;
 
     std::cout << "GPU device total memory size: " << t << std::endl;
 
-    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
@@ -92,14 +92,14 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
 
 using OVClassGetMetricTest_GPU_UARCH_VERSION = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie;
+    ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(UARCH_VERSION)));
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, GPU_METRIC_KEY(UARCH_VERSION)));
     std::string t = p;
 
     std::cout << "GPU device uarch: " << t << std::endl;
-    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(UARCH_VERSION));
+    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(UARCH_VERSION));
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
@@ -108,15 +108,15 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
 
 using OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie;
+    ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
     int t = p;
 
     std::cout << "GPU EUs count: " << t << std::endl;
 
-    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
+    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,

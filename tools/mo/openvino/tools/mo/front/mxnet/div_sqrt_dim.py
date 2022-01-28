@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
@@ -39,15 +39,12 @@ class DivSqrtDim(FrontReplacementOp):
         # Due to specification, Power must have inputs with the same data type.
         convert_pow_input = Cast(graph, dict(dst_type=np.float32,
                                              name=shape_values_node.name + '/ConvertToFP32')).create_node()
-        convert_pow_output = ConvertLike(graph, dict(name=pow_node.name + 'ConvertLike')).create_node()
         div_node = Div(graph, dict(name="Div")).create_node()
 
         shape_values_node.out_port(0).connect(convert_pow_input.in_port(0))
         convert_pow_input.out_port(0).connect(pow_node.in_port(0))
         div_sqrt.in_port(0).get_connection().set_destination(div_node.in_port(0))
-        pow_node.out_port(0).connect(convert_pow_output.in_port(0))
-        convert_pow_output.in_port(1).connect(data_out_port)
-        div_node.in_port(1).connect(convert_pow_output.out_port(0))
+        div_node.in_port(1).connect(pow_node.out_port(0))
         div_sqrt.out_port(0).get_connection().set_source(div_node.out_port(0))
 
         rename_nodes([(div_sqrt, div_sqrt_name + '/ShouldBeDeleted'), (div_node, div_sqrt_name)])

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,7 +143,8 @@ const std::vector<bool> updatePrecisions = { true, false };
 
 const std::vector<ngraph::PartialShape> shapes = {
     { 1, 3, 72, 48 },
-    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+    { -1, -1, -1, -1 },
+    PartialShape::dynamic(),
     // TODO: 3D tensor
 };
 
@@ -356,51 +357,3 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
     FakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues1
-
-namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannel = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-    PartialShape::dynamic(),
-};
-
-const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformationTestValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
-        ngraph::element::u8,
-        {
-            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.01f }} },
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            256ul,
-            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-            { 0.f, 0.f, 0.f }, { 2.55f, 2.55f, 2.55f },
-            { 0.f, 0.f, 0.f }, { 2.55f, 25.5f, 255.f }
-        },
-        {
-            256ul,
-            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-            { 0.f, 0.f, 0.f }, { 2.55f, 2.55f, 2.55f },
-            { 0.f, 0.f, 0.f }, { 2.55f, 25.5f, 255.f }
-        },
-        ngraph::element::f32,
-        {
-            { ngraph::element::f32, {} },
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::Values(ngraph::element::f32),
-        ::testing::ValuesIn(shapesWithDynamicChannel),
-        ::testing::Values(true),
-        ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
-    FakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues2

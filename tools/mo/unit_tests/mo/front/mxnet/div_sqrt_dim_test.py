@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -36,7 +36,6 @@ class DivSqrtDimTest(unittest.TestCase):
                 **regular_op_with_empty_data('gather', {'op': 'Gather', 'type': 'Gather'}),
                 **regular_op_with_empty_data('power', {'op': 'AttributedPower', 'power': 0.5, 'type': 'Power'}),
                 **regular_op_with_empty_data('cast', {'op': 'Cast', 'type': 'Convert', 'dst_type': np.float32}),
-                **regular_op_with_empty_data('z_convert_like', {'op': 'ConvertLike', 'type': 'ConvertLike'}),
                 **regular_op_with_empty_data('div', {'op': 'Div', 'type': 'Divide'}),
                 **result('result')
             },
@@ -48,9 +47,7 @@ class DivSqrtDimTest(unittest.TestCase):
                 *connect('gather_indices', '2:gather'),
                 *connect('gather', 'cast'),
                 *connect('cast', 'power'),
-                *connect('power', '0:z_convert_like'),
-                *connect_front('input_d', '1:z_convert_like'),
-                *connect('z_convert_like', '1:div'),
+                *connect('power', '1:div'),
                 *connect('div', 'result')
             ],
         )

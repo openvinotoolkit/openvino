@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,10 +116,10 @@ struct DeformablePSROIPoolingParams {
     ov::element::Type roisType;
     ov::element::Type offsetsType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor roisData;
-    ov::runtime::Tensor offsetsData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor roisData;
+    ov::Tensor offsetsData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -208,10 +208,6 @@ public:
     static std::vector<element::Type> precisionIntersection(
             const std::vector<element::Type>& v1,
             const std::vector<element::Type>& v2) noexcept;
-
-    static bool isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq);
-
-    static bool isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx = 0);
 
     static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 

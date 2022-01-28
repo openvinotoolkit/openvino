@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -10,6 +10,7 @@ import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
+import json
 
 try:
     import openvino_telemetry as tm
@@ -18,6 +19,8 @@ except ImportError:
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
+from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used, legacy_transformations_config_used, \
+    new_extensions_used, new_transformations_config_used, input_freezig_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
@@ -43,7 +46,7 @@ from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension
+from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -98,7 +101,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 def get_default_frontends():
     # Set which frontend to use by default, values should be 'new' or 'legacy'
     default_frontends = {
-        'onnx': 'legacy',
+        'onnx': 'new',
         'tf': 'legacy'
     }
     return default_frontends
@@ -140,7 +143,12 @@ def arguments_post_parsing(argv: argparse.Namespace):
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
         deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
 
-    if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
+    if any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
+        if new_extensions_used(argv):
+            raise Error('New kind of extensions used on legacy path')
+        if new_transformations_config_used(argv):
+            raise Error('New kind of transformations configuration used on legacy path')
+    else: # new frontend used
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
         frameworks = list(set(frameworks + available_moc_front_ends))
         if argv.framework not in frameworks:
@@ -264,8 +272,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     argv.output = argv.output.split(',') if argv.output else None
 
-    argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(argv.input, argv.input_shape,
-                                                                                  argv.batch)
+    inputs_list, argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(
+        argv.input, argv.input_shape, argv.batch)
+    argv.inputs_list = inputs_list
 
     mean_values = parse_tuple_pairs(argv.mean_values)
     scale_values = parse_tuple_pairs(argv.scale_values)
@@ -330,11 +339,9 @@ def check_fallback(argv : argparse.Namespace):
     if argv.use_new_frontend:
         return fallback_reasons
 
-    fallback_reasons['extensions'] = \
-        lambda argv : hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0 \
-            and argv.extensions != import_extensions.default_path() # extensions arg has default value
-    fallback_reasons['transformations_config'] = \
-        lambda argv: hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config) > 0
+    fallback_reasons['extensions'] = legacy_extensions_used
+    fallback_reasons['transformations_config'] = legacy_transformations_config_used
+    fallback_reasons['input_freezing'] = input_freezig_used
 
     reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons
@@ -352,6 +359,15 @@ def prepare_ir(argv : argparse.Namespace):
             t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
             moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
             moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
+            if legacy_transformations_config_used(argv):
+                raise Error('Legacy extensions are not supported for the new frontend')
+            if legacy_extensions_used(argv):
+                raise Error('Legacy transformations configuration is not supported for the new frontend')
+            if new_transformations_config_used(argv):
+                moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
+            if new_extensions_used(argv):
+                for extension in argv.extensions.split(','):
+                    moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
             return graph, ngraph_function
         else: # apply fallback

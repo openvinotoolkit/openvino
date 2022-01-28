@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -665,12 +665,12 @@ namespace {
 
 class DynamicTensor : public ngraph::runtime::HostTensor {
 private:
-    ov::runtime::Tensor tensor;
+    ov::Tensor tensor;
 
 public:
     DynamicTensor(const ov::element::Type& type) : ngraph::runtime::HostTensor(type, ov::PartialShape::dynamic()) {}
 
-    ov::runtime::Tensor get_tensor() {
+    ov::Tensor get_tensor() {
         return tensor;
     }
 
@@ -683,13 +683,13 @@ protected:
                         "Attempt to allocate buffer for tensor with dynamic type: ",
                         get_element_type());
         m_buffer_size = m_descriptor->size();
-        tensor = ov::runtime::Tensor(get_element_type(), get_partial_shape().get_shape());
+        tensor = ov::Tensor(get_element_type(), get_partial_shape().get_shape());
         m_memory_pointer = tensor.data();
         m_aligned_buffer_pool = m_memory_pointer;
     }
 };
 
-inline ngraph::HostTensorVector create_tmp_tensors(const ov::runtime::TensorVector& tensors) {
+inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
@@ -708,7 +708,7 @@ inline ngraph::HostTensorVector create_tmp_tensors(const ov::runtime::TensorVect
     return std::move(result);
 }
 
-inline void update_output_tensors(ov::runtime::TensorVector& output_values, const ngraph::HostTensorVector& outputs) {
+inline void update_output_tensors(ov::TensorVector& output_values, const ngraph::HostTensorVector& outputs) {
     OPENVINO_ASSERT(output_values.size() == outputs.size());
     for (size_t i = 0; i < outputs.size(); i++) {
         if (auto dyn_output = std::dynamic_pointer_cast<DynamicTensor>(outputs[i])) {
@@ -718,7 +718,7 @@ inline void update_output_tensors(ov::runtime::TensorVector& output_values, cons
 }
 }  // namespace
 
-bool ov::Node::evaluate(ov::runtime::TensorVector& output_values, const ov::runtime::TensorVector& input_values) const {
+bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -728,8 +728,8 @@ bool ov::Node::evaluate(ov::runtime::TensorVector& output_values, const ov::runt
     return sts;
 }
 
-bool ov::Node::evaluate(ov::runtime::TensorVector& output_values,
-                        const ov::runtime::TensorVector& input_values,
+bool ov::Node::evaluate(ov::TensorVector& output_values,
+                        const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
@@ -740,7 +740,7 @@ bool ov::Node::evaluate(ov::runtime::TensorVector& output_values,
     return sts;
 }
 
-bool ov::Node::evaluate_lower(ov::runtime::TensorVector& output_values) const {
+bool ov::Node::evaluate_lower(ov::TensorVector& output_values) const {
     HostTensorVector output = create_tmp_tensors(output_values);
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate_lower(output);
@@ -749,7 +749,7 @@ bool ov::Node::evaluate_lower(ov::runtime::TensorVector& output_values) const {
     return sts;
 }
 
-bool ov::Node::evaluate_upper(ov::runtime::TensorVector& output_values) const {
+bool ov::Node::evaluate_upper(ov::TensorVector& output_values) const {
     HostTensorVector output = create_tmp_tensors(output_values);
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate_upper(output);
@@ -781,6 +781,10 @@ bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_END
+
+bool ov::Node::evaluate_label(TensorLabelVector& output_labels) const {
+    return false;
+}
 
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");

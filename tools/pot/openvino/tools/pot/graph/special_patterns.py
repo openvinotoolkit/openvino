@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from .pattern_builder import PatternBuilder
@@ -142,6 +142,15 @@ def create_softmax_pattern():
     power_out = pattern.append_op_const('Power', 'power').get_last_node()
     pattern.insert_single_op([exp_out, power_out], None, 'Multiply', 'mul')
     return pattern.set_name('softmax').pattern
+
+
+@registry_ignore_patterns('blocks')
+def create_softmax_div_pattern():
+    pattern = PatternBuilder()
+    exp_out = pattern.append_single_op('Exp', 'exp').get_last_node()
+    reduce_out = pattern.append_op_const('ReduceSum', 'reduce').get_last_node()
+    pattern.insert_single_op([exp_out, reduce_out], None, 'Divide', 'div')
+    return pattern.set_name('softmax_div').pattern
 
 
 @registry_ignore_patterns('blocks')

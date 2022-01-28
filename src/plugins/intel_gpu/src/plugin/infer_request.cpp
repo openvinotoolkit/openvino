@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1042,7 +1042,11 @@ void InferRequest::allocate_outputs() {
     for (auto& no : _networkOutputs) {
         std::string outputID = m_graph->MapOutputName(no.first);
         const cldnn::layout output_layout = m_graph->GetNetwork()->get_output_memory(outputID)->get_layout();
-        const TensorDesc& desc = no.second->getTensorDesc();
+        TensorDesc desc = no.second->getTensorDesc();
+        // Due to some reason TensorDesc in InferRequest contains wrong dims
+        // while ExecutableNetwork contains proper ones. Thus replace dims with once from exec network
+        // Can be removed once 76176 is resolved.
+        desc.setDims(m_graph->GetOutputSize(no.first));
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {

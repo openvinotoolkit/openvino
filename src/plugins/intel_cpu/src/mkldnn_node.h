@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -831,7 +831,7 @@ private:
 };
 
 constexpr uint64_t PortMask(int n) {
-    return 1 << n;
+    return static_cast<uint64_t>(1) << n;
 }
 
 template <class... T>

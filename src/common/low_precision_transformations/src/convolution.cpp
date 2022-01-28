@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,12 @@ bool ConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const No
     return WeightableLayerTransformation::isQuantizedStatic(layer, false);
 }
 
+size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ngraph::Node> conv) const {
+    const auto channels = conv->get_input_partial_shape(1)[1];
+    assert(channels.is_static());
+    return channels.get_length();
+}
+
 bool ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
@@ -98,7 +104,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
             // Insert explicit broadcast for channel dimension [1] and immediately fold it
             Shape broadcastShape(length, 1);
-            broadcastShape[1] = subtract->get_output_partial_shape(0)[1].get_length();
+            broadcastShape[1] = getInputChannels(convolution);
 
             std::shared_ptr<Node> newShift = fold<opset1::Broadcast>(
                 subtract->input_value(1),

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,17 +55,17 @@ void MKLDNNReferenceNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNReferenceNode::createPrimitive() {}
 
 void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
-    ov::runtime::TensorVector inputs;
+    ov::TensorVector inputs;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().GetPtr();
-        inputs.push_back(ov::runtime::Tensor(ngraphOp->get_input_element_type(i),
+        inputs.push_back(ov::Tensor(ngraphOp->get_input_element_type(i),
                                              getParentEdgesAtPort(i)[0]->getMemory().getStaticDims(), srcDataPtr));
     }
 
-    ov::runtime::TensorVector outputs;
+    ov::TensorVector outputs;
     for (size_t i = 0; i < outputShapes.size(); i++) {
         void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().GetPtr();
-        outputs.push_back(ov::runtime::Tensor(ngraphOp->get_output_element_type(i),
+        outputs.push_back(ov::Tensor(ngraphOp->get_output_element_type(i),
                                               getChildEdgesAtPort(i)[0]->getMemory().getStaticDims(), dstDataPtr));
     }
 

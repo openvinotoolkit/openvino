@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
+from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer, eltwise_reverse_infer
 from openvino.tools.mo.front.common.partial_infer.utils import float32_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.infer import copy_type_infer
@@ -24,6 +24,7 @@ class Elementwise(Op):
             'type': self.op_type,
             'version': self.version,
             'infer': lambda node: eltwise_infer(node, self.operation),
+            'reverse_infer': eltwise_reverse_infer,
             'type_infer': self.type_infer,
             'can_be_bias': True,
             'can_be_fused': True,

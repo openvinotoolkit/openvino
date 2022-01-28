@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -281,6 +281,10 @@ static const char* const MICROSOFT_DOMAIN = "com.microsoft";
     m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
 
 OperatorsBridge::OperatorsBridge() {
+    _load_initial_state();
+}
+
+void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("Abs", 1, abs);
     REGISTER_OPERATOR("Acos", 1, acos);
     REGISTER_OPERATOR("Acosh", 1, acosh);

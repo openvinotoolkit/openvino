@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ namespace {
 struct GRUCellParams {
     GRUCellParams(
         const int32_t batchSize, const int32_t inputSize, const int32_t hiddenSize, const int32_t gatesCount, const bool linearBeforeReset,
-        const Tensor& X, const Tensor& H_t, const Tensor& W, const Tensor& R, const Tensor& B,
-        const Tensor& Ho, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& X, const reference_tests::Tensor& H_t, const reference_tests::Tensor& W, const reference_tests::Tensor& R, const reference_tests::Tensor& B,
+        const reference_tests::Tensor& Ho, const std::string& testcaseName = "") :
         batchSize(batchSize), inputSize(inputSize), hiddenSize(hiddenSize), gatesCount(gatesCount), linearBeforeReset(linearBeforeReset),
         X(X), H_t(H_t), W(W), R(R), B(B), Ho(Ho), testcaseName(testcaseName) {}
 
@@ -24,12 +24,12 @@ struct GRUCellParams {
     int32_t hiddenSize;
     int32_t gatesCount;
     bool linearBeforeReset;
-    Tensor X;
-    Tensor H_t;
-    Tensor W;
-    Tensor R;
-    Tensor B;
-    Tensor Ho;
+    reference_tests::Tensor X;
+    reference_tests::Tensor H_t;
+    reference_tests::Tensor W;
+    reference_tests::Tensor R;
+    reference_tests::Tensor B;
+    reference_tests::Tensor Ho;
     std::string testcaseName;
 };
 
@@ -147,23 +147,23 @@ std::vector<GRUCellParams> generateParams() {
     std::vector<GRUCellParams> params {
         GRUCellParams(
             2, 3, 3, 3, false,
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.52421564f, 0.78845507f, 0.9372873f, 0.59783894f, 0.18278378f, 0.2084126f}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.45738035f, 0.996877f, 0.82882977f, 0.47492632f, 0.88471466f, 0.57833236f}),
-            Tensor(ET, {3 * 3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3 * 3, 3}, std::vector<T>{
                 0.5815369f, 0.16559383f, 0.08464007f, 0.843122f,   0.73968244f, 0.11359601f,
                 0.8295078f, 0.9240567f,  0.10007995f, 0.20573162f, 0.09002485f, 0.2839569f,
                 0.3096991f, 0.5638341f,  0.5787327f,  0.84552664f, 0.16263747f, 0.7243242f,
                 0.8049057f, 0.43966424f, 0.46294412f, 0.9833361f,  0.31369713f, 0.1719934f,
                 0.4937093f, 0.6353004f,  0.77982515f}),
-            Tensor(ET, {3 * 3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3 * 3, 3}, std::vector<T>{
                 0.16510165f, 0.52435565f, 0.2788478f, 0.99427545f, 0.1623331f,  0.01389796f,
                 0.99669236f, 0.53901845f, 0.8737506f, 0.9254788f,  0.21172932f, 0.11634306f,
                 0.40111724f, 0.37497616f, 0.2903471f, 0.6796794f,  0.65131867f, 0.78163475f,
                 0.12058706f, 0.45591718f, 0.791677f,  0.76497287f, 0.9895242f,  0.7845312f,
                 0.51267904f, 0.49030215f, 0.08498167f}),
-            Tensor(ET, {3 * 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3 * 3}, std::vector<T>{
                 0.8286678f + 0.9175602f,
                 0.9153158f + 0.14958014f,
                 0.9581612f + 0.49230585f,
@@ -173,28 +173,28 @@ std::vector<GRUCellParams> generateParams() {
                 0.14153397f + 0.50496656f,
                 0.22404431f + 0.34798595f,
                 0.6549655f + 0.6699164f}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.48588726f, 0.99670005f, 0.83759373f, 0.5023099f, 0.89410484f, 0.60011315f}),
             "gru_cell_bias_clip"),
         GRUCellParams(
             2, 3, 3, 3, true,
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.12249453f, 0.6127907f, 0.5001741f, 0.5124603f, 0.04329684f, 0.023834f}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.8598948f, 0.41189128f, 0.72824323f, 0.53940123f, 0.31485787f, 0.04053852f}),
-            Tensor(ET, {3 * 3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3 * 3, 3}, std::vector<T>{
                 0.72259396f, 0.11561195f, 0.9457856f,  0.19037509f, 0.6964006f,  0.33459795f,
                 0.5468904f,  0.85646594f, 0.5101311f,  0.9712257f,  0.3687071f,  0.60280246f,
                 0.56943774f, 0.7475505f,  0.2490578f,  0.86977345f, 0.85542053f, 0.29660386f,
                 0.49717373f, 0.7473479f,  0.53454477f, 0.15974349f, 0.5804805f,  0.14303213f,
                 0.07514781f, 0.5865731f,  0.76409274f}),
-            Tensor(ET, {3 * 3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3 * 3, 3}, std::vector<T>{
                 0.91382647f, 0.41527033f, 0.28040004f, 0.23601337f, 0.04471736f, 0.03888785f,
                 0.06308217f, 0.44844428f, 0.29384327f, 0.49037653f, 0.50421673f, 0.7366393f,
                 0.63143945f, 0.00277612f, 0.37198433f, 0.06966069f, 0.4613444f,  0.10999731f,
                 0.78273284f, 0.21453214f, 0.10751773f, 0.18332677f, 0.1326976f,  0.9998985f,
                 0.19263928f, 0.10979804f, 0.52575564f}),
-            Tensor(ET, {(3 + 1) * 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {(3 + 1) * 3}, std::vector<T>{
                 0.61395123f,  // 0.09875853f + 0.5151927f,
                 1.08667738f,  // 0.37801138f + 0.708666f,
                 1.32600244f,  // 0.7729636f + 0.55303884f,
@@ -207,7 +207,7 @@ std::vector<GRUCellParams> generateParams() {
                 0.6606634f,
                 0.99040645f,
                 0.21112025f}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.8709214f, 0.48411977f, 0.74495184f, 0.6074972f, 0.44572943f, 0.1467715f}),
             "gru_cell_linear_before_reset"),
     };
@@ -235,23 +235,23 @@ std::vector<GRUCellParams> generateParamsHardsigmoidActivationFunction() {
     std::vector<GRUCellParams> params {
         GRUCellParams(
             2, 3, 3, 3, true,
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.12249453f, 0.6127907f, 0.5001741f, 0.5124603f, 0.04329684f, 0.023834f}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.8598948f, 0.41189128f, 0.72824323f, 0.53940123f, 0.31485787f, 0.04053852f}),
-            Tensor(ET, {3 * 3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3 * 3, 3}, std::vector<T>{
                 0.72259396f, 0.11561195f, 0.9457856f,  0.19037509f, 0.6964006f,  0.33459795f,
                 0.5468904f,  0.85646594f, 0.5101311f,  0.9712257f,  0.3687071f,  0.60280246f,
                 0.56943774f, 0.7475505f,  0.2490578f,  0.86977345f, 0.85542053f, 0.29660386f,
                 0.49717373f, 0.7473479f,  0.53454477f, 0.15974349f, 0.5804805f,  0.14303213f,
                 0.07514781f, 0.5865731f,  0.76409274f}),
-            Tensor(ET, {3 * 3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3 * 3, 3}, std::vector<T>{
                 0.91382647f, 0.41527033f, 0.28040004f, 0.23601337f, 0.04471736f, 0.03888785f,
                 0.06308217f, 0.44844428f, 0.29384327f, 0.49037653f, 0.50421673f, 0.7366393f,
                 0.63143945f, 0.00277612f, 0.37198433f, 0.06966069f, 0.4613444f,  0.10999731f,
                 0.78273284f, 0.21453214f, 0.10751773f, 0.18332677f, 0.1326976f,  0.9998985f,
                 0.19263928f, 0.10979804f, 0.52575564f}),
-            Tensor(ET, {(3 + 1) * 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {(3 + 1) * 3}, std::vector<T>{
                 0.09875853f + 0.5151927f,
                 0.37801138f + 0.708666f,
                 0.7729636f + 0.55303884f,
@@ -264,7 +264,7 @@ std::vector<GRUCellParams> generateParamsHardsigmoidActivationFunction() {
                 0.6606634f,
                 0.99040645f,
                 0.21112025f}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 0.8598948f, 0.41189128f, 0.72824323f, 0.53940123f, 0.31485787f, 0.04053852f}),
             "gru_cell_hardsigmoid_activation_function"),
     };
