@@ -4,6 +4,7 @@
 
 #include "ngraph/type.hpp"
 
+#include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace std {
@@ -13,14 +14,6 @@ size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTyp
 }  // namespace std
 
 namespace ov {
-DiscreteTypeInfo::DiscreteTypeInfo(const DiscreteTypeInfo& type) {
-    name = type.name;
-    version_id = type.version_id;
-    version = type.version;
-    hash_value = type.hash_value;
-    static_var = false;
-}
-
 size_t DiscreteTypeInfo::hash() const {
     if (hash_value != 0)
         return hash_value;
@@ -88,11 +81,12 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
     return false;
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
-    if (static_var && b.static_var)
-        return this == &b;
+    // Legacy logic
+    if (version_id != b.version_id && (version_id == nullptr || b.version_id == nullptr))
+        return version == b.version && strcmp(name, b.name) == 0;
     if (hash_value != 0 && b.hash_value != 0)
         return hash_value == b.hash_value;
-    return hash() == b.hash();
+    throw ov::Exception("Looks strange!");
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;
