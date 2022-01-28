@@ -25,6 +25,8 @@ endif()
 add_subdirectory(plugins)
 add_subdirectory(inference)
 include(cmake/ov_runtime.cmake)
+# preprocessing has dependency on ov_runtime for static build
+add_subdirectory(common/preprocessing)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
