@@ -151,11 +151,15 @@ function(addIeTargetTest)
         NAME
         )
     set(oneValueOptionalArgs
+        COMPONENT
         )
     set(multiValueArgs
         LABELS
         )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
+    if (NOT DEFINED ARG_COMPONENT)
+        set(ARG_COMPONENT tests)
+    endif()
 
     addIeTarget(TYPE EXECUTABLE NAME ${ARG_NAME} ${ARG_UNPARSED_ARGUMENTS})
 
@@ -164,7 +168,7 @@ function(addIeTargetTest)
 
     install(TARGETS ${ARG_NAME}
             RUNTIME DESTINATION tests
-            COMPONENT tests
+            COMPONENT ${ARG_COMPONENT}
             EXCLUDE_FROM_ALL)
 endfunction()
 
