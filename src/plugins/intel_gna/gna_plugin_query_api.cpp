@@ -5,7 +5,7 @@
 #include <ie_parameter.hpp>
 #include "gna_plugin.hpp"
 #include "gna/gna_config.hpp"
-#include <openvino/runtime/intel_gna/gna_properties.hpp>
+#include "openvino/runtime/intel_gna/properties.hpp"
 
 #include <string>
 #include <map>

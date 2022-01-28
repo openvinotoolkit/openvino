@@ -6,7 +6,7 @@
 
 #include <gna2-inference-api.h>
 #include <gna2-common-api.h>
-#include <openvino/runtime/intel_gna/gna_properties.hpp>
+#include "openvino/runtime/intel_gna/properties.hpp"
 #include "ie_precision.hpp"
 #include <ie_parameter.hpp>
 #include "descriptions/gna_flags.hpp"

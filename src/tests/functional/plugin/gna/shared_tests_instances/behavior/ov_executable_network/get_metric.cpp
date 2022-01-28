@@ -4,7 +4,7 @@
 
 #include "behavior/ov_executable_network/get_metric.hpp"
 
-#include <openvino/runtime/intel_gna/gna_properties.hpp>
+#include "openvino/runtime/intel_gna/properties.hpp"
 #include <gna/gna_config.hpp>
 
 using namespace ov::test::behavior;
@@ -178,8 +178,8 @@ INSTANTIATE_TEST_SUITE_P(
                           ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION),
                           ov::intel_gna::pwl_max_error_percent(0.2),
                           ov::intel_gna::firmware_model_image_path(""),
-                          ov::intel_gna::compile_target(ov::intel_gna::TargetDevice::GNA_3_0),
-                          ov::intel_gna::execution_target(ov::intel_gna::TargetDevice::GNA_3_0))));
+                          ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::GNA_3_0),
+                          ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_0))));
 
 //
 // Hetero Executable Network GetMetric

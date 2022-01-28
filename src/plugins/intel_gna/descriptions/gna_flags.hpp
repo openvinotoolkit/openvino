@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cstdint>
-#include <openvino/runtime/intel_gna/gna_properties.hpp>
+#include "openvino/runtime/intel_gna/properties.hpp"
 #include "gna/gna_config.hpp"
 
 namespace GNAPluginNS {

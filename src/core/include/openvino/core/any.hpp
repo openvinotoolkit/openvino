@@ -800,21 +800,4 @@ std::shared_ptr<T> static_pointer_cast(const ::ov::Any& any) {
     return any.as<std::shared_ptr<T>>();
 }
 
-inline ostream& operator<<(ostream& os, const map<std::string, float>& m) {
-    for (auto&& it : m) {
-        os << it.first << " " << it.second << " ";
-    }
-    return os;
-}
-
-inline istream& operator>>(istream& is, map<std::string, float>& m) {
-    m.clear();
-    string key;
-    float value;
-    while (is >> key >> value) {
-        m.emplace(key, value);
-    }
-    return is;
-}
-
 }  // namespace std
