@@ -428,7 +428,7 @@ int main(int argc, char* argv[]) {
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
                                     if (!FLAGS_oname.empty())
                                         outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
+                                            inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
@@ -439,7 +439,7 @@ int main(int argc, char* argv[]) {
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
                                     if (!FLAGS_oname.empty())
                                         outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
+                                            inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
                                     compare_scores(
                                         outputBlob.data<float>(),
                                         &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
@@ -467,7 +467,7 @@ int main(int argc, char* argv[]) {
                         for (int i = 0; i < executableNet.inputs().size(); i++) {
                             inferRequest.inferRequest.set_input_tensor(
                                 i,
-                                ov::Tensor(ov::element::f32, executableNet.inputs()[i].get_shape(), inputFrame[0]));
+                                ov::Tensor(ov::element::f32, executableNet.inputs()[i].get_shape(), inputFrame[i]));
                         }
                         /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.start_async();
