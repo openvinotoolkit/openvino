@@ -395,7 +395,7 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                                                        check_result = false;
                                                    }
                                                } else if (info.isConcat()) {
-                                                   if (!ValidateConcatAxis(layer, errMessage) && userWarning) {
+                                                   if (userWarning && !ValidateConcatAxis(layer, errMessage)) {
                                                        std::cout << errMessage;
                                                    }
                                                }

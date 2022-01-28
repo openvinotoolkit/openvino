@@ -313,6 +313,11 @@ const std::vector<std::map<std::string, std::string>> configsStrides = {
         {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
         {"GNA_SCALE_FACTOR_0", "1"},
         {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}
+    },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"GNA_SCALE_FACTOR_0", "1"},
+        {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}
     }
 };
 

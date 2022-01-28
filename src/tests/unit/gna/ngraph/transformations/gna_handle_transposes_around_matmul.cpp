@@ -66,6 +66,78 @@ std::shared_ptr<ngraph::Function> CreateMatmulFunction(const ngraph::Shape& inpu
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
 }
 
+std::shared_ptr<ngraph::Function> CreateConcatTransposeMatmulFunction(const ngraph::Shape& input1_shape, const ngraph::Shape& input2_shape,
+    const ngraph::Shape& reshape1_shape, const ngraph::Shape& reshape2_shape, bool create_reshape_after_transpose) {
+    auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
+
+    auto input1_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input1_shape);
+    std::vector<size_t> data1(ngraph::shape_size(input1_shape));
+    std::iota(std::begin(data1), std::end(data1), 1);
+    auto concat1_const = ngraph::opset7::Constant::create(ngraph::element::i64, input1_shape, data1);
+    ngraph::OutputVector concat1_chunks{input1_params, concat1_const};
+    auto concat1 = std::make_shared<ngraph::opset7::Concat>(concat1_chunks, 0);
+    auto transpose1 = std::make_shared<ngraph::opset7::Transpose>(concat1, transpose_order);
+
+    auto input2_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input2_shape);
+    std::vector<size_t> data2(ngraph::shape_size(input2_shape));
+    std::iota(std::begin(data2), std::end(data2), 1);
+    auto concat2_const = ngraph::opset7::Constant::create(ngraph::element::i64, input2_shape, data2);
+    ngraph::OutputVector concat2_chunks{input2_params, concat2_const};
+    auto concat2 = std::make_shared<ngraph::opset7::Concat>(concat2_chunks, 0);
+    auto transpose2 = std::make_shared<ngraph::opset7::Transpose>(concat2, transpose_order);
+
+    std::shared_ptr<ngraph::opset7::MatMul> matmul;
+
+    if (create_reshape_after_transpose) {
+        auto reshape_after_transpose1_const = ngraph::opset7::Constant::create(ngraph::element::i64,
+            ngraph::Shape{reshape1_shape.size()}, reshape1_shape);
+        auto reshape_after_transpose1 = std::make_shared<ngraph::opset7::Reshape>(transpose1, reshape_after_transpose1_const, false);
+        auto reshape_after_transpose2_const = ngraph::opset7::Constant::create(ngraph::element::i64,
+            ngraph::Shape{reshape2_shape.size()}, reshape2_shape);
+        auto reshape_after_transpose2 = std::make_shared<ngraph::opset7::Reshape>(transpose2, reshape_after_transpose2_const, false);
+        matmul = std::make_shared<ngraph::opset7::MatMul>(reshape_after_transpose1, reshape_after_transpose2);
+    } else {
+        matmul = std::make_shared<ngraph::opset7::MatMul>(transpose1, transpose2);
+    }
+
+    auto result = std::make_shared<ngraph::opset7::Result>(matmul);
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input1_params, input2_params});
+}
+
+std::shared_ptr<ngraph::Function> CreateConcatMatmulFunction(const ngraph::Shape& input1_shape, const ngraph::Shape& input2_shape,
+    const ngraph::Shape& reshape1_shape, const ngraph::Shape& reshape2_shape, bool create_reshape_instead_of_transpose) {
+    auto input1_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input1_shape);
+    std::vector<size_t> data1(ngraph::shape_size(input1_shape));
+    std::iota(std::begin(data1), std::end(data1), 1);
+    auto concat1_const = ngraph::opset7::Constant::create(ngraph::element::i64, input1_shape, data1);
+    ngraph::OutputVector concat1_chunks{input1_params, concat1_const};
+    auto concat1 = std::make_shared<ngraph::opset7::Concat>(concat1_chunks, 0);
+
+    auto input2_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input2_shape);
+    std::vector<size_t> data2(ngraph::shape_size(input2_shape));
+    std::iota(std::begin(data2), std::end(data2), 1);
+    auto concat2_const = ngraph::opset7::Constant::create(ngraph::element::i64, input2_shape, data2);
+    ngraph::OutputVector concat2_chunks{input2_params, concat2_const};
+    auto concat2 = std::make_shared<ngraph::opset7::Concat>(concat2_chunks, 0);
+
+    std::shared_ptr<ngraph::opset7::MatMul> matmul;
+
+    if (create_reshape_instead_of_transpose) {
+        auto new_shape_after_transpose1 = ngraph::opset7::Constant::create(ngraph::element::i64,
+            ngraph::Shape{reshape1_shape.size()}, {reshape1_shape[1], reshape1_shape[0]});
+        auto reshape1 = std::make_shared<ngraph::opset7::Reshape>(concat1, new_shape_after_transpose1, false);
+        auto new_shape_after_transpose2 = ngraph::opset7::Constant::create(ngraph::element::i64,
+            ngraph::Shape{reshape2_shape.size()}, {reshape2_shape[1], reshape2_shape[0]});
+        auto reshape2 = std::make_shared<ngraph::opset7::Reshape>(concat2, new_shape_after_transpose2, false);
+        matmul = std::make_shared<ngraph::opset7::MatMul>(reshape1, reshape2);
+    } else {
+        matmul = std::make_shared<ngraph::opset7::MatMul>(concat1, concat2);
+    }
+
+    auto result = std::make_shared<ngraph::opset7::Result>(matmul);
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input1_params, input2_params});
+}
+
 } // namespace handle_transpose_before_matmul
 
 namespace handle_transpose_after_matmul {
@@ -235,6 +307,9 @@ TEST(TransformationTests, InsertTransposeBeforeMatmulTest) {
     RunTest(
         handle_transpose_before_matmul::CreateMatmulFunction({1, 2, 8}, {8, 2}, {2, 1}, false),
         handle_transpose_before_matmul::CreateTransposeMatmulFunction({1, 2, 8}, {8, 2}, {2, 1}, true));
+    RunTest(
+        handle_transpose_before_matmul::CreateConcatMatmulFunction({4, 16}, {8, 8}, {8, 16}, {16, 8}, false),
+        handle_transpose_before_matmul::CreateConcatTransposeMatmulFunction({4, 16}, {8, 8}, {8, 16}, {16, 8}, true));
 }
 
 TEST(TransformationTests, InsertTransposeBeforeMatmulTestReshapeInOutEq) {
@@ -244,12 +319,18 @@ TEST(TransformationTests, InsertTransposeBeforeMatmulTestReshapeInOutEq) {
     RunTest(
         handle_transpose_before_matmul::CreateMatmulFunction({9, 2}, {9, 2}, {2, 1}, false),
         handle_transpose_before_matmul::CreateMatmulFunction({9, 2}, {9, 2}, {2, 1}, false));
+    RunTest(
+        handle_transpose_before_matmul::CreateConcatMatmulFunction({8, 16}, {8, 16}, {16, 16}, {16, 16}, false),
+        handle_transpose_before_matmul::CreateConcatMatmulFunction({8, 16}, {8, 16}, {16, 16}, {16, 16}, false));
 }
 
 TEST(TransformationTests, RemoveTransposeBeforeMatmulTest) {
     RunTest(
         handle_transpose_before_matmul::CreateTransposeMatmulFunction({1, 8}, {2, 4}, {2, 1}, false),
         handle_transpose_before_matmul::CreateMatmulFunction({1, 8}, {2, 4}, {2, 1}, true));
+    RunTest(
+        handle_transpose_before_matmul::CreateConcatTransposeMatmulFunction({4, 16}, {8, 8}, {8, 16}, {16, 8}, false),
+        handle_transpose_before_matmul::CreateConcatMatmulFunction({4, 16}, {8, 8}, {8, 16}, {16, 8}, true));
 }
 
 TEST(TransformationTests, RemoveTransposeBeforeMatmulTestReshapeInOutEq) {

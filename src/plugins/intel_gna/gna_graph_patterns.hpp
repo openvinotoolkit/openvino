@@ -13,7 +13,7 @@
 namespace GNAPluginNS {
 
 /**
- * @brief checks if it's a reshape from 4d to 3d tensor inserted after convolution
+ * @brief checks if it's a reshape from 4d to 3d tensor
  * @param layer Non-functional layer
  */
 inline bool IsReshapeFrom4dTo3d(InferenceEngine::CNNLayerPtr layer) {
@@ -24,8 +24,7 @@ inline bool IsReshapeFrom4dTo3d(InferenceEngine::CNNLayerPtr layer) {
     auto input_dims = layer->insData[0].lock()->getDims();
     auto output_dims = layer->outData[0]->getDims();
     // If H input dimension is not 1, it can't be just skipped during reshape to 3d
-    size_t h_dim = input_dims[2];
-    if (input_dims.size() != 4 || output_dims.size() != 3 || h_dim != 1) {
+    if (input_dims.size() != 4 || output_dims.size() != 3 || input_dims[2] != 1) {
         return false;
     }
 
@@ -61,7 +60,7 @@ inline bool IsReshapeFrom3dTo4d(InferenceEngine::CNNLayerPtr layer) {
 }
 
 /**
- * @brief searchs for a pattern: Permute(NHWC->NCHW) -> ... -> Convolution -> ... -> Permute(NCHW->NHWC) or
+ * @brief searches for a pattern: Permute(NHWC->NCHW) -> ... -> Convolution -> ... -> Permute(NCHW->NHWC) or
  * Reshape(NHWC->NCHW) -> ... -> Convolution -> ... -> Reshape(NCHW->NHWC) if Convolution has only one input/output
  * dimension not equal to 1,
  * if the original convolution layout is 3d, 3d->4d/4d->3d reshapes will be inserted before/after the convolution,

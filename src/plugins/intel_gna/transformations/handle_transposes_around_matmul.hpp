@@ -9,22 +9,23 @@
 namespace GNAPluginNS {
 
 /**
- * @brief Inserts Transpose before MatMul or removes it (if it exists) if there is Reshape
- * before MatMul which changes the batch size:
- *    [1, A*B]                [1, A*B]
- *       |                       |
- *    Reshape                 Reshape
- *       |                       |
- *    [A, B]                  [A, B]
- *       |                       |
- *       |                   Transpose
- *       |           ->          |
- *       |           <-       [B, A]
- *       |                       |
- *       |                    Reshape
- *       |                    [A, B]
- *       |                       |
- *    MatMul                   MatMul
+ * @brief Inserts Transpose before MatMul or removes it (if it exists)
+ * if there is Reshape/Concat layer before MatMul which changes the batch size,
+ * or transpose the input if there's a Constant/FQ layer on the first input:
+ *      [1, A*B]                [1, A*B]
+ *         |                       |
+ *  Reshape / Concat        Reshape / Concat
+ *         |                       |
+ *      [A, B]                  [A, B]
+ *         |                       |
+ *         |                   Transpose
+ *         |           ->          |
+ *         |           <-       [B, A]
+ *         |                       |
+ *         |                    Reshape
+ *         |                    [A, B]
+ *         |                       |
+ *      MatMul                   MatMul
  */
 class HandleTransposeBeforeMatMul : public ngraph::pass::MatcherPass {
 public:
