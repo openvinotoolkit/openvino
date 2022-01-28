@@ -48,13 +48,13 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: mask_rcnn_resnet101_atrous_coco
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: mask_rcnn_resnet101_atrous_coco
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -62,20 +62,20 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: se-resnet-152
-    precision: FP32
-    source: omz
-  references: {}
-- device:
-    name: CPU
-  model:
-    name: octave-resnext-50-0.25
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: se-resnet-152
+#    precision: FP32
+#    source: omz
+#  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: octave-resnext-50-0.25
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -83,13 +83,13 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: ssd_mobilenet_v2_coco
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: ssd_mobilenet_v2_coco
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -118,13 +118,13 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: ctdet_coco_dlav0_384
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: ctdet_coco_dlav0_384
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -174,13 +174,13 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: densenet-169
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: densenet-169
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -323,13 +323,13 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: mask_rcnn_resnet101_atrous_coco
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: mask_rcnn_resnet101_atrous_coco
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
@@ -337,20 +337,20 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: se-resnet-152
-    precision: FP32
-    source: omz
-  references: {}
-- device:
-    name: GPU
-  model:
-    name: octave-resnext-50-0.25
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: se-resnet-152
+#    precision: FP32
+#    source: omz
+#  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: octave-resnext-50-0.25
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
@@ -358,13 +358,13 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: ssd_mobilenet_v2_coco
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: ssd_mobilenet_v2_coco
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
@@ -393,13 +393,13 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: ctdet_coco_dlav0_384
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: ctdet_coco_dlav0_384
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
@@ -449,13 +449,13 @@
     precision: FP32
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: densenet-169
-    precision: FP32
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: densenet-169
+#    precision: FP32
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
@@ -598,13 +598,13 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: mask_rcnn_resnet101_atrous_coco
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: mask_rcnn_resnet101_atrous_coco
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -612,20 +612,20 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: se-resnet-152
-    precision: FP16
-    source: omz
-  references: {}
-- device:
-    name: CPU
-  model:
-    name: octave-resnext-50-0.25
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: se-resnet-152
+#    precision: FP16
+#    source: omz
+#  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: octave-resnext-50-0.25
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -633,13 +633,13 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: ssd_mobilenet_v2_coco
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: ssd_mobilenet_v2_coco
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -668,13 +668,13 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: ctdet_coco_dlav0_384
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: ctdet_coco_dlav0_384
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -724,13 +724,13 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: CPU
-  model:
-    name: densenet-169
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: CPU
+#  model:
+#    name: densenet-169
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: CPU
   model:
@@ -873,13 +873,13 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: mask_rcnn_resnet101_atrous_coco
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: mask_rcnn_resnet101_atrous_coco
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
@@ -887,20 +887,20 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: se-resnet-152
-    precision: FP16
-    source: omz
-  references: {}
-- device:
-    name: GPU
-  model:
-    name: octave-resnext-50-0.25
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: se-resnet-152
+#    precision: FP16
+#    source: omz
+#  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: octave-resnext-50-0.25
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
@@ -908,13 +908,13 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: ssd_mobilenet_v2_coco
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: ssd_mobilenet_v2_coco
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
@@ -943,13 +943,13 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: ctdet_coco_dlav0_384
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: ctdet_coco_dlav0_384
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
@@ -999,13 +999,13 @@
     precision: FP16
     source: omz
   references: {}
-- device:
-    name: GPU
-  model:
-    name: densenet-169
-    precision: FP16
-    source: omz
-  references: {}
+#- device:
+#    name: GPU
+#  model:
+#    name: densenet-169
+#    precision: FP16
+#    source: omz
+#  references: {}
 - device:
     name: GPU
   model:
