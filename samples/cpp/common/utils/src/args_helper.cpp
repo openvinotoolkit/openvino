@@ -252,15 +252,15 @@ void printInputAndOutputsInfoShort(const ov::Model& network) {
     std::cout << "Network inputs:" << std::endl;
     for (auto&& input : network.inputs()) {
         std::cout << "    " << input.get_any_name() << " (node: " << input.get_node()->get_friendly_name()
-                  << ") : " << input.get_element_type() << " / "
-                  << ov::layout::get_layout(input).to_string() << std::endl;
+                  << ") : " << input.get_element_type() << " / " << ov::layout::get_layout(input).to_string()
+                  << std::endl;
     }
 
     std::cout << "Network outputs:" << std::endl;
     for (auto&& output : network.outputs()) {
         std::string out_name = "***NO_NAME***";
         std::string node_name = "***NO_NAME***";
-        
+
         // Workaround for "tensor has no name" issue
         try {
             out_name = output.get_any_name();

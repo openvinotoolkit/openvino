@@ -353,7 +353,7 @@ std::map<std::string, std::vector<std::string>> parse_input_parameters(
             input_name = search_string.substr(0, start_pos);
         auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
         if (!input_name.empty()) {
-            return_value[parameter_name_to_tensor_name(input_name,input_info)].push_back(input_value);
+            return_value[parameter_name_to_tensor_name(input_name, input_info)].push_back(input_value);
         } else {
             for (auto& item : input_info) {
                 return_value[item.get_any_name()].push_back(input_value);
@@ -798,10 +798,9 @@ std::vector<std::string> filter_files_by_extensions(const std::vector<std::strin
     return filtered;
 }
 
-std::string parameter_name_to_tensor_name(
-    const std::string& name,
-    const std::vector<ov::Output<const ov::Node>>& inputs_info,
-    const std::vector<ov::Output<const ov::Node>>& outputs_info) {
+std::string parameter_name_to_tensor_name(const std::string& name,
+                                          const std::vector<ov::Output<const ov::Node>>& inputs_info,
+                                          const std::vector<ov::Output<const ov::Node>>& outputs_info) {
     if (std::any_of(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
             try {
                 return name == port.get_any_name();
@@ -831,5 +830,5 @@ std::string parameter_name_to_tensor_name(
         }
     }
     throw std::runtime_error("Provided I/O name \"" + name +
-                                "\" is not found neither in tensor names nor in nodes names.");
+                             "\" is not found neither in tensor names nor in nodes names.");
 }

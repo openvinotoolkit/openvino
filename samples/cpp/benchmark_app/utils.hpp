@@ -140,13 +140,13 @@ std::string parameter_name_to_tensor_name(
     const std::vector<ov::Output<const ov::Node>>& outputs_info = std::vector<ov::Output<const ov::Node>>());
 
 template <class T>
-void convert_io_names_in_map(T& map,
-                             const std::vector<ov::Output<const ov::Node>>& inputs_info,
+void convert_io_names_in_map(
+    T& map,
+    const std::vector<ov::Output<const ov::Node>>& inputs_info,
     const std::vector<ov::Output<const ov::Node>>& outputs_info = std::vector<ov::Output<const ov::Node>>()) {
     T new_map;
     for (auto& item : map) {
-        new_map [item.first == "" ? "":
-            parameter_name_to_tensor_name(item.first, inputs_info, outputs_info)] =
+        new_map[item.first == "" ? "" : parameter_name_to_tensor_name(item.first, inputs_info, outputs_info)] =
             std::move(item.second);
     }
     map = new_map;
