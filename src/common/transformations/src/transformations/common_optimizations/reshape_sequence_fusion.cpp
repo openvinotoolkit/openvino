@@ -55,7 +55,7 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
 }
 } // namespace
 
-ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion() {
+ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination) {
     MATCHER_SCOPE(ReshapeSequenceFusion);
     auto reshape_input = pattern::any_input();
     auto reshape_a_pattern = pattern::wrap_type<opset8::Constant>();
@@ -88,10 +88,14 @@ ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion() {
         }
 
         // remove redundant reshapes
-        if (input.get_node_shared_ptr()->get_output_partial_shape(0).is_static() && reshape->get_output_partial_shape(0).is_static() &&
-            input.get_node_shared_ptr()->get_output_shape(0) == reshape->get_output_shape(0)) {
-            return replace_output_update_name(reshape->output(0), input);
-        } else {
+        bool replaced = false;
+        if (use_shape_for_elimination && input.get_partial_shape().is_static() && reshape->get_output_partial_shape(0).is_static() &&
+            input.get_shape() == reshape->get_output_shape(0)) {
+            // in case if elimination is not allowed we still can eliminate all transposes except last one
+            replaced = replace_output_update_name(reshape->output(0), input);
+        }
+
+        if (!replaced) {
             reshape->input(0).replace_source_output(input);
             copy_runtime_info(nodes, reshape);
         }

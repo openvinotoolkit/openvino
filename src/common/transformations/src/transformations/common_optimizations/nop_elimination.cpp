@@ -100,12 +100,12 @@ static bool eliminate_reshape_v1(const std::shared_ptr<Node>& node) {
 
     // eliminate redundant reshape, squeeze, or unsqueeze
     auto input_node = input.get_node_shared_ptr();
-    if (input_node->get_output_size() != 1)
-        return false;
-
     if (ov::as_type_ptr<opset3::Squeeze>(input_node) ||
         ov::as_type_ptr<opset3::Unsqueeze>(input_node) ||
         ov::as_type_ptr<opset3::Reshape>(input_node)) {
+        if (input_node->get_output_target_inputs(0).size() != 1)
+            return false;
+
         auto shape = node->get_output_shape(0);
 
         // remove interchangeable nodes

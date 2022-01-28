@@ -24,5 +24,5 @@ class TRANSFORMATIONS_API ReshapeSequenceFusion;
 class ngraph::pass::ReshapeSequenceFusion: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ReshapeSequenceFusion();
+    ReshapeSequenceFusion(bool use_shape_for_elimination = true);
 };
