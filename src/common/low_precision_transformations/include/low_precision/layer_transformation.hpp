@@ -108,6 +108,7 @@ public:
                     case low_precision::levels::int8_narrow_range:
                         return -127.f;
                 }
+                break;
             case element::i16:
                 switch (levels) {
                     case low_precision::levels::int16:
