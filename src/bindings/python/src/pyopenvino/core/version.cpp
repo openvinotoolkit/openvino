@@ -10,6 +10,8 @@ namespace py = pybind11;
 
 void regclass_Version(py::module m) {
     py::class_<ov::Version> cls(m, "Version");
+    cls.doc() = "openvino.runtime.Version represents version information
+                 that describes plugins and the OpenVINO library.";
 
     cls.def_readonly("build_number", &ov::Version::buildNumber);
     cls.def_readonly("description", &ov::Version::description);

@@ -14,6 +14,7 @@ namespace py = pybind11;
 
 void regclass_Tensor(py::module m) {
     py::class_<ov::Tensor, std::shared_ptr<ov::Tensor>> cls(m, "Tensor");
+    cls.doc() = "openvino.runtime.Tensor holding either copy of memory or shared host memory.";
 
     cls.def(py::init([](py::array& array, bool shared_memory) {
                 return Common::tensor_from_numpy(array, shared_memory);
@@ -61,6 +62,8 @@ void regclass_Tensor(py::module m) {
     cls.def_property_readonly("size", &ov::Tensor::get_size);
 
     cls.def_property_readonly("byte_size", &ov::Tensor::get_byte_size);
+
+    cls.def_property_readonly("strides", &ov::Tensor::get_strides); // TODO jiwaszki: add testing
 
     cls.def_property_readonly("data", [](ov::Tensor& self) {
         return py::array(Common::ov_type_to_dtype().at(self.get_element_type()),

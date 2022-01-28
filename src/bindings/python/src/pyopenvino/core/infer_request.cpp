@@ -20,6 +20,8 @@ namespace py = pybind11;
 
 void regclass_InferRequest(py::module m) {
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
+    cls.doc() = "openvino.runtime.InferRequest represents infer request which
+                 can be run in asynchronous or synchronous manners.";
 
     cls.def(py::init([](InferRequestWrapper& other) {
                 return other;
@@ -67,7 +69,22 @@ void regclass_InferRequest(py::module m) {
             self._end_time = Time::now();
             return Common::outputs_to_dict(self._outputs, self._request);
         },
-        py::arg("inputs"));
+        py::arg("inputs"),
+        R"(
+            Infers specified input(s) in synchronous mode.
+            Blocks all methods of InferRequest while request is running.
+            Calling any method will lead to throwning exceptions.
+
+            Parameters
+            ----------
+            inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+                Data to set on input tensors.
+
+            Returns
+            ----------
+            infer : dict[openvino.runtime.ConstOutput : openvino.runtime.Tensor]
+                Dictionary of results from output tensors with ports as keys.
+        )");
 
     cls.def(
         "start_async",
@@ -86,16 +103,57 @@ void regclass_InferRequest(py::module m) {
             self._request.start_async();
         },
         py::arg("inputs"),
-        py::arg("userdata"));
+        py::arg("userdata"),
+        R"(
+            Starts inference of specified input(s) in asynchronous mode.
+            Returns immediately. Inference starts also immediately.
+            Calling any method while the request is running will lead to
+            throwning exceptions.
+
+            Parameters
+            ----------
+            inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+                Data to set on input tensors.
+
+            userdata : Any
+                Any data that will be passed inside callback call.                
+
+            Returns
+            ----------
+            start_async : None
+        )");
 
     cls.def("cancel", [](InferRequestWrapper& self) {
         self._request.cancel();
-    });
+    },
+    R"(
+        Cancels inference request.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        cancel : None
+    )");
 
     cls.def("wait", [](InferRequestWrapper& self) {
         py::gil_scoped_release release;
         self._request.wait();
-    });
+    },
+    R"(
+        Waits for the result to become available. 
+        Blocks until the result becomes available.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        wait : None
+    )");
 
     cls.def(
         "wait_for",
@@ -103,14 +161,29 @@ void regclass_InferRequest(py::module m) {
             py::gil_scoped_release release;
             return self._request.wait_for(std::chrono::milliseconds(timeout));
         },
-        py::arg("timeout"));
+        py::arg("timeout"),
+        R"(
+            Waits for the result to become available. 
+            Blocks until specified timeout has elapsed or
+            the result becomes available, whichever comes first.
+
+            Parameters
+            ----------
+            timeout : int
+                Maximum duration in milliseconds (ms) of blocking call.
+
+            Returns
+            ----------
+            wait_for : bool
+                True if InferRequest is ready, False otherwise.
+        )");
 
     cls.def(
         "set_callback",
-        [](InferRequestWrapper& self, py::function f_callback, py::object& userdata) {
+        [](InferRequestWrapper& self, py::function callback, py::object& userdata) {
             self.userdata = userdata;
             self.user_callback_defined = true;
-            self._request.set_callback([&self, f_callback](std::exception_ptr exception_ptr) {
+            self._request.set_callback([&self, callback](std::exception_ptr exception_ptr) {
                 self._end_time = Time::now();
                 try {
                     if (exception_ptr) {
@@ -121,54 +194,165 @@ void regclass_InferRequest(py::module m) {
                 }
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                f_callback(self.userdata);
+                callback(self.userdata);
             });
         },
-        py::arg("f_callback"),
-        py::arg("userdata"));
+        py::arg("callback"),
+        py::arg("userdata"),
+        R"(
+            Sets a callback function that will be called on success or
+            failure of asynchronous InferRequest.
+
+            Parameters
+            ----------
+            callback : function
+                Function defined in Python.
+
+            userdata : Any
+                Any data that will be passed inside callback call.
+
+            Returns
+            ----------
+            set_callback : None // TAK TO ROBIĆ!!!
+        )");
 
     cls.def(
         "get_tensor",
         [](InferRequestWrapper& self, const std::string& name) {
             return self._request.get_tensor(name);
         },
-        py::arg("name"));
+        py::arg("name"),
+        R"(
+            Gets input/output tensor of InferRequest.
+
+            Parameters
+            ----------
+            name : str
+                Name of tensor to get.
+
+            Returns
+            ----------
+            get_tensor : openvino.runtime.Tensor
+                A Tensor object with given name.
+        )");
 
     cls.def(
         "get_tensor",
         [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port) {
             return self._request.get_tensor(port);
         },
-        py::arg("port"));
+        py::arg("port"),
+        R"(
+            Gets input/output tensor of InferRequest.
+
+            Parameters
+            ----------
+            port : openvino.runtime.ConstOutput
+                Port of tensor to get.
+
+            Returns
+            ----------
+            get_tensor : openvino.runtime.Tensor
+                A Tensor object for the port.
+        )");
 
     cls.def(
         "get_tensor",
         [](InferRequestWrapper& self, const ov::Output<ov::Node>& port) {
             return self._request.get_tensor(port);
         },
-        py::arg("port"));
+        py::arg("port"),
+        R"(
+            Gets input/output tensor of InferRequest.
+
+            Parameters
+            ----------
+            port : openvino.runtime.Output
+                Port of tensor to get.
+
+            Returns
+            ----------
+            get_tensor : openvino.runtime.Tensor
+                A Tensor object for the port.
+        )");
 
     cls.def(
         "get_input_tensor",
         [](InferRequestWrapper& self, size_t idx) {
             return self._request.get_input_tensor(idx);
         },
-        py::arg("index"));
+        py::arg("index"),
+        R"(
+            Gets input tensor of InferRequest.
+
+            Parameters
+            ----------
+            idx : int
+                An index of tensor to get.
+
+            Returns
+            ----------
+            get_input_tensor : openvino.runtime.Tensor
+                An input Tensor with index idx for the model.
+                If a tensor with specified idx is not found,
+                an exception is thrown.
+        )");
 
     cls.def("get_input_tensor", [](InferRequestWrapper& self) {
         return self._request.get_input_tensor();
-    });
+    },
+    R"(
+        Gets input tensor of InferRequest.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        get_input_tensor : openvino.runtime.Tensor
+            An input Tensor for the model.
+            If model has several inputs, an exception is thrown.
+    )");
 
     cls.def(
         "get_output_tensor",
         [](InferRequestWrapper& self, size_t idx) {
             return self._request.get_output_tensor(idx);
         },
-        py::arg("index"));
+        py::arg("index"),
+        R"(
+            Gets output tensor of InferRequest.
+
+            Parameters
+            ----------
+            idx : int
+                An index of tensor to get.
+
+            Returns
+            ----------
+            get_output_tensor : openvino.runtime.Tensor
+                An output Tensor with index idx for the model.
+                If a tensor with specified idx is not found,
+                an exception is thrown.
+        )");
 
     cls.def("get_output_tensor", [](InferRequestWrapper& self) {
         return self._request.get_output_tensor();
-    });
+    },
+    R"(
+        Gets output tensor of InferRequest.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        get_output_tensor : openvino.runtime.Tensor
+            An output Tensor for the model.
+            If model has several outputs, an exception is thrown.
+    )");
 
     cls.def(
         "set_tensor",
@@ -176,7 +360,23 @@ void regclass_InferRequest(py::module m) {
             self._request.set_tensor(name, tensor);
         },
         py::arg("name"),
-        py::arg("tensor"));
+        py::arg("tensor"),
+        R"(
+            Sets input/output tensor of InferRequest.
+
+            Parameters
+            ----------
+            name : str
+                Name of input/output tensor.
+
+            tensor : openvino.runtime.Tensor
+                Tensor object. The element_type and shape of a tensor
+                must match the model's input/output element_type and shape.
+
+            Returns
+            ----------
+            set_tensor : None
+        )");
 
     cls.def(
         "set_tensor",
@@ -184,7 +384,23 @@ void regclass_InferRequest(py::module m) {
             self._request.set_tensor(port, tensor);
         },
         py::arg("port"),
-        py::arg("tensor"));
+        py::arg("tensor"),
+        R"(
+            Sets input/output tensor of InferRequest.
+
+            Parameters
+            ----------
+            port : openvino.runtime.ConstOutput
+                Port of input/output tensor.
+
+            tensor : openvino.runtime.Tensor
+                Tensor object. The element_type and shape of a tensor
+                must match the model's input/output element_type and shape.
+
+            Returns
+            ----------
+            set_tensor : None
+        )");
 
     cls.def(
         "set_tensor",
@@ -192,7 +408,23 @@ void regclass_InferRequest(py::module m) {
             self._request.set_tensor(port, tensor);
         },
         py::arg("port"),
-        py::arg("tensor"));
+        py::arg("tensor"),
+        R"(
+            Sets input/output tensor of InferRequest.
+
+            Parameters
+            ----------
+            port : openvino.runtime.Output
+                Port of input/output tensor.
+
+            tensor : openvino.runtime.Tensor
+                Tensor object. The element_type and shape of a tensor
+                must match the model's input/output element_type and shape.
+
+            Returns
+            ----------
+            set_tensor : None
+        )");
 
     cls.def(
         "set_input_tensor",
@@ -200,14 +432,46 @@ void regclass_InferRequest(py::module m) {
             self._request.set_input_tensor(idx, tensor);
         },
         py::arg("index"),
-        py::arg("tensor"));
+        py::arg("tensor"),
+        R"(
+            Sets input tensor of InferRequest.
+
+            Parameters
+            ----------
+            idx : int
+                Index of input tensor.
+                If idx is greater than number of model's inputs,
+                an exception is thrown.
+
+            tensor : openvino.runtime.Tensor
+                Tensor object. The element_type and shape of a tensor
+                must match the model's input element_type and shape.
+
+            Returns
+            ----------
+            set_input_tensor : None
+        )");
 
     cls.def(
         "set_input_tensor",
         [](InferRequestWrapper& self, const ov::Tensor& tensor) {
             self._request.set_input_tensor(tensor);
         },
-        py::arg("tensor"));
+        py::arg("tensor"),
+        R"(
+            Sets input tensor of InferRequest with single input.
+            If model has several inputs, an exception is thrown.
+
+            Parameters
+            ----------
+            tensor : openvino.runtime.Tensor
+                Tensor object. The element_type and shape of a tensor
+                must match the model's input element_type and shape.
+
+            Returns
+            ----------
+            set_input_tensor : None
+        )");
 
     cls.def(
         "set_output_tensor",
@@ -215,22 +479,78 @@ void regclass_InferRequest(py::module m) {
             self._request.set_output_tensor(idx, tensor);
         },
         py::arg("index"),
-        py::arg("tensor"));
+        py::arg("tensor"),
+        R"(
+            Sets output tensor of InferRequest.
+
+            Parameters
+            ----------
+            idx : int
+                Index of output tensor.
+
+            tensor : openvino.runtime.Tensor
+                Tensor object. The element_type and shape of a tensor
+                must match the model's output element_type and shape.
+
+            Returns
+            ----------
+            set_output_tensor : None
+        )");
 
     cls.def(
         "set_output_tensor",
         [](InferRequestWrapper& self, const ov::Tensor& tensor) {
             self._request.set_output_tensor(tensor);
         },
-        py::arg("tensor"));
+        py::arg("tensor"),
+        R"(
+            Sets output tensor of InferRequest with single output.
+            If model has several outputs, an exception is thrown.
+
+            Parameters
+            ----------
+            tensor : openvino.runtime.Tensor
+                Tensor object. The element_type and shape of a tensor
+                must match the model's output element_type and shape.
+
+            Returns
+            ----------
+            set_output_tensor : None
+        )");
 
     cls.def("get_profiling_info", [](InferRequestWrapper& self) {
         return self._request.get_profiling_info();
-    });
+    },
+    R"(
+        Queries performance measures per layer to get feedback of what
+        is the most time consuming operation, not all plugins provide
+        meaningful data.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        get_profiling_info : list[openvino.runtime.ProfilingInfo]
+            List of profiling information for operations in model.
+    )");
 
     cls.def("query_state", [](InferRequestWrapper& self) {
         return self._request.query_state();
-    });
+    },
+    R"(
+        Gets state control interface for given infer request.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        query_state : list[openvino.runtime.VariableState]
+            List of VariableState objects.
+    )");
 
     cls.def_property_readonly("userdata", [](InferRequestWrapper& self) {
         return self.userdata;

@@ -13,7 +13,10 @@ namespace py = pybind11;
 
 void regclass_graph_Any(py::module m) {
     py::class_<PyAny, std::shared_ptr<PyAny>> ov_any(m, "OVAny", py::module_local());
-    ov_any.doc() = "openvino.runtime.OVAny wraps ov::Any";
+    ov_any.doc() = "openvino.runtime.OVAny provides object wrapper for OpenVINO"
+                   "ov::Any class. It allows to pass different types of objects"
+                   "into C++ based core of the project.";
+
     ov_any.def(py::init<py::object>());
 
     ov_any.def("__repr__", [](const PyAny& self) {

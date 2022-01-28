@@ -12,6 +12,7 @@ namespace py = pybind11;
 
 void regclass_VariableState(py::module m) {
     py::class_<ov::VariableState, std::shared_ptr<ov::VariableState>> variable_st(m, "VariableState");
+    variable_st.doc() = "openvino.runtime.VariableState class.";
 
     variable_st.def("reset", &ov::VariableState::reset);
 

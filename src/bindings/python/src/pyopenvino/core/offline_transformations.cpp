@@ -38,6 +38,7 @@ namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
     py::module m_offline_transformations = m.def_submodule("offline_transformations", "Offline transformations module");
+    m_offline_transformations.doc() = "openvino.offline_transformations module contains different offline passes.";
 
     m_offline_transformations.def(
         "apply_moc_transformations",
@@ -145,43 +146,43 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("weights_path"),
         py::arg("version") = "UNSPECIFIED",
         R"(
-    Serialize given function into IR. The generated .xml and .bin files will be save
-    into provided paths.
-    Parameters
-    ----------
-    function : ov.Model
-        function which will be converted to IR representation
-    xml_path : str
-        path where .xml file will be saved
-    bin_path : str
-        path where .bin file will be saved
-    version : str
-        sets the version of the IR which will be generated.
-        Supported versions are:
-                        - "UNSPECIFIED" (default) : Use the latest or function version
-                        - "IR_V10" : v10 IR
-                        - "IR_V11" : v11 IR
+            Serialize given function into IR. The generated .xml and .bin files will be save
+            into provided paths.
+            Parameters
+            ----------
+            function : ov.Model
+                function which will be converted to IR representation
+            xml_path : str
+                path where .xml file will be saved
+            bin_path : str
+                path where .bin file will be saved
+            version : str
+                sets the version of the IR which will be generated.
+                Supported versions are:
+                                - "UNSPECIFIED" (default) : Use the latest or function version
+                                - "IR_V10" : v10 IR
+                                - "IR_V11" : v11 IR
 
-    Examples:
-    ----------
-    1. Default IR version:
-        shape = [2, 2]
-        parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
-        parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
-        parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
-        model = (parameter_a + parameter_b) * parameter_c
-        func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
-        # IR generated with default version 
-        serialize(func, model_path="./serialized.xml", weights_path="./serialized.bin")
+            Examples:
+            ----------
+            1. Default IR version:
+                shape = [2, 2]
+                parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+                parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+                parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+                model = (parameter_a + parameter_b) * parameter_c
+                func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
+                # IR generated with default version 
+                serialize(func, model_path="./serialized.xml", weights_path="./serialized.bin")
 
-    2. IR version 11:
-        shape = [2, 2]
-        parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
-        parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
-        parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
-        model = (parameter_a + parameter_b) * parameter_c
-        func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
-        # IR generated with default version 
-        serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")    
-    // )");
+            2. IR version 11:
+                shape = [2, 2]
+                parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+                parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+                parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+                model = (parameter_a + parameter_b) * parameter_c
+                func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
+                # IR generated with default version 
+                serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")    
+        )");
 }
