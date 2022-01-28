@@ -48,7 +48,7 @@ shared_ptr<Node> op::v3::ReadValue::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v3_ReadValue_visit_attributes);
-    visitor.on_attribute("variable_id", m_variable);
+    visitor.on_attribute("variable_id", m_variable_id);
     return true;
 }
 
