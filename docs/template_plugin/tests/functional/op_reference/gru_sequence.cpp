@@ -17,7 +17,7 @@ struct GRUSequenceParams {
         const size_t batchSize, const size_t inputSize, const size_t hiddenSize, const size_t seqLength,
         const float clip, const bool linear_before_reset, const op::RecurrentSequenceDirection& gru_direction,
         const element::Type_t& iType,
-        const std::vector<T>& XValues, const std::vector<T>& H_tValues, const std::vector<int64_t>& S_tValues,
+        const std::vector<T>& XValues, const std::vector<T>& H_tValues, const std::vector<int64_t>& seqLengthsValues,
         const std::vector<T>& WValues, const std::vector<T>& RValues, const std::vector<T>& BValues,
         const std::vector<T>& YValues, const std::vector<T>& HoValues,
         const std::string& testcaseName = "") :
@@ -28,7 +28,7 @@ struct GRUSequenceParams {
 
             Shape XShape = Shape{batchSize, seqLength, inputSize};
             Shape H_tShape = Shape{batchSize, numDirections, hiddenSize};
-            Shape S_tShape = Shape{batchSize};
+            Shape seqLengthsShape = Shape{batchSize};
             Shape WShape = Shape{numDirections, 3 * hiddenSize, inputSize};
             Shape RShape = Shape{numDirections, 3 * hiddenSize, hiddenSize};
             Shape YShape = Shape{batchSize, numDirections, seqLength, hiddenSize};
@@ -36,7 +36,7 @@ struct GRUSequenceParams {
 
             X = reference_tests::Tensor(XShape, iType, XValues);
             H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
-            S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+            sequence_lengths = reference_tests::Tensor(seqLengthsShape, element::Type_t::i64, seqLengthsValues);
             W = reference_tests::Tensor(WShape, iType, WValues);
             R = reference_tests::Tensor(RShape, iType, RValues);
             Y = reference_tests::Tensor(YShape, oType, YValues);
@@ -64,7 +64,7 @@ struct GRUSequenceParams {
 
     reference_tests::Tensor X;
     reference_tests::Tensor H_t;
-    reference_tests::Tensor S_t;
+    reference_tests::Tensor sequence_lengths;
     reference_tests::Tensor W;
     reference_tests::Tensor R;
     reference_tests::Tensor B;
@@ -78,7 +78,7 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {params.X.data, params.H_t.data, params.S_t.data, params.W.data, params.R.data, params.B.data};
+        inputData = {params.X.data, params.H_t.data, params.sequence_lengths.data, params.W.data, params.R.data, params.B.data};
         refOutData = {params.Y.data, params.Ho.data};
     }
 
@@ -88,7 +88,7 @@ public:
         result << "iType=" << param.iType << "_";
         result << "xShape=" << param.X.shape << "_";
         result << "htShape=" << param.H_t.shape << "_";
-        result << "stShape=" << param.S_t.shape << "_";
+        result << "stShape=" << param.sequence_lengths.shape << "_";
         result << "wShape=" << param.W.shape << "_";
         result << "rShape=" << param.R.shape << "_";
         result << "bShape=" << param.B.shape << "_";
@@ -107,7 +107,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const GRUSequenceParams& params) {
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
         const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
-        const auto S_t = std::make_shared<op::v0::Parameter>(params.S_t.type, params.S_t.shape);
+        const auto sequence_lengths = std::make_shared<op::v0::Parameter>(params.sequence_lengths.type, params.sequence_lengths.shape);
         const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
         const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
@@ -115,7 +115,7 @@ private:
         const auto gru_sequence =
             std::make_shared<op::v5::GRUSequence>(X,
                                                   H_t,
-                                                  S_t,
+                                                  sequence_lengths,
                                                   W,
                                                   R,
                                                   B,
@@ -127,7 +127,7 @@ private:
                                                   params.clip,
                                                   params.linear_before_reset);
 
-        auto function = std::make_shared<Model>(gru_sequence->outputs(), ParameterVector{X, H_t, S_t, W, R, B});
+        auto function = std::make_shared<Model>(gru_sequence->outputs(), ParameterVector{X, H_t, sequence_lengths, W, R, B});
         return function;
     }
 };
