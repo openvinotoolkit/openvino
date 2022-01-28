@@ -81,7 +81,7 @@ CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const Plugin
 //
 
 std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, const PluginConfiguration& config, const Logger::Ptr& log,
-                                         const std::shared_ptr<ie::ICore> core);
+                                         const std::shared_ptr<ie::ICore> core, const std::set<std::string>& namesToExclude = {});
 
 //
 // Blob version and checks

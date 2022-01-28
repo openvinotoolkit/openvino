@@ -23,7 +23,7 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-    {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_MYRIAD}}
+    {{"TARGET_FALLBACK", "MYRIAD,CPU"}}
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
