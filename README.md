@@ -25,7 +25,7 @@ By contributing to the project, you agree to the license and copyright terms the
 and release your contribution under these terms.
 
 ## Resources:
-* Docs: https://docs.openvinotoolkit.org/
+* Docs: https://docs.openvino.ai/
 * Wiki: https://github.com/openvinotoolkit/openvino/wiki
 * Issue tracking: https://github.com/openvinotoolkit/openvino/issues
 * Storage: https://storage.openvinotoolkit.org/
@@ -46,6 +46,6 @@ Please report questions, issues and suggestions using:
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
 [Inference Engine]:https://software.intel.com/en-us/articles/OpenVINO-InferEngine
 [Model Optimizer]:https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer
-[nGraph]:https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_DevGuide.html
+[nGraph]:https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_DevGuide.html
 [tag on StackOverflow]:https://stackoverflow.com/search?q=%23openvino
 
