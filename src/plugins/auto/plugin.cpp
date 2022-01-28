@@ -61,7 +61,6 @@ namespace {
                     res.push_back(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
                     res.push_back(PluginConfigParams::KEY_PERF_COUNT);
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-                    res.push_back(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY);
                     res.push_back(ov::hint::model_priority.name());
                     res.push_back(PluginConfigParams::KEY_ALLOW_AUTO_BATCHING);
                     return res;
@@ -183,25 +182,6 @@ void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::stri
     for (auto && kvp : config) {
         const auto& name = kvp.first;
         _config[name] = kvp.second;
-    }
-    // sync the values between the key "MODEL_PRIORITY" and "KEY_AUTO_NETWORK_PRIORITY"
-    if (_config.find(ov::hint::model_priority.name()) != _config.end()) {
-        _config[MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY] = std::to_string(context.modelPriority);
-    }
-    if (_config.find(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY) != _config.end()) {
-        switch (context.modelPriority) {
-        case 0:
-            _config[ov::hint::model_priority.name()] = "HIGH";
-            break;
-        case 1:
-            _config[ov::hint::model_priority.name()] = "MEDIUM";
-            break;
-        case 2:
-            _config[ov::hint::model_priority.name()] = "LOW";
-            break;
-        default:
-            throw ov::Exception{"Unsupported log level"};
-        }
     }
 }
 
@@ -601,18 +581,6 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                    IE_THROW() << "Unsupported config value: " << kvp.second
                               << " for key: " << kvp.first;
                }
-        } else if (kvp.first == MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY) {
-            try {
-                int priority = std::stoi(kvp.second);
-                if (priority < 0) {
-                    IE_THROW() << "Unsupported config value: " << kvp.second
-                        << " for key: " << kvp.first;
-                }
-                context.modelPriority = priority;
-            } catch(...) {
-                IE_THROW() << "Unsupported config value: " << kvp.second
-                           << " for key: " << kvp.first;
-            }
         } else if (kvp.first == ov::hint::model_priority.name()) {
             try {
                 int priority = -1;
