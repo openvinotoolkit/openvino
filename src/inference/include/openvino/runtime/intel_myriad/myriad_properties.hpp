@@ -34,8 +34,8 @@ static constexpr Property<std::string, PropertyMutability::RW> custom_layers{"MY
  * @brief Enum to define possible device protocols
  */
 enum class Protocol {
-    PCIE = 0,
-    USB = 1,
+    PCIE = 0,  //!< Will use a device with PCIE protocol
+    USB = 1,   //!< Will use a device with USB protocol
 };
 
 /** @cond INTERNAL */
@@ -79,11 +79,11 @@ static constexpr Property<bool, PropertyMutability::RW> enable_force_reset{"MYRI
  * @brief Enum to define possible device mymory types
  */
 enum class DDRType {
-    MYRIAD_DDR_AUTO = 0,
-    MYRIAD_DDR_MICRON_2GB = 1,
-    MYRIAD_DDR_SAMSUNG_2GB = 2,
-    MYRIAD_DDR_HYNIX_2GB = 3,
-    MYRIAD_DDR_MICRON_1GB = 4,
+    MYRIAD_DDR_AUTO = 0,         //!<  Automatic setting of DDR memory type
+    MYRIAD_DDR_MICRON_2GB = 1,   //!<  Using a device with MICRON_2GB DDR memory type
+    MYRIAD_DDR_SAMSUNG_2GB = 2,  //!<  Using a device with SAMSUNG_2GB DDR memory type
+    MYRIAD_DDR_HYNIX_2GB = 3,    //!<  Using a device with HYNIX_2GB DDR memory type
+    MYRIAD_DDR_MICRON_1GB = 4,   //!<  Using a device with MICRON_1GB DDR memory type
 };
 
 /** @cond INTERNAL */
