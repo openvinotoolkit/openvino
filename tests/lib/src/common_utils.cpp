@@ -12,15 +12,15 @@
  * @brief Fill InferRequest blobs with random values or image information
  */
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
-               const InferenceEngine::ConstInputsDataMap& inputsInfo,
-               const size_t& batchSize) {
+               const InferenceEngine::ConstInputsDataMap &inputsInfo,
+               const size_t &batchSize) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
-    for (const InferenceEngine::ConstInputsDataMap::value_type& item : inputsInfo) {
+    for (const InferenceEngine::ConstInputsDataMap::value_type &item: inputsInfo) {
         if (isImage(item.second))
             input_image_sizes.push_back(getTensorHeightWidth(item.second->getTensorDesc()));
     }
 
-    for (const InferenceEngine::ConstInputsDataMap::value_type& item : inputsInfo) {
+    for (const InferenceEngine::ConstInputsDataMap::value_type &item: inputsInfo) {
         InferenceEngine::Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
         if (isImageInfo(inputBlob) && (input_image_sizes.size() == 1)) {
             // Fill image information
@@ -31,6 +31,8 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
                 fillBlobImInfo<short>(inputBlob, batchSize, image_size);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
                 fillBlobImInfo<int32_t>(inputBlob, batchSize, image_size);
+            } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
+                fillBlobImInfo<uint8_t>(inputBlob, batchSize, image_size);
             } else {
                 throw std::logic_error("Input precision is not supported for image info!");
             }
@@ -60,17 +62,17 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
 /**
  * @brief Fill infer_request tensors with random values or image information
  */
-void fillTensors(ov::InferRequest& infer_request, std::vector<ov::Output<const ov::Node>> inputs) {
+void fillTensors(ov::InferRequest &infer_request, const std::vector<ov::Output<ov::Node>> &inputs) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
 
     for (auto &input: inputs) {
-        if (input.get_shape().size() == 4) {
-            input_image_sizes.emplace_back(input.get_shape()[2], input.get_shape()[3]);
+        if (isImage(input)) {
+            input_image_sizes.push_back(getTensorHeightWidth(input));
         }
     }
     for (size_t i = 0; i < inputs.size(); ++i) {
         ov::Tensor input_tensor;
-        if ((inputs[i].get_shape().size() == 2) && (input_image_sizes.size() == 1)) {
+        if ((isImageInfo(inputs[i])) && (input_image_sizes.size() == 1)) {
             auto image_size = input_image_sizes.at(0);
             if (inputs[i].get_element_type() == ov::element::f32) {
                 input_tensor = fillTensorImInfo<float>(inputs[i], image_size);
@@ -78,11 +80,12 @@ void fillTensors(ov::InferRequest& infer_request, std::vector<ov::Output<const o
                 input_tensor = fillTensorImInfo<short>(inputs[i], image_size);
             } else if (inputs[i].get_element_type() == ov::element::i32) {
                 input_tensor = fillTensorImInfo<int32_t>(inputs[i], image_size);
+            } else if (inputs[i].get_element_type() == ov::element::u8) {
+                input_tensor = fillTensorImInfo<uint8_t>(inputs[i], image_size);
             } else {
                 throw std::logic_error("Input precision is not supported for image info!");
             }
-        }
-        else {
+        } else {
             if (inputs[i].get_element_type() == ov::element::f32) {
                 input_tensor = fillTensorRandom<float>(inputs[i]);
             } else if (inputs[i].get_element_type() == ov::element::f16) {
@@ -98,7 +101,8 @@ void fillTensors(ov::InferRequest& infer_request, std::vector<ov::Output<const o
             } else if (inputs[i].get_element_type() == ov::element::i16) {
                 input_tensor = fillTensorRandom<int16_t>(inputs[i]);
             } else {
-                throw std::logic_error("Input precision is not supported for " + inputs[i].get_element_type().get_type_name());
+                throw std::logic_error(
+                        "Input precision is not supported for " + inputs[i].get_element_type().get_type_name());
             }
         }
         infer_request.set_input_tensor(i, input_tensor);
