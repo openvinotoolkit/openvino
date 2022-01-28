@@ -9,14 +9,8 @@
    
    Overview <openvino_docs_install_guides_overview>
    Install from PyPI <openvino_docs_install_guides_installing_openvino_pip>
-   Linux
-       Installer <openvino_docs_install_guides_installing_openvino_linux>
-       APT <openvino_docs_install_guides_installing_openvino_apt>
-       YUM <openvino_docs_install_guides_installing_openvino_yum>
-       Docker for Linux<openvino_docs_install_guides_installing_openvino_docker_linux>
-   Windows <openvino_docs_install_guides_installing_openvino_windows>
-        Installer <openvino_docs_install_guides_installing_openvino_windows>
-        Docker for Windows <openvino_docs_install_guides_installing_openvino_docker_windows>
+   Linux <openvino_docs_install_guides_installing_openvino_linux_header>
+   Windows <openvino_docs_install_guides_installing_openvino_windows_header>
    macOS <openvino_docs_install_guides_installing_openvino_macos>
    Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>
    Install from Anaconda Cloud <openvino_docs_install_guides_installing_openvino_conda>
@@ -32,19 +26,17 @@
    
    Configurations for Intel® Processor Graphics (GPU) <openvino_docs_install_guides_configurations_for_intel_gpu>
    Configurations for Intel® Neural Compute Stick 2 <openvino_docs_install_guides_configurations_for_ncs2>
-   Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs <openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
+   Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs <openvino_docs_install_guides_installing_openvino_ivad_vpu>
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Troubleshooting
    
-   Troubleshooting <openvino_docs_get_started_guide_troubleshooting>
+   Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>
    
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Learning Path
    
    Learning Path <openvino_docs_get_started_guide_learning_path>
 
@@ -86,15 +78,19 @@
     
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
    <p id="GSG_introtext">To get started with OpenVINO, the first thing to do is to actually install it. If you haven't done it yet, choose the installation type that best suits your needs and follow the instructions:<br />
-     <a href="openvino_docs_install_guides_installing_openvino_linux.html" >Install<br /> Package </a>
-     <a href="openvino_docs_install_guides_installing_openvino_images.html" >Install from <br /> images or repositories</a>
+     <a href="openvino_docs_install_guides_installing_openvino_pip.html" >Install<br /> OpenVINO Runtime </a>
+     <a href="openvino_docs_install_guides_install_dev_tools.html" >Install <br /> OpenVINO Model Development Tools</a>
      <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode" >Build <br /> from source</a>
    </p>
    <div style="clear:both;"> </div>   
+   <p>You can also review more installation options on the <a href="openvino_docs_install_guides_overview.html" >Overview</a> page. </p>
+   <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. Refer to the [learning path](get-started-learning-path.md) section for instructions on getting started with OpenVINO. </p>
+
+<!--
    <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. <br /> Here is a set of hands-on demonstrations of various complexity levels to guide you through the process: from performing sample inference with just one command, to running code samples, demo application or Jupyter notebooks. If you prefer working with GUI, you can also get started with the DL Workbench application. This way you can choose the right level for you.<br /></p>
-   
+<!--   
    <h3>Choose how you want to progress:</h3>
-   
+<!--   
    <div id="GSG_nextstepchoice">
      <a href="openvino_docs_get_started_get_started_scripts.html" >
         <h4>One-command demo 		</h4>
@@ -126,5 +122,5 @@
      </a> 
    </div>
    <div style="clear:both;"> </div>
- 
+--> 
 @endsphinxdirective
