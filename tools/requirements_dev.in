@@ -1,1 +1,1 @@
-openvino-dev${EXTRAS}==${IE_VERSION}
+openvino-dev${EXTRAS}==${WHEEL_VERSION}
