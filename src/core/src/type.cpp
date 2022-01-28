@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/type.hpp"
+
 #include <iostream>
 
 #include "openvino/core/except.hpp"
@@ -10,8 +11,6 @@
 
 namespace std {
 size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTypeInfo& k) const {
-    static uint64_t count = 0;
-    std::cout << count++ << "AAA " << k.name << " " << k.version_id << " " << k.hash() << std::endl;
     return k.hash();
 }
 }  // namespace std
