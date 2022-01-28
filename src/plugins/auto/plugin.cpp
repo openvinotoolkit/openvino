@@ -183,6 +183,25 @@ void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::stri
         const auto& name = kvp.first;
         _config[name] = kvp.second;
     }
+    // sync the values between the key "MODEL_PRIORITY" and "KEY_AUTO_NETWORK_PRIORITY"
+    if (_config.find(ov::hint::model_priority.name()) != _config.end()) {
+        _config[MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY] = std::to_string(context.modelPriority);
+    }
+    if (_config.find(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY) != _config.end()) {
+        switch (context.modelPriority) {
+        case 0:
+            _config[ov::hint::model_priority.name()] = "HIGH";
+            break;
+        case 1:
+            _config[ov::hint::model_priority.name()] = "MEDIUM";
+            break;
+        case 2:
+            _config[ov::hint::model_priority.name()] = "LOW";
+            break;
+        default:
+            throw ov::Exception{"Unsupported log level"};
+        }
+    }
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MultiDevicePlugin"};
