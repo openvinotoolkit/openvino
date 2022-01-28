@@ -1,5 +1,4 @@
-GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU}
-=======
+# GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU}
 
 @sphinxdirective
 
