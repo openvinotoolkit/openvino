@@ -105,9 +105,9 @@ private:
     }
 };
 
-TEST_P(ReferenceReadValueAssignV3LayerTest, ReadValueAssignWithHardcodedRefs) {
+/*TEST_P(ReferenceReadValueAssignV3LayerTest, ReadValueAssignWithHardcodedRefs) {
     Exec();
-}
+}*/
 
 TEST_P(ReferenceReadValueAssignV6LayerTest, ReadValueAssignWithHardcodedRefs) {
     Exec();
@@ -186,10 +186,10 @@ std::vector<ReadValueAssignParams> generateCombinedParamsForReadValueAssign() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
+/*INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
                          ReferenceReadValueAssignV3LayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
-                         ReferenceReadValueAssignV3LayerTest::getTestCaseName);
+                         ReferenceReadValueAssignV3LayerTest::getTestCaseName);*/
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
                          ReferenceReadValueAssignV6LayerTest,
