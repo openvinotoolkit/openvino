@@ -13,6 +13,7 @@
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 #include <algorithm>
+#include <iostream>
 
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise.hpp>
@@ -1796,6 +1797,7 @@ bool MKLDNNInterpolateNode::isSupportedOperation(const std::shared_ptr<const ngr
 
 MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
+    std::cout << "This is a constructor of MKLDNNInterpolateNode...\n";
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
@@ -1892,6 +1894,7 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
+    std::cout << "This is the end of a constructor of MKLDNNInterpolateNode with name " << op->get_friendly_name() << "\n";
 }
 
 void MKLDNNInterpolateNode::getSupportedDescriptors() {
@@ -2316,7 +2319,9 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         src_data = src_data_origin;
     }
 
+    std::cout << "Started execution of node " << getName() << "\n";
     execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
+    std::cout << "Ended execution of node " << getName() << "\n";
 }
 
 // for ndhwc and nCdhw8c[16c]
