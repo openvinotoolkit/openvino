@@ -23,7 +23,7 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     std::vector<std::string> devices, models, models_names, precisions;
 
     pugi::xml_node values;
-    for (const auto & field : fields) {
+    for (const auto &field: fields) {
         if (field == "processes") {
             values = test_config.child("attributes").child("processes");
             for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling())
@@ -72,14 +72,14 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     precisions = !precisions.empty() ? precisions : std::vector<std::string>{"NULL"};
     models_names = !models_names.empty() ? models_names : std::vector<std::string>{"NULL"};
 
-    for (auto &numprocesses : processes)
-        for (auto &numthreads : threads)
-            for (auto &numiters : iterations)
-                for (auto &api_version : api_versions)
-                    for (auto &device : devices)
+    for (auto &numprocesses: processes)
+        for (auto &numthreads: threads)
+            for (auto &numiters: iterations)
+                for (auto &api_version: api_versions)
+                    for (auto &device: devices)
                         for (int i = 0; i < models.size(); i++)
                             tests_cases.emplace_back(numprocesses, numthreads, numiters, api_version, device, models[i],
-                                                           models_names[i], precisions[i]);
+                                                     models_names[i], precisions[i]);
     return tests_cases;
 }
 
@@ -99,7 +99,7 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
         numprocesses = device.attribute("processes").as_int(1);
         numthreads = device.attribute("threads").as_int(1);
         numiterations = device.attribute("iterations").as_int(1);
-        std::vector<int> api_versions {1, 2};
+        std::vector<int> api_versions{1, 2};
 
         std::vector<std::map<std::string, std::string>> models;
 
@@ -111,8 +111,8 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
                         "One of the 'model' records from test config doesn't contain 'full_path' or 'path' attributes");
             std::string name = model.attribute("name").as_string();
             std::string precision = model.attribute("precision").as_string();
-            std::map<std::string, std::string> model_map{{"name", name},
-                                                         {"path", path},
+            std::map<std::string, std::string> model_map{{"name",      name},
+                                                         {"path",      path},
                                                          {"full_path", full_path},
                                                          {"precision", precision}};
             models.push_back(model_map);

@@ -30,7 +30,7 @@ std::function<void()> read_cnnnetwork(const std::string &model, const int &api_v
     };
 }
 
-std::function<void()> cnnnetwork_reshape_batch_x2(const std::string &model, const int& iter, const int &api_version) {
+std::function<void()> cnnnetwork_reshape_batch_x2(const std::string &model, const int &iter, const int &api_version) {
     return [&] {
         auto ie_api_wrapper = create_infer_api_wrapper(api_version);
         ie_api_wrapper->read_network(model);

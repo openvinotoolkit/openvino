@@ -13,7 +13,9 @@
 #include <vector>
 
 
-enum TestStatus { TEST_NOT_STARTED = 0, TEST_FAILED, TEST_OK };
+enum TestStatus {
+    TEST_NOT_STARTED = 0, TEST_FAILED, TEST_OK
+};
 
 using TestResult = std::pair<TestStatus, std::string>;
 
@@ -32,7 +34,7 @@ protected:
     // Replace non-alphabetic/numeric symbols with "_" to prevent logging errors
     static std::string update_item_for_name(const std::string &item) {
         std::string _item(item);
-        for (char & index : _item) {
+        for (char &index: _item) {
             if (!isalnum(index) && index != '_') index = '_';
         }
         return _item;
@@ -64,7 +66,8 @@ public:
         numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, api_version = _api_version,
         device = _device, models = _models;
         test_case_name = "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
-                         "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) + "_API_" + std::to_string(api_version);
+                         "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) + "_API_" +
+                         std::to_string(api_version);
         for (int i = 0; i < models.size(); i++) {
             test_case_name += "_Model" + std::to_string(i + 1) + "_" + update_item_for_name(models[i]["name"]) + "_" +
                               update_item_for_name(models[i]["precision"]);
@@ -79,7 +82,9 @@ private:
     bool _collect_results_only = false;
 
     Environment() = default;
+
     Environment(const Environment &) = delete;
+
     Environment &operator=(const Environment &) = delete;
 
 public:
@@ -89,15 +94,21 @@ public:
     }
 
     const pugi::xml_document &getTestConfig();
+
     void setTestConfig(const pugi::xml_document &test_config);
 };
 
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> items);
+
 std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks();
+
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj);
+
 std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCase> &obj);
 
 void runTest(const std::function<void(std::string, std::string, int, int)> &tests_pipeline, const TestCase &params);
+
 void _runTest(const std::function<void(std::string, std::string, int, int)> &tests_pipeline, const TestCase &params);
+
 void test_wrapper(const std::function<void(std::string, std::string, int, int)> &tests_pipeline,
                   const TestCase &params);

@@ -5,7 +5,7 @@
 #include "common_utils.h"
 
 #include <inference_engine.hpp>
-#include <openvino/runtime/infer_request.hpp>
+#include <openvino/openvino.hpp>
 
 
 /**

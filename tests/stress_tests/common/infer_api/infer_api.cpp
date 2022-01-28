@@ -19,7 +19,7 @@ void InferAPI1::unload_plugin(const std::string &device) {
 void InferAPI1::read_network(const std::string &model) {
     cnnNetwork = ie.ReadNetwork(model);
     inputsInfo = cnnNetwork.getInputsInfo();
-    ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
+    InferenceEngine::ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
     for (const auto &input: inputsInfo) {
         original_batch_size = shapes[input.first][0];
 
@@ -55,11 +55,11 @@ void InferAPI1::change_batch_size(int multiplier, int cur_iter) {
     for (const auto &input: inputsInfo) {
         int batchIndex = -1;
         auto layout = input.second->getTensorDesc().getLayout();
-        if ((layout == Layout::NCHW) || (layout == Layout::NCDHW) ||
-            (layout == Layout::NHWC) || (layout == Layout::NDHWC) ||
-            (layout == Layout::NC)) {
+        if ((layout == InferenceEngine::Layout::NCHW) || (layout == InferenceEngine::Layout::NCDHW) ||
+            (layout == InferenceEngine::Layout::NHWC) || (layout == InferenceEngine::Layout::NDHWC) ||
+            (layout == InferenceEngine::Layout::NC)) {
             batchIndex = 0;
-        } else if (layout == CN) {
+        } else if (layout == InferenceEngine::CN) {
             batchIndex = 1;
         }
         if (batchIndex != -1) {
@@ -77,12 +77,12 @@ void InferAPI1::set_input_params(const std::string &model) {
     cnnNetwork = ie.ReadNetwork(model);
     InferenceEngine::InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
     for (auto &input: inputInfo) {
-        input.second->getPreProcess().setResizeAlgorithm(NO_RESIZE);
-        input.second->setPrecision(Precision::U8);
+        input.second->getPreProcess().setResizeAlgorithm(InferenceEngine::NO_RESIZE);
+        input.second->setPrecision(InferenceEngine::Precision::U8);
         if (input.second->getInputData()->getTensorDesc().getDims().size() == 4)
-            input.second->setLayout(Layout::NCHW);
+            input.second->setLayout(InferenceEngine::Layout::NCHW);
         else if (input.second->getInputData()->getTensorDesc().getDims().size() == 2)
-            input.second->setLayout(Layout::NC);
+            input.second->setLayout(InferenceEngine::Layout::NC);
         else
             throw std::logic_error("Setting of input parameters wasn't applied for a model.");
     }

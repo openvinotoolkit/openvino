@@ -11,7 +11,7 @@ std::function<void()> load_unload_plugin(const std::string &target_device, const
 
 std::function<void()> read_cnnnetwork(const std::string &model, const int &api_version);
 
-std::function<void()> cnnnetwork_reshape_batch_x2(const std::string &model, const int& iter, const int &api_version);
+std::function<void()> cnnnetwork_reshape_batch_x2(const std::string &model, const int &iter, const int &api_version);
 
 std::function<void()> set_input_params(const std::string &model, const int &api_version);
 
