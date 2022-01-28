@@ -19,8 +19,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeSequenceFusion, "ReshapeSequenceFusi
 
 namespace {
 bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
-    const auto node = node_out.get_node_shared_ptr();
-    const auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node);
+    const auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node_out.get_node_shared_ptr());
     if (!const_node) {
         // Lower bound of the value
         auto lb = ngraph::evaluate_lower_bound(node_out);
@@ -45,7 +44,7 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
         if (lb_values.size() != ub_values.size()) return false;
 
         // Check if zero values are paired with max value as a sign of full dynamism
-        const int64_t ub_max = node->get_output_element_type(0) == ov::element::i32 ? std::numeric_limits<int32_t>::max() : std::numeric_limits<int64_t>::max();
+        const int64_t ub_max = node_out.get_element_type() == ov::element::i32 ? std::numeric_limits<int32_t>::max() : std::numeric_limits<int64_t>::max();
         const auto mismatch_iters = std::mismatch(lb_values.cbegin(), lb_values.cend(), ub_values.cbegin(),
                                             [ub_max](int64_t lb_val, int64_t ub_val){ return lb_val > 0 || (lb_val == 0 && ub_val == ub_max);});
         return mismatch_iters.first == lb_values.cend();
