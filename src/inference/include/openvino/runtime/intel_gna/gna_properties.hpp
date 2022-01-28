@@ -1,4 +1,3 @@
-
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,15 +16,15 @@ namespace ov {
 namespace intel_gna {
 
 /**
- * @brief Metric to get a std::string of GNA Library version, usually in the form
+ * @brief Metric to get an std::string of GNA Library version, usually in the form
  * <API_REVISION>.<RELEASE_LINE>.<RELEASE>.<BUILD>
  */
 static constexpr Property<std::string, PropertyMutability::RO> library_full_version{"GNA_LIBRARY_FULL_VERSION"};
 
 /**
- * @brief Scale factor that is calculated by user, in order to use static quantisation feature
- * This option should be used with floating point value serialized to string with decimal separator equals to . (dot)
- * @details For multiple input case, individual scale factors can be passed, using
+ * @brief Scale factor provided by the user to use static quantization.
+ * This option should be used with floating point value serialized to string with . (dot) as a decimal separator
+ * @details In the case of multiple inputs, individual scale factors can be provided using the
  *  map where key is layer name and value is scale factor
  */
 static constexpr Property<std::map<std::string, float>> scale_factors_per_input{"GNA_SCALE_FACTOR_PER_INPUT"};
@@ -138,7 +137,7 @@ static constexpr Property<ExecutionMode> execution_mode{"GNA_DEVICE_MODE"};
  * If GNA HW is present, use the option corresponding to this HW.
  * If HW is not present, use the option corresponding to the latest fully supported GNA HW generation.
  * A fully supported GNA HW generation means it must be supported by both the OV GNA Plugin and the core GNA Library.
- * For the OV GNA Plugin 2022.1, the latest supported GNA HW generation corresponds to GNA_TARGET_3_0.
+ * Currently, the latest supported GNA HW generation corresponds to GNA_TARGET_3_0.
  */
 static constexpr Property<TargetDevice> execution_target{"GNA_EXEC_TARGET"};
 
@@ -196,15 +195,15 @@ inline std::istream& operator>>(std::istream& is, PWLDesignAlgorithm& pwl_design
  * @brief The option to set PWL design algorithm.
  * By default the optimized algorithm called "Recursive Descent Algorithm for Finding
  * the Optimal Minimax Piecewise Linear Approximation of Convex Functions" is used.
- * If value is UNIFORM_DISTRIBUTION then simple uniform distribution used to create
+ * If value is UNIFORM_DISTRIBUTION then simple uniform distribution is used to create
  * PWL approximation of activation functions.
- * Uniform distribution usually gives poor approximation with same number of segments
+ * Uniform distribution usually gives poor approximation with the same number of segments
  */
 static constexpr Property<PWLDesignAlgorithm> pwl_design_algorithm{"GNA_PWL_DESIGN_ALGORITHM"};
 
 /**
  * @brief The option to allow to specify the maximum error percent that the optimized algorithm finding
- * will use to find PWL functions.
+ * will be used to find PWL functions.
  * By default (in case of NO value set), 1.0 value is used.
  */
 static constexpr Property<float> pwl_max_error_percent{"GNA_PWL_MAX_ERROR_PERCENT"};
