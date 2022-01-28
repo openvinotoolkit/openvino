@@ -8,7 +8,6 @@ add_subdirectory(util)
 
 add_subdirectory(snippets)
 add_subdirectory(legacy)
-add_subdirectory(preprocessing)
 add_subdirectory(transformations)
 add_subdirectory(offline_transformations)
 add_subdirectory(low_precision_transformations)
