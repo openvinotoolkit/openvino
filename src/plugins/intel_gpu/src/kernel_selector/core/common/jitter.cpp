@@ -913,6 +913,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
         JitTerm jit_term{type_handler("TO_", "_TYPE") + "(" + arg.str() + ")"};
         return jit_term;
     };
+    auto to_float = [](const JitTerm& arg) -> JitTerm {
+        JitTerm jit_term{"convert_float(" + arg.str() + ")"};
+        return jit_term;
+    };
 
     std::string macro_def = name + (use_type_parameter ? "(jit_type, input, m, n)" : "(input, m, n)");
     std::string macro_def_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
@@ -931,7 +935,9 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, max_func(zero, input).str()));
             break;
         case ActivationFunction::RELU_NEGATIVE_SLOPE: {
-            const JitTerm slope = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            const JitTerm slope = out_dt == Datatype::F32 || out_dt == Datatype::F16
+                                  ? disable_type_conversion ? "m"_jit : to_type("m"_jit)
+                                  : to_float("m"_jit);
             jitConstants.AddConstant(MakeJitConstant(
                 macro_def,
                 ternary(isinf(slope),

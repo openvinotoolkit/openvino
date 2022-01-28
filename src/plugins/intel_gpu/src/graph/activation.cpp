@@ -27,12 +27,26 @@ layout activation_inst::calc_output_layout(activation_node const& node) {
         activation_func::negative,
         activation_func::negation,
         activation_func::relu,
+        activation_func::relu_negative_slope,
         activation_func::floor,
         activation_func::clamp };
 
-    if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::i32) {
+    if (!data_type_traits::is_floating_point(input_node_layout.data_type)) {
         if (std::find(activations_int8.begin(), activations_int8.end(), func) == activations_int8.end())
             CLDNN_ERROR_MESSAGE(node.id(), "Requested activation is not supported for integer type.");
+    }
+
+    if (func == activation_func::relu_negative_slope && !data_type_traits::is_floating_point(input_node_layout.data_type)) {
+        if (node.get_dependencies().size() == 2) {
+            auto slope_dt = node.get_dependency(1).get_output_layout().data_type;
+            if (data_type_traits::is_floating_point(slope_dt)) {
+                input_node_layout.data_type = slope_dt;
+            } else {
+                input_node_layout.data_type = data_types::f32;
+            }
+        } else {
+            input_node_layout.data_type = data_types::f32;
+        }
     }
 
     if (node.has_fused_primitives()) {

@@ -46,6 +46,13 @@ JitConstants ActivationKernelRef::GetJitConstants(const activation_params& param
     }
 
     jit.Merge(MakeActivationJitConstants(params.activations, input_dt, "_KERNEL"));
+    Datatype acccumulatorType = input_dt;
+    auto has_prelu = std::find_if(params.activations.begin(), params.activations.end(),
+        [](const base_activation_params& p) { return p.function == ActivationFunction::RELU_NEGATIVE_SLOPE;}) != params.activations.end();
+    if (input_dt != Datatype::F32 && input_dt != Datatype::F16 && has_prelu) {
+        acccumulatorType = Datatype::F32;
+    }
+    jit.Merge(MakeTypeJitConstants(acccumulatorType, "ACCUMULATOR"));
     return jit;
 }
 

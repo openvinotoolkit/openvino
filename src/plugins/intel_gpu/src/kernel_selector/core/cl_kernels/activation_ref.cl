@@ -100,7 +100,7 @@ KERNEL(activation)(
     #endif
     #define PARAMETERIZED_ACTIVATION_PARAMS NL_M_PARAMETERIZED, NL_N_PARAMETERIZED
 
-    INPUT0_TYPE dst = ACTIVATION_KERNEL(input[src_index], PARAMETERIZED_ACTIVATION_PARAMS);
+    ACCUMULATOR_TYPE dst = ACTIVATION_KERNEL(input[src_index], PARAMETERIZED_ACTIVATION_PARAMS);
     #if HAS_FUSED_OPS
         FUSED_OPS;
         output[dst_index] = FUSED_OPS_RESULT;
@@ -108,7 +108,7 @@ KERNEL(activation)(
         output[dst_index] = dst;
     #endif
 #else
-    INPUT0_TYPE dst = ACTIVATION_KERNEL(input[src_index], ACTIVATION_PARAMS);
+    ACCUMULATOR_TYPE dst = ACTIVATION_KERNEL(input[src_index], ACTIVATION_PARAMS);
     #if HAS_FUSED_OPS
         FUSED_OPS;
         output[dst_index] = FUSED_OPS_RESULT;
