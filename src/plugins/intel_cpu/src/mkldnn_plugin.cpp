@@ -129,8 +129,30 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+static std::string getDeviceFullName() {
+    std::string brand_string;
+#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+    const unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
+    unsigned int regs[4];
+    for (auto addr : addr_list) {
+        regs[0] = addr;
+#ifdef _WIN32
+        __cpuid(reinterpret_cast<int*>(regs), regs[0]);
+#else
+        __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
+#endif
+        char *ch = reinterpret_cast<char*>(&regs[0]);
+        for (size_t j = 0; j < sizeof(regs); j++)
+            brand_string += ch[j];
+    }
+#else
+    brand_string = "Non Intel Architecture";
+#endif
+    return brand_string;
+}
 
-Engine::Engine() {
+Engine::Engine() :
+    deviceFullName(getDeviceFullName()) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<MKLDNNPlugin::MKLDNNExtension>());
 }
@@ -141,7 +163,7 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
+static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Function>& nGraphFunc, const bool _enableLPT,
                                                const bool _enableSnippets) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
@@ -534,6 +556,75 @@ static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, con
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
+
+/**
+ * Map new properties (ov::...) to legacy parameters (CONFIG_KEY(...))
+ *
+ * Direct mapping (no processing required):
+ * ov::enable_profiling.name()       -> CONFIG_KEY(PERF_COUNT)
+ * ov::hint::performance_mode.name() -> CONFIG_KEY(PERFORMANCE_HINT)
+ * ov::hint::num_requests.name()     -> CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)
+ * ov::cache_dir.name()              -> CONFIG_KEY(CACHE_DIR)
+ *
+ * Indirect mapping (new string name or even different value format):
+ * ov::streams::num.name()              "NUM_STREAMS"           -> CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+ * ov::affinity.name()                  "AFFINITY"              -> CONFIG_KEY(CPU_BIND_THREAD)
+ * ov::inference_num_threads.name()     "INFERENCE_NUM_THREADS" -> CONFIG_KEY(CPU_THREADS_NUM)
+ * ov::hint::inference_precision.name() "BF16"                  -> CONFIG_KEY(ENFORCE_BF16) "YES"
+ */
+static std::map<std::string, std::string> mapToLegacyConfig(const std::map<std::string, std::string>& config) {
+    const std::unordered_map<std::string, std::string> newToLegacy {
+        {ov::streams::num.name(),              CONFIG_KEY(CPU_THROUGHPUT_STREAMS)},
+        {ov::affinity.name(),                  CONFIG_KEY(CPU_BIND_THREAD)},
+        {ov::inference_num_threads.name(),     CONFIG_KEY(CPU_THREADS_NUM)},
+        {ov::hint::inference_precision.name(), CONFIG_KEY(ENFORCE_BF16)}
+    };
+
+    if (config.count(ov::hint::inference_precision.name())) {
+        const auto& inference_precision = config.at(ov::hint::inference_precision.name());
+        if (!one_of(inference_precision, "bf16", "f32"))
+            IE_THROW() << "Unsupported inference_precision hint: " << inference_precision;
+    }
+
+    std::map<std::string, std::string> configWithLegacyParameters;
+
+    for (const auto& property : config) {
+        // insert corresponding legacy parameter
+        if (newToLegacy.count(property.first)) {
+            const auto& legacyKey = newToLegacy.at(property.first);
+            configWithLegacyParameters[legacyKey] = property.second;
+        } else {
+            // just copy
+            configWithLegacyParameters[property.first] = property.second;
+        }
+    }
+
+    /* Correct value options for BF16 legacy representation.
+     * INFERENCE_PRECISION_HINT bf16                = ENFORCE_BF16 YES
+     * INFERENCE_PRECISION_HINT f32                 = ENFORCE_BF16 NO
+     * INFERENCE_PRECISION_HINT any_other_precision -> throw */
+    if (configWithLegacyParameters.count(CONFIG_KEY(ENFORCE_BF16))) {
+        auto& value = configWithLegacyParameters.at(CONFIG_KEY(ENFORCE_BF16));
+        if (value == "bf16")
+            value = "YES";
+        else if (value == "f32")
+            value = "NO";
+    }
+
+    /* Correct value options for BF16 legacy representation.
+     * AFFINITY CORE = CPU_BIND_THREAD YES
+     * AFFINITY NONE = CPU_BIND_THREAD NO */
+    if (configWithLegacyParameters.count(CONFIG_KEY(CPU_BIND_THREAD))) {
+        auto& value = configWithLegacyParameters.at(CONFIG_KEY(CPU_BIND_THREAD));
+        if (value == "CORE")
+            value = "YES";
+        else if (value == "NONE")
+            value = "NO";
+    }
+
+    return configWithLegacyParameters;
+}
+
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
@@ -654,7 +745,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
-    conf.readProperties(config);
+    // internally legacy configuration is continued to be used
+    auto legacyConfig = mapToLegacyConfig(config);
+
+    conf.readProperties(legacyConfig);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
@@ -663,20 +757,74 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
+    // internally legacy configuration is continued to be used
+    auto legacyConfig = mapToLegacyConfig(config);
+
     // accumulate config parameters on engine level
-    streamsSet = (config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != config.end());
-    engConfig.readProperties(config);
+    streamsSet = (legacyConfig.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != legacyConfig.end());
+    engConfig.readProperties(legacyConfig);
 }
 
-Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+bool Engine::isLegacyAPI() const {
+    const auto& core = GetCore();
+    if (!core)
+        IE_THROW() << "Unable to get API version. Core is unavailable";
+
+    return !core->isNewAPI();
+}
+
+Parameter Engine::GetConfigLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
     Parameter result;
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         result = option->second;
     } else {
-        IE_THROW() << "Unsupported config key " << name;
+        IE_THROW() << "Unsupported config parameter: " << name;
     }
     return result;
+}
+
+Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
+    if (isLegacyAPI())
+        return GetConfigLegacy(name, options);
+
+    if (name == ov::optimal_number_of_infer_requests) {
+        const auto streams = engConfig.streamExecutorConfig._streams;
+        return static_cast<uint32_t>(streams); // ov::optimal_number_of_infer_requests has no negative values
+    } else if (name == ov::streams::num) {
+        const auto streams = engConfig.streamExecutorConfig._streams;
+        return static_cast<int32_t>(streams); // ov::streams::num has special negative values (AUTO = -1, NUMA = -2)
+    } else if (name == ov::affinity) {
+        const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
+        switch (affinity) {
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::NONE:
+            return ov::Affinity::NONE;
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::CORES:
+            return ov::Affinity::CORE;
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::NUMA:
+            return ov::Affinity::NUMA;
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+            return ov::Affinity::HYBRID_AWARE;
+        }
+        return ov::Affinity::NONE;
+    } else if (name == ov::inference_num_threads) {
+        const auto num_threads = engConfig.streamExecutorConfig._threads;
+        return num_threads;
+    } else if (name == ov::enable_profiling.name()) {
+        const bool perfCount = engConfig.collectPerfCounters;
+        return perfCount ? "YES" : "NO";
+    } else if (name == ov::hint::inference_precision) {
+        const auto enforceBF16 = engConfig.enforceBF16;
+        return enforceBF16 ? ov::element::bf16 : ov::element::f32;
+    } else if (name == ov::hint::performance_mode) {
+        const auto perfHint = engConfig.perfHintsConfig.ovPerfHint;
+        return perfHint;
+    } else if (name == ov::hint::num_requests) {
+        const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
+        return perfHintNumRequests;
+    }
+    // because of some implementation details legacy params still need to be supported even for new API
+    return GetConfigLegacy(name, options);
 }
 
 static bool hasAVX512() {
@@ -693,7 +841,7 @@ static bool hasAVX512() {
     return false;
 }
 
-Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics = {
             METRIC_KEY(AVAILABLE_DEVICES),
@@ -707,25 +855,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        std::string brand_string;
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-        unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
-        unsigned int regs[4];
-        for (auto addr : addr_list) {
-            regs[0] = addr;
-#ifdef _WIN32
-            __cpuid(reinterpret_cast<int*>(regs), regs[0]);
-#else
-            __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
-#endif
-            char *ch = reinterpret_cast<char*>(&regs[0]);
-            for (size_t j = 0; j < sizeof(regs); j++)
-                brand_string += ch[j];
-        }
-#else
-        brand_string = "Non Intel Architecture";
-#endif
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, brand_string);
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, deviceFullName);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { "" };
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
@@ -753,9 +883,72 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else {
-        IE_THROW() << "Unsupported metric key " << name;
     }
+
+    IE_THROW() << "Unsupported metric key " << name;
+}
+
+Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+    if (isLegacyAPI())
+        return GetMetricLegacy(name, options);
+
+    auto RO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+    };
+    auto RW_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+    };
+
+    if (name == ov::supported_properties) {
+        std::vector<ov::PropertyName> roProperties {RO_property(ov::available_devices.name()),
+                                                    RO_property(ov::supported_properties.name()),
+                                                    RO_property(ov::range_for_async_infer_requests.name()),
+                                                    RO_property(ov::range_for_streams.name()),
+                                                    RO_property(ov::device::full_name.name()),
+                                                    RO_property(ov::device::capabilities.name())
+        };
+        // the whole config is RW before network is loaded.
+        std::vector<ov::PropertyName> rwProperties {RW_property(ov::streams::num.name()),
+                                                    RW_property(ov::affinity.name()),
+                                                    RW_property(ov::inference_num_threads.name()),
+                                                    RW_property(ov::enable_profiling.name()),
+                                                    RW_property(ov::hint::inference_precision.name()),
+                                                    RW_property(ov::hint::performance_mode.name()),
+                                                    RW_property(ov::hint::num_requests.name()),
+                                                    RW_property(ov::cache_dir.name()),
+        };
+
+        std::vector<ov::PropertyName> supportedProperties;
+        supportedProperties.reserve(roProperties.size() + rwProperties.size());
+        supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+        supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+        return supportedProperties;
+    } else if (name == ov::device::full_name) {
+        return deviceFullName;
+    } else if (name == ov::available_devices) {
+        const std::vector<std::string> availableDevices = { "" };
+        return availableDevices;
+    } else if (name == ov::device::capabilities) {
+        std::vector<std::string> capabilities;
+        if (with_cpu_x86_bfloat16())
+            capabilities.push_back(METRIC_VALUE(BF16));
+        if (hasAVX512())
+            capabilities.push_back(METRIC_VALUE(WINOGRAD));
+        capabilities.push_back(METRIC_VALUE(FP32));
+        capabilities.push_back(METRIC_VALUE(FP16));
+        capabilities.push_back(METRIC_VALUE(INT8));
+        capabilities.push_back(METRIC_VALUE(BIN));
+        capabilities.push_back("IMPORT_EXPORT");
+        return capabilities;
+    } else if (name == ov::range_for_async_infer_requests) {
+        const std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
+        return range;
+    } else if (name == ov::range_for_streams) {
+        const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
+        return range;
+    }
+    // because of some implementation details legacy params still need to be supported even for new API
+    return GetMetricLegacy(name, options);
 }
 
 void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
