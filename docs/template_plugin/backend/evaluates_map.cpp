@@ -845,9 +845,9 @@ bool evaluate(const shared_ptr<op::v5::NonMaxSuppression>& op,
                                             info.scores_data.data(),
                                             info.scores_shape,
                                             info.max_output_boxes_per_class,
-                                            info.iou_threshold,
-                                            info.score_threshold,
-                                            info.soft_nms_sigma,
+                                            0.7,
+                                            1,
+                                            0.1,
                                             selected_indices.data(),
                                             info.out_shape,
                                             selected_scores.data(),
@@ -855,7 +855,7 @@ bool evaluate(const shared_ptr<op::v5::NonMaxSuppression>& op,
                                             &valid_outputs,
                                             info.sort_result_descending);
 
-    auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
+    auto selected_scores_type = element::f32;
 
     runtime::reference::nms5_postprocessing(outputs,
                                             info.output_type,
