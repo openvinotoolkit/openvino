@@ -45,8 +45,13 @@ public:
         std::exception_ptr _exceptionPtr;
     };
 
+    struct LoadBatchedNetworkInfo {
+        std::shared_ptr<InferenceEngine::ICore> _core;
+        const InferenceEngine::CNNNetwork _networkForDeviceWithBatch;
+        const std::shared_ptr<InferenceEngine::RemoteContext> _remoteCtx;
+    };
     explicit AutoBatchExecutableNetwork(
-        const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
+        const LoadBatchedNetworkInfo infoToLoadBatchedNetwork,
         const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
         const DeviceInformation& networkDevices,
         const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
@@ -65,6 +70,7 @@ public:
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     virtual ~AutoBatchExecutableNetwork();
+    std::atomic<bool> _canUseBatchedRequest = {false};
 
 protected:
     static unsigned int ParseTimeoutValue(const std::string&);
