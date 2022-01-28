@@ -41,7 +41,7 @@ The POT provides three basic usage options:
 * **[Command-line interface (CLI)](@ref pot_compression_cli_README)**: this option is recommended if the model from OpenVINO&trade; 
 [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or there is a valid [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README)
 configuration file for the model that allows validating model accuracy using [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README).
-* **[Simplified mode](@ref pot_configs_README)**: this option can be used if the model from Computer Vision domain and there is an unannotated dataset that can be used for optimization. Please note that this option does not guarantee accuracy in the general case.
+* **[Simplified mode](@ref pot_docs_simplified_mode)**: this option can be used if the model from Computer Vision domain and there is an unannotated dataset that can be used for optimization. Please note that this option does not guarantee accuracy in the general case.
 * **[Python\* API](@ref pot_compression_api_README)**: it allows integrating optimization methods implemented in POT into
 a Python* inference script that uses [OpenVINO Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview). 
 
@@ -53,14 +53,18 @@ that enables you to optimize, tune, analyze, visualize, and compare performance 
 
 To install POT, follow the [Installation Guide](docs/InstallationGuide.md).
 
-OpenVINO provides several tutorials that demonstrates usage of POT optimization workflow:
+OpenVINO provides several examples that demonstrates usage of POT optimization workflow:
 
-* POT CLI:
-  * [Quantization of Image Classification model](TODO) 
-* POT API tutorials:
+* Command-line example:
+  * [Quantization of Image Classification model](https://docs.openvino.ai/latest/pot_configs_examples_README.html) 
+* API tutorials:
   * [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
-  * [Quantization of object detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
-  * [Quantization of BERT for text classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
+  * [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
+  * [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
+* API examples:
+  * [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
+  * [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
+  * [Speech example for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
 
 
 ## See Also

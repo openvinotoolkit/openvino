@@ -1,4 +1,6 @@
-# Low-precision model representation {#pot_docs_model_flow}
+# Low-precision model representation {#pot_docs_model_representation}
+
+## Introduction
 The goal of this document is to describe how optimized models are represented in OpenVINO Intermediate Representation (IR) and provide guidance on interpretation rules for such models at runtime. 
 Currently, there are two groups of optimization methods that can change the IR after applying them to the full-precision model:
 - **Sparsity**. It is represented by zeros inside the weights and this is up to the hardware plugin how to interpret these zeros (use weights as is or apply special compression algorithms and sparse arithmetic). No additional mask is provided with the model.

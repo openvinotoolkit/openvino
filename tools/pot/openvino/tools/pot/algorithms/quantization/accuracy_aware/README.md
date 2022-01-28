@@ -57,27 +57,6 @@ Default value is `0.5`.
 to the floating-point precision. It can bring additional performance and accuracy boost but increase overall 
 quantization time. Default value is `False`.
 
- Below is a fragment of the configuration file that shows overall structure of parameters for this algorithm.
-
-```
-"name": "AccuracyAwareQuantization", // compression algorithm name
-    "params": {
-        "ranking_subset_size": 300, // A size of a subset which is used to rank layers by their contribution to the accuracy drop
-        "max_iter_num": 30,    // Maximum number of iterations of the algorithm (maximum of layers that may be reverted back to full-precision)
-        "maximal_drop": 0.005,      // Maximum accuracy drop which has to be achieved after the quantization
-        "drop_type": "absolute",    // Drop type of the accuracy metric: relative or absolute (default)
-        "use_prev_if_drop_increase": false,      // Whether to use NN snapshot from the previous algorithm iteration in case if drop increases
-        "base_algorithm": "DefaultQuantization", // Base algorithm that is used to quantize model at the beginning
-        "convert_to_mixed_preset": false,  // Whether to convert the model to mixed mode if the accuracy criteria 
-                                           // of the symmetrically quantized model are not satisfied
-        "metrics": [                    // An optional list of metrics that are taken into account during optimization
-                                        // If not specified, all metrics defined in engine config are used
-            {
-                "name": "accuracy",     // Metric name to optimize
-                "baseline_value": 0.72  // Baseline metric value of the original model
-            }
-        ],
-        "metric_subset_ratio": 0.5  // A part of the validation set that is used to compare element-wise full-precision and 
-                                    // quantized models in case of predefined metric values of the original model
-    }
-```
+A template and full specification for AccuracyAwareQuantization algorithm can be found:
+ * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_template.json)
+ * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_spec.json)

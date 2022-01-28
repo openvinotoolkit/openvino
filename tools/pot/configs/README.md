@@ -38,7 +38,7 @@ The main parameter is `"type"` which can take two possible options: `"accuracy_c
 which specify the engine that is used for model inference and validation (if supported):
 - **Simplified mode** engine. This engine can be used only with `DefaultQuantization` algorithm to get fully quantized model 
 using a subset of images. It does not use the Accuracy Checker tool and annotation. To measure accuracy, you should implement 
-your own validation pipeline with OpenVINO API.  
+your own validation pipeline with OpenVINO API. For more details about Simplified mode, please refer to this [description](@ref pot_docs_simplified_mode).
   - To run the simplified mode, define engine section similar to the example `mobilenetV2_tf_int8_simple_mode.json` file from the `<POT_DIR>/configs/examples/quantization/classification/` directory.
 - **Accuracy Checker** engine. It relies on the [Deep Learning Accuracy Validation Framework](@ref omz_tools_accuracy_checker_README) (Accuracy Checker) when inferencing DL models and working with datasets.
 The benefit of this mode is you can compute accuracy in case you have annotations. It is possible to use accuracy aware
