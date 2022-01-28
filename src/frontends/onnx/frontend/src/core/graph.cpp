@@ -75,12 +75,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
             } catch (const error::invalid_external_data&) {
                 // invalid external data makes initializers creation impossible
                 throw;
-            } catch (const ngraph::ngraph_error& exc) {
-                NGRAPH_WARN << "\nCould not create an nGraph Constant for initializer '" << initializer_tensor.name()
-                            << "'. Constant with a 0 value was created, make sure connected input is optional.\n"
-                            << "Otherwise verify if the initializer contains a correct number of "
-                               "elements matching the initializer's shape. \nDetailed error:\n"
-                            << exc.what();
+            } catch (const ngraph::ngraph_error&) {
                 ng_constant = default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
             }
 
