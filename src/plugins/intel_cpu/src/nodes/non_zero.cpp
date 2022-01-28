@@ -3,6 +3,7 @@
 //
 
 #include "non_zero.h"
+#include <ie_parallel.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
 
@@ -62,20 +63,28 @@ void NonZero::initSupportedPrimitiveDescriptors() {
 }
 
 template <typename T>
-size_t NonZero::getNonZeroElementsCount(const T* src, const Shape& inShape) {
+std::vector<size_t> MKLDNNNonZeroNode::getNonZeroElementsCount(const T* src, const Shape& inShape) {
     T zero = 0;
-    size_t count = 0;
+    std::vector<size_t> counts;
     size_t inSize = inShape.getElementsCount();
     if (inShape.getRank() == 0) {
-        if (src[0] != zero)
-            count = 1;
+        size_t count = src[0] != zero ? 1 : 0;
+        counts.push_back(count);
     } else {
-        for (size_t i = 0; i < inSize; i++) {
-            if (src[i] != zero)
-                count++;
-        }
+        int nthr = std::min(parallel_get_max_threads(), static_cast<int>(inSize));
+        if (nthr == 0)
+            nthr = 1;
+
+        counts.resize(nthr);
+
+        dnnl::impl::parallel(nthr, [&](int ithr, int nthr) {
+            dnnl::impl::for_nd(ithr, nthr, inSize, [&](size_t i){
+                if (src[i] != zero)
+                    counts[ithr]++;
+            });
+        });
     }
-    return count;
+    return counts;
 }
 namespace {
 struct NonZeroContext {
@@ -111,31 +120,77 @@ void NonZero::executeSpecified() {
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     Shape inShape = getParentEdgeAt(0)->getMemory().GetShape();
     size_t inRank = inShape.getRank();
-    size_t nonZeroCount = getNonZeroElementsCount(src, inShape);
+    std::vector<size_t> nonZeroCounts = getNonZeroElementsCount(src, inShape);
+    size_t totalNonZeroCount = 0;
+    for (const auto& nonZeroCount : nonZeroCounts)
+        totalNonZeroCount += nonZeroCount;
 
     if (isDynamicNode()) {
-        VectorDims newDims{inRank, nonZeroCount};
+        VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
     int *dst = reinterpret_cast<int *>(dstMemPtr->GetPtr());
     size_t inSize = inShape.getElementsCount();
-    auto srcStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    if (nonZeroCount == 0)
+    auto srcDims = inShape.getDims();
+    if (totalNonZeroCount == 0)
         return;
-    if (inShape.getRank() == 0) {
+
+    if (inRank == 0) {
         dst[0] = 0;
     } else {
-        size_t colIndex = 0, outIndex = 0;
-        for (size_t i = 0; i < inSize; i++) {
-            if (src[i] != zero) {
-                size_t temp = i;
-                for (size_t j = 0; j < inRank; j++) {
-                    outIndex = j * nonZeroCount + colIndex;
-                    dst[outIndex] = temp / srcStrides[j];
-                    temp = temp % srcStrides[j];
+        // TODO: find a proper place for this
+        constexpr static const std::size_t MaxDimensions = 6;
+
+        int nthr = static_cast<int>(nonZeroCounts.size());
+        std::vector<size_t> destIndices;
+
+        size_t nonZeroSum = 0;
+        destIndices.resize(nonZeroCounts.size());
+        for (size_t i = 0; i < nonZeroCounts.size(); ++i) {
+            destIndices[i] = nonZeroSum;
+            nonZeroSum += nonZeroCounts[i];
+        }
+
+        if (inRank == 1) {
+            dnnl::impl::parallel(nthr, [&](int ithr, int nthr) {
+                size_t colIndex = destIndices[ithr];
+                dnnl::impl::for_nd(ithr, nthr, inSize, [&](size_t i) {
+                    if (src[i] != zero) {
+                        dst[colIndex] = static_cast<int>(i);
+                        colIndex++;
+                    }
+                });
+            });
+        } else if (inRank <= MaxDimensions) {
+            dnnl::impl::parallel(nthr, [&](int ithr, int nthr) {
+                size_t start = 0, end = 0;
+                dnnl::impl::balance211(inSize, nthr, ithr, start, end);
+
+                size_t startForIndices = start;
+                size_t indices[MaxDimensions];
+                for (int i = static_cast<int>(inRank - 1); i >= 0; i--) {
+                    indices[i] = startForIndices % srcDims[i];
+                    startForIndices = startForIndices / srcDims[i];
                 }
-                colIndex++;
-            }
+                indices[inRank - 1] -= 1;
+
+                size_t colIndex = destIndices[ithr], outIndex = 0;
+                for (size_t i = start; i < end; i++) {
+                    for (int j = static_cast<int>(inRank - 1); j >= 0 && ++indices[j] >= srcDims[j]; j--) {
+                        indices[j] = 0;
+                    }
+
+                    if (src[i] != zero) {
+                        for (size_t j = 0; j < inRank; j++) {
+                            outIndex = j * totalNonZeroCount + colIndex;
+                            dst[outIndex] = static_cast<int>(indices[j]);
+                        }
+                        colIndex++;
+                    }
+                }
+            });
+        } else {
+            assert(false);
         }
     }
 }
