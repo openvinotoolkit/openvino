@@ -35,6 +35,9 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         std::tie(numSplits, axis, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        for (int k = 1; k < numSplits.size(); k++) {
+            outPrc.push_back(outPrc.front());
+        }
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));

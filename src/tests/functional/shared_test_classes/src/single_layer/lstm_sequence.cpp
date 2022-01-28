@@ -65,6 +65,9 @@ namespace LayerTestsDefinitions {
                 {{batch, seq_lengths, input_size}, {batch, num_directions, hidden_size}, {batch, num_directions, hidden_size},
                  {batch}, {num_directions, 4 * hidden_size, input_size}, {num_directions, 4 * hidden_size, hidden_size}, {num_directions, 4 * hidden_size}},
         };
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
+        outPrc.push_back(netPrecision);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
         if (m_mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||

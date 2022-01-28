@@ -52,6 +52,8 @@ void LSTMCellTest::SetUp() {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                     {4 * hidden_size, hidden_size}, {4 * hidden_size}},
     };
+    outPrc.front() = netPrecision;
+    outPrc.push_back(netPrecision);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
     std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
