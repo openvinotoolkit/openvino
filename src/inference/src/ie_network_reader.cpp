@@ -302,7 +302,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         const int64_t ir_version = it->second.as<int64_t>();
 
         if (ir_version == 10 && newAPI) {
-            std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor> > leaf_names;
+            std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor>> leaf_names;
             const auto inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
                 const auto ngraph_type = inputs[i].get_element_type();
