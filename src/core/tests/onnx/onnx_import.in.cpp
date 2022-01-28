@@ -120,8 +120,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_duplicated_more_output_names) {
     test_case.add_multiple_inputs(Inputs{{1, 2}, {2}, {3}});
     test_case.add_expected_output(Shape{1}, std::vector<float>{6});
     test_case.add_expected_output(Shape{1}, std::vector<float>{6});
-    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
     test_case.add_expected_output(Shape{1}, std::vector<float>{7});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
     test_case.run();
 }
 
