@@ -358,7 +358,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
     auto batch_id = num % _device.batchForDevice;
     if (!batch_id) {  // need new request
         _workerRequests.push_back(std::make_shared<WorkerInferRequest>());
-        auto workerRequestPtr = _workerRequests.back();
+        auto workerRequestPtr = _workerRequests.back().get();
         workerRequestPtr->_inferRequestBatched = {_network->CreateInferRequest(), _network._so};
         workerRequestPtr->_batchSize = _device.batchForDevice;
         workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
@@ -516,20 +516,6 @@ std::map<std::string, std::string> mergeConfigs(std::map<std::string, std::strin
 
 }  // namespace
 
-std::map<std::string, std::string> AutoBatchInferencePlugin::GetSupportedConfig(
-    const std::map<std::string, std::string>& config,
-    const std::string& deviceName) const {
-    std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-    std::map<std::string, std::string> supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = config.find(key);
-        if (config.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    return supportedConfig;
-}
-
 DeviceInformation AutoBatchInferencePlugin::ParseBatchDevice(const std::string& deviceWithBatch) {
     auto&& d = deviceWithBatch;
     auto openingBracket = d.find_first_of('(');
@@ -560,7 +546,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
 
-        return GetSupportedConfig(tconfig, deviceName);
+        return GetCore()->GetSupportedConfig(deviceName, tconfig);
     };
 
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);

@@ -94,7 +94,6 @@ program::program(engine& engine_ref,
                  bool is_body_program)
     : _engine(engine_ref),
       _stream(_engine.create_stream()),
-      _kernels_cache(std::unique_ptr<kernels_cache>(new kernels_cache(_engine))),
       options(options),
       processing_order(),
       tuning_cache(nullptr),
@@ -103,7 +102,8 @@ program::program(engine& engine_ref,
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
-    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
     if (no_optimizations) {
         init_graph();
     } else {
@@ -116,13 +116,13 @@ program::program(engine& engine_ref,
                  build_options const& options,
                  bool is_internal)
     : _engine(engine_ref),
-      _kernels_cache(std::unique_ptr<kernels_cache>(new kernels_cache(_engine))),
       options(options),
       processing_order(),
       tuning_cache(nullptr) {
     init_primitives();
     set_options();
-    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
@@ -474,6 +474,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // handle symmetric and asymmetric padding for input
     apply_opt_pass<handle_input_padding>();
+
+    apply_opt_pass<handle_permute>();
 
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
@@ -1055,7 +1057,7 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
         fused_node.dependencies.push_back(&dep);
-        local_desc.deps.emplace(dep.id(), deps_idx++);
+        local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
     local_desc.total_num_deps = std::min(local_desc.total_num_deps, deps_idx);

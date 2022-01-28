@@ -23,6 +23,7 @@ public:
     using parent::parent;
 
     program_node& input() const { return get_dependency(0); }
+    std::vector<uint16_t> get_permute_order() const { return get_primitive()->permute_order; }
 };
 
 using permute_node = typed_program_node<permute>;
