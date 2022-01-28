@@ -143,7 +143,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         // TODO: Below condition should be moved to program_node::supports_padding.
         // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
         // It however would make normal optimizations possible in others, so this is a trade-off to be investigated.
-        if (idx == 0) {
+        if (idx != node.get_dependencies().size() - 1) {
             if ((l.format == format::b_fs_yx_fsv16 || l.format == format::b_fs_zyx_fsv16) &&
                 (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
                 return false;
