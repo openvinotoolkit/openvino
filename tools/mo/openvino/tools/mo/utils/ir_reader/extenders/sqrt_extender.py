@@ -13,7 +13,7 @@ class Sqrt_extender(Extender):
     op = 'Sqrt'
 
     @staticmethod
-    def operation(a):   # we use same function as for elementwise.power but with fixed
+    def operation(a):   # we use same function as for elementwise.power but with fixed зщцук = 0.5
         if np.issubdtype(a.dtype, np.signedinteger):
             return float32_array(a.astype(np.float32) ** 0.5)
         return a ** 0.5
