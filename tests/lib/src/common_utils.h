@@ -9,166 +9,179 @@
 
 
 /**
- * @brief Determine if InferenceEngine blob means image or not
+ * @brief Determine if InferenceEngine blob means image or not (OV API 1)
  */
 template<typename T>
 static bool isImage(const T &blob) {
-  auto descriptor = blob->getTensorDesc();
-  if (descriptor.getLayout() != InferenceEngine::NCHW) {
-    return false;
-  }
-  auto channels = descriptor.getDims()[1];
-  return channels == 3;
+    auto descriptor = blob->getTensorDesc();
+    if (descriptor.getLayout() != InferenceEngine::NCHW) {
+        return false;
+    }
+    auto channels = descriptor.getDims()[1];
+    return channels == 3;
 }
 
 
 /**
- * @brief Determine if model input means image or not
+ * @brief Determine if model input means image or not (OV API 2)
  */
-static bool isImageInput(ov::Output<const ov::Node> input) {
-  auto shape = input.get_shape();
-  if (ov::layout::get_layout(input).to_string() != "NCHW") {
-    return false;
-  }
-  auto channels = shape[1];
-  return channels == 3;
+static bool isImage(ov::Output<const ov::Node> &input) {
+    const auto &layout = ov::layout::get_layout(input);
+    auto shape = input.get_shape();
+    if (ov::layout::has_height(layout) && ov::layout::has_width(layout) && ov::layout::has_channels(layout) &&
+        shape[ov::layout::channels_idx(layout)] == 3) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 
 /**
- * @brief Determine if InferenceEngine blob means image information or not
+ * @brief Determine if InferenceEngine blob means image information or not (OV API 1)
  */
 template<typename T>
 static bool isImageInfo(const T &blob) {
-  auto descriptor = blob->getTensorDesc();
-  if (descriptor.getLayout() != InferenceEngine::NC) {
-    return false;
-  }
-  auto channels = descriptor.getDims()[1];
-  return (channels >= 2);
+    auto descriptor = blob->getTensorDesc();
+    if (descriptor.getLayout() != InferenceEngine::NC) {
+        return false;
+    }
+    auto channels = descriptor.getDims()[1];
+    return (channels >= 2);
 }
 
 
 /**
- * @brief Return height and width from provided InferenceEngine tensor description
+ * @brief Determine if model input means image information or not (OV API 2)
+ */
+static bool isImageInfo(ov::Output<const ov::Node> &input) {
+    const auto &layout = ov::layout::get_layout(input);
+    auto shape = input.get_shape();
+    if (ov::layout::has_channels(layout) && shape[ov::layout::channels_idx(layout)] >= 2) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
+/**
+ * @brief Return height and width from provided InferenceEngine tensor description (OV API 1)
  */
 inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::TensorDesc& desc) {
-  const auto& layout = desc.getLayout();
-  const auto& dims = desc.getDims();
-  const auto& size = dims.size();
-  if ((size >= 2) &&
-      (layout == InferenceEngine::Layout::NCHW  ||
-       layout == InferenceEngine::Layout::NHWC  ||
-       layout == InferenceEngine::Layout::NCDHW ||
-       layout == InferenceEngine::Layout::NDHWC ||
-       layout == InferenceEngine::Layout::OIHW  ||
-       layout == InferenceEngine::Layout::GOIHW ||
-       layout == InferenceEngine::Layout::OIDHW ||
-       layout == InferenceEngine::Layout::GOIDHW ||
-       layout == InferenceEngine::Layout::CHW  ||
-       layout == InferenceEngine::Layout::HW)) {
-    // Regardless of layout, dimensions are stored in fixed order
-    return std::make_pair(dims.back(), dims.at(size - 2));
-  } else {
-    throw std::logic_error("Tensor does not have height and width dimensions");
-  }
+    const auto& layout = desc.getLayout();
+    const auto& dims = desc.getDims();
+    const auto& size = dims.size();
+    if ((size >= 2) &&
+        (layout == InferenceEngine::Layout::NCHW  ||
+         layout == InferenceEngine::Layout::NHWC  ||
+         layout == InferenceEngine::Layout::NCDHW ||
+         layout == InferenceEngine::Layout::NDHWC ||
+         layout == InferenceEngine::Layout::OIHW  ||
+         layout == InferenceEngine::Layout::GOIHW ||
+         layout == InferenceEngine::Layout::OIDHW ||
+         layout == InferenceEngine::Layout::GOIDHW ||
+         layout == InferenceEngine::Layout::CHW  ||
+         layout == InferenceEngine::Layout::HW)) {
+        // Regardless of layout, dimensions are stored in fixed order
+        return std::make_pair(dims.back(), dims.at(size - 2));
+    } else {
+        throw std::logic_error("Tensor does not have height and width dimensions");
+    }
 }
 
 
 /**
- * @brief Return height and width from provided model input
+ * @brief Return height and width from provided InferenceEngine tensor description (OV API 2)
  */
-inline std::pair<size_t, size_t> getInputTensorHeightWidth(ov::Output<const ov::Node> input) {
-  auto shape = input.get_shape();
-  const auto& size = shape.size();
-  std::string layout = ov::layout::get_layout(input).to_string();
-  if ((size >= 2) &&
-      (layout == "NCHW"  || layout == "NHWC"  || layout == "NCDHW" ||
-       layout == "NDHWC" || layout == "OIHW"  || layout == "GOIHW" ||
-       layout == "OIDHW" || layout == "GOIDHW" || layout == "CHW"  ||
-       layout == "HW")) {
-    // Regardless of layout, dimensions are stored in fixed order
-    return std::make_pair(shape.back(), shape.at(size - 2));
-  } else {
-    throw std::logic_error("Tensor does not have height and width dimensions");
-  }
+inline std::pair<size_t, size_t> getTensorHeightWidth(ov::Output<const ov::Node> &input) {
+    const auto &layout = ov::layout::get_layout(input);
+    auto shape = input.get_shape();
+
+    if (ov::layout::has_height(layout) && ov::layout::has_width(layout)) {
+        auto height_index = ov::layout::height_idx(layout);
+        auto width_index = ov::layout::width_idx(layout);
+        return std::make_pair(shape[height_index], shape[width_index]);
+    } else {
+        throw std::logic_error("Tensor does not have height and width dimensions");
+    }
 }
 
 
 /**
- * @brief Fill InferenceEngine blob with random values
+ * @brief Fill InferenceEngine blob with random values (OV API 1)
  */
 template<typename T>
 void fillBlobRandom(InferenceEngine::Blob::Ptr& inputBlob) {
-  InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputBlob);
-  // locked memory holder should be alive all time while access to its buffer happens
-  auto minputHolder = minput->wmap();
+    InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputBlob);
+    // locked memory holder should be alive all time while access to its buffer happens
+    auto minputHolder = minput->wmap();
 
-  auto inputBlobData = minputHolder.as<T *>();
-  for (size_t i = 0; i < inputBlob->size(); i++) {
-    auto rand_max = RAND_MAX;
-    inputBlobData[i] = (T) rand() / static_cast<T>(rand_max) * 10;
-  }
+    auto inputBlobData = minputHolder.as<T *>();
+    for (size_t i = 0; i < inputBlob->size(); i++) {
+        auto rand_max = RAND_MAX;
+        inputBlobData[i] = (T) rand() / static_cast<T>(rand_max) * 10;
+    }
 }
 
 
 /**
- * @brief Fill InferenceEngine tensor with random values
+ * @brief Fill InferenceEngine tensor with random values (OV API 2)
  */
 template<typename T>
-ov::Tensor fillTensorRandom(ov::Output<const ov::Node>& input) {
-  ov::Tensor tensor {input.get_element_type(), input.get_shape()};
-  std::vector<T>values(ov::shape_size(input.get_shape()));
+ov::Tensor fillTensorRandom(ov::Output<const ov::Node> &input) {
+    ov::Tensor tensor {input.get_element_type(), input.get_shape()};
+    std::vector<T>values(ov::shape_size(input.get_shape()));
 
-  for (size_t i = 0; i < values.size(); ++i) {
-    auto rand_max = RAND_MAX;
-    values[i] = (T) rand() / static_cast<T>(rand_max) * 10;
-  }
-  std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
+    for (size_t i = 0; i < values.size(); ++i) {
+        auto rand_max = RAND_MAX;
+        values[i] = (T) rand() / static_cast<T>(rand_max) * 10;
+    }
+    std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
 
-  return tensor;
+    return tensor;
 }
 
 
 /**
- * @brief Fill InferenceEngine tensor with image information
- */
-template<typename T>
-ov::Tensor fillTensorImInfo(ov::Output<const ov::Node>& input,
-                            std::pair<size_t, size_t> image_size) {
-  ov::Tensor tensor {input.get_element_type(), input.get_shape()};
-  std::vector<float> values{static_cast<float>(image_size.first), static_cast<float>(image_size.second)};
-
-  std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
-
-  return tensor;
-}
-
-
-/**
- * @brief Fill InferenceEngine blob with image information
+ * @brief Fill InferenceEngine blob with image information (OV API 1)
  */
 template<typename T>
 void fillBlobImInfo(InferenceEngine::Blob::Ptr& inputBlob,
                     const size_t& batchSize,
                     std::pair<size_t, size_t> image_size) {
-  InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputBlob);
-  // locked memory holder should be alive all time while access to its buffer happens
-  auto minputHolder = minput->wmap();
+    InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputBlob);
+    // locked memory holder should be alive all time while access to its buffer happens
+    auto minputHolder = minput->wmap();
 
-  auto inputBlobData = minputHolder.as<T *>();
-  for (size_t b = 0; b < batchSize; b++) {
-    size_t iminfoSize = inputBlob->size()/batchSize;
-    for (size_t i = 0; i < iminfoSize; i++) {
-      size_t index = b*iminfoSize + i;
-      if (0 == i)
-        inputBlobData[index] = static_cast<T>(image_size.first);
-      else if (1 == i)
-        inputBlobData[index] = static_cast<T>(image_size.second);
-      else
-        inputBlobData[index] = 1;
+    auto inputBlobData = minputHolder.as<T *>();
+    for (size_t b = 0; b < batchSize; b++) {
+        size_t iminfoSize = inputBlob->size()/batchSize;
+        for (size_t i = 0; i < iminfoSize; i++) {
+            size_t index = b*iminfoSize + i;
+            if (0 == i)
+                inputBlobData[index] = static_cast<T>(image_size.first);
+            else if (1 == i)
+                inputBlobData[index] = static_cast<T>(image_size.second);
+            else
+                inputBlobData[index] = 1;
+        }
     }
-  }
+}
+
+
+/**
+ * @brief Fill InferenceEngine tensor with image information (OV API 2)
+ */
+template<typename T>
+ov::Tensor fillTensorImInfo(ov::Output<const ov::Node> &input,
+                            std::pair<size_t, size_t> image_size) {
+    ov::Tensor tensor {input.get_element_type(), input.get_shape()};
+    std::vector<float> values{static_cast<float>(image_size.first), static_cast<float>(image_size.second)};
+
+    std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
+
+    return tensor;
 }
 
 
@@ -184,4 +197,4 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
  * @brief Fill InferRequest tensors with random values or image information
  */
 void fillTensors(ov::InferRequest &infer_request,
-                 std::vector<ov::Output<const ov::Node>>& inputs);
+                 std::vector<ov::Output<const ov::Node>> &inputs);
