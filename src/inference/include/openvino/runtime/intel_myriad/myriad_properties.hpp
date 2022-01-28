@@ -14,19 +14,19 @@ namespace common {
 /**
  * @brief Turn on HW stages usage (applicable for MyriadX devices only).
  */
-static constexpr Property<bool, PropertyMutability::RW> enableHwAcceleration{"MYRIAD_ENABLE_HW_ACCELERATION"};
+static constexpr Property<bool, PropertyMutability::RW> enable_hw_acceleration{"MYRIAD_ENABLE_HW_ACCELERATION"};
 
 /**
  * @brief The flag for adding to the profiling information the time of obtaining a tensor.
  */
-static constexpr Property<bool, PropertyMutability::RW> enableReceivingTensorTime{
+static constexpr Property<bool, PropertyMutability::RW> enable_receiving_tensor_time{
     "MYRIAD_ENABLE_RECEIVING_TENSOR_TIME"};
 
 /**
  * @brief This option allows to pass custom layers binding xml.
  * If layer is present in such an xml, it would be used during inference even if the layer is natively supported
  */
-static constexpr Property<std::string, PropertyMutability::RW> customLayers{"MYRIAD_CUSTOM_LAYERS"};
+static constexpr Property<std::string, PropertyMutability::RW> custom_layers{"MYRIAD_CUSTOM_LAYERS"};
 
 }  // namespace common
 
@@ -70,7 +70,7 @@ static constexpr Property<Protocol, PropertyMutability::RW> protocol{"MYRIAD_PRO
 /**
  * @brief The flag to reset stalled devices.
  */
-static constexpr Property<bool, PropertyMutability::RW> enableForceReset{"MYRIAD_ENABLE_FORCE_RESET"};
+static constexpr Property<bool, PropertyMutability::RW> enable_force_reset{"MYRIAD_ENABLE_FORCE_RESET"};
 
 /**
  * @brief Enum to define possible device mymory types
@@ -125,7 +125,6 @@ inline std::istream& operator>>(std::istream& is, DDRType& ddrType) {
  * @brief This option allows to specify device memory type.
  */
 
-static constexpr Property<DDRType, PropertyMutability::RW> ddrType{"MYRIAD_DDR_TYPE"};
-
+static constexpr Property<DDRType, PropertyMutability::RW> ddr_type{"MYRIAD_DDR_TYPE"};
 }  // namespace intel_myriad
 };  // namespace ov

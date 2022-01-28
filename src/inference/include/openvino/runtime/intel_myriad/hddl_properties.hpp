@@ -13,69 +13,69 @@ namespace hddl {
 /**
  * @brief Property to get a int of the device number
  */
-static constexpr Property<int, PropertyMutability::RO> deviceNum{"HDDL_DEVICE_NUM"};
+static constexpr Property<int, PropertyMutability::RO> device_num{"HDDL_DEVICE_NUM"};
 
 /**
  * @brief Property to get a std::vector<std::string> of device names
  */
-static constexpr Property<std::vector<std::string>, PropertyMutability::RO> deviceName{"HDDL_DEVICE_NAME"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> device_name{"HDDL_DEVICE_NAME"};
 
 /**
  * @brief  Property to get a std::vector<float> of device thermal
  */
-static constexpr Property<std::vector<float>, PropertyMutability::RO> deviceThermal{"HDDL_DEVICE_THERMAL"};
+static constexpr Property<std::vector<float>, PropertyMutability::RO> device_thermal{"HDDL_DEVICE_THERMAL"};
 
 /**
  * @brief  Property to get a std::vector<uint32> of device ids
  */
-static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> deviceId{"HDDL_DEVICE_ID"};
+static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> device_id{"HDDL_DEVICE_ID"};
 
 /**
  * @brief  Property to get a std::vector<int> of device subclasses
  */
-static constexpr Property<std::vector<int>, PropertyMutability::RO> deviceSubclass{"HDDL_DEVICE_SUBCLASS"};
+static constexpr Property<std::vector<int>, PropertyMutability::RO> device_subclass{"HDDL_DEVICE_SUBCLASS"};
 
 /**
  * @brief  Property to get a std::vector<uint32> of device total memory
  */
-static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> deviceMemoryTotal{
+static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> device_memory_total{
     "HDDL_DEVICE_MEMORY_TOTAL"};
 
 /**
  * @brief  Property to get a std::vector<uint32> of device used memory
  */
-static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> deviceMemoryUsed{
+static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> device_memory_used{
     "HDDL_DEVICE_MEMORY_USED"};
 
 /**
  * @brief  Property to get a std::vector<float> of device utilization
  */
-static constexpr Property<std::vector<float>, PropertyMutability::RO> deviceUtilization{"HDDL_DEVICE_UTILIZATION"};
+static constexpr Property<std::vector<float>, PropertyMutability::RO> device_utilization{"HDDL_DEVICE_UTILIZATION"};
 
 /**
  * @brief  Property to get a std::vector<std::string> of stream ids
  */
-static constexpr Property<std::vector<std::string>, PropertyMutability::RO> streamId{"HDDL_STREAM_ID"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> stream_id{"HDDL_STREAM_ID"};
 
 /**
  * @brief  Property to get a std::vector<std::string> of device tags
  */
-static constexpr Property<std::vector<std::string>, PropertyMutability::RO> deviceTag{"HDDL_DEVICE_TAG"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> device_tag{"HDDL_DEVICE_TAG"};
 
 /**
  * @brief  Property to get a std::vector<int> of group ids
  */
-static constexpr Property<std::vector<int>, PropertyMutability::RO> groupId{"HDDL_GROUP_ID"};
+static constexpr Property<std::vector<int>, PropertyMutability::RO> group_id{"HDDL_GROUP_ID"};
 
 /**
  * @brief  Property to get a int number of device be using for group
  */
-static constexpr Property<int, PropertyMutability::RO> deviceGroupUsingNum{"HDDL_DEVICE_GROUP_USING_NUM"};
+static constexpr Property<int, PropertyMutability::RO> device_group_using_num{"HDDL_DEVICE_GROUP_USING_NUM"};
 
 /**
  * @brief  Property to get a int number of total device
  */
-static constexpr Property<int, PropertyMutability::RO> deviceTotalNum{"HDDL_DEVICE_TOTAL_NUM"};
+static constexpr Property<int, PropertyMutability::RO> device_total_num{"HDDL_DEVICE_TOTAL_NUM"};
 
 //    RW properties
 
@@ -95,7 +95,7 @@ static constexpr Property<int, PropertyMutability::RO> deviceTotalNum{"HDDL_DEVI
  * }
  * It means that an executable network marked with tagA will be executed on 3 devices
  */
- static constexpr Property<std::string, PropertyMutability::RW> graphTag{"HDDL_GRAPH_TAG"};
+static constexpr Property<std::string, PropertyMutability::RW> graph_tag{"HDDL_GRAPH_TAG"};
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -111,7 +111,7 @@ static constexpr Property<int, PropertyMutability::RO> deviceTotalNum{"HDDL_DEVI
  * }
  * It means that 5 device will be used for stream-affinity
  */
-static constexpr Property<std::string, PropertyMutability::RW> setStreamId{"HDDL_SET_STREAM_ID"};
+static constexpr Property<std::string, PropertyMutability::RW> set_stream_id{"HDDL_SET_STREAM_ID"};
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -127,7 +127,7 @@ static constexpr Property<std::string, PropertyMutability::RW> setStreamId{"HDDL
  * }
  * It means that 5 device will be used for Bypass scheduler.
  */
-static constexpr Property<std::string, PropertyMutability::RW> setDeviceTag{"HDDL_SET_DEVICE_TAG"};
+static constexpr Property<std::string, PropertyMutability::RW> set_device_tag{"HDDL_SET_DEVICE_TAG"};
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -140,7 +140,7 @@ static constexpr Property<std::string, PropertyMutability::RW> setDeviceTag{"HDD
  * is allocated on multiple other devices (also set BIND_DEVICE to "False"), then inference through any handle of these
  * networks may be executed on any of these devices those have the network loaded.
  */
-static constexpr Property<bool, PropertyMutability::RW> bindDevice{"HDDL_BIND_DEVICE"};
+static constexpr Property<bool, PropertyMutability::RW> bind_device{"HDDL_BIND_DEVICE"};
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -150,7 +150,7 @@ static constexpr Property<bool, PropertyMutability::RW> bindDevice{"HDDL_BIND_DE
  * Scheduler), the device with a larger number has a higher priority, and more inference tasks will be fed to it with
  * priority.
  */
-static constexpr Property<std::string, PropertyMutability::RW> runtimePriority{"HDDL_RUNTIME_PRIORITY"};
+static constexpr Property<std::string, PropertyMutability::RW> runtime_priority{"HDDL_RUNTIME_PRIORITY"};
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -159,7 +159,7 @@ static constexpr Property<std::string, PropertyMutability::RW> runtimePriority{"
  * (managed by SGAD scheduler) will be loaded with this graph. The number of network that can be loaded to one device
  * can exceed one. Once application deallocates 1 network from device, all devices will unload the network from them.
  */
-static constexpr Property<bool, PropertyMutability::RW> useSgad{"HDDL_USE_SGAD"};
+static constexpr Property<bool, PropertyMutability::RW> use_sgad{"HDDL_USE_SGAD"};
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -168,8 +168,7 @@ static constexpr Property<bool, PropertyMutability::RW> useSgad{"HDDL_USE_SGAD"}
  * can use this device grouped by calling this group id while other client can't use this device
  * Each device has their own group id. Device in one group shares same group id.
  */
-static constexpr Property<std::string, PropertyMutability::RW> groupDevice{"HDDL_GROUP_DEVICE"};
-
+static constexpr Property<std::string, PropertyMutability::RW> group_device{"HDDL_GROUP_DEVICE"};
 }  // namespace hddl
 }  // namespace intel_myriad
 };  // namespace ov
