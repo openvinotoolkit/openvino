@@ -16,9 +16,6 @@
 
 using namespace ngraph;
 
-#define DEBUG_CHECKPOINT std::cout << __FILE__ << ":" << __LINE__ << ":" << __FUNCTION__ << std::endl;
-#define DEBUG_VALUE(val) std::cout << __FILE__ << ":" << __LINE__ << ":" << __FUNCTION__ << " " << #val << " " <<  val << std::endl;
-
 namespace {
 
 template <class T>
@@ -41,15 +38,6 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
     new_weights_shape.insert(new_weights_shape.begin() + 2, 1);
     auto weights = op::util::reshapeTo(node->input_value(1), new_weights_shape);
     new_ops.push_back(weights);
-
-    DEBUG_VALUE(node->get_dilations());
-    DEBUG_VALUE(new_dilations);
-    DEBUG_VALUE(node->get_strides());
-    DEBUG_VALUE(new_strides);
-    DEBUG_VALUE(node->get_pads_begin());
-    DEBUG_VALUE(new_pads_begin);
-    DEBUG_VALUE(node->get_pads_end());
-    DEBUG_VALUE(new_pad_end);
 
     if (node->inputs().size() == 2) {
         return std::make_shared<op::ConvolutionIE>(data,
@@ -144,8 +132,6 @@ matcher_pass_callback get_callback() {
 
         if (auto conv = std::dynamic_pointer_cast<op::ConvolutionIE>(node)) {
             last = convert(last, conv, new_ops);
-            DEBUG_VALUE(node->input(0).get_partial_shape().rank().get_length());
-            DEBUG_CHECKPOINT;
         } else if (auto max_pool = std::dynamic_pointer_cast<opset1::MaxPool>(node)) {
             last = convert(last, max_pool, new_ops);
         } else if (auto avg_pool = std::dynamic_pointer_cast<opset1::AvgPool>(node)) {

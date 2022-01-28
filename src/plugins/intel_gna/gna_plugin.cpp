@@ -83,15 +83,11 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/transpose_nchw.hpp"
-#include "transformations/reshape1dconvolution.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ops/gna_convolution.hpp>
 #include <legacy/ngraph_ops/convolution_ie.hpp>
-
-#include "ngraph/pass/visualize_tree.hpp" // DEBUG 
-#include "transformations/serialize.hpp" // DEBUG
 
 #include "debug_use_new_pass.hpp"
 
@@ -713,7 +709,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/start.png"); // DEBUG
+        EMUTEX_DEBUG_SAVE_NGRAPH(manager, "start");
         manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
         manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
         manager.register_pass<DecomposeMVN>();
@@ -748,23 +744,19 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SwapInputMatMul>();
         manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
-        // EMUTEX DEBUG CHECKPOINT START
-        //manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_before.png"); // DEBUG
         manager.register_pass<Unfuse2dto4dReshapeAndTranspose>();
-        //manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/checkpoint_after.png"); // DEBUG
         manager.register_pass<Unfuse4dto2dReshapeAndTranspose>();
-        // EMUTEX DEBUG CHECKPOINT END
         manager.register_pass<RemoveExtraReshapes>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();
 
 #ifdef DEBUG_USE_NEW_PASS
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/before_transpose_nchw.png"); // DEBUG
+        EMUTEX_DEBUG_SAVE_NGRAPH(manager, "before_transpose_nchw");
         manager.register_pass<TransposeNCHW>();
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/after_transpose_nchw.png"); // DEBUG
+        EMUTEX_DEBUG_SAVE_NGRAPH(manager, "after_transpose_nchw");
         manager.register_pass<ngraph::pass::TransposeSinking>();
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/after_transpose_sinking.png"); // DEBUG
+        EMUTEX_DEBUG_SAVE_NGRAPH(manager, "after_transpose_sinking");
 #endif // DEBUG_USE_NEW_PASS
 
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
@@ -803,7 +795,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::TransposeReduction>();
         // Operations Max and Min aren't supported
         pass_config->disable<ngraph::pass::ConcatReduceFusion>();
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/finish.png"); // DEBUG
+        EMUTEX_DEBUG_SAVE_NGRAPH(manager, "finish");
         manager.run_passes(graph);
 
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
