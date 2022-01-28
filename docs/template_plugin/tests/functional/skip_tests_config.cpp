@@ -28,12 +28,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
 
         // TODO: Round with f16 is not supported
-        R"(.*smoke_Hetero_BehaviorTests.*OVCompiledModelImportExport.*readFromV10IR.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.*readFromV10IR.*)",
         // TODO: support import / export of precisions in template plugin
-        R"(.*smoke_Hetero_BehaviorTests.*OVCompiledModelImportExport.ieImportExportedFunction.*)",
-        R"(.*smoke_BehaviorTests.*OVCompiledModelImportExport.ieImportExportedFunction.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.ieImportExportedFunction.*)",
+        R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.ieImportExportedFunction.*)",
         // TODO: Round with f16 is not supported
-        R"(.*smoke_Hetero_BehaviorTests.*OVCompiledModelImportExport.*readFromV10IR.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.*readFromV10IR.*)",
 
         R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i8|u8).*)",
         R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i16|u16).*)",

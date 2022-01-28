@@ -22,26 +22,26 @@ const std::vector<ov::AnyMap> heteroConfigs = {
         {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_MYRIAD}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVCompiledModelImportExport,
+                         OVExecGraphImportExportTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                  ::testing::ValuesIn(configs)),
-                         OVCompiledModelImportExport::getTestCaseName);
+                         OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-         OVCompiledModelImportExport,
+         OVExecGraphImportExportTest,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(multiConfigs)),
-        OVCompiledModelImportExport::getTestCaseName);
+        OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-         OVCompiledModelImportExport,
+         OVExecGraphImportExportTest,
         ::testing::Combine(::testing::ValuesIn(netPrecisions),
                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                            ::testing::ValuesIn(heteroConfigs)),
-        OVCompiledModelImportExport::getTestCaseName);
+        OVExecGraphImportExportTest::getTestCaseName);
 
 }  // namespace

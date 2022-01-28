@@ -18,11 +18,11 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVCompiledModelImportExport,
+                         OVExecGraphImportExportTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                  ::testing::ValuesIn(configs)),
-                         OVCompiledModelImportExport::getTestCaseName);
+                         OVExecGraphImportExportTest::getTestCaseName);
 
 }  // namespace
