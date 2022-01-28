@@ -14,10 +14,8 @@
         
 @endsphinxdirective
 
-> **NOTE**: 
-> - The steps in this guide are only required if you want to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
-> - If you installed the Intel® Distribution of OpenVINO™ to the non-default install directory, replace `/opt/intel` with the directory in which you installed the software.
 
+The steps in this guide are only required if you want to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 
 For troubleshooting issues, please see the [Troubleshooting Guide](troubleshooting.md) for more information.
 

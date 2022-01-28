@@ -11,9 +11,7 @@ Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for quick
 You can install OpenVINO according to your needs:
 
 * **If you have already finished your model development and want to deploy your applications on various devices, install OpenVINO Runtime**, which contains the Inference Engine to run deep learning models. Inference Engine includes a set of libraries for an easy inference integration into your applications.
-
 * **If you want to develop or optimize your models with OpenVINO and deploy your applications after that, install [OpenVINO Model Development Tools](installing-model-dev-tools.md)**, which provides the following tools:
-
   * Model Optimizer
   * Benchmark Tool
   * Accuracy Checker and Annotation Converter

@@ -49,18 +49,18 @@
    :hidden:
    :caption: Inference Engine Code Samples
 
-   openvino_docs_IE_DG_Samples_Overview
+   <openvino_docs_IE_DG_Samples_Overview>
 
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Reference Implementations For Speech Recognition Apps
 
-   openvino_inference_engine_samples_speech_libs_and_demos_Speech_libs_and_demos
-   openvino_inference_engine_samples_speech_libs_and_demos_Speech_library
-   openvino_inference_engine_samples_speech_libs_and_demos_Offline_speech_recognition_demo
-   openvino_inference_engine_samples_speech_libs_and_demos_Live_speech_recognition_demo
-   openvino_inference_engine_samples_speech_libs_and_demos_Kaldi_SLM_conversion_tool
+   <openvino_inference_engine_samples_speech_libs_and_demos_Speech_libs_and_demos>
+   <openvino_inference_engine_samples_speech_libs_and_demos_Speech_library>
+   <openvino_inference_engine_samples_speech_libs_and_demos_Offline_speech_recognition_demo>
+   <openvino_inference_engine_samples_speech_libs_and_demos_Live_speech_recognition_demo>
+   <openvino_inference_engine_samples_speech_libs_and_demos_Kaldi_SLM_conversion_tool>
 
 <!--
 .. toctree::

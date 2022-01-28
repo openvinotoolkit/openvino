@@ -224,7 +224,7 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 
 To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following steps:
 
-1. Set up the environment on the host machine to be used for running Docker*. It is required to execute hddldaemon, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configuration Guide for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](installing-openvino-linux-ivad-vpu.md).
+1. Set up the environment on the host machine to be used for running Docker*. It is required to execute hddldaemon, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [CConfigurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](configurations-for-vpu-linux.md).
 2. Prepare the Docker* image by adding the following commands to a Dockerfile:
    - **Ubuntu 18.04**:
         ```sh
@@ -263,6 +263,21 @@ docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
 > **NOTE**:
 > - The device `/dev/ion` needs to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
 > - Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
+
+
+> **NOTE**:
+> * The device `/dev/ion` needs to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
+> * Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
+
+
+> **NOTE**:
+> The device `/dev/ion` needs to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
+> Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
+
+
+> **NOTE**:
+> 1. The device `/dev/ion` needs to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
+> 2. Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
 
 
 **If the ion driver is not enabled**
@@ -310,36 +325,3 @@ docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <
 - [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - Intel® Neural Compute Stick 2 Get Started: [https://software.intel.com/en-us/neural-compute-stick/get-started](https://software.intel.com/en-us/neural-compute-stick/get-started)
-
-
-To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following steps:
-
-1. Set up the environment on the host machine to be used for running Docker*. It is required to execute hddldaemon, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configuration Guide for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](installing-openvino-linux-ivad-vpu.md).
-
-2. Prepare the Docker* image by adding the following commands to a Dockerfile:
-   - **Ubuntu 18.04**:
-        ```sh
-        WORKDIR /tmp
-        RUN apt-get update && \
-            apt-get install -y --no-install-recommends \
-                libboost-filesystem1.65-dev \
-                libboost-thread1.65-dev \
-                libjson-c3 libxxf86vm-dev && \
-        rm -rf /var/lib/apt/lists/* && rm -rf /tmp/*
-        ```   
-   - **Ubuntu 20.04**:
-        ```sh
-        WORKDIR /tmp
-        RUN apt-get update && \
-            apt-get install -y --no-install-recommends \
-                libboost-filesystem-dev \
-                libboost-thread-dev \
-                libjson-c4 \
-                libxxf86vm-dev && \
-        rm -rf /var/lib/apt/lists/* && rm -rf /tmp/*
-        ```   
-        
-3. Run `hddldaemon` on the host in a separate terminal session using the following command:
-    ```sh
-    $HDDL_INSTALL_DIR/hddldaemon
-    ```
