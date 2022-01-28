@@ -1489,7 +1489,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 break;
             }
         }
-    } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
+    // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
+    } else if (node.is_type<fully_connected>()/* || node.is_type<gemm>()*/) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
@@ -1501,15 +1502,28 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         for (auto& fo : node.get_fused_primitives()) {
             if (fo.node->is_type<eltwise>()) {
-                auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
-                auto out_layout = node.get_output_layout();
-                auto in_dt = in_layout.data_type;
-                auto out_dt = out_layout.data_type;
-                if ((out_layout.count() == in_layout.count()) &&
-                    (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
-                    fo.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(in_layout)) {
-                    impl_candidate = impl_types::ocl;
-                    break;
+                // FC checkings
+                if (node.is_type<fully_connected>()) {
+                    auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
+                    auto out_layout = node.get_output_layout();
+                    auto in_dt = in_layout.data_type;
+                    auto out_dt = out_layout.data_type;
+                    if ((out_layout.count() == in_layout.count()) &&
+                        (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
+                        fo.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(in_layout)) {
+                        impl_candidate = impl_types::ocl;
+                        break;
+                    }
+                // Gemm checkings
+                // TODO: investigate why currently onednn gemm has some "sum" post-op restrictions
+                // which don't correlate with fc checkings in the code above
+                // Temprorary WA: disable onednn gemm with sum post-op inside
+                } else {
+                    auto& e_node = fo.node->as<eltwise>();
+                    if (e_node.get_primitive()->mode == eltwise_mode::sum) {
+                        impl_candidate = impl_types::ocl;
+                        break;
+                    }
                 }
             }
         }
@@ -1527,6 +1541,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 }
             }
         } else {
+            impl_candidate = impl_types::ocl;
             auto gemm_prim = node.as<gemm>().get_primitive();
             auto in0_l = node.get_dependency(0).get_output_layout();
             auto in1_l = node.get_dependency(1).get_output_layout();
@@ -1543,11 +1558,15 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             size_t in1_batched_size = in1_l.count() / (in1_l.size.spatial[0] * in1_l.size.spatial[1]);
             size_t out_batched_size = out_l.count() / (out_l.size.spatial[0] * out_l.size.spatial[1]);
 
-            auto gemm_checking1 = in0_batched_size != 1 && (in1_batched_size == in0_batched_size || in1_batched_size == 1);
-            auto gemm_checking2 = in0_batched_size > in1_batched_size ? out_batched_size == in0_batched_size :
+            auto valid_input_batch = in0_batched_size != 1 && (in1_batched_size == in0_batched_size || in1_batched_size == 1);
+            auto valid_output_batch = in0_batched_size > in1_batched_size ? out_batched_size == in0_batched_size :
                                                                         out_batched_size == in1_batched_size;
-            auto gemm_checking3 = has_input2 ? in2_batched_size == 1 || in2_batched_size == out_batched_size : true;
-            auto unsupported_onednn_gemm = !gemm_checking1 || !gemm_checking2 || !gemm_checking3;
+            auto valid_extra_input_batch = has_input2 ? in2_batched_size == 1 || in2_batched_size == out_batched_size : true;
+            auto valid_scale_factor = gemm_prim->alpha == 1.f && (has_input2 ? gemm_prim->beta == 1.f : true);
+            auto unsupported_onednn_gemm = !valid_input_batch ||
+                                           !valid_output_batch ||
+                                           !valid_extra_input_batch ||
+                                           !valid_scale_factor;
 
             // Gemm with k < 64 is calculated via ref kernel in onednn so cldnn way is more preferable for such cases
             if (size_k < 64 || unsupported_onednn_gemm)
