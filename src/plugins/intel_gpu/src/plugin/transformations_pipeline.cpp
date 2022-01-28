@@ -29,7 +29,7 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include "transformations/resolve_gen_names_collisions.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
@@ -437,7 +437,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !config.enable_loop_unrolling;
             });
-        manager.register_pass<ov::pass::ResolveGeneratedNameCollisions>();
+        manager.register_pass<ov::pass::ResolveNameCollisions>();
 
         manager.run_passes(func);
     }
