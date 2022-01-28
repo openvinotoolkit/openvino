@@ -31,7 +31,7 @@ TEST(ResolveNameCollisionsTest, FixGeneratedNames) {
     EXPECT_NE(arg1->get_friendly_name(), arg0->get_friendly_name() + "_2");
 
     ov::pass::Manager pass_manager;
-    pass_manager.register_pass<ov::pass::ResolveGeneratedNameCollisions>();
+    pass_manager.register_pass<ov::pass::ResolveNameCollisions>();
     pass_manager.run_passes(model);
     EXPECT_EQ(name, arg0->get_friendly_name());
     EXPECT_NE(arg1->get_friendly_name(), arg0->get_friendly_name());
@@ -57,7 +57,7 @@ TEST(ResolveNameCollisionsTest, DoNotFixFriendlyNamesForParameters) {
     EXPECT_NE(arg1->get_friendly_name(), arg0->get_friendly_name() + "_2");
 
     ov::pass::Manager pass_manager;
-    pass_manager.register_pass<ov::pass::ResolveGeneratedNameCollisions>();
+    pass_manager.register_pass<ov::pass::ResolveNameCollisions>();
     pass_manager.run_passes(model);
     EXPECT_EQ(gen_friendly_name, arg0->get_friendly_name());
     EXPECT_EQ(arg1->get_friendly_name(), arg0->get_friendly_name());
@@ -82,7 +82,7 @@ TEST(ResolveNameCollisionsTest, FixFriendlyNamesForInternalOperations) {
     EXPECT_EQ(concat->get_friendly_name(), concat1->get_friendly_name());
 
     ov::pass::Manager pass_manager;
-    pass_manager.register_pass<ov::pass::ResolveGeneratedNameCollisions>();
+    pass_manager.register_pass<ov::pass::ResolveNameCollisions>();
     pass_manager.run_passes(model);
     EXPECT_NE(concat->get_friendly_name(), concat1->get_friendly_name());
 }
