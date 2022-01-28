@@ -61,6 +61,7 @@ namespace {
                     res.push_back(PluginConfigParams::KEY_PERF_COUNT);
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
                     res.push_back(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY);
+                    res.push_back(PluginConfigParams::KEY_ALLOW_AUTO_BATCHING);
                     return res;
                 }();
 }  // namespace
@@ -277,6 +278,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              config.first.c_str(), config.second.c_str());
                  }
              }
+             auto tmpiter = std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
+                            return (config.first == CONFIG_KEY(ALLOW_AUTO_BATCHING));
+                            });
+             if (tmpiter != fullConfig.end())
+                 deviceConfig.insert({tmpiter->first, tmpiter->second});
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -585,6 +591,11 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             } catch(...) {
                 IE_THROW() << "Unsupported config value: " << kvp.second
                            << " for key: " << kvp.first;
+            }
+        } else if (kvp.first == PluginConfigParams::KEY_ALLOW_AUTO_BATCHING) {
+            if (kvp.second == PluginConfigParams::NO) {
+                context.batchingDisabled = true;
+                continue;
             }
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
             PerfHintsConfig::CheckConfigAndValue(kvp);
