@@ -79,6 +79,7 @@ set(SRC
     pass/serialization/const_compression.cpp
     pass/serialization/deterministicity.cpp
     pass/serialization/serialize.cpp
+    pass/serialization/from_model.cpp
     pattern.cpp
     preprocess.cpp
     replace_node.cpp
@@ -461,7 +462,6 @@ endif()
 # TODO: Enable these tests in new infrastructure
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/interpolate.in.cpp
     backend/sqrt.in.cpp
 )
 

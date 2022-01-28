@@ -497,6 +497,11 @@ public:
         return newAPI;
     }
 
+    ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override {
+        auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ParamMap{});
+        return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._ptr;
+    }
+
     ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
                                                           const std::shared_ptr<ie::RemoteContext>& context,
                                                           const std::map<std::string, std::string>& config) override {
@@ -548,8 +553,11 @@ public:
             const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
-                // no need for this config key in the rest of loading
-                config.erase(batch_mode);
+                // virtual plugins like AUTO/MULTI will need the config
+                // e.g to deduce the #requests correctly
+                // otherwise, no need for this config key in the rest of loading
+                if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
+                    config.erase(batch_mode);
                 if (disabled)
                     return;
             }
@@ -1423,9 +1431,7 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     if (deviceName.find("AUTO") == 0) {
         IE_THROW() << "AUTO device does not support remote context";
     }
-
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ParamMap());
-    return _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._ptr;
+    return _impl->GetDefaultContext(deviceName);
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
