@@ -554,10 +554,8 @@ TEST(type_prop, lstm_sequence_v1_dynamic_num_directions) {
 
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(0),
               (PartialShape{param.batch_size, 1, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1),
-              (PartialShape{param.batch_size, 1, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2),
-              (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2), (PartialShape{param.batch_size, 1, param.hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), param.et);
@@ -626,10 +624,8 @@ TEST(type_prop, lstm_sequence_v1_dynamic_inputs) {
 
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(0),
               (PartialShape{param.batch_size, 1, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1),
-              (PartialShape{param.batch_size, 1, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2),
-              (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2), (PartialShape{param.batch_size, 1, param.hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), param.et);
@@ -703,17 +699,15 @@ TEST(type_prop, lstm_sequence_v1_invalid_input_direction) {
         lstm_sequence->validate_and_infer_types();
         FAIL() << "LSTMSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter 'num_directions' doesn't match with direction"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
     }
 
-    param.num_directions = 2; // 2 is also not allowed for default 'm_direction' = FORWARD
+    param.num_directions = 2;  // 2 is also not allowed for default 'm_direction' = FORWARD
     lstm_sequence = lstm_seq_v1_tensor_initialization(param);
     try {
         lstm_sequence->validate_and_infer_types();
         FAIL() << "LSTMSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter 'num_directions' doesn't match with direction"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
     }
 }
