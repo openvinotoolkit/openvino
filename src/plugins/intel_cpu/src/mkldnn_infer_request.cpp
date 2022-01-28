@@ -717,7 +717,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
         const auto shape = inputNodeItr->second->get_output_partial_shape(0);
         const bool isDynamic = shape.is_dynamic();
         if (!shape.compatible(ov::PartialShape(data->getTensorDesc().getDims()))) {
-            IE_THROW() << "Can't SetBlob with name: " << name << ", because model input and blob are incompatible";
+            IE_THROW() << "Can't SetBlob with name: " << name
+                       << ", because model input (shape=" << shape
+                       << ") and blob (shape=" << vec2str(data->getTensorDesc().getDims()) << ") are incompatible";
         }
 
         if (!isDynamic && ngraph::shape_size(shape.to_shape()) != data->size()) {

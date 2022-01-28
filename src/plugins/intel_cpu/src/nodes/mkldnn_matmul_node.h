@@ -47,6 +47,7 @@ protected:
 
 private:
     mkldnn::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
+    std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1) const;
 
     bool withBiases;
 
