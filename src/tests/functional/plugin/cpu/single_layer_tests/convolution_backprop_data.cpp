@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,10 +96,10 @@ public:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
 
             if (i == 1) {
-                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], outShapeData[inferRequestNum].data());
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], outShapeData[inferRequestNum].data());
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
             }
@@ -124,7 +124,7 @@ public:
     void validate() override {
         if (function->get_parameters().size() == 2) {
             auto pos = std::find_if(inputs.begin(), inputs.end(),
-                [](const std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> &params) {
+                [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
                     return params.first->get_friendly_name() == "param_1";
                 });
             IE_ASSERT(pos != inputs.end());

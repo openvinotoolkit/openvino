@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1866,6 +1866,10 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
 
 bool MKLDNNReduceNode::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
+}
+
+std::vector<VectorDims> MKLDNNReduceNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(REDUCE_INDEXES));
 }
 
 void MKLDNNReduceNode::prepareParams() {

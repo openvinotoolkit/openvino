@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ public:
 
     void update_ops_cache(const std::shared_ptr<ngraph::Node> &op, const std::string &source_model = {});
 
-    void update_ops_cache(const std::shared_ptr<ngraph::Function> &func, const std::string &source_model = {});
+    void update_ops_cache(const std::shared_ptr<ngraph::Function> &func, const bool extract_body = true, const std::string &source_model = {});
 
     void serialize_cached_ops(const std::string &serialization_dir);
 

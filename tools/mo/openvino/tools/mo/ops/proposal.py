@@ -1,7 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank, set_input_shapes
 from openvino.tools.mo.front.extractor import attr_getter, bool_to_str
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
@@ -17,6 +17,7 @@ class ProposalOp(Op):
             'version': 'opset4',
             'post_nms_topn': 300,  # default in caffe-shared
             'infer': ProposalOp.proposal_infer,
+            'reverse_infer': self.reverse_infer,
             'in_ports_count': 3,
             'out_ports_count': 1 if attrs.get('version') == 'opset1' else 2,
             'normalize': False,
@@ -66,3 +67,7 @@ class ProposalOp(Op):
         # the second optional output contains box probabilities
         if len(node.out_ports()) == 2 and not node.out_port(1).disconnected():
             node.out_port(1).data.set_shape([input_shape[0] * node.post_nms_topn])
+
+    @staticmethod
+    def reverse_infer(node):
+        set_input_shapes(node, undefined_shape_of_rank(4), undefined_shape_of_rank(4))

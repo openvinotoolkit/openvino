@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -19,16 +19,6 @@ message = "\nDetected not satisfied dependencies:\n" \
           "Please install required versions of components or use install_prerequisites script\n" \
           "{}\n" \
           "Note that install_prerequisites scripts may install additional components."
-
-
-def check_python_version():
-    """
-    Checks python version to be greater or equal than 3.4
-    :return: exit code (1 - error, None - successful)
-    """
-    if sys.version_info < (3, 4):
-        print('Python version should be of version 3.4 or newer')
-        return 1
 
 
 def get_imported_module_version(imported_module):

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,8 @@
 #include <vpu/configuration/options/log_level.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
+#include <vpu/configuration/options/performance_hint.hpp>
+#include "vpu/configuration/options/performance_hint_num_requests.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -59,8 +61,13 @@ ExecutableNetwork::ExecutableNetwork(
 
 void ExecutableNetwork::openDevice(std::vector<DevicePtr>& devicePool) {
     _device = _executor->openDevice(devicePool, _config);
-    _actualNumExecutors = _config.get<ThroughputStreamsOption>().hasValue()
-        ? _config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(_config);
+    int executors = 0;
+    if (_config.get<ThroughputStreamsOption>().hasValue()) {
+        executors = _config.get<ThroughputStreamsOption>().get();
+    } else if (!_config.get<PerformanceHintOption>().empty()) {
+        executors = _config.get<PerformanceHintOption>() == CONFIG_VALUE(LATENCY) ? 1 : 2;
+    }
+    _actualNumExecutors = executors ? executors : DefaultAllocation::numStreams(_config);
 }
 
 ExecutableNetwork::ExecutableNetwork(
@@ -229,7 +236,18 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>());
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(2u * _actualNumExecutors));
+        unsigned int optimalNumOfInferRequests = static_cast<unsigned int>(2u * _actualNumExecutors);
+
+        if (!_config.get<PerformanceHintOption>().empty()) {
+            optimalNumOfInferRequests =
+                    _config.get<PerformanceHintOption>() == CONFIG_VALUE(THROUGHPUT) ? optimalNumOfInferRequests : 1;
+        }
+        if (_config.get<PerformanceHintNumRequestsOption>() != -1) {
+            optimalNumOfInferRequests =
+                    std::min(optimalNumOfInferRequests,
+                             static_cast<unsigned int>(_config.get<PerformanceHintNumRequestsOption>()));
+        }
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, optimalNumOfInferRequests);
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
         IE_SET_METRIC_RETURN(DEVICE_THERMAL, _executor->GetThermal(_device));
     } else {

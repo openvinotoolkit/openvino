@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -815,6 +815,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::MISH;
         case cldnn::activation_func::gelu:
             return kernel_selector::activation_function::GELU;
+        case cldnn::activation_func::gelu_tanh:
+            return kernel_selector::activation_function::GELU_TANH;
         case cldnn::activation_func::round_half_to_even:
             return kernel_selector::activation_function::ROUND_HALF_TO_EVEN;
         case cldnn::activation_func::round_half_away_from_zero:

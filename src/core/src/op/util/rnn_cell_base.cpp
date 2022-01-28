@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,28 @@ std::shared_ptr<ov::Node> ov::op::util::convert_lstm_node_format(const Output<No
     const auto& from = gate_order_map.at(from_format);
     const auto& to = gate_order_map.at(to_format);
     size_t num_gates = 4;
+
+    auto axis_const = std::make_shared<ngraph::opset4::Constant>(element::i64, ngraph::Shape{}, axis);
+    OutputVector splitted_node = std::make_shared<ngraph::opset4::Split>(node, axis_const, num_gates)->outputs();
+    OutputVector nodes_in_new_format(num_gates);
+    for (size_t i = 0; i < num_gates; ++i) {
+        nodes_in_new_format[to[from[i]]] = splitted_node[i];
+    }
+    return std::make_shared<ngraph::opset4::Concat>(nodes_in_new_format, axis);
+}
+
+std::shared_ptr<ov::Node> ov::op::util::convert_lstm_peepholes_format(const Output<Node>& node,
+                                                                      LSTMPeepholesFormat from_format,
+                                                                      LSTMPeepholesFormat to_format,
+                                                                      int64_t axis) {
+    static const std::map<op::util::LSTMPeepholesFormat, std::vector<size_t>> gate_order_map{
+        {op::util::LSTMPeepholesFormat::FIO, {0, 1, 2}},
+        {op::util::LSTMPeepholesFormat::IFO, {1, 0, 2}},
+        {op::util::LSTMPeepholesFormat::IOF, {1, 2, 0}},
+    };
+    const auto& from = gate_order_map.at(from_format);
+    const auto& to = gate_order_map.at(to_format);
+    size_t num_gates = 3;
 
     auto axis_const = std::make_shared<ngraph::opset4::Constant>(element::i64, ngraph::Shape{}, axis);
     OutputVector splitted_node = std::make_shared<ngraph::opset4::Split>(node, axis_const, num_gates)->outputs();

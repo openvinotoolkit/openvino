@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,10 +73,10 @@ struct ProposalV1Params {
     ov::PartialShape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor clsScoreData;
-    ov::runtime::Tensor bboxPredData;
-    ov::runtime::Tensor imageShapeData;
-    ov::runtime::Tensor refProposalData;
+    ov::Tensor clsScoreData;
+    ov::Tensor bboxPredData;
+    ov::Tensor imageShapeData;
+    ov::Tensor refProposalData;
     std::string testcaseName;
 };
 
@@ -144,11 +144,11 @@ struct ProposalV4Params {
     ov::PartialShape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor clsScoreData;
-    ov::runtime::Tensor bboxPredData;
-    ov::runtime::Tensor imageShapeData;
-    ov::runtime::Tensor refProposalData;
-    ov::runtime::Tensor refProbsData;
+    ov::Tensor clsScoreData;
+    ov::Tensor bboxPredData;
+    ov::Tensor imageShapeData;
+    ov::Tensor refProposalData;
+    ov::Tensor refProbsData;
     std::string testcaseName;
 };
 

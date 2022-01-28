@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,12 @@
 
 #include <algorithm>
 #include <string>
+#include "mkldnn_extension_utils.h"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-
 
 bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -127,7 +128,19 @@ void MKLDNNTransposeNode::prepareParams() {
         params.order.assign(orderPtr, orderPtr + orderLen);
     }
 
-    execPtr = std::make_shared<TransposeJitExecutor>(params);
+    auto engine = getEngine();
+    auto builder = [&engine](const PermuteParams& key) -> std::shared_ptr<TransposeJitExecutor> {
+        return std::make_shared<TransposeJitExecutor>(key);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(params, builder);
+
+    if (!result.first) {
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    execPtr = result.first;
 }
 
 void MKLDNNTransposeNode::createPrimitive() {

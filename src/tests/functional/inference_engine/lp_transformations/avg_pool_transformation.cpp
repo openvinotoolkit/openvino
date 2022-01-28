@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,7 +134,7 @@ const std::vector<bool> addFQ = {
 
 const std::vector<ngraph::PartialShape> shapes = {
     { 1, 3, 72, 48 },
-    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
+    { -1, -1, -1, -1 }
 };
 
 const std::vector<AvgPoolTransformationTestValues> testValues = {
@@ -326,7 +326,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> shapesWithDynamicChannel = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
     PartialShape::dynamic()
 };
 

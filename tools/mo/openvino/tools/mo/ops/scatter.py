@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes
+from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes, reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -25,6 +25,7 @@ class Scatter(Op):
 
             'is_scatter': True,  # is used for gathering all types of scatters in common transformations
             'infer': self.infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
 
             'in_ports_count': 4,
             'out_ports_count': 1,

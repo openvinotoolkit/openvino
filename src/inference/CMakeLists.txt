@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -170,8 +170,7 @@ set_source_files_properties(${legacy_src} PROPERTIES
 
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
             ${legacy_src}
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>
-            ${IE_STATIC_DEPENDENT_FILES})
+            $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_5_FOUND)

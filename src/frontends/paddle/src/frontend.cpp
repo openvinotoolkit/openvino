@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,15 +9,17 @@
 #include <string>
 #include <vector>
 
-#include "decoder.hpp"
+#include "decoder_proto.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
-#include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
+#include "so_extension.hpp"
 
 using namespace ov::opset7;
 using namespace ov;
@@ -131,6 +133,8 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
     return &ext_stream;
 }
 }  // namespace
+
+FrontEnd::FrontEnd() : m_op_translators(paddle::get_supported_ops()) {}
 
 std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
     const std::shared_ptr<ov::frontend::InputModel>& frontend_model,
@@ -292,11 +296,10 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
         return function;
     }
 
-    std::map<std::string, paddle::CreatorFunction> CREATORS_MAP = paddle::get_supported_ops();
     auto f = convert_each_node(
         paddle_model,
         [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlace>& op_place) {
-            return paddle::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+            return paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
         });
     return f;
 }
@@ -304,8 +307,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
-            paddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node),
-                                             paddle::get_supported_ops());
+            paddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -329,13 +331,12 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
         return function;
     }
 
-    std::map<std::string, paddle::CreatorFunction> CREATORS_MAP = paddle::get_supported_ops();
     auto f = convert_each_node(
         paddle_model,
         [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlace>& op_place) {
             paddle::NamedOutputs named_outputs;
             try {
-                named_outputs = paddle::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+                named_outputs = paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
             } catch (const OpConversionFailure&) {
                 named_outputs = paddle::make_framework_node(nodes_dict, op_place);
             }
@@ -348,7 +349,6 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const 
     auto paddle_model = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(paddle_model != nullptr, "Invalid input model");
 
-    std::map<std::string, paddle::CreatorFunction> CREATORS_MAP = paddle::get_supported_ops();
     auto f = convert_each_node(paddle_model, paddle::make_framework_node);
     return f;
 }
@@ -362,6 +362,19 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_telemetry = telemetry;
     } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_transformation_extensions.push_back(transformation);
+    } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+        add_extension(so_ext->extension());
+        m_extensions.push_back(so_ext);
+    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+        m_conversion_extensions.push_back(common_conv_ext);
+        m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return common_conv_ext->get_converter_named()(context);
+        };
+    } else if (const auto& paddle_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+        m_conversion_extensions.push_back(paddle_conv_ext);
+        m_op_translators[paddle_conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return paddle_conv_ext->get_converter()(context);
+        };
     }
 }
 

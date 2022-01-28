@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -269,7 +269,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
         if (!canReuseDefaultContext()) {
-            m_defaultContext.reset(new RemoteCLContext(shared_from_this(), ParamMap(), conf));
+            m_defaultContext.reset(new RemoteCLContext(shared_from_this(), AnyMap(), conf));
         }
     }
 
@@ -303,7 +303,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     return std::make_shared<CompiledModel>(transformedNetwork, casted, conf);
 }
 
-InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const ParamMap& params) {
+InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) {
     // parameter map is non-empty
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
@@ -320,7 +320,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const ParamMap& params
     }
 }
 
-InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const ParamMap& params) {
+InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
     if (nullptr == m_defaultContext) {
         m_defaultContext.reset(new RemoteCLContext(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig()));
     }
@@ -361,7 +361,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     if (m_defaultContext == nullptr) {
         m_defaultContext.reset(new RemoteCLContext(
             std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
-            ParamMap(), conf));
+            AnyMap(), conf));
     }
     Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
     auto function = network.getFunction();
@@ -376,16 +376,45 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     }
 
     auto clonedNetwork = CloneAndTransformNetwork(network, conf);
-    auto ops = clonedNetwork.getFunction()->get_ordered_ops();
+    auto func = clonedNetwork.getFunction();
+    auto ops = func->get_ordered_ops();
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
 
     std::unordered_set<std::string> constantsNames;
     std::vector<std::shared_ptr<ngraph::Node>> constants;
 
+    std::map<std::string, ngraph::PartialShape> shapes;
+    std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
+    bool dyn_shape_batch_found = prog.IsDynBatchModel(func, shapes, batch_dim);
     auto layerIsSupported = [&](std::shared_ptr<ngraph::Node> node) {
         if (node->is_dynamic()) {
-            return false;
+            if (!dyn_shape_batch_found)
+                return false;
+
+            auto pshape = node->get_output_partial_shape(0);
+            if (pshape.rank().is_dynamic())
+                return false;
+
+            int dynCount = 0;
+            int64_t batch_idx = -1;
+            for (size_t i = 0; i < pshape.size(); i++) {
+                if (pshape[i].is_dynamic()) {
+                    dynCount++;
+                    if (batch_idx < 0) {
+                        batch_idx = i;
+                    }
+                }
+            }
+
+            if (dynCount != 1)
+                return false;  // more than one dimension is dynamic
+
+            int64_t max_batch = pshape[batch_idx].get_max_length();
+            if (max_batch <= 1)
+                return false;
+
+            return true;
         }
         if (ngraph::is_type<const ngraph::op::v0::PriorBox>(node) ||
             ngraph::is_type<const ngraph::op::v0::PriorBoxClustered>(node) ||
@@ -637,6 +666,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         auto closest_pow_of_2 = [] (float x) {
             return pow(2, floor(log(x)/log(2)));
         };
+        GPU_DEBUG_GET_INSTANCE(debug_config);
         auto model_param = options.find("MODEL_PTR");
         if (model_param == options.end()) {
             GPU_DEBUG_IF(debug_config->verbose >= 1) {

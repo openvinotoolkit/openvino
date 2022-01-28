@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -6,8 +6,9 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array, is_fully_defined, dynamic_dimension_value, \
-    dynamic_dimension, shape_array, compatible_shapes, shape_delete, shape_insert, strict_compare_tensors
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array, is_fully_defined, \
+    dynamic_dimension_value, dynamic_dimension, shape_array, compatible_shapes, shape_delete, shape_insert, \
+    strict_compare_tensors, clarify_partial_shape
 from openvino.tools.mo.utils.error import Error
 
 
@@ -143,3 +144,12 @@ class mo_array_test(unittest.TestCase):
                 ])
     def test_mo_array_negative(self, data, result):
         self.assertNotEqual(data.dtype, result.dtype)
+
+
+class clarify_partial_shape_test(unittest.TestCase):
+
+    def test_clarify_1(self):
+        actual_result = clarify_partial_shape([shape_array([dynamic_dimension, 10, dynamic_dimension]),
+                                              shape_array([4, dynamic_dimension, dynamic_dimension])])
+        ref_result = shape_array([4, 10, dynamic_dimension])
+        assert strict_compare_tensors(actual_result, ref_result)

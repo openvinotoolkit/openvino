@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,7 +152,7 @@ public:
         reorder = {mem_holder_src, mem_holder_dst};
     }
 
-    void execute(mkldnn::stream strm, int iter) override {
+    void execute(mkldnn::stream strm, int iter = -1) override {
         if (iter != 0) {
             reorder.execute(strm, mem_holder_src, mem_holder_dst);
         }
@@ -682,8 +682,8 @@ void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
             const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(from_mem->getStaticDims());
             redefineToMemories(to_mems, desc);
 
-            PortMapHelper *mapper = new BackEdgePortHelper(from_mem, to_mems.front(), eng);
-            mapper->execute(strm);
+            BackEdgePortHelper mapper(from_mem, to_mems.front(), eng);
+            mapper.execute(strm);
         }
     }
 

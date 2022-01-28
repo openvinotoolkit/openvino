@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,12 @@
 using namespace ov::test::behavior;
 namespace {
 
-const std::vector<std::map<std::string, std::string>> device_modes {
+const std::vector<ov::AnyMap> device_modes {
     {{"GNA_DEVICE_MODE", "GNA_SW_FP32"},
     {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}
 };
 
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
      {"GNA_SCALE_FACTOR_0", "1"},
      {"GNA_SCALE_FACTOR_1", "1"},

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
 
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
+    new_reorder_node.set_output_layout(reorder_layout, false);
 
     // ToDo: add a method to program class which adds an intermediate node given a node and its user
     auto it = std::find(usr->get_dependencies().begin(), usr->get_dependencies().end(), node);

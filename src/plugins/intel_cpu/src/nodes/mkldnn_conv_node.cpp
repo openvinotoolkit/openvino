@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -332,7 +332,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
 void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false) {
     mkldnn::post_ops ops;
-    bool useLegacyPostOps = true; // @todo remove after issue with performance of binary post ops fixed
+    const bool useLegacyPostOps = true; // @todo remove after issue with performance of binary post ops fixed
 
     auto getBinPostOpShape = [&](){
         const auto outShape = getOutputShapeAtPort(0).getStaticDims();
@@ -1066,15 +1066,10 @@ void MKLDNNConvolutionNode::executeDynamicImpl(mkldnn::stream strm) {
 }
 
 void MKLDNNConvolutionNode::updatePadding() {
-    //update padding. TODO [DS] : rewrite when the final shape inference interface is available
+    //update padding.
     if (isDynamicNode() && autoPadding) {
-        if (auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(opToShapeInfer)) {
-            paddingL = convolutionOp->get_pads_begin();
-            paddingR = convolutionOp->get_pads_end();
-        } else if (auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(opToShapeInfer)) {
-            paddingL = groupConvolutionOp->get_pads_begin();
-            paddingR = groupConvolutionOp->get_pads_end();
-        }
+        paddingL = shapeInference->get_pads_begin();
+        paddingR = shapeInference->get_pads_end();
     }
 }
 
