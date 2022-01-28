@@ -50,13 +50,6 @@
             }
         },
         {
-            "type": "GroupConvolutionBackpropData",
-            "quantization": {
-                "activations": "q8_tn",
-                "weights": ["q8_ch", "q4_ch", "q2_ch", "q8_a_ch"]
-            }
-        },
-        {
             "type": "DepthWiseConvolution",
             "quantization": {
                 "activations": "q8_ch",
