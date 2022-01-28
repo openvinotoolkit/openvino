@@ -148,6 +148,7 @@ public:
 
         ov::Tensor tensor(results[m_output_index]->get_output_element_type(0), expected_shape);
         std::copy(values.begin(), values.end(), tensor.data<T>());
+        m_expected_outputs.push_back(tensor);
 
         ++m_output_index;
     }
