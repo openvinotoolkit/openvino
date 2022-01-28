@@ -23,6 +23,7 @@ struct LSTMCellParams {
     reference_tests::Tensor H_t;
     reference_tests::Tensor C_t;
     reference_tests::Tensor B;
+    reference_tests::Tensor P;
     reference_tests::Tensor Ho;
     reference_tests::Tensor Co;
     std::string testcaseName;
@@ -39,6 +40,7 @@ struct Builder : ParamsBuilder<LSTMCellParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, H_t);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, C_t);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, B);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, P);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, Ho);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, Co);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, testcaseName);
@@ -236,6 +238,15 @@ private:
 };
 
 class ReferenceLSTMCellV1TestBiasClip : public ReferenceLSTMCellTestBiasClip {
+public:
+    void SetUp() override {
+        threshold = 1e-1f;
+        auto params = GetParam();
+        function = CreateFunction(params);
+        inputData = {params.X.data, params.H_t.data, params.C_t.data, params.W.data, params.R.data, params.B.data, params.P.data};
+        refOutData = {params.Ho.data, params.Co.data};
+    }
+
 private:
     static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
         const float clip_threshold = 3.5f;
@@ -246,6 +257,7 @@ private:
         const auto H_t = std::make_shared<opset1::Parameter>(params.H_t.type, params.H_t.shape);
         const auto C_t = std::make_shared<opset1::Parameter>(params.C_t.type, params.C_t.shape);
         const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
+        const auto P = std::make_shared<opset1::Parameter>(params.P.type, params.P.shape);
 
         const auto lstm_cell =
             std::make_shared<opset1::LSTMCell>(X,
@@ -254,14 +266,16 @@ private:
                                                W,
                                                R,
                                                B,
+                                               P,
                                                params.hiddenSize,
-                                               op::LSTMWeightsFormat::IFCO,
+                                               op::LSTMWeightsFormat::FICO,
                                                std::vector<std::string>{"sigmoid", "tanh", "tanh"},
                                                std::vector<float>{},
                                                std::vector<float>{},
-                                               clip_threshold);
+                                               clip_threshold,
+                                               false);
 
-        auto function = std::make_shared<Model>(lstm_cell->outputs(), ParameterVector{X, H_t, C_t, W, R, B});
+        auto function = std::make_shared<Model>(lstm_cell->outputs(), ParameterVector{X, H_t, C_t, W, R, B, P});
         return function;
     }
 };
@@ -308,6 +322,7 @@ std::vector<LSTMCellParams> generateParams() {
         .C_t(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
             0.8488452f, 0.18851636f, 0.5020695f, 0.29716516f, 0.06740791f, 0.45384037f}))
         .B(reference_tests::Tensor(ET, {4 * 3}, std::vector<T>(4 * 3, 0.f)))
+        .P(reference_tests::Tensor(ET, {3 * 3}, std::vector<T>(3 * 3, 0.f)))
         .Ho(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{0.81457126f, 0.61109227f, 0.769522f, 0.52239674f, 0.4324641f, 0.63183f}))
         .Co(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{1.4444952f, 0.9635685f, 1.2875274f, 0.8053419f, 0.7184521f, 0.95803297f}))
         .testcaseName("lstm_cell_zero_bias_default_attrs")
@@ -371,6 +386,7 @@ std::vector<LSTMCellParams> generateParamsBiasDefaultAttrs() {
                                               0.51022074f,
                                               1.11389844f,
                                               0.74174305f}))
+        .P(reference_tests::Tensor(ET, {3 * 3}, std::vector<T>(3 * 3, 0.f)))
         .Ho(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{0.81014400720596313,
                                               0.76665538549423218,
                                               0.82509011030197144,
@@ -444,6 +460,7 @@ std::vector<LSTMCellParams> generateParamsBiasClip() {
                                               0.51022074f,
                                               1.11389844f,
                                               0.74174305f}))
+        .P(reference_tests::Tensor(ET, {3 * 3}, std::vector<T>(3 * 3, 0.f)))
         .Ho(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{0.81014400720596313,
                                               0.76665538549423218,
                                               0.82387429475784302,
@@ -515,6 +532,7 @@ std::vector<LSTMCellParams> generateParamsV1() {
         .C_t(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
             0.8488452f, 0.18851636f, 0.5020695f, 0.29716516f, 0.06740791f, 0.45384037f}))
         .B(reference_tests::Tensor(ET, {4 * 3}, std::vector<T>(4 * 3, 0.f)))
+        .P(reference_tests::Tensor(ET, {3 * 3}, std::vector<T>(3 * 3, 0.f)))
         .Ho(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{0.81457126f, 0.61109227f, 0.769522f, 0.52239674f, 0.4324641f, 0.63183f}))
         .Co(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{1.4444952f, 0.9635685f, 1.2875274f, 0.8053419f, 0.7184521f, 0.95803297f}))
         .testcaseName("lstm_cell_v1_zero_bias_default_attrs")
@@ -578,6 +596,7 @@ std::vector<LSTMCellParams> generateParamsBiasDefaultAttrsV1() {
                                               0.51022074f,
                                               1.11389844f,
                                               0.74174305f}))
+        .P(reference_tests::Tensor(ET, {3 * 3}, std::vector<T>(3 * 3, 0.f)))
         .Ho(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{0.81014400720596313,
                                               0.76665538549423218,
                                               0.82509011030197144,
@@ -651,6 +670,7 @@ std::vector<LSTMCellParams> generateParamsBiasClipV1() {
                                               0.51022074f,
                                               1.11389844f,
                                               0.74174305f}))
+        .P(reference_tests::Tensor(ET, {3 * 3}, std::vector<T>(3 * 3, 0.f)))
         .Ho(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{0.81014400720596313,
                                               0.76665538549423218,
                                               0.82387429475784302,

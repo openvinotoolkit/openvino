@@ -51,6 +51,7 @@
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/vpu_scales_option.hpp>
+#include <vpu/configuration/options/performance_hint.hpp>
 
 namespace vpu {
 
@@ -88,8 +89,13 @@ void CompileEnv::init(const PluginConfiguration& config, const Logger::Ptr& log)
     g_compileEnv->profile.setLogger(log);
 #endif
 
-    const auto numExecutors = config.get<ThroughputStreamsOption>().hasValue()
-        ? config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(config);
+    int numExecutors = 0;
+    if (config.get<ThroughputStreamsOption>().hasValue()) {
+        numExecutors = config.get<ThroughputStreamsOption>().get();
+    } else if (!config.get<PerformanceHintOption>().empty()) {
+        numExecutors = config.get<PerformanceHintOption>() == CONFIG_VALUE(LATENCY) ? 1 : 2;
+    }
+    numExecutors = numExecutors ? numExecutors : DefaultAllocation::numStreams(config);
     VPU_THROW_UNLESS(numExecutors >= 1 && numExecutors <= DeviceResources::numStreams(),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
         ThroughputStreamsOption::key(), 1, DeviceResources::numStreams(), numExecutors);
