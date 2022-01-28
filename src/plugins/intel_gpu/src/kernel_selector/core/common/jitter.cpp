@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,6 +88,11 @@ JitTerm exp(const JitTerm& arg) {
 
 JitTerm erf(const JitTerm& arg) {
     JitTerm jit_term{"(erf(" + arg.str() + "))"};
+    return jit_term;
+}
+
+JitTerm tanh(const JitTerm& arg) {
+    JitTerm jit_term{"(tanh(" + arg.str() + "))"};
     return jit_term;
 }
 
@@ -349,7 +354,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                     layout == DataLayout::bs_fs_yx_bsv4_fsv4  ||
                     layout == DataLayout::bs_fs_yx_bsv8_fsv4  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv2  ||
-                    layout == DataLayout::bs_fs_yx_bsv16_fsv16)
+                    layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                    layout == DataLayout::fs_b_yx_fsv32)
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
                 else
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
@@ -1113,6 +1119,16 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     (half * input * (one + erf((input * mult)))).str()));
+            break;
+        }
+        case ActivationFunction::GELU_TANH: {
+            const std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
+            const JitTerm half{"0.5" + type_suffix};
+            const JitTerm mult{"0.044715" + type_suffix};
+            const JitTerm sqrt_2_over_pi{"0.79788458347320556640625" + type_suffix};
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (half * input * (one + tanh(sqrt_2_over_pi * input * (one + mult * input * input)))).str()));
             break;
         }
         case ActivationFunction::NOT:

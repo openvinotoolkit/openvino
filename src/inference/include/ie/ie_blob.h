@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,7 +155,7 @@ public:
      * @brief Returns the size of the current Blob in bytes.
      * @return Blob's size in bytes
      */
-    virtual size_t byteSize() const noexcept {
+    virtual size_t byteSize() const {
         return size() * element_size();
     }
 
@@ -169,7 +169,7 @@ public:
      *
      * @return Returns the number of bytes per element
      */
-    virtual size_t element_size() const noexcept = 0;
+    virtual size_t element_size() const = 0;
 
     /**
      * @brief Allocates memory to store the data.
@@ -364,11 +364,11 @@ public:
      * @brief Returns the size of the current Blob in bytes calculated as `size() * element_size()`.
      * @return Blob's size in bytes
      */
-    size_t byteSize() const noexcept override {
+    size_t byteSize() const override {
         return (size() * tensorDesc.getPrecision().bitsSize() + 7) >> 3;
     }
 
-    size_t element_size() const noexcept override {
+    size_t element_size() const override {
         return tensorDesc.getPrecision().size();
     }
 

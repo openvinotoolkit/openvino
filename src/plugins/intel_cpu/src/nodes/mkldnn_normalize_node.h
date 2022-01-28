@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,8 @@ struct jit_normalize_call_args {
     size_t dst_stride;
     size_t work_amount;
     size_t oc_off;
+    //ptr to array of post op inputs pointers (flat list)
+    const void** post_op_data;
 };
 
 struct jit_uni_normalize_modulo_kernel {
@@ -95,32 +97,31 @@ public:
 
     bool isExecutable() const override;
 
-private:
     enum class NormEpsMode {
         ADD,
         MAX
     };
 
     struct NormalizeL2Attrs {
+        LayoutType layout = LayoutType::ncsp;
         NormEpsMode epsMode = NormEpsMode::ADD;
         bool across_spatial = true;
         bool cornerCase = false;
         float eps = 1e-10f;
 
-        bool is_nchw = false;
-        bool is_nhwc = false;
-        bool is_blk = false;
-
         InferenceEngine::Precision input_prec = Precision::UNSPECIFIED;
         InferenceEngine::Precision output_prec = Precision::UNSPECIFIED;
         size_t src_data_size = 0lu;
         size_t dst_data_size = 0lu;
-    } attrs;
+    };
+
+private:
+    NormalizeL2Attrs attrs;
 
     class NormalizeL2Executor {
     public:
         NormalizeL2Executor() = default;
-        virtual void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) = 0;
+        virtual void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void **post_ops_data) = 0;
         virtual ~NormalizeL2Executor() = default;
 
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
@@ -161,6 +162,8 @@ private:
     template <typename in_data_t, typename out_data_t> struct NormalizeL2ReferenceExecutor;
 
     mkldnn::primitive_attr kernel_attrs;
+
+    std::vector<const void*> postOpsDataPtrs;
 
     void setPostOps(mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights = false);
 

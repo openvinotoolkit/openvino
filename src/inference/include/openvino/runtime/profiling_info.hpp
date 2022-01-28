@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 #include <string>
 
 namespace ov {
-namespace runtime {
+
 /**
  * @struct ProfilingInfo
  * @brief Represents basic inference profiling information per operation.
@@ -61,5 +61,9 @@ struct ProfilingInfo {
      */
     std::string node_type;
 };
+
+namespace runtime {
+using ov::ProfilingInfo;
 }  // namespace runtime
+
 }  // namespace ov

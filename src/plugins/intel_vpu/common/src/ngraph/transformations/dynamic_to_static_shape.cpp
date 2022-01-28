@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,7 @@
 #include <ngraph/validation_util.hpp>
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset6.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace vpu {
 
@@ -129,6 +130,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::LogicalNot::get_type_info_static(),            dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Abs::get_type_info_static(),                   dynamicToStaticUnaryElementwise},
         {ngraph::opset5::ScatterElementsUpdate::get_type_info_static(), dynamicToStaticUnaryElementwise},
+        {ngraph::opset8::HSwish::get_type_info_static(),                dynamicToStaticUnaryElementwise},
         {ngraph::opset3::StridedSlice::get_type_info_static(),          dynamicToStaticShapeStridedSlice},
         {ngraph::opset3::Squeeze::get_type_info_static(),               dynamicToStaticShapeSqueeze},
         {ngraph::opset3::Gather::get_type_info_static(),                dynamicToStaticShapeGather},

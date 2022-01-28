@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,8 @@ std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::stri
 
 void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
                  uint8_t& ret_code,
-                 const std::vector<SubgraphsDumper::Model>& models) {
+                 const std::vector<SubgraphsDumper::Model>& models,
+                 const bool extract_body) {
     auto ie = InferenceEngine::Core();
     time_t rawtime;
     struct tm *timeinfo;
@@ -79,7 +80,7 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
                                   << std::endl;
                     }
                 }
-                cache->update_ops_cache(function, model.xml);
+                cache->update_ops_cache(function, extract_body, model.xml);
             } catch (std::exception &e) {
                 std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
                 ret_code = 1;
@@ -106,8 +107,8 @@ int main(int argc, char *argv[]) {
     auto models = findModelsInDirs(dirs);
 
     auto cache = SubgraphsDumper::OPCache::make_cache();
-    cacheModels(cache, ret_code, cachedOps);
-    cacheModels(cache, ret_code, models);
+    cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
+    cacheModels(cache, ret_code, models, FLAGS_extract_body);
     cache->serialize_cached_ops(FLAGS_output_folder);
 
     return ret_code;

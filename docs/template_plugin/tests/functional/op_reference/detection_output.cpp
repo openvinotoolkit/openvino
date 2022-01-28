@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,12 +142,12 @@ template <class IT>
     ov::PartialShape auxLocShape;
     ov::PartialShape auxConfShape;
     ov::element::Type inType;
-    ov::runtime::Tensor locData;
-    ov::runtime::Tensor confData;
-    ov::runtime::Tensor priorBoxesData;
-    ov::runtime::Tensor refData;
-    ov::runtime::Tensor auxLocData;
-    ov::runtime::Tensor auxConfData;
+    ov::Tensor locData;
+    ov::Tensor confData;
+    ov::Tensor priorBoxesData;
+    ov::Tensor refData;
+    ov::Tensor auxLocData;
+    ov::Tensor auxConfData;
     std::string testcaseName;
 };
 

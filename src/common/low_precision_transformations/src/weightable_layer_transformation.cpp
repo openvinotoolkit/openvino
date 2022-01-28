@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,8 +59,8 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    const auto inputPShape = layer->get_input_partial_shape(0);
-    if (inputPShape.rank().is_dynamic() || inputPShape[1].is_dynamic()) {
+    // dynamic activations rank and dynamic weights aren't supported
+    if (layer->get_input_partial_shape(0).rank().is_dynamic() || layer->get_input_partial_shape(1).is_dynamic()) {
         return false;
     }
 

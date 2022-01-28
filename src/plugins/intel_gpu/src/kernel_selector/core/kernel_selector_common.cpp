@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,6 +75,7 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::HSWISH:                    method = "HSWISH"; break;
         case ActivationFunction::MISH:                      method = "MISH"; break;
         case ActivationFunction::GELU:                      method = "GELU"; break;
+        case ActivationFunction::GELU_TANH:                 method = "GELU_TANH"; break;
         case ActivationFunction::ROUND_HALF_TO_EVEN:        method = "ROUND_HALF_TO_EVEN"; break;
         case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO: method = "ROUND_HALF_AWAY_FROM_ZERO"; break;
         default: break;
