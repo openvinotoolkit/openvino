@@ -8,6 +8,7 @@ import numpy as np
 from extensions.ops.fakequantize import FakeQuantize
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
+from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Graph, rename_nodes
 from mo.ops.const import Const
 from mo.utils.error import Error
@@ -49,7 +50,7 @@ class QuantizeDequantizeLinear(FrontReplacementSubgraph):
                 q_zerop.soft_get('type') == 'Const' and dq_zerop.soft_get('type') == 'Const':
 
             # only patterns with same scale/zero_point values for Q and DQ are supported
-            if q_scale.value == dq_scale.value and q_zerop.value == dq_zerop.value:
+            if np.all(q_scale.value == dq_scale.value) and np.all(q_zerop.value == dq_zerop.value):
                 log.debug('Found Q-DQ pattern after {}'.format(name))
 
                 zero_point_type = q_zerop.value.dtype
@@ -65,8 +66,27 @@ class QuantizeDequantizeLinear(FrontReplacementSubgraph):
                         zero_point_type, q_zerop.soft_get('name')))
                 min_value = q_scale.value * (output_min_value - q_zerop.value)
                 max_value = q_scale.value * (output_max_value - q_zerop.value)
-                input_min = Const(graph, {'value': np.array(min_value)}).create_node()
-                input_max = Const(graph, {'value': np.array(max_value)}).create_node()
+                min_value = np.array(min_value)
+                max_value = np.array(max_value)
+
+                # channelwise quantization
+                if min_value.shape:
+                    q_axis = onnx_attr(q, 'axis', 'i', default=1)
+                    dq_axis = onnx_attr(dq, 'axis', 'i', default=1)
+
+                    if q_axis != dq_axis:
+                        raise Error('QuantizeLinear and DequantizeLinear (after {}) have different axis attribute, '
+                                    'cannot fuse into FakeQuantize!'.format(name))
+
+                    q_input_shape = q.in_node(0).shape
+                    broadcastable_shape = [1]*len(q_input_shape)
+                    broadcastable_shape[q_axis] = q_input_shape[q_axis]
+
+                    min_value = min_value.reshape(broadcastable_shape)
+                    max_value = max_value.reshape(broadcastable_shape)
+
+                input_min = Const(graph, {'value': min_value}).create_node()
+                input_max = Const(graph, {'value': max_value}).create_node()
 
                 FQ = FakeQuantize(graph, {
                     'levels': 256,

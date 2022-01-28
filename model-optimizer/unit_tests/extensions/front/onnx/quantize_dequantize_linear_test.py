@@ -4,6 +4,7 @@
 import unittest
 
 import numpy as np
+import onnx
 
 from extensions.front.onnx.quantize_dequantize_linear import QuantizeDequantizeLinear
 from mo.utils.ir_engine.compare_graphs import compare_graphs
@@ -105,6 +106,56 @@ class TestQuantizeDeQuantize2FakeQuantize(unittest.TestCase):
                                 {'fq': {'levels': 256},
                                  'min_param': {'value': np.float32(-128.0 / 255)},
                                  'max_param': {'value': np.float32(127.0 / 255)},
+                                 }, nodes_with_edges_only=True)
+
+        graph.stage = 'front'
+        tested_class = QuantizeDequantizeLinear()
+        tested_class.find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_quantizedequantize2fakequantize_2(self):
+        # testing the code path with channelwise quantization
+        q_axis = 0
+        n_channels = 16
+        input_shape = np.array([n_channels, 8, 3, 3])
+
+        q_node_pb = onnx.helper.make_node('QuantizeLinear', ['s', 'zp'], ['q'], axis=q_axis)
+        dq_node_pb = onnx.helper.make_node('DequantizeLinear', ['s', 'zp'], ['dq'], axis=q_axis)
+        graph = build_graph(nodes0_attributes,
+                            [('input', 'quantize'),
+                             ('quantize', 'dequantize'),
+                             ('scale_param', 'quantize'),
+                             ('zerop_param', 'quantize'),
+                             ('scale_param', 'dequantize'),
+                             ('zerop_param', 'dequantize'),
+                             ('dequantize', 'out'),
+                             ],
+                            {'input': {'shape': input_shape},
+                             'scale_param': {'shape': np.array([n_channels]),
+                                             'value': np.array([1.0 / 255] * n_channels, dtype=np.float32),
+                                             },
+                             'zerop_param': {'shape': np.array([n_channels]),
+                                             'value': np.array([0] * n_channels, dtype=np.int8),
+                                             },
+                             'quantize': {'pb': q_node_pb},
+                             'dequantize': {'pb': dq_node_pb},
+                             }, nodes_with_edges_only=True)
+
+        min_max_shape = [1] * len(input_shape)
+        min_max_shape[q_axis] = n_channels
+        graph_ref = build_graph(nodes_ref_attributes,
+                                [('input', 'fq', {'in': 0}),
+                                 ('min_param', 'fq', {'out': 0, 'in': 1}),
+                                 ('min_param', 'fq', {'out': 0, 'in': 3}),
+                                 ('max_param', 'fq', {'out': 0, 'in': 2}),
+                                 ('max_param', 'fq', {'out': 0, 'in': 4}),
+                                 ('fq', 'out'),
+                                 ],
+                                {'fq': {'levels': 256},
+                                 'min_param': {'value': np.full(min_max_shape, -128.0 / 255, dtype=np.float32)},
+                                 'max_param': {'value': np.full(min_max_shape, 127.0 / 255, dtype=np.float32)},
                                  }, nodes_with_edges_only=True)
 
         graph.stage = 'front'
