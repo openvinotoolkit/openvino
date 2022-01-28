@@ -133,8 +133,8 @@ Run Accuracy Checker on the original model:
 accuracy_check -c mobilenet-v2.yml
 ```
 
-Install the Benchmark Tool first. To learn more about Benchmark Tool refer to [Benchmark C++ Tool](https://docs.openvinotoolkit.org/latest/openvino_inference_engine_samples_benchmark_app_README.html)
- or [Benchmark Python* Tool](https://docs.openvinotoolkit.org/latest/openvino_inference_engine_tools_benchmark_tool_README.html).
+Install the Benchmark Tool first. To learn more about Benchmark Tool refer to [Benchmark C++ Tool](https://docs.openvino.ai/latest/openvino_inference_engine_samples_benchmark_app_README.html)
+ or [Benchmark Python* Tool](https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html).
 
 Run performance benchmark:
 ```
