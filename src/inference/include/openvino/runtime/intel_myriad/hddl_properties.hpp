@@ -11,73 +11,91 @@ namespace intel_myriad {
 namespace hddl {
 //    RO properties
 /**
- * @brief Metric to get a int of the device number, String value is METRIC_HDDL_DEVICE_NUM
+ * @brief Property to get a int of the device number
  */
 static constexpr Property<int, PropertyMutability::RO> deviceNum{"HDDL_DEVICE_NUM"};
 
 /**
- * @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_HDDL_DEVICE_NAME
+ * @brief Property to get a std::vector<std::string> of device names
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> deviceName{"HDDL_DEVICE_NAME"};
 
 /**
- * @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_HDDL_DEVICE_THERMAL
+ * @brief  Property to get a std::vector<float> of device thermal
  */
 static constexpr Property<std::vector<float>, PropertyMutability::RO> deviceThermal{"HDDL_DEVICE_THERMAL"};
 
 /**
- * @brief  Metric to get a std::vector<uint32> of device ids, String value is METRIC_HDDL_DEVICE_ID
+ * @brief  Property to get a std::vector<uint32> of device ids
  */
 static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> deviceId{"HDDL_DEVICE_ID"};
 
 /**
- * @brief  Metric to get a std::vector<int> of device subclasses, String value is METRIC_HDDL_DEVICE_SUBCLASS
+ * @brief  Property to get a std::vector<int> of device subclasses
  */
 static constexpr Property<std::vector<int>, PropertyMutability::RO> deviceSubclass{"HDDL_DEVICE_SUBCLASS"};
 
 /**
- * @brief  Metric to get a std::vector<uint32> of device total memory, String value is METRIC_HDDL_MEMORY_TOTAL
+ * @brief  Property to get a std::vector<uint32> of device total memory
  */
 static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> deviceMemoryTotal{
     "HDDL_DEVICE_MEMORY_TOTAL"};
 
 /**
- * @brief  Metric to get a std::vector<uint32> of device used memory, String value is METRIC_HDDL_DEVICE_MEMORY_USED
+ * @brief  Property to get a std::vector<uint32> of device used memory
  */
 static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> deviceMemoryUsed{
     "HDDL_DEVICE_MEMORY_USED"};
 
 /**
- * @brief  Metric to get a std::vector<float> of device utilization, String value is METRIC_HDDL_DEVICE_UTILIZATION
+ * @brief  Property to get a std::vector<float> of device utilization
  */
 static constexpr Property<std::vector<float>, PropertyMutability::RO> deviceUtilization{"HDDL_DEVICE_UTILIZATION"};
 
 /**
- * @brief  Metric to get a std::vector<std::string> of stream ids, String value is METRIC_HDDL_DEVICE_STREAM_ID
+ * @brief  Property to get a std::vector<std::string> of stream ids
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> streamId{"HDDL_STREAM_ID"};
 
 /**
- * @brief  Metric to get a std::vector<std::string> of device tags, String value is METRIC_HDDL_DEVICE_TAG
+ * @brief  Property to get a std::vector<std::string> of device tags
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> deviceTag{"HDDL_DEVICE_TAG"};
 
 /**
- * @brief  Metric to get a std::vector<int> of group ids, String value is METRIC_HDDL_GROUP_ID
+ * @brief  Property to get a std::vector<int> of group ids
  */
 static constexpr Property<std::vector<int>, PropertyMutability::RO> groupId{"HDDL_GROUP_ID"};
 
 /**
- * @brief  Metric to get a int number of device be using for group, String value is METRIC_HDDL_DEVICE_GROUP_USING_NUM
+ * @brief  Property to get a int number of device be using for group
  */
 static constexpr Property<int, PropertyMutability::RO> deviceGroupUsingNum{"HDDL_DEVICE_GROUP_USING_NUM"};
 
 /**
- * @brief  Metric to get a int number of total device, String value is METRIC_HDDL_DEVICE_TOTAL_NUM
+ * @brief  Property to get a int number of total device
  */
 static constexpr Property<int, PropertyMutability::RO> deviceTotalNum{"HDDL_DEVICE_TOTAL_NUM"};
 
 //    RW properties
+
+/**
+ * @brief [Only for HDDLPlugin]
+ * Type: Arbitrary non-empty string. If empty (""), equals no set, default: "";
+ * This option allows to specify the number of MYX devices used for inference a specific Executable network.
+ * Note: Only one network would be allocated to one device.
+ * The number of devices for the tag is specified in the hddl_service.config file.
+ * Example:
+ * "service_settings":
+ * {
+ *     "graph_tag_map":
+ *     {
+ *         "tagA":3
+ *     }
+ * }
+ * It means that an executable network marked with tagA will be executed on 3 devices
+ */
+ static constexpr Property<std::string, PropertyMutability::RW> graphTag{"HDDL_GRAPH_TAG"};
 
 /**
  * @brief [Only for HDDLPlugin]

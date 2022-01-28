@@ -30,8 +30,12 @@ static constexpr Property<std::string, PropertyMutability::RW> customLayers{"MYR
 
 }  // namespace common
 
+/**
+ * @brief Enum to define possible device protocols
+ */
 enum class Protocol { PCIE = 0, USB };
 
+/** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const Protocol& protocol) {
     switch (protocol) {
     case Protocol::PCIE:
@@ -54,6 +58,8 @@ inline std::istream& operator>>(std::istream& is, Protocol& protocol) {
     }
     return is;
 };
+/** @endcond */
+
 // Myriad specific properties
 
 /**
@@ -66,6 +72,9 @@ static constexpr Property<Protocol, PropertyMutability::RW> protocol{"MYRIAD_PRO
  */
 static constexpr Property<bool, PropertyMutability::RW> enableForceReset{"MYRIAD_ENABLE_FORCE_RESET"};
 
+/**
+ * @brief Enum to define possible device mymory types
+ */
 enum class DDRType {
     MYRIAD_DDR_AUTO = 0,
     MYRIAD_DDR_MICRON_2GB,
@@ -74,6 +83,7 @@ enum class DDRType {
     MYRIAD_DDR_MICRON_1GB
 };
 
+/** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const DDRType& ddrType) {
     switch (ddrType) {
     case DDRType::MYRIAD_DDR_AUTO:
@@ -109,6 +119,7 @@ inline std::istream& operator>>(std::istream& is, DDRType& ddrType) {
     }
     return is;
 };
+/** @endcond */
 
 /**
  * @brief This option allows to specify device memory type.
