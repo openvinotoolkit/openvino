@@ -81,4 +81,11 @@ if(NOT BUILD_SHARED_LIBS)
     install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
             DESTINATION runtime/cmake
             COMPONENT gna)
+
+    if(WIN32)
+        file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        install(FILES ${source_list}
+                DESTINATION ${IE_CPACK_LIBRARY_PATH}
+                COMPONENT gna)
+    endif()
 endif()
