@@ -150,7 +150,7 @@ def check_dependencies(args):
     if (args.quantize is not None and
             (args.model is None or
              args.weights is None or
-             args.ac_config is None and args.engine == 'accuracy_checker')):
+             args.ac_config is None and args.engine != 'data_free')):
         raise ValueError(
             '--quantize option requires model, weights, and AC config to be specified.')
     if args.quantize is None and args.config is None:

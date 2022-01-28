@@ -142,9 +142,7 @@ class SyntheticImageLoader(ImageLoader):
             self._shape = list(map(int, re.findall(r'\d+', self._shape)))
 
         super().get_layout()
-        if self._shape is None or len(self._shape) < 2:
-            raise ValueError('Input shape should be specified. Please, use `--shape')
-
+        self._check_input_shape()
 
         if os.path.exists(self.data_source) and os.listdir(self.data_source) and not config.generate_data:
             logger.info(f'Dataset was found in `{self.data_source}`')
@@ -155,13 +153,21 @@ class SyntheticImageLoader(ImageLoader):
 
         assert os.path.isdir(self.data_source)
         if config.generate_data or not os.listdir(self.data_source):
-            self.download_colorization_model()
+            self._download_colorization_model()
             logger.info(f'Start generating {self.subset_size} synthetic images')
             self.generate_dataset()
 
         self._img_files = collect_img_files(self.data_source)
 
-    def download_colorization_model(self):
+    def _check_input_shape(self):
+        if self._shape is None:
+            raise ValueError('Input shape should be specified. Please, use `--shape`')
+        if  len(self._shape) < 3 or len(self._shape) > 4:
+            raise ValueError(f'Input shape should have 3 or 4 dimensions, but provided {self._shape}')
+        if self._shape[self._layout.get_index_by_name('C')] != 3:
+            raise ValueError('SyntheticImageLoader can generate images with only channels == 3')
+
+    def _download_colorization_model(self):
         proto_name = 'colorization_deploy_v2.prototxt'
         model_name = 'colorization_release_v2.caffemodel'
         npy_name = 'pts_in_hull.npy'
@@ -179,7 +185,7 @@ class SyntheticImageLoader(ImageLoader):
             pts_in_hull = requests.get(url + npy_name)
             open(npy_name, 'wb').write(pts_in_hull.content)
 
-    def initialize_params(self, height, width):
+    def _initialize_params(self, height, width):
         default_img_size = 362 * 362
         points_coeff = max(1, int(np.round(height * width / default_img_size)))
         self._num_of_points = 100000 * points_coeff
@@ -195,7 +201,7 @@ class SyntheticImageLoader(ImageLoader):
     def generate_dataset(self):
         height = self._shape[self._layout.get_index_by_name('H')]
         width = self._shape[self._layout.get_index_by_name('W')]
-        self.initialize_params(height, width)
+        self._initialize_params(height, width)
 
         # to avoid multiprocessing error: can't pickle openvino.pyopenvino.Layout objects
         self._layout = str(self._layout)
@@ -222,11 +228,11 @@ class SyntheticImageLoader(ImageLoader):
             generation_params.append((param, w, height, width, indices))
 
         with Pool(processes=self._cpu_count) as pool:
-            pool.starmap(self.generate_image_batch, generation_params)
+            pool.starmap(self._generate_image_batch, generation_params)
 
         self._layout = Layout(self._layout)
 
-    def generate_image_batch(self, params, weights, height, width, indices):
+    def _generate_image_batch(self, params, weights, height, width, indices):
         pts_in_hull = np.load('pts_in_hull.npy').transpose().reshape(2, 313, 1, 1).astype(np.float32)
         net = cv.dnn.readNetFromCaffe('colorization_deploy_v2.prototxt', 'colorization_release_v2.caffemodel')
         net.getLayer(net.getLayerId('class8_ab')).blobs = [pts_in_hull]
@@ -305,14 +311,14 @@ class SyntheticImageLoader(ImageLoader):
         rotate_matrix = cv.getRotationMatrix2D(center=(width / 2, height / 2), angle=angle, scale=1)
         image = cv.warpAffine(src=image, M=rotate_matrix, dsize=(width, height))
 
-        image = self.fill_background(image)
+        image = self._fill_background(image)
 
         k_size = np.random.choice(list(range(1, 16, 2)))
         image = cv.GaussianBlur(image, (k_size, k_size), 0)
         return image
 
     @staticmethod
-    def fill_background(image):
+    def _fill_background(image):
         synthetic_background = Path(__file__).parent / 'synthetic_background.npy'
         imagenet_means = np.load(synthetic_background)
         class_id = np.random.randint(0, imagenet_means.shape[0])

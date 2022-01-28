@@ -223,7 +223,7 @@ def test_simplified_mode(tmp_path, models):
 
 DATAFREE_TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.686, 'accuracy@top5': 0.891})
+     {'accuracy@top1': 0.679, 'accuracy@top5': 0.888})
 ]
 
 
