@@ -524,13 +524,12 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         auto reqs = 0;
         try {
-            reqs = 1024;
-//            auto hint = _network->GetConfig(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
-//            reqs = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(hint);
-//            if (!reqs)  // no limitations from user, let's deduce the full blown #requests
-//                // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
-//                reqs = _device.batchForDevice *
-//                       _network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+            auto hint = _networkWithoutBatch->GetConfig(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+            reqs = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(hint);
+            if (!reqs)  // no limitations from user, let's deduce the full blown #requests
+                // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
+                reqs = _device.batchForDevice *
+                        _networkWithoutBatch->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
         } catch (const InferenceEngine::Exception& iie) {
         }
         reqs = std::max(reqs, _device.batchForDevice);  // round up to the possible  user's value
