@@ -61,7 +61,19 @@ AutoBatchInferRequest::AutoBatchInferRequest(const std::vector<std::shared_ptr<c
       _needPerfCounters(needPerfCounters),
       _batchId(batch_id),
       _batchSize(num_batch) {
-    ShareBlobsWithBatchRequest();
+    // ShareBlobsWithBatchRequest();
+    for (const auto& it : _networkInputs) {
+        const auto& name = it.first;
+        InferenceEngine::TensorDesc desc = _networkInputs[name]->getTensorDesc();
+        _inputs[name] = make_blob_with_precision(desc);
+        _inputs[name]->allocate();
+    }
+    for (const auto& it : _networkOutputs) {
+        const auto& name = it.first;
+        InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
+        _outputs[name] = make_blob_with_precision(desc);
+        _outputs[name]->allocate();
+    }
 }
 
 AutoBatchInferRequest::AutoBatchInferRequest(const InputsDataMap& networkInputs,
@@ -75,7 +87,19 @@ AutoBatchInferRequest::AutoBatchInferRequest(const InputsDataMap& networkInputs,
       _needPerfCounters(needPerfCounters),
       _batchId(batch_id),
       _batchSize(num_batch) {
-    ShareBlobsWithBatchRequest();
+    // ShareBlobsWithBatchRequest();
+    for (const auto& it : _networkInputs) {
+        const auto& name = it.first;
+        InferenceEngine::TensorDesc desc = _networkInputs[name]->getTensorDesc();
+        _inputs[name] = make_blob_with_precision(desc);
+        _inputs[name]->allocate();
+    }
+    for (const auto& it : _networkOutputs) {
+        const auto& name = it.first;
+        InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
+        _outputs[name] = make_blob_with_precision(desc);
+        _outputs[name]->allocate();
+    }
 }
 
 void AutoBatchInferRequest::ShareBlobsWithBatchRequest() {
@@ -230,8 +254,9 @@ void AutoBatchInferRequest::CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src,
 void AutoBatchInferRequest::CopyOutputsIfNeeded() {
     for (const auto& it : _networkOutputs) {
         auto& name = it.first;
+        if (_myBatchedRequestWrapper._inferRequestBatched)
         // this request is already in BUSY state, so using the internal functions safely
-        CopyBlobIfNeeded(_myBatchedRequestWrapper._inferRequestBatched->GetBlob(name), GetBlob(name), false);
+            CopyBlobIfNeeded(_myBatchedRequestWrapper._inferRequestBatched->GetBlob(name), GetBlob(name), false);
     }
 }
 
@@ -314,6 +339,7 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
                                                           _device.deviceName,
                                                           _device.config);
             _canUseBatchedRequest = true;
+            std::cout << "BATCHED model LOADED" << std::endl;
         } catch (...) {
         }
     };
