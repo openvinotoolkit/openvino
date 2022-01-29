@@ -7,11 +7,12 @@
 #include <chrono>
 #include <ratio>
 #ifdef CPU_DEBUG_CAPS
+#include "cpu_types.h"
 #include <string>
 #include <vector>
-#include <map>
 #include <set>
 #include <memory>
+#include <cassert>
 #endif // CPU_DEBUG_CAPS
 
 namespace MKLDNNPlugin {
@@ -52,6 +53,7 @@ public:
 };
 
 #else // CPU_DEBUG_CAPS
+typedef size_t PerfKey;
 
 class PerfCount {
 public:
@@ -81,11 +83,11 @@ public:
         }
 
         CounterSum counters[NumberOfCounters];
-        std::set<std::string> nodeShapesSet;
+        typedef std::pair<std::vector<VectorDims>, std::vector<VectorDims>> PerfNodeShape;
+        std::set<PerfNodeShape> nodeShapesSet;
     };
 
-    std::map<std::string, PerfData> _perfDataMap;
-    bool _isItrStarted = false;
+    std::vector<PerfData> _perfData;
 
     std::string getItrDurationReport() const {
         const auto& total = _itrDuration[Total];
@@ -102,74 +104,76 @@ public:
         return reportStr;
     }
 
-    uint64_t avg() const {
-        uint64_t totalDur = 0;
-        uint64_t totalNum = 0;
-        for (const auto& input : _perfDataMap) {
-            totalDur += input.second.counters[Total].duration;
-            totalNum += input.second.counters[Total].num;
-        }
-        return totalNum ? totalDur / totalNum : 0;
-    }
+    uint64_t avg() const { return _total.num ? _total.duration / _total.num : 0; }
+    bool isItrStarted() const { return _isItrStarted; }
 
 private:
+    bool _isItrStarted = false;
     std::chrono::high_resolution_clock::time_point _itrStart[NumberOfCounters] = {};
     std::chrono::duration<double, std::milli> _itrDuration[NumberOfCounters] = {};
+    CounterSum _total;
 
     void start_itr() {
+        _isItrStarted = true;
         _itrDuration[ShapeInfer] = _itrDuration[PrepareParams] =
             std::chrono::high_resolution_clock::duration::zero();
-        start_itr(Total);
+        _itrStart[Total] = std::chrono::high_resolution_clock::now();
     }
-    void start_itr(const CounterIdx cntrIdx) {
-        _isItrStarted = true;
+
+    void start_stage(const CounterIdx cntrIdx) {
+        assert(cntrIdx == ShapeInfer || cntrIdx == PrepareParams);
         _itrStart[cntrIdx] = std::chrono::high_resolution_clock::now();
     }
-
-    void finish_itr(const CounterIdx cntrIdx) {
+    void finish_stage(const CounterIdx cntrIdx) {
+        assert(cntrIdx == ShapeInfer || cntrIdx == PrepareParams);
         _itrDuration[cntrIdx] = std::chrono::high_resolution_clock::now() - _itrStart[cntrIdx];
     }
-    void finish_itr(const std::string& itrKey, const std::string& itrNodeShape);
+
+    void finish_itr() {
+        _itrDuration[Total] = std::chrono::high_resolution_clock::now() - _itrStart[Total];
+        _total.duration += _itrDuration[Total].count();
+        _total.num++;
+        _isItrStarted = false;
+    }
+    void finish_itr(const PerfKey itrKey, PerfData::PerfNodeShape&& itrNodeShape);
 
     friend class PerfHelper;
-    friend class PerfHelperTotal;
+    friend class PerfHelperStage;
 };
 
-class MKLDNNGraph;
-std::string perfGetModelInputStr(const MKLDNNGraph& graph);
-class MKLDNNExecNetwork;
-void perfDump(const MKLDNNExecNetwork& execNet);
-
+class MKLDNNNode;
 class PerfHelper {
+    const std::shared_ptr<MKLDNNNode>& _node;
+    const PerfKey _itrKey;
+
+public:
+    explicit PerfHelper(const std::shared_ptr<MKLDNNNode>& node, const PerfKey itrKey);
+    ~PerfHelper();
+};
+
+class PerfHelperStage {
     PerfCount& _count;
     const PerfCount::CounterIdx _cntrIdx;
 
 public:
-    explicit PerfHelper(PerfCount& count, PerfCount::CounterIdx cntrIdx) :
-        _count(count), _cntrIdx(cntrIdx) { _count.start_itr(_cntrIdx); }
-    ~PerfHelper() { _count.finish_itr(_cntrIdx); }
+    explicit PerfHelperStage(PerfCount& count, const PerfCount::CounterIdx cntrIdx) :
+        _count(count), _cntrIdx(cntrIdx) { _count.start_stage(_cntrIdx); }
+    ~PerfHelperStage() { _count.finish_stage(_cntrIdx); }
 };
 
-class MKLDNNNode;
-class PerfHelperTotal {
-    const std::shared_ptr<MKLDNNNode>& _node;
-    PerfCount& _count;
-    const std::string& _itrKey;
-
-public:
-    explicit PerfHelperTotal(const std::shared_ptr<MKLDNNNode>& node, const std::string& itrKey);
-    ~PerfHelperTotal();
-};
-
+class MKLDNNGraph;
+PerfKey perfGetKey(MKLDNNGraph& graph);
+class MKLDNNExecNetwork;
+void perfDump(const MKLDNNExecNetwork& execNet);
 #endif // CPU_DEBUG_CAPS
 
 #define GET_PERF(_helper, ...) std::unique_ptr<_helper>(new _helper(__VA_ARGS__))
 #define PERF_COUNTER(_need, _helper, ...) auto pc = _need ? GET_PERF(_helper, __VA_ARGS__) : nullptr;
 
 #ifdef CPU_DEBUG_CAPS
-#define PERF(_node, _need, _itrKey) PERF_COUNTER(_need, PerfHelperTotal, _node, _itrKey)
-#define PERF_SHAPE_INFER(_node) PERF_COUNTER(_node->PerfCounter()._isItrStarted, PerfHelper, _node->PerfCounter(), PerfCount::ShapeInfer)
-#define PERF_PREPARE_PARAMS(_node) PERF_COUNTER(_node->PerfCounter()._isItrStarted, PerfHelper, _node->PerfCounter(), PerfCount::PrepareParams)
+#define PERF(_node, _need, _itrKey) PERF_COUNTER(_need, PerfHelper, _node, _itrKey)
+#define PERF_SHAPE_INFER(_node) PERF_COUNTER(_node->PerfCounter().isItrStarted(), PerfHelperStage, _node->PerfCounter(), PerfCount::ShapeInfer)
+#define PERF_PREPARE_PARAMS(_node) PERF_COUNTER(_node->PerfCounter().isItrStarted(), PerfHelperStage, _node->PerfCounter(), PerfCount::PrepareParams)
 #else
 #define PERF(_node, _need, _itrKey) PERF_COUNTER(_need, PerfHelper, _node->PerfCounter())
 #define PERF_SHAPE_INFER(_node)

@@ -11,14 +11,21 @@
 namespace MKLDNNPlugin {
 
 double perfAvg(const uint64_t sum, const uint64_t num);
+double perfAvg(const double sum, const uint64_t num);
 double perfPercent(const uint64_t val, const uint64_t total);
 double perfDeviationPercent(const std::vector<double>& values, const double sum);
-void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes);
+void perfShapeToStr(const VectorDims& shape, std::string& str);
+void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes, const std::vector<std::string>& modelInputShapes);
 
-void PerfCount::finish_itr(const std::string& itrKey, const std::string& itrNodeShape) {
-    finish_itr(Total);
 
-    auto &perfData = _perfDataMap[itrKey];
+void PerfCount::finish_itr(const PerfKey itrKey, PerfData::PerfNodeShape&& itrNodeShape) {
+    finish_itr();
+
+    assert(itrKey <= _perfData.size());
+    if (itrKey == _perfData.size())
+        _perfData.emplace_back();
+
+    auto& perfData = _perfData[itrKey];
     for (uint8_t i = 0; i < NumberOfCounters; i++) {
         if (_itrDuration[i] != std::chrono::high_resolution_clock::duration::zero()) {
             perfData.counters[i].duration += std::chrono::duration_cast<std::chrono::microseconds>(_itrDuration[i]).count();
@@ -26,41 +33,35 @@ void PerfCount::finish_itr(const std::string& itrKey, const std::string& itrNode
         }
     }
     perfData.nodeShapesSet.insert(itrNodeShape);
-
-    _isItrStarted = false;
 }
 
-PerfHelperTotal::PerfHelperTotal(const std::shared_ptr<MKLDNNNode>& node, const std::string& itrKey) :
-        _node(node), _count(node->PerfCounter()), _itrKey(itrKey) {
-    _count.start_itr();
+PerfHelper::PerfHelper(const std::shared_ptr<MKLDNNNode>& node, const PerfKey itrKey) :
+        _node(node), _itrKey(itrKey) {
+    _node->PerfCounter().start_itr();
 }
 
-PerfHelperTotal::~PerfHelperTotal() {
-    std::string shape;
-    typedef const MKLDNNEdgePtr (MKLDNNNode::*GetEdgeAtMp)(size_t) const;
-    auto edgesToShapeStr = [&] (const size_t edgeNum, GetEdgeAtMp getEdgeAt) {
-        for (auto i = 0; i < edgeNum; i++) {
-            if (i)
-                shape.push_back(',');
-            shape.push_back('{');
-            const auto& dims = ((*_node).*(getEdgeAt))(i)->getMemory().getStaticDims();
-            for (auto j = 0; j < dims.size(); j++) {
-                if (j)
-                    shape.push_back(',');
-                shape.append(std::to_string(dims[j]));
-            }
-            shape.push_back('}');
+PerfHelper::~PerfHelper() {
+    if (_itrKey != std::numeric_limits<PerfKey>::max()) {
+        std::vector<VectorDims> in, out;
+        in.reserve(_node->getParentEdges().size());
+        for (auto i = 0; i < _node->getParentEdges().size(); i++) {
+                in.push_back(_node->getParentEdgeAt(i)->getMemory().getStaticDims());
         }
-    };
-    edgesToShapeStr(_node->getParentEdges().size(), &MKLDNNNode::getParentEdgeAt);
-    shape.append("->");
-    edgesToShapeStr(_node->getChildEdges().size(), &MKLDNNNode::getChildEdgeAt);
-
-    _count.finish_itr(_itrKey, shape);
+        out.reserve(_node->getChildEdges().size());
+        for (auto i = 0; i < _node->getChildEdges().size(); i++) {
+                out.push_back(_node->getChildEdgeAt(i)->getMemory().getStaticDims());
+        }
+        _node->PerfCounter().finish_itr(_itrKey, std::make_pair(std::move(in), std::move(out)));
+    } else {
+        _node->PerfCounter().finish_itr();
+    }
 }
 
 double perfAvg(const uint64_t sum, const uint64_t num) {
     return num ? sum / static_cast<double>(num) : 0;
+}
+double perfAvg(const double sum, const uint64_t num) {
+    return num ? sum / num : 0;
 }
 
 double perfPercent(const uint64_t val, const uint64_t total) {
@@ -84,55 +85,95 @@ double perfDeviationPercent(const std::vector<double>& values, const double sum)
     return std::sqrt(variance) / avg * 100;
 }
 
-std::string perfGetModelInputStr(const MKLDNNGraph& graph) {
-    std::string str;
-    for (const auto& input : graph.GetInputNodesMap()) {
-        if (str.size())
-            str.push_back(',');
-        str.append(input.first + '{');
-        const auto& dims = input.second->getChildEdgeAt(0)->getMemory().getStaticDims();
-        for (auto i = 0; i < dims.size(); i++) {
-            if (i)
-                str.push_back(',');
-            str.append(std::to_string(dims[i]));
-        }
-        str.push_back('}');
+PerfKey perfGetKey(MKLDNNGraph& graph) {
+    if (graph.config.perfTablesPath.empty() || !graph.config.collectPerfCounters)
+        return std::numeric_limits<PerfKey>::max();
+
+    std::vector<VectorDims> modelInputDims;
+    modelInputDims.reserve(graph.inputNodesMap.size());
+    for (const auto& input : graph.inputNodesMap) {
+        modelInputDims.push_back(input.second->getChildEdgeAt(0)->getMemory().getStaticDims());
     }
-    return str;
+    return graph.perfKeysMap.emplace(std::move(modelInputDims), graph.perfKeysMap.size()).first->second;
 }
-void perfDump(const MKLDNNExecNetwork& execNet) {
-    const auto& graphs = execNet._graphs;
-    const auto graphNum = graphs.size();
 
-    if (graphNum == 0)
-        return;
-
-    const auto& graph = graphs[0];
-    if (graph.config.perfTablesPath.empty()) {
-        return;
+void perfShapeToStr(const VectorDims& shape, std::string& str) {
+    str.push_back('{');
+    for (auto i = 0; i < shape.size(); i++) {
+        if (i)
+            str.push_back(',');
+        str.append(std::to_string(shape[i]));
     }
+    str.push_back('}');
+}
+
+void perfDump(const MKLDNNExecNetwork& execNet) {
+    auto& graphs = execNet._graphs;
+    const auto graphNum = graphs.size();
+    auto& graph = graphs[0];
+
+    if (graphNum == 0 ||
+        graph.config.perfTablesPath.empty() || graph.perfKeysMap.size() == 0)
+        return;
 
     // use 1st graph to accamulate perf data (save memory and time)
-    for (auto i = 1; i < graphNum; i++) {
+    for (auto graphIdx = 1; graphIdx < graphNum; graphIdx++) {
+        if (graphs[graphIdx].perfKeysMap.size() == 0)
+            continue;
+
+        PerfKey keyToKey[graphs[graphIdx].perfKeysMap.size()];
+        for (const auto& pair : graphs[graphIdx].perfKeysMap) {
+            keyToKey[pair.second] =
+                graph.perfKeysMap.emplace(pair.first, graph.perfKeysMap.size()).first->second;;
+        }
+        assert(graph.executableGraphNodes.size() == graphs[graphIdx].executableGraphNodes.size());
         for (auto nodeIdx = 0; nodeIdx < graph.executableGraphNodes.size(); nodeIdx++) {
-            auto& aggPerfMap = graph.executableGraphNodes[nodeIdx]->PerfCounter()._perfDataMap;
-            const auto& perfMap = graphs[i].executableGraphNodes[nodeIdx]->PerfCounter()._perfDataMap;
-            for (const auto& perf : perfMap) {
-                aggPerfMap[perf.first] += perf.second;
+            auto& aggPerfData = graph.executableGraphNodes[nodeIdx]->PerfCounter()._perfData;
+            const auto& perfData = graphs[graphIdx].executableGraphNodes[nodeIdx]->PerfCounter()._perfData;
+            aggPerfData.resize(graph.perfKeysMap.size());
+            for (auto key = 0; key < perfData.size(); key++) {
+                aggPerfData[keyToKey[key]] += perfData[key];
             }
         }
     }
 
-    perfDumpNodes(graph.config.perfTablesPath, graph.executableGraphNodes);
+    std::vector<std::string> inputNames;
+    inputNames.reserve(graph.inputNodesMap.size());
+    for (const auto& input : graph.inputNodesMap) {
+        inputNames.emplace_back(inputNames.size() ? ',' + input.first : input.first);
+    }
+    std::vector<std::string> modelInputs(graph.perfKeysMap.size());
+    for (auto perf : graph.perfKeysMap) {
+        assert(perf.second < modelInputs.size());
+        auto& modelInput = modelInputs[perf.second];
+        assert(modelInput.empty());
+        assert(perf.first.size() == inputNames.size());
+        for (auto idx = 0; idx < inputNames.size(); idx++) {
+            modelInput.append(inputNames[idx]);
+            perfShapeToStr(perf.first[idx], modelInput);
+        }
+    }
+
+    perfDumpNodes(graph.config.perfTablesPath, graph.executableGraphNodes, modelInputs);
 }
 
-void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes) {
+void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes,
+                   const std::vector<std::string>& modelInputShapes) {
+    assert(modelInputShapes.size());
     const std::string pathPrefix(path + "perf_");
     std::ofstream csv;
     auto openCsv = [&] (std::ofstream& csv, const std::string& name) {
         csv.open(pathPrefix + name);
         csv << std::fixed << std::setprecision(2);
     };
+
+    openCsv(csv, "modelInputs.csv");
+    const auto modelInputsNum = modelInputShapes.size();
+    csv << "Model input index,Model input shape\n";
+    for (auto i = 0; i < modelInputsNum; i++) {
+        csv << i << ",\"" << modelInputShapes[i] << "\"\n";
+    }
+    csv.close();
 
     enum CounterIdx : uint8_t {
         Total = 0,
@@ -176,52 +217,61 @@ void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& no
         }
 
         NodeTypePerfCounter counters[NumberOfCounters];
-        std::set<std::string> uniqShapesSet;
+        std::set<PerfCount::PerfData::PerfNodeShape> uniqShapesSet;
         uint32_t nodeNum = 0;
     };
 
-    struct ModelInputPerfData {
-        std::ofstream csv;
-        std::map<Type, NodeTypePerfData> nodeTypesMap;
+    auto nodeShapeToStr = [] (const PerfCount::PerfData::PerfNodeShape& shape) {
+        auto shapesToStr = [] (const std::vector<VectorDims>& shape, std::string& str) {
+            for (auto i = 0; i < shape.size(); i++) {
+                if (i)
+                    str.push_back(',');
+                perfShapeToStr(shape[i], str);
+            }
+        };
+        std::string str;
+        shapesToStr(shape.first, str);
+        str.append("->");
+        shapesToStr(shape.second, str);
+        return str;
     };
 
-    std::map<std::string, ModelInputPerfData> modelInputsMap;
-    std::map<Type, NodeTypePerfData> aggregateNodeTypesMap;
-    NodeTypePerfData total;
+    std::vector<std::map<Type, NodeTypePerfData>> modelInputs(modelInputsNum);
 
     openCsv(csv, "raw_nodes.csv");
-    csv << "Node name,Node type,Model input shape,Node in->out shapes,"
+    csv << "Node name,Node type,Model input index,Model input shape,Node in->out shapes,"
            "\"Total time (avg, us)\",\"Total time (sum, us)\",Total (n),"
            "\"Exec time (avg, us)\",\"Exec time (sum, us)\",Exec (n),"
            "\"ShapeInfer time (avg, us)\",\"ShapeInfer time (sum, us)\",ShapeInfer (n),"
            "\"PrepareParams time (avg, us)\",\"PrepareParams time (sum, us)\",PrepareParams (n),"
            "Comments\n";
+    std::vector<std::ofstream> nodeCsvs(modelInputsNum);
     for (const auto& node : nodes) {
         const std::string nodePrefixStr('"' + node->getName() + "\",\"" +
-                                        NameFromType(node->getType()) + "\",\"");
-        for (const auto& nodePerf : node->PerfCounter()._perfDataMap) {
-            const auto& modelInput = nodePerf.first;
-            const auto& nodePerfData = nodePerf.second;
-            auto& modelInputData = modelInputsMap[modelInput];
-            auto& modelInputCsv = modelInputData.csv;
+                                        NameFromType(node->getType()) + "\",");
+        for (auto idx = 0; idx < node->PerfCounter()._perfData.size(); idx++) {
+            const auto& nodePerfData = node->PerfCounter()._perfData[idx];
+            auto& modelInputNodeTypesMap = modelInputs[idx];
+            auto& modelInputCsv = nodeCsvs[idx];
 
-            csv << nodePrefixStr << modelInput << "\",\"";
+
+            csv << nodePrefixStr << idx << ",\"" << modelInputShapes[idx] << "\",\"";
             if (!modelInputCsv.is_open()) {
-                openCsv(modelInputCsv, "modelInput_" + modelInput + "_nodes" + ".csv");
+                openCsv(modelInputCsv, "modelInput_" + std::to_string(idx) + "_nodes" + ".csv");
                 modelInputCsv << "Node name,Node type,Node in->out shapes,"
                                  "\"Total time (avg, us)\",\"Exec time (avg, us)\","
                                  "\"ShapeInfer time (avg, us)\",\"PrepareParams time (avg, us)\","
                                  "Comments\n";
             }
-            modelInputCsv << nodePrefixStr;
+            modelInputCsv << nodePrefixStr << '"';
 
-            auto& nodeTypePerfData = modelInputData.nodeTypesMap[node->getType()];
+            auto& nodeTypePerfData = modelInputNodeTypesMap[node->getType()];
             nodeTypePerfData.nodeNum++;
 
-            for (auto const &shape : nodePerfData.nodeShapesSet) {
-                assert(!shape.empty());
-                csv << shape;
-                modelInputCsv << shape;
+            for (const auto& shape : nodePerfData.nodeShapesSet) {
+                std::string shapeStr(nodeShapeToStr(shape));
+                csv << shapeStr;
+                modelInputCsv << shapeStr;
                 nodeTypePerfData.uniqShapesSet.insert(shape);
             }
             csv << "\",";
@@ -260,11 +310,10 @@ void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& no
         }
     }
     csv.close();
-    for (auto& modelInput : modelInputsMap) {
-        modelInput.second.csv.close();
+    for (auto& csv : nodeCsvs) {
+        csv.close();
     } // raw_nodes.csv and modelInput_*_nodes.csv
-
-    const bool isDynamicModelInput = (modelInputsMap.size() > 1);
+    assert(modelInputs.size() == modelInputsNum);
 
     const std::string nodeTypeHeader(
         "Node type,Node number,Uniq shape number,"
@@ -295,17 +344,45 @@ void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& no
         csv.close();
     };
 
-    for (const auto& modelInput : modelInputsMap) {
-        openCsv(csv, "modelInput_" + modelInput.first + "_nodeTypes" + ".csv");
+    const bool isDynamicModelInput = (modelInputsNum > 1);
+    std::map<Type, NodeTypePerfData> aggregateNodeTypesMap;
+
+    NodeTypePerfData modelInputTotal, total;
+    const auto nodeTypesNum = modelInputs[0].size();
+    for (uint8_t idx = Total; idx < NumberOfCounters; idx++) {
+        modelInputTotal.counters[idx].avgValues.reserve(nodeTypesNum);
+        if (isDynamicModelInput)
+            total.counters[idx].avgValues.reserve(nodeTypesNum);
+    }
+    for (auto& nodeType : modelInputs[0]) {
+        total.nodeNum += nodeType.second.nodeNum;
+        if (isDynamicModelInput) {
+            auto& aggregateNodeType = aggregateNodeTypesMap[nodeType.first];
+            aggregateNodeType.nodeNum = nodeType.second.nodeNum;
+            for (uint8_t idx = Total; idx < NumberOfCounters; idx++) {
+                aggregateNodeType.counters[idx].avgValues.reserve(modelInputsNum);
+            }
+        }
+    }
+
+    for (auto i = 0; i < modelInputsNum; i++) {
+        const auto& nodeTypesMap = modelInputs[i];
+
+        openCsv(csv, "modelInput_" + std::to_string(i) + "_nodeTypes" + ".csv");
         csv << nodeTypeHeader;
 
-        NodeTypePerfData modelInputTotal;
-        const auto& nodeTypesMap = modelInput.second.nodeTypesMap;
+        modelInputTotal.nodeNum = total.nodeNum;
         for (auto& nodeType : nodeTypesMap) {
             for (uint8_t idx = Total; idx < NumberOfCounters; idx++) {
                 modelInputTotal.counters[idx].durationSum += nodeType.second.counters[idx].durationSum;
             }
         }
+        if (isDynamicModelInput) {
+            for (uint8_t idx = Total; idx < NumberOfCounters; idx++) {
+                total.counters[idx].durationSum += modelInputTotal.counters[idx].durationSum;
+            }
+        }
+
         for (auto& nodeType : nodeTypesMap) {
             auto& nodeTypePerfData = nodeType.second;
             nodeTypePerfData.validate(nodeTypePerfData.nodeNum);
@@ -313,17 +390,13 @@ void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& no
             csv << '"' << NameFromType(nodeType.first) << "\","
                 << nodeTypePerfData.nodeNum << ',' << nodeTypePerfData.uniqShapesSet.size();
 
-            modelInputTotal.nodeNum += nodeTypePerfData.nodeNum;
             modelInputTotal.uniqShapesSet.insert(nodeTypePerfData.uniqShapesSet.begin(),
                                                  nodeTypePerfData.uniqShapesSet.end());
             if (isDynamicModelInput) {
                 auto& aggregateNodeType = aggregateNodeTypesMap[nodeType.first];
-                assert(aggregateNodeType.nodeNum == nodeTypePerfData.nodeNum ||
-                       aggregateNodeType.nodeNum == 0);
-                aggregateNodeType.nodeNum = nodeTypePerfData.nodeNum;
-
+                assert(aggregateNodeType.nodeNum == nodeTypePerfData.nodeNum);
                 aggregateNodeType.uniqShapesSet.insert(nodeTypePerfData.uniqShapesSet.begin(),
-                                                    nodeTypePerfData.uniqShapesSet.end());
+                                                       nodeTypePerfData.uniqShapesSet.end());
             }
 
             for (uint8_t idx = Total; idx < NumberOfCounters; idx++) {
@@ -345,12 +418,7 @@ void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& no
             csv << std::endl;
         }
         finalizeNodeTypeCsv(csv, modelInputTotal, nodeTypesMap.size());
-
-        if (isDynamicModelInput) {
-            for (uint8_t idx = Total; idx < NumberOfCounters; idx++) {
-                total.counters[idx].durationSum += modelInputTotal.counters[idx].durationSum;
-            }
-        }
+        modelInputTotal.cleanup();
     } // modelInput_*_nodeTypes.csv
 
     if (isDynamicModelInput) {
@@ -358,11 +426,10 @@ void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& no
         csv << nodeTypeHeader;
         for (auto& nodeType : aggregateNodeTypesMap) {
             auto& nodeTypePerfData = nodeType.second;
-            nodeTypePerfData.validate(modelInputsMap.size());
+            nodeTypePerfData.validate(modelInputsNum);
 
             csv << '"' << NameFromType(nodeType.first) << "\","
                 << nodeTypePerfData.nodeNum << ',' << nodeTypePerfData.uniqShapesSet.size();
-            total.nodeNum += nodeTypePerfData.nodeNum;
             total.uniqShapesSet.insert(nodeTypePerfData.uniqShapesSet.begin(),
                                        nodeTypePerfData.uniqShapesSet.end());
 
@@ -371,7 +438,7 @@ void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& no
                 auto& totalCntr = total.counters[idx];
                 const auto avg = perfAvg(cntr.avgSum, cntr.avgValues.size());
 
-                printNodeTypeCntr(csv, cntr, avg, total.counters[Total].durationSum);
+                printNodeTypeCntr(csv, cntr, avg, totalCntr.durationSum);
 
                 totalCntr.avgValues.push_back(avg);
                 totalCntr.avgSum += avg;
