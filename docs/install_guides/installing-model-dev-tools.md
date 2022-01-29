@@ -34,13 +34,10 @@ You can install OpenVINO Model Development Tools via either of the following way
     where the EXTRAS parameter specifies one or more deep learning frameworks via these values: `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. Make sure that you install the corresponding frameworks for your models.
     For more details, see <https://pypi.org/project/openvino-dev/>.
 
-    > **NOTE**:
-    > - If you have installed OpenVINO Runtime via the installer, to avoid version conflicts, specify your version in the command: `pip install openvino-dev[EXTRAS]==<version>`
-    > - For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
+    > **NOTE**: If you have installed OpenVINO Runtime via the installer, to avoid version conflicts, specify your version in the command: `pip install openvino-dev[EXTRAS]==<version>`
     
     
-    > **NOTE**: - If you have installed OpenVINO Runtime via the installer, to avoid version conflicts, specify your version in the command: `pip install openvino-dev[EXTRAS]==<version>`
-    > - For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
+    > **NOTE**: For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
     
 
 ## For Python developers
