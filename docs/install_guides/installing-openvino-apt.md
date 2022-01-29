@@ -41,11 +41,13 @@ The complete list of supported hardware is available in the [Release Notes](http
     * On Ubuntu 20:
       ```sh
       echo "deb https://apt.repos.intel.com/openvino/2022/focal all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-      ```    
+      ```  
+      
 3.	Update the list of packages via the update command:
    ```sh
    sudo apt update
    ```       
+   
 4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
    ```sh
    apt-cache search openvino

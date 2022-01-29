@@ -31,7 +31,7 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
 #### Step 1: Install additional dependencies
 
-* **Install CMake**
+- **Install CMake**
 
    To add CMake to the image, add the following commands to the Dockerfile:
    ```bat
@@ -48,7 +48,8 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
    docker build . -t <image_name> `
    --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
    ```   
-* **Install Microsoft Visual Studio* Build Tools**
+   
+- **Install Microsoft Visual Studio\* Build Tools**
 
    You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
    

@@ -14,7 +14,7 @@ From 2022.1 release, the OpenVINO Developer Tools can only be installed via PyPI
 
 You can install OpenVINO Model Development Tools via either of the following ways:
 
-### (Recommended) Install using the requirements files
+### Recommended: Install using the requirements files
 
 1. If you have installed OpenVINO Runtime from an installer, APT or YUM repository, you can find a set of requirements files in `<installdir>\tools\` directory.
 2. You can manually install the same version of OpenVINO Model Development Tools by using the requirements files. To install mandatory requirements only, use the following command:
