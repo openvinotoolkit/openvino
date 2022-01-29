@@ -58,7 +58,6 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
    Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
 
    To add MSBuild 2019 to the image, add the following commands to the Dockerfile:
-
    ```bat
    RUN powershell.exe -Command Invoke-WebRequest -URI https://aka.ms/vs/16/release/vs_buildtools.exe -OutFile %TMP%\\vs_buildtools.exe
 
