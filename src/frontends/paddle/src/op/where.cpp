@@ -1,0 +1,23 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "default_opset.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
+
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
+NamedOutputs where(const NodeContext& node) {
+    const auto condition_node = node.get_input("Condition");
+    const auto x_node = node.get_input("X");
+    const auto y_node = node.get_input("Y");
+
+    return node.default_single_output_mapping({std::make_shared<default_opset::Select>(condition_node, x_node, y_node)},
+                                              {"Out"});
+}
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov
