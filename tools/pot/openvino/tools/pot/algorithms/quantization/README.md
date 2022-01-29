@@ -1,11 +1,23 @@
 # Quantization {#pot_compression_algorithms_quantization_README}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   DefaultQuantization Algorithm <pot_compression_algorithms_quantization_default_README>
+   AccuracyAwareQuantization Algorithm <pot_compression_algorithms_quantization_accuracy_aware_README>
+   TunableQuantization Algorithm <pot_compression_algorithms_quantization_tunable_quantization_README>
+
+@endsphinxdirective
+
 The primary optimization feature of the Post-training Optimization Tool (POT) is uniform quantization. In general,
 this method supports an arbitrary number of bits, greater or equal to two, which represents weights and activations.
 During the quantization process, the method inserts [FakeQuantize](@ref openvino_docs_ops_quantization_FakeQuantize_1)
 operations into the model graph automatically based on a predefined hardware target in order to produce the most
 hardware-friendly optimized model:
-![](../../../docs/images/convolution_quantization.png)
+![](../../../../../docs/images/convolution_quantization.png)
 
 After that, different quantization algorithms can tune the `FakeQuantize` parameters or remove some of them in order to
 meet the accuracy criteria. The resulting *fakequantized* models are interpreted and transformed to real low-precision
