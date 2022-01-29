@@ -94,6 +94,24 @@ Run the following command:
 sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 ```
 
+### Step 3 (Optional): Install OpenCV from the YUM repository
+
+OpenVINO also provides a package to install OpenCV in the YUM repository.
+
+#### To install the latest version of OpenCV
+
+Run the following command:
+```sh
+sudo yum install openvino-opencv
+```
+
+#### To install a specific version of OpenCV
+
+Run the following command:
+```sh
+sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
+```
+
 
 ## Additional resources
 

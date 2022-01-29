@@ -133,6 +133,24 @@ Run the following command:
 sudo apt autoremove openvino-<PACKAGE_TYPE>-<VERSION>.<UPDATE>.<PATCH>
 ```
 
+### Step 3 (Optional): Install OpenCV from the APT repository
+
+OpenVINO also provides a package to install OpenCV in the APT repository.
+
+#### To install the latest version of OpenCV
+
+Run the following command:
+```sh
+sudo apt install openvino-opencv
+```
+
+#### To install a specific version of OpenCV
+
+Run the following command:
+```sh
+sudo apt install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
+```
+
 ## Additional resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
