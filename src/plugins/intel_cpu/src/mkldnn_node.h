@@ -836,7 +836,7 @@ protected:
 };
 
 constexpr uint64_t PortMask(int n) {
-    return 1 << n;
+    return static_cast<uint64_t>(1) << n;
 }
 
 template <class... T>

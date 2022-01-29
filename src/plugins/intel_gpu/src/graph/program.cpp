@@ -475,6 +475,8 @@ void program::pre_optimize_graph(bool is_internal) {
     // handle symmetric and asymmetric padding for input
     apply_opt_pass<handle_input_padding>();
 
+    apply_opt_pass<handle_permute>();
+
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     apply_opt_pass<reverse_optional_nodes_outputs>();
@@ -1055,7 +1057,7 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
         fused_node.dependencies.push_back(&dep);
-        local_desc.deps.emplace(dep.id(), deps_idx++);
+        local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
     local_desc.total_num_deps = std::min(local_desc.total_num_deps, deps_idx);
