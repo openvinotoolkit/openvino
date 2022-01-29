@@ -6,10 +6,10 @@ Hello Classification C++ sample application demonstrates how to use the followin
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-| Basic Infer Flow | `ov::runtime::Core::read_model`, `ov::runtime::Core::compile_model`, `ov::runtime::CompiledModel::create_infer_request`, `ov::runtime::InferRequest::get_input_tensor`, `ov::runtime::InferRequest::set_input_tensor`, `ov::runtime::InferRequest::get_output_tensor`  | Common API to do inference: configure input and output tensors, reading model, create infer request
-| Synchronous Infer | `ov::runtime::InferRequest::infer` | Do synchronous inference
+| Basic Infer Flow | `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: configure input and output tensors, reading model, create infer request
+| Synchronous Infer | `ov::InferRequest::infer` | Do synchronous inference
 | Model Operations | `ov::Model::inputs`, `ov::Model::outputs` |  Managing of model
-| Tensor Operations| `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
+| Tensor Operations| `ov::Tensor::get_element_type`, `ov::Tensor::get_shape`, `ov::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
 | Input auto-resize | `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputInfo::model::set_layout` | Set image of the original size as input for a model with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference
 
 | Options  | Values |
@@ -41,7 +41,7 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >

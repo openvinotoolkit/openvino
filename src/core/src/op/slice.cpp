@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -394,4 +394,36 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
                                       steps,
                                       axes);
     return true;
+}
+
+namespace {
+bool slice_input_check(const ov::Node* node) {
+    if (!node->get_input_tensor(1).has_and_set_bound())
+        return false;
+    if (!node->get_input_tensor(2).has_and_set_bound())
+        return false;
+    if (!node->get_input_tensor(3).has_and_set_bound())
+        return false;
+    if (node->get_input_size() == 5 && !node->get_input_tensor(4).has_and_set_bound())
+        return false;
+    return true;
+}
+}  // namespace
+
+bool op::v8::Slice::evaluate_lower(const HostTensorVector& output_values) const {
+    if (!slice_input_check(this))
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v8::Slice::evaluate_upper(const HostTensorVector& output_values) const {
+    if (!slice_input_check(this))
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v8::Slice::evaluate_label(TensorLabelVector& output_labels) const {
+    if (!slice_input_check(this))
+        return false;
+    return default_label_evaluator(this, output_labels);
 }

@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ie_plugin_config.hpp>
 #include "vpu/vpu_plugin_config.hpp"
 #include "vpu/private_plugin_config.hpp"
 #include "vpu/utils/optional.hpp"
@@ -194,6 +195,8 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER},
             {KEY_PERF_COUNT, CONFIG_VALUE(YES)},
+            {KEY_PERFORMANCE_HINT, CONFIG_VALUE(LATENCY)},
+            {KEY_PERFORMANCE_HINT_NUM_REQUESTS, "2"},
             {InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor[1,2,3,4]"},
             {InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, CONFIG_VALUE(NO)},
@@ -278,6 +281,8 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, {false}},
         {InferenceEngine::MYRIAD_PERF_REPORT_MODE, {InferenceEngine::MYRIAD_PER_LAYER}},
         {KEY_PERF_COUNT, {false}},
+        {KEY_PERFORMANCE_HINT, {}},
+        {KEY_PERFORMANCE_HINT_NUM_REQUESTS, {}},
         {InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, {true}},
         {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES_AUTO}},
         {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS_AUTO}},
@@ -580,6 +585,8 @@ const std::vector<std::string>& getPublicOptions() {
         InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
         VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
         KEY_PERF_COUNT,
+        KEY_PERFORMANCE_HINT,
+        KEY_PERFORMANCE_HINT_NUM_REQUESTS,
         InferenceEngine::MYRIAD_THROUGHPUT_STREAMS,
         KEY_EXCLUSIVE_ASYNC_REQUESTS,
         KEY_DEVICE_ID,

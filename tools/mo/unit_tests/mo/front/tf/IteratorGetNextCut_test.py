@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -83,12 +83,14 @@ class IteratorGetNextAnalysisTest(unittest.TestCase):
     def test_unsupported_data_type(self):
         graph = build_graph_with_edge_attrs(
             {
-                'iter_get_next': {'kind': 'op', 'op': 'IteratorGetNext', 'shapes': shape_array([[2, 2]]),
+                'iter_get_next': {'kind': 'op', 'op': 'IteratorGetNext', 'shapes': [shape_array([2, 2])],
                                   'types': [None]},
                 'sub': {'kind': 'op', 'op': 'Sub'},
+                'result': {'kind': 'op', 'op': 'Result'}
             },
             [
                 ('iter_get_next', 'sub', {'out': 0, 'in': 0}),
+                ('sub', 'result', {'out': 0, 'in': 0}),
             ]
         )
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -633,11 +633,11 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 
         if (prev == nullptr || next == nullptr) continue;
 
-        if (LayerInfo(prev).isPermute()) {
+        if (LayerInfo(prev).isPermute() || LayerInfo(prev).isPermuteViaReshape()) {
             permutations_to_remove.insert(prev);
         }
 
-        if (LayerInfo(next).isPermute()) {
+        if (LayerInfo(next).isPermute() || LayerInfo(prev).isPermuteViaReshape()) {
             permutations_to_remove.insert(next);
         }
 
@@ -699,7 +699,8 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         };
         propogateNHWCOrderRecursive(current_layer);
 
-        if (LayerInfo(pattern_start).isPermute() && !getInputTo(pattern_start->outData.front()).empty()) {
+        if ((LayerInfo(pattern_start).isPermute() || LayerInfo(pattern_start).isPermuteViaReshape()) &&
+         !getInputTo(pattern_start->outData.front()).empty()) {
             auto layer_before_permute = CNNNetPrevLayer(pattern_start);
             DataPtr output = nullptr;
             for (auto before_output : layer_before_permute->outData) {
@@ -1450,10 +1451,21 @@ void EltwiseSplitOverChannelsPass::run() {
         IE_ASSERT(firstValuableDim != std::end(oDims));
         auto splittedElementsSize = *firstValuableDim;
         auto splittedDimIx = std::distance(std::begin(oDims), firstValuableDim);
+        auto alignment = GNALimitations::inputByteAlignment;
 
-        // Split output size should be multiple by 64 to avoid align filters insertion
+        // Split output size should be multiple by 64 to avoid align filters insertion,
+        // but we need to check if our input size to split exceeds 64; if not we can always
+        // split if the remaining size is aligned
+        if (splittedElementsSize <= 64) {
+            if ((totalElementsSize / splittedElementsSize) % alignment == 0) {
+                alignment = 1;
+            } else {
+                THROW_GNA_LAYER_EXCEPTION(l) << "splitting didn't succeed\n";
+            }
+        }
+
         auto splitSizes = GetAlignedSplitSizes(splittedElementsSize,
-            GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize);
+            GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize, alignment);
 
         pass_trace() << "transforming " << LAYER_NAME(l) << " by splitting it to multiple eltwise operations\n";
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
@@ -2017,11 +2029,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
     };
 
     auto allowFQFuse = [](CNNLayerPtr layer) -> bool {
-        auto doNotSkup = [](CNNLayerPtr layer) {
+        auto doNotSkip = [](CNNLayerPtr layer) {
             return false;
         };
 
-        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkup).empty()) {
+        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkip).empty()) {
             return false;
         }
 
@@ -2142,7 +2154,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 
         // Before FQ layer is removed, the previous functional layer has to be updated with its quantization data
         auto prevFuncLayer = CNNNetPrevLayerSkipCertain(*fqLayer, 0, [](CNNLayerPtr layer) {
-            return LayerInfo(layer).isNonFunctional();
+            return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isPooling();
         });
         auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevFuncLayer);
         quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);

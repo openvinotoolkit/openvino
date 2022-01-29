@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -323,7 +323,25 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     const auto& inputsInfo = exeNetwork->GetInputsInfo();
     const auto& outputsInfo = exeNetwork->GetOutputsInfo();
     OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
-    OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
+
+    if (outputsInfo.size() != function->get_output_size()) {
+        const auto& outputs = function->outputs();
+        std::unordered_set<std::shared_ptr<ov::descriptor::Tensor>> output_tensors;
+        std::transform(outputs.cbegin(),
+                       outputs.cend(),
+                       std::inserter(output_tensors, output_tensors.begin()),
+                       [](const ov::Output<const ov::Node>& out) {
+                           return out.get_tensor_ptr();
+                       });
+
+        OPENVINO_ASSERT(outputsInfo.size() == output_tensors.size(),
+                        "outputsInfo.size() is: ",
+                        outputsInfo.size(),
+                        ", and function->get_output_size() is: ",
+                        function->get_output_size(),
+                        ". Number of duplicated outputs: ",
+                        outputs.size() - output_tensors.size());
+    }
 
     for (const auto& param : function->get_parameters()) {
         const auto& param_name = param->get_friendly_name();

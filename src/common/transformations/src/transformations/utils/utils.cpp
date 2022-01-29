@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -178,13 +178,13 @@ bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expe
     }
 }
 
-void visit_shape_path(const std::shared_ptr<ov::Node>& node,
-                      std::unordered_set<std::shared_ptr<ov::Node>>& visited,
-                      std::function<void(std::shared_ptr<ov::Node>)> func) {
+void visit_shape_path(Node * node,
+                      std::unordered_set<ov::Node*>& visited,
+                      std::function<void(ov::Node*)> func) {
     if (!node)
         return;
     visited.insert(node);
-    std::deque<std::shared_ptr<ov::Node>> nodes{node};
+    std::deque<ov::Node*> nodes{node};
     while (!nodes.empty()) {
         auto curr_node = nodes.front();
         nodes.pop_front();
@@ -193,12 +193,13 @@ void visit_shape_path(const std::shared_ptr<ov::Node>& node,
             continue;
         }
 
-        visited.insert(curr_node);
         func(curr_node);
         for (auto& input_value : curr_node->input_values()) {
             // continue searching
-            const auto& input_node = input_value.get_node_shared_ptr();
+            const auto& input_node = input_value.get_node();
+            if (visited.count(input_node)) continue;
             nodes.push_front(input_node);
+            visited.insert(input_node);
         }
     }
 }

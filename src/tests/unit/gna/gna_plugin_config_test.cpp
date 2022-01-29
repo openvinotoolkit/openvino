@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
+    {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
     {GNA_CONFIG_KEY(EXEC_TARGET), ""},
     {GNA_CONFIG_KEY(COMPILE_TARGET), ""},
     {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT},
@@ -104,7 +105,9 @@ TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW_WITH_SW_FBACK);
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardwareWithSoftwareFallback);
     EXPECT_EQ(config.swExactMode, false);
+    IE_SUPPRESS_DEPRECATED_START
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW);
+    IE_SUPPRESS_DEPRECATED_END
 
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
     EXPECT_EQ(config.swExactMode, false);
@@ -141,11 +144,14 @@ TEST_F(GNAPluginConfigTest, GnaConfigPrecisionTest) {
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPwlUniformDesignTest) {
+    IE_SUPPRESS_DEPRECATED_START
     SetAndCheckFlag(GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN),
                     config.gnaFlags.uniformPwlDesign);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPwlMaxErrorPercentTest) {
+    IE_SUPPRESS_DEPRECATED_START
     SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("0.100000"));
     EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 0.1f);
     SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("1.000000"));
@@ -154,6 +160,7 @@ TEST_F(GNAPluginConfigTest, GnaConfigPwlMaxErrorPercentTest) {
     EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 5);
     ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "-1");
     ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "100.1");
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPerfCountTest) {

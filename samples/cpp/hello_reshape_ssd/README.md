@@ -6,9 +6,9 @@ Hello Reshape SSD C++ sample application demonstrates how to use the following I
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-| Model Operations | `ov::runtime::Core::read_model`, `ov::runtime::Core::compile_model` |  Managing of model
+| Model Operations | `ov::Core::read_model`, `ov::Core::compile_model` |  Managing of model
 | Model Input Reshape | `ov::Model::reshape`| Resize model to match image sizes and given batch
-| Tensor Operations | `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
+| Tensor Operations | `ov::Tensor::get_element_type`, `ov::Tensor::get_shape`, `ov::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
@@ -41,7 +41,7 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ public:
         return result.str();
     }
 
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
+    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
         if (actual.front().get_size() == 0) {
             ASSERT_EQ(0, expected.front().get_size());
             for (const auto& shape : targetStaticShapes[inferNum]) {
@@ -126,7 +126,7 @@ const std::vector<ElementType> netPrecisions = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block8_static, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(1, 2, 3),
+                                ::testing::Values(1, -2, 3),
                                 ::testing::Values(static_shapes_to_test_representation({{2, 16, 3, 5}, {2, 16, 3, 5}})),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(planar_4D_ref, planarChannels_4D, blocked8_4D_ref)),
@@ -134,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block8_static, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16_static, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(1, 2, 3),
+                                ::testing::Values(1, 2, -1),
                                 ::testing::Values(static_shapes_to_test_representation({{3, 32, 3, 5}, {3, 32, 3, 5}})),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(blocked16_4D_ref)),
@@ -156,7 +156,7 @@ const std::vector<std::vector<InputShape>> inputShapes4D_Block_axis1 = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block_dynamic_axis_1, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(1),
+                                ::testing::Values(1, -3),
                                 ::testing::ValuesIn(inputShapes4D_Block_axis1),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(blocked8_4D_ref, blocked16_4D_ref)),
@@ -229,7 +229,7 @@ const std::vector<std::vector<InputShape>> inputShapes4D_axis2 = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_dynamic_axis_2, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(2),
+                                ::testing::Values(2, -2),
                                 ::testing::ValuesIn(inputShapes4D_axis2),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(planar_4D_ref, planarChannels_4D)),
@@ -271,7 +271,7 @@ const std::vector<std::vector<InputShape>> inputShapes4D_axis3 = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_dynamic_axis_3, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(3),
+                                ::testing::Values(3, -1),
                                 ::testing::ValuesIn(inputShapes4D_axis3),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(planar_4D_ref, planarChannels_4D)),
@@ -279,7 +279,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_dynamic_axis_3, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block8_static, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(2, 3, 4),
+                                ::testing::Values(2, 3, -2),
                                 ::testing::Values(static_shapes_to_test_representation({{2, 16, 3, 5, 7}, {2, 16, 3, 5, 7}})),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(planar_5D_ref, planarChannels_5D, blocked8_5D_ref)),
@@ -350,7 +350,7 @@ const std::vector<std::vector<InputShape>> inputShapes5D_Block_axis2 = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block_dynamic_axis_2, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(2),
+                                ::testing::Values(-3),
                                 ::testing::ValuesIn(inputShapes5D_Block_axis2),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(blocked8_5D_ref, blocked16_5D_ref)),
@@ -645,7 +645,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16inPlace, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat_inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(0, 1, 2),
+                                ::testing::Values(0, 1, 2, -1),
                                 ::testing::ValuesIn(std::vector<std::vector<InputShape>>{
                                     static_shapes_to_test_representation({{1, 1, 1, 10}, {1, 1, 1, 10}}),
                                     static_shapes_to_test_representation({{1, 1, 5}, {1, 1, 5}})}),

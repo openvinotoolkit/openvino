@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -237,6 +237,10 @@ bool MKLDNNSplitNode::needPrepareParams() const {
         return false;
     }
     return MKLDNNNode::inputShapesModified();
+}
+
+std::vector<VectorDims> MKLDNNSplitNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(1, 2));
 }
 
 void MKLDNNSplitNode::prepareParams() {
