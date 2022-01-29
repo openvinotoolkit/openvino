@@ -91,6 +91,11 @@ JitTerm erf(const JitTerm& arg) {
     return jit_term;
 }
 
+JitTerm tanh(const JitTerm& arg) {
+    JitTerm jit_term{"(tanh(" + arg.str() + "))"};
+    return jit_term;
+}
+
 JitTerm log(const JitTerm& arg) {
     JitTerm jit_term{"(log(" + arg.str() + "))"};
     return jit_term;
@@ -1114,6 +1119,16 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     (half * input * (one + erf((input * mult)))).str()));
+            break;
+        }
+        case ActivationFunction::GELU_TANH: {
+            const std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
+            const JitTerm half{"0.5" + type_suffix};
+            const JitTerm mult{"0.044715" + type_suffix};
+            const JitTerm sqrt_2_over_pi{"0.79788458347320556640625" + type_suffix};
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (half * input * (one + tanh(sqrt_2_over_pi * input * (one + mult * input * input)))).str()));
             break;
         }
         case ActivationFunction::NOT:

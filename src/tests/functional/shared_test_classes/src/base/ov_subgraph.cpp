@@ -4,9 +4,7 @@
 
 #include <signal.h>
 #include <fstream>
-#include <transformations/utils/utils.hpp>
-#include <transformations/convert_precision.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include "transformations/convert_precision.hpp"
 
 #ifdef _WIN32
 #include <process.h>
@@ -17,11 +15,15 @@
 
 #include "graph_comparator.hpp"
 
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "shared_test_classes/base/utils/compare_results.hpp"
 
 namespace ov {
 namespace test {
@@ -130,8 +132,22 @@ void SubgraphBaseTest::query_model() {
 void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
                                const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
-    for (size_t i = 0; i < expected.size(); i++) {
-        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
+    ASSERT_EQ(expected.size(), function->get_results().size());
+    auto compareMap = utils::getCompareMap();
+    const auto& results = function->get_results();
+    for (size_t j = 0; j < results.size(); j++) {
+        const auto result = results[j];
+        for (size_t i = 0; i < result->get_input_size(); ++i) {
+            std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
+            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
+                std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
+                if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+                    inputNode = nextNodePtr;
+                }
+            }
+            auto it = compareMap.find(inputNode->get_type_info());
+            it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
+        }
     }
 }
 
@@ -173,17 +189,29 @@ void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, co
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
-    const auto& funcInputs = function->inputs();
-    for (int i = 0; i < funcInputs.size(); ++i) {
-        const auto& funcInput = funcInputs[i];
-        ov::Tensor tensor;
-        if (funcInput.get_element_type().is_real()) {
-            tensor = ov::test::utils::create_and_fill_tensor(
-                funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
-        } else {
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+    auto inputMap = utils::getInputMap();
+    auto itTargetShape = targetInputStaticShapes.begin();
+    for (const auto &param : function->get_parameters()) {
+        std::shared_ptr<ov::Node> inputNode = param;
+        for (size_t i = 0; i < param->get_output_size(); i++) {
+            for (const auto &node : param->get_output_target_inputs(i)) {
+                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
+                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
+                    std::shared_ptr<ov::Node> nextNodePtr = nodePtr->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+                    if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+                        inputNode = nodePtr;
+                        nodePtr = nextNodePtr;
+                    }
+                }
+                auto it = inputMap.find(nodePtr->get_type_info());
+                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
+                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});
+                        break;
+                    }
+                }
+            }
         }
-        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
 }
 
