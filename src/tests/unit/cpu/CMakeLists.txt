@@ -1,12 +1,8 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME cpuUnitTests)
-
-if(BUILD_SHARED_LIBS)
-    set (OBJ_LIB $<TARGET_OBJECTS:ov_intel_cpu_plugin_obj>)
-endif()
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
@@ -14,9 +10,14 @@ addIeTargetTest(
         INCLUDES
             $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src
             $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src/nodes
+            $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/thirdparty/mkl-dnn
+            $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/thirdparty/mkl-dnn/src
+            $<TARGET_PROPERTY:sharedTestClasses,SOURCE_DIR>/include/
+            $<TARGET_PROPERTY:cpuFuncTests,SOURCE_DIR>
+            $<TARGET_PROPERTY:funcTestUtils,SOURCE_DIR>/include/
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
         OBJECT_FILES
-            ${OBJ_LIB}
+            $<TARGET_OBJECTS:ov_intel_cpu_plugin_obj>
         LINK_LIBRARIES
             gtest
             gtest_main
@@ -29,6 +30,8 @@ addIeTargetTest(
             unitTestUtils
             inference_engine_snippets
             ngraphFunctions
+            sharedTestClasses
+            funcTestUtils
         ADD_CPPLINT
         LABELS
             CPU
