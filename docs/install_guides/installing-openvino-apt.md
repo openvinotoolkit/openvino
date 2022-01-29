@@ -34,22 +34,16 @@ The complete list of supported hardware is available in the [Release Notes](http
       
 2.	Add the repository via the following command:
 
-@sphinxdirective
-
-   .. tab:: On Ubuntu 18
-
+   * On Ubuntu 18
    ```sh
    echo "deb https://apt.repos.intel.com/openvino/2022/bionic all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-   ```   
-      
-   .. tab:: On Ubuntu 20
-
+   ```
+   
+   * On Ubuntu 20
    ```sh
    echo "deb https://apt.repos.intel.com/openvino/2022/focal all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
    ```  
 
-@endsphinxdirective
-      
 3.	Update the list of packages via the update command:
    ```sh
    sudo apt update
