@@ -285,7 +285,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 std::pair<int, WorkerInferRequest*> worker;
                 while (_idleWorkerRequests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
-                    _cpuHelpInferCount += workerRequestPtr->_inferCount;
+                    _cpuHelpInferCount += worker.second->_inferCount;
                 }
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(_confMutex);
