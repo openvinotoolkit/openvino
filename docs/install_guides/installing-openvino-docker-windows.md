@@ -31,47 +31,49 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
 #### Step 1: Install additional dependencies
 
-##### Install CMake
+* **Install CMake**
 
-To add CMake to the image, add the following commands to the Dockerfile:
-```bat
-RUN powershell.exe -Command `
-    Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
-    Start-Process %TMP%\\cmake-3.14.7-win64-x64.msi -ArgumentList '/quiet /norestart' -Wait ; `
-    Remove-Item %TMP%\\cmake-3.14.7-win64-x64.msi -Force
+   To add CMake to the image, add the following commands to the Dockerfile:
+   ```bat
+   RUN powershell.exe -Command `
+       Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
+       Start-Process %TMP%\\cmake-3.14.7-win64-x64.msi -ArgumentList '/quiet /norestart' -Wait ; `
+       Remove-Item %TMP%\\cmake-3.14.7-win64-x64.msi -Force
 
-RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
-```
+   RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
+   ```
 
-In case of proxy issues, please add the `ARG HTTPS_PROXY` and `-Proxy %%HTTPS_PROXY%` settings to the `powershell.exe` command to the Dockerfile. Then build a Docker image:
-```bat
-docker build . -t <image_name> `
---build-arg HTTPS_PROXY=<https://your_proxy_server:port>
-```   
+   In case of proxy issues, please add the `ARG HTTPS_PROXY` and `-Proxy %%HTTPS_PROXY%` settings to the `powershell.exe` command to the Dockerfile. Then build a Docker image:
+   ```bat
+   docker build . -t <image_name> `
+   --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
+   ```   
+* **Install Microsoft Visual Studio* Build Tools**
 
-##### Install Microsoft Visual Studio* Build Tools
+   You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
+   
+   Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license.
+   
+   Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
 
-You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
-Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license.
-Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
+   To add MSBuild 2019 to the image, add the following commands to the Dockerfile:
 
-To add MSBuild 2019 to the image, add the following commands to the Dockerfile:
+   ```bat
+   RUN powershell.exe -Command Invoke-WebRequest -URI https://aka.ms/vs/16/release/vs_buildtools.exe -OutFile %TMP%\\vs_buildtools.exe
 
-```bat
-RUN powershell.exe -Command Invoke-WebRequest -URI https://aka.ms/vs/16/release/vs_buildtools.exe -OutFile %TMP%\\vs_buildtools.exe
+   RUN %TMP%\\vs_buildtools.exe --quiet --norestart --wait --nocache `
+        --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools" `
+        --add Microsoft.VisualStudio.Workload.MSBuildTools `
+        --add Microsoft.VisualStudio.Workload.UniversalBuildTools `
+        --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended `
+        --remove Microsoft.VisualStudio.Component.Windows10SDK.10240 `
+        --remove Microsoft.VisualStudio.Component.Windows10SDK.10586 `
+        --remove Microsoft.VisualStudio.Component.Windows10SDK.14393 `
+        --remove Microsoft.VisualStudio.Component.Windows81SDK || IF "%ERRORLEVEL%"=="3010" EXIT 0 && powershell set-executionpolicy remotesigned
+   ```
 
-RUN %TMP%\\vs_buildtools.exe --quiet --norestart --wait --nocache `
-     --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools" `
-     --add Microsoft.VisualStudio.Workload.MSBuildTools `
-     --add Microsoft.VisualStudio.Workload.UniversalBuildTools `
-     --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended `
-     --remove Microsoft.VisualStudio.Component.Windows10SDK.10240 `
-     --remove Microsoft.VisualStudio.Component.Windows10SDK.10586 `
-     --remove Microsoft.VisualStudio.Component.Windows10SDK.14393 `
-     --remove Microsoft.VisualStudio.Component.Windows81SDK || IF "%ERRORLEVEL%"=="3010" EXIT 0 && powershell set-executionpolicy remotesigned
-```
-
-In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
+   In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
+   
 
 #### Step 2: Run OpenVINO Docker* image on CPU
 

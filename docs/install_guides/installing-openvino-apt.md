@@ -31,6 +31,7 @@ The complete list of supported hardware is available in the [Release Notes](http
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       ```
       > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`   
+      
 2.	Add the repository via either of the following commands:
 
     * On Ubuntu 18:
