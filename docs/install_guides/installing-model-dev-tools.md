@@ -28,7 +28,7 @@ pip install -r <installdir>\tools\requirements_tensorflow2.txt
 
 ### Install from the openvino-dev package
 
-You can use zthe following command to install the latest package version available in the index:
+You can use the following command to install the latest package version available in the index:
 ```
 pip install openvino-dev[EXTRAS]
 ```
