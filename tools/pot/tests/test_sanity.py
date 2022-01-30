@@ -31,8 +31,8 @@ TEST_MODELS = [
                                                                               'accuracy@top5': 0.906},
      {}, 'CPU'),
 
-    ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.721,
-                                                                                  'accuracy@top5': 0.907},
+    ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.728,
+                                                                                  'accuracy@top5': 0.909},
      {'use_fast_bias': False}, 'CPU'),
 
     ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.728,
@@ -169,7 +169,7 @@ def test_sample_compression(_sample_params, tmp_path, models):
 
 SIMPLIFIED_TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.701, 'accuracy@top5': 0.91})
+     {'accuracy@top1': 0.707, 'accuracy@top5': 0.91})
 ]
 
 
