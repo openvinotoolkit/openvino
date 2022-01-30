@@ -85,6 +85,7 @@ public:
     std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
+    void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
     void executeDynamicImpl(mkldnn::stream strm) override;
@@ -106,6 +107,7 @@ private:
     void calc_dims_size(const InferenceEngine::SizeVector &layout_dims);
     void topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx,
                    const InferenceEngine::SizeVector &in_dims, std::function<float(float, float)> compare) const;
+    void preset_params();
     void prepare_original_idx();
 
     bool topk_innermost;
@@ -118,13 +120,12 @@ private:
     static const size_t TOPK_INDEX = 1;
     size_t O, A, I;
     size_t blk_size;
-    size_t count_xmm;
     size_t data_size;
     size_t axis_dim;
     int top_k;
     int dim, before_num;
     bool bubble_inplace;
-    bool compile_kernel;
+    bool preset_params_done;
 
     InferenceEngine::SizeVector src_dims, dst_dims;
     TopKLayoutType layout;
