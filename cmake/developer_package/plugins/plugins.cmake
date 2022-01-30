@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -186,19 +186,24 @@ macro(ie_register_plugins_dynamic)
 
     # Unregister <device_name>.xml files for plugins from current build tree
 
-    set(plugins_to_remove ${IE_REGISTER_POSSIBLE_PLUGINS})
     set(config_output_file "$<TARGET_FILE_DIR:${IE_REGISTER_MAIN_TARGET}>/plugins.xml")
 
-    foreach(plugin IN LISTS plugins_to_remove)
+    foreach(name IN LISTS PLUGIN_FILES)
+        string(REPLACE ":" ";" name "${name}")
+        list(LENGTH name length)
+        if(NOT ${length} EQUAL 2)
+            message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
+        endif()
+        list(GET name 0 device_name)
         add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
                   COMMAND
                     "${CMAKE_COMMAND}"
                     -D "IE_CONFIG_OUTPUT_FILE=${config_output_file}"
-                    -D "IE_PLUGIN_NAME=${plugin}"
+                    -D "IE_PLUGIN_NAME=${device_name}"
                     -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
                     -P "${IEDevScripts_DIR}/plugins/unregister_plugin_cmake.cmake"
                   COMMENT
-                    "Remove ${plugin} from the plugins.xml file"
+                    "Remove ${device_name} from the plugins.xml file"
                   VERBATIM)
     endforeach()
 

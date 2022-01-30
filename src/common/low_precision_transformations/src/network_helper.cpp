@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1679,11 +1679,14 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
         const auto concatNode = as_type_ptr<opset1::Concat>(operation);
         auto axis = concatNode->get_concatenation_axis();
         if (dequantization.multiply && dequantization.multiplyConstant->get_shape().size() > 1 && dequantization.multiplyConstant->get_shape()[axis] != 1) {
-            multiplyConstants = NetworkHelper::split_consts_before_concat(operation, { dequantization.multiplyConstant });
+            multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
         }
         if (dequantization.subtract && dequantization.subtractConstant->get_shape().size() > 1 && dequantization.subtractConstant->get_shape()[axis] != 1) {
-            subtractConstants = NetworkHelper::split_consts_before_concat(operation, { dequantization.subtractConstant });
+            subtractConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.subtractConstant });
         }
+    } else {
+        multiplyConstants = {{ dequantization.multiplyConstant }};
+        subtractConstants = {{ dequantization.subtractConstant }};
     }
     std::vector<std::shared_ptr<ngraph::Node>> newNodes;
     for (size_t i = 0; i < operation->get_input_size(); ++i) {
@@ -1750,21 +1753,17 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     NetworkHelper::copyInfo(operation, newOperation);
     replace_node(dequantization.multiply, newOperation);
 
-    auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
-    if (op != nullptr) {
-        if (updatePrecision) {
-            op->set_overridden_output_type(newOperation->get_input_element_type(0));
-        } else if (dequantization.multiply) {
-            op->set_overridden_output_type(dequantization.multiplyConstant->get_element_type());
-        } else if (dequantization.subtract) {
-            op->set_overridden_output_type(dequantization.subtractConstant->get_element_type());
-        }
-        std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
+    if (const auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation)) {
+        op->set_overridden_output_type(updatePrecision ?
+            newOperation->get_input_element_type(0) :
+            dequantization.multiplyConstant->get_element_type());
+        newOperation->validate_and_infer_types();
     }
+
     return InsertDequantizationResult(newOperation, dequantization.multiply);
 }
 
-std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelper::split_consts_before_concat(const std::shared_ptr<ov::Node> concat,
+std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelper::splitConstantsBeforeConcat(const std::shared_ptr<ov::Node> concat,
     const std::vector<std::shared_ptr<opset1::Constant>> currConstants) {
     std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> newConstants(currConstants.size());
     auto number_of_concat_inputs = concat->get_input_size();
@@ -1777,7 +1776,8 @@ std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelpe
     }
     for (size_t i = 0; i < currConstants.size(); ++i) {
         std::vector<std::shared_ptr<ngraph::opset1::Constant>> newConstant;
-        if (currConstants[i]->output(0).get_shape()[concat_axis] == 1) {
+        const auto const_shape = currConstants[i]->get_shape();
+        if (ov::shape_size(const_shape) == 1 || const_shape[concat_axis] == 1) {
             newConstant.push_back(currConstants[i]);
             newConstants[i] = newConstant;
             continue;
@@ -1788,7 +1788,8 @@ std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelpe
         OutputVector outputResults(split->get_output_size());
         auto foldResult = split->constant_fold(outputResults, split->input_values());
         if (!foldResult) {
-            // handle potential constant fold issue here
+            THROW_IE_LPT_EXCEPTION(*concat) << "error when splitting constants before concat " <<
+                concat->get_friendly_name();
         }
         for (auto outputResult : outputResults) {
             auto constant = as_type_ptr<opset1::Constant>(outputResult.get_node_shared_ptr());
@@ -1932,74 +1933,6 @@ std::vector<element::Type> NetworkHelper::precisionIntersection(
     }
 
     return v3;
-}
-
-bool NetworkHelper::isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq) {
-    const auto pInputShape = fq->get_input_partial_shape(0);
-    const auto olPShape = fq->get_input_partial_shape(3);
-    assert(olPShape.is_static());
-    auto olShape = olPShape.to_shape();
-
-    if (shape_size(olShape) > 1ul) {
-        if (pInputShape.rank().is_dynamic()) {
-            return true;
-        }
-
-        const size_t rank = pInputShape.rank().get_length();
-        while (olShape.size() < rank) {
-            olShape.insert(olShape.begin(), 1ul);
-        }
-
-        for (size_t i = 0; i < olShape.size(); ++i) {
-            if (olShape[i] != 1ul && pInputShape[i].is_dynamic()) {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-bool NetworkHelper::isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx) {
-    const auto dequantization = getDequantization(layer, inputIdx);
-    if (dequantization.empty()) {
-        return false;
-    }
-
-    const auto dataPShape = dequantization.data.get_partial_shape();
-    auto constantByDynamicDymension = [&dataPShape](const std::shared_ptr<opset1::Constant>& constant) {
-        auto constShape = constant->get_shape();
-        if (shape_size(constShape) == 1ul) {
-            return false;
-        }
-
-        const auto rank = dataPShape.rank();
-        if (rank.is_dynamic()) {
-            return true;
-        }
-
-        const size_t rankValue = rank.get_length();
-        while (constShape.size() < rankValue) {
-            constShape.insert(constShape.begin(), 1ul);
-        }
-
-        for (size_t i = 0; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul && dataPShape[i].is_dynamic()) {
-                return true;
-            }
-        }
-
-        return false;
-    };
-
-    if (dequantization.subtract && constantByDynamicDymension(dequantization.subtractConstant)) {
-        return true;
-    }
-    if (dequantization.multiply && constantByDynamicDymension(dequantization.multiplyConstant)) {
-        return true;
-    }
-
-    return false;
 }
 
 bool isDisabled(const std::shared_ptr<Node>& node) {

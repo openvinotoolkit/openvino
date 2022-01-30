@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,6 +114,8 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
     message_list.emplace_back("OV_GPU_DryRunPath", "Dry run and serialize execution graph into the specified path");
     message_list.emplace_back("OV_GPU_BaseBatchForMemEstimation", "Base batch size to be used in memory estimation");
+    message_list.emplace_back("OV_GPU_AfterProc", "Run inference after the specified process PIDs are finished, separated by space."
+                              " Supported on only on linux.");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
@@ -157,6 +159,8 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
     std::string dump_layers_str;
     get_gpu_debug_env_var("DumpLayers", dump_layers_str);
+    std::string after_proc_str;
+    get_gpu_debug_env_var("AfterProc", after_proc_str);
 
     if (help > 0) {
         print_help_messages();
@@ -170,6 +174,19 @@ debug_configuration::debug_configuration()
         while (ss >> layer) {
             dump_layers.push_back(layer);
         }
+    }
+
+    if (after_proc_str.length() > 0) {
+#ifdef _WIN32
+        GPU_DEBUG_COUT << "Warning: OV_GPU_AfterProc is supported only on linux" << std::endl;
+#else
+        after_proc_str = " " + after_proc_str + " "; // Insert delimiter for easier parsing when used
+        std::stringstream ss(after_proc_str);
+        std::string pid;
+        while (ss >> pid) {
+            after_proc.push_back(pid);
+        }
+#endif
     }
 #endif
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,7 +15,7 @@ ov_add_test_target(
         INCLUDES
             "${TEMPLATE_PLUGIN_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
-        ADD_CPPLINT
+        # ADD_CPPLINT
         LABELS
             TEMPLATE
 )

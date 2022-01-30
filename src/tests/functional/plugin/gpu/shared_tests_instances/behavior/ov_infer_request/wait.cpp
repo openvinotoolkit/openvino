@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,17 +10,21 @@ using namespace ov::test::behavior;
 
 namespace {
 
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
         {},
         {{InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}},
 };
 
-const std::vector<std::map<std::string, std::string>> Multiconfigs = {
+const std::vector<ov::AnyMap> Multiconfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
 };
 
-const std::vector<std::map<std::string, std::string>> Autoconfigs = {
+const std::vector<ov::AnyMap> Autoconfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
+};
+
+const std::vector<ov::AnyMap> AutoBatchConfigs = {
+        {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestWaitTests,
@@ -41,4 +45,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestWaitTests,
                                 ::testing::ValuesIn(Autoconfigs)),
                             OVInferRequestWaitTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestWaitTests,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                 ::testing::ValuesIn(AutoBatchConfigs)),
+                            OVInferRequestWaitTests::getTestCaseName);
 }  // namespace

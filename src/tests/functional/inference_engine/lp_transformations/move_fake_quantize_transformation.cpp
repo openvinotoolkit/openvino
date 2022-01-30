@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,16 +114,18 @@ inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransfo
 typedef std::tuple <
     ngraph::element::Type,
     std::vector<ngraph::PartialShape>,
-    MoveFakeQuantizeTransformationTestValues
+    MoveFakeQuantizeTransformationTestValues,
+    bool
 > MoveFakeQuantizeTransformationParams;
 
 class MoveFakeQuantizeTransformation : public LayerTransformation, public testing::WithParamInterface<MoveFakeQuantizeTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
-        const std::vector<ngraph::PartialShape> shape = std::get<1>(GetParam());
+        std::vector<ngraph::PartialShape> inputShapes = std::get<1>(GetParam());
         //const auto shape = std::get<1>(GetParam());
         MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
+        const bool oneInputWithSplit = std::get<3>(GetParam());
         // dequantization output precision depends on input precision
         // to avoid huge amount of tests cases let's define dequantization output precision as input precision
         if (!testValues.actual.dequantizationBefore.multiply.empty()) {
@@ -134,7 +136,7 @@ public:
 
         actualFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(
             precision,
-            shape,
+            inputShapes,
             testValues.actual.number_of_operations,
             testValues.actual.fakeQuantizeBefore,
             testValues.actual.convertBefore,
@@ -149,7 +151,9 @@ public:
                 QuantizationAlignmentAttribute(false)
             },
             ngraph::element::undefined,
-            testValues.axis);
+            testValues.axis,
+            oneInputWithSplit);
+
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
                 ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
             });
@@ -179,7 +183,7 @@ public:
 
         referenceFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(
             precision,
-            shape,
+            inputShapes,
             testValues.result.number_of_operations,
             testValues.result.fakeQuantizeBefore,
             testValues.result.convertBefore,
@@ -194,12 +198,14 @@ public:
                 QuantizationAlignmentAttribute(false)
             },
             testValues.result.precisionAfterOperation,
-            testValues.axis);
+            testValues.axis,
+            oneInputWithSplit);
     }
     static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
         const ngraph::element::Type precision = std::get<0>(obj.param);
         const std::vector<ngraph::PartialShape> shape = std::get<1>(obj.param);
         const MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(obj.param);
+        const bool oneInputWithSplit = std::get<3>(obj.param);
 
         std::ostringstream result;
         result <<
@@ -207,7 +213,8 @@ public:
             (testValues.multiChannels ? "multiChannels_" : "notMultiChannels_") <<
             "axis_" << testValues.axis << "_" <<
             testValues.actual << "_" <<
-            testValues.result << "_";
+            testValues.result << "_" <<
+            oneInputWithSplit;
         return result.str();
     }
 };
@@ -231,10 +238,14 @@ const std::vector<ngraph::element::Type> precisions = {
 
 namespace testValues1 {
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {
-    {{ 1, 3, 9, 9 }},
-    {{ 4, 3, 9, 9 }},
-    {{ Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }}
+    {{ 1, 1, 9, 9 }, { 1, 1, 9, 9 }},
+    {{ 4, 3, 9, 9 }, { 4, 3, 9, 9 }},
+    {
+        { Dimension::dynamic(), 1, Dimension::dynamic(), Dimension::dynamic() },
+        { Dimension::dynamic(), 1, Dimension::dynamic(), Dimension::dynamic() }
+    }
 };
+
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
      // without operation
     {
@@ -424,19 +435,22 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn({ false, true })),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues1
+
 namespace testValues2 {
 const std::vector<ngraph::element::Type> precisions = {
-ngraph::element::f32,
-ngraph::element::f16
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {
     {{ 1, 1, 224, 224 }, { 1, 2, 224, 224 }},
     {{ 4, 1, 9, 9 }, { 4, 2, 9, 9 }}
 };
+
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
     // multi-chanels
     {
@@ -478,15 +492,97 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
             {},
             {},
         }
-   },
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            2,
+            {},
+            {},
+            {},
+            "",
+            {
+                256ul,
+                {{}, {}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {-2.6f}, {2.6f},
+                {-31.7f, -35.7f, -49.1f},
+                {277.8f, 267.f, 254.9f}
+            },
+            {},
+            {}
+        },
+        {
+            2,
+            {
+                {256ul,
+                {{}, {}, {1, 1, 1, 1}, {1, 1, 1, 1}},
+                {-2.6}, {2.6f}, {-31.7f}, {277.8f}},
+                {256ul,
+                {{}, {}, {1, 2, 1, 1}, {1, 2, 1, 1}},
+                {-2.6f}, {2.6f},
+                {-35.7f, -49.1f},
+                {267.f, 254.9f}}
+            },
+            {},
+            {},
+            "",
+            {},
+            {},
+            {},
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            2,
+            {},
+            {},
+            {},
+            "",
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+                {-31.7f, -35.7f, -49.1f},
+                {277.8f, 267.f, 254.9f},
+                {-2.6f}, {2.6f},
+            },
+            {},
+            {}
+        },
+        {
+            2,
+            {
+                {256ul,
+                {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}},
+                {-31.7f}, {277.8f}, {-2.6}, {2.6f}},
+                {256ul,
+                {{1, 2, 1, 1}, {1, 2, 1, 1}, {}, {}},
+                {-35.7f, -49.1f},
+                {267.f, 254.9f},
+                {-2.6f}, {2.6f}}
+            },
+            {},
+            {},
+            "",
+            {},
+            {},
+            {},
+        }
+    },
 };
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     MoveFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn({ false })),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues2
 } // namespace

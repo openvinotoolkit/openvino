@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,6 +81,10 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
         outDataConf.emplace_back(LayoutType::ncsp);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     }
+}
+
+std::vector<VectorDims> MKLDNNRangeNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA));
 }
 
 void MKLDNNRangeNode::executeDynamicImpl(mkldnn::stream strm) {

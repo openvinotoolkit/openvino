@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -454,7 +454,7 @@ setup(
     long_description=get_description(os.getenv('WHEEL_OVERVIEW', SCRIPT_DIR.parents[3] / 'docs/install_guides/pypi-openvino-rt.md')),
     long_description_content_type='text/markdown',
     download_url=os.getenv('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
-    url=os.getenv('WHEEL_URL', 'https://docs.openvinotoolkit.org/latest/index.html'),
+    url=os.getenv('WHEEL_URL', 'https://docs.openvino.ai/latest/index.html'),
     cmdclass={
         'build': CustomBuild,
         'install': CustomInstall,

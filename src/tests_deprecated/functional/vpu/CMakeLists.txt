@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -72,7 +72,7 @@ addIeTargetTest(
         VPUCommonTests
     DEPENDENCIES
         ${VPU_DEPENDENCIES}
-        myriadPlugin
+        ov_intel_vpu_plugin
     LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
         VPU
         MYRIAD

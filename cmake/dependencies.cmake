@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -51,7 +51,7 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
     update_deps_cache(SYSTEM_PROTOC "${SYSTEM_PROTOC}" "Path to host protoc for ONNX Importer")
 endif()
 
-if(ENABLE_MYRIAD)
+if(ENABLE_INTEL_VPU)
     include(${IE_MAIN_SOURCE_DIR}/cmake/vpu_dependencies.cmake)
 endif()
 

@@ -9,9 +9,9 @@ Image Classification Async C++ sample application demonstrates how to use the fo
 | Feature    | API  | Description |
 |:---     |:--- |:---
 |OpenVINO Runtime Version| `ov::get_openvino_version` | Get Openvino API version
-|Available Devices| `ov::runtime::Core::get_available_devices`| Get version information of the devices for inference
-| Asynchronous Infer | `ov::runtime::InferRequest::start_async`, `ov::runtime::InferRequest::set_callback` | Do asynchronous inference with callback
-|Custom Extension Kernels| `ov::runtime::Core::add_extension`, `ov::runtime::Core::set_config`| Load extension library and config to the device
+|Available Devices| `ov::Core::get_available_devices`| Get version information of the devices for inference
+| Asynchronous Infer | `ov::InferRequest::start_async`, `ov::InferRequest::set_callback` | Do asynchronous inference with callback
+|Custom Extension Kernels| `ov::Core::add_extension`, `ov::Core::set_config`| Load extension library and config to the device
 | Model Operations | `ov::set_batch`, `ov::get_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count.
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
@@ -52,7 +52,7 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >

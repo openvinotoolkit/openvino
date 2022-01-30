@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,9 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
     bool isQuantized(const std::shared_ptr<const Node>& layer) const override;
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
+
+protected:
+    size_t getInputChannels(const std::shared_ptr<ngraph::Node> conv) const override;
 };
 
 } // namespace low_precision

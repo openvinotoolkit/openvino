@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,8 +109,8 @@ namespace testValues1 {
 const std::vector<ngraph::PartialShape> suitablePartialShapes = {
     ngraph::PartialShape({ 1, 3, 72, 48 }),
     ngraph::PartialShape({ 4, 3, 72, 48 }),
-    ngraph::PartialShape({ Dimension::dynamic(), 3, 72, 48 }),
-    ngraph::PartialShape({ 1, 3, Dimension::dynamic(), Dimension::dynamic() }),
+    ngraph::PartialShape({ -1, 3, 72, 48 }),
+    ngraph::PartialShape({ -1, -1, -1, -1 }),
 };
 
 const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
@@ -514,7 +514,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> unsuitablePartialShapes = {
-    ngraph::PartialShape({ Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }),
     PartialShape::dynamic(),
 };
 

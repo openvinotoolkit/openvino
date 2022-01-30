@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,10 +60,10 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
 bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_If_visit_attributes);
     visitor.on_attribute("then_body", m_bodies[THEN_BODY_INDEX]);
-    visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
     visitor.on_attribute("then_inputs", m_input_descriptions[THEN_BODY_INDEX]);
-    visitor.on_attribute("else_inputs", m_input_descriptions[ELSE_BODY_INDEX]);
     visitor.on_attribute("then_outputs", m_output_descriptions[THEN_BODY_INDEX]);
+    visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
+    visitor.on_attribute("else_inputs", m_input_descriptions[ELSE_BODY_INDEX]);
     visitor.on_attribute("else_outputs", m_output_descriptions[ELSE_BODY_INDEX]);
     return true;
 }
@@ -111,12 +111,12 @@ void ov::op::v8::If::validate_and_infer_types() {
                               val.size() == 1,
                               "The number of values in the If condition constant is greater than 1");
 
-        auto cond_index = val[0] ? THEN_BODY_INDEX : ELSE_BODY_INDEX;
-        auto body = m_bodies[cond_index];
-        auto input_descriptors = m_input_descriptions[cond_index];
-        validate_and_infer_type_body(body, input_descriptors);
+        validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
+        validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
         auto output_nodes = outputs();
 
+        auto cond_index = val[0] ? THEN_BODY_INDEX : ELSE_BODY_INDEX;
+        auto body = m_bodies[cond_index];
         // shape and type inference for outputs from If operations
         for (const auto& output_descr : m_output_descriptions[cond_index]) {
             auto body_value = body->get_results().at(output_descr->m_body_value_index)->input_value(0);

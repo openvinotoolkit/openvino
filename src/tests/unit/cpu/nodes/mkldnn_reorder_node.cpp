@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include "mkldnn_input_node.h"
 #include "mkldnn_edge.h"
 #include "mkldnn_node.h"
+#include "cache/multi_cache.h"
+
 /*
  * Test MKLDNNReorderNode::optimizedNcsp2Nspc() and MKLDNNReorderNode::optimizedNspc2Ncsp() for
  * inPlace and non-inPlace cases. Specifically, the test checks that dst batch strides are
@@ -71,6 +73,7 @@ protected:
         childEdge->changeStatus(MKLDNNPlugin::MKLDNNEdge::Status::NeedAllocation);
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
+        auto rtParamsCache = std::make_shared<MKLDNNPlugin::MultiCache>(100);
 
         const std::vector<size_t> srcBlockedDims = getBlockedDims(srcDims, srcOrder);
         const std::vector<size_t> srcStrides = getStrides(srcBlockedDims);
@@ -95,6 +98,7 @@ protected:
         childEdge->reuse(childMemory);
 
         reorderNode->setDescs(inputDesc, outputDesc);
+        reorderNode->setRuntimeCache(rtParamsCache);
         std::vector<std::shared_ptr<MKLDNNPlugin::MKLDNNNode>> nodes {inputNode, reorderNode, outputNode};
         for (auto &n : nodes) {
             n->init();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -291,6 +291,14 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
 
 void op::v0::LSTMSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_LSTMSequence_validate_and_infer_types);
+    for (const auto& input : inputs()) {
+        if (input.get_partial_shape().rank().is_dynamic()) {
+            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), ov::PartialShape::dynamic());
+            set_output_type(2, get_input_element_type(0), ov::PartialShape::dynamic());
+            return;
+        }
+    }
     std::vector<ov::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;

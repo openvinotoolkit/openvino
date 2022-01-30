@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,12 @@ bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<co
 
 bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, false);
+}
+
+size_t ConvolutionBackpropDataTransformation::getInputChannels(const std::shared_ptr<ngraph::Node> conv) const {
+    const auto channels = conv->get_input_partial_shape(1)[0];
+    assert(channels.is_static());
+    return channels.get_length();
 }
 
 bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {

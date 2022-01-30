@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -389,7 +389,7 @@ void MKLDNNSnippetNode::define_schedule() {
         size_t minimalJitWorkAmount = 256;
         size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount) {
-            if (dims_out[max_rank_out_desc_idx].size() - collapsedDims - 2 < 0)
+            if (static_cast<int>(dims_out[max_rank_out_desc_idx].size()) - collapsedDims - 2 < 0)
                 break;
 
             bool canCollapse = true;

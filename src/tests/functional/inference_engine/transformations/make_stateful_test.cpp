@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,9 @@ TEST(TransformationTests, make_stateful_by_name) {
 
         auto add = make_shared<Add>(read_val_x, read_val_y);
         auto assign_x = make_shared<Assign>(add, variable_x);
+        assign_x->add_control_dependency(read_val_x);
         auto assign_y = make_shared<Assign>(add, variable_y);
+        assign_y->add_control_dependency(read_val_y);
 
         f_ref = make_shared<Function>(ResultVector{}, SinkVector{assign_x, assign_y}, ParameterVector{});
         f_ref->validate_nodes_and_infer_types();
@@ -108,7 +110,9 @@ TEST(TransformationTests, make_stateful_by_param_res) {
 
         auto add = make_shared<Add>(read_val_x, read_val_y);
         auto assign_x = make_shared<Assign>(add, variable_x);
+        assign_x->add_control_dependency(read_val_x);
         auto assign_y = make_shared<Assign>(add, variable_y);
+        assign_y->add_control_dependency(read_val_y);
 
         f_ref = make_shared<Function>(ResultVector{}, SinkVector{assign_x, assign_y}, ParameterVector{});
         f_ref->validate_nodes_and_infer_types();

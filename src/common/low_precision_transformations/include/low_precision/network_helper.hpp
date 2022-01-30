@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -179,7 +179,7 @@ public:
         const bool updatePrecision,
         const bool moveSubtract);
 
-    static std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> split_consts_before_concat(
+    static std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> splitConstantsBeforeConcat(
         const std::shared_ptr<ov::Node> concat,
         const std::vector<std::shared_ptr<opset1::Constant>> currConstants);
 
@@ -209,10 +209,6 @@ public:
             const std::vector<element::Type>& v1,
             const std::vector<element::Type>& v2) noexcept;
 
-    static bool isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq);
-
-    static bool isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx = 0);
-
     static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 
     static void insertDequantizationAfter(
@@ -230,7 +226,7 @@ public:
                 continue;
             }
             attribute->sharedValue = sharedValue;
-            sharedValue->attributes.push_back(attribute);
+            sharedValue->addAttribute(attribute);
         }
     }
 

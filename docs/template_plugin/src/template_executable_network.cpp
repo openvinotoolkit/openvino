@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,10 +112,12 @@ void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<con
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
+    size_t idx = 0;
     for (auto&& result : _function->get_results()) {
         const auto& input = result->input_value(0);
         auto name = ngraph::op::util::get_ie_output_name(input);
-        _outputIndex.emplace(name, _function->get_result_index(result));
+        if (_outputIndex.emplace(name, idx).second)
+            idx++;
     }
     for (auto&& parameter : _function->get_parameters()) {
         _inputIndex.emplace(parameter->get_friendly_name(), _function->get_parameter_index(parameter));

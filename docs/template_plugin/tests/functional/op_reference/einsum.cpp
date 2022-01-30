@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,9 @@ using namespace ov;
 
 namespace {
 struct EinsumParams {
-    std::vector<Tensor> inputs;
+    std::vector<reference_tests::Tensor> inputs;
     std::string equation;
-    Tensor expectedResult;
+    reference_tests::Tensor expectedResult;
     std::string testcaseName;
 };
 
