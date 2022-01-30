@@ -115,6 +115,7 @@
 #include "nodes/mkldnn_normalize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
+#include "ngraph_transformations/align_eltwise_input_ranks.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -477,6 +478,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
     postLPTPassManager.register_pass<ReshapePRelu>();
+    postLPTPassManager.register_pass<AlignEltwiseInputRanks>();
 
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
         std::string errMsg;
