@@ -23,7 +23,7 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_MYRIAD, CommonTestUtils::CPU)}
+    {ov::device::priorities(CommonTestUtils::DEVICE_MYRIAD, CommonTestUtils::DEVICE_CPU)}
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
