@@ -645,7 +645,8 @@ namespace testValues3 {
         ::testing::Combine(
             ::testing::ValuesIn(precisions),
             ::testing::ValuesIn(shapes),
-            ::testing::ValuesIn(testValues)),
+            ::testing::ValuesIn(testValues),
+            ::testing::ValuesIn({ false })),
         MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues3
 } // namespace
