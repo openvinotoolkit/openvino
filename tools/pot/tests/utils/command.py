@@ -37,13 +37,16 @@ class Command:
             print(err)
 
     def run(self, timeout=3600):
+        env = os.environ.copy()
+        python_env = env["PYTHONPATH"]
+        print(f"!!!PYTHONPATH: {python_env}")
 
         def target():
             start_time = time.time()
             self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True,
                                             bufsize=1, **self.kwargs)
             self.timeout = False
-
+            print(f"!!!self.cmd: {self.cmd}")
             self.output = []
             for line in self.process.stdout:
                 line = line.decode('utf-8')
