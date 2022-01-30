@@ -32,7 +32,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         if (data.get_partial_shape().is_dynamic()) {
             return false;
         }
-
+        
         const auto block_const = std::dynamic_pointer_cast<opset3::Constant>(block.get_node_shared_ptr());
         const auto pads_begin_const = std::dynamic_pointer_cast<opset3::Constant>(pads_begin.get_node_shared_ptr());
         const auto pads_end_const = std::dynamic_pointer_cast<opset3::Constant>(pads_end.get_node_shared_ptr());
@@ -128,7 +128,6 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         }
 
         auto data = space_to_batch->input_value(0);
-
         if (data.get_partial_shape().is_dynamic()) {
             return false;
         }
@@ -145,14 +144,13 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         const auto block_const = as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
         const auto pads_begin_const = as_type_ptr<opset3::Constant>(pads_begin.get_node_shared_ptr());
         const auto pads_end_const = as_type_ptr<opset3::Constant>(pads_end.get_node_shared_ptr());
-
+        
         if (!block_const || !pads_begin_const || !pads_end_const) {
             return false;
         }
+
         const std::vector<int64_t> &block_values = block_const->cast_vector<int64_t>();
-
         NodeVector new_ops;
-
         std::shared_ptr<Node> flat_node = std::make_shared<opset3::Pad>(data, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
         new_ops.push_back(flat_node);
         auto out_shape = flat_node->get_shape();

@@ -59,6 +59,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
 
     static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
 
+    auto t_start1 = std::chrono::high_resolution_clock::now();
     size_t index = 0;
     stopwatch pass_timer;
     stopwatch overall_timer;
@@ -92,7 +93,12 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
             // on on entire ngraph::Function
+            auto t_start = std::chrono::high_resolution_clock::now();
+            std::cout << "run_passes matcher_pass start " << matcher_pass.get()->get_name() << "  " << matcher_pass.get()->m_name << std::endl;
             function_changed = GraphRewrite(matcher_pass).run_on_function(func);
+            auto t_end = std::chrono::high_resolution_clock::now();
+            double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end-t_start).count();
+            std::cout << "run_passes matcher_pass finish " << matcher_pass.get()->get_name() << "  " << matcher_pass.get()->m_name << " " << elapsed_time_ms << std::endl;
         }
         else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass))
         {
@@ -110,13 +116,23 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
             {
                 if (function_changed)
                 {
+                    auto t_start = std::chrono::high_resolution_clock::now();
+                    std::cout << "run_passes function_pass Validate start " << function_pass.get()->get_name() << "  " << function_pass.get()->m_name << std::endl;
                     function_pass->run_on_function(func);
                     function_changed = false;
+                    auto t_end = std::chrono::high_resolution_clock::now();
+                    double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end-t_start).count();
+                    std::cout << "run_passes function_pass Validate finish " << function_pass.get()->get_name() << "  "<< function_pass.get()->m_name << elapsed_time_ms << std::endl;
                 }
             }
             else
             {
+                auto t_start = std::chrono::high_resolution_clock::now();
+                std::cout << "run_passes function_pass else start " << function_pass.get()->get_name() << "  " << function_pass.get()->m_name << std::endl;
                 function_changed = function_pass->run_on_function(func);
+                auto t_end = std::chrono::high_resolution_clock::now();
+                double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end-t_start).count();
+                std::cout << "run_passes function_pass else finish " << function_pass.get()->get_name() << "  "<< function_pass.get()->m_name << " " << elapsed_time_ms << std::endl;
             }
         }
         else if (auto node_pass = dynamic_pointer_cast<NodePass>(pass))
@@ -127,10 +143,16 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
                              << "function is dynamic. Skipping this transformation";
                 continue;
             }
+
+            auto t_start = std::chrono::high_resolution_clock::now();
+            std::cout << "run_passes node_pass start " << node_pass.get()->get_name() << "  " << node_pass.get()->m_name << std::endl;
             for (shared_ptr<Node> n : func->get_ops())
             {
                 function_changed |= node_pass->run_on_node(n);
             }
+            auto t_end = std::chrono::high_resolution_clock::now();
+            double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end-t_start).count();
+            std::cout << "run_passes node_pass Validate finish " << node_pass.get()->get_name() << "  "<< node_pass.get()->m_name << elapsed_time_ms << std::endl;
         }
         NGRAPH_SUPPRESS_DEPRECATED_END
 
@@ -158,6 +180,10 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
             cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
         }
     }
+    auto t_end1 = std::chrono::high_resolution_clock::now();
+    auto elapsed_time_ms1 = std::chrono::duration<double, std::milli>(t_end1-t_start1).count();
+    std::cout << "run_passes 13 " << elapsed_time_ms1 << std::endl;
+
     if (profile_enabled)
     {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
