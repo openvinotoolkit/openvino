@@ -611,6 +611,9 @@ private:
             default:
                 assert(!"unknown src_dt");
         }
+
+        if (!isFloatCompatible(src_dt))
+            uni_vcvtdq2ps(vmm_val, vmm_val);
         add(rsp, vlen);
     }
 
