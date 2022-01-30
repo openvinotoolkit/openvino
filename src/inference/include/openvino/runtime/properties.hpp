@@ -292,7 +292,7 @@ namespace log {
  * @brief Enum to define possible log levels
  */
 enum class Level {
-    NO = -1,      //!< disable any loging
+    NO = -1,      //!< disable any logging
     ERR = 0,      //!< error events that might still allow the application to continue running
     WARNING = 1,  //!< potentially harmful situations which may further lead to ERROR
     INFO = 2,     //!< informational messages that display the progress of the application at coarse-grained level
@@ -304,7 +304,7 @@ enum class Level {
 inline std::ostream& operator<<(std::ostream& os, const Level& level) {
     switch (level) {
     case Level::NO:
-        return os << "NO";
+        return os << "LOG_NONE";
     case Level::ERR:
         return os << "LOG_ERROR";
     case Level::WARNING:
@@ -323,7 +323,7 @@ inline std::ostream& operator<<(std::ostream& os, const Level& level) {
 inline std::istream& operator>>(std::istream& is, Level& level) {
     std::string str;
     is >> str;
-    if (str == "NO") {
+    if (str == "LOG_NONE") {
         level = Level::NO;
     } else if (str == "LOG_ERROR") {
         level = Level::ERR;
@@ -556,6 +556,7 @@ constexpr static const auto FP32 = "FP32";                    //!< Device suppor
 constexpr static const auto BF16 = "BF16";                    //!< Device supports bf16 inference
 constexpr static const auto FP16 = "FP16";                    //!< Device supports fp16 inference
 constexpr static const auto INT8 = "INT8";                    //!< Device supports int8 inference
+constexpr static const auto INT16 = "INT16";                  //!< Device supports int16 inference
 constexpr static const auto BIN = "BIN";                      //!< Device supports binary inference
 constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device supports winograd optimization
 constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports model export and import
