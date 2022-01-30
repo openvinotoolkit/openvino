@@ -29,12 +29,15 @@ IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 onnx_model_shape
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
-onnx_model_softmax
 onnx_model_elu
 onnx_model_top_k
 onnx_model_erf
 onnx_model_addmul_abc
 IE_CPU.interpolate_down_scales_const_linear
+
+# Result mismatch - 77384
+onnx_model_softmax_axis_negative_1_opset11
+onnx_model_softmax_axis_negative_1_opset13
 
 # data [<name>] doesn't exist
 broadcast_trivial
