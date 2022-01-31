@@ -232,7 +232,7 @@ public:
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     void redefineDesc(MemoryDescPtr desc);
 
-    void SetData(const MKLDNNMemory& memory, bool ftz = true, bool dynBatch = false) const;
+    void SetData(const MKLDNNMemory& memory, bool ftz = true) const;
     void FillZero();
 
     const VectorDims& getStaticDims() const {

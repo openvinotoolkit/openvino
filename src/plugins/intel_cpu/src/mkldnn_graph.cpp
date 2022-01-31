@@ -177,6 +177,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     this->_name = network.getName();
 
     std::shared_ptr<const ov::Model> func = nullptr;
+    // we perform model cloning and reshaping on Replicate stage to preserve input/output information
+    // it help to perform a graph compilation like in static case
+    // and handle dynamic batch case in inference stage with minimal code changes
     if (config.isNewApi && config.batchLimit > 0) {
         auto upperBoundModel = ngraph::clone_function(*network.getFunction());
         std::map<ov::Output<ov::Node>, ov::PartialShape> newInShape;
@@ -755,7 +758,19 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
             MKLDNNMemory ext_mem(eng);
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
 
-            childEdge->getMemory().SetData(ext_mem, false, getProperty().batchLimit > 0);
+            // branch for handling dynamic batch feature in new API
+            if (getProperty().isNewApi && getProperty().batchLimit > 0 && ext_mem.getStaticDims()[0] != childEdge->getMemory().getStaticDims()[0]) {
+                auto newDims = childEdge->getMemory().getStaticDims();
+                newDims[0] = ext_mem.getStaticDims()[0];
+
+                auto tmpMem = MKLDNNMemory(eng);
+                auto newDesc = childEdge->getMemory().getDesc().cloneWithNewDims(newDims, true);
+                tmpMem.Create(newDesc, childEdge->getMemory().GetData(), false);
+
+                tmpMem.SetData(ext_mem, false);
+            } else {
+                childEdge->getMemory().SetData(ext_mem, false);
+            }
         }
 
         // todo: make sure 'name' exists in this map...
@@ -844,7 +859,19 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             MKLDNNMemory outBloMem(eng);
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
-            outBloMem.SetData(intr_blob, false, getProperty().batchLimit > 0);
+            // branch for handling dynamic batch feature in new API
+            if (getProperty().isNewApi && getProperty().batchLimit > 0 && outBloMem.getStaticDims()[0] != intr_blob.getStaticDims()[0]) {
+                auto newDims = intr_blob.getStaticDims();
+                newDims[0] = outBloMem.getStaticDims()[0];
+
+                auto tmpMem = MKLDNNMemory(eng);
+                auto newDesc = intr_blob.getDesc().cloneWithNewDims(newDims, true);
+                tmpMem.Create(newDesc, intr_blob.GetData(), false);
+
+                outBloMem.SetData(tmpMem, false);
+            } else {
+                outBloMem.SetData(intr_blob, false);
+            }
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
