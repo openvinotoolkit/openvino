@@ -796,8 +796,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             CNNNetwork reshaped(InferenceEngine::details::cloneNetwork(network));
             reshaped.getFunction()->reshape(batched_inputs);
             executableNetworkWithBatch =
-                ctx ? GetCore()->LoadNetwork(CNNNetwork{reshaped.getFunction()}, ctx, devCfgNoAutoBatch)
-                    : GetCore()->LoadNetwork(CNNNetwork{reshaped.getFunction()}, deviceName, devCfgNoAutoBatch);
+                ctx ? GetCore()->LoadNetwork(reshaped, ctx, devCfgNoAutoBatch)
+                    : GetCore()->LoadNetwork(reshaped, deviceName, devCfgNoAutoBatch);
         } catch (...) {
             executableNetworkWithBatch = {nullptr, nullptr};
         }
