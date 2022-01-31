@@ -633,3 +633,20 @@ TEST(type_prop, reshape_dynamic_value_and_label_propagation) {
     const auto& output_shape = bc->get_output_partial_shape(0);
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }
+
+TEST(type_prop, reshape_label_shape_propagation_minus_one) {
+    Dimension marked_0 = Dimension(-1);
+    ov::DimensionTracker::set_label(marked_0, 10);
+
+    PartialShape initial_shape = PartialShape{marked_0, 4, 3, 1};
+
+    auto input = std::make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = std::make_shared<op::Constant>(element::i64, Shape{2}, std::vector<int64_t>{-1, 12});
+
+    const auto reshape = std::make_shared<op::v1::Reshape>(input, output_pattern, false);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    ASSERT_EQ(output_shape, PartialShape({-1, 12}));
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[1]), 0);
+}
