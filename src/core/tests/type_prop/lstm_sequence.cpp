@@ -57,6 +57,39 @@ shared_ptr<opset5::LSTMSequence> lstm_seq_tensor_initialization(const recurrent_
     return lstm_sequence;
 }
 
+shared_ptr<opset5::LSTMSequence> lstm_seq_direction_initialization(const recurrent_sequence_parameters& param,
+                                                                   opset5::LSTMSequence::direction direction) {
+    auto batch_size = param.batch_size;
+    auto seq_length = param.seq_length;
+    auto input_size = param.input_size;
+    auto num_directions = param.num_directions;
+    auto hidden_size = param.hidden_size;
+    int64_t hidden_size_num = hidden_size.is_dynamic() ? 0 : hidden_size.get_length();
+    auto et = param.et;
+
+    const auto X = make_shared<opset5::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
+    const auto initial_hidden_state =
+        make_shared<opset5::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+    const auto initial_cell_state =
+        make_shared<opset5::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<opset5::Parameter>(et, PartialShape{batch_size});
+    const auto W = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 4, input_size});
+    const auto R = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 4, hidden_size});
+    const auto B = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 4});
+
+    auto lstm_sequence = make_shared<opset5::LSTMSequence>(X,
+                                                           initial_hidden_state,
+                                                           initial_cell_state,
+                                                           sequence_lengths,
+                                                           W,
+                                                           R,
+                                                           B,
+                                                           hidden_size_num,
+                                                           direction);
+
+    return lstm_sequence;
+}
+
 shared_ptr<opset1::LSTMSequence> lstm_seq_v1_tensor_initialization(const recurrent_sequence_parameters& param) {
     auto batch_size = param.batch_size;
     auto seq_length = param.seq_length;
@@ -297,7 +330,7 @@ TEST(type_prop, lstm_sequence_dynamic_batch_size) {
     recurrent_sequence_parameters param;
 
     param.batch_size = Dimension::dynamic();
-    param.num_directions = 2;
+    param.num_directions = 1;
     param.seq_length = 12;
     param.input_size = 8;
     param.hidden_size = 256;
@@ -330,12 +363,11 @@ TEST(type_prop, lstm_sequence_dynamic_num_directions) {
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
     lstm_sequence->validate_and_infer_types();
 
+    // Output 'num_directions' is '1' due to default FORWARD direction
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(0),
-              (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1),
-              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2),
-              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+              (PartialShape{param.batch_size, 1, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2), (PartialShape{param.batch_size, 1, param.hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), param.et);
@@ -345,7 +377,7 @@ TEST(type_prop, lstm_sequence_dynamic_seq_length) {
     recurrent_sequence_parameters param;
 
     param.batch_size = 24;
-    param.num_directions = 2;
+    param.num_directions = 1;
     param.seq_length = Dimension::dynamic();
     param.input_size = 8;
     param.hidden_size = 256;
@@ -369,7 +401,7 @@ TEST(type_prop, lstm_sequence_dynamic_hidden_size) {
     recurrent_sequence_parameters param;
 
     param.batch_size = 24;
-    param.num_directions = 2;
+    param.num_directions = 1;
     param.seq_length = 12;
     param.input_size = 8;
     param.hidden_size = Dimension::dynamic();
@@ -403,11 +435,9 @@ TEST(type_prop, lstm_sequence_dynamic_inputs) {
     lstm_sequence->validate_and_infer_types();
 
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(0),
-              (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1),
-              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2),
-              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+              (PartialShape{param.batch_size, 1, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2), (PartialShape{param.batch_size, 1, param.hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), param.et);
@@ -479,10 +509,34 @@ TEST(type_prop, lstm_sequence_invalid_input_direction) {
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
     try {
         lstm_sequence->validate_and_infer_types();
+        FAIL() << "LSTMSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter direction must be Forward or Reverse or Bidirectional"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
     }
+}
+
+TEST(type_prop, lstm_sequence_invalid_input_direction_num_mismatch) {
+    auto check_error = [](op::RecurrentSequenceDirection direction, int num_directions) {
+        recurrent_sequence_parameters param;
+
+        param.batch_size = 24;
+        param.num_directions = num_directions;
+        param.seq_length = 12;
+        param.input_size = 8;
+        param.hidden_size = 256;
+        param.et = element::f32;
+        try {
+            auto gru_sequence = lstm_seq_direction_initialization(param, direction);
+            gru_sequence->validate_and_infer_types();
+            FAIL() << "LSTMSequence node was created with invalid data.";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
+        }
+    };
+
+    check_error(op::RecurrentSequenceDirection::BIDIRECTIONAL, 1);
+    check_error(op::RecurrentSequenceDirection::FORWARD, 2);
+    check_error(op::RecurrentSequenceDirection::REVERSE, 2);
 }
 
 TEST(type_prop, lstm_sequence_v1_dynamic_num_directions) {
@@ -499,11 +553,9 @@ TEST(type_prop, lstm_sequence_v1_dynamic_num_directions) {
     lstm_sequence->validate_and_infer_types();
 
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(0),
-              (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1),
-              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2),
-              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+              (PartialShape{param.batch_size, 1, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2), (PartialShape{param.batch_size, 1, param.hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), param.et);
@@ -513,7 +565,7 @@ TEST(type_prop, lstm_sequence_v1_dynamic_seq_length) {
     recurrent_sequence_parameters param;
 
     param.batch_size = 24;
-    param.num_directions = 2;
+    param.num_directions = 1;
     param.seq_length = Dimension::dynamic();
     param.input_size = 8;
     param.hidden_size = 256;
@@ -537,7 +589,7 @@ TEST(type_prop, lstm_sequence_v1_dynamic_hidden_size) {
     recurrent_sequence_parameters param;
 
     param.batch_size = 24;
-    param.num_directions = 2;
+    param.num_directions = 1;
     param.seq_length = 12;
     param.input_size = 8;
     param.hidden_size = Dimension::dynamic();
@@ -571,11 +623,9 @@ TEST(type_prop, lstm_sequence_v1_dynamic_inputs) {
     lstm_sequence->validate_and_infer_types();
 
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(0),
-              (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1),
-              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2),
-              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+              (PartialShape{param.batch_size, 1, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(2), (PartialShape{param.batch_size, 1, param.hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), param.et);
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), param.et);
@@ -647,8 +697,17 @@ TEST(type_prop, lstm_sequence_v1_invalid_input_direction) {
     auto lstm_sequence = lstm_seq_v1_tensor_initialization(param);
     try {
         lstm_sequence->validate_and_infer_types();
+        FAIL() << "LSTMSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter direction must be Forward or Reverse or Bidirectional"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
+    }
+
+    param.num_directions = 2;  // 2 is also not allowed for default 'm_direction' = FORWARD
+    lstm_sequence = lstm_seq_v1_tensor_initialization(param);
+    try {
+        lstm_sequence->validate_and_infer_types();
+        FAIL() << "LSTMSequence node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
     }
 }

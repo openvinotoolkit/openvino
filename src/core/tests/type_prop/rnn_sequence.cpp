@@ -122,7 +122,7 @@ TEST(type_prop, rnn_sequence_invalid_input) {
             make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
         FAIL() << "RNNSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter num_directions not match direction in RNNSequence."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
     }
 }
 
