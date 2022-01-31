@@ -117,6 +117,8 @@ layout program_helpers::get_weights_layout(typed_program_node<cldnn::data>& data
 std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, layout const& l2) {
     const auto& l1_pad = l1.data_padding;
     const auto& l2_pad = l2.data_padding;
+    if (l1.is_dynamic() || l2.is_dynamic())
+        return {false, false};
     auto offset_last_element_l1 = l1.get_linear_offset(l1.get_tensor() - tensor{1});
     auto offset_last_element_l2 = l2.get_linear_offset(l2.get_tensor() - tensor{1});
     if (l1 == l2)

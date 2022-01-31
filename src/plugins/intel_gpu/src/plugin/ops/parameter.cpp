@@ -29,9 +29,13 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputInfo = networkInputs.at(op->get_friendly_name());
     // first create and add the input layout
     const auto inputDesc = inputInfo->getTensorDesc();
-    const auto inputDims = inputDesc.getDims();
+    auto inputDims = op->get_partial_shape();
     InferenceEngine::Layout l = inputDesc.getLayout();
     InferenceEngine::Precision ip = inputDesc.getPrecision();
+
+    for (size_t i = inputDims.size(); i < 4; i++) {
+        inputDims.push_back(1);
+    }
 
     cldnn::format inputFormat = cldnn::format::bfyx;
     if (InferenceEngine::Layout::BLOCKED == l && 6 == inputDims.size()) {
@@ -40,60 +44,9 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         inputFormat = FormatFromLayout(l);
     }
 
-    cldnn::tensor dataTensor;
-    cldnn::tensor::value_type batch = (p.m_max_batch <= 1) ? (!inputDims.empty() ? TensorValue(inputDims[0]) : 1)
-                                                           : TensorValue(p.m_curBatch);
-    switch (inputDims.size()) {
-    case 6:
-        dataTensor = cldnn::tensor(cldnn::batch(batch),
-                                   cldnn::feature(inputDims[1]),
-                                   cldnn::spatial(inputDims[5], inputDims[4], inputDims[3], inputDims[2]));
-        break;
-    case 5:
-        if (InferenceEngine::Layout::NCDHW == l) {
-            dataTensor = cldnn::tensor(cldnn::batch(batch),
-                                       cldnn::feature(inputDims[1]),
-                                       cldnn::spatial(inputDims[4], inputDims[3], inputDims[2]));
-        } else {
-            IE_THROW()  << "Unsupported layout (" << l << ") in 5D input " << inputInfo->name();
-        }
-        break;
-    case 4:
-        if (InferenceEngine::Layout::NCHW == l || InferenceEngine::Layout::CHW == l) {
-            dataTensor = cldnn::tensor(batch,
-                                       TensorValue(inputDims[1]), TensorValue(inputDims[3]), TensorValue(inputDims[2]));
-        } else if (InferenceEngine::Layout::NHWC == l) {
-            dataTensor = cldnn::tensor(batch,
-                                       TensorValue(inputDims[1]), TensorValue(inputDims[3]), TensorValue(inputDims[2]));
-        } else {
-            IE_THROW() << "Unsupported layout (" << l << ") in 4D input " + inputInfo->name();
-        }
-        break;
-    case 3:
-        if (InferenceEngine::Layout::CHW == l) {
-            dataTensor = cldnn::tensor(TensorValue(inputDims[0]), TensorValue(inputDims[1]), 1, TensorValue(inputDims[2]));
-        } else {
-            IE_THROW() << "Unsupported layout (" << l << ") in 3D input " + inputInfo->name();
-        }
-        break;
-    case 2:
-        if (InferenceEngine::Layout::NCHW == l || NC == l) {
-            dataTensor = cldnn::tensor(batch, TensorValue(inputDims[1]), 1, 1);
-        } else {
-            IE_THROW() << "Unsupported layout (" << l << ") in 2D input " << inputInfo->name();
-        }
-        break;
-    case 1:
-        dataTensor = cldnn::tensor(TensorValue(inputDims[0]), 1, 1, 1);
-        break;
-    case 0:
-        dataTensor = cldnn::tensor(1, 1, 1, 1);
-        break;
-    default: IE_THROW() << "Invalid data dimensions";
-    }
     cldnn::layout networkInputLayout(DataTypeFromPrecision(ip),
                                      inputFormat,
-                                     dataTensor);
+                                     inputDims);
 
     // look at the expected color format of this input
     auto inputName = layer_type_name_ID(op);
@@ -101,7 +54,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     size_t meanChannels = preProcess.getNumberOfChannels();
     networkInputLayout = cldnn::layout{DataTypeFromPrecision(op->get_output_element_type(0)),
                                        inputFormat,
-                                       networkInputLayout.get_tensor().transform(inputFormat, 1)};
+                                       inputDims};
     cldnn::primitive_id meanBlobID = inputName + Program::m_meanValuesTag;
     std::vector<float> meanValues;
 
@@ -134,7 +87,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         default:
             IE_THROW() << "Missing batch dimensions in input image";
         }
-        const TensorDesc desc(Precision::FP32, meanDims, TensorDesc::getLayoutByDims(meanDims));
+        const TensorDesc desc(Precision::FP32, meanDims.to_shape(), TensorDesc::getLayoutByDims(meanDims.to_shape()));
         TBlob<float> meanBlob(desc);
         meanBlob.allocate();
         auto meanBlobData = meanBlob.data();
@@ -158,7 +111,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
         auto data = static_cast<const char *>(meanBlobPtr->buffer());
 
-        auto bufIter = p.blobMemCache.find(std::make_pair(data, meanDims));
+        auto bufIter = p.blobMemCache.find(std::make_pair(data, meanDims.to_shape()));
         if (bufIter != p.blobMemCache.end()) {
             meanBlobID = bufIter->second;
         } else {
@@ -170,7 +123,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             std::memcpy(&buf[0], &data[0], bufSize);
 
             p.AddPrimitive(cldnn::data(meanBlobID, mem));
-            p.blobMemCache[std::make_pair(data, meanDims)] = meanBlobID;
+            p.blobMemCache[std::make_pair(data, meanDims.to_shape())] = meanBlobID;
         }
         break;
     }
@@ -198,10 +151,10 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         }
 
         if (networkInputLayout.format == cldnn::format::nv12 && networkInputLayout.batch() > 1) {
-            networkInputLayout.size = { 1, TensorValue(inputDims[3]), TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
+            networkInputLayout.size = { 1, inputDims[3], inputDims[2], inputDims[1] };
 
             std::vector<cldnn::primitive_id> inputs;
-            for (size_t i = 0; i < inputDims[0]; ++i) {
+            for (size_t i = 0; i < inputDims[0].get_length(); ++i) {
                 std::string batched_name = inputName + "_" + std::to_string(i);
                 p.inputLayouts.insert({ inputInfo->name() + "_" + std::to_string(i), networkInputLayout });
                 inputs.emplace_back(batched_name);
@@ -209,8 +162,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 p.AddPrimitiveToProfiler(op);
             }
         } else {
-            networkInputLayout.size = { TensorValue(inputDims[0]), TensorValue(inputDims[3]),
-                                        TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
+            networkInputLayout.size = { inputDims[0], inputDims[3],
+                                        inputDims[2], inputDims[1] };
 
             p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
             p.AddPrimitive(cldnn::input_layout(inputName, networkInputLayout, inputInfo->name()));
@@ -225,11 +178,11 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 IE_THROW() << "Unsupported layout (" << l << ") or precision "
                                    << ip.name() << ") for NV12 input " + inputInfo->name();
             }
-            int height = inputDims[2];
-            int width = inputDims[3];
+            int height = inputDims[2].get_length();
+            int width = inputDims[3].get_length();
             std::vector<cldnn::primitive_id> reorders;
 
-            for (auto i = 0; i < inputDims[0]; i++) {
+            for (auto i = 0; i < inputDims[0].get_length(); i++) {
                 auto preprocessPrimID = "reorder:" + inputName + std::to_string(i) + Program::m_preProcessTag;
                 std::string y_name = inputName + "_Y" + std::to_string(i);
                 std::string uv_name = inputName + "_UV" + std::to_string(i);
@@ -278,7 +231,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 reorders.push_back(preprocessPrimID);
             }
 
-            if (inputDims[0] > 1) {
+            if (inputDims[0].get_length() > 1) {
                 auto concatPrimID = "concat:" + inputName + Program::m_preProcessTag;
                 p.AddPrimitive(cldnn::concatenation(concatPrimID, reorders, 0, op->get_friendly_name()));
                 p.primitiveIDs[inputName] = concatPrimID;

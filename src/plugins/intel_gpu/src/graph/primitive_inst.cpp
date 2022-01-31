@@ -106,9 +106,11 @@ void primitive_inst::realloc_if_needed() {
 void primitive_inst::update_impl() {
     update_shape();
     if (!_node.is_type<data>() && !(_node.is_type<mutable_data>() && _node.get_dependencies().empty())) {
+        std::cerr << "update impl for node " << id() << std::endl;
         _impl = std::move(_node.type()->choose_impl(_node));
         _network.get_program()->compile();
         _impl->init_kernels();
+        std::cerr << "new impl " << (_impl != nullptr ? _impl->get_kernel_name() : "Nullptr") << std::endl;
     }
 }
 

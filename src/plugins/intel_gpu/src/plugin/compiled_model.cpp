@@ -8,6 +8,7 @@
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
+#include "intel_gpu/plugin/infer_request_legacy.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -63,8 +64,8 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_p
 IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                  OutputsDataMap networkOutputs) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::CreateInferRequestImpl");
-    auto ptr = std::make_shared<InferRequest>(networkInputs, networkOutputs,
-                                              std::static_pointer_cast<CompiledModel>(shared_from_this()));
+    auto ptr = std::make_shared<InferRequestLegacy>(networkInputs, networkOutputs,
+                                                    std::static_pointer_cast<CompiledModel>(shared_from_this()));
     if (m_config.throughput_streams > 1) {
         ptr->EnableStreams();
     }

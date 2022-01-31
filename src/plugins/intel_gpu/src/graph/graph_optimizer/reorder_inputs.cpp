@@ -619,7 +619,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto& input = fc_node.input();
         auto input_layout = input.get_output_layout();
         // Change input data of fully-connected node from bx to bf
-        if (format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
+        if (!input_layout.is_dynamic() && format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
             input_layout.feature() == 1 && input_layout.spatial(0) != 1 && input_layout.spatial(1) == 1) {
             auto new_tensor = input_layout.get_tensor();
             new_tensor.feature[0] = input_layout.spatial(0);

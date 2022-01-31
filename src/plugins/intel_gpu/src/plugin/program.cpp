@@ -155,16 +155,6 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
         shapes[pname] = param->get_output_partial_shape(0);
         batch_dim[pname].first = 0;
         batch_dim[pname].second = m_config.max_dynamic_batch;
-    } else {
-        dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
-        if (dyn_shape_batch_found) {
-            m_config.max_dynamic_batch = batch_dim.begin()->second.second;
-        } else {
-            if (!batch_dim.empty() && shapes.empty()) {
-                // more than on dynamic dim or dynamic rank
-                IE_THROW() << "Only dynamic batch is supported!";
-            }
-        }
     }
 
     int m_bv_sz = GetMaxBatchSizeForSingleProgram();

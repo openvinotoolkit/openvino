@@ -958,4 +958,5 @@ memory::ptr network::get_memory_from_pool(const layout& layout,
         return _memory_pool->get_memory(layout, id, get_id(), dependencies, type, reusable);
     return _memory_pool->get_memory(layout, type);
 }
+
 }  // namespace cldnn
