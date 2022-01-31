@@ -11,7 +11,7 @@ The following Inference Engine C++ API is used in the application:
 | :--- | :--- | :--- |
 | Asynchronous Infer | `ov::InferRequest::start_async`, `ov::InferRequest::set_callback` | Do asynchronous inference with callback |
 | Model Operations | `ov::Output::get_shape`, `ov::set_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count |
-| Infer Request Operations| `ov::InferRequest::get_input_tensor` | Get a input tensor |
+| Infer Request Operations | `ov::InferRequest::get_input_tensor` | Get a input tensor |
 | Tensor Operations | `ov::shape_size`, `ov::Tensor::data` | Get a tensor shape size and its data |
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
