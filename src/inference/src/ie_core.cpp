@@ -1836,7 +1836,7 @@ void Core::get_property(const std::string& deviceName,
                         const std::string& name,
                         const AnyMap& arguments,
                         ov::Any& to) const {
-    any_lexical_cast(get_property(deviceName, name, AnyMap{}), to);
+    any_lexical_cast(get_property(deviceName, name, arguments), to);
 }
 
 std::vector<std::string> Core::get_available_devices() const {
