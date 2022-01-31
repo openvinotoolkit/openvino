@@ -15,6 +15,7 @@
 #include <ngraph/op/topk.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <algorithm>
+#include <iostream>
 
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise.hpp>
@@ -2082,6 +2083,7 @@ void MKLDNNTopKNode::executeDynamicImpl(mkldnn::stream strm) {
 }
 
 void MKLDNNTopKNode::execute(mkldnn::stream strm) {
+    std::cout << "Starting executing TopK node " << getName() << "\n";
     auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();
@@ -2102,25 +2104,32 @@ void MKLDNNTopKNode::execute(mkldnn::stream strm) {
             IE_THROW() << errorPrefix <<  "only support plain layout on machine w/o sse42.";
         }
     }
+    std::cout << "Ending executing TopK node " << getName() << "\n";
 }
 
 void MKLDNNTopKNode::topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *out_idx_ptr) {
+    std::cout << "Starting the function topk_process()...\n";
     uint8_t *process_ptr = vec_process_ptr.data();
     uint8_t *process_idx_ptr = vec_process_idx_ptr.data();
 
     // [blocked layout with topk on C]
     if (layout == TopKLayoutType::topk_blocked && topk_innermost) {
+        std::cout << "layout == TopKLayoutType::topk_blocked && topk_innermost\n";
         size_t IA = div_up(src_dims[1], blk_size);
         size_t OA = div_up(dst_dims[1], blk_size);
         if (algorithm == TopKAlgorithm::topk_bubble_sort) {
+            std::cout << "algorithm == TopKAlgorithm::topk_bubble_sort\n";
             parallel_for2d(O, I, [&](size_t o, size_t i) {
                 const uint8_t *in_ptr_a = in_ptr + (o * IA * I + i) * blk_size * data_size;
                 uint8_t *out_ptr_a = out_ptr + (o * OA * I + i) * blk_size * data_size;
                 uint8_t *out_idx_ptr_a = out_idx_ptr + (o * OA * I + i) * blk_size * sizeof(int32_t);
                 size_t work_amount = 1;
+                std::cout << "Starting topk_kernel_process...\n";
                 topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, NULL, NULL, work_amount);
             });
+            std::cout << "Ending of parallel_for_2d\n";
         } else if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
+            std::cout << "algorithm == TopKAlgorithm::topk_bitonic_sort\n";
             parallel_for(O, [&](size_t o) {
                 const uint8_t *in_ptr_a = in_ptr + o * IA * I * blk_size * data_size;
                 uint8_t *process_ptr_a = process_ptr + o * IA * I * blk_size * data_size;
@@ -2159,6 +2168,7 @@ void MKLDNNTopKNode::topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8
 
 inline void MKLDNNTopKNode::topk_kernel_process(const uint8_t *in_p, uint8_t *out_p, uint8_t *out_idx_p,
                                                 uint8_t *process_p, uint8_t *process_idx_p, size_t work_amount) {
+    std::cout << "setting up for topk_kernel_process()...\n";
     auto arg = jit_topk_call_args();
     arg.src = static_cast<const void *>(in_p);
     arg.process = static_cast<void *>(process_p);
@@ -2173,6 +2183,8 @@ inline void MKLDNNTopKNode::topk_kernel_process(const uint8_t *in_p, uint8_t *ou
     arg.sort_stride = I;
     arg.idx_block_buf = vec_idx_block.data();
     arg.idx_seq_buf = vec_idx_seq.data();
+    std::cout << "Now calculations will be started.\n";
+    std::cout << "topk_kernel: " << reinterpret_cast<void*>(topk_kernel.get()) << "\n";
     (*topk_kernel)(&arg);
 }
 
