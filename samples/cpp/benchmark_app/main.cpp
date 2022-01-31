@@ -194,8 +194,8 @@ int main(int argc, char* argv[]) {
         if (FLAGS_hint.empty()) {
             for (auto& device : devices) {
                 auto supported_properties = core.get_property(device, ov::supported_properties);
-                if (std::find(supported_config_keys.begin(), supported_config_keys.end(), ov::hint::performance_mode) !=
-                    supported_config_keys.end()) {
+                if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
+                    supported_properties.end()) {
                     slog::warn << "-hint default value is determined as " << ov::hint::PerformanceMode::THROUGHPUT
                                << " automatically for " << device
                                << " device. For more detailed information look at README." << slog::endl;
