@@ -61,8 +61,7 @@ public:
     }
 
     void wait_all() {
-        // Wait for all requests to return with callback thus updating
-        // _idle_handles so it matches the size of requests
+        // Wait for all requests to complete
         py::gil_scoped_release release;
         for (auto&& request : _requests) {
             request._request.wait();
