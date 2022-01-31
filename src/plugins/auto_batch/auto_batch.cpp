@@ -706,7 +706,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         // find the batch dim
         ov::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ov::pass::FindBatch>();
+        if (check_dims)
+            m.register_pass<ov::pass::FindBatch>();
+        else
+            m.register_pass<ov::pass::FindBatchDontTrack>();
         m.run_passes(function);
         // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
         // input(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
@@ -719,22 +722,16 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             if (shape.is_dynamic())
                 IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
             // check the batch dim: either 0th (and the original batch size of 1) or none
-            if (check_dims) {
-                if (ov::DimensionTracker::get_label(shape[0])) {
-                    const auto& static_shape = input->get_shape();
-                    if (static_shape[0] != 1)
-                        IE_THROW(NotImplemented)
-                            << "Auto-batching does not reshape/re-batch originally batched networks!";
-                    batched_inputs[input_id] = shape;  // batched dim for the input
-                } else {
-                    // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
-                    for (size_t s = 0; s < shape.size(); s++)
-                        atLeastOneInputIsBatched &= !ov::DimensionTracker::get_label(shape[s]);
-                }
+            if (ov::DimensionTracker::get_label(shape[0])) {
+                const auto& static_shape = input->get_shape();
+                if (static_shape[0] != 1)
+                    IE_THROW(NotImplemented)
+                        << "Auto-batching does not reshape/re-batch originally batched networks!";
+                batched_inputs[input_id] = shape;  // batched dim for the input
             } else {
-                auto layout = input->get_layout();
-                if (ov::layout::has_batch(layout) && 0 == ov::layout::batch_idx(layout))
-                    batched_inputs[input_id] = shape;  // batched dim for the input
+                // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
+                for (size_t s = 0; s < shape.size(); s++)
+                    atLeastOneInputIsBatched &= !ov::DimensionTracker::get_label(shape[s]);
             }
         }
         // output(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
