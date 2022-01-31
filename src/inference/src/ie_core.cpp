@@ -1808,23 +1808,26 @@ Any Core::get_property(const std::string& deviceName, const std::string& name) c
                                          .get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), parsed._config)
                                          .as<std::vector<std::string>>();
                 std::vector<ov::PropertyName> supported_properties;
-                for (auto&& ro_property : ro_properties) {
-                    supported_properties.emplace_back(ro_property, PropertyMutability::RO);
-                }
-                for (auto&& rw_property : rw_properties) {
-                    supported_properties.emplace_back(rw_property, PropertyMutability::RW);
-                }
-                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
-                return supported_properties;
+                for (auto&& ro_property : ro_properties)
+                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                        supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    }
             }
+            for (auto&& rw_property : rw_properties) {
+                supported_properties.emplace_back(rw_property, PropertyMutability::RW);
+            }
+            supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
+            return supported_properties;
+        }
         }
         try {
-            return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
+        return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
         } catch (ie::Exception&) {
-            return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
+        return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
         }
-    });
-}
+});
+}  // namespace ov
 
 void Core::get_property(const std::string& deviceName, const std::string& name, ov::Any& to) const {
     any_lexical_cast(get_property(deviceName, name), to);

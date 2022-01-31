@@ -222,7 +222,10 @@ Any CompiledModel::get_property(const std::string& name) const {
                 auto rw_properties = _impl->GetConfig(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                 std::vector<ov::PropertyName> supported_properties;
                 for (auto&& ro_property : ro_properties) {
-                    supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                        supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    }
                 }
                 for (auto&& rw_property : rw_properties) {
                     supported_properties.emplace_back(rw_property, PropertyMutability::RW);
