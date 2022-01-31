@@ -155,24 +155,29 @@ class TestTranspose(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_transpose_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_transpose_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_transpose(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_transpose(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.nightly
-    def test_transpose_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_transpose_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                       api_2):
+        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_transpose_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_transpose_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
