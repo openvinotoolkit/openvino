@@ -1688,6 +1688,62 @@ class TestStridedSlicePermute(unittest.TestCase):
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
     def test_strided_slice_permute_7(
+            self,  # inp[0, 20], ends can be of any value
+            inp=(1, 35, 35, 3), ref_res=(35, 3),
+            begin=(0, 20), end=(1, 9999), strides=(1, 1), begin_mask=(0,), end_mask=(0,),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0,), ellipsis_mask=(0,)
+    ):
+        self.run_permute_test(inp, ref_res, begin, end, strides,
+                              begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_permute_8(
+            self,  # inp[0, 0:34, 20:22, new_axis], both new_axis and shrink_axis are present
+            inp=(1, 35, 35, 3), ref_res=(34, 2, 1, 3),
+            begin=(0, 0, 20, 0), end=(1, 34, 22, 2), strides=(1, 1, 1, 1), begin_mask=(0,), end_mask=(0,),
+            shrink_axis_mask=(1,), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0,)
+    ):
+        self.run_permute_test(inp, ref_res, begin, end, strides,
+                              begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_permute_9(
+            self,  # inp[:, 0:4, 20, new_axis], both new_axis and shrink_axis are present
+            inp=(1, 35, 35, 3), ref_res=(1, 4, 1, 3),
+            begin=(0, 0, 20, 0), end=(0, 4, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 1, 0, 0), end_mask=(0, 1, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0,)
+    ):
+        self.run_permute_test(inp, ref_res, begin, end, strides,
+                              begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_permute_10(
+            self,  # inp[:, 0:4, new_axis, 20], both new_axis and shrink_axis are present
+            inp=(1, 35, 35, 3), ref_res=(1, 4, 1, 3),
+            begin=(0, 0, 0, 20), end=(0, 4, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 1, 0, 0), end_mask=(0, 1, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0,)
+    ):
+        self.run_permute_test(inp, ref_res, begin, end, strides,
+                              begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_permute_11(
+            self,  # inp[0, :, 0:34, 1:3, new_axis], both new_axis and shrink_axis are present
+            inp=(1, 35, 35, 3), ref_res=(35, 34, 2, 1),
+            begin=(0, 0, 0, 1, 0), end=(1, 0, 34, 3, 0), strides=(1, 1, 1, 1, 1),
+            begin_mask=(1, 0, 1, 1, 1), end_mask=(1, 0, 1, 1, 1),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 0, 0, 1), ellipsis_mask=(0,)
+    ):
+        self.run_permute_test(inp, ref_res, begin, end, strides,
+                              begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_permute_12(
+            self,  # inp[0, :34, 20, :2]
+            inp=(1, 35, 35, 3), ref_res=(34, 2),
+            begin=(0, 0, 0, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(0, 1, 1, 1),
+            end_mask=(0, 1, 1, 1),
+            shrink_axis_mask=(1, 0, 1, 0), new_axis_mask=(0,), ellipsis_mask=(0,)
+    ):
+        self.run_permute_test(inp, ref_res, begin, end, strides,
+                              begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_permute_13(
             self,  # inp[0, 0, 0], since it's shrink_axis ends can be of any value
             inp=(1, 35, 35, 3), ref_res=(3,),
             begin=(0, 0, 0), end=(1, 34444, 20), strides=(1, 1, 1), begin_mask=(0, 0, 0), end_mask=(0, 0, 0),
@@ -1696,7 +1752,7 @@ class TestStridedSlicePermute(unittest.TestCase):
         self.run_permute_test(inp, ref_res, begin, end, strides,
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_strided_slice_permute_8(
+    def test_strided_slice_permute_14(
             self,  # inp[0, 0, 0], since begin_mask is [0], begin can be of any value
             inp=(1, 35, 35, 3), ref_res=(1, 3, 18, 18),
             begin=(0, 0, 0), end=(1, 35, 35), strides=(2, 2, 2), begin_mask=(1, 1, 1), end_mask=(1, 1, 1),
@@ -1705,7 +1761,26 @@ class TestStridedSlicePermute(unittest.TestCase):
         self.run_permute_test(inp, ref_res, begin, end, strides,
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_strided_slice_permute_9(
+        # with ellipsis
+    def test_strided_slice_permute_15(
+            self,  # inp[..., np.newaxis]
+            inp=(1, 35, 35), ref_res=(1, 35, 35, 1),
+            begin=(101, 0), end=(0, 0), strides=(-1, -1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(1, 0)
+    ):
+        self.run_permute_test(inp, ref_res, begin, end, strides,
+                              begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_permute_16(
+            self,  # inp_shape = (1, 720, 1080), out = inp[..., :100, None] => out_shape = (1, 720, 100, 1)
+            inp=(1, 720, 1080), ref_res=(1, 720, 100, 1),
+            begin=(0, 0, 0), end=(0, 100, 0), strides=(1, 1, 1), begin_mask=(0, 1, 0), end_mask=(0, 1, 0),
+            shrink_axis_mask=(0,), new_axis_mask=(0, 0, 1), ellipsis_mask=(1,)
+    ):
+        self.run_permute_test(inp, ref_res, begin, end, strides,
+                              begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_permute_17(
             self,  # inp_shape = (1, 720, 1080, 3), out = inp[..., :-1] => out_shape = (1, 720, 100, 2)
             inp=(1, 720, 1080, 3), ref_res=(1, 2, 720, 1080),
             begin=(0, 0), end=(0, -1), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 1),
@@ -1714,7 +1789,7 @@ class TestStridedSlicePermute(unittest.TestCase):
         self.run_permute_test(inp, ref_res, begin, end, strides,
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_strided_slice_permute_10(
+    def test_strided_slice_permute_18(
             self,  # inp_shape = (1, 720, 1080, 3), out = inp[..., 2] => out_shape = (1, 720, 1080)
             inp=(1, 720, 1080, 3), ref_res=(1, 720, 1080),
             begin=(0, 2), end=(0, 0), strides=(1, 1), begin_mask=(0, 1), end_mask=(0, 0),
@@ -1723,7 +1798,7 @@ class TestStridedSlicePermute(unittest.TestCase):
         self.run_permute_test(inp, ref_res, begin, end, strides,
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_strided_slice_permute_11(
+    def test_strided_slice_permute_19(
             self,  # inp_shape = (1, 720, 1080, 3), out = input[..., 0:10, 0:3] => out_shape = (1, 720, 10, 3)
             inp=(1, 720, 1080, 3), ref_res=(1, 3, 720, 10),
             begin=(0, 0, 0), end=(0, 10, 3), strides=(1, 1, 1), begin_mask=(0, 1, 1), end_mask=(0, 1, 1),
@@ -1749,7 +1824,6 @@ class TestStridedSlicePermute(unittest.TestCase):
         """
         inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
         out_nhwc = inp[:, None] => out_shape = (1, 1, 100, 200, 3)
-        out_nchw = inp[:, :, None, :, :] => out_shape = (1, 3, 1, 100, 200)
         """
         self.run_permute_test(
             inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200, 3),
@@ -1835,4 +1909,37 @@ class TestStridedSlicePermute(unittest.TestCase):
             inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
             begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
             shrink_axis_mask=(0, 1), new_axis_mask=(1, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_9(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC
+        out_nhwc = inp[0, :] => out_shape = (100, 200, 3)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(100, 200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_10(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC
+        out_nhwc = inp[0, None] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_11(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC
+        out_nhwc = inp[0, 0] => out_shape = (200, 3)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
         )
