@@ -12,13 +12,12 @@
  * @brief Fill InferenceEngine tensor with random values. The model shape is set separately.
  */
 template<typename T>
-ov::Tensor fillTensorRandomDynamic(ov::Output<const ov::Node>& input, ov::Shape shape) {
+ov::Tensor fillTensorRandomDynamic(ov::Output<const ov::Node> &input, ov::Shape shape) {
     ov::Tensor tensor {input.get_element_type(), shape};
     std::vector<T>values(ov::shape_size(shape));
 
     for (size_t i = 0; i < values.size(); ++i) {
-        auto rand_max = RAND_MAX;
-        values[i] = (T) rand() / static_cast<T>(rand_max) * 10;
+        values[i] = 1 + static_cast<T>(rand()) / (static_cast<T>(RAND_MAX / (std::numeric_limits<T>::max() - 1)));
     }
     std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
 
@@ -48,7 +47,7 @@ std::map<std::string, std::vector<size_t>> parseDataShapes(const std::string &sh
 /**
  * @brief  Getting tensor shapes. If tensor is dynamic, static shape from data info will be returned.
  */
-ov::Shape getTensorStaticShape(ov::Output<const ov::Node>& input,
+ov::Shape getTensorStaticShape(ov::Output<const ov::Node> &input,
                                std::map<std::string, std::vector<size_t>> dataShape);
 
 

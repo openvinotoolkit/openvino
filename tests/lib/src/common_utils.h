@@ -41,26 +41,6 @@ static bool isImageInfo(const T &blob) {
  * @brief Return height and width from provided InferenceEngine tensor description (OV API 1)
  */
 inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::TensorDesc &desc) {
-    const auto& layout = desc.getLayout();
-    const auto& dims = desc.getDims();
-    const auto& size = dims.size();
-    if ((size >= 2) &&
-        (layout == InferenceEngine::Layout::NCHW  ||
-         layout == InferenceEngine::Layout::NHWC  ||
-         layout == InferenceEngine::Layout::NCDHW ||
-         layout == InferenceEngine::Layout::NDHWC ||
-         layout == InferenceEngine::Layout::OIHW  ||
-         layout == InferenceEngine::Layout::GOIHW ||
-         layout == InferenceEngine::Layout::OIDHW ||
-         layout == InferenceEngine::Layout::GOIDHW ||
-         layout == InferenceEngine::Layout::CHW  ||
-         layout == InferenceEngine::Layout::HW)) {
-        // Regardless of layout, dimensions are stored in fixed order
-        return std::make_pair(dims.back(), dims.at(size - 2));
-    } else {
-        throw std::logic_error("Tensor does not have height and width dimensions");
-    }
-inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::TensorDesc &desc) {
     const auto &layout = desc.getLayout();
     const auto &dims = desc.getDims();
     const auto &size = dims.size();
@@ -155,4 +135,4 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
  * @brief Fill InferRequest tensors with random values or image information
  */
 void fillTensors(ov::InferRequest &infer_request,
-                 const std::vector<ov::Output<ov::Node>> &inputs);
+                 std::vector<ov::Output<const ov::Node>> &inputs);

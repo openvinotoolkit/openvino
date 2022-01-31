@@ -113,7 +113,7 @@ void setBlobsStaticShapes(InferenceEngine::InferRequest inferRequest,
 /**
  * @brief  Getting tensor shapes. If tensor is dynamic, static shape from data info will be returned.
  */
-ov::Shape getTensorStaticShape(ov::Output<const ov::Node>& input,
+ov::Shape getTensorStaticShape(ov::Output<const ov::Node> &input,
                                std::map<std::string, std::vector<size_t>> dataShape) {
     std::string name;
     try {
