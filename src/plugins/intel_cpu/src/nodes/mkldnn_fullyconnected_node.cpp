@@ -532,26 +532,26 @@ void MKLDNNFullyConnectedNode::initSupportedPrimitiveDescriptors() {
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = -1;
-                portConfig.constant = false;
+                portConfig.inPlace(-1);
+                portConfig.constant(false);
                 auto desc = getSrcMemDesc(itpd, i);
                 if (supportsUndefStridesAndOffset()) {
-                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                 } else {
-                    portConfig.desc = std::move(desc);
+                    portConfig.setMemDesc(desc);
                 }
                 config.inConfs.push_back(portConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = canBeInPlace() ? 0 : -1;
-                portConfig.constant = false;
+                portConfig.inPlace(canBeInPlace() ? 0 : -1);
+                portConfig.constant(false);
                 auto desc = getDstMemDesc(itpd, i);
                 if (supportsUndefStridesAndOffset()) {
-                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                 } else {
-                    portConfig.desc = std::move(desc);
+                    portConfig.setMemDesc(desc);
                 }
                 config.outConfs.push_back(portConfig);
             }
