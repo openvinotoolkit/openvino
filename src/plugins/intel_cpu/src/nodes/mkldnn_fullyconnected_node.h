@@ -37,6 +37,7 @@ public:
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
+    void initSupportedPrimitiveDescriptors() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
