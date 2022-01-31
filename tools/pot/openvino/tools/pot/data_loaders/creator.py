@@ -23,8 +23,6 @@ def create_data_loader(config, model):
                            'Actual inputs number: {}'.format(len(inputs)))
 
     data_loader = None
-    if len(inputs) > 1 and config.type == 'data_free':
-        raise RuntimeError('Only networks with 1 input are supported in the data_free mode')
     for in_node in inputs:
         if tuple(in_node.shape) != (1, 3):
             if config.type == 'simplified':
