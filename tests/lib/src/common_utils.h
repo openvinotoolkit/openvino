@@ -10,7 +10,7 @@
 
 
 /**
- * @brief Determine if InferenceEngine blob means image or not (OV API 1)
+ * @brief Determine if InferenceEngine blob means image or not (OV API 1.0)
  */
 template<typename T>
 static bool isImage(const T &blob) {
@@ -24,7 +24,7 @@ static bool isImage(const T &blob) {
 
 
 /**
- * @brief Determine if InferenceEngine blob means image information or not (OV API 1)
+ * @brief Determine if InferenceEngine blob means image information or not (OV API 1.0)
  */
 template<typename T>
 static bool isImageInfo(const T &blob) {
@@ -60,11 +60,31 @@ inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::Ten
     } else {
         throw std::logic_error("Tensor does not have height and width dimensions");
     }
+inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::TensorDesc &desc) {
+    const auto &layout = desc.getLayout();
+    const auto &dims = desc.getDims();
+    const auto &size = dims.size();
+    if ((size >= 2) &&
+        (layout == InferenceEngine::Layout::NCHW ||
+         layout == InferenceEngine::Layout::NHWC ||
+         layout == InferenceEngine::Layout::NCDHW ||
+         layout == InferenceEngine::Layout::NDHWC ||
+         layout == InferenceEngine::Layout::OIHW ||
+         layout == InferenceEngine::Layout::GOIHW ||
+         layout == InferenceEngine::Layout::OIDHW ||
+         layout == InferenceEngine::Layout::GOIDHW ||
+         layout == InferenceEngine::Layout::CHW ||
+         layout == InferenceEngine::Layout::HW)) {
+        // Regardless of layout, dimensions are stored in fixed order
+        return std::make_pair(dims.back(), dims.at(size - 2));
+    } else {
+        throw std::logic_error("Tensor does not have height and width dimensions");
+    }
 }
 
 
 /**
- * @brief Fill InferenceEngine blob with random values (OV API 1)
+ * @brief Fill InferenceEngine blob with random values
  */
 template<typename T>
 void fillBlobRandom(InferenceEngine::Blob::Ptr &inputBlob) {
@@ -81,7 +101,7 @@ void fillBlobRandom(InferenceEngine::Blob::Ptr &inputBlob) {
 
 
 /**
- * @brief Fill InferenceEngine tensor with random values (OV API 2)
+ * @brief Fill InferenceEngine tensor with random values (OV API 2.0)
  */
 template<typename T>
 ov::Tensor fillTensorRandom(ov::Output<const ov::Node> &input) {
@@ -110,9 +130,9 @@ void fillBlobImInfo(InferenceEngine::Blob::Ptr &inputBlob,
 
     auto inputBlobData = minputHolder.as<T *>();
     for (size_t b = 0; b < batchSize; b++) {
-        size_t iminfoSize = inputBlob->size()/batchSize;
+        size_t iminfoSize = inputBlob->size() / batchSize;
         for (size_t i = 0; i < iminfoSize; i++) {
-            size_t index = b*iminfoSize + i;
+            size_t index = b * iminfoSize + i;
             if (0 == i)
                 inputBlobData[index] = static_cast<T>(image_size.first);
             else if (1 == i)
@@ -128,12 +148,11 @@ void fillBlobImInfo(InferenceEngine::Blob::Ptr &inputBlob,
  * @brief Fill InferRequest blobs with random values or image information
  */
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
-               const InferenceEngine::ConstInputsDataMap& inputsInfo,
-               const size_t& batchSize);
-
+               const InferenceEngine::ConstInputsDataMap &inputsInfo,
+               const size_t &batchSize);
 
 /**
  * @brief Fill InferRequest tensors with random values or image information
  */
 void fillTensors(ov::InferRequest &infer_request,
-                 std::vector<ov::Output<const ov::Node>> &inputs);
+                 const std::vector<ov::Output<ov::Node>> &inputs);

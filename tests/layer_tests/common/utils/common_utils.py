@@ -79,6 +79,9 @@ def allclose(cur_array, ref_array, atol, rtol):
     :param rtol: relative tolerance (threshold for relative difference)
     :return: bool value means that values of tensors are equal with tolerance or not
     """
-    abs_diff = np.absolute(cur_array - ref_array)
+    if cur_array.dtype == bool:
+        abs_diff = np.absolute(cur_array ^ ref_array)
+    else:
+        abs_diff = np.absolute(cur_array - ref_array)
     max_val = np.maximum(np.absolute(cur_array), np.absolute(ref_array))
     return ((abs_diff < atol) | (abs_diff < rtol * max_val)).all()

@@ -6,7 +6,7 @@
 
 
 /**
- * @brief Fill InferRequest blobs with random values or image information (OV API 1)
+ * @brief Fill InferRequest blobs with random values or image information
  */
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
                const InferenceEngine::ConstInputsDataMap &inputsInfo,
