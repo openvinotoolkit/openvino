@@ -99,6 +99,25 @@ def create_input_scaleshift_pattern():
 
 
 @registry_ignore_patterns('inputs')
+def create_input_transpose_scaleshift_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_scaleshift()
+    return pattern.set_name('input_transpose_scale_shift').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_scaleshift_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_scaleshift()
+    return pattern.set_name('input_convert_transpose_scale_shift').pattern
+
+
+@registry_ignore_patterns('inputs')
 def create_input_add_pattern():
     pattern = PatternBuilder()
     pattern.append_single_op('Parameter', 'input')
@@ -107,11 +126,49 @@ def create_input_add_pattern():
 
 
 @registry_ignore_patterns('inputs')
+def create_input_transpose_add_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_add_const()
+    return pattern.set_name('input_transpose_add').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_add_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_add_const()
+    return pattern.set_name('input_convert_transpose_add').pattern
+
+
+@registry_ignore_patterns('inputs')
 def create_input_mul_pattern():
     pattern = PatternBuilder()
     pattern.append_single_op('Parameter', 'input')
     pattern.append_single_op('Multiply', 'multiply')
     return pattern.set_name('input_multiply').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_transpose_mul_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.append_single_op('Multiply', 'multiply')
+    return pattern.set_name('input_transpose_multiply').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_mul_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.append_single_op('Multiply', 'multiply')
+    return pattern.set_name('input_convert_transpose_multiply').pattern
 
 
 @registry_ignore_patterns('inputs')
@@ -125,6 +182,29 @@ def create_input_reverse_input_channel_scaleshift_pattern():
 
 
 @registry_ignore_patterns('inputs')
+def create_input_transpose_reverse_input_channel_scaleshift_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_split()
+    pattern.append_single_op('Concat', 'concat')
+    pattern.insert_scaleshift()
+    return pattern.set_name('input_transpose_reverse_input_channels_scale_shift').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_reverse_input_channel_scaleshift_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_split()
+    pattern.append_single_op('Concat', 'concat')
+    pattern.insert_scaleshift()
+    return pattern.set_name('input_convert_transpose_reverse_input_channels_scale_shift').pattern
+
+
+@registry_ignore_patterns('inputs')
 def create_input_reverse_input_channel_add_pattern():
     pattern = PatternBuilder()
     pattern.append_single_op('Parameter', 'input')
@@ -132,6 +212,29 @@ def create_input_reverse_input_channel_add_pattern():
     pattern.append_single_op('Concat', 'concat')
     pattern.insert_add_const()
     return pattern.set_name('input_reverse_input_channels_add').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_transpose_reverse_input_channel_add_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_split()
+    pattern.append_single_op('Concat', 'concat')
+    pattern.insert_add_const()
+    return pattern.set_name('input_transpose_reverse_input_channels_add').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_reverse_input_channel_add_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_split()
+    pattern.append_single_op('Concat', 'concat')
+    pattern.insert_add_const()
+    return pattern.set_name('input_convert_transpose_reverse_input_channels_add').pattern
 
 
 @registry_ignore_patterns('blocks')
