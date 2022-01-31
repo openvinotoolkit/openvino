@@ -236,7 +236,7 @@ public:
 private:
     GetNearestPixel m_get_nearest_pixel;
     GetOriginalCoordinate m_get_original_coord;
-    bool m_antialias;
+    bool m_antialias{false};
 
     Shape m_input_data_shape;
     std::vector<int64_t> m_axes;
@@ -437,7 +437,7 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     const int64_t axis_idx_offset = (input_rank == num_of_axes) ? 2 : 0;
 
     const int64_t spatial_rank = info.spatial_rank;
-    const int64_t points_in_neighbor = 1 << spatial_rank;
+    const int64_t points_in_neighbor = 1LL << spatial_rank;
 
     const T* xdata = input_data;
     T* ydata = out;
