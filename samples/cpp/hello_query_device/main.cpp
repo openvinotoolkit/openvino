@@ -109,8 +109,8 @@ int main(int argc, char* argv[]) {
             slog::info << "\tSUPPORTED_PROPERTIES: " << slog::endl;
             auto supported_properties = core.get_property(device, ov::supported_properties);
             for (auto&& property : supported_properties) {
-                if (metricName != ov::supported_properties.name()) {
-                    slog::info << "\t\t" << (property.is_mutable ? "Mutable: " : "Immutable: ") << metricName << " : "
+                if (property != ov::supported_properties.name()) {
+                    slog::info << "\t\t" << (property.is_mutable() ? "Mutable: " : "Immutable: ") << property << " : "
                                << slog::flush;
                     print_any_value(core.get_property(device, property));
                 }
