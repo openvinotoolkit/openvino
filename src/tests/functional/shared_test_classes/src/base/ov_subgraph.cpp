@@ -273,20 +273,8 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
 std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
     auto outputs = std::vector<ov::Tensor>{};
-    auto outputsTemp = std::vector<ov::Tensor>{};
     for (const auto& output : function->outputs()) {
-        outputsTemp.push_back(inferRequest.get_tensor(output));
-    }
-    std::vector <std::string> outputTensorNames;
-    for (const auto & result : function->get_results()) {
-        outputTensorNames.push_back(result->get_friendly_name());
-    }
-    std::vector <std::string> outputTensorNamesSorted(outputTensorNames);
-    sort(outputTensorNamesSorted.begin(), outputTensorNamesSorted.end());
-    for (const auto& outputTensorName : outputTensorNamesSorted) {
-        auto index = std::find(outputTensorNames.begin(), outputTensorNames.end(), outputTensorName) - outputTensorNames.begin();
-        const auto& output = outputsTemp[index];
-        outputs.push_back(output);
+        outputs.push_back(inferRequest.get_tensor(output));
     }
     return outputs;
 }

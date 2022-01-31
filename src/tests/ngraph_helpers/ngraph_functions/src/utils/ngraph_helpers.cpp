@@ -191,15 +191,7 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &funct
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
     std::vector<ov::Tensor> outputs;
-    std::vector <std::string> outputTensorNames;
-    for (const auto & result : results) {
-        outputTensorNames.push_back(result->get_friendly_name());
-    }
-    std::vector <std::string> outputTensorNamesSorted(outputTensorNames);
-    sort(outputTensorNamesSorted.begin(), outputTensorNamesSorted.end());
-    for (const auto& outputTensorName : outputTensorNamesSorted) {
-        auto index = std::find(outputTensorNames.begin(), outputTensorNames.end(), outputTensorName) - outputTensorNames.begin();
-        const auto& outTensor = outputTensors[index];
+    for (const auto& outTensor : outputTensors) {
         ov::Tensor tmpBuffer(outTensor->get_element_type(), outTensor->get_shape());
         outTensor->read(tmpBuffer.data(), tmpBuffer.get_byte_size());
         outputs.push_back(tmpBuffer);
