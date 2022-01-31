@@ -36,11 +36,11 @@ inline const std::string get_plugin_lib_name_by_device(const std::string& device
 
 inline const std::vector<ov::AnyMap> generate_configs(const std::string& targetDevice,
                                                                          const std::vector<ov::AnyMap>& config = {}) {
-    std::pair<std::string, std::string> defaultConfig;
+    std::pair<std::string, ov::Any> defaultConfig;
     if (targetDevice ==  std::string(CommonTestUtils::DEVICE_MULTI) || targetDevice ==  std::string(CommonTestUtils::DEVICE_AUTO)) {
-        defaultConfig = {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::conformance::targetDevice};;
+        defaultConfig = ov::device::priorities(ov::test::conformance::targetDevice);
     } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
-        defaultConfig = { "TARGET_FALLBACK" , ov::test::conformance::targetDevice };
+        defaultConfig = ov::device::priorities(ov::test::conformance::targetDevice);
     } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
         defaultConfig = { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::conformance::targetDevice)};
     } else {
