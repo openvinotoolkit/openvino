@@ -15,6 +15,9 @@ TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', None, None),
     ('mobilenet-v2-pytorch', 'pytorch', None, (3, 640, 720)),
     ('mobilenet-v2-pytorch', 'pytorch', 'HWC', (224, 224, 3)),
+    ('mobilenet-v2-pytorch', 'pytorch', 'NHWC', (1, 224, 224, 3)),
+    ('mobilenet-v2-pytorch', 'pytorch', 'CHW', (3, 224, 224)),
+    ('mobilenet-v2-pytorch', 'pytorch', 'NCHW', (1, 3, 224, 224)),
 ]
 
 @pytest.mark.parametrize(
@@ -39,8 +42,10 @@ def test_generate_image(tmp_path, models, model_name, model_framework, layout, i
     assert num_images_from_data_loader == num_images_in_dir == stat_subset_size
 
     image = data_loader[0]
-    # shape = data_loader.shape
     if input_shape is None:
         in_node = get_nodes_by_type(model, ['Parameter'], recursively=False)[0]
         input_shape = tuple(in_node.shape[1:])
+    elif len(input_shape) == 4:
+        input_shape = input_shape[1:]
+
     assert image.shape == input_shape
