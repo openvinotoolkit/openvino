@@ -240,7 +240,144 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& network) {
+std::vector<ie::CNNNetwork> FrontEnd::checkSupportedNetworks(const ie::CNNNetwork& network, std::set<std::string>& namesToExclude) {
+    std::vector<ie::CNNNetwork> supportedNetworks;
+    if (network.getFunction() && network.getFunction()->is_dynamic()) {
+        auto copyNetwork = InferenceEngine::details::cloneNetwork(network);
+        try {
+            convertNetwork(copyNetwork);
+        } catch(vpu::details::VPUException e) {
+            // Parsing the error message in order to get name of the node that caused the exeption.
+            // Error message should be in the following format:
+            // ".* node {name} of type {type} .*"
+            std::string name = e.what();
+            std::cout << name << "\n";
+            std::string nameDelimiter("node ");
+            name.erase(0, name.find(nameDelimiter) + nameDelimiter.length());
+            nameDelimiter = " of";
+            name.erase(name.find(nameDelimiter), name.length());
+            auto function = network.getFunction();
+            bool notFound = true;
+            ov::ParameterVector paramsTop;
+            ov::NodeVector resultsLow;
+            ov::NodeVector networkTop;
+            ov::NodeVector networkLow;
+            for (auto& node : function->get_ordered_ops()) {
+                if (node->get_friendly_name() == name) {
+                    notFound = false;
+                    continue;
+                }
+                if (notFound) {
+                    networkTop.push_back(node);
+                    continue;
+                }
+                networkLow.push_back(node);
+            }
+            if (notFound) {
+                throw e;
+            }
+            namesToExclude.insert(name);
+            if (networkTop.size() != 0) {
+                ov::NodeVector resultsTop;
+                std::map<std::string, std::shared_ptr<ov::Node>> newNodes;
+                for (auto& node : networkTop) {
+                    if (strcmp(node->get_type_info().name, "Parameter") == 0) {
+                        auto input = std::dynamic_pointer_cast<ngraph::opset3::Parameter>(node);
+                        auto newNode = std::make_shared<ngraph::opset3::Parameter>(input->get_element_type(), input->get_partial_shape());
+                        newNode->set_friendly_name(node->get_friendly_name());
+                        paramsTop.push_back(newNode);
+                        newNodes[node->get_friendly_name()] = newNode;
+                        continue;
+                    }
+                    ov::OutputVector inputs;
+                    for (auto& input : node->input_values()) {
+                        auto& newNode = newNodes[input.get_node()->get_friendly_name()];
+                        inputs.push_back(ov::Output<ov::Node>(newNode));
+                    }
+                    auto nodeCopy = node->copy_with_new_inputs(inputs);
+                    nodeCopy->set_friendly_name(node->get_friendly_name());
+                    newNodes[node->get_friendly_name()] = nodeCopy;
+                    if (strcmp(node->get_type_info().name, "Result") == 0) {
+                        resultsLow.push_back(std::dynamic_pointer_cast<ngraph::opset3::Result>(nodeCopy));
+                        continue;
+                    }
+                    for (size_t i = 0; i < node->get_output_size(); ++i) {
+                        const auto& set = node->get_output_target_inputs(i);
+                        for (auto& setEl : set) {
+                            auto el = setEl.get_node();
+                            if (std::find(networkTop.begin(), networkTop.end(), std::shared_ptr<ov::Node>(el)) != networkTop.end()) {
+                                auto result = std::make_shared<ngraph::opset3::Result>(nodeCopy);
+                                result->set_friendly_name(el->get_friendly_name());
+                                newNodes[el->get_friendly_name()] = result;
+                                resultsTop.push_back(result);
+                            }
+                        }
+                    }
+                }
+                auto modelTop = std::make_shared<ov::Model>(resultsTop, paramsTop, "networkTop");
+                auto supportTop = checkSupportedNetworks(ie::CNNNetwork(modelTop), namesToExclude);
+                supportedNetworks.insert(supportedNetworks.end(), supportTop.begin(), supportTop.end());
+            }
+            if (networkLow.size() != 0) {
+                std::map<std::string, std::shared_ptr<ov::Node>> newNodes;
+                ov::ParameterVector paramsLow;
+                for (auto& node : networkLow) {
+                    if (strcmp(node->get_type_info().name, "Parameter") == 0) {
+                        auto input = std::dynamic_pointer_cast<ngraph::opset3::Parameter>(node);
+                        auto newNode = std::make_shared<ngraph::opset3::Parameter>(input->get_element_type(), input->get_partial_shape());
+                        newNode->set_friendly_name(node->get_friendly_name());
+                        paramsLow.push_back(newNode);
+                        newNodes[node->get_friendly_name()] = newNode;
+                        continue;
+                    }
+                    ov::OutputVector inputs;
+                    for (auto& input : node->input_values()) {
+                        if (newNodes.count(input.get_node()->get_friendly_name()) == 0) {
+                            if (strcmp(input.get_node()->get_type_info().name, "Constant") == 0) {
+                                const auto& constant = dynamic_cast<ngraph::opset3::Constant*>(input.get_node());
+                                const auto& subConstant = std::make_shared<ngraph::opset3::Constant>(
+                                    constant->get_element_type(),
+                                    constant->get_shape(),
+                                    constant->get_value_strings());
+                                subConstant->set_friendly_name(input.get_node()->get_friendly_name());
+                                inputs.push_back(ov::Output<ov::Node>(subConstant));
+                                newNodes[input.get_node()->get_friendly_name()] = subConstant;
+                                continue;
+                            }
+                            const auto& parameter = std::make_shared<ngraph::opset3::Parameter>(
+                                input.get_element_type(),
+                                input.get_partial_shape().get_max_shape());
+                            parameter->set_friendly_name(input.get_node()->get_friendly_name());
+                            input.get_node()->set_friendly_name(parameter->get_friendly_name());
+                            paramsLow.push_back(parameter);
+                            inputs.push_back(parameter);
+                            newNodes[parameter->get_friendly_name()] =
+                            std::dynamic_pointer_cast<ov::Node>(parameter);
+                        } else {
+                            auto& newNode = newNodes[input.get_node()->get_friendly_name()];
+                            inputs.push_back(ov::Output<ov::Node>(newNode));
+                        }
+                    }
+                    auto nodeCopy = node->copy_with_new_inputs(inputs);
+                    nodeCopy->set_friendly_name(node->get_friendly_name());
+                    newNodes[node->get_friendly_name()] = nodeCopy;
+                    if (strcmp(node->get_type_info().name, "Result") == 0) {
+                        resultsLow.push_back(std::dynamic_pointer_cast<ngraph::opset3::Result>(nodeCopy));
+                        continue;
+                    }
+                }
+                auto modelLow = std::make_shared<ov::Model>(resultsLow, paramsLow, "networkLow");
+                auto supportLow = checkSupportedNetworks(ie::CNNNetwork(modelLow), namesToExclude);
+                supportedNetworks.insert(supportedNetworks.end(), supportLow.begin(), supportLow.end());
+            }
+            return supportedNetworks;
+        }
+    }
+    supportedNetworks.push_back(network);
+    return supportedNetworks;
+}
+
+std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& network, const std::set<std::string>& namesToExclude) {
     VPU_PROFILE(checkSupportedLayers);
 
     const auto& env = CompileEnv::get();
@@ -262,9 +399,10 @@ std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& netwo
         const std::string& /*extraMsg*/) {
         _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
     };
-
     runCommonPasses(cloneNetwork(network), onUnsupportedLayer, onSupportedLayer);
-
+    for (auto name : namesToExclude) {
+        supportedLayers.erase(name);
+    }
     return supportedLayers;
 }
 
