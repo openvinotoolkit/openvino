@@ -329,11 +329,11 @@ void BackEnd::serialize(
         const auto batchSize = model->batchSize();
         const auto usedMemory = model->attrs().get<UsedMemory>("usedMemory");
 
-        const auto hdrSize = alignVal<int>(sizeof(ElfN_Ehdr) + sizeof(mv_blob_header), 64);
-        const auto inputInfoSecSize = alignVal(inputInfoSerializer.size(), 64);
-        const auto outputInfoSecSize = alignVal(outputInfoSerializer.size(), 64);
-        const auto stagesSecSize = alignVal(stagesSerializer.size(), 64);
-        const auto constDataSecSize = alignVal(usedMemory.blob, 64);
+        const auto hdrSize = alignVal<int>(sizeof(ElfN_Ehdr) + sizeof(mv_blob_header), 256);
+        const auto inputInfoSecSize = alignVal(inputInfoSerializer.size(), 256);
+        const auto outputInfoSecSize = alignVal(outputInfoSerializer.size(), 256);
+        const auto stagesSecSize = alignVal(stagesSerializer.size(), 256);
+        const auto constDataSecSize = alignVal(usedMemory.blob, 256);
 
         mv_blob_header blobHdr = {};
         blobHdr.magic_number = BLOB_MAGIC_NUMBER;

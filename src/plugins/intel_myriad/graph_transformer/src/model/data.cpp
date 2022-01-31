@@ -268,6 +268,13 @@ void DataNode::serializeDescImpl(
     serializer.append(checked_cast<uint32_t>(shapeLocation.stridesOffset));
 }
 
+bool DataNode::hasHwOpConsumers() const {
+    return std::any_of(_consumerEdges.begin(), _consumerEdges.end(),
+                       [] (const StageInput& input) -> bool {
+                           return input->consumer()->type() == StageType::MyriadXHwOp;
+                       });
+}
+
 void printTo(std::ostream& os, const Data& data) {
     os << (data == nullptr ? "<null>" : data->name());
 }

@@ -271,6 +271,8 @@ public:
 
     void serializeIOInfo(BlobSerializer& serializer) const;
 
+    bool hasHwOpConsumers() const;
+
 private:
     void serializeDescImpl(
             BlobSerializer& serializer,

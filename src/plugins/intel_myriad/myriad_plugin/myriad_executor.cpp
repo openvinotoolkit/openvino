@@ -15,6 +15,7 @@
 #include <ie_common.h>
 #include <thread>
 
+#include <vpu/backend/blob_format.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/profiling.hpp>
 
@@ -307,6 +308,11 @@ void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool, std::share
     }
 }
 
+static uint32_t getFileSize(const char* header) {
+    const mv_blob_header* mv_header = reinterpret_cast<const mv_blob_header*>(header + sizeof(ElfN_Ehdr));
+    return mv_header->file_size;
+}
+
 void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                                    const std::vector<char> &graphFileContent,
                                    const std::pair<const char*, size_t> &graphHeaderDesc,
@@ -337,7 +343,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
     status = ncGraphAllocate(device->_deviceHandle,
                              graphDesc._graphHandle,
                              graphFileContent.data(),
-                             static_cast<unsigned int>(graphFileContent.size()),
+                             getFileSize(graphHeaderDesc.first),
                              graphHeaderDesc.first,
                              static_cast<unsigned>(graphHeaderDesc.second));
     if (status != NC_OK) {

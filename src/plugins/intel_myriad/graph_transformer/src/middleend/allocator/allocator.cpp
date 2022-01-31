@@ -200,6 +200,8 @@ bool Allocator::allocateData(const Data& data) {
 
             auto finalByteSize = calcAllocationSize(data);
 
+            if (data->hasHwOpConsumers())
+                _blobMemOffset = alignVal(_blobMemOffset, HWOP_DATA_ALIGNMENT);
             data->setDataAllocationInfo({Location::Blob, _blobMemOffset});
             _blobMemOffset += finalByteSize;
 
