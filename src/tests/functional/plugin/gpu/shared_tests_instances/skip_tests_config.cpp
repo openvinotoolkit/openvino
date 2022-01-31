@@ -97,5 +97,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
             // need dynamic shapes
             R"(.*RangeLayerTest.*)",
+            // Issue: 76197
+            R"(.*registerPluginsXMLUnicodePath.*)",
     };
 }
