@@ -295,7 +295,7 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes
       { {1, 1, 10},                                 // Dynamic shape 1
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
-      { {1},                                        // Dynamic shape 2
+      { {-1},                                        // Dynamic shape 2
         { {1}, {1}, {1} } } },                      // Target shapes
     { { {-1, -1, -1},                               // #5. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes

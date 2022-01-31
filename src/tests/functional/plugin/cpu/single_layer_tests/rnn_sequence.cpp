@@ -248,16 +248,16 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
       { {-1},                                            // Dynamic shape 2
         { {10}, {3}, {5} } } },                          // Target shapes
     { { {-1, {0, 7}, 10},                                // #3. Dynamic shape 0
-        { {1, 2, 10}, {1, 3, 10}, {1, 6, 10} } },        // Target shapes
+        { {1, 2, 10}, {2, 3, 10}, {1, 6, 10} } },        // Target shapes
       { {-1, 1, 1},                                      // Dynamic shape 1
-        { {1, 1, 1}, {1, 1, 1}, {1, 1, 1} } },           // Target shapes
+        { {1, 1, 1}, {2, 1, 1}, {1, 1, 1} } },           // Target shapes
       { {-1},                                            // Dynamic shape 2
-        { {1}, {1}, {1} } } },                           // Target shapes
+        { {1}, {2}, {1} } } },                           // Target shapes
     { { {1, -1, 10},                                     // #4. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },        // Target shapes
       { {1, 1, 10},                                      // Dynamic shape 1
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },        // Target shapes
-      { {1},                                             // Dynamic shape 2
+      { {-1},                                             // Dynamic shape 2
         { {1}, {1}, {1} } } },                           // Target shapes
     { { {-1, -1, -1},                                    // #5. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },        // Target shapes
@@ -282,7 +282,7 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, RNNSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn({dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[0], dynamicShapes[1], dynamicShapes[2], dynamicShapes[3]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),

@@ -307,7 +307,7 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
       { {1, 1, 10},                                 // Dynamic shape 2
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
-      { {1},                                        // Dynamic shape 3
+      { {-1},                                       // Dynamic shape 3
         { {1}, {1}, {1} } } },                      // Target shapes
     { { {-1, -1, -1},                               // #5. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes
@@ -351,7 +351,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParamsBatchSizeOne),
+                               ::testing::Values(CPUSpecificParams{{tnc}, {tnc}, {"ref_any"}, "ref_any"}),
                                ::testing::Values(std::map<std::string, std::string>{})),
             LSTMSequenceCPUTest::getTestCaseName);
 
