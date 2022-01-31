@@ -345,7 +345,7 @@ def test_infer_queue_fail_on_py_model(device):
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
     if device == "CPU":
-        if core.get_property(device, "FULL_DEVICE_NAME").value == "arm_compute::NEON":
+        if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin")
 
     from openvino.runtime import Tensor

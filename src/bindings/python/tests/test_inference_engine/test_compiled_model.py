@@ -18,19 +18,19 @@ def test_get_property_model_name(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    network_name = exec_net.get_property("NETWORK_NAME").value
+    network_name = exec_net.get_property("NETWORK_NAME")
     assert network_name == "test_model"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_get_property(device):
     core = Core()
-    if core.get_property(device, "FULL_DEVICE_NAME").value == "arm_compute::NEON":
+    if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
         pytest.skip("Can't run on ARM plugin due-to CPU dependent test")
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
     config = exec_net.get_property("PERF_COUNT")
-    assert config.value == "NO"
+    assert config == "NO"
 
 
 def test_get_runtime_model(device):
