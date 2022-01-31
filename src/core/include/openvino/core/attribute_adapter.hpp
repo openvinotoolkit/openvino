@@ -36,10 +36,10 @@ public:
     virtual const DiscreteTypeInfo& get_type_info() const = 0;
     virtual ~ValueAccessor() = default;
     virtual ov::Any get_as_any() {
-        throw std::logic_error("get_as_any is not implemented");
+        throw ov::Exception("get_as_any is not implemented");
     }
     virtual void set_as_any(const ov::Any& x) {
-        throw std::logic_error("set_as_any is not implemented");
+        throw ov::Exception("set_as_any is not implemented");
     }
 };
 

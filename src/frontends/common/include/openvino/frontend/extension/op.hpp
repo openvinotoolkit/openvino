@@ -200,28 +200,20 @@ template <typename OVOpType = void>
 using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtension, OVOpType>;
 
 //////////////////////////////////////////////
-#define GET_OPENVINO_FRAMEWORK_MAP_MACRO(_1, _2, _3, _4, NAME, ...) NAME
-#define OPENVINO_FRAMEWORK_MAP(...)                            \
-    GET_OPENVINO_FRAMEWORK_MAP_MACRO(__VA_ARGS__,              \
-                                     OPENVINO_FRAMEWORK_MAP_4, \
-                                     OPENVINO_FRAMEWORK_MAP_3, \
-                                     OPENVINO_FRAMEWORK_MAP_2, \
-                                     OPENVINO_FRAMEWORK_MAP_1) \
-    (__VA_ARGS__)
 
 // Per each FRAMEWORK this macro can be used once in one operation class definition
 // It defines a member inline function that creates required extension.
 
-#define OPENVINO_FRAMEWORK_MAP_4(FRAMEWORK, FW_TYPE_NAME, ATTR_NAME_MAP, ATTR_VALUE_MAP)                         \
-    template <typename T>                                                                                        \
-    struct __openvino_framework_map_helper_##FRAMEWORK {                                                         \
-        static auto get() -> std::shared_ptr<ov::frontend::FRAMEWORK::OpExtension<T>> {                          \
-            if (!std::string(FW_TYPE_NAME).empty())                                                              \
-                return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>((FW_TYPE_NAME),                 \
-                                                                                 (ATTR_NAME_MAP),                \
-                                                                                 (ATTR_VALUE_MAP));              \
-            return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>((ATTR_NAME_MAP), (ATTR_VALUE_MAP)); \
-        }                                                                                                        \
+#define OPENVINO_FRAMEWORK_MAP_4(FRAMEWORK, FW_TYPE_NAME, ATTR_NAME_MAP, ATTR_VALUE_MAP)                     \
+    template <typename T>                                                                                    \
+    struct __openvino_framework_map_helper_##FRAMEWORK {                                                     \
+        static auto get() -> std::shared_ptr<ov::frontend::FRAMEWORK::OpExtension<T>> {                      \
+            if (!std::string(FW_TYPE_NAME).empty())                                                          \
+                return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>((FW_TYPE_NAME),             \
+                                                                                 ATTR_NAME_MAP,              \
+                                                                                 ATTR_VALUE_MAP);            \
+            return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(ATTR_NAME_MAP, ATTR_VALUE_MAP); \
+        }                                                                                                    \
     };
 
 #define OPENVINO_FRAMEWORK_MAP_3(FRAMEWORK, FW_TYPE_NAME, ATTR_NAME_MAP) \
@@ -229,6 +221,16 @@ using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtens
 #define OPENVINO_FRAMEWORK_MAP_2(FRAMEWORK, FW_TYPE_NAME) OPENVINO_FRAMEWORK_MAP_3(FRAMEWORK, FW_TYPE_NAME, {})
 #define OPENVINO_FRAMEWORK_MAP_1(FRAMEWORK)               OPENVINO_FRAMEWORK_MAP_2(FRAMEWORK, "")
 
+#define EXPAND(x)                                                   x
+#define GET_OPENVINO_FRAMEWORK_MAP_MACRO(_1, _2, _3, _4, NAME, ...) NAME
+#define FRAMEWORK_MAP_HELPER(...)                                     \
+    EXPAND(GET_OPENVINO_FRAMEWORK_MAP_MACRO(__VA_ARGS__,              \
+                                            OPENVINO_FRAMEWORK_MAP_4, \
+                                            OPENVINO_FRAMEWORK_MAP_3, \
+                                            OPENVINO_FRAMEWORK_MAP_2, \
+                                            OPENVINO_FRAMEWORK_MAP_1)(__VA_ARGS__))
+
+#define OPENVINO_FRAMEWORK_MAP(...) FRAMEWORK_MAP_HELPER(__VA_ARGS__)
 //////////////////////////////////////////////
 }  // namespace frontend
 }  // namespace ov

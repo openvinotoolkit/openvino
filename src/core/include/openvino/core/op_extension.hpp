@@ -52,7 +52,6 @@ public:
 };
 
 namespace detail {
-
 #define OV_COLLECT_ATTACHED_EXTENSIONS(FRAMEWORK)                                                         \
     template <class T>                                                                                    \
     static auto collect_attached_extensions_##FRAMEWORK(std::vector<ov::Extension::Ptr>& res)             \
