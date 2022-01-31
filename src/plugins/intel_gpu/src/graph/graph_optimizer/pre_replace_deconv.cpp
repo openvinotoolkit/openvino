@@ -184,7 +184,7 @@ void pre_replace_deconv::run(program& p) {
 
                 const auto& bias_node_id = biases_nodes_id.front();
                 auto bias_id_node_ptr = p.nodes_map.find(bias_node_id)->second;
-                const auto& bias_data_type = bias_id_node_ptr->get_output_layout().data_type;
+                const auto bias_data_type = bias_id_node_ptr->get_output_layout().data_type;
 
                 // enable only for fp32 and fp16
                 if (weights_data_type != data_types::f16 &&

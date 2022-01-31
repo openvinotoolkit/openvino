@@ -16,10 +16,10 @@ namespace ocl {
 
 namespace {
 void validate_args(const pooling_node& arg) {
-    auto const& input_buffer_size = arg.input().get_output_layout().get_buffer_size();
+    auto const input_buffer_size = arg.input().get_output_layout().get_buffer_size();
     auto const& input_dimensions =
         input_buffer_size.batch.size() + input_buffer_size.feature.size() + input_buffer_size.spatial.size();
-    auto const& output_buffer_size = arg.get_output_layout().get_buffer_size();
+    auto const output_buffer_size = arg.get_output_layout().get_buffer_size();
     auto const& output_dimensions =
         output_buffer_size.batch.size() + output_buffer_size.feature.size() + output_buffer_size.spatial.size();
     auto& stride = arg.get_primitive()->stride;
@@ -109,8 +109,8 @@ public:
 
         const auto& stride = primitive->stride;
         const auto& pad = primitive->pad;
-        const auto& input_sizes = arg.input().get_output_layout().size;
-        const auto& output_sizes = arg.get_output_layout().size;
+        const auto input_sizes = arg.input().get_output_layout().size;
+        const auto output_sizes = arg.get_output_layout().size;
 
         auto& pp = pool_params;
 

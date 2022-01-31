@@ -223,8 +223,9 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
 
+            auto inputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range =
-                calc_sliding_window_output_range<swor_mode::all>(prim_node.input().get_output_layout().size,
+                calc_sliding_window_output_range<swor_mode::all>(inputSize,
                                                                  filter_size,
                                                                  prim->pad,
                                                                  prim->stride,
@@ -244,8 +245,9 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
 
+            auto primInputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range =
-                calc_sliding_window_output_range<swor_mode::all>(prim_node.input().get_output_layout().size,
+                calc_sliding_window_output_range<swor_mode::all>(primInputSize,
                                                                  filter_size,
                                                                  prim->pad,
                                                                  prim->stride,
@@ -268,7 +270,8 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
 
-            auto calc_output_range = calc_sliding_window_needed_input_range(prim_node.input().get_output_layout().size,
+            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
                                                                             prim->stride,
@@ -290,8 +293,9 @@ bool program::analyze_output_size_handling_need() {
                 1);
 
             // TODO: Check compatibility of output size calculation (with caffe).
+            auto primInputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
-                prim_node.input().get_output_layout().size,
+                primInputSize,
                 prim->size,
                 prim->pad,
                 prim->stride,
@@ -1014,8 +1018,9 @@ void program::fuse_nodes(program_node &fused_node,
         local_desc.activation_params = peer_node.get_fused_activations_params()[0];
     }
 
+    auto fusedPadding = fused_node.get_output_layout().data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fused_node.get_output_layout().data_padding);
+                                                 fusedPadding);
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
