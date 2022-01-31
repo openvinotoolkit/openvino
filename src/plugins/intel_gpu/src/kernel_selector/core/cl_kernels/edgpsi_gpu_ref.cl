@@ -1,0 +1,270 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#ifdef EDGPSI_STAGE_0
+
+#    define COORDINATES_OFFSET 1
+
+// 0. Refine anchors
+KERNEL(edgpsi_ref_stage_0)
+(const __global INPUT0_TYPE* im_info,
+ const __global INPUT1_TYPE* anchors,
+ const __global INPUT2_TYPE* deltas,
+ const __global INPUT3_TYPE* scores,
+ __global INPUT0_TYPE* proposals) {
+    const INPUT0_TYPE img_H = im_info[0];
+    const INPUT0_TYPE img_W = im_info[1];
+
+    const size_t h = get_global_id(0);
+    const size_t w = get_global_id(1);
+    const size_t anchor = get_global_id(2);
+
+    const size_t offset = h * BOTTOM_W + w;
+    const size_t anchor_idx = (offset * ANCHORS_NUM + anchor) * 4;
+    const size_t proposal_idx = (offset * ANCHORS_NUM + anchor) * 5;
+    const size_t score_idx = offset + BOTTOM_AREA * anchor;
+    const size_t delta_idx = offset + BOTTOM_AREA * anchor * 4;
+
+    float x0 = anchors[anchor_idx + 0];
+    float y0 = anchors[anchor_idx + 1];
+    float x1 = anchors[anchor_idx + 2];
+    float y1 = anchors[anchor_idx + 3];
+
+    const float dx = deltas[delta_idx + 0 * BOTTOM_AREA];
+    const float dy = deltas[delta_idx + 1 * BOTTOM_AREA];
+    const float d_log_w = deltas[delta_idx + 2 * BOTTOM_AREA];
+    const float d_log_h = deltas[delta_idx + 3 * BOTTOM_AREA];
+
+    const float score = scores[score_idx];
+
+    // width & height of box
+    const float ww = x1 - x0 + COORDINATES_OFFSET;
+    const float hh = y1 - y0 + COORDINATES_OFFSET;
+    // center location of box
+    const float ctr_x = x0 + 0.5f * ww;
+    const float ctr_y = y0 + 0.5f * hh;
+
+    // new center location according to deltas (dx, dy)
+    const float pred_ctr_x = dx * ww + ctr_x;
+    const float pred_ctr_y = dy * hh + ctr_y;
+    // new width & height according to deltas d(log w), d(log h)
+    const float pred_w = exp(min(d_log_w, MAX_DELTA_LOG_WH)) * ww;
+    const float pred_h = exp(min(d_log_h, MAX_DELTA_LOG_WH)) * hh;
+
+    // update upper-left corner location
+    x0 = pred_ctr_x - 0.5f * pred_w;
+    y0 = pred_ctr_y - 0.5f * pred_h;
+    // update lower-right corner location
+    x1 = pred_ctr_x + 0.5f * pred_w - COORDINATES_OFFSET;
+    y1 = pred_ctr_y + 0.5f * pred_h - COORDINATES_OFFSET;
+
+    // adjust new corner locations to be within the image region
+    x0 = max(0.0f, min(x0, img_W - COORDINATES_OFFSET));
+    y0 = max(0.0f, min(y0, img_H - COORDINATES_OFFSET));
+    x1 = max(0.0f, min(x1, img_W - COORDINATES_OFFSET));
+    y1 = max(0.0f, min(y1, img_H - COORDINATES_OFFSET));
+
+    // recompute new width & height
+    const float box_w = x1 - x0 + COORDINATES_OFFSET;
+    const float box_h = y1 - y0 + COORDINATES_OFFSET;
+
+    proposals[proposal_idx + 0] = x0;
+    proposals[proposal_idx + 1] = y0;
+    proposals[proposal_idx + 2] = x1;
+    proposals[proposal_idx + 3] = y1;
+    proposals[proposal_idx + 4] = ((MIN_SIZE <= box_w) && (MIN_SIZE <= box_h)) ? score : 0.f;
+}
+
+#    undef COORDINATES_OFFSET
+
+#endif /* EDGPSI_STAGE_0 */
+
+#ifdef EDGPSI_STAGE_1
+
+typedef struct __attribute__((__packed__)) {
+    float x0;
+    float y0;
+    float x1;
+    float y1;
+    float score;
+} Box;
+
+inline void FUNC(swap_box)(__global Box* a, __global Box* b) {
+    const Box temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+inline int FUNC(partition)(__global Box* arr, int l, int h) {
+    INPUT0_TYPE pivotScore = arr[h].score;
+    int i = (l - 1);
+    for (int j = l; j <= h - 1; j++) {
+        if (arr[j].score > pivotScore) {
+            i++;
+            FUNC_CALL(swap_box)(&arr[i], &arr[j]);
+        }
+    }
+    FUNC_CALL(swap_box)(&arr[i + 1], &arr[h]);
+    return (i + 1);
+}
+
+inline void FUNC(bubbleSortIterative)(__global Box* arr, int l, int h) {
+    for (int i = 0; i < h - l; i++) {
+        bool swapped = false;
+        for (int j = l; j < h - i; j++) {
+            if ((arr[j].score > arr[j + 1].score)) {
+                FUNC_CALL(swap_box)(&arr[j], &arr[j + 1]);
+                swapped = true;
+            }
+        }
+
+        if (!swapped)
+            break;
+    }
+}
+
+inline void FUNC(quickSortIterative)(__global Box* arr, int l, int h) {
+    // Create an auxiliary stack
+    const int kStackSize = 100;
+    int stack[kStackSize];
+
+    // initialize top of stack
+    int top = -1;
+
+    // push initial values of l and h to stack
+    stack[++top] = l;
+    stack[++top] = h;
+
+    // Keep popping from stack while is not empty
+    while (top >= 0) {
+        // Pop h and l
+        h = stack[top--];
+        l = stack[top--];
+
+        // Set pivot element at its correct position
+        // in sorted array
+        int p = FUNC_CALL(partition)(arr, l, h);
+
+        // If there are elements on left side of pivot,
+        // then push left side to stack
+        if (p - 1 > l) {
+            if (top >= (kStackSize - 1)) {
+                FUNC_CALL(bubbleSortIterative)(arr, l, p - 1);
+            } else {
+                stack[++top] = l;
+                stack[++top] = p - 1;
+            }
+        }
+
+        // If there are elements on right side of pivot,
+        // then push right side to stack
+        if (p + 1 < h) {
+            if (top >= (kStackSize - 1)) {
+                FUNC_CALL(bubbleSortIterative)(arr, p + 1, h);
+            } else {
+                stack[++top] = p + 1;
+                stack[++top] = h;
+            }
+        }
+    }
+}
+
+// 1. Sort boxes by scores
+KERNEL(edgpsi_ref_stage_1)(__global INPUT0_TYPE* proposals) {
+    __global Box* boxes = (__global Box*)proposals;
+
+    FUNC_CALL(quickSortIterative)(boxes, 0, NUM_PROPOSALS-1);
+}
+#endif /* EDGPSI_STAGE_1 */
+
+#ifdef EDGPSI_STAGE_2
+
+// 2. NMS
+KERNEL(edgpsi_ref_stage_2)
+(const __global INPUT0_TYPE* boxes, __global size_t* out_indices, __global size_t* num_outputs) {
+    size_t count = 0;
+    size_t index_out[POST_NMS_COUNT] = {0};
+
+    size_t is_dead[PRE_NMS_TOPN] = {0};
+    for (size_t box = 0; box < PRE_NMS_TOPN; ++box) {
+        if (is_dead[box])
+            continue;
+
+        index_out[count++] = box;
+        if (count == POST_NMS_COUNT)
+            break;
+
+        const size_t box_offset = box * 5;
+        const float x0i = boxes[box_offset + 0];
+        const float y0i = boxes[box_offset + 1];
+        const float x1i = boxes[box_offset + 2];
+        const float y1i = boxes[box_offset + 3];
+
+        const float a_width = x1i - x0i;
+        const float a_height = y1i - y0i;
+        const float a_area = a_width * a_height;
+
+        for (size_t tail = box + 1; tail < PRE_NMS_TOPN; ++tail) {
+            const size_t tail_offset = tail * 5;
+            const float x0j = boxes[tail_offset + 0];
+            const float y0j = boxes[tail_offset + 1];
+            const float x1j = boxes[tail_offset + 2];
+            const float y1j = boxes[tail_offset + 3];
+
+            const float x0 = max(x0i, x0j);
+            const float y0 = max(y0i, y0j);
+            const float x1 = min(x1i, x1j);
+            const float y1 = min(y1i, y1j);
+
+            const float width = x1 - x0;
+            const float height = y1 - y0;
+            const float area = max(0.0f, width) * max(0.0f, height);
+
+            const float b_width = x1j - x0j;
+            const float b_height = y1j - y0j;
+            const float b_area = b_width * b_height;
+
+            const float intersection_area = area / (a_area + b_area - area);
+
+            is_dead[tail] =
+                (NMS_THRESHOLD < intersection_area) && (x0i <= x1j) && (y0i <= y1j) && (x0j <= x1i) && (y0j <= y1i);
+        }
+    }
+
+    *num_outputs = count;
+    for (size_t i = 0; i < count; ++i) {
+        out_indices[i] = index_out[i];
+    }
+}
+#endif /* EDGPSI_STAGE_2 */
+
+#ifdef EDGPSI_STAGE_3
+
+// 3. Convert proposals to rois and roi_scores
+KERNEL(edgpsi_ref_stage_3)
+(const __global INPUT0_TYPE* boxes,
+ const __global size_t* out_indices,
+ const __global size_t* num_outputs,
+ __global OUTPUT_TYPE* rois,
+ __global OUTPUT_TYPE* roi_scores) {
+    const size_t i = get_global_id(0);
+    const size_t index = out_indices[i];
+    const size_t box_offset = index * 5;
+    const size_t rois_offset = i * 4;
+
+    if (i < *num_outputs) {
+        rois[rois_offset + 0] = boxes[box_offset + 0];
+        rois[rois_offset + 1] = boxes[box_offset + 1];
+        rois[rois_offset + 2] = boxes[box_offset + 2];
+        rois[rois_offset + 3] = boxes[box_offset + 3];
+        roi_scores[i] = boxes[box_offset + 4];
+    } else {
+        rois[rois_offset + 0] = 0.0f;
+        rois[rois_offset + 1] = 0.0f;
+        rois[rois_offset + 2] = 0.0f;
+        rois[rois_offset + 3] = 0.0f;
+        roi_scores[i] = 0.0f;
+    }
+}
+#endif /* EDGPSI_STAGE_3 */
