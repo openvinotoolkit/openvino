@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from lib2to3.pgen2.token import OP
 import re
 
 from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_collision
@@ -10,6 +11,12 @@ from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,im
 
 import numpy as np
 
+
+from enum import Enum
+
+class OperationType(Enum):
+    PRODUCING = 1
+    CONSUMING = 2
 
 def decode_name_with_port(input_model: InputModel, node_name: str, framework=""):
     """
@@ -51,14 +58,14 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
         found_node_names.append('Tensor:' + found_tensor.get_names()[0])
         found_nodes.append(found_tensor)
 
-    def try_get_node(model, name, framework, node_pre):
+    def try_get_node(model, name, framework, operation_type):
         node = model.get_place_by_operation_name(name)
         if node:
             return node
         if framework == "onnx":
             tensor = model.get_place_by_tensor_name(name)
             if tensor:
-                if node_pre:
+                if operation_type == OperationType.PRODUCING:
                     return tensor.get_producing_operation()
                 return tensor.get_consuming_operations()[0]
         return None
@@ -66,7 +73,7 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
     regexp_post = r'(.+):(\d+)'
     match_post = re.search(regexp_post, node_name)
     if match_post:
-        node_post = try_get_node(input_model, match_post.group(1), framework, True)
+        node_post = try_get_node(input_model, match_post.group(1), framework, OperationType.PRODUCING)
         if node_post:
             node_post = node_post.get_output_port(output_port_index=int(match_post.group(2)))
             if node_post:
@@ -76,7 +83,7 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
     regexp_pre = r'(\d+):(.+)'
     match_pre = re.search(regexp_pre, node_name)
     if match_pre:
-        node_pre = try_get_node(input_model, match_pre.group(2), framework, False)
+        node_pre = try_get_node(input_model, match_pre.group(2), framework, OperationType.CONSUMING)
         if node_pre:
             node_pre = node_pre.get_input_port(input_port_index=int(match_pre.group(1)))
             if node_pre:
