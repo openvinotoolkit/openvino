@@ -16,6 +16,7 @@
    Docker with DL Workbench <workbench_docs_Workbench_DG_Run_Locally>
    Conda <openvino_docs_install_guides_installing_openvino_conda>
    Yocto <openvino_docs_install_guides_installing_openvino_yocto>
+   Install OpenVINO Model Development Tools <installing_model_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
