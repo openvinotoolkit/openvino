@@ -12,8 +12,8 @@ namespace {
 
 const std::vector<ov::AnyMap> configs = {
         {},
-        {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
-        {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "0"}, {InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "1"}}
+        {ov::streams::num(ov::streams::AUTO)},
+        {ov::streams::num(0), ov::inference_num_threads(1)}
 };
 
 const std::vector<ov::AnyMap> Multiconfigs = {
