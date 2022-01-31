@@ -52,8 +52,6 @@ def test_export_import():
     user_stream = io.BytesIO()
     compiled.export_model(model_stream=user_stream)
 
-    print("Woooho!")
-
     new_compiled = core.import_network(user_stream, "CPU")
 
     img = read_image()

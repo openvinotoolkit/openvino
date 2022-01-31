@@ -85,11 +85,8 @@ void regclass_CompiledModel(py::module m) {
             //                             +(std::string)(py::repr(fileHandle))+"` provided"
             // );
             // }
-            py::print("XD0");
             py::detail::pythonbuf buf(model_stream);
-            py::print("XD1");
             std::ostream _stream(&buf);
-            py::print("XD2");
             // self.export_model(_stream);
             py::scoped_ostream_redirect output{_stream};
             self.export_model(_stream);
