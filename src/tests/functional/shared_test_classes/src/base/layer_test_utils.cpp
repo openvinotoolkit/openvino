@@ -447,19 +447,6 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
         }
     }
 
-    auto results = function->get_results();
-    std::vector<std::pair<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>, std::string>> named_outputs(results.size());
-    for (std::size_t i = 0; i < results.size(); ++i) {
-        named_outputs[i] = std::make_pair(expectedOutputs[i], results[i]->get_friendly_name());
-    }
-    sort(named_outputs.begin(), named_outputs.end(),
-         [](const std::pair<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>, std::string> & namedOutputA,
-            const std::pair<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>, std::string> & namedOutputB) -> bool {
-             return namedOutputA.second < namedOutputB.second;
-         });
-    for (std::size_t i = 0; i < results.size(); ++i) {
-        expectedOutputs[i] = named_outputs[i].first;
-    }
     return expectedOutputs;
 }
 
@@ -468,19 +455,6 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
     for (const auto &output : executableNetwork.GetOutputsInfo()) {
         const auto &name = output.first;
         outputs.push_back(inferRequest.GetBlob(name));
-    }
-    auto results = function->get_results();
-    std::vector<std::pair<InferenceEngine::Blob::Ptr, std::string>> named_outputs(results.size());
-    for (std::size_t i = 0; i < results.size(); ++i) {
-        named_outputs[i] = std::make_pair(outputs[i], results[i]->get_friendly_name());
-    }
-    sort(named_outputs.begin(), named_outputs.end(),
-         [](const std::pair<InferenceEngine::Blob::Ptr, std::string> & namedOutputA,
-            const std::pair<InferenceEngine::Blob::Ptr, std::string> & namedOutputB) -> bool {
-             return namedOutputA.second < namedOutputB.second;
-         });
-    for (std::size_t i = 0; i < results.size(); ++i) {
-        outputs[i] = named_outputs[i].first;
     }
     return outputs;
 }
