@@ -156,7 +156,7 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::InferImpl() {
 
     if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
-    } else if (graph->getProperty().canBeExecAsDynBatch) {
+    } else if (graph->getProperty().batchLimit > 0) {
         const auto batch = _inputs.begin()->second->getTensorDesc().getDims()[0];
         for (const auto& in : _inputs) {
             if (in.second->getTensorDesc().getDims()[0] != batch) {
@@ -683,11 +683,11 @@ void MKLDNNPlugin::MKLDNNInferRequest::initBlobs() {
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::SetBatch(int new_batch) {
-    if (!graph->getProperty().canBeExecAsDynBatch || modelInputsMap.begin()->second->get_output_partial_shape(0).is_static()) {
+    if (!graph->getProperty().batchLimit || modelInputsMap.begin()->second->get_output_partial_shape(0).is_static()) {
         IE_THROW() << "Can't SetBatch for model that can't be executed via legacy dynamic batch or for static model";
     }
 
-    if (new_batch < 1 || new_batch > modelInputsMap.begin()->second->get_output_partial_shape(0)[0].get_max_length()) {
+    if (new_batch < 1 || new_batch > graph->getProperty().batchLimit) {
         IE_THROW() << "Can't set batch that more than upper bound";
     }
 
@@ -759,7 +759,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                                                                                                                 blobDesc.getDims());
         }
         if (actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().canBeExecAsDynBatch) {
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
@@ -787,7 +787,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
         }
 
         const auto &desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
-        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getProperty().canBeExecAsDynBatch) {
+        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getProperty().batchLimit) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
@@ -831,7 +831,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
                 if (!isDynamic &&
                     desc == MemoryDescUtils::convertToTensorDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                        graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().canBeExecAsDynBatch) {
+                        graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                     externalPtr[name] = _inputs[name]->buffer();
                 }
             } else {
@@ -880,7 +880,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
                 _outputs[name] = data;
                 if (!isDynamic && !externalPtr.count(name) &&
                     data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                        !graph->getProperty().canBeExecAsDynBatch) {
+                        !graph->getProperty().batchLimit) {
                     externalPtr[name] = data->buffer();
                 }
             } else {

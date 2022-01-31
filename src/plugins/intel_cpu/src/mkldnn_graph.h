@@ -48,7 +48,7 @@ public:
     template<typename NET>
     void CreateGraph(NET &network,
                      const MKLDNNExtensionManager::Ptr& extMgr,
-                     MKLDNNWeightsSharing::Ptr &w_cache, std::shared_ptr<ov::Model> upperBoundModel = nullptr);
+                     MKLDNNWeightsSharing::Ptr &w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
         return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
@@ -219,10 +219,8 @@ protected:
 
     static mkldnn::engine eng;
 
-    void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr,
-                   std::shared_ptr<ov::Model> upperBoundModel);
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr,
-                   std::shared_ptr<ov::Model> upperBoundModel = nullptr);
+    void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();

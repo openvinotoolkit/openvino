@@ -68,8 +68,7 @@ struct Config {
     void readDebugCapsProperties();
 #endif
 
-    // used for execution model with upper bound dynamic batch via legacy dynamic batch
-    bool canBeExecAsDynBatch = false;
+    bool isNewApi = true;
 };
 
 }  // namespace MKLDNNPlugin

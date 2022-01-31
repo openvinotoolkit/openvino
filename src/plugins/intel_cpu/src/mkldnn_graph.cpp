@@ -62,7 +62,7 @@ mkldnn::engine MKLDNNGraph::eng(mkldnn::engine::kind::cpu, 0);
 
 template<typename NET>
 void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMgr,
-        MKLDNNWeightsSharing::Ptr &w_cache, std::shared_ptr<ov::Model> upperBoundModel) {
+        MKLDNNWeightsSharing::Ptr &w_cache) {
     OV_ITT_SCOPE(FIRST_INFERENCE, MKLDNNPlugin::itt::domains::MKLDNN_LT, "CreateGraph");
 
     if (IsReady())
@@ -72,7 +72,7 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
 
-    Replicate(net, extMgr, upperBoundModel);
+    Replicate(net, extMgr);
     InitGraph();
 
     status = Ready;
@@ -81,12 +81,11 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 }
 
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
-        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&, std::shared_ptr<ov::Model>);
+        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 template void MKLDNNGraph::CreateGraph(const CNNNetwork&,
-        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&, std::shared_ptr<ov::Model>);
+        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 
-void MKLDNNGraph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr,
-                            std::shared_ptr<ov::Model> upperBoundModel) {
+void MKLDNNGraph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr) {
     this->_name = "subgraph";
     this->reuse_io_tensors = false;
 
@@ -169,7 +168,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, co
     }
 }
 
-void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr, std::shared_ptr<ov::Model> upperBoundModel) {
+void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::MKLDNN_LT, "MKLDNNGraph::Replicate", "CNNNetwork");
 
     InputsDataMap inputsInfo = network.getInputsInfo();
@@ -177,7 +176,22 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
     this->_name = network.getName();
 
-    std::shared_ptr<const ov::Model> func = config.canBeExecAsDynBatch ? upperBoundModel : network.getFunction();
+    std::shared_ptr<const ov::Model> func = nullptr;
+    if (config.isNewApi && config.batchLimit > 0) {
+        auto upperBoundModel = ngraph::clone_function(*network.getFunction());
+        std::map<ov::Output<ov::Node>, ov::PartialShape> newInShape;
+        for (const auto& in : upperBoundModel->get_parameters()) {
+            auto newShape = in->get_output_partial_shape(0);
+            newShape[0] = config.batchLimit;
+            newInShape[in] = newShape;
+        }
+        upperBoundModel->reshape(newInShape);
+
+        func = upperBoundModel;
+    } else {
+        func = network.getFunction();
+    }
+
     if (!func) {
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
@@ -741,7 +755,7 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
             MKLDNNMemory ext_mem(eng);
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
 
-            childEdge->getMemory().SetData(ext_mem, false, getProperty().canBeExecAsDynBatch);
+            childEdge->getMemory().SetData(ext_mem, false, getProperty().batchLimit > 0);
         }
 
         // todo: make sure 'name' exists in this map...
@@ -797,7 +811,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             if (expectedDesc.getLayout() == Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            if (getProperty().canBeExecAsDynBatch) {
+            if (getProperty().isNewApi && getProperty().batchLimit > 0) {
                 outDims[0] = node->batchToProcess();
             }
             out[name]->setShape(outDims);
@@ -811,7 +825,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if (!getProperty().canBeExecAsDynBatch && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+        if ((getProperty().isNewApi && !getProperty().batchLimit) && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
                 IE_THROW() << "Output blob byte size is not equal network output byte size ("
                                    << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
 
@@ -830,7 +844,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             MKLDNNMemory outBloMem(eng);
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
-            outBloMem.SetData(intr_blob, false, getProperty().canBeExecAsDynBatch);
+            outBloMem.SetData(intr_blob, false, getProperty().batchLimit > 0);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
@@ -841,7 +855,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
                 }
                 int MB_to_process = node->batchToProcess();
                 size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * MB_to_process;
-            } else if (getProperty().canBeExecAsDynBatch) {
+            } else if (getProperty().batchLimit > 0) {
                 size_to_copy = std::accumulate(outDims.begin(), outDims.end(), (size_t)1, std::multiplies<size_t>());
             }
 
