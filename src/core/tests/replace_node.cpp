@@ -117,7 +117,7 @@ TEST(replace_node, simple_node_replacement) {
     new_relu->output(0).get_tensor().set_names({"f"});
     replace_node(relu, new_relu);
 
-    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d", "f"}));
 }
 
 TEST(replace_node, node_elimination) {
@@ -190,7 +190,7 @@ TEST(replace_node, output_replacement) {
 
     relu->output(0).replace(new_relu->output(0));
 
-    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d", "f"}));
 }
 
 TEST(replace_node, source_replacement) {
