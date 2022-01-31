@@ -5,7 +5,7 @@
 #include <behavior/plugin/core_threading.hpp>
 #include "api_conformance_helpers.hpp"
 
-using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
 
 namespace {
 
@@ -18,7 +18,7 @@ const Params coreThreadingParams[] = {
 INSTANTIATE_TEST_SUITE_P(Conformance_, CoreThreadingTests, testing::ValuesIn(coreThreadingParams), CoreThreadingTests::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(Conformance, CoreThreadingTests,
         ::testing::Combine(
-                ::testing::Values(ConformanceTests::targetDevice),
+                ::testing::Values(ov::test::conformance::targetDevice),
                 ::testing::Values(Config{{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }})),
         CoreThreadingTests::getTestCaseName);
 

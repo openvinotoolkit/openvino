@@ -8,6 +8,7 @@
 #include "api_conformance_helpers.hpp"
 
 using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
 
 
 namespace {
@@ -45,7 +46,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
-                ::testing::Values(ConformanceTests::targetDevice),
+                ::testing::Values(ov::test::conformance::targetDevice),
                 ::testing::ValuesIn(pluginConfigs)),
             CorrectConfigTests::getTestCaseName);
 
@@ -81,7 +82,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
-                ::testing::Values(ConformanceTests::targetDevice),
+                ::testing::Values(ov::test::conformance::targetDevice),
                 ::testing::ValuesIn(inPluginConfigs)),
             IncorrectConfigTests::getTestCaseName);
 
@@ -99,7 +100,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
-            ::testing::Values(ConformanceTests::targetDevice),
+            ::testing::Values(ov::test::conformance::targetDevice),
             ::testing::ValuesIn(inPluginConfigs)),
             IncorrectConfigAPITests::getTestCaseName);
 
@@ -126,7 +127,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigCheck,
                              ::testing::Combine(
-                                     ::testing::Values(ConformanceTests::targetDevice),
+                                     ::testing::Values(ov::test::conformance::targetDevice),
                                      ::testing::ValuesIn(pluginConfigsCheck)),
                              CorrectConfigCheck::getTestCaseName);
 } // namespace

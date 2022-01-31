@@ -77,4 +77,3 @@ class Parameter(Op):
         shape = node.soft_get('shape', None)
         if shape is None and node.out_port(0).data.get_shape() is not None:
             node['shape'] = node.out_port(0).data.get_shape()
-
