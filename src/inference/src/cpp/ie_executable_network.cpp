@@ -216,10 +216,18 @@ Any CompiledModel::get_property(const std::string& name) const {
     OV_EXEC_NET_CALL_STATEMENT({
         if (ov::supported_properties == name) {
             try {
-                return {_impl->GetMetric(name), _so};
+                auto supported_properties = _impl->GetMetric(name);
+                supported_properties.erase(std::remove_if(supported_properties.begin(),
+                                                          supported_properties.end(),
+                                                          [](const ov::PropertyName& name) {
+                                                              return name == METRIC_KEY(SUPPORTED_METRICS) ||
+                                                                     name == METRIC_KEY(SUPPORTED_CONFIG_KEYS);
+                                                          }),
+                                           supported_properties.end());
+                return supported_properties;
             } catch (ie::Exception&) {
                 auto ro_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-                auto rw_properties = _impl->GetConfig(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+                auto rw_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                 std::vector<ov::PropertyName> supported_properties;
                 for (auto&& ro_property : ro_properties) {
                     if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
