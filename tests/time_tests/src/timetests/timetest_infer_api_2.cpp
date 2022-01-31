@@ -6,6 +6,7 @@
 #include <fstream>
 
 #include "common_utils.h"
+#include "reshape_utils.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
 
@@ -26,7 +27,12 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         ov::CompiledModel exeNetwork;
         ov::InferRequest inferRequest;
 
-        // first_inference_latency = time_to_inference + first_inference
+        bool reshape = false;
+        if (!reshapeShapes.empty()) {
+            reshape = true;
+        }
+
+         // first_inference_latency = time_to_inference + first_inference
         {
             SCOPED_TIMER(time_to_inference);
             {
@@ -50,6 +56,12 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                             SCOPED_TIMER(read_network);
                             cnnNetwork = ie.read_model(model);
                         }
+                        if (reshape) {
+                            {
+                                SCOPED_TIMER(reshape);
+                                cnnNetwork->reshape(reshapeShapes);
+                            }
+                        }
                         {
                             SCOPED_TIMER(load_network);
                             exeNetwork = ie.compile_model(cnnNetwork, device);
@@ -68,7 +80,11 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
             {
                 SCOPED_TIMER(fill_inputs);
                 std::vector<ov::Output<const ov::Node>> inputs = exeNetwork.inputs();
-                fillTensors(inferRequest, inputs);
+                if (reshape) {
+                    fillTensorsWithSpecifiedShape(inferRequest, inputs,dataShapes);
+                } else {
+                    fillTensors(inferRequest, inputs);
+                }
             }
             inferRequest.infer();
         }

@@ -108,3 +108,62 @@ void setBlobsStaticShapes(InferenceEngine::InferRequest inferRequest,
         }
     }
 }
+
+
+/**
+ * @brief  Getting tensor shapes. If tensor is dynamic, static shape from data info will be returned.
+ */
+ov::Shape getTensorStaticShape(ov::Output<const ov::Node>& input,
+                               std::map<std::string, std::vector<size_t>> dataShape) {
+    std::string name;
+    try {
+        name = input.get_any_name();
+    } catch (const ov::Exception &iex) {
+        // Attempt to get a name for a Tensor without names
+    }
+
+    ov::Shape inputShape;
+
+    if (!input.get_partial_shape().is_dynamic()) {
+        return input.get_shape();
+    }
+    else if (dataShape.count(name)) {
+        for (size_t j = 0; j < dataShape[name].size(); j++)
+            inputShape.emplace_back(dataShape[name][j]);
+    }
+    else {
+        throw std::logic_error("Please provide static shape for " + name + "input using -data_shapes argument!");
+    }
+    return inputShape;
+}
+
+
+/**
+ * @brief Fill infer_request tensors with random values. The model shape is set separately. (OV API 2)
+ */
+void fillTensorsWithSpecifiedShape(ov::InferRequest& infer_request, std::vector<ov::Output<const ov::Node>> &inputs,
+                                   std::map<std::string, std::vector<size_t>> dataShape) {
+    for (size_t i = 0; i < inputs.size(); i++) {
+        ov::Tensor input_tensor;
+        ov::Shape inputShape = getTensorStaticShape(inputs[i], dataShape);
+
+        if (inputs[i].get_element_type() == ov::element::f32) {
+            input_tensor = fillTensorRandomDynamic<float>(inputs[i], inputShape);
+        } else if (inputs[i].get_element_type() == ov::element::f16) {
+            input_tensor = fillTensorRandomDynamic<short>(inputs[i], inputShape);
+        } else if (inputs[i].get_element_type() == ov::element::i32) {
+            input_tensor = fillTensorRandomDynamic<int32_t>(inputs[i], inputShape);
+        } else if (inputs[i].get_element_type() == ov::element::u8) {
+            input_tensor = fillTensorRandomDynamic<uint8_t>(inputs[i], inputShape);
+        } else if (inputs[i].get_element_type() == ov::element::i8) {
+            input_tensor = fillTensorRandomDynamic<int8_t>(inputs[i], inputShape);
+        } else if (inputs[i].get_element_type() == ov::element::u16) {
+            input_tensor = fillTensorRandomDynamic<uint16_t>(inputs[i], inputShape);
+        } else if (inputs[i].get_element_type() == ov::element::i16) {
+            input_tensor = fillTensorRandomDynamic<int16_t>(inputs[i], inputShape);
+        } else {
+            throw std::logic_error("Input precision is not supported for " + inputs[i].get_element_type().get_type_name());
+        }
+        infer_request.set_input_tensor(i, input_tensor);
+    }
+}
