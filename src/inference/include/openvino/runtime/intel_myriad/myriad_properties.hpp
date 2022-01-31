@@ -9,8 +9,6 @@
 
 namespace ov {
 namespace intel_myriad {
-namespace common {
-
 /**
  * @brief Turn on HW stages usage (applicable for MyriadX devices only).
  */
@@ -27,8 +25,6 @@ static constexpr Property<bool, PropertyMutability::RW> enable_receiving_tensor_
  * If layer is present in such an xml, it would be used during inference even if the layer is natively supported
  */
 static constexpr Property<std::string, PropertyMutability::RW> custom_layers{"MYRIAD_CUSTOM_LAYERS"};
-
-}  // namespace common
 
 /**
  * @brief Enum to define possible device protocols

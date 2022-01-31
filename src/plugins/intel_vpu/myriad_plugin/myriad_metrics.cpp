@@ -36,7 +36,7 @@ MyriadMetrics::MyriadMetrics() {
 IE_SUPPRESS_DEPRECATED_START
     // TODO: remove once all options are migrated
     _supportedConfigKeys = {
-        ov::intel_myriad::common::custom_layers.name(),
+        ov::intel_myriad::custom_layers.name(),
         ov::intel_myriad::enable_force_reset.name(),
         MYRIAD_ENABLE_MX_BOOT,
 
