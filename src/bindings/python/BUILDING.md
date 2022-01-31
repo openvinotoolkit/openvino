@@ -46,7 +46,7 @@ set the mentioned flags to `ON`. Note the `CMAKE_INSTALL_PREFIX`, which defaults
     cmake .. \
         -DENABLE_INTEL_GPU=OFF \
         -DENABLE_OPENCV=OFF \
-        -DENABLE_INTEL_VPU=OFF \
+        -DENABLE_INTEL_MYRIAD_COMMON=OFF \
         -DENABLE_PYTHON=ON \
         -DENABLE_OV_ONNX_FRONTEND=ON \
         -DCMAKE_INSTALL_PREFIX="${OPENVINO_BASEDIR}/openvino_dist"
@@ -109,7 +109,7 @@ cmake .. ^
     -DCMAKE_INSTALL_PREFIX="%OPENVINO_BASEDIR%/openvino_dist" ^
     -DENABLE_INTEL_GPU=OFF ^
     -DENABLE_OPENCV=OFF ^
-    -DENABLE_INTEL_VPU=OFF ^
+    -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
     -DENABLE_OV_ONNX_FRONTEND=ON ^
     -DENABLE_PYTHON=ON ^
     -DCMAKE_CXX_COMPILER="C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.27.29110\bin\Hostx64\x64"
