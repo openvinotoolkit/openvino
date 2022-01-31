@@ -85,11 +85,11 @@ void fillBlobRandom(InferenceEngine::Blob::Ptr &inputBlob) {
  */
 template<typename T>
 ov::Tensor fillTensorRandom(ov::Output<const ov::Node> &input) {
-    ov::Tensor tensor {input.get_element_type(), input.get_shape()};
-    std::vector<T>values(ov::shape_size(input.get_shape()));
+    ov::Tensor tensor{input.get_element_type(), input.get_shape()};
+    std::vector<T> values(ov::shape_size(input.get_shape()));
 
     for (size_t i = 0; i < values.size(); ++i)
-        values[i] = 1 + static_cast<T>(rand()) / (static_cast<T>(RAND_MAX / (std::numeric_limits<T>::max() - 1)));
+        values[i] = 1 + static_cast<T> (rand()) / (static_cast<T> (RAND_MAX / (std::numeric_limits<T>::max() - 1)));
 
     std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
 
@@ -102,7 +102,7 @@ ov::Tensor fillTensorRandom(ov::Output<const ov::Node> &input) {
  */
 template<typename T>
 void fillBlobImInfo(InferenceEngine::Blob::Ptr &inputBlob,
-                    const size_t& batchSize,
+                    const size_t &batchSize,
                     std::pair<size_t, size_t> image_size) {
     InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputBlob);
     // locked memory holder should be alive all time while access to its buffer happens

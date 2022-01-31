@@ -10,15 +10,15 @@
  */
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
                const InferenceEngine::ConstInputsDataMap &inputsInfo,
-               const size_t& batchSize) {
+               const size_t &batchSize) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
 
-    for (const InferenceEngine::ConstInputsDataMap::value_type& item : inputsInfo) {
+    for (const InferenceEngine::ConstInputsDataMap::value_type &item : inputsInfo) {
         if (isImage(item.second))
             input_image_sizes.push_back(getTensorHeightWidth(item.second->getTensorDesc()));
     }
 
-    for (const InferenceEngine::ConstInputsDataMap::value_type& item : inputsInfo) {
+    for (const InferenceEngine::ConstInputsDataMap::value_type &item : inputsInfo) {
         InferenceEngine::Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
 
         if (isImageInfo(inputBlob) && (input_image_sizes.size() == 1)) {
@@ -60,8 +60,8 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
 /**
  * @brief Fill infer_request tensors with random values (OV API 2)
  */
-void fillTensors(ov::InferRequest& infer_request, std::vector<ov::Output<const ov::Node>> &inputs) {
-    for (size_t i = 0; i < inputs.size(); i++) {
+void fillTensors(ov::InferRequest &infer_request, std::vector<ov::Output<const ov::Node>> &inputs) {
+    for (size_t i = 0; i < inputs.size(); ++i) {
         ov::Tensor input_tensor;
 
         if (inputs[i].get_element_type() == ov::element::f32) {
