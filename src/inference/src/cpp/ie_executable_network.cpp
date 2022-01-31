@@ -216,7 +216,7 @@ Any CompiledModel::get_property(const std::string& name) const {
     OV_EXEC_NET_CALL_STATEMENT({
         if (ov::supported_properties == name) {
             try {
-                auto supported_properties = _impl->GetMetric(name);
+                auto supported_properties = _impl->GetMetric(name).as<std::vector<PropertyName>>();
                 supported_properties.erase(std::remove_if(supported_properties.begin(),
                                                           supported_properties.end(),
                                                           [](const ov::PropertyName& name) {
