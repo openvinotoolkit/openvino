@@ -418,7 +418,7 @@ def set_rescaling_factors(config, model, scaling_factor=2.0):
         fqs_to_rescale.append(get_node_input(node, 1).name)
 
     for fc_layer in fc_layers:
-        fq_input_name = get_node_input(node, 1).name
+        fq_input_name = get_node_input(fc_layer, 1).name
         if 'need_rescale' in fc_layer and fc_layer['need_rescale'] and \
                 fq_input_name not in fqs_to_rescale:
             fqs_to_rescale.append(fq_input_name)
