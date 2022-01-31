@@ -330,14 +330,13 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThro
 
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    ov::Any p;
 
     setHeteroNetworkAffinity(deviceName);
 
     auto exeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
 
-    ASSERT_NO_THROW(p = exeNetwork.get_property("TARGET_FALLBACK"));
-    std::string targets = p;
+    std::string targets;
+    ASSERT_NO_THROW(targets = exeNetwork.get_property(ov::device::priorities));
     auto expectedTargets = deviceName + "," + CommonTestUtils::DEVICE_CPU;
 
     std::cout << "Exe network fallback targets: " << targets << std::endl;

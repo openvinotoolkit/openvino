@@ -15,11 +15,11 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-    {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU}}
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
 
 const std::vector<ov::AnyMap> AutoConfigs = {
-    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU}}
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {

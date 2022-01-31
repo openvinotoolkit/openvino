@@ -16,7 +16,7 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> Multiconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
 };
 
 const std::vector<ov::AnyMap> AutoBatchConfigs = {

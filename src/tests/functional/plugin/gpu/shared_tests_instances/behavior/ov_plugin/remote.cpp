@@ -16,7 +16,7 @@ std::vector<std::pair<ov::AnyMap, ov::AnyMap>> generate_remote_params() {
 }
 
 const std::vector<ov::AnyMap> MultiConfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
 };
 
 const std::vector<ov::AnyMap> AutoBatchConfigs = {

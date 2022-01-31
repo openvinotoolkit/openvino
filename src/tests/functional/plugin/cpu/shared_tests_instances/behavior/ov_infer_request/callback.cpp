@@ -16,7 +16,7 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> multiConfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCallbackTests,

@@ -24,10 +24,10 @@ const std::vector<ov::AnyMap> configs = {
         {},
 };
 const std::vector<ov::AnyMap> multiConfigs = {
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_TEMPLATE}}};
+        {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE)}};
 
 const std::vector<ov::AnyMap> heteroConfigs = {
-        {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE}}};
+        {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVExecGraphImportExportTest,

@@ -480,7 +480,7 @@ struct Properties {
  * Usage Example:
  * @code
  * core.compile_model("HETERO"
- *     ov::target_falLback("GPU", "CPU"),
+ *     ov::device::priorities("GPU", "CPU"),
  *     ov::device::properties("CPU", ov::enable_profiling(true)),
  *     ov::device::properties("GPU", ov::enable_profiling(false)));
  * @endcode
@@ -562,18 +562,6 @@ constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device suppor
 constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports model export and import
 }  // namespace capability
 }  // namespace device
-
-/**
- * @brief The key with the list of device targets used to fallback unsupported layers
- * by HETERO plugin
- */
-static constexpr device::Priorities target_fallback{"TARGET_FALLBACK"};
-
-/**
- * @brief The key for enabling of dumping the topology with details of layers and details how
- * this network would be executed on different devices to the disk in GraphViz format.
- */
-static constexpr Property<bool, PropertyMutability::RW> dump_graph_dot{"HETERO_DUMP_GRAPH_DOT"};
 
 namespace streams {
 /**
