@@ -177,7 +177,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
 
     for (auto&& property : property_names) {
         ov::Any defaultValue;
-        OV_ASSERT_NO_THROW(defaultValue = ie.get_property(deviceName, property));
+        OV_ASSERT_NO_THROW(defaultValue = compiled_model.get_property(property));
         ASSERT_FALSE(defaultValue.empty());
     }
 }
