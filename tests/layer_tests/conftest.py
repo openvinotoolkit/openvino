@@ -64,6 +64,11 @@ def pytest_addoption(parser):
         required=False,
         action="store_true",
         help="Use Model Optimizer with new FrontEnd")
+    parser.addoption(
+        "--api_2",
+        action="store_true",
+        help="Use new API 2.0 for model processing in Inference Engine",
+        default=False)
 
 
 @pytest.fixture(scope="session")
@@ -76,6 +81,12 @@ def ir_version(request):
 def use_new_frontend(request):
     """Fixture function for command-line option."""
     return request.config.getoption('use_new_frontend')
+
+
+@pytest.fixture(scope="session")
+def api_2(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('api_2')
 
 
 @pytest.fixture(scope="function")
