@@ -4,12 +4,14 @@
 int main() {
 //! [part1]
 ov::Core core;
-std::shared_ptr<ov::Model> network = core.read_model("sample.xml");
+std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 uint32_t n_streams = 2;
 int64_t available_device_mem_size = 3221225472;
-std::map<std::string, ov::Any> options = {{ov::hint::model_ptr.name(), network}}; // Required. Set the address of the target network. If this is not set, the MAX_BATCH_SIZE returns 1.
-options.insert(std::make_pair(ov::streams::num.name(), n_streams)); // Optional. Set only when you want to estimate max batch size for a specific throughtput streams. Default is 1 or throughtput streams set by SetConfig.
-options.insert(std::make_pair(ov::intel_gpu::hint::available_device_mem.name(), available_device_mem_size)); // Optional. Set only when you want to limit the available device mem size.
+ov::AnyMap options = {
+    ov::hint::model_ptr(model),   // Required. Set the address of the target network. If this is not set, the MAX_BATCH_SIZE returns 1.
+    ov::streams::num(n_streams),  // Optional. Set only when you want to estimate max batch size for a specific throughtput streams. Default is 1 or throughtput streams set by SetConfig.
+    ov::intel_gpu::hint::available_device_mem(available_device_mem_size)  // Optional. Set only when you want to limit the available device mem size.
+};
 
 uint32_t max_batch_size = core.get_property("GPU", ov::max_batch_size.name(), options);
 //! [part1]

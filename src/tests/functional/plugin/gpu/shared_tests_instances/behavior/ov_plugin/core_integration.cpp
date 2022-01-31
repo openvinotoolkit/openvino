@@ -323,7 +323,7 @@ TEST_P(OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
     ov::Core ie;
     unsigned int p;
 
-    ov::AnyMap _options = {{ov::hint::model_ptr.name(), simpleNetwork}};
+    ov::AnyMap _options = {ov::hint::model_ptr(simpleNetwork)};
     ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::optimal_batch_size.name(), _options));
 
     std::cout << "GPU device optimal batch size: " << p << std::endl;
@@ -342,7 +342,7 @@ TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow
     ov::Core ie;
     unsigned int p;
 
-    ov::AnyMap _options = {{ov::hint::model_ptr.name(), simpleNetwork}};
+    ov::AnyMap _options = {ov::hint::model_ptr(simpleNetwork)};
     ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size.name(), _options));
 
     std::cout << "GPU device max available batch size: " << p << std::endl;
@@ -364,9 +364,9 @@ TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPr
 
     uint32_t n_streams = 2;
     int64_t available_device_mem_size = 1073741824;
-    ov::AnyMap _options = {{ov::hint::model_ptr.name(), simpleNetwork}};
-    _options.insert(std::make_pair(ov::streams::num.name(), n_streams));
-    _options.insert(std::make_pair(ov::intel_gpu::hint::available_device_mem.name(), available_device_mem_size));
+    ov::AnyMap _options = {ov::hint::model_ptr(simpleNetwork),
+                           ov::streams::num(n_streams),
+                           ov::intel_gpu::hint::available_device_mem(available_device_mem_size)};
 
     ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size.name(), _options));
 
