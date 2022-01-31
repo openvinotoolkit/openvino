@@ -46,17 +46,6 @@ DECLARE_GPU_METRIC_KEY(UARCH_VERSION, std::string);
 DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
 
 /**
- * @brief Metric to get statistics of GPU memory allocated by engine for each allocation type
- * It contains information about current memory usage
- */
-DECLARE_GPU_METRIC_KEY(MEMORY_STATISTICS, std::map<std::string, uint64_t>);
-
-/**
- * @brief Metric to get maximum batch size which does not cause performance degradation due to memory swap impact.
- */
-DECLARE_GPU_METRIC_KEY(MAX_BATCH_SIZE, uint32_t);
-
-/**
  * @brief Possible return value for OPTIMIZATION_CAPABILITIES metric
  *  - "HW_MATMUL" - Defines if device has hardware block for matrix multiplication
  */

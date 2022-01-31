@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <thread>
+
 #include "behavior/ov_plugin/core_integration.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
@@ -130,7 +132,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricAvailableDevicesAndPrintNoThrow) {
     ov::Core ie;
 
     std::vector<std::string> properties;
-    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::available_devices));
+    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::device::available));
 
     std::cout << "AVAILABLE_DEVICES: ";
     for (const auto& prop : properties) {
@@ -138,7 +140,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricAvailableDevicesAndPrintNoThrow) {
     }
     std::cout << std::endl;
 
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::available_devices);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::available);
 }
 
 TEST_P(OVClassGetPropertyTest_GPU, GetMetricRangeForAsyncInferRequestsAndPrintNoThrow) {
@@ -278,11 +280,11 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricMaxBatchSizeAndPrintNoThrow) {
     ov::Core ie;
 
     uint32_t property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::intel_gpu::max_batch_size));
+    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::max_batch_size));
 
     std::cout << "GPU_MAX_BATCH_SIZE: " << property << std::endl;
 
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::max_batch_size);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::max_batch_size);
 }
 
 TEST_P(OVClassGetPropertyTest_GPU, CanSetDefaultValueBackToPluginNewAPI) {
@@ -314,6 +316,249 @@ TEST_P(OVClassGetPropertyTest_GPU, CanSetDefaultValueBackToPluginNewAPI) {
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetPropertyTest_GPU,
         ::testing::Values("GPU"));
+
+using OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    unsigned int p;
+
+    ov::AnyMap _options = {{ov::hint::model_ptr.name(), simpleNetwork}};
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::optimal_batch_size.name(), _options));
+
+    std::cout << "GPU device optimal batch size: " << p << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::optimal_batch_size);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassExecutableNetworkGetMetricTest, OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE,
+        ::testing::Values("GPU")
+);
+
+using OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    unsigned int p;
+
+    ov::AnyMap _options = {{ov::hint::model_ptr.name(), simpleNetwork}};
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size.name(), _options));
+
+    std::cout << "GPU device max available batch size: " << p << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::max_batch_size);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassExecutableNetworkGetMetricTest, OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT,
+        ::testing::Values("GPU")
+);
+
+using OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    unsigned int p;
+    auto exec_net1 = ie.compile_model(simpleNetwork, deviceName);
+
+    uint32_t n_streams = 2;
+    int64_t available_device_mem_size = 1073741824;
+    ov::AnyMap _options = {{ov::hint::model_ptr.name(), simpleNetwork}};
+    _options.insert(std::make_pair(ov::streams::num.name(), n_streams));
+    _options.insert(std::make_pair(ov::intel_gpu::hint::available_device_mem.name(), available_device_mem_size));
+
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size.name(), _options));
+
+    std::cout << "GPU device max available batch size: " << p << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::max_batch_size);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassExecutableNetworkGetMetricTest, OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM,
+        ::testing::Values("GPU")
+);
+
+using OVClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    std::map<std::string, uint64_t> p;
+
+    auto exec_net = ie.compile_model(simpleNetwork, deviceName);
+
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+
+    ASSERT_FALSE(p.empty());
+    std::cout << "Memory Statistics: " << std::endl;
+    for (auto &&kv : p) {
+        ASSERT_NE(kv.second, 0);
+        std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
+    }
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::memory_statistics);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassGetMetricTest, OVClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT,
+        ::testing::Values("GPU")
+);
+
+using OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    std::map<std::string, uint64_t> t1;
+    std::map<std::string, uint64_t> t2;
+
+    auto exec_net1 = ie.compile_model(simpleNetwork, deviceName);
+
+    ASSERT_NO_THROW(t1 = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+
+    ASSERT_FALSE(t1.empty());
+    for (auto &&kv : t1) {
+        ASSERT_NE(kv.second, 0);
+    }
+
+    auto exec_net2 = ie.compile_model(simpleNetwork, deviceName);
+
+    ASSERT_NO_THROW(t2 = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+
+    ASSERT_FALSE(t2.empty());
+    for (auto &&kv : t2) {
+        ASSERT_NE(kv.second, 0);
+        auto iter = t1.find(kv.first);
+        if (iter != t1.end()) {
+            ASSERT_EQ(kv.second, t1[kv.first] * 2);
+        }
+    }
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::memory_statistics);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassGetMetricTest, OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS,
+        ::testing::Values("GPU")
+);
+
+using OVClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    std::map<std::string, uint64_t> t1;
+
+    ASSERT_NO_THROW(t1 = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+    ASSERT_TRUE(t1.empty());
+
+    {
+        auto exec_net1 = ie.compile_model(simpleNetwork, deviceName);
+
+        std::map<std::string, uint64_t> t2;
+        ASSERT_NO_THROW(t2 = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+
+        ASSERT_FALSE(t2.empty());
+        for (auto &&kv : t2) {
+            ASSERT_NE(kv.second, 0);
+        }
+        {
+            auto exec_net2 = ie.compile_model(actualNetwork, deviceName);
+
+            std::map<std::string, uint64_t> t3;
+            ASSERT_NO_THROW(t3 = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+
+            ASSERT_FALSE(t3.empty());
+            for (auto &&kv : t3) {
+                ASSERT_NE(kv.second, 0);
+            }
+        }
+        std::map<std::string, uint64_t> t4;
+        ASSERT_NO_THROW(t4 = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+
+        ASSERT_FALSE(t4.empty());
+        for (auto &&kv : t4) {
+            ASSERT_NE(kv.second, 0);
+            if (kv.first.find("_cur") != std::string::npos) {
+                auto iter = t2.find(kv.first);
+                if (iter != t2.end()) {
+                    ASSERT_EQ(t2[kv.first], kv.second);
+                }
+            }
+        }
+    }
+    std::map<std::string, uint64_t> t5;
+    ASSERT_NO_THROW(t5 = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+
+    ASSERT_FALSE(t5.empty());
+    for (auto &&kv : t5) {
+        if (kv.first.find("_cur") != std::string::npos) {
+            ASSERT_EQ(kv.second, 0);
+        }
+    }
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::memory_statistics);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassGetMetricTest, OVClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES,
+        ::testing::Values("GPU")
+);
+
+using OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    std::map<std::string, uint64_t> t1;
+    std::map<std::string, uint64_t> t2;
+
+    std::atomic<uint32_t> counter{0u};
+    std::vector<std::thread> threads(2);
+    // key: thread id, value: executable network
+    std::map<uint32_t, ov::CompiledModel> exec_net_map;
+    std::vector<std::shared_ptr<ngraph::Function>> networks;
+    networks.emplace_back(simpleNetwork);
+    networks.emplace_back(simpleNetwork);
+
+    auto exec_net1 = ie.compile_model(simpleNetwork, deviceName);
+
+    ASSERT_NO_THROW(t1 = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+
+    ASSERT_FALSE(t1.empty());
+    for (auto &&kv : t1) {
+        ASSERT_NE(kv.second, 0);
+    }
+
+    for (auto & thread : threads) {
+        thread = std::thread([&](){
+            auto value = counter++;
+            exec_net_map[value] = ie.compile_model(networks[value], deviceName);
+        });
+    }
+
+    for (auto & thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    ASSERT_NO_THROW(t2 = ie.get_property(deviceName, ov::intel_gpu::memory_statistics));
+
+    ASSERT_FALSE(t2.empty());
+    for (auto &&kv : t2) {
+        ASSERT_NE(kv.second, 0);
+        auto iter = t1.find(kv.first);
+        if (iter != t1.end()) {
+            ASSERT_EQ(kv.second, t1[kv.first] * 3);
+        }
+    }
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::memory_statistics);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassGetMetricTest, OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS,
+        ::testing::Values("GPU")
+);
 
 //
 // IE Class GetConfig

@@ -159,7 +159,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
             PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
             PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
-            PropertyName{ov::num_threads.name(), PropertyMutability::RW}
+            PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW}
         };
     } else if (name == ov::model_name) {
         IE_ASSERT(!m_graphs.empty());

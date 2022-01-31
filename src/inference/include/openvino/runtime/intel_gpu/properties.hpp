@@ -29,7 +29,7 @@ static constexpr Property<std::string, PropertyMutability::RO> uarch_version{"GP
 /**
  * @brief Read-only property to get count of execution units for current GPU
  */
-static constexpr Property<uint32_t, PropertyMutability::RO> execution_units_count{"GPU_EXECUTION_UNITS_COUNT"};
+static constexpr Property<int32_t, PropertyMutability::RO> execution_units_count{"GPU_EXECUTION_UNITS_COUNT"};
 
 /**
  * @brief Read-only property to get statistics of GPU memory allocated by engine for each allocation type
@@ -37,12 +37,6 @@ static constexpr Property<uint32_t, PropertyMutability::RO> execution_units_coun
  */
 static constexpr Property<std::map<std::string, uint64_t>, PropertyMutability::RO> memory_statistics{
     "GPU_MEMORY_STATISTICS"};
-
-/**
- * @brief Read-only property to get maximum batch size which does not cause performance degradation due to memory swap
- * impact.
- */
-static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"GPU_MAX_BATCH_SIZE"};
 
 /**
  * @brief Turning on this key enables to unroll recurrent layers such as TensorIterator or Loop with fixed iteration
@@ -55,66 +49,43 @@ static constexpr Property<bool> enable_loop_unrolling{"GPU_ENABLE_LOOP_UNROLLING
 
 namespace hint {
 /**
- * @brief This key instructs the GPU plugin to use throttle hints the OpenCL queue throttle hint
- * as defined in https://www.khronos.org/registry/OpenCL/specs/opencl-2.1-extensions.pdf,
- * chapter 9.19. This option should be used with an unsigned integer value (1 is lowest energy consumption)
- * 0 means no throttle hint is set and default queue created.
+ * @brief This enum represents the possible value of ov::intel_gpu::hint::queue_throttle property:
+ * - LOW is used for CL_QUEUE_THROTTLE_LOW_KHR OpenCL throttle hint
+ * - MEDIUM (DEFAULT) is used for CL_QUEUE_THROTTLE_MED_KHR OpenCL throttle hint
+ * - HIGH is used for CL_QUEUE_THROTTLE_HIGH_KHR OpenCL throttle hint
  */
-static constexpr Property<uint32_t> queue_throttle{"GPU_QUEUE_THROTTLE"};
+using ThrottleLevel = ov::hint::Priority;
+
+/**
+ * @brief This key instructs the GPU plugin to use OpenCL queue throttle hints
+ * as defined in https://www.khronos.org/registry/OpenCL/specs/opencl-2.1-extensions.pdf,
+ * chapter 9.19. This option should be used with ov::intl_gpu::hint::ThrottleLevel values.
+ */
+static constexpr Property<ov::hint::Priority> queue_throttle{"GPU_QUEUE_THROTTLE"};
 
 /**
  * @brief This key instructs the GPU plugin to use the OpenCL queue priority hint
- * as defined in https://www.khronos.org/registry/OpenCL/specs/opencl-2.1-extensions.pdf
- * this option should be used with an unsigned integer value (1 is lowest priority)
- * 0 means no priority hint is set and default queue is created.
+ * as defined in https://www.khronos.org/registry/OpenCL/specs/opencl-2.1-extensions.pdf.
+ * This option should be used with ov::hint::Priority:
+ * - LOW is used for CL_QUEUE_PRIORITY_LOW_KHR OpenCL priority hint
+ * - MEDIUM (DEFAULT) is used for CL_QUEUE_PRIORITY_MED_KHR OpenCL priority hint
+ * - HIGH is used for CL_QUEUE_PRIORITY_HIGH_KHR OpenCL priority hint
  */
-static constexpr Property<uint32_t> queue_priority{"GPU_QUEUE_PRIORITY"};
-
-/**
- * @brief Enum to define possible host task priorities which is set cpu core type of TBB affinity used in load network.
- * It is only affected on Hybrid CPUs. If the device doesn't support Hybrid CPUs, it is set to the ANY.
- */
-enum class HostTaskPriority {
-    LOW = 0,   //!< Mapped to IStreamsExecutor::Config::LITTLE (E-cores)
-    HIGH = 1,  //!< Mapped to IStreamsExecutor::Config::BIG (P-cores)
-    ANY = 2,   //!< Mapped to IStreamsExecutor::Config::ANY (Any cores)
-};
-
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const HostTaskPriority& queue_priority) {
-    switch (queue_priority) {
-    case HostTaskPriority::LOW:
-        return os << "LOW";
-    case HostTaskPriority::HIGH:
-        return os << "HIGH";
-    case HostTaskPriority::ANY:
-        return os << "ANY";
-    default:
-        throw ov::Exception{"Unsupported host task priority"};
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, HostTaskPriority& queue_priority) {
-    std::string str;
-    is >> str;
-    if (str == "LOW") {
-        queue_priority = HostTaskPriority::LOW;
-    } else if (str == "HIGH") {
-        queue_priority = HostTaskPriority::HIGH;
-    } else if (str == "ANY") {
-        queue_priority = HostTaskPriority::ANY;
-    } else {
-        throw ov::Exception{"Unsupported host task priority: " + str};
-    }
-    return is;
-}
-/** @endcond */
+static constexpr Property<ov::hint::Priority> queue_priority{"GPU_QUEUE_PRIORITY"};
 
 /**
  * @brief This key instructs the GPU plugin which cpu core type of TBB affinity used in load network.
  * This option has 3 types of levels: HIGH, LOW, and ANY. It is only affected on Hybrid CPUs.
+ * - LOW - instructs the GPU Plugin to use LITTLE cores if they are available
+ * - MEDIUM (DEFAULT) - instructs the GPU Plugin to use any available cores (BIG or LITTLE cores)
+ * - HIGH - instructs the GPU Plugin to use BIG cores if they are available
  */
-static constexpr Property<HostTaskPriority> host_task_priority{"GPU_HOST_TASK_PRIORITY"};
+static constexpr Property<ov::hint::Priority> host_task_priority{"GPU_HOST_TASK_PRIORITY"};
+
+/**
+ * @brief This key identifies available device memory size in bytes
+ */
+static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SIZE"};
 }  // namespace hint
 
 namespace memory_type {
@@ -124,5 +95,12 @@ namespace memory_type {
 static constexpr auto surface = "GPU_SURFACE";  //!< Native video decoder surface
 static constexpr auto buffer = "GPU_BUFFER";    //!< OpenCL buffer
 }  // namespace memory_type
+
+namespace capability {
+/**
+ * @brief Possible return value for ov::device::capabilities property
+ */
+constexpr static const auto HW_MATMUL = "GPU_HW_MATMUL";  //!< Device has hardware block for matrix multiplication
+}  // namespace capability
 }  // namespace intel_gpu
 }  // namespace ov
