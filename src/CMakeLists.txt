@@ -8,6 +8,8 @@ add_custom_target(ov_runtime_libraries)
 
 include(cmake/install_tbb.cmake)
 
+# CC library should be registered before other cc targets
+add_subdirectory(common)
 # TODO: Fix Wall for core, frontends, tests and  c binding
 add_subdirectory(core)
 add_subdirectory(frontends)
@@ -23,7 +25,8 @@ endif()
 add_subdirectory(plugins)
 add_subdirectory(inference)
 include(cmake/ov_runtime.cmake)
-add_subdirectory(common)
+# preprocessing has dependency on ov_runtime for static build
+add_subdirectory(common/preprocessing)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
