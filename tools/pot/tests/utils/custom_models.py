@@ -50,7 +50,6 @@ def load_model_config(path):
 def convert_custom_command_line(config):
     python_path = MO_PATH.as_posix()
     executable = MO_PATH.joinpath('mo.py').as_posix()
-    print(f"!!!started convert_custom_command_line \n!!! python_path: {python_path}, executable: {executable}")
     cli_args = ' --model_name ' + config.name
     cli_args += ' --output_dir ' + config.model_params.output_dir
     cli_args += ' --data_type ' + config.precision
@@ -70,5 +69,4 @@ def convert_custom_command_line(config):
 
 def convert_custom(config):
     runner = Command(convert_custom_command_line(config))
-    print(f"!!! runner_string: {runner}")
     return runner.run()
