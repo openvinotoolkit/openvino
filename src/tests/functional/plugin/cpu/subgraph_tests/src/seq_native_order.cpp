@@ -108,15 +108,15 @@ protected:
         const size_t numDirections = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
 
         // dynamic shapes
-        ngraph::PartialShape X_shape(std::vector<ngraph::Dimension>{bounds[seq_length_pos], bounds[batch_size_pos], ngraph::Dimension(input_size)});
+        ov::PartialShape X_shape(std::vector<ov::Dimension>{bounds[seq_length_pos], bounds[batch_size_pos], ov::Dimension(input_size)});
         inputDynamicShapes.push_back(X_shape);
-        ngraph::PartialShape second_in_shape(std::vector<ngraph::Dimension>{bounds[batch_size_pos], ngraph::Dimension(numDirections),
-                                                                            ngraph::Dimension(hidden_size)});
+        ov::PartialShape second_in_shape(std::vector<ov::Dimension>{bounds[batch_size_pos], ov::Dimension(numDirections),
+                                                                            ov::Dimension(hidden_size)});
         inputDynamicShapes.push_back(second_in_shape);
         if (seqType == SEQ_TYPE::LSTM) {
             inputDynamicShapes.push_back(second_in_shape);
         }
-        ngraph::PartialShape seq_len_shape(std::vector<ngraph::Dimension>{bounds[batch_size_pos]});
+        ov::PartialShape seq_len_shape(std::vector<ov::Dimension>{bounds[batch_size_pos]});
         inputDynamicShapes.push_back(seq_len_shape);
 
         auto hidden_size_weight = hidden_size;
@@ -126,12 +126,12 @@ protected:
             hidden_size_weight *= 4;
         }
 
-        std::vector<ngraph::Shape> weightShape;
-        ngraph::Shape W_shape(std::vector<size_t>{numDirections, hidden_size_weight, input_size});
+        std::vector<ov::Shape> weightShape;
+        ov::Shape W_shape(std::vector<size_t>{numDirections, hidden_size_weight, input_size});
         weightShape.push_back(W_shape);
-        ngraph::Shape R_shape(std::vector<size_t>{numDirections, hidden_size_weight, hidden_size});
+        ov::Shape R_shape(std::vector<size_t>{numDirections, hidden_size_weight, hidden_size});
         weightShape.push_back(R_shape);
-        ngraph::Shape B_shape;
+        ov::Shape B_shape;
         if (seqType == SEQ_TYPE::GRU) {
             B_shape = std::vector<size_t>{numDirections, (linearBeforeReset ? (4 * hidden_size) : (3 * hidden_size))};
         } else {
@@ -141,7 +141,7 @@ protected:
 
         // target shape
         for (const auto &ts : targetShapes) {
-            std::vector<ngraph::Shape> currTS;
+            std::vector<ov::Shape> currTS;
 
             size_t bs, sl;
             std::tie(bs, sl) = ts;
@@ -156,7 +156,7 @@ protected:
         }
 
         // funciton creation
-        std::vector<ngraph::element::Type> types(inputDynamicShapes.size(), netPrecision);
+        std::vector<ov::element::Type> types(inputDynamicShapes.size(), netPrecision);
         types.back() = ElementType::i64;
         auto params = ngraph::builder::makeDynamicParams(types, inputDynamicShapes);
 
@@ -172,7 +172,7 @@ protected:
             inputs.push_back(params[i]);
         }
 
-        std::shared_ptr<ngraph::Node> seq_node;
+        std::shared_ptr<ov::Node> seq_node;
         if (seqType == SEQ_TYPE::GRU) {
             seq_node = ngraph::builder::makeGRU(inputs,
                                                 weightShape,
@@ -223,7 +223,7 @@ protected:
         for (size_t i = 1; i < seq_node->get_output_size(); i++) {
             results.push_back(seq_node->output(i));
         }
-        function = std::make_shared<ngraph::Function>(results, params, "SequenceCPUTest");
+        function = std::make_shared<ov::Model>(results, params, "SequenceCPUTest");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -249,8 +249,8 @@ TEST_P(SequenceCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckNodeOfTypeCount(executableNetwork, "RNNSeq", 1);
-    CheckNodeOfTypeCount(executableNetwork, "Transpose", 0);
+    CheckNumberOfNodesWithType(executableNetwork, "RNNSeq", 1);
+    CheckNumberOfNodesWithType(executableNetwork, "Transpose", 0);
 }
 
 const std::vector<SEQ_TYPE> nodeType = {
