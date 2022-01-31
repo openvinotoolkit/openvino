@@ -306,7 +306,6 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThro
 
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    ov::Any p;
 
     setHeteroNetworkAffinity(deviceName);
 
