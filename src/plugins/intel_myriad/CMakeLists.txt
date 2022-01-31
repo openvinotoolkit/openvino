@@ -12,9 +12,10 @@ endif()
 
 add_subdirectory(common)
 
-if(ENABLE_INTEL_VPU)
+if(ENABLE_INTEL_MYRIAD)
     add_subdirectory(graph_transformer)
     add_subdirectory(myriad_plugin)
+    add_subdirectory(third_party)
 
     if(DEFINED VPU_CLC_MA2X8X_ROOT)
         install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/custom_kernels/

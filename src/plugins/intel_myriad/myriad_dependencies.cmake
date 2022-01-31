@@ -83,7 +83,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
             DESTINATION ${IE_CPACK_RUNTIME_PATH}
             COMPONENT myriad)
 
-    if(ENABLE_INTEL_VPU AND ENABLE_BEH_TESTS)
+    if(ENABLE_INTEL_MYRIAD AND ENABLE_BEH_TESTS)
         # for MyriadBehaviorTests
         install(FILES ${${var_name}}
                 DESTINATION tests
@@ -162,7 +162,7 @@ endif()
 add_library(vpu_custom_kernels INTERFACE)
 
 function(add_vpu_compile_custom_kernels)
-    set(SRC_DIR "${IE_MAIN_SOURCE_DIR}/src/vpu/custom_kernels")
+    set(SRC_DIR "${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/custom_kernels")
     set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu_custom_kernels")
 
     file(MAKE_DIRECTORY "${DST_DIR}")

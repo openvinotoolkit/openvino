@@ -21,4 +21,4 @@ endmacro()
 _set_if_not_defined(FORCE_32 ON)
 
 # need libusb 32-bits version
-_set_if_not_defined(ENABLE_INTEL_VPU OFF)
+_set_if_not_defined(ENABLE_INTEL_MYRIAD_COMMON OFF)

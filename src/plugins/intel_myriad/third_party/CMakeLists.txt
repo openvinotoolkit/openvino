@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (ENABLE_INTEL_VPU)
+if (ENABLE_INTEL_MYRIAD)
     add_definitions(-DXLINK_USE_BUS)
 
     if(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)

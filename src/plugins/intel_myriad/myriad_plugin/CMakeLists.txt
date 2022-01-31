@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ov_intel_vpu_plugin")
+set(TARGET_NAME "ov_intel_myriad_plugin")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
@@ -55,7 +55,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # install
 if (LINUX)
-    install(FILES ${mvnc_SOURCE_DIR}/src/97-myriad-usbboot.rules
+    install(FILES ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/third_party/mvnc/src/97-myriad-usbboot.rules
         DESTINATION runtime/3rdparty
         COMPONENT myriad)
 endif()

@@ -13,7 +13,6 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                            "${OpenVINO_SOURCE_DIR}/src/plugins/intel_cpu/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gpu/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11"
-                           "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/tools/pot/thirdparty"
                            "${TEMP}"
                            # TODO fix and enable back:
