@@ -199,7 +199,8 @@ int main(int argc, char* argv[]) {
                     slog::warn << "-hint default value is determined as " << ov::hint::PerformanceMode::THROUGHPUT
                                << " automatically for " << device
                                << " device. For more detailed information look at README." << slog::endl;
-                    FLAGS_hint = (std::stringstream{} << ov::hint::PerformanceMode::THROUGHPUT).str();
+                    std::stringstream strm << ov::hint::PerformanceMode::THROUGHPUT;
+                    FLAGS_hint = strm.str();
                 }
             }
         }
