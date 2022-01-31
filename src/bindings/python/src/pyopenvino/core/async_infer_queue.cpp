@@ -57,7 +57,6 @@ public:
         if (_errors.size() > 0)
             throw _errors.front();
         return idle_handle;
-
     }
 
     void wait_all() {
