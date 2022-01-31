@@ -10,6 +10,8 @@ using namespace MKLDNNPlugin;
 using namespace mkldnn::impl::cpu::x64;
 using namespace Xbyak;
 
+namespace {
+
 #define TEST_JIT_SCALAR_EXPRESSION (c << 5) * b | (a & b - c) | (b - a) >> 2
 
 template<typename Params>
@@ -38,7 +40,6 @@ struct jit_scalar_variable_test_kernel {
         T a;
         T b;
         T c;
-        T d;
         T *result;
     };
 
@@ -58,7 +59,6 @@ private:
             auto a = this->arg(&Params::a);
             auto b = this->arg(&Params::b);
             auto c = this->arg(&Params::c);
-            auto d = this->arg(&Params::d);
             auto result = this->arg(&Params::result);
 
             *result = TEST_JIT_SCALAR_EXPRESSION;
@@ -70,53 +70,37 @@ private:
     kernel_impl _kernel;
 };
 
+template<typename T>
+T scalar_variable_jit_expression(T a, T b, T c) {
+    T result = 0;
+    jit_scalar_variable_test_kernel<T> kernel;
+    typename jit_scalar_variable_test_kernel<T>::Params args = { a, b, c, &result };
+    kernel(args);
+    return result;
+}
+
+template<typename T>
+T scalar_variable_ref_expression(T a, T b, T c) {
+    return TEST_JIT_SCALAR_EXPRESSION;
+}
+
 TEST(JitKernel, scalar_variable) {
-    size_t a = 1;
-    size_t b = 2;
-    size_t c = 3;
-    size_t d = 4;
-
-    size_t result64 = 0;
-    jit_scalar_variable_test_kernel<size_t> kernel64;
-    jit_scalar_variable_test_kernel<size_t>::Params args64 = { a, b, c, d, &result64 };
-    kernel64(args64);
-
-    uint32_t result32 = 0;
-    jit_scalar_variable_test_kernel<uint32_t> kernel32;
-    jit_scalar_variable_test_kernel<uint32_t>::Params args32 = {
-        static_cast<uint32_t>(a),
-        static_cast<uint32_t>(b),
-        static_cast<uint32_t>(c),
-        static_cast<uint32_t>(d),
-        &result32 };
-    kernel32(args32);
-
-    uint16_t result16 = 0;
-    jit_scalar_variable_test_kernel<uint16_t> kernel16;
-    jit_scalar_variable_test_kernel<uint16_t>::Params args16 = {
-        static_cast<uint16_t>(a),
-        static_cast<uint16_t>(b),
-        static_cast<uint16_t>(c),
-        static_cast<uint16_t>(d),
-        &result16 };
-    kernel16(args16);
-
-    uint8_t result8 = 0;
-    jit_scalar_variable_test_kernel<uint8_t> kernel8;
-    jit_scalar_variable_test_kernel<uint8_t>::Params args8 = {
-        static_cast<uint8_t>(a),
-        static_cast<uint8_t>(b),
-        static_cast<uint8_t>(c),
-        static_cast<uint8_t>(d),
-        &result8 };
-    kernel8(args8);
-
-    auto expected_result = TEST_JIT_SCALAR_EXPRESSION;
-
-    ASSERT_EQ(result64, expected_result);
-    ASSERT_EQ(result32, expected_result);
-    ASSERT_EQ(result16, expected_result);
-    ASSERT_EQ(result8, expected_result);
+    ASSERT_EQ(scalar_variable_jit_expression<uint64_t>(1, 2, 3),
+              scalar_variable_ref_expression<uint64_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int64_t>(1, 2, 3),
+              scalar_variable_ref_expression<int64_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint32_t>(1, 2, 3),
+              scalar_variable_ref_expression<uint32_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int32_t>(1, 2, 3),
+              scalar_variable_ref_expression<int32_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint16_t>(1, 2, 3),
+              scalar_variable_ref_expression<uint16_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int16_t>(1, 2, 3),
+              scalar_variable_ref_expression<int16_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint8_t>(1, 2, 3),
+              scalar_variable_ref_expression<uint8_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int8_t>(1, 2, 3),
+              scalar_variable_ref_expression<int8_t>(1, 2, 3));
 }
 
 struct jit_variable_test_kernel {
@@ -345,3 +329,5 @@ TEST(JitKernel, variable_load_and_store) {
         kernel.test<4>();
     }
 }
+
+}   // namespace

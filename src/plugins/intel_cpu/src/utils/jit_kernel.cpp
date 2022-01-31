@@ -20,8 +20,7 @@ using registers = std::array<std::reference_wrapper<const RegType>, 16>;
 
 bool isRegAllocable(int id) {
     return id != abi_param1.getIdx()          // function argument
-            && id != Operand::Code::RSP       // stack pointer
-            && id != Operand::Code::RBP;      // frame pointer
+            && id != Operand::Code::RSP;      // stack pointer
 }
 
 template<typename RegType>

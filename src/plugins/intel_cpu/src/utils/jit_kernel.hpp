@@ -924,19 +924,19 @@ void boolean_expression<T>::cmp(const Xbyak::Label & exit) const {
             break;
         }
         case type::ls: {
-            _kernel.jl(exit, Xbyak::CodeGenerator::T_NEAR);
+            _kernel.jge(exit, Xbyak::CodeGenerator::T_NEAR);
             break;
         }
         case type::gt: {
-            _kernel.jg(exit, Xbyak::CodeGenerator::T_NEAR);
-            break;
-        }
-        case type::le: {
             _kernel.jle(exit, Xbyak::CodeGenerator::T_NEAR);
             break;
         }
+        case type::le: {
+            _kernel.jg(exit, Xbyak::CodeGenerator::T_NEAR);
+            break;
+        }
         case type::ge: {
-            _kernel.jge(exit, Xbyak::CodeGenerator::T_NEAR);
+            _kernel.jl(exit, Xbyak::CodeGenerator::T_NEAR);
             break;
         }
     }

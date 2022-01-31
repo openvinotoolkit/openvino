@@ -983,11 +983,11 @@ MKLDNNColorConvertNode::Converter::Converter(MKLDNNNode *node, const ColorFormat
 }
 
 InferenceEngine::Precision MKLDNNColorConvertNode::Converter::inputPrecision(size_t idx) const {
-    return _node->getParentEdgeAt(idx)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getPrecision();
+    return _node->getParentEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
 }
 
 InferenceEngine::Precision MKLDNNColorConvertNode::Converter::outputPrecision(size_t idx) const {
-    return _node->getChildEdgeAt(idx)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getPrecision();
+    return _node->getChildEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
 }
 
 const void * MKLDNNColorConvertNode::Converter::input(size_t idx) const {
