@@ -75,9 +75,16 @@ public:
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
+                try {
+                    if (exception_ptr) {
+                        std::rethrow_exception(exception_ptr);
+                    }
+                } catch (const std::exception& e) {
+                    throw ov::Exception(e.what());
+                }
                 // Add idle handle to queue
                 _idle_handles.push(handle);
-                // Notify locks in getIdleRequestId() or waitAll() functions
+                // Notify locks in getIdleRequestId()
                 _cv.notify_one();
             });
         }
