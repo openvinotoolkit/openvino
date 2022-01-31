@@ -51,7 +51,7 @@ namespace {
 
     const std::vector<ov::AnyMap> configSetPrc = {
             {},
-            {ov::streams::num(ov::streams::AUTO)}
+            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
     };
 
     const std::vector<ov::AnyMap> AutoConfigsSetPrc = {
@@ -60,6 +60,7 @@ namespace {
 
     const std::vector<ov::AnyMap> MultiConfigsSetPrc = {
             {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
-            {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::streams::num(ov::streams::AUTO)}
+            {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+             {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
     };
 }  // namespace
