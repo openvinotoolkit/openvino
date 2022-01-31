@@ -169,7 +169,7 @@ def test_sample_compression(_sample_params, tmp_path, models):
 
 SIMPLIFIED_TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.707, 'accuracy@top5': 0.91})
+     {'accuracy@top1': 0.701, 'accuracy@top5': 0.91})
 ]
 
 
