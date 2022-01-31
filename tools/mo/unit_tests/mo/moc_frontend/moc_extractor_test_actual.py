@@ -83,8 +83,8 @@ class TestMainFrontend(unittest.TestCase):
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
-        assert model_stat.get_place_by_tensor_name == 2
-        assert model_stat.get_place_by_operation_name == 3
+        assert model_stat.get_place_by_tensor_name == 1
+        assert model_stat.get_place_by_operation_name == 2
         assert place_stat.get_output_port == 1
         assert place_stat.lastArgInt == 7
         assert node
@@ -96,8 +96,8 @@ class TestMainFrontend(unittest.TestCase):
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
-        assert model_stat.get_place_by_tensor_name == 2
-        assert model_stat.get_place_by_operation_name == 3
+        assert model_stat.get_place_by_tensor_name == 1
+        assert model_stat.get_place_by_operation_name == 2
         assert place_stat.get_input_port == 1
         assert place_stat.lastArgInt == 7
         assert node
@@ -133,8 +133,8 @@ class TestMainFrontend(unittest.TestCase):
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
-        assert model_stat.get_place_by_tensor_name == 2
-        assert model_stat.get_place_by_operation_name == 3
+        assert model_stat.get_place_by_tensor_name == 1
+        assert model_stat.get_place_by_operation_name == 2
         assert place_stat.get_output_port == 1
         assert place_stat.lastArgInt == 1234
 
@@ -146,8 +146,8 @@ class TestMainFrontend(unittest.TestCase):
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
-        assert model_stat.get_place_by_tensor_name == 2
-        assert model_stat.get_place_by_operation_name == 3
+        assert model_stat.get_place_by_tensor_name == 1
+        assert model_stat.get_place_by_operation_name == 2
         assert place_stat.get_input_port == 1
         assert place_stat.lastArgInt == 1234
 

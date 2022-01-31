@@ -32,25 +32,13 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
             if match_pre:
                 port, name = node_name.split(":")
                 node = input_model.get_place_by_operation_name(name)
-                if node:
-                    tensor = node.get_source_tensor(input_port_index=int(port))
-                    if tensor:
-                        return tensor
-                tensor = input_model.get_place_by_tensor_name(name)
-                if tensor:
-                    return tensor
+                return node.get_source_tensor(input_port_index=int(port))
             regexp_post = r'(.+):(\d+)'
             match_post = re.search(regexp_post, node_name)
             if match_post:
                 name, port = node_name.split(":")
                 node = input_model.get_place_by_operation_name(name)
-                if node:
-                    tensor = node.get_target_tensor(output_port_index=int(port))
-                    if tensor:
-                        return tensor
-                tensor = input_model.get_place_by_tensor_name(name)
-                if tensor:
-                    return tensor
+                return node.get_target_tensor(output_port_index=int(port))
         node = input_model.get_place_by_operation_name(node_name)
         if node:
             tensor = node.get_target_tensor(output_port_index=0)
