@@ -86,7 +86,7 @@ ov::Tensor fillTensorRandom(const ov::Output<ov::Node> &input) {
     ov::Tensor tensor{input.get_element_type(), input.get_shape()};
     std::vector<T> values(ov::shape_size(input.get_shape()));
     for (size_t i = 0; i < values.size(); ++i) {
-        values[i] = 1 + static_cast <T> (rand()) /( static_cast <T> (RAND_MAX/(std::numeric_limits<T>::max()-1)));
+        values[i] = 1 + static_cast <T> (rand()) / (static_cast <T> (RAND_MAX / (std::numeric_limits<T>::max() - 1)));
     }
     std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
     return tensor;
@@ -117,21 +117,6 @@ void fillBlobImInfo(InferenceEngine::Blob::Ptr &inputBlob,
                 inputBlobData[index] = 1;
         }
     }
-}
-
-
-/**
- * @brief Fill InferenceEngine tensor with image information (OV API 2.0)
- */
-template<typename T>
-ov::Tensor fillTensorImInfo(const ov::Output<ov::Node> &input,
-                            std::pair<size_t, size_t> image_size) {
-    ov::Tensor tensor{input.get_element_type(), input.get_shape()};
-    std::vector<float> values{static_cast<float>(image_size.first), static_cast<float>(image_size.second)};
-
-    std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
-
-    return tensor;
 }
 
 
