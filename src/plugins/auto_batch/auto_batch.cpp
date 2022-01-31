@@ -813,9 +813,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 input.second[0] = metaDevice.batchForDevice;
             CNNNetwork reshaped(InferenceEngine::details::cloneNetwork(network));
             reshaped.getFunction()->reshape(batched_inputs);
-            executableNetworkWithBatch =
-                ctx ? GetCore()->LoadNetwork(reshaped, ctx, devCfgNoAutoBatch)
-                    : GetCore()->LoadNetwork(reshaped, deviceName, devCfgNoAutoBatch);
+            executableNetworkWithBatch = ctx ? GetCore()->LoadNetwork(reshaped, ctx, devCfgNoAutoBatch)
+                                             : GetCore()->LoadNetwork(reshaped, deviceName, devCfgNoAutoBatch);
         } catch (...) {
             executableNetworkWithBatch = {nullptr, nullptr};
         }
