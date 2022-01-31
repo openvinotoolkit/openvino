@@ -113,6 +113,12 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             if node.is_in_port_connected(3):
                 PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:3', 'slice', 'dim_size')
 
+            # If there are new_axis_mask or shrink_axis_mask then StridedSlice should be performed in the
+            # original layout, same as for Squeeze, Unsqueeze, Reshape, Gather
+            if np.count_nonzero(node['new_axis_mask']) > 0 or np.count_nonzero(node['shrink_axis_mask']) > 0:
+                node['reinterp_shape'] = True
+                node['nchw_layout'] = True
+
     @staticmethod
     def normalize_strided_slice(graph: Graph, node: Node):
         input_shape = node.in_port(0).data.get_shape()
