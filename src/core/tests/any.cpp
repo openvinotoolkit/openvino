@@ -100,20 +100,12 @@ TEST_F(AnyTests, parameter_ship) {
         EXPECT_EQ(ship.x, 3);
         EXPECT_EQ(ship.y, 4);
     }
-    {
-        auto parameter = Any::make<Ship>("Lollipop", int16_t(3), int16_t(4));
-        ASSERT_TRUE(parameter.is<Ship>());
-        Ship ship = parameter;
-        EXPECT_EQ(ship.name, "Lollipop");
-        EXPECT_EQ(ship.x, 3);
-        EXPECT_EQ(ship.y, 4);
-    }
 }
 
 TEST_F(AnyTests, AnyAsInt) {
     Any p = 4;
     ASSERT_TRUE(p.is<int>());
-    int test = p;
+    int test = p.as<int>();
     ASSERT_EQ(4, test);
 }
 
@@ -121,22 +113,23 @@ TEST_F(AnyTests, AnyAsUInt) {
     Any p = uint32_t(4);
     ASSERT_TRUE(p.is<uint32_t>());
     ASSERT_TRUE(p.is<uint32_t>());
-    uint32_t test = p;
+    uint32_t test = p.as<uint32_t>();
     ASSERT_EQ(4, test);
 }
 
 TEST_F(AnyTests, AnyAsString) {
     std::string ref = "test";
     Any p = ref;
-    std::string test = p;
     ASSERT_TRUE(p.is<std::string>());
+    std::string test = p.as<std::string>();
     ASSERT_EQ(ref, test);
 }
 
 TEST_F(AnyTests, AnyAsStringInLine) {
     Any p = "test";
-    std::string test = p;
     ASSERT_TRUE(p.is<std::string>());
+    std::string test = p.as<std::string>();
+    ;
     ASSERT_EQ("test", test);
 }
 
@@ -144,7 +137,6 @@ TEST_F(AnyTests, IntAnyAsString) {
     Any p = 4;
     ASSERT_TRUE(p.is<int>());
     ASSERT_FALSE(p.is<std::string>());
-    ASSERT_THROW(std::string test = p, ov::Exception);
     ASSERT_THROW(std::string test = p.as<std::string>(), ov::Exception);
 }
 
@@ -152,7 +144,6 @@ TEST_F(AnyTests, StringAnyAsInt) {
     Any p = "4";
     ASSERT_FALSE(p.is<int>());
     ASSERT_TRUE(p.is<std::string>());
-    ASSERT_THROW((void)static_cast<int>(p), ov::Exception);
     ASSERT_THROW((void)p.as<int>(), ov::Exception);
 }
 
@@ -160,7 +151,7 @@ TEST_F(AnyTests, AnyAsInts) {
     std::vector<int> ref = {1, 2, 3, 4, 5};
     Any p = ref;
     ASSERT_TRUE(p.is<std::vector<int>>());
-    std::vector<int> test = p;
+    std::vector<int> test = p.as<std::vector<int>>();
     ASSERT_EQ(ref.size(), test.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_EQ(ref[i], test[i]);
@@ -174,13 +165,13 @@ TEST_F(AnyTests, AnyAsMapOfAnys) {
     Any p = refMap;
     bool isMap = p.is<std::map<std::string, Any>>();
     ASSERT_TRUE(isMap);
-    std::map<std::string, Any> testMap = p;
+    auto testMap = p.as<std::map<std::string, Any>>();
 
     ASSERT_NE(testMap.find("testParamInt"), testMap.end());
     ASSERT_NE(testMap.find("testParamString"), testMap.end());
 
-    int testInt = testMap["testParamInt"];
-    std::string testString = testMap["testParamString"];
+    int testInt = testMap["testParamInt"].as<int>();
+    std::string testString = testMap["testParamString"].as<std::string>();
 
     ASSERT_EQ(refMap["testParamInt"].as<int>(), testInt);
     ASSERT_EQ(refMap["testParamString"].as<std::string>(), testString);
@@ -304,7 +295,7 @@ TEST_F(AnyTests, AnyRemovedRealObjectPointerWithDuplication) {
         ASSERT_EQ(0, DestructorTest::destructorCount);
         p = t;
         ASSERT_TRUE(p.is<DestructorTest*>());
-        DestructorTest* t2 = p;
+        DestructorTest* t2 = p.as<DestructorTest*>();
         ASSERT_EQ(0, DestructorTest::destructorCount);
         delete t;
         auto* t3 = p.as<DestructorTest*>();

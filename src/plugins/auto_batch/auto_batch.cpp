@@ -571,7 +571,7 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
     if (it == cfg.end())
         IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
 
-    auto val = it->second;
+    auto val = it->second.as<std::string>();
     auto metaDevice = ParseMetaDevice(val, std::map<std::string, std::string>());
     cfg.erase(it);
     return GetCore()->CreateContext(metaDevice.deviceName, cfg);
@@ -757,7 +757,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     if (deviceName.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(GetCore(), deviceName) - batch1_footprint;
         if (batch1_footprint) {
-            const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+            const auto total_mem =
+                GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)).as<uint64_t>();
             const int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
             int closest = pow(2, floor(log(estimated_batch) / log(2)));
             closest = std::max(1, closest);

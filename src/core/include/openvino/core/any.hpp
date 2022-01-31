@@ -635,20 +635,13 @@ public:
         throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
     }
 
-    operator bool&() & = delete;
-
-    operator const bool&() const& = delete;
-
-    operator const bool() const& = delete;
-
-    operator const bool &&() && = delete;
-
     /**
      * @brief Converts to specified type
      * @tparam T type
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator T&() & {
         return as<T>();
     }
@@ -659,6 +652,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator const T&() const& {
         return as<T>();
     }
@@ -669,6 +663,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator T&() const& {
         return const_cast<Any*>(this)->as<T>();
     }
@@ -679,6 +674,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator T &&() && {
         return std::move(as<T&&>());
     }
