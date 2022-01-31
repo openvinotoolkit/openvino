@@ -88,3 +88,7 @@ title level inconsistent
 create a pipeline
 run pot cli
 found unknown command
+unable to resolve reference to \'http
+unexpected html tag
+field list ends without a blank line
+bullet list ends without a blank line
