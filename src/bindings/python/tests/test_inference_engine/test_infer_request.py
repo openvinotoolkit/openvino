@@ -331,6 +331,27 @@ def test_infer_queue_fail_on_py_model(device):
     assert "unsupported operand type(s) for +" in str(e.value)
 
 
+def test_infer_queue_get_idle_handle(device):
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    core = Core()
+    compiled = core.compile_model(model, device)
+    queue = AsyncInferQueue(compiled, 2)
+    niter = 10
+
+    for _ in range(len(queue)):
+        queue.start_async()
+    queue.wait_all()
+    for request in queue:
+        assert request.wait_for(0)
+
+    for _ in range(niter):
+        idle_id = queue.get_idle_request_id()
+        assert queue[idle_id].wait_for(0)
+        queue.start_async()
+    queue.wait_all()
+
+
 @pytest.mark.parametrize("data_type",
                          [np.float32,
                           np.int32,

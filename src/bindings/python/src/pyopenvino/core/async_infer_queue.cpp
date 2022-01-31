@@ -52,19 +52,19 @@ public:
         _cv.wait(lock, [this] {
             return !(_idle_handles.empty());
         });
+        size_t idle_handle = _idle_handles.front();
+        _requests[idle_handle]._request.wait();
         if (_errors.size() > 0)
             throw _errors.front();
-        return _idle_handles.front();
+        return idle_handle;
     }
 
     void wait_all() {
-        // Wait for all requests to return with callback thus updating
-        // _idle_handles so it matches the size of requests
+        // Wait for all requests to complete
         py::gil_scoped_release release;
-        std::unique_lock<std::mutex> lock(_mutex);
-        _cv.wait(lock, [this] {
-            return _idle_handles.size() == _requests.size();
-        });
+        for (auto&& request : _requests) {
+            request._request.wait();
+        }
         if (_errors.size() > 0)
             throw _errors.front();
     }
@@ -73,9 +73,16 @@ public:
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
+                try {
+                    if (exception_ptr) {
+                        std::rethrow_exception(exception_ptr);
+                    }
+                } catch (const std::exception& e) {
+                    throw ov::Exception(e.what());
+                }
                 // Add idle handle to queue
                 _idle_handles.push(handle);
-                // Notify locks in getIdleRequestId() or waitAll() functions
+                // Notify locks in getIdleRequestId()
                 _cv.notify_one();
             });
         }
@@ -102,7 +109,7 @@ public:
                 }
                 // Add idle handle to queue
                 _idle_handles.push(handle);
-                // Notify locks in getIdleRequestId() or waitAll() functions
+                // Notify locks in getIdleRequestId()
                 _cv.notify_one();
             });
         }
