@@ -37,6 +37,7 @@ language = 'en'
 extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
+    'sphinx_panels',
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',
@@ -64,6 +65,8 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'openvino/inference-engine']
 
+
+panels_add_bootstrap_css = False
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -131,9 +134,6 @@ def setup(app):
     logger = logging.getLogger(__name__)
     app.add_config_value('doxygen_mapping_file', doxygen_mapping_file, rebuild=True)
     app.add_config_value('repositories', repositories, rebuild=True)
-    app.add_css_file('css/viewer.min.css')
-    app.add_css_file('css/custom.css')
-    app.add_js_file('js/viewer.min.js')
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
     try:

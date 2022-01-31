@@ -343,6 +343,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
 
     // select next candidate device
     try {
+        std::lock_guard<std::mutex> lock(_confMutex);
         context.deviceInfo = _multiPlugin->SelectDevice(deviceList,
                 context.networkPrecision, _context.modelPriority);
     }
@@ -557,16 +558,24 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     auto num = _numRequestsCreated++;
     size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
+    InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
     if (_workModeIsAUTO) {
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            if (num < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            try {
+                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
+            } catch (InferenceEngine::Exception& ex) {
+                // plugin does not support context, say CPU
+                LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
+                                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
+                // for dynamic shape support
+                auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
+                if (num < dev_requests.size()) {
+                    request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+                }
             }
         }
-        // if user creates more infer request than the device optimal value, fall back to default memory
-        return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
+        return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, ctx);
     }
 
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
@@ -587,16 +596,23 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     auto num = _numRequestsCreated++;
     size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
+    InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
     if (_workModeIsAUTO) {
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            if (num < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            try {
+                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
+            } catch (InferenceEngine::Exception& ex) {
+                // plugin does not support context
+                LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
+                                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
+                auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
+                if (num < dev_requests.size()) {
+                    request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+                }
             }
         }
-        // if user creates more infer request than the device optimal value, fall back to default memory
-        return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
+        return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, ctx);
     }
 
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
@@ -690,37 +706,54 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
         if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+            const unsigned int defaultNumForTPUT = 4u;
+            const unsigned int defaultNumForLatency = 1u;
             unsigned int real = 0;
             if (_loadContext[ACTUALDEVICE].isAlready) {
                 real = _loadContext[ACTUALDEVICE].
                     executableNetwork->GetMetric(name).as<unsigned int>();
             } else {
                 IE_ASSERT(_loadContext[CPU].isAlready == true);
-                real = _loadContext[CPU].
-                    executableNetwork->GetMetric(name).as<unsigned int>();
                 std::unique_lock<std::mutex> lock(_confMutex);
                 auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
                 lock.unlock();
                 unsigned int optimalBatchSize = 0;
                 unsigned int requests = 0;
-                std::map<std::string, InferenceEngine::Parameter> options;
-                options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
+                bool bThroughputEnabledInPlugin = false;
                 try {
-                    optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
-                                    METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-                    LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size", optimalBatchSize);
+                    // for benchmark through AUTO:CPU,GPU
+                    // SetConfig directly set to CPU/GPU in this case
+                    bThroughputEnabledInPlugin =
+                        _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
                 } catch (...) {
-                    LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
+                    LOG_DEBUG("[AUTOPLUGIN]GetMetric:%s for %s", "PERF_HINT config not supported", deviceInfo.deviceName.c_str());
                 }
-                if (optimalBatchSize > 1) {
-                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
+                const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
+                if (bThroughputEnabledInPlugin ||
+                    (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
+                    unsigned int upperBoundStreamsNum = 0;
+                    std::map<std::string, InferenceEngine::Parameter> options;
+                    options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
                     try {
-                        // for benchmark through AUTO:CPU,GPU
-                        // SetConfig directly set to CPU/GPU in this case
-                        auto bThroughputEnabledInPlugin =
-                            _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
-                        if (bThroughputEnabledInPlugin ||
-                            (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
+                        auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
+                                                        METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                        upperBoundStreamsNum = std::get<1>(rangeOfStreams);
+                    } catch (const InferenceEngine::Exception &iie) {
+                        LOG_DEBUG("[AUTOPLUGIN] GetMetric RANGE_FOR_STREAMS failed");
+                    }
+                    if (!_context.batchingDisabled) {
+                        try {
+                            optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
+                                            METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+                            LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size", optimalBatchSize);
+                        } catch (...) {
+                            LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
+                        }
+                    }
+                    if (optimalBatchSize > 1) {
+                        // batching is supported with the device
+                        // go with auto-batching
+                        try {
                             // check if app have set preferred value
                             auto res =
                                 _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
@@ -730,20 +763,23 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                                 requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
                             LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "user requested size", requests);
                             if (!requests) { // no limitations from user
-                                auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
-                                                        METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
-                                requests = optimalBatchSize * std::get<1>(rangeOfStreams);
+                                requests = optimalBatchSize * upperBoundStreamsNum * 2;
                                 LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "deduced size:", requests);
                             }
+                        } catch (const InferenceEngine::Exception &iie) {
+                            LOG_WARNING("[AUTOPLUGIN]deduce optimal infer requset num for auto-batch failed :%s", iie.what());
                         }
-                    } catch (const InferenceEngine::Exception &iie) {
-                            LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for auto-batch failed :%s", iie.what());
+                        real = (std::max)(requests, optimalBatchSize);
+                    } else if (deviceInfo.deviceName.find("VPUX") != std::string::npos) {
+                        real = 8u;
+                    } else {
+                        real = upperBoundStreamsNum ? 2 * upperBoundStreamsNum : defaultNumForTPUT;
                     }
-                    real = (std::max)(real, (std::max)(requests, optimalBatchSize));
+                } else {
+                    real = defaultNumForLatency;
                 }
             }
-            unsigned int res = (std::max)(8u, real);
-            IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
+            IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, real);
         }
 
         if (_loadContext[ACTUALDEVICE].isAlready) {

@@ -42,15 +42,14 @@ A fragment of the configuration file (`config/default_quantization_template.json
 In the case of substantial accuracy degradation after applying the `DefaultQuantization` algorithm there are two alternatives to use:
 1.  Hyperparameters tuning
 2.  AccuracyAwareQuantization algorithm
-3.  Layer-wise hyperparameters tuning
 
 ## Tuning Hyperparameters of the DefaultQuantization
 The `DefaultQuantization` algorithm provides multiple hyperparameters which can be used in order to improve accuracy results for the fully-quantized model. 
 Below is a list of best practices which can be applied to improve accuracy without a substantial performance reduction with respect to default settings:
-1.  The first option that we recommend to change is `preset` that can be varied from `performance` to `mixed`. It enables asymmetric quantization of 
-activations and can be helpful for the NNs with non-ReLU activation functions, e.g. YOLO, EfficientNet, etc.
-2.  The next option is `use_fast_bias`. Setting this option for `false` enables a different bias correction method which is more accurate, in general,
-and applied after model quantization as a part of `DefaultQuantization` algorithm.
+1.  The first option that we recommend is to change is `preset` from `performance` to `mixed`. This enables asymmetric quantization of 
+activations and can be helpful for NNs with non-ReLU activation functions, e.g. YOLO, EfficientNet, etc.
+2.  The next option is `use_fast_bias`. Setting this option to `false` enables a different bias correction method which is more accurate, in general,
+and applied after model quantization as a part of the `DefaultQuantization` algorithm.
    > **NOTE**: Changing this option can substantially increase quantization time in the POT tool.
 3.  Another important option is a `range_estimator`. It defines how to calculate the minimum and maximum of quantization range for weights and activations.
 For example, the following `range_estimator` for activations can improve the accuracy for Faster R-CNN based networks:
@@ -79,10 +78,10 @@ For example, the following `range_estimator` for activations can improve the acc
 }
 ```
 
-Please find the possible options and their description in the `config/default_quantization_spec.json` file in the POT directory.
+Find the possible options and their description in the `config/default_quantization_spec.json` file in the POT directory.
 
 4.  The next option is `stat_subset_size`. It controls the size of the calibration dataset used by POT to collect statistics for quantization parameters initialization.
-It is assumed that this dataset should contain a sufficient number of representative samples. Thus, varying this parameter may affect accuracy (the higher is better). 
+It is assumed that this dataset should contain a sufficient number of representative samples. Thus, varying this parameter may affect accuracy (higher is better). 
 However, we empirically found that 300 samples are sufficient to get representative statistics in most cases.
 5.  The last option is `ignored_scope`. It allows excluding some layers from the quantization process, i.e. their inputs will not be quantized. It may be helpful for some patterns for which it is known in advance that they drop accuracy when executing in low-precision.
 For example, `DetectionOutput` layer of SSD model expressed as a subgraph should not be quantized to preserve the accuracy of Object Detection models.
@@ -124,5 +123,5 @@ accuracy-aware scenario.
 
 If you do not achieve the desired accuracy and performance after applying the 
 `AccuracyAwareQuantization` algorithm or you need an accurate fully-quantized model,
-we recommend using layer-wise hyperparameters tuning using 
+we recommend either using layer-wise hyperparameters tuning with TPE or using 
 Quantization-Aware training from [the supported frameworks](LowPrecisionOptimizationGuide.md).

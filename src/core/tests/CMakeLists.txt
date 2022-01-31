@@ -48,6 +48,7 @@ set(SRC
     coordinate.cpp
     coordinate_range.cpp
     copy.cpp
+    copy_runtime_info.cpp
     element_type.cpp
     eval.cpp
     extension.cpp
@@ -462,7 +463,6 @@ endif()
 # TODO: Enable these tests in new infrastructure
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/interpolate.in.cpp
     backend/sqrt.in.cpp
 )
 
