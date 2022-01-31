@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import copy
-from typing import Any, List, Type, Union
+from typing import Any, Union
 
 from openvino.pyopenvino import Model
 from openvino.pyopenvino import Core as CoreBase
@@ -83,10 +82,27 @@ def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
 
 
 class InferRequest(InferRequestBase):
-    """InferRequest wrapper."""
+    """
+    InferRequest class represents infer request which can be run in
+    asynchronous or synchronous manners.
+    """
 
     def infer(self, inputs: Union[dict, list] = None) -> dict:
-        """Infer wrapper for InferRequest."""
+        """
+        Infers specified input(s) in synchronous mode.
+        Blocks all methods of InferRequest while request is running.
+        Calling any method will lead to throwning exceptions.
+
+        Parameters
+        ----------
+        inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            Data to set on input tensors.
+
+        Returns
+        ----------
+        infer : dict[openvino.runtime.ConstOutput : openvino.runtime.Tensor]
+            Dictionary of results from output tensors with ports as keys.
+        """
         return super().infer(
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
         )
@@ -94,7 +110,24 @@ class InferRequest(InferRequestBase):
     def start_async(
         self, inputs: Union[dict, list] = None, userdata: Any = None
     ) -> None:
-        """Asynchronous infer wrapper for InferRequest."""
+        """
+        Starts inference of specified input(s) in asynchronous mode.
+        Returns immediately. Inference starts also immediately.
+        Calling any method while the request is running will lead to
+        throwning exceptions.
+
+        Parameters
+        ----------
+        inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            Data to set on input tensors.
+
+        userdata : Any
+            Any data that will be passed inside callback call.                
+
+        Returns
+        ----------
+        start_async : None
+        """
         super().start_async(
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self)),
             userdata,
@@ -102,14 +135,46 @@ class InferRequest(InferRequestBase):
 
 
 class CompiledModel(CompiledModelBase):
-    """CompiledModel wrapper."""
+    """
+    CompiledModel represents Model that is compiled for a specific device by applying
+    multiple optimization transformations, then mapping to compute kernels.
+    """
 
     def create_infer_request(self) -> InferRequest:
-        """Create new InferRequest object."""
+        """
+        Creates an inference request object used to infer the compiled model.
+        The created request has allocated input and output tensors.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        create_infer_request : openvino.runtime.InferRequest
+            New InferRequest object.
+        """
         return InferRequest(super().create_infer_request())
 
     def infer_new_request(self, inputs: Union[dict, list] = None) -> dict:
-        """Infer wrapper for CompiledModel."""
+        """
+        Infers specified input(s) in synchronous mode.
+        Blocks all methods of CompiledModel while request is running.
+
+        Method creates new temporary InferRequest and run inference on it.
+        It is advised to use dedicated InferRequest class for performance,
+        optimizing workflows and creating advanced pipelines.
+
+        Parameters
+        ----------
+        inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            Data to set on input tensors.
+
+        Returns
+        ----------
+        infer_new_request : dict[openvino.runtime.ConstOutput : openvino.runtime.Tensor]
+            Dictionary of results from output tensors with ports as keys.
+        """
         return super().infer_new_request(
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
         )
@@ -120,16 +185,45 @@ class CompiledModel(CompiledModelBase):
 
 
 class AsyncInferQueue(AsyncInferQueueBase):
-    """AsyncInferQueue wrapper."""
+    """
+    AsyncInferQueue represents helper that creates a pool of asynchronous
+    InferRequests and provides synchronization functions to control flow of
+    a simple pipeline.
+    """
 
     def __getitem__(self, i: int) -> InferRequest:
-        """Return i-th InferRequest from AsyncInferQueue."""
+        """
+        Parameters
+        ----------
+        i : int
+            InferRequest id. 
+
+        Returns
+        ----------
+        __getitem__ : openvino.runtime.InferRequest
+            InferRequests from the pool with given id.
+        """
         return InferRequest(super().__getitem__(i))
 
     def start_async(
         self, inputs: Union[dict, list] = None, userdata: Any = None
     ) -> None:
-        """Asynchronous infer wrapper for AsyncInferQueue."""
+        """
+        Run asynchronous inference using next available InferRequest.
+
+        Parameters
+        ----------
+        inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor], optional
+            Data to set on input tensors of next available InferRequest from
+            AsyncInferQueue's pool.
+
+        userdata : Any, optional
+            Any data that will be passed to a callback.
+
+        Returns
+        ----------
+        start_async : None
+        """
         super().start_async(
             {}
             if inputs is None
@@ -141,7 +235,13 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
 
 class Core(CoreBase):
-    """Core wrapper."""
+    """
+    Core class represents OpenVINO runtime Core entity.
+    User applications can create several Core class instances, but in this
+    case the underlying plugins are created multiple times and not shared
+    between several Core instances. The recommended way is to have a single
+    Core instance per application.
+    """
 
     def compile_model(
         self, model: Union[Model, str], device_name: str = None, config: dict = None
@@ -167,7 +267,7 @@ class Core(CoreBase):
         )
 
 
-class ExtendedNetwork(CompiledModel):
+class ExtendedModel(CompiledModel):
     """CompiledModel that additionally holds Core object."""
 
     def __init__(self, core: Core, net: CompiledModel):
@@ -178,7 +278,7 @@ class ExtendedNetwork(CompiledModel):
 def compile_model(model_path: str) -> CompiledModel:
     """Compact method to compile model with AUTO plugin."""
     core = Core()
-    return ExtendedNetwork(core, core.compile_model(model_path, "AUTO"))
+    return ExtendedModel(core, core.compile_model(model_path, "AUTO"))
 
 
 class OVAny(OVAnyBase):

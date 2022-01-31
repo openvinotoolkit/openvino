@@ -20,7 +20,26 @@ void regclass_Tensor(py::module m) {
                 return Common::tensor_from_numpy(array, shared_memory);
             }),
             py::arg("array"),
-            py::arg("shared_memory") = false);
+            py::arg("shared_memory") = false,
+            R"(
+                Tensor's special constructor.
+
+                Parameters
+                ----------
+                array : numpy.array
+
+                shared_memory : bool
+                    If true this Tensor memory is being shared with a host,
+                    that means the responsibility of keeping host memory is
+                    on the side of a user. Any action performed on the host
+                    memory will be reflected on this Tensor's memory!
+                    If false, data is being copied to this Tensor.
+                    Default: false
+
+                Returns
+                ----------
+                __init__ : openvino.runtime.Tensor
+            )");
 
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));
 
@@ -57,25 +76,96 @@ void regclass_Tensor(py::module m) {
             py::arg("begin"),
             py::arg("end"));
 
-    cls.def_property_readonly("element_type", &ov::Tensor::get_element_type);
+    cls.def_property_readonly("element_type",
+                              &ov::Tensor::get_element_type,
+                              R"(
+                                Tensor's element type.
 
-    cls.def_property_readonly("size", &ov::Tensor::get_size);
+                                Returns
+                                ----------
+                                element_type : openvino.runtime.Type
+                              )");
 
-    cls.def_property_readonly("byte_size", &ov::Tensor::get_byte_size);
+    cls.def_property_readonly("size",
+                              &ov::Tensor::get_size,
+                              R"(
+                                Tensor's size as total number of elements.
 
-    cls.def_property_readonly("strides", &ov::Tensor::get_strides); // TODO jiwaszki: add testing
+                                Returns
+                                ----------
+                                size : int
+                                    Total number of elements in this Tensor.
+                              )");
 
-    cls.def_property_readonly("data", [](ov::Tensor& self) {
-        return py::array(Common::ov_type_to_dtype().at(self.get_element_type()),
-                         self.get_shape(),
-                         self.get_strides(),
-                         self.data(),
-                         py::cast(self));
-    });
+    cls.def_property_readonly("byte_size",
+                              &ov::Tensor::get_byte_size,
+                              R"(
+                                Tensor's size in bytes.
 
-    cls.def_property("shape", &ov::Tensor::get_shape, &ov::Tensor::set_shape);
+                                Returns
+                                ----------
+                                byte_size : int
+                                    Size in bytes for this Tensor.
+                              )");
 
-    cls.def_property("shape", &ov::Tensor::get_shape, [](ov::Tensor& self, std::vector<size_t>& shape) {
-        self.set_shape(shape);
-    });
+    cls.def_property_readonly("strides",
+                              &ov::Tensor::get_strides,
+                              R"(
+                                Tensor's strides in bytes.
+
+                                Returns
+                                ----------
+                                strides : openvino.runtime.Strides
+                                    Sizes in bytes for this Tensor's strides.
+                              )");
+
+    cls.def_property_readonly(
+        "data",
+        [](ov::Tensor& self) {
+            return py::array(Common::ov_type_to_dtype().at(self.get_element_type()),
+                             self.get_shape(),
+                             self.get_strides(),
+                             self.data(),
+                             py::cast(self));
+        },
+        R"(
+            Access to Tensor's data.
+
+            Returns
+            ----------
+            data : numpy.array
+        )");
+
+    cls.def_property("shape",
+                     &ov::Tensor::get_shape,
+                     &ov::Tensor::set_shape,
+                     R"(
+                        Tensor's shape.
+
+                        Parameters
+                        ----------
+                        shape : openvino.runtime.Shape
+
+                        Returns
+                        ----------
+                        shape : openvino.runtime.Shape
+                     )");
+
+    cls.def_property(
+        "shape",
+        &ov::Tensor::get_shape,
+        [](ov::Tensor& self, std::vector<size_t>& shape) {
+            self.set_shape(shape);
+        },
+        R"(
+            Tensor's shape.
+
+            Parameters
+            ----------
+            shape : list[int]
+
+            Returns
+            ----------
+            shape : openvino.runtime.Shape
+        )");
 }

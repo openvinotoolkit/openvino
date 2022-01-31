@@ -20,8 +20,8 @@ namespace py = pybind11;
 
 void regclass_InferRequest(py::module m) {
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
-    cls.doc() = "openvino.runtime.InferRequest represents infer request which
-                 can be run in asynchronous or synchronous manners.";
+    cls.doc() = "openvino.runtime.InferRequest represents infer request which can be run in asynchronous or "
+                "synchronous manners.";
 
     cls.def(py::init([](InferRequestWrapper& other) {
                 return other;
@@ -123,37 +123,41 @@ void regclass_InferRequest(py::module m) {
             start_async : None
         )");
 
-    cls.def("cancel", [](InferRequestWrapper& self) {
-        self._request.cancel();
-    },
-    R"(
-        Cancels inference request.
+    cls.def(
+        "cancel",
+        [](InferRequestWrapper& self) {
+            self._request.cancel();
+        },
+        R"(
+            Cancels inference request.
 
-        Parameters
-        ----------
-        None
+            Parameters
+            ----------
+            None
 
-        Returns
-        ----------
-        cancel : None
-    )");
+            Returns
+            ----------
+            cancel : None
+        )");
 
-    cls.def("wait", [](InferRequestWrapper& self) {
-        py::gil_scoped_release release;
-        self._request.wait();
-    },
-    R"(
-        Waits for the result to become available. 
-        Blocks until the result becomes available.
+    cls.def(
+        "wait",
+        [](InferRequestWrapper& self) {
+            py::gil_scoped_release release;
+            self._request.wait();
+        },
+        R"(
+            Waits for the result to become available. 
+            Blocks until the result becomes available.
 
-        Parameters
-        ----------
-        None
+            Parameters
+            ----------
+            None
 
-        Returns
-        ----------
-        wait : None
-    )");
+            Returns
+            ----------
+            wait : None
+        )");
 
     cls.def(
         "wait_for",
@@ -213,7 +217,7 @@ void regclass_InferRequest(py::module m) {
 
             Returns
             ----------
-            set_callback : None // TAK TO ROBIĆ!!!
+            set_callback : None
         )");
 
     cls.def(
@@ -298,22 +302,24 @@ void regclass_InferRequest(py::module m) {
                 an exception is thrown.
         )");
 
-    cls.def("get_input_tensor", [](InferRequestWrapper& self) {
-        return self._request.get_input_tensor();
-    },
-    R"(
-        Gets input tensor of InferRequest.
+    cls.def(
+        "get_input_tensor",
+        [](InferRequestWrapper& self) {
+            return self._request.get_input_tensor();
+        },
+        R"(
+            Gets input tensor of InferRequest.
 
-        Parameters
-        ----------
-        None
+            Parameters
+            ----------
+            None
 
-        Returns
-        ----------
-        get_input_tensor : openvino.runtime.Tensor
-            An input Tensor for the model.
-            If model has several inputs, an exception is thrown.
-    )");
+            Returns
+            ----------
+            get_input_tensor : openvino.runtime.Tensor
+                An input Tensor for the model.
+                If model has several inputs, an exception is thrown.
+        )");
 
     cls.def(
         "get_output_tensor",
@@ -337,22 +343,24 @@ void regclass_InferRequest(py::module m) {
                 an exception is thrown.
         )");
 
-    cls.def("get_output_tensor", [](InferRequestWrapper& self) {
-        return self._request.get_output_tensor();
-    },
-    R"(
-        Gets output tensor of InferRequest.
+    cls.def(
+        "get_output_tensor",
+        [](InferRequestWrapper& self) {
+            return self._request.get_output_tensor();
+        },
+        R"(
+            Gets output tensor of InferRequest.
 
-        Parameters
-        ----------
-        None
+            Parameters
+            ----------
+            None
 
-        Returns
-        ----------
-        get_output_tensor : openvino.runtime.Tensor
-            An output Tensor for the model.
-            If model has several outputs, an exception is thrown.
-    )");
+            Returns
+            ----------
+            get_output_tensor : openvino.runtime.Tensor
+                An output Tensor for the model.
+                If model has several outputs, an exception is thrown.
+        )");
 
     cls.def(
         "set_tensor",
@@ -518,69 +526,163 @@ void regclass_InferRequest(py::module m) {
             set_output_tensor : None
         )");
 
-    cls.def("get_profiling_info", [](InferRequestWrapper& self) {
-        return self._request.get_profiling_info();
-    },
-    R"(
-        Queries performance measures per layer to get feedback of what
-        is the most time consuming operation, not all plugins provide
-        meaningful data.
+    cls.def(
+        "get_profiling_info",
+        [](InferRequestWrapper& self) {
+            return self._request.get_profiling_info();
+        },
+        R"(
+            Queries performance measures per layer to get feedback of what
+            is the most time consuming operation, not all plugins provide
+            meaningful data.
 
-        Parameters
-        ----------
-        None
+            Parameters
+            ----------
+            None
 
-        Returns
-        ----------
-        get_profiling_info : list[openvino.runtime.ProfilingInfo]
-            List of profiling information for operations in model.
-    )");
+            Returns
+            ----------
+            get_profiling_info : list[openvino.runtime.ProfilingInfo]
+                List of profiling information for operations in model.
+        )");
 
-    cls.def("query_state", [](InferRequestWrapper& self) {
-        return self._request.query_state();
-    },
-    R"(
-        Gets state control interface for given infer request.
+    cls.def(
+        "query_state",
+        [](InferRequestWrapper& self) {
+            return self._request.query_state();
+        },
+        R"(
+            Gets state control interface for given infer request.
 
-        Parameters
-        ----------
-        None
+            Parameters
+            ----------
+            None
 
-        Returns
-        ----------
-        query_state : list[openvino.runtime.VariableState]
-            List of VariableState objects.
-    )");
+            Returns
+            ----------
+            query_state : list[openvino.runtime.VariableState]
+                List of VariableState objects.
+        )");
 
-    cls.def_property_readonly("userdata", [](InferRequestWrapper& self) {
-        return self.userdata;
-    });
+    cls.def_property_readonly(
+        "userdata",
+        [](InferRequestWrapper& self) {
+            return self.userdata;
+        },
+        R"(
+            Gets currently held userdata.
 
-    cls.def_property_readonly("model_inputs", [](InferRequestWrapper& self) {
-        return self._inputs;
-    });
+            Returns
+            ----------
+            userdata : Any
+        )");
 
-    cls.def_property_readonly("model_outputs", [](InferRequestWrapper& self) {
-        return self._outputs;
-    });
+    cls.def_property_readonly(
+        "model_inputs",
+        [](InferRequestWrapper& self) {
+            return self._inputs;
+        },
+        R"(
+            Gets all inputs of a compiled model which was used to create this InferRequest.
 
-    cls.def_property_readonly("inputs", &InferRequestWrapper::get_input_tensors);
+            Returns
+            ----------
+            model_inputs : list[openvino.runtime.ConstOutput]
+        )");
 
-    cls.def_property_readonly("outputs", &InferRequestWrapper::get_output_tensors);
+    cls.def_property_readonly(
+        "model_outputs",
+        [](InferRequestWrapper& self) {
+            return self._outputs;
+        },
+        R"(
+            Gets all outputs of a compiled model which was used to create this InferRequest.
 
-    cls.def_property_readonly("input_tensors", &InferRequestWrapper::get_input_tensors);
+            Returns
+            ----------
+            model_outputs : list[openvino.runtime.ConstOutput]
+        )");
 
-    cls.def_property_readonly("output_tensors", &InferRequestWrapper::get_output_tensors);
+    cls.def_property_readonly("inputs",
+                              &InferRequestWrapper::get_input_tensors,
+                              R"(
+                                Gets all input tensors of this InferRequest.
 
-    cls.def_property_readonly("latency", [](InferRequestWrapper& self) {
-        return self.get_latency();
-    });
+                                Returns
+                                ----------
+                                inputs : list[openvino.runtime.Tensor]
+                              )");
 
-    cls.def_property_readonly("profiling_info", [](InferRequestWrapper& self) {
-        return self._request.get_profiling_info();
-    });
+    cls.def_property_readonly("outputs",
+                              &InferRequestWrapper::get_output_tensors,
+                              R"(
+                                Gets all output tensors of this InferRequest.
 
-    cls.def_property_readonly("results", [](InferRequestWrapper& self) {
-        return Common::outputs_to_dict(self._outputs, self._request);
-    });
+                                Returns
+                                ----------
+                                outputs : list[openvino.runtime.Tensor]
+                              )");
+
+    cls.def_property_readonly("input_tensors",
+                              &InferRequestWrapper::get_input_tensors,
+                              R"(
+                                Gets all input tensors of this InferRequest.
+
+                                Returns
+                                ----------
+                                input_tensors : list[openvino.runtime.Tensor]
+                              )");
+
+    cls.def_property_readonly("output_tensors",
+                              &InferRequestWrapper::get_output_tensors,
+                              R"(
+                                Gets all output tensors of this InferRequest.
+
+                                Returns
+                                ----------
+                                output_tensors : list[openvino.runtime.Tensor]
+                              )");
+
+    cls.def_property_readonly(
+        "latency",
+        [](InferRequestWrapper& self) {
+            return self.get_latency();
+        },
+        R"(
+            Gets latency of this InferRequest.
+
+            Returns
+            ----------
+            latency : float
+                Inference time.
+        )");
+
+    cls.def_property_readonly(
+        "profiling_info",
+        [](InferRequestWrapper& self) {
+            return self._request.get_profiling_info();
+        },
+        R"(
+            Performance measures per layer to get feedback of what is the most time consuming operation.
+            Not all plugins provide meaningful data!
+
+            Returns
+            ----------
+            profiling_info : list[openvino.runtime.ProfilingInfo]
+                Inference time.
+        )");
+
+    cls.def_property_readonly(
+        "results",
+        [](InferRequestWrapper& self) {
+            return Common::outputs_to_dict(self._outputs, self._request);
+        },
+        R"(
+            Gets all outputs tensors of this InferRequest.
+
+            Returns
+            ----------
+            results : dict[openvino.runtime.ConstOutput : openvino.runtime.Tensor]
+                Dictionary of results from output tensors with ports as keys.
+        )");
 }

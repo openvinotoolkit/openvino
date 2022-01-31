@@ -42,116 +42,116 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_moc_transformations",
-        [](std::shared_ptr<ov::Model> function, bool cf) {
+        [](std::shared_ptr<ov::Model> model, bool cf) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::MOCTransformations>(cf);
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"),
+        py::arg("model"),
         py::arg("cf"));
 
     m_offline_transformations.def(
         "apply_moc_legacy_transformations",
-        [](std::shared_ptr<ov::Model> function, const std::vector<std::string>& params_with_custom_types) {
+        [](std::shared_ptr<ov::Model> model, const std::vector<std::string>& params_with_custom_types) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::MOCLegacyTransformations>(params_with_custom_types);
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"),
+        py::arg("model"),
         py::arg("params_with_custom_types"));
 
     m_offline_transformations.def(
         "apply_pot_transformations",
-        [](std::shared_ptr<ov::Model> function, std::string device) {
+        [](std::shared_ptr<ov::Model> model, std::string device) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::POTTransformations>(std::move(device));
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"),
+        py::arg("model"),
         py::arg("device"));
 
     m_offline_transformations.def(
         "apply_low_latency_transformation",
-        [](std::shared_ptr<ov::Model> function, bool use_const_initializer = true) {
+        [](std::shared_ptr<ov::Model> model, bool use_const_initializer = true) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::LowLatency2>(use_const_initializer);
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"),
+        py::arg("model"),
         py::arg("use_const_initializer") = true);
 
     m_offline_transformations.def(
         "apply_pruning_transformation",
-        [](std::shared_ptr<ov::Model> function) {
+        [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::Pruning>();
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"));
+        py::arg("model"));
 
     m_offline_transformations.def(
         "generate_mapping_file",
-        [](std::shared_ptr<ov::Model> function, std::string path, bool extract_names) {
+        [](std::shared_ptr<ov::Model> model, std::string path, bool extract_names) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::GenerateMappingFile>(path, extract_names);
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"),
+        py::arg("model"),
         py::arg("path"),
         py::arg("extract_names"));
 
     m_offline_transformations.def(
         "apply_make_stateful_transformation",
-        [](std::shared_ptr<ov::Model> function, const std::map<std::string, std::string>& param_res_names) {
+        [](std::shared_ptr<ov::Model> model, const std::map<std::string, std::string>& param_res_names) {
             ngraph::pass::Manager manager;
             manager.register_pass<ov::pass::MakeStateful>(param_res_names);
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"),
+        py::arg("model"),
         py::arg("param_res_names"));
 
     m_offline_transformations.def(
         "compress_model_transformation",
-        [](std::shared_ptr<ov::Model> function) {
+        [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
             manager.register_pass<ov::pass::CompressFloatConstants>();
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"));
+        py::arg("model"));
 
     m_offline_transformations.def(
         "compress_quantize_weights_transformation",
-        [](std::shared_ptr<ov::Model> function) {
+        [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
             manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"));
+        py::arg("model"));
 
     // todo: remove as serialize as part of passManager api will be merged
     m_offline_transformations.def(
         "serialize",
-        [](std::shared_ptr<ov::Model> function,
+        [](std::shared_ptr<ov::Model> model,
            const std::string& path_to_xml,
            const std::string& path_to_bin,
            const std::string& version) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::Serialize>(path_to_xml, path_to_bin, convert_to_version(version));
-            manager.run_passes(function);
+            manager.run_passes(model);
         },
-        py::arg("function"),
+        py::arg("model"),
         py::arg("model_path"),
         py::arg("weights_path"),
         py::arg("version") = "UNSPECIFIED",
         R"(
-            Serialize given function into IR. The generated .xml and .bin files will be save
+            Serialize given model into IR. The generated .xml and .bin files will be save
             into provided paths.
             Parameters
             ----------
-            function : ov.Model
-                function which will be converted to IR representation
+            model : openvino.runtime.Model
+                model which will be converted to IR representation
             xml_path : str
                 path where .xml file will be saved
             bin_path : str
@@ -159,7 +159,7 @@ void regmodule_offline_transformations(py::module m) {
             version : str
                 sets the version of the IR which will be generated.
                 Supported versions are:
-                                - "UNSPECIFIED" (default) : Use the latest or function version
+                                - "UNSPECIFIED" (default) : Use the latest or model version
                                 - "IR_V10" : v10 IR
                                 - "IR_V11" : v11 IR
 
