@@ -8,6 +8,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <transformations/utils/utils.hpp>
 #include <ie/ie_common.h>
 
 #include "gna_plugin_log.hpp"
@@ -46,6 +47,31 @@ static bool InsertReshape(
     }
 
     auto first_node = iter->second.get_node_shared_ptr();
+    size_t add_input_index = 0;
+    iter = pattern_map.find(add1);
+    std::shared_ptr<ngraph::Node> add_node = nullptr;
+    if (iter != pattern_map.end()) {
+        add_node = iter->second.get_node_shared_ptr();
+        add_input_index = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(add_node->get_input_node_shared_ptr(0)) ? 1 : 0;
+    }
+
+    // If there is an Add layer, check if it doesn't require inserting a Reshape
+    // to align its dimensions with reshaped MatMul's dimensions
+    if (add_node) {
+        auto add_input = add_node->get_input_node_shared_ptr(add_input_index);
+        if (add_input->get_output_shape(0).size() != 2) {
+            auto consumers = add_input->output(0).get_target_inputs();
+            std::vector<int> before_shape = {-1, static_cast<int>(add_input->get_output_shape(0).back())};
+            auto reshape_add_input = ngraph::op::util::make_try_fold<ngraph::opset8::Reshape>(add_input,
+                std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{before_shape.size()}, before_shape), false);
+            reshape_add_input->set_friendly_name(reshape_add_input->get_friendly_name() + "/reshape_before_add");
+            ngraph::copy_runtime_info(add_node, reshape_add_input);
+            for (auto consumer : consumers) {
+                consumer.replace_source_output(reshape_add_input);
+            }
+        }
+    }
+
     std::vector<std::shared_ptr<ngraph::Node>> nodes = { matmul_node };
     for (auto node : {add2, add1, fake_quantize, transpose}) {
         iter = pattern_map.find(node);
