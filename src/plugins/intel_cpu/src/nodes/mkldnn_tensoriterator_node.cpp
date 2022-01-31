@@ -85,7 +85,7 @@ static std::vector<MKLDNNMemoryPtr> getToMemories(const MKLDNNNode* node, const 
     return memories;
 }
 
-static void dimsCorrection(VectorDims& dims) {
+static void nullifyUndefinedDims(VectorDims& dims) {
     std::transform(dims.begin(), dims.end(), dims.begin(), [](const size_t& dim) {
         return dim == Shape::UNDEFINED_DIM ? 0 : dim;
     });
@@ -327,7 +327,7 @@ void DynamicBuffer::transfer(const MKLDNNNode* node) {
         copy(get_ptr(*mem_holder_buffer.get()), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());
     } else {
         VectorDims newDims = to.front()->GetShape().getDims();
-        dimsCorrection(newDims);
+        nullifyUndefinedDims(newDims);
 
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
         redefineToMemories(to, *desc);
@@ -707,7 +707,7 @@ void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
             // if Loop or TI isn't executed we should fill dynamic dims by zero
             auto newShape = from_mem->GetShape();
             auto newDims = newShape.getDims();
-            dimsCorrection(newDims);
+            nullifyUndefinedDims(newDims);
 
             const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
             redefineToMemories(to_mems, *desc);
