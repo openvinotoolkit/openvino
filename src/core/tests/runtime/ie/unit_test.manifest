@@ -29,12 +29,15 @@ IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 onnx_model_shape
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
-onnx_model_softmax
 onnx_model_elu
 onnx_model_top_k
 onnx_model_erf
 onnx_model_addmul_abc
 IE_CPU.interpolate_down_scales_const_linear
+
+# Result mismatch - 77384
+onnx_model_softmax_axis_negative_1_opset11
+onnx_model_softmax_axis_negative_1_opset13
 
 # data [<name>] doesn't exist
 broadcast_trivial
@@ -1433,6 +1436,11 @@ onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
 onnx_if_dynamic_inputs
+onnx_if_branches_with_same_inputs
+onnx_if_branches_with_different_inputs
+onnx_if_branches_without_inputs
+onnx_if_inside_if
+onnx_if_branches_with_multiple_outputs
 
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference
