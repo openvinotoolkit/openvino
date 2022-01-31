@@ -983,8 +983,10 @@ int main(int argc, char* argv[]) {
 
                 std::string data_shapes_string = "";
                 for (auto& item : app_inputs_info[i]) {
-                    data_shapes_string += item.first + " : " + get_shape_string(item.second.dataShape) + " ";
+                    data_shapes_string += item.first + get_shape_string(item.second.dataShape) + ",";
                 }
+                data_shapes_string =
+                    data_shapes_string == "" ? "" : data_shapes_string.substr(0, data_shapes_string.size() - 1);
 
                 groupLatencies.emplace_back(lats, data_shapes_string, FLAGS_latency_percentile);
             }

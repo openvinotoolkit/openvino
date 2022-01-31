@@ -81,7 +81,7 @@ public:
           json_name(json_name),
           ull_val(v),
           type(ULONGLONG) {}
-    StatisticsVariant(std::string csv_name, std::string json_name, size_t v)
+    StatisticsVariant(std::string csv_name, std::string json_name, unsigned long v)
         : csv_name(csv_name),
           json_name(json_name),
           ull_val(v),

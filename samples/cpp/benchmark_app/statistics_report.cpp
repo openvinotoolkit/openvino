@@ -251,7 +251,9 @@ void LatencyMetrics::write_to_slog() const {
     std::string percentileStr = (percentile_boundary == 50)
                                     ? "\tMedian:     "
                                     : "\t" + std::to_string(percentile_boundary) + " percentile:    ";
-    slog::info << "\tData shape: " << data_shape << slog::endl;
+    if (!data_shape.empty()) {
+        slog::info << "\tData shape: " << data_shape << slog::endl;
+    }
     slog::info << percentileStr << double_to_string(median_or_percentile) << " ms" << slog::endl;
     slog::info << "\tAverage:    " << double_to_string(avg) << " ms" << slog::endl;
     slog::info << "\tMin:        " << double_to_string(min) << " ms" << slog::endl;
