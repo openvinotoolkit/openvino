@@ -239,6 +239,12 @@ bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
     ov::batch_util::find_batch(m);
 
+    if (!track) {
+        ov::batch_util::restore_original_dimensions(parameter_to_shape, false);
+        m->validate_nodes_and_infer_types();
+        return true;
+    }
+
     ov::batch_util::restore_original_dimensions(parameter_to_shape);
 
     m->validate_nodes_and_infer_types();
