@@ -71,17 +71,15 @@ std::vector<size_t> MKLDNNNonZeroNode::getNonZeroElementsCount(const T* src, con
         size_t count = src[0] != zero ? 1 : 0;
         counts.push_back(count);
     } else {
-        int nthr = std::min(parallel_get_max_threads(), static_cast<int>(inSize));
+        int nthr = std::min(parallel_get_num_threads(), static_cast<int>(inSize));
         if (nthr == 0)
             nthr = 1;
 
         counts.resize(nthr);
 
-        dnnl::impl::parallel(nthr, [&](int ithr, int nthr) {
-            dnnl::impl::for_nd(ithr, nthr, inSize, [&](size_t i){
-                if (src[i] != zero)
-                    counts[ithr]++;
-            });
+        parallel_for(inSize, [&](size_t ithr, size_t i) {
+            if (src[i] != zero)
+                counts[ithr]++;
         });
     }
     return counts;
@@ -121,77 +119,122 @@ void NonZero::executeSpecified() {
     Shape inShape = getParentEdgeAt(0)->getMemory().GetShape();
     size_t inRank = inShape.getRank();
     std::vector<size_t> nonZeroCounts = getNonZeroElementsCount(src, inShape);
+    std::vector<size_t> destIndices(nonZeroCounts);
     size_t totalNonZeroCount = 0;
-    for (const auto& nonZeroCount : nonZeroCounts)
-        totalNonZeroCount += nonZeroCount;
+
+    for (size_t i = 0; i < nonZeroCounts.size(); ++i) {
+        destIndices[i] = totalNonZeroCount;
+        totalNonZeroCount += nonZeroCounts[i];
+    }
 
     if (isDynamicNode()) {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
     int *dst = reinterpret_cast<int *>(dstMemPtr->GetPtr());
-    size_t inSize = inShape.getElementsCount();
     auto srcDims = inShape.getDims();
     if (totalNonZeroCount == 0)
         return;
 
-    if (inRank == 0) {
+    switch (inRank) {
+    case 0:
         dst[0] = 0;
-    } else {
-        // TODO: find a proper place for this
-        constexpr static const std::size_t MaxDimensions = 6;
+        break;
+    case 1:
+        parallel_for(srcDims[0],
+                     [&](size_t ithr, size_t i0) {
+                         size_t inputIndex = i0;
+                         size_t& outputIndex = destIndices[ithr];
 
-        int nthr = static_cast<int>(nonZeroCounts.size());
-        std::vector<size_t> destIndices;
+                         if (src[inputIndex] != zero) {
+                             dst[outputIndex] = static_cast<int>(i0);
+                             outputIndex++;
+                         }
+                     });
+        break;
+    case 2:
+    {
+        size_t i0Stride = srcDims[1];
 
-        size_t nonZeroSum = 0;
-        destIndices.resize(nonZeroCounts.size());
-        for (size_t i = 0; i < nonZeroCounts.size(); ++i) {
-            destIndices[i] = nonZeroSum;
-            nonZeroSum += nonZeroCounts[i];
-        }
+        parallel_for2d(srcDims[0], srcDims[1],
+                       [&](size_t ithr, size_t i0, size_t i1) {
+                           size_t inputIndex = i0 * i0Stride + i1;
+                           size_t& outputIndex = destIndices[ithr];
 
-        if (inRank == 1) {
-            dnnl::impl::parallel(nthr, [&](int ithr, int nthr) {
-                size_t colIndex = destIndices[ithr];
-                dnnl::impl::for_nd(ithr, nthr, inSize, [&](size_t i) {
-                    if (src[i] != zero) {
-                        dst[colIndex] = static_cast<int>(i);
-                        colIndex++;
-                    }
-                });
-            });
-        } else if (inRank <= MaxDimensions) {
-            dnnl::impl::parallel(nthr, [&](int ithr, int nthr) {
-                size_t start = 0, end = 0;
-                dnnl::impl::balance211(inSize, nthr, ithr, start, end);
+                           if (src[inputIndex] != zero) {
+                               dst[outputIndex] = static_cast<int>(i0);
+                               dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
+                               outputIndex++;
+                           }
+                       });
+        break;
+    }
+    case 3:
+    {
+        size_t i1Stride = srcDims[2];
+        size_t i0Stride = srcDims[1] * i1Stride;
 
-                size_t startForIndices = start;
-                size_t indices[MaxDimensions];
-                for (int i = static_cast<int>(inRank - 1); i >= 0; i--) {
-                    indices[i] = startForIndices % srcDims[i];
-                    startForIndices = startForIndices / srcDims[i];
-                }
-                indices[inRank - 1] -= 1;
+        parallel_for3d(srcDims[0], srcDims[1], srcDims[2],
+                       [&](size_t ithr, size_t i0, size_t i1, size_t i2) {
+                           size_t inputIndex = i0 * i0Stride + i1 * i1Stride + i2;
+                           size_t& outputIndex = destIndices[ithr];
 
-                size_t colIndex = destIndices[ithr], outIndex = 0;
-                for (size_t i = start; i < end; i++) {
-                    for (int j = static_cast<int>(inRank - 1); j >= 0 && ++indices[j] >= srcDims[j]; j--) {
-                        indices[j] = 0;
-                    }
+                           if (src[inputIndex] != zero) {
+                               dst[outputIndex] = static_cast<int>(i0);
+                               dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
+                               dst[outputIndex + totalNonZeroCount * 2] = static_cast<int>(i2);
+                               outputIndex++;
+                           }
+                       });
+        break;
+    }
+    case 4:
+    {
+        size_t i2Stride = srcDims[3];
+        size_t i1Stride = srcDims[2] * i2Stride;
+        size_t i0Stride = srcDims[1] * i1Stride;
 
-                    if (src[i] != zero) {
-                        for (size_t j = 0; j < inRank; j++) {
-                            outIndex = j * totalNonZeroCount + colIndex;
-                            dst[outIndex] = static_cast<int>(indices[j]);
-                        }
-                        colIndex++;
-                    }
-                }
-            });
-        } else {
-            assert(false);
-        }
+        parallel_for4d(srcDims[0], srcDims[1], srcDims[2], srcDims[3],
+                       [&](size_t ithr, size_t i0, size_t i1, size_t i2, size_t i3) {
+                           size_t inputIndex = i0 * i0Stride + i1 * i1Stride + i2 * i2Stride + i3;
+                           size_t& outputIndex = destIndices[ithr];
+
+                           if (src[inputIndex] != zero) {
+                               dst[outputIndex] = static_cast<int>(i0);
+                               dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
+                               dst[outputIndex + totalNonZeroCount * 2] = static_cast<int>(i2);
+                               dst[outputIndex + totalNonZeroCount * 3] = static_cast<int>(i3);
+                               outputIndex++;
+                           }
+                       });
+        break;
+    }
+    case 5:
+    {
+        size_t i3Stride = srcDims[4];
+        size_t i2Stride = srcDims[3] * i3Stride;
+        size_t i1Stride = srcDims[2] * i2Stride;
+        size_t i0Stride = srcDims[1] * i1Stride;
+
+        parallel_for5d(srcDims[0], srcDims[1], srcDims[2], srcDims[3], srcDims[4],
+                       [&](size_t ithr, size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
+                           size_t inputIndex = i0 * i0Stride + i1 * i1Stride + i2 * i2Stride + i3 * i3Stride + i4;
+                           size_t& outputIndex = destIndices[ithr];
+
+                           if (src[inputIndex] != zero) {
+                               dst[outputIndex] = static_cast<int>(i0);
+                               dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
+                               dst[outputIndex + totalNonZeroCount * 2] = static_cast<int>(i2);
+                               dst[outputIndex + totalNonZeroCount * 3] = static_cast<int>(i3);
+                               dst[outputIndex + totalNonZeroCount * 4] = static_cast<int>(i4);
+                               outputIndex++;
+                           }
+                       });
+        break;
+    }
+    default:
+        assert(false);
+        break;
     }
 }
 
