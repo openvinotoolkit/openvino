@@ -129,7 +129,7 @@ static std::vector<uint8_t> get_binary(cl_kernel kernel) {
 
 std::shared_ptr<kernel> create_ze_kernel(engine& engine, cl_context context, cl_kernel kernel, std::string entry_point) {
     //if (engine.runtime_type() == runtime_types::ze) {
-    //std::cerr << "create kernel for l0 backend\n";
+    //std::cout << "create kernel for l0 backend\n";
     auto binary = get_binary(kernel);
     ze_module_handle_t ze_module = ze_create_module_with_level_zero(dynamic_cast<ze::ze_engine&>(engine), binary);
     ze_kernel_handle_t ze_kernel;

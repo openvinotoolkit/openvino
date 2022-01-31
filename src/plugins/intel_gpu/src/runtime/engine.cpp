@@ -10,6 +10,9 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
+#ifdef GPU_ENABLE_ZE_BACKEND
+#include "ze/ze_engine_factory.hpp"
+#endif// GPU_ENABLE_ZE_BACKEND
 
 #include <string>
 #include <vector>
@@ -202,7 +205,16 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const engine_configuration& configuration,
                                               const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     switch (engine_type) {
-        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
+        case engine_types::ocl: {
+            std::cout << "engine_types::ocl" << std::endl;
+            return ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
+        };
+#ifdef GPU_ENABLE_ZE_BACKEND
+        case engine_types::ze: {
+            std::cout << "engine_types::ze" << std::endl;
+            return ze::create_ze_engine(device, runtime_type, configuration, task_executor);
+        };
+#endif// GPU_ENABLE_ZE_BACKEND
         default: throw std::runtime_error("Invalid engine type");
     }
 }

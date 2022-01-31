@@ -48,7 +48,9 @@ if(COMMAND add_cpplint_target)
   add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
 
-target_compile_definitions(${TARGET_NAME} PUBLIC GPU_ENABLE_ZE_BACKEND)
+if(GPU_BACKEND STREQUAL "L0")
+  target_compile_definitions(${TARGET_NAME} PUBLIC GPU_ENABLE_ZE_BACKEND)
+endif()
 
 if(COMMAND set_ie_threading_interface_for)
   set_ie_threading_interface_for(${TARGET_NAME})
