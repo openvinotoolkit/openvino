@@ -102,12 +102,9 @@ bool convertTensorIteratorToSequence(
         std::make_shared<ngraph::opset5::Unsqueeze>(ti_inputs[ordered_in_descs[2]->m_input_index], axis_1);
 
     const size_t batch_dim = slice_axis == 0 ? 1 : 0;
-    //TODO: replace to ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_node(target_param, { batch_dimension });
-    auto shape_node = ngraph::op::util::make_try_fold<ngraph::opset5::ShapeOf>(ti_inputs[ordered_in_descs[0]->m_input_index]);
-    auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset5::Gather>(
-        shape_node,
-        ngraph::opset5::Constant::create(ngraph::element::i64, { 1 }, { batch_dim }),
-        ngraph::opset5::Constant::create(ngraph::element::i64, {}, { 0 }));
+    auto batch_dimension = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(
+        ti_inputs[ordered_in_descs[0]->m_input_index],
+        {batch_dim});
 
     auto seq_lengths_scalar = ngraph::opset5::Constant::create(ngraph::element::i32, {}, { ti->get_num_iterations() });
     auto seq_lengths = ngraph::op::util::make_try_fold<ngraph::opset5::Broadcast>(seq_lengths_scalar, batch_dimension);
@@ -211,8 +208,8 @@ bool convertTensorIteratorToSequence(
         new_nodes.emplace_back(initial_cell_state);
     }
     if (!std::dynamic_pointer_cast<ngraph::opset5::Constant>(seq_lengths)) {
-        new_nodes.emplace_back(shape_node);
         new_nodes.emplace_back(batch_dimension);
+        new_nodes.emplace_back(batch_dimension->get_input_node_shared_ptr(0));
         new_nodes.emplace_back(seq_lengths_scalar);
         new_nodes.emplace_back(seq_lengths);
     }
@@ -238,7 +235,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         // create a pattern for the TensorIterator body
         auto data = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>(ngraph::pattern::rank_equals(3));
         auto pattern_1 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto squeeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape>({ data, pattern_1 });
+        auto squeeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Squeeze>({data, pattern_1});
 
         auto input_H_state = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>(ngraph::pattern::rank_equals(2));
         auto input_C_state = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>(ngraph::pattern::rank_equals(2));
@@ -246,7 +243,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         auto input_R = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(2));
         auto input_B = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
 
-        ngraph::OutputVector cell_inputs{ squeeze, input_H_state, input_C_state, input_W, input_R, input_B };
+        ngraph::OutputVector cell_inputs{squeeze, input_H_state, input_C_state, input_W, input_R, input_B};
         auto cell = ngraph::pattern::wrap_type<ngraph::opset1::LSTMCell, ngraph::opset5::LSTMCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
@@ -297,14 +294,14 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         // create a pattern for the TensorIterator body
         auto data = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>(ngraph::pattern::rank_equals(3));
         auto pattern_1 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto squeeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape>({ data, pattern_1 });
+        auto squeeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Squeeze>({data, pattern_1});
 
         auto input_H_state = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>(ngraph::pattern::rank_equals(2));
         auto input_W = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(2));
         auto input_R = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(2));
         auto input_B = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
 
-        ngraph::OutputVector cell_inputs{ squeeze, input_H_state, input_W, input_R, input_B };
+        ngraph::OutputVector cell_inputs{squeeze, input_H_state, input_W, input_R, input_B};
         auto cell = ngraph::pattern::wrap_type<ngraph::opset5::RNNCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
@@ -354,14 +351,14 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         // create a pattern for the TensorIterator body
         auto data = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>(ngraph::pattern::rank_equals(3));
         auto pattern_1 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto squeeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape>({ data, pattern_1 });
+        auto squeeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Squeeze>({data, pattern_1});
 
         auto input_H_state = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>(ngraph::pattern::rank_equals(2));
         auto input_W = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(2));
         auto input_R = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(2));
         auto input_B = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
 
-        ngraph::OutputVector cell_inputs{ squeeze, input_H_state, input_W, input_R, input_B };
+        ngraph::OutputVector cell_inputs{squeeze, input_H_state, input_W, input_R, input_B};
         auto cell = ngraph::pattern::wrap_type<ngraph::opset5::GRUCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
