@@ -60,7 +60,15 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mk
 
     if (ov::is_type<ov::op::v8::Gather>(op)) {
         batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(op)->get_batch_dims());
-        reverseIndexing = true;
+        // WA for NMS->Gather construction. NMS fills part of the output blob by the -1 if these values
+        // must not be taken into account. There is appropriate pass that looks for such subgraphs
+        // and sets the dontReverseIndices flag.
+        const auto& rti = op->get_rt_info();
+        const auto& reverse = rti.find("dontReverseIndices");
+        if (reverse == rti.end())
+            reverseIndexing = true;
+        else
+            reverseIndexing = false;
     } else if (ov::is_type<ov::op::v7::Gather>(op)) {
         batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(op)->get_batch_dims());
         reverseIndexing = false;
