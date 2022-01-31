@@ -1946,7 +1946,7 @@ void MKLDNNTopKNode::preset_params() {
     }
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    auto data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].desc->getPrecision());
+    auto data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = MKLDNNExtensionUtils::sizeOfDataType(data_type);
 
     topk_innermost = (layout == TopKLayoutType::topk_ncsp && axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
