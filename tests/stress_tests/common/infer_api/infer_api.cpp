@@ -165,13 +165,13 @@ void InferAPI2::set_input_params(const std::string &model) {
         if (inputs[i].get_shape().size() == 4) {
             input_info.tensor().set_element_type(ov::element::u8).set_layout("NCHW");
             input_info.model().set_layout("NCHW");
+            ppp.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
         } else if (inputs[i].get_shape().size() == 2) {
-            input_info.tensor().set_element_type(ov::element::u8).set_layout("NCHW");
+            input_info.tensor().set_element_type(ov::element::u8).set_layout("NC");
             input_info.model().set_layout("NC");
         } else {
             throw std::logic_error("Setting of input parameters wasn't applied for a model.");
         }
-        ppp.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
     }
     network = ppp.build();
     inputs = network->inputs();
