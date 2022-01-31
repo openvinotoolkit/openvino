@@ -3,6 +3,10 @@
         <value>CPU</value>
         <value>GPU</value>
     </devices>
+    <api_versions>
+        <value>1</value>
+        <value>2</value>
+    </api_versions>
     <models>
         <!--Models with FP32 precision-->
         <model name="vgg16" precision="FP32" source="omz" />
