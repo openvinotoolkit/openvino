@@ -277,10 +277,6 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         return false;
     }
 
-    if (NetworkHelper::isFQByDynamicDimension(layer)) {
-        return false;
-    }
-
     layer = NetworkHelper::fuseConvert(layer);
     if (NetworkHelper::isConstantPath(layer)) {
         return false;

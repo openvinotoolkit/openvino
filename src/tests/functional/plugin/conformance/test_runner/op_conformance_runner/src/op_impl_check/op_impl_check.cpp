@@ -6,7 +6,11 @@
 #include "single_layer_tests/op_impl_check/single_op_graph.hpp"
 #include "conformance.hpp"
 
-namespace ConformanceTests {
+namespace ov {
+namespace test {
+namespace conformance {
+namespace op {
+
 using namespace ov::test::subgraph;
 
 namespace {
@@ -15,7 +19,11 @@ INSTANTIATE_TEST_SUITE_P(conformance,
                          ::testing::Combine(
                                  ::testing::ValuesIn(createFunctions()),
                                  ::testing::Values(targetDevice),
-                                 ::testing::Values(std::map<std::string, std::string>())),
+                                 ::testing::Values(ov::AnyMap())),
                          OpImplCheckTest::getTestCaseName);
 } // namespace
-} // namespace ConformanceTests
+
+}  // namespace op
+}  // namespace conformance
+}  // namespace test
+}  // namespace ov

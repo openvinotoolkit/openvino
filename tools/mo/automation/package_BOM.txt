@@ -268,6 +268,8 @@ openvino/tools/mo/front/mxnet/activation.py
 openvino/tools/mo/front/mxnet/adaptive_avg_pooling_ext.py
 openvino/tools/mo/front/mxnet/add_input_data_to_prior_boxes.py
 openvino/tools/mo/front/mxnet/arange_ext.py
+openvino/tools/mo/front/mxnet/arange_like_ext.py
+openvino/tools/mo/front/mxnet/arange_like_replacer.py
 openvino/tools/mo/front/mxnet/arange_replacer.py
 openvino/tools/mo/front/mxnet/batch_dot_ext.py
 openvino/tools/mo/front/mxnet/block_grad_ext.py
@@ -788,6 +790,7 @@ openvino/tools/mo/middle/permute_tensor_iterator.py
 openvino/tools/mo/middle/PoolV2ToAttributedPool.py
 openvino/tools/mo/middle/preprocessing.py
 openvino/tools/mo/middle/PreserveRuntimeInfo.py
+openvino/tools/mo/middle/quantize_dequantize_linear_resolver.py
 openvino/tools/mo/middle/quantize_fuses.py
 openvino/tools/mo/middle/quantize_linear_resolver.py
 openvino/tools/mo/middle/ReluQuantizeFuse.py
@@ -846,6 +849,7 @@ openvino/tools/mo/ops/__init__.py
 openvino/tools/mo/ops/activation.py
 openvino/tools/mo/ops/activation_ops.py
 openvino/tools/mo/ops/adaptive_avg_pooling.py
+openvino/tools/mo/ops/arange_like.py
 openvino/tools/mo/ops/argmax.py
 openvino/tools/mo/ops/argmin.py
 openvino/tools/mo/ops/assert_op.py
