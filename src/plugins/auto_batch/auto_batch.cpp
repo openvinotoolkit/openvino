@@ -38,9 +38,10 @@ Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob, size
     auto sizePerBatch = batched_blob->size() / batch_num;
     auto layout = batched_blob->getTensorDesc().getLayout();
     SizeVector dims = batched_blob->getTensorDesc().getDims();
-    std::stringstream str;
-    str << layout;
-    if (str.str().find("N") == 0) {
+    // for performance reason (copy avoidance) current impl of the auto-batching supports only batching by 0th dim
+    if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
+        layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+        layout == InferenceEngine::Layout::NDHWC) {
         dims[0] = 1;
         assert(batched_blob->getTensorDesc().getPrecision() == precision);
         return make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()},
