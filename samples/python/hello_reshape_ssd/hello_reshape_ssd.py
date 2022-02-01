@@ -30,7 +30,7 @@ def main():
     core = Core()
 
 # --------------------------- Step 2. Read a model --------------------------------------------------------------------
-    log.info(f'Reading the network: {model_path}')
+    log.info(f'Reading the model: {model_path}')
     # (.xml and .bin files) or (.onnx file)
     model = core.read_model(model_path)
 
@@ -48,7 +48,7 @@ def main():
     # Add N dimension
     input_tensor = np.expand_dims(image, 0)
 
-    log.info('Reshaping the network to the height and width of the input image')
+    log.info('Reshaping the model to the height and width of the input image')
     n, h, w, c = input_tensor.shape
     model.reshape({model.input().get_any_name(): PartialShape((n, c, h, w))})
 

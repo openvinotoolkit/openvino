@@ -1,6 +1,6 @@
 # Hello Classification Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
 
-This sample demonstrates how to do inference of image classification networks using Synchronous Inference Request API.  
+This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.  
 Models with only 1 input and output are supported.
 
 The following Inference Engine Python API is used in the application:
@@ -69,7 +69,7 @@ The sample application logs each step in a standard output stream and outputs to
 
 ```
 [ INFO ] Creating OpenVINO Runtime Core
-[ INFO ] Reading the network: /models/alexnet/alexnet.xml
+[ INFO ] Reading the model: /models/alexnet/alexnet.xml
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Image path: /images/banana.jpg

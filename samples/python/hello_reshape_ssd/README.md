@@ -1,6 +1,6 @@
 # Hello Reshape SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
 
-This sample demonstrates how to do synchronous inference of object detection networks using [Shape Inference feature](../../../docs/IE_DG/ShapeInference.md).  
+This sample demonstrates how to do synchronous inference of object detection models using [Shape Inference feature](../../../docs/IE_DG/ShapeInference.md).  
 Models with only 1 input and output are supported.
 
 The following Inference Engine Python API is used in the application:
@@ -68,8 +68,8 @@ The sample application logs each step in a standard output stream and creates an
 
 ```
 [ INFO ] Creating OpenVINO Runtime Core
-[ INFO ] Reading the network: C:/test_data/models/ssdlite_mobilenet_v2.xml
-[ INFO ] Reshaping the network to the height and width of the input image
+[ INFO ] Reading the model: C:/test_data/models/ssdlite_mobilenet_v2.xml
+[ INFO ] Reshaping the model to the height and width of the input image
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Found: class_id = 52, confidence = 0.98, coords = (21, 98), (276, 210)

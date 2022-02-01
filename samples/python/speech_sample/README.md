@@ -1,6 +1,6 @@
 # Automatic Speech Recognition Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_speech_sample_README}
 
-This sample demonstrates how to do a Synchronous Inference of acoustic model based on Kaldi\* neural networks and speech feature vectors.
+This sample demonstrates how to do a Synchronous Inference of acoustic model based on Kaldi\* neural models and speech feature vectors.
 
 The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
 
@@ -19,7 +19,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 | Options                    | Values                                                                                                                                         |
 | :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| Validated Models           | Acoustic model based on Kaldi* neural networks (see [Model Preparation](#model-preparation) section)                                           |
+| Validated Models           | Acoustic model based on Kaldi* neural models (see [Model Preparation](#model-preparation) section)                                           |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin)                                                                                     |
 | Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/speech_sample/README.md)                                                                                            |
@@ -37,14 +37,14 @@ each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_custo
 
 If the GNA device is selected (for example, using the `-d` GNA flag), the GNA Inference Engine plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
 
-Several neural network quantization modes:
+Several neural model quantization modes:
 
-- *static* - The first utterance in the input file is scanned for dynamic range.  The scale factor (floating point scalar multiplier) required to scale the maximum input value of the first utterance to 16384 (15 bits) is used for all subsequent inputs. The neural network is quantized to accommodate the scaled input dynamic range.
+- *static* - The first utterance in the input file is scanned for dynamic range.  The scale factor (floating point scalar multiplier) required to scale the maximum input value of the first utterance to 16384 (15 bits) is used for all subsequent inputs. The neural model is quantized to accommodate the scaled input dynamic range.
 - *user-defined* - The user may specify a scale factor via the `-sf` flag that will be used for static quantization.
 
 The `-qb` flag provides a hint to the GNA plugin regarding the preferred target weight resolution for all layers.  
 For example, when `-qb 8` is specified, the plugin will use 8-bit weights wherever possible in the
-network.
+model.
 
 > **NOTE**:
 >
@@ -117,7 +117,7 @@ Options:
   -qb [8, 16], --quantization_bits [8, 16]
                         Optional. Weight bits for quantization: 8 or 16 (default 16).
   -sf SCALE_FACTOR, --scale_factor SCALE_FACTOR
-                        Optional. The user-specified input scale factor for quantization. If the network contains multiple       
+                        Optional. The user-specified input scale factor for quantization. If the model contains multiple       
                         inputs, provide scale factors by separating them with commas.
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename provided.
@@ -141,17 +141,17 @@ Options:
                         output layers for -o flag. Example: Output1:port,Output2:port.
   -cw_l CONTEXT_WINDOW_LEFT, --context_window_left CONTEXT_WINDOW_LEFT
                         Optional. Number of frames for left context windows (default is 0). Works only with context window       
-                        networks. If you use the cw_l or cw_r flag, then batch size argument is ignored.
+                        models. If you use the cw_l or cw_r flag, then batch size argument is ignored.
   -cw_r CONTEXT_WINDOW_RIGHT, --context_window_right CONTEXT_WINDOW_RIGHT
                         Optional. Number of frames for right context windows (default is 0). Works only with context window      
-                        networks. If you use the cw_l or cw_r flag, then batch size argument is ignored.
+                        models. If you use the cw_l or cw_r flag, then batch size argument is ignored.
   -pwl_me PWL_ME        Optional. The maximum percent of error for PWL function. The value must be in <0, 100> range. The        
                         default value is 1.0.
 ```
 
 ## Model Preparation
 
-You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
+You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to Inference Engine Intermediate Representation format:
 
 ```sh
 mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>

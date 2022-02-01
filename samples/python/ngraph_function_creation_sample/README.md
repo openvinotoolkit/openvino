@@ -1,6 +1,6 @@
 # nGraph Function Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a model that uses weights from LeNet classification network, which is known to work well on digit classification tasks. So you don't need an XML file, the model will be created from the source code on the fly.  
+This sample demonstrates how to execute an inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a model that uses weights from LeNet classification model, which is known to work well on digit classification tasks. So you don't need an XML file, the model will be created from the source code on the fly.  
 
 The following Inference Engine Python API is used in the application:
 
@@ -14,7 +14,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Options                    | Values                                                                |
 | :------------------------- | :-------------------------------------------------------------------- |
 | Validated Models           | LeNet                                                                 |
-| Model Format               | Network weights file (\*.bin)                                         |
+| Model Format               | Model weights file (\*.bin)                                         |
 | Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md)     |
 | Other language realization | [C++](../../../samples/cpp/ngraph_function_creation_sample/README.md) |
 
@@ -53,7 +53,7 @@ The sample application logs each step in a standard output stream and outputs 10
 
 ```
 [ INFO ] Creating OpenVINO Runtime Core
-[ INFO ] Loading the network using ngraph function with weights from lenet.bin
+[ INFO ] Loading the model using ngraph function with weights from lenet.bin
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Top 1 results: 

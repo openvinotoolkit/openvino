@@ -16,7 +16,7 @@ from data import digits
 
 
 def create_ngraph_function(model_path: str) -> Model:
-    """Create a network on the fly from the source code using ngraph"""
+    """Create a model on the fly from the source code using ngraph"""
 
     def shape_and_length(shape: list) -> typing.Tuple[list, int]:
         length = reduce(lambda x, y: x * y, shape)
@@ -138,7 +138,7 @@ def main():
     core = Core()
 
     # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation------------------------------
-    log.info(f'Loading the network using ngraph function with weights from {model_path}')
+    log.info(f'Loading the model using ngraph function with weights from {model_path}')
     model = create_ngraph_function(model_path)
     # ---------------------------Step 3. Apply preprocessing----------------------------------------------------------
     # Get names of input and output blobs

@@ -1,6 +1,6 @@
 # Image Classification Async Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README}
 
-This sample demonstrates how to do inference of image classification networks using Asynchronous Inference Request API.  
+This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API.  
 Models with only 1 input and output are supported.
 
 The following Inference Engine Python API is used in the application:
@@ -90,7 +90,7 @@ The sample application logs each step in a standard output stream and outputs to
 
 ```
 [ INFO ] Creating OpenVINO Runtime Core
-[ INFO ] Reading the network: C:/test_data/models/alexnet.xml
+[ INFO ] Reading the model: C:/test_data/models/alexnet.xml
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in asynchronous mode
 [ INFO ] Image path: /test_data/images/banana.jpg

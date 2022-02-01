@@ -29,7 +29,7 @@ def main():
     core = Core()
 
 # --------------------------- Step 2. Read a model --------------------------------------------------------------------
-    log.info(f'Reading the network: {model_path}')
+    log.info(f'Reading the model: {model_path}')
     # (.xml and .bin files) or (.onnx file)
     model = core.read_model(model_path)
 
