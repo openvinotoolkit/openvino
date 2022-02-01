@@ -291,7 +291,8 @@ class Port:
         new_debug_items = []
         for tensor_names, op_name in zip(tensor_names, op_names):
             assert isinstance(tensor_names, list), "Tensor names elements should be lists with strings."
-            new_debug_items.append((op_name, ','.join(tensor_names)))
+            for name in tensor_names:
+                new_debug_items.append((op_name, name))
 
         tensor_debug_info = self.get_tensor_debug_info(port_renumber)
         tensor_debug_info += new_debug_items
