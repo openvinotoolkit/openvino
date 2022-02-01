@@ -777,6 +777,12 @@ using RTMap = AnyMap;
 
 using AnyVector = std::vector<ov::Any>;
 
+/** @cond INTERNAL */
+inline static void PrintTo(const Any& any, std::ostream* os) {
+    any.print(*os);
+}
+/** @endcond */
+
 }  // namespace ov
 
 namespace std {
