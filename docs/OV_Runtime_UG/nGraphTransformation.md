@@ -387,7 +387,7 @@ The most popular tool for transformations debugging is the `ngraph::pass::Visual
 
 Usage example:
 
-@snippet example_ngraph_utils.cpp ngraph:visualize
+@snippet example_ngraph_utils.cpp ov:visualize
 
 `ngraph::pass::VisualizeTree` can be parametrized via environment variables:
 

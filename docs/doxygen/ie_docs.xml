@@ -291,10 +291,11 @@ limitations under the License.
         </tab>
 
         <tab id="deploying_inference" type="usergroup" title="Deploying Inference" url="@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide">
-            <!-- Inference Engine Developer Guide -->
-            <tab type="usergroup" title="Inference Engine Developer Guide" url="@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide">
+            <!-- OpenVINO Runtime User Guide -->
+            <tab type="usergroup" title="OpenVINO Runtime User Guide" url="@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide">
                 <tab type="user" title="Inference Engine API Changes History" url="@ref openvino_docs_IE_DG_API_Changes"/>
                 <tab type="user" title="Inference Engine Memory primitives" url="@ref openvino_docs_IE_DG_Memory_primitives"/>
+                <tab type="user" title="OpenVINO Model Representation" url="@ref openvino_docs_OV_Runtime_UG_Model_Representation"/>
                 <tab type="user" title="Inference Engine Device Query API" url="@ref openvino_docs_IE_DG_InferenceEngine_QueryAPI"/>
                 <tab type="user" title="Inference Engine Model Caching" url="@ref openvino_docs_IE_DG_Model_caching_overview"/>
                 <tab type="usergroup" title="Inference Engine Extensibility Mechanism" url="@ref openvino_docs_IE_DG_Extensibility_DG_Intro">
@@ -336,17 +337,6 @@ limitations under the License.
                 </tab>
                 <tab type="user" title="Known Issues" url="@ref openvino_docs_IE_DG_Known_Issues_Limitations"/>
                 <tab type="user" title="Glossary" url="@ref openvino_docs_IE_DG_Glossary"/>
-            </tab>
-
-            <!-- nGraph -->
-            <tab type="usergroup" title="nGraph Developer Guide" url="@ref openvino_docs_nGraph_DG_DevGuide">
-                <tab type="user" title="Introduction" url="@ref openvino_docs_nGraph_DG_Introduction"/>
-                <tab type="user" title="Basic Concepts" url="@ref openvino_docs_nGraph_DG_basic_concepts"/>
-                <tab type="user" title="Operation sets" url="@ref openvino_docs_MO_DG_IR_and_opsets"/>
-                <tab type="user" title="Graph building" url="@ref openvino_docs_nGraph_DG_build_function"/>
-                <tab type="user" title="Transfomations" url="@ref ngraph_transformation"/>
-                <tab type="user" title="Debug capabilities" url="@ref openvino_docs_nGraph_DG_Debug_capabilities"/>
-                <tab type="user" title="Python API" url="@ref openvino_docs_nGraph_DG_PythonAPI"/>
             </tab>
 
             <!-- Deployment Manager Guide -->

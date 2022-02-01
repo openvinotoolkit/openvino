@@ -1259,6 +1259,6 @@ Refer to the `extensions/back/GatherNormalizer.py` for the example of a such typ
 ## See Also <a name="see-also"></a>
 * [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md)
 * [Converting a Model to Intermediate Representation (IR)](../convert_model/Converting_Model.md)
-* [nGraph Basic Concepts](../../../nGraph_DG/nGraph_basic_concepts.md)
+* [OpenVINO Model Representation](../../../OV_Runtime_UG/model_representation.md)
 * [Inference Engine Extensibility Mechanism](../../../OV_Runtime_UG/Extensibility_DG/Intro.md)
 * [Extending the Model Optimizer with Caffe* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md)

@@ -18,7 +18,6 @@
    :hidden:
 
    openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide
-   openvino_docs_nGraph_DG_DevGuide
    openvino_docs_install_guides_deployment_manager_tool
    openvino_inference_engine_tools_compile_tool_README
 
