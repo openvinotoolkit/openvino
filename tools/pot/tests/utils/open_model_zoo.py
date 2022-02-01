@@ -71,7 +71,7 @@ def command_line_for_convert(config):
     )
     if not is_platform_windows:
         return 'PYTHONPATH={path}:$PYTHONPATH '.format(path=python_path) + script_launch_cli
-    return 'cmd /C "set PYTHONPATH={path}:$PYTHONPATH && {script_launch_cli}"'.format(
+    return 'cmd /C "set PYTHONPATH={path};%PYTHONPATH% && {script_launch_cli}"'.format(
         path=python_path,
         script_launch_cli=script_launch_cli,
     )
