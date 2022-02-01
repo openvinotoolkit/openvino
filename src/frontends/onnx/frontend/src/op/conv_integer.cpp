@@ -17,7 +17,6 @@ std::shared_ptr<ngraph::Node> get_filter_zero_point(const OutputVector& inputs) 
         (inputs.size() > 3) ? inputs.at(3) : ngraph::op::Constant::create(ngraph::element::i32, {}, {0});
 
     const auto filter_zero_point_rank = original_zero_point.get_partial_shape().rank();
-    std::shared_ptr<ngraph::Node> filter_zp;
     if (filter_zero_point_rank.is_static() && filter_zero_point_rank.get_length() == 0) {
         return std::make_shared<default_opset::Convert>(original_zero_point, element::i32);
     } else {
