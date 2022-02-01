@@ -173,6 +173,11 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 75022
         R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
         R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
+        // Issue: 77390
+        R"(.*LoopLayerCPUTest.*exec_cond=0.*)",
+        R"(.*LoopLayerCPUTest.*trip_count=0.*)",
+        R"(.*LoopForDiffShapesLayerCPUTest.*exec_cond=0.*)",
+        R"(.*LoopForDiffShapesLayerCPUTest.*trip_count=0.*)",
     };
 
 #define FIX_62820 0
