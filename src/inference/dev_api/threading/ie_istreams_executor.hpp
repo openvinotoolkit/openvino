@@ -56,7 +56,7 @@ public:
          * @brief Supported Configuration keys
          * @return vector of supported configuration keys
          */
-        std::vector<std::string> SupportedKeys();
+        std::vector<std::string> SupportedKeys() const;
 
         /**
          * @brief Parses configuration key/value pair
@@ -70,7 +70,7 @@ public:
          * @param key configuration key
          * @return configuration value wrapped into Parameter
          */
-        Parameter GetConfig(const std::string& key);
+        Parameter GetConfig(const std::string& key) const;
 
         /**
          * @brief Create appropriate multithreaded configuration
