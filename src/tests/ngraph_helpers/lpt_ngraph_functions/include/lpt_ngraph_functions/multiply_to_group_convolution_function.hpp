@@ -29,7 +29,8 @@ public:
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData,
-        const Constant& constant);
+        const Constant& constant,
+        const bool parentHasOneConsumer = true);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::PartialShape& inputShape,
