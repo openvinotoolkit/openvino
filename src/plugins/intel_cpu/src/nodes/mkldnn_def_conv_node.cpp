@@ -926,8 +926,8 @@ MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvA
     jcp.typesize_sampled_offsets = sizeof(int);
     jcp.typesize_out = sizeof(float);
 
-    jcp.ur_w = mayiuse(cpu::x64::avx512_common) ? 6 : 3;
-    jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
+    jcp.ur_w = 1;  // mayiuse(cpu::x64::avx512_common) ? 6 : 3;
+    jcp.nb_oc_blocking = 1;  // !mayiuse(cpu::x64::avx2) ? 2 : 4;
 
     jcp.nthr = dnnl_get_max_threads();
 }
