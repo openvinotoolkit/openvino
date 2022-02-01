@@ -89,6 +89,7 @@ class MemoryOffsetAdjustment(FrontReplacementSubgraph):
     graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_before(self):
+        # transformation can't work with splitted MemoryOffsets
         from openvino.tools.mo.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
         return [SplitRecurrentMemoryOffset]
 
