@@ -234,18 +234,18 @@ public:
                                 const AnyMap& properties = {});
 
     /**
-     * @brief Reads model and creates a compiled model from IR / ONNX / PDPD file
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
      *
      * This can be more efficient than using read_model + compile_model(Model) flow
-     * especially for cases when caching is enabled and cached model is available
+     * especially for cases when caching is enabled and cached model is available.
      *
-     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param model_path path to model
-     * @param device_name Name of device to load model to
+     * @tparam Properties Should be a pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_path Path to a model.
+     * @param device_name Name of a device to load a model to.
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
-     * load operation
+     * load operation.
      *
-     * @return A compiled model
+     * @return A compiled model.
      */
     template <typename... Properties>
     util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(const std::string& model_path,
