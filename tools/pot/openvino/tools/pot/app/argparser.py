@@ -115,8 +115,9 @@ def get_common_argument_parser():
     parser.add_argument(
         '--data-source',
         help='Valid for DataFree and Simplified modes. For Simplified mode path to dataset dir is required. '
-             'For DataFree mode specify path to directory where syntetic dataset is located or will be generated and saved. '
-             'For DataFree mode default: `../../../pot_dataset`')
+             'For DataFree mode specify path to directory '
+             'where syntetic dataset is located or will be generated and saved. '
+             'For DataFree mode default: `./pot_dataset`')
 
     data_free_opt = parser.add_argument_group('DataFree mode options')
 
@@ -156,7 +157,7 @@ def check_dependencies(args):
         raise ValueError(
             '--quantize option requires model and weights to be specified.')
     if (args.quantize is not None and args.ac_config is None and
-       (args.engine == 'accuracy_checker' or args.engine is None)):
+            (args.engine == 'accuracy_checker' or args.engine is None)):
         raise ValueError(
             '--quantize option requires AC config to be specified '
             'or --engine should be `data_free` or `simplified`.')
