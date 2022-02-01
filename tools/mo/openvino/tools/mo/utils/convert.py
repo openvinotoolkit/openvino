@@ -5,12 +5,17 @@ import argparse
 import os
 import sys
 
+# do not print INFO and WARNING messages from TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
     # disable eager execution of TensorFlow 2 environment immediately
     tf_v1.disable_eager_execution()
 except ImportError:
     import tensorflow as tf_v1
+
+#in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+tf_v1.get_logger().setLevel("ERROR")
 
 sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 from openvino.tools.mo.front.tf.loader import load_tf_graph_def
