@@ -772,7 +772,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_simple_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_scalar_zp) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_scalar_zp.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_scalar_zp.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -780,13 +781,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_scalar_zp) {
     test_case.add_input(std::vector<uint8_t>{11, 22, 33,
                                              44, 55, 66,
                                              77, 88, 99});                          // x
-    test_case.add_input(std::vector<uint8_t>{1, 2,
-                                             3, 4});                                // w
-    test_case.add_input(std::vector<uint8_t>{111});                                 // x_zero_point
-    test_case.add_input(std::vector<uint8_t>{1});                                   // w_zero_point
+    test_case.add_input(std::vector<uint8_t>{5, 6,
+                                             7, 8});                                // w
+    test_case.add_input(std::vector<uint8_t>{10});                                  // x_zero_point
+    test_case.add_input(std::vector<uint8_t>{20});                                  // w_zero_point
 
-    test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-391, -325,
-                                                                     -193, -127});  // y
+    test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-1165, -1759,
+                                                                     -2947, -3541});  // y
     // clang-format on
     test_case.run();
 }
