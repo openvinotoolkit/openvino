@@ -92,7 +92,7 @@ public:
     /**
      * @brief Gets input of a compiled model identified by @p i.
      * The input contains information about input tensor such as tensor shape, names, and element type.
-     * @param i Input index.
+     * @param i Index of input.
      * @return Compiled model input.
      * @note The method throws ov::Exception if input with the specified index @p i is not found.
      */
@@ -127,7 +127,7 @@ public:
     /**
      * @brief Gets output of a compiled model identified by @p index.
      * The output contains information about output tensor such as tensor shape, names, and element type.
-     * @param i Output index.
+     * @param i Index of input.
      * @return Compiled model output.
      * @note The method throws ov::Exception if output with the specified index @p index is not found.
      */
