@@ -37,27 +37,35 @@ class ImageLoader(DataLoader):
         self._shape = tuple(shape)
 
     def _read_and_preproc_image(self, img_path):
+        C = self._layout.get_index_by_name('C')
+        H = self._layout.get_index_by_name('H')
+        W = self._layout.get_index_by_name('W')
+
         image = imread(img_path, IMREAD_GRAYSCALE)\
-            if self._shape[1] == 1 else imread(img_path)
+            if self._shape[C] == 1 else imread(img_path)
 
         if image is None:
             raise Exception('Can not read the image: {}'.format(img_path))
 
-        height, width = (self._shape[self._layout.get_index_by_name('H')],
-                         self._shape[self._layout.get_index_by_name('W')])
-        return prepare_image(image, self._layout, (height, width), self._crop_central_fraction)
+        return prepare_image(image, self._layout, (self.shape[H], self.shape[W]), self._crop_central_fraction)
 
-    def get_layout(self, input_node):
+    def get_layout(self, input_node=None):
         if self._layout is not None:
             if 'C' not in self._layout or 'H' not in self._layout or 'W' not in self._layout:
                 raise ValueError('Unexpected {} layout'.format(self._layout))
+            if self._shape is not None and 'N' in self._layout and len(self._shape) == 3:
+                self._layout = self._layout[1:]
             self._layout = Layout(self._layout)
             return
 
-        if input_node.graph.meta_data.get('layout', None) not in [None, '()']:
+        if input_node and input_node.graph.meta_data.get('layout', None) not in [None, '()']:
             layout_from_ir = get_layout_values(input_node.graph.meta_data.get('layout', None))
             if layout_from_ir is not None:
                 self._layout = Layout(layout_from_ir[next(iter(layout_from_ir))].get('source_layout', None))
+                # SyntheticImageLoader uses only H and W dimensions
+                if self._shape is not None and 'N' in layout_from_ir and len(self._shape) == 3:
+                    layout_from_ir = layout_from_ir[1:]
+                self._layout = Layout(layout_from_ir)
                 return
 
         image_colors_dim = (Dimension(3), Dimension(1))
