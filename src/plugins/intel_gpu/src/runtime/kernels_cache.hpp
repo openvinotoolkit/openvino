@@ -92,7 +92,7 @@ public:
                                 bool dump_custom_program);
     kernel::ptr get_kernel(kernel_id id) const;
     void set_batch_header_str(const std::vector<std::string> &batch_headers) {
-        batch_header_str = std::move(batch_headers);
+        batch_header_str = batch_headers;
     }
     // forces compilation of all pending kernels/programs
     void build_all();
