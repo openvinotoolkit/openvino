@@ -21,7 +21,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
     for (const auto & node : f->get_ordered_ops()) {
         // calculate shape for every node in graph as the input shape may change
         // during Constant shrinking
-        node->validate_and_infer_types();
+        node->revalidate_and_infer_types();
 
         // TODO: constant can be shared across functions so we need to avoid consumers from other function
         auto const_node = std::dynamic_pointer_cast<opset6::Constant>(node);

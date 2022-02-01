@@ -19,7 +19,6 @@
 #include <inference_engine.hpp>
 #include <openvino/util/env_util.hpp>
 
-
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 #define VISUALIZE_TESTS_TREE false
@@ -60,6 +59,9 @@ TEST(TransformationTests, PruneIRTest) {
     InferenceEngine::Core core;
 
     const std::string input_model = ov::util::getenv_string("PRUNING_TARGET_IR_PATH");
+    if (input_model == "")
+        return;
+
     auto function = core.ReadNetwork(input_model).getFunction();
 
     pass::Manager m;
@@ -633,7 +635,16 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
         auto mul_const = create_constant_with_zeros(Shape{4, 1, 1, 1}, {{}, {}, {}, {}});
         auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
 
-        auto reshape = std::make_shared<opset5::Reshape>(mul, opset5::Constant::create(element::i64, Shape{5}, {4, 1, 1, 3, 3}), false);
+
+        auto reshape_const = opset5::Constant::create(element::i64, Shape{5}, {8, 1, 1, 3, 3});
+
+        const auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
+        auto dims_to_keep_vec = std::vector<size_t>{2, 3, 4};
+        const auto dims_to_keep = opset6::Constant::create(reshape_const->get_element_type(), {dims_to_keep_vec.size()}, dims_to_keep_vec);
+        const auto reshape_gather = std::make_shared<opset6::Gather>(reshape_const, dims_to_keep, axis);
+        const auto reshape_concat = std::make_shared<opset6::Concat>(
+            NodeVector{opset6::Constant::create(reshape_const->get_element_type(), {2}, {-1, 1}), reshape_gather}, 0);
+        auto reshape = std::make_shared<opset5::Reshape>(mul, reshape_concat, false);
 
         auto conv_group = std::make_shared<opset5::GroupConvolution>(conv1, reshape, Strides(2, 1),
                                                            CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
@@ -648,6 +659,144 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksQuantizedGroupConvolution.svg").run_on_function(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(weights1.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0 , 1, 2, 3}, {}, {}}));
+
+    compare_masks(*getMask(weights_group->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(sub->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(mul->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(mul_const.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+
+    compare_masks(*getMask(reshape->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}, {}}));
+
+    compare_masks(*getMask(conv_group->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
+
+    compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+
+TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf) {
+    Shape input_shape{1, 3, 64, 64};
+    Shape weights_shape{8, 3, 3, 3};
+    Shape weights_group_shape{8, 1, 3, 3};
+    Shape weight_shape2{3, 8, 3, 3};
+    auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+    input->set_friendly_name("input");
+
+    auto weights1 = create_constant_with_zeros(weights_shape, {{0, 1, 2, 3}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides(2, 1),
+                                                      CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+    auto weights_group = opset5::Constant::create(element::i8, weights_group_shape, {0});
+    weights_group->set_friendly_name("weights_group");
+
+    auto convert = std::make_shared<opset5::Convert>(weights_group, element::f32);
+    convert->set_friendly_name("convert");
+
+    auto sub_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3}, {}, {}, {}});
+
+    auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
+    sub->set_friendly_name("sub");
+
+    auto mul_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3, 4}, {}, {}, {}});
+    auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
+    mul->set_friendly_name("mul");
+
+    auto shape_of = std::make_shared<opset6::ShapeOf>(mul);
+    auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
+    auto split_lenghts = opset6::Constant::create(ov::element::i8, {2}, {1, -1});
+    auto variadic_split = std::make_shared<opset6::VariadicSplit>(shape_of, axis, split_lenghts);
+    auto div_const = opset6::Constant::create(ov::element::i64, {1}, {8});
+    auto div = std::make_shared<opset6::Divide>(variadic_split->output(0), div_const);
+    auto reshape_concat = std::make_shared<opset6::Concat>(
+        OutputVector{opset6::Constant::create(shape_of->get_element_type(), {1}, {8})->output(0),
+                  div->output(0), variadic_split->output(1)}, 0);
+
+    auto reshape = std::make_shared<opset5::Reshape>(mul, reshape_concat, false);
+
+    auto conv_group = std::make_shared<opset5::GroupConvolution>(conv1, reshape, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto add_const = create_constant_with_zeros(Shape{1, 8, 1, 1}, {{}, {0, 1, 2, 3, 4}, {}, {}});;
+    auto add = std::make_shared<opset5::Add>(conv_group, add_const);
+    add->set_friendly_name("add");
+
+    auto weights_2 = opset5::Constant::create(element::f32, weight_shape2, {0});
+    auto conv2 = std::make_shared<opset5::Convolution>(add, weights_2, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+    function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+
+        auto weights1 = create_constant_with_zeros({weights_shape[0] - 4, weights_shape[1], weights_shape[2], weights_shape[3]}, {{}, {}, {}, {}});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides(2, 1),
+                                                          CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        auto weights_group = opset5::Constant::create(element::i8,
+                                                      {
+                                                          weights_group_shape[0] - 4,
+                                                          weights_group_shape[1],
+                                                          weights_group_shape[2],
+                                                          weights_group_shape[3]
+                                                      }, {0});
+
+        auto convert = std::make_shared<opset5::Convert>(weights_group, element::f32);
+
+        auto sub_const = create_constant_with_zeros(Shape{4, 1, 1, 1}, {{}, {}, {}, {}});
+
+        auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
+
+        auto mul_const = create_constant_with_zeros(Shape{4, 1, 1, 1}, {{}, {}, {}, {}});
+        auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
+
+
+        auto shape_of = std::make_shared<opset6::ShapeOf>(mul);
+        auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
+        auto split_lenghts = opset6::Constant::create(ov::element::i8, {2}, {1, -1});
+        auto variadic_split = std::make_shared<opset6::VariadicSplit>(shape_of, axis, split_lenghts);
+        auto div_const = opset6::Constant::create(ov::element::i64, {1}, {8});
+        auto div = std::make_shared<opset6::Divide>(variadic_split->output(0), div_const);
+
+        auto reshape_concat = std::make_shared<opset6::Concat>(
+            OutputVector{opset6::Constant::create(shape_of->get_element_type(), {1}, {1})->output(0),
+                         div->output(0), variadic_split->output(1)}, 0);
+
+        const auto axis_1 = opset6::Constant::create(ov::element::i8, {}, {0});
+        auto dims_to_keep_vec = std::vector<size_t>{2, 3, 4};
+        const auto dims_to_keep = opset6::Constant::create(reshape_concat->get_element_type(), {dims_to_keep_vec.size()}, dims_to_keep_vec);
+        const auto new_reshape_gather = std::make_shared<opset6::Gather>(reshape_concat, dims_to_keep, axis_1);
+        const auto new_reshape_concat = std::make_shared<opset6::Concat>(
+            NodeVector{opset6::Constant::create(reshape_concat->get_element_type(), {2}, {-1, 1}), new_reshape_gather}, 0);
+        auto reshape = std::make_shared<opset5::Reshape>(mul, new_reshape_concat, false);
+
+        auto conv_group = std::make_shared<opset5::GroupConvolution>(conv1, reshape, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        auto add_const = create_constant_with_zeros(Shape{1, 4, 1, 1}, {{}, {}, {}, {}});;
+        auto add = std::make_shared<opset5::Add>(conv_group, add_const);
+
+        auto weights_2 = opset5::Constant::create(element::f32, {weight_shape2[0], weight_shape2[1] - 4, weight_shape2[2], weight_shape2[3]}, {0});
+        auto conv2 = std::make_shared<opset5::Convolution>(add, weights_2, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        function_ref = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksQuantizedGroupConvolutionWithShapeOf.svg").run_on_function(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -1206,7 +1355,7 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
                                                                                  CoordinateDiff(2, 0),
                                                                                  Strides(2, 1));
 
-    function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "ReshapeMulBranching");
+    function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvIsClosingAndInGroup.svg").run_on_function(function);
@@ -1242,7 +1391,7 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
                                                                                      CoordinateDiff(2, 0),
                                                                                      CoordinateDiff(2, 0),
                                                                                      Strides(2, 1));
-        function_ref = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "ReshapeMulBranching");
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input});
     }
     {
         pass::Manager m;
@@ -1393,7 +1542,7 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
                                                                                  CoordinateDiff(2, 0),
                                                                                  Strides(2, 1));
 
-    function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input}, "GoodReshapeModel");
+    function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
         auto weights = create_constant_with_zeros({
@@ -1421,7 +1570,7 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
                                                            CoordinateDiff(2, 0),
                                                            CoordinateDiff(2, 0),
                                                            Strides(2, 1));
-        function_ref = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input}, "GoodReshapeModel");
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReducelayerUp.svg").run_on_function(function);
@@ -1468,7 +1617,7 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
                                                                                  CoordinateDiff(2, 0),
                                                                                  Strides(2, 1));
 
-    function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "GoodReshapeDonw");
+    function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input});
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
         auto weights = create_constant_with_zeros({
@@ -1501,7 +1650,7 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
                                                                                      CoordinateDiff(2, 0),
                                                                                      CoordinateDiff(2, 0),
                                                                                      Strides(2, 1));
-        function_ref = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "GoodReshapeDown");
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReduceLayerDown.svg").run_on_function(function);
@@ -1553,7 +1702,7 @@ TEST(TransformationTests, PruneStopReducelayerUp) {
                                                         CoordinateDiff(2, 0),
                                                         Strides(2, 1));
 
-    auto function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input}, "BadReshapeModel");
+    auto function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopReducelayerUp.svg").run_on_function(function);
@@ -1644,7 +1793,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
                                                         CoordinateDiff(2, 0),
                                                         Strides(2, 1));
 
-    function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input}, "GoodReshapeUp");
+    function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
         auto weights = create_constant_with_zeros({
@@ -1668,10 +1817,80 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
                                                             CoordinateDiff(2, 0),
                                                             Strides(2, 1));
 
-        function_ref = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input}, "GoodReshapeUp");
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUp.svg").run_on_function(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+    compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(conv->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
+
+    compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(conv_1->output(0)),  Mask({{}, {}, {}, {}}));
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+
+TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
+    auto inputShapes = PartialShape{1, 6, 8, 8};
+    auto weightsShape = Shape{6, 6, 1, 1};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+    auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
+    auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
+
+    auto shape_of_conv = std::make_shared<opset5::ShapeOf>(conv);
+    auto reshape = std::make_shared<opset5::Reshape>(conv, shape_of_conv, true);
+
+    auto conv_1_shape = Shape{6, 6, 1, 1};
+    auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
+    auto conv_1 = std::make_shared<opset5::Convolution>(reshape, conv_1_weights, Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
+
+    function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+        auto weights = create_constant_with_zeros({
+                                                   weightsShape[0] - 3,
+                                                   weightsShape[1],
+                                                   weightsShape[2],
+                                                   weightsShape[3],
+                                                  }, {{}, {}, {}, {}});
+        auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
+
+        auto shape_of_conv = std::make_shared<opset5::ShapeOf>(conv);
+        auto reshape = std::make_shared<opset5::Reshape>(conv, shape_of_conv, true);
+
+        auto conv_1_shape = Shape{6, 3, 1, 1};
+        auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
+        auto conv_1 = std::make_shared<opset5::Convolution>(reshape, conv_1_weights, Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
+
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUpWithShapeOf.svg").run_on_function(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -1728,7 +1947,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDown) {
                                                            CoordinateDiff(2, 0),
                                                            Strides(2, 1));
 
-    function = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input}, "GoodReshapeDown");
+    function = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input});
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
         auto weights = create_constant_with_zeros({
@@ -1764,7 +1983,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDown) {
                                                                CoordinateDiff(2, 0),
                                                                Strides(2, 1));
 
-        function_ref = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input}, "GoodReshapeDown");
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDown.svg").run_on_function(function);
