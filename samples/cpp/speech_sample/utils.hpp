@@ -223,7 +223,6 @@ float get_gna_frequency_mhz() {
     const uint8_t gemini_lake_model = 122;
     const uint8_t ice_lake_model = 126;
     const uint8_t tgl_model = 140;
-    const uint8_t next_model = 151;
     const uint8_t adl_s_model = 151;
     const uint8_t adl_p_model = 154;
 
