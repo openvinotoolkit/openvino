@@ -397,6 +397,8 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                            {{"load network time (ms)", duration_ms}});
+
+            convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
                                               batchSize,
@@ -432,6 +434,7 @@ int main(int argc, char* argv[]) {
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
             next_step();
+            convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
             // Parse input shapes if specified
             bool reshape = false;
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -465,6 +468,9 @@ int main(int argc, char* argv[]) {
             std::map<std::string, std::string> user_precisions_map;
             if (!FLAGS_iop.empty()) {
                 user_precisions_map = parseArgMap(FLAGS_iop);
+                convert_io_names_in_map(user_precisions_map,
+                                        std::const_pointer_cast<const ov::Model>(model)->inputs(),
+                                        std::const_pointer_cast<const ov::Model>(model)->outputs());
             }
 
             const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
@@ -583,6 +589,7 @@ int main(int argc, char* argv[]) {
                 statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                            {{"import network time (ms)", duration_ms}});
 
+            convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
                                               FLAGS_b,
