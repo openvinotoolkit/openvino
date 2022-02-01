@@ -643,8 +643,10 @@ public:
 class ngraph::pass::mask_propagation::Reshape : public MatcherPass {
 public:
     Reshape() {
-        auto inputs = pattern::any_input(pattern::has_static_shape());
-        auto weights = pattern::wrap_type<opset6::Constant>();
+        //auto inputs = pattern::any_input(pattern::has_static_shape());
+        //auto weights = pattern::wrap_type<opset6::Constant>();
+        auto inputs = pattern::any_input();
+        auto weights = pattern::any_input();
         auto reshape = pattern::wrap_type<opset6::Reshape>({inputs, weights});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -657,8 +659,10 @@ public:
             // In such case this reshape should be processed by GroupConvolutionReshape pass
             for (const auto inp : m_output.get_target_inputs())
                 if (is_type<opset6::GroupConvolution>(inp.get_node()))
-                    return false;
+                    return true;
 
+            if (!m_input.get_partial_shape().is_static())
+                return false;
 
             // Check reshape operation reshape only dimension without masks
             if (auto input_mask = getMask(m_input)) {
@@ -666,7 +670,12 @@ public:
                 auto weights_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length(), true);
 
                 const auto input_shape = m_input.get_shape();
-                const auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
+                const auto constant = get_constant_from_source(m_weights.get_node_shared_ptr());
+                if (!constant) {
+                    NGRAPH_DEBUG << "Can't get constant from source " << m_weights.get_node()->get_friendly_name();
+                    return false;
+                }
+                //const auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
                 const auto output_shape = constant->cast_vector<size_t>();
 
                 // Check dimensions equality from the begining and allow
