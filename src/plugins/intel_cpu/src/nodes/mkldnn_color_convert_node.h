@@ -33,10 +33,15 @@ public:
 
 private:
     void initSupportedNV12Impls();
+    void initSupportedI420Impls();
 
 private:
     using ConverterBuilder = std::function<Converter*(MKLDNNNode *)>;
-    using SupportedImpls = multidim_map<impl_desc_type, Algorithm, InferenceEngine::Precision::ePrecision, bool, ConverterBuilder>;
+    using SupportedImpls = multidim_map<impl_desc_type,                             // Implementation type
+                                        Algorithm,                                  // Algorithm: ColorConvertXXX
+                                        InferenceEngine::Precision::ePrecision,     // Precision: FP32/U8
+                                        bool,                                       // true - SinglePlaneConvert, false - TwoPlaneConvert/ThreePlaneConvert
+                                        ConverterBuilder>;
 
     std::unique_ptr<Converter> _impl;
     SupportedImpls _supportedImpls;
@@ -44,10 +49,10 @@ private:
 
 class MKLDNNColorConvertNode::Converter {
 public:
-    using PrimitiveDescs = std::vector<std::tuple<std::vector<PortConfigurator>,
-                                                    std::vector<PortConfigurator>,
-                                                    impl_desc_type,
-                                                    bool>>;
+    using PrimitiveDescs = std::vector<std::tuple<std::vector<PortConfigurator>,    // Input port configurator
+                                                  std::vector<PortConfigurator>,    // Output port configurator
+                                                  impl_desc_type,                   // Implementation type
+                                                  bool>>;                           // // true - SinglePlaneConvert, false - TwoPlaneConvert/ThreePlaneConvert
     using Shapes = std::vector<VectorDims>;
 
     static constexpr size_t N_DIM = 0;
