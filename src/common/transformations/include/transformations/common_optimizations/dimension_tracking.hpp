@@ -25,17 +25,15 @@ class TRANSFORMATIONS_API FindBatchDontTrack;
 class ov::pass::FindBatch: public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("FindBatch");
+    FindBatch(bool track = true) : track(track) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-
 protected:
-    bool track = false;
+    bool track = true;
 };
 
 class ov::pass::FindBatchDontTrack: public ov::pass::FindBatch {
 public:
-    OPENVINO_RTTI("FindBatchDontTrack");
-protected:
-    bool track = true;
+    FindBatchDontTrack() : FindBatch(false) {}
 };
 
 namespace ov {
