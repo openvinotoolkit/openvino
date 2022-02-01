@@ -4,7 +4,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "auto_batch.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <ie_icore.hpp>
@@ -19,6 +18,8 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
