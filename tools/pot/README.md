@@ -37,12 +37,14 @@ and [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README).
 ## Usage options
 ![](docs/images/use_cases.png) 
 
-The POT provides three basic usage options:
-* **[Command-line interface (CLI)](@ref pot_compression_cli_README)**: this option is recommended if the model from OpenVINO&trade; 
+The POT provides four basic usage options:
+* **Command-line interface (CLI)**:
+  * [**Data-free mode**](@ref pot_docs_data_free): this option can be used in case when only a model is available and there is no access to data. Currentlu, The data-free flow is available only for Computer Vision models. Please note that there can be significant deviation of model accuracy after optimization using this method.
+  * [**Simplified mode**](@ref pot_docs_simplified_mode): this option can be used if the model from Computer Vision domain and there is an unannotated dataset that can be used for optimization. Please note that there can be deviation of accuracy after optimization using this method.
+  * [**Model Zoo flow**](@ref pot_compression_cli_README): this option is recommended if the model from OpenVINO&trade; 
 [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or there is a valid [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README)
 configuration file for the model that allows validating model accuracy using [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README).
-* **[Simplified mode](@ref pot_docs_simplified_mode)**: this option can be used if the model from Computer Vision domain and there is an unannotated dataset that can be used for optimization. Please note that this option does not guarantee accuracy in the general case.
-* **[Python\* API](@ref pot_compression_api_README)**: it allows integrating optimization methods implemented in POT into
+* [**Python\* API**](@ref pot_compression_api_README): it allows integrating optimization methods implemented in POT into
 a Python* inference script that uses [OpenVINO Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview). 
 
 

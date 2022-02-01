@@ -1,4 +1,4 @@
-# Use Post-Training Optimization Tool Command-Line Interface {#pot_compression_cli_README}
+# Use Post-Training Optimization Tool Command-Line Interface (Model Zoo flow){#pot_compression_cli_README}
 
 POT command-line interface (CLI) is designed to optimize models that are supported by the [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README) used for accuracy measurement. 
 If your model is exactly from the OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or it is similar to one of 
@@ -20,12 +20,6 @@ optimization methods choice since the accuracy measurement is not available.
 3. Prepare the Accuracy Checker configuration file and make sure that the model can be successfully inferred and achieves 
 similar accuracy numbers as the reference model from the original framework. 
 4. Activate the Python environment in the command-line shell where the POT and the Accuracy Checker were installed.
-5. (Optional). Set up the OpenVINO&trade; environment in the command-line shell with the following script if you 
-installed it from form the distribution file:
-   ```sh
-   source <INSTALL_DIR>/bin/setupvars.sh
-   ```
-   Note: this step is not required if you use PyPI distribution.
 
 ## Run POT CLI 
 There are two ways how to run POT via command line:
@@ -59,7 +53,9 @@ The following command-line options are available to run the tool:
 | `--preset`                                        | Use `performance` for fully symmetric quantization or `mixed` preset for symmetric quantization of weight and asymmetric quantization of activations. Applicable only when `-q` option is used.|
 | `-m`, `--model`                                   | Path to the optimizing model file (.xml). Applicable only when `-q` option is used. |
 | `-w`, `--weights`                                 | Path to the weights file of the optimizing model (.bin). Applicable only when `-q` option is used. |
-| `-n`, `--name`                                    | Model name. Applicable only when `-q` option is used. |
+| `-n`, `--name`                                    | Optional. Model name. Applicable only when `-q` option is used. |
+| `--engine`                                        | Engine type that used to specify CLI mode from the following options: [`'accuracy_checker'`, `'data_free'`, `'simplified'`]. Default: `'accuracy_checker'` |
+| `--data-source DATA_DIR`                         | Optional. Valid for Data-free and Simplified modes. For Simplified mode path to dataset dir is required. For Data-free mode specify path to directory where syntetic dataset is located or will be generated and saved. For Data-free mode default: `../../../pot_dataset` |
 | `--ac-config`                                     | Path to the Accuracy Checker configuration file. Applicable only when `-q` option is used. |
 | `--max-drop`                                      | Optional. Maximum accuracy drop. Valid only for accuracy-aware quantization. Applicable only when `-q` option is used and `accuracy_aware` method is selected. |
 | `-c CONFIG`, `--config CONFIG`                    | Path to a config file with task- or model-specific parameters.         |
@@ -75,5 +71,6 @@ The following command-line options are available to run the tool:
 
 ## See Also
 
-* [Installation Guide](@ref pot_InstallationGuide)
+* [Optimization with Data-free mode(@ref pot_docs_data_free_mode)
+* [Optimization with Simplified mode(@ref pot_docs_simplified_mode)
 * [Post-Training Optimization Best Practices](@ref pot_docs_BestPractices)
