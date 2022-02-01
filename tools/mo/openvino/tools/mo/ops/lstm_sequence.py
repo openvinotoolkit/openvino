@@ -60,6 +60,10 @@ class LSTMSequence(Op):
     def backend_attrs(self):
         return [
             'hidden_size',
+            ('activations', lambda node: ','.join(node['activations'])),
+            ('activations_alpha', lambda node: ','.join(map(str, node['activations_alpha']))),
+            ('activations_beta', lambda node: ','.join(map(str, node['activations_beta']))),
+            'direction',
         ]
 
     @staticmethod
