@@ -160,6 +160,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _context(context)
                                                            , _workModeIsAUTO(true)
                                                            , _network(network) {
+    LOG_INFO("[AUTOPLUGIN]ExecutableNetwork start");
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
@@ -282,8 +283,10 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 // second, check the idle queue if all requests are in place
                 size_t destroynum = 0;
                 std::pair<int, WorkerInferRequest*> worker;
-                while (_idleWorkerRequests["CPU_HELP"].try_pop(worker))
+                while (_idleWorkerRequests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
+                    _cpuHelpInferCount += worker.second->_inferCount;
+                }
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(_confMutex);
                     _workerRequests["CPU_HELP"].clear();
@@ -520,10 +523,22 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
+    for (auto&& _workerRequest : _workerRequests) {
+         unsigned int count = 0;
+         for (auto& request : _workerRequest.second) {
+             count += request._inferCount;
+         }
+         if (_workerRequest.first == "CPU_HELP") {
+             LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
+         } else {
+             LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
+         }
+    }
     {
         std::lock_guard<std::mutex> lock(_confMutex);
         _workerRequests.clear();
     }
+    LOG_INFO("[AUTOPLUGIN]ExecutableNetwork end");
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {

@@ -79,6 +79,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
               }
               if (_needPerfCounters)
                   _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
+              _workerInferRequest->_inferCount++;
         }}
     };
 }
