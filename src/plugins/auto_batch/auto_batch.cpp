@@ -690,7 +690,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     // avoid recursive auto-batching
     devCfgNoAutoBatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
 
-    std::map<size_t, ov::PartialShape> batched_inputs;
+    std::set<std::string> batched_inputs;
     // check that the auto-batching is applicable in general
     try {
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
@@ -727,7 +727,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 if (static_shape[0] != 1)
                     IE_THROW(NotImplemented)
                         << "Auto-batching does not reshape/re-batch originally batched networks!";
-                batched_inputs[input_id] = shape;  // batched dim for the input
+                batched_inputs.insert(ngraph::op::util::get_ie_output_name(params[input_id]->output(0)));  // batched dim for the input
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 0; s < shape.size(); s++)
@@ -822,10 +822,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
     if (metaDevice.batchForDevice > 1 && batched_inputs.size()) {
         try {
-            for (auto& input : batched_inputs)
-                input.second[0] = metaDevice.batchForDevice;
             CNNNetwork reshaped(InferenceEngine::details::cloneNetwork(network));
-            reshaped.getFunction()->reshape(batched_inputs);
+            ICNNNetwork::InputShapes shapes = reshaped.getInputShapes();
+            for (const auto& input : batched_inputs)
+                shapes[input][0] = metaDevice.batchForDevice;
+            reshaped.reshape(shapes);
             executableNetworkWithBatch = ctx ? GetCore()->LoadNetwork(reshaped, ctx, devCfgNoAutoBatch)
                                              : GetCore()->LoadNetwork(reshaped, deviceName, devCfgNoAutoBatch);
         } catch (...) {
