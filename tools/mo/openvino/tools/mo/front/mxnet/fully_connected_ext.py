@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.ops.MatMul import FullyConnected
@@ -18,6 +18,7 @@ class FullyConnectedFrontExtractor(FrontExtractorOp):
         attrs = {
             'out-size': num_hidden,
             'transpose_weights': True,
+            'flatten': attr.bool('flatten', True)
         }
         FullyConnected.update_node_stat(node, attrs)
         return cls.enabled

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,16 +11,14 @@ set(LINK_LIBRARIES
     funcTestUtils
     ngraphFunctions
     lptNgraphFunctions
-    inference_engine_transformations
     openvino::itt
     openvino::util
     openvino::conditional_compilation
     sharedTestClasses
     inference_engine_snippets
     offline_transformations
-    inference_engine
-    frontend_common
     pugixml::static
+    openvino::runtime::dev
 )
 
 set(DEPENDENCIES
@@ -94,13 +92,14 @@ ie_faster_build(${TARGET_NAME}
 # CVS-55343
 
 file(GLOB_RECURSE legacy_tests
-    "${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp" # CVS-55385
+    "${CMAKE_CURRENT_SOURCE_DIR}/transformations/legacy/*.cpp" # CVS-55385
     "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
     "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
     )
 
 set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
     $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/caching_test.cpp

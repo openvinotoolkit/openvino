@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,7 +87,7 @@ public:
 
     static std::shared_ptr<opset1::Constant> toScalar(std::shared_ptr<opset1::Constant> constant);
 
-    static std::shared_ptr<Node> getConstantInput(const std::shared_ptr<Node>& node, const bool convertIsExpected = false);
+    static std::shared_ptr<Node> getConstantInput(const std::shared_ptr<const Node>& node, const bool convertIsExpected = false);
 
     static std::vector<size_t> updateReshapeValues(
         const Shape& elementwiseConstantShape,
@@ -208,10 +208,6 @@ public:
     static std::vector<element::Type> precisionIntersection(
             const std::vector<element::Type>& v1,
             const std::vector<element::Type>& v2) noexcept;
-
-    static bool isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq);
-
-    static bool isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx = 0);
 
     static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 

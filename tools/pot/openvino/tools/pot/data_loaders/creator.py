@@ -1,7 +1,8 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.pot.data_loaders.image_loader import ImageLoader
+from openvino.tools.pot.data_loaders.synthetic_image_loader import SyntheticImageLoader
 from openvino.tools.pot.graph.model_utils import get_nodes_by_type
 
 
@@ -24,9 +25,16 @@ def create_data_loader(config, model):
     data_loader = None
     for in_node in inputs:
         if tuple(in_node.shape) != (1, 3):
-            data_loader = ImageLoader(config)
-            data_loader.shape = in_node.shape
-            data_loader.get_layout(in_node)
+            if config.type == 'simplified':
+                data_loader = ImageLoader(config)
+                data_loader.shape = in_node.shape
+                data_loader.get_layout(in_node)
+            elif config.type == 'data_free':
+                if not config.shape:
+                    config.shape = in_node.shape
+                if not config.layout:
+                    config.layout = in_node.graph.graph.get('layout', None)
+                data_loader = SyntheticImageLoader(config)
             return data_loader
 
     if data_loader is None:

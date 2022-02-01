@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -186,10 +186,6 @@ bool MatMulTransformation::is3DTensorOnActivations(const std::shared_ptr<const N
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!LayerTransformation::canBeTransformedSpatialDimension(context, layer)) {
-        return false;
-    }
-
-    if (NetworkHelper::isDQByDynamicDimension(layer, 1)) {
         return false;
     }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ std::mutex LayerTransformation::defaultPrecisionsMutex;
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
     deqPrecision(params.deqPrecision),
+    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
@@ -42,10 +43,6 @@ void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
 
 bool LayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!isQuantized(layer)) {
-        return false;
-    }
-
-    if (NetworkHelper::isDQByDynamicDimension(layer)) {
         return false;
     }
 
@@ -107,10 +104,6 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 
 bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!isQuantized(layer)) {
-        return false;
-    }
-
-    if (NetworkHelper::isDQByDynamicDimension(layer)) {
         return false;
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@ class IInferRequestInternal;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 class CompiledModel;
 
@@ -42,7 +41,7 @@ class OPENVINO_RUNTIME_API InferRequest {
      * destroyed.
      */
     InferRequest(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl, const std::shared_ptr<void>& so);
-    friend class ov::runtime::CompiledModel;
+    friend class ov::CompiledModel;
 
 public:
     /**
@@ -99,11 +98,11 @@ public:
      * - ov::Model::inputs()
      * - ov::Model::outputs()
      * - ov::Model::outputs()
-     * - ov::runtime::CompiledModel::input()
-     * - ov::runtime::CompiledModel::inputs()
-     * - ov::runtime::CompiledModel::outputs()
-     * - ov::runtime::CompiledModel::outputs()
-     * @param tensor Reference to the tensor. The element_type and shape of the tensor must match
+     * - ov::CompiledModel::input()
+     * - ov::CompiledModel::inputs()
+     * - ov::CompiledModel::outputs()
+     * - ov::CompiledModel::outputs()
+     * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
     void set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor);
@@ -115,11 +114,11 @@ public:
      * - ov::Model::inputs()
      * - ov::Model::outputs()
      * - ov::Model::outputs()
-     * - ov::runtime::CompiledModel::input()
-     * - ov::runtime::CompiledModel::inputs()
-     * - ov::runtime::CompiledModel::outputs()
-     * - ov::runtime::CompiledModel::outputs()
-     * @param tensor Reference to the tensor. The element_type and shape of the tensor must match
+     * - ov::CompiledModel::input()
+     * - ov::CompiledModel::inputs()
+     * - ov::CompiledModel::outputs()
+     * - ov::CompiledModel::outputs()
+     * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
     void set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor);
@@ -185,9 +184,9 @@ public:
 
     /**
      * @brief Sets an output tensor to infer.
-     * @note Index of the input preserved accross ov::Model, ov::runtime::CompiledModel, and ov::runtime::InferRequest.
+     * @note Index of the input preserved accross ov::Model, ov::CompiledModel, and ov::InferRequest.
      * @param idx Index of the output tensor.
-     * @param tensor Reference to the output tensor. The type of a tensor must match the model output element type and
+     * @param tensor Reference to the output tensor. The type of the tensor must match the model output element type and
      * shape.
      */
     void set_output_tensor(size_t idx, const Tensor& tensor);
@@ -257,7 +256,7 @@ public:
     /**
      * @brief Infers specified input(s) in synchronous mode.
      * @note It blocks all methods of InferRequest while request is ongoing (running or waiting in a queue).
-     *       Calling any method leads to throwing the ov::runtime::Busy exception.
+     *       Calling any method leads to throwning the ov::Busy exception.
      */
     void infer();
 
@@ -276,7 +275,7 @@ public:
     /**
      * @brief Starts inference of specified input(s) in asynchronous mode.
      * @note It returns immediately. Inference starts also immediately.
-     *       Calling any method while the request is in a running state leads to throwing the ov::runtime::Busy exception.
+     *       Calling any method while the request in a running state leads to throwning the ov::Busy exception.
      */
     void start_async();
 
@@ -341,5 +340,9 @@ public:
      */
     bool operator==(const InferRequest& other) const noexcept;
 };
+
+namespace runtime {
+using ov::InferRequest;
 }  // namespace runtime
+
 }  // namespace ov

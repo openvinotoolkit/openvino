@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,11 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
 }
 
 InferenceEngine::Parameter Configuration::Get(const std::string& name) const {
-    if (name == CONFIG_KEY(DEVICE_ID)) {
+    auto streamExecutorConfigKeys = _streamsExecutorConfig.SupportedKeys();
+    if ((streamExecutorConfigKeys.end() !=
+         std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), name))) {
+        return _streamsExecutorConfig.GetConfig(name);
+    } else if (name == CONFIG_KEY(DEVICE_ID)) {
         return {std::to_string(deviceId)};
     } else if (name == CONFIG_KEY(PERF_COUNT)) {
         return {perfCount};

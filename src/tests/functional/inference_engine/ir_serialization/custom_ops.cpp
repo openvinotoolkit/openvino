@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,7 +87,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
 
 #endif  // OPENVINO_STATIC_LIBRARY
 
-#endif  // NGRAPH_ONNX_FRONTEND_ENABLE
+#endif  // ENABLE_OV_ONNX_FRONTEND
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
@@ -155,7 +155,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpOVExtensions) {
     const std::string model =
         CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_identity.xml");
 
-    ov::runtime::Core core;
+    ov::Core core;
     core.add_extension(get_ov_extension_path());
     auto expected = core.read_model(model);
     ngraph::pass::Manager manager;

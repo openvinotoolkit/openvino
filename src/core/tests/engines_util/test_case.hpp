@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ public:
         }
 
         if (is_dynamic) {
-            ov::runtime::Tensor tensor(params.at(m_input_index)->get_element_type(), shape);
+            ov::Tensor tensor(params.at(m_input_index)->get_element_type(), shape);
 
             std::copy(values.begin(), values.end(), tensor.data<T>());
             m_request.set_input_tensor(m_input_index, tensor);
@@ -146,8 +146,10 @@ public:
                      " for output ",
                      m_output_index);
 
-        ov::runtime::Tensor tensor(results[m_output_index]->get_output_element_type(0), expected_shape);
+        ov::Tensor tensor(results[m_output_index]->get_output_element_type(0), expected_shape);
         std::copy(values.begin(), values.end(), tensor.data<T>());
+
+        m_expected_outputs.push_back(std::move(tensor));
 
         ++m_output_index;
     }
@@ -208,9 +210,9 @@ public:
 
 private:
     std::shared_ptr<Function> m_function;
-    ov::runtime::Core m_core;
-    ov::runtime::InferRequest m_request;
-    std::vector<ov::runtime::Tensor> m_expected_outputs;
+    ov::Core m_core;
+    ov::InferRequest m_request;
+    std::vector<ov::Tensor> m_expected_outputs;
     size_t m_input_index = 0;
     size_t m_output_index = 0;
     testing::AssertionResult compare_results(size_t tolerance_bits);

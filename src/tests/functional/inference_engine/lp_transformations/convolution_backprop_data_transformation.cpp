@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -206,7 +206,7 @@ const std::vector<element::Type> netPrecisions = {
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> shapes = {
     { 1, 8, 16, 16 },
-    { Dimension::dynamic(), 8, Dimension::dynamic(), Dimension::dynamic() }
+    { -1, -1, -1, -1 }
 };
 
 const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = {
@@ -506,7 +506,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
     PartialShape::dynamic()
 };
 

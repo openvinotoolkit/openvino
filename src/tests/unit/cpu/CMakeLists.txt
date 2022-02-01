@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -33,6 +33,14 @@ addIeTargetTest(
         LABELS
             CPU
 )
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
+
+if (WIN32)
+    # Prevents defining min/max as macros
+    target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
+endif()
 
 ie_faster_build(${TARGET_NAME}
     UNITY

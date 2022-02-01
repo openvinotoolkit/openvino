@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -15,7 +15,7 @@ pbtxt = 'node{name:"Placeholder"op:"Placeholder"attr{key:"dtype"value{type:DT_FL
 class TestingSummarizeGraph(unittest.TestCase):
     def test_summarize_graph(self):
         with patch('openvino.tools.mo.front.tf.loader.open', mock_open(read_data=pbtxt)) as m:
-            graph_def, _, _ = load_tf_graph_def('path', False)
+            graph_def, _, _, _ = load_tf_graph_def('path', False)
             summary = summarize_graph(graph_def)
             self.assertEqual(len(summary['outputs']), 1)
             self.assertEqual(summary['outputs'][0], 'Output/Identity')

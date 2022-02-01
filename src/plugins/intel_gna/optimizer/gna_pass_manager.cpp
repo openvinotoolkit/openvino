@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1451,10 +1451,21 @@ void EltwiseSplitOverChannelsPass::run() {
         IE_ASSERT(firstValuableDim != std::end(oDims));
         auto splittedElementsSize = *firstValuableDim;
         auto splittedDimIx = std::distance(std::begin(oDims), firstValuableDim);
+        auto alignment = GNALimitations::inputByteAlignment;
 
-        // Split output size should be multiple by 64 to avoid align filters insertion
+        // Split output size should be multiple by 64 to avoid align filters insertion,
+        // but we need to check if our input size to split exceeds 64; if not we can always
+        // split if the remaining size is aligned
+        if (splittedElementsSize <= 64) {
+            if ((totalElementsSize / splittedElementsSize) % alignment == 0) {
+                alignment = 1;
+            } else {
+                THROW_GNA_LAYER_EXCEPTION(l) << "splitting didn't succeed\n";
+            }
+        }
+
         auto splitSizes = GetAlignedSplitSizes(splittedElementsSize,
-            GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize);
+            GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize, alignment);
 
         pass_trace() << "transforming " << LAYER_NAME(l) << " by splitting it to multiple eltwise operations\n";
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);

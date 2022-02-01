@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "utils/bfloat16.hpp"
 
 #include "cpu/x64/jit_generator.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;
@@ -386,4 +387,26 @@ void PermuteKernel::referenceExecute(const uint8_t* src_data, uint8_t* dst_data,
             parallel_step(ndims, dst_dims, indexes);
         }
     });
+}
+
+size_t PermuteParams::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = get_vector_hash(seed, src_block_dims);
+    seed = get_vector_hash(seed, dst_block_dims);
+    seed = get_vector_hash(seed, src_block_order);
+    seed = get_vector_hash(seed, dst_block_order);
+    seed = get_vector_hash(seed, order);
+    seed = hash_combine(seed, data_size);
+    return seed;
+}
+
+bool PermuteParams::operator==(const PermuteParams& rhs) const {
+    return (src_block_dims == rhs.src_block_dims) &&
+           (dst_block_dims == rhs.dst_block_dims) &&
+           (src_block_order == rhs.src_block_order) &&
+           (dst_block_order == rhs.dst_block_order) && (order == rhs.order) &&
+           (data_size == rhs.data_size);
 }

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gtest/gtest.h"
 
+#include "common_test_utils/ov_common_utils.hpp"
 #include "functional_test_utils/layer_test_utils/environment.hpp"
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -15,8 +16,8 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--disable_tests_skipping") {
             FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
-        } else if (std::string(argv[i]) == "--extend_report") {
-            LayerTestsUtils::Summary::setExtendReport(true);
+        } else if (std::string(argv[i]) == "--extract_body") {
+            LayerTestsUtils::Summary::setExtractBody(true);
         } else if (std::string(argv[i]) == "--help") {
             print_custom_help = true;
         } else if (std::string(argv[i]).find("--output_folder") != std::string::npos) {
@@ -51,6 +52,8 @@ int main(int argc, char *argv[]) {
                   "Mutually exclusive with --extend_report." << std::endl;
         std::cout << "  --save_report_timeout" << std::endl;
         std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
+        std::cout << "  --extract_body" << std::endl;
+        std::cout << "       Allow to count extracted operation bodies to report. " << std::endl;
         std::cout << std::endl;
     }
 

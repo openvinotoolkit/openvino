@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from cv2 import imread, IMREAD_GRAYSCALE
@@ -33,25 +33,34 @@ class ImageLoader(DataLoader):
         self._shape = tuple(shape)
 
     def _read_and_preproc_image(self, img_path):
+        C = self._layout.get_index_by_name('C')
+        H = self._layout.get_index_by_name('H')
+        W = self._layout.get_index_by_name('W')
+
         image = imread(img_path, IMREAD_GRAYSCALE)\
-            if self._shape[1] == 1 else imread(img_path)
+            if self._shape[C] == 1 else imread(img_path)
 
         if image is None:
             raise Exception('Can not read the image: {}'.format(img_path))
 
-        return prepare_image(image, self._layout, self.shape[-2:], self._crop_central_fraction)
+        return prepare_image(image, self._layout, (self.shape[H], self.shape[W]), self._crop_central_fraction)
 
-    def get_layout(self, input_node):
+    def get_layout(self, input_node=None):
         if self._layout is not None:
             if 'C' not in self._layout or 'H' not in self._layout or 'W' not in self._layout:
                 raise ValueError('Unexpected {} layout'.format(self._layout))
+            if self._shape is not None and 'N' in self._layout and len(self._shape) == 3:
+                self._layout = self._layout[1:]
             self._layout = Layout(self._layout)
             return
 
-        layout_from_ir = input_node.graph.graph.get('layout', None)
-        if layout_from_ir is not None:
-            self._layout = Layout(layout_from_ir)
-            return
+        if input_node:
+            layout_from_ir = input_node.graph.graph.get('layout', None)
+            if layout_from_ir is not None:
+                if self._shape is not None and 'N' in layout_from_ir and len(self._shape) == 3:
+                    layout_from_ir = layout_from_ir[1:]
+                self._layout = Layout(layout_from_ir)
+                return
 
         image_colors_dim = (Dimension(3), Dimension(1))
         num_dims = len(self._shape)

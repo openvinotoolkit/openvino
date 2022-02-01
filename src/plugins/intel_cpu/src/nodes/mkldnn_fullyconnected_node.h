@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,7 @@ public:
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
+    void initSupportedPrimitiveDescriptors() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
@@ -54,6 +55,9 @@ public:
 private:
     void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
                                   const mkldnn::memory::desc &outputDesc);
+
+    VectorDims makeDummyInputDims() const;
+    VectorDims makeDummyOutputDims(const VectorDims& inDims) const;
 
     VectorDims inDims;
     VectorDims outDims;

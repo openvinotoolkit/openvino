@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,6 +121,8 @@ void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const
     if (ftz
         && src.GetDataType() == memory::data_type::f32
         && prim->get_desc().data.format_kind != dnnl_format_kind_wino
+        // WA: to avoid zero filling auxiliary information
+        && prim->get_desc().data.format_kind != dnnl_format_kind_rnn_packed
         && GetDataType() != memory::data_type::bf16) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());

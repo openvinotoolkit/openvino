@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,10 +33,10 @@ static const char model_message[] =
 
 /// @brief message for performance hint
 static const char hint_message[] =
-    "Optional. Performance hint (optimize for latency or throughput). "
-    "The hint allows the OpenVINO device to select the right network-specific settings,"
-    "as opposite to just accepting specific values from the sample command line."
-    "So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
+    "Optional. Performance hint (optimize for latency or throughput)."
+    " The hint allows the OpenVINO device to select the right network-specific settings,"
+    " as opposite to just accepting specific values from the sample command line."
+    " So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
@@ -150,17 +150,15 @@ static const char use_device_mem_message[] =
     "Optional. Switch between host and device memory allocation for input and output buffers.";
 #endif
 
-#ifdef USE_OPENCV
 // @brief message for load config option
 static const char load_config_message[] =
-    "Optional. Path to XML/YAML/JSON file to load custom IE parameters."
+    "Optional. Path to JSON file to load custom IE parameters."
     " Please note, command line parameters have higher priority then parameters from configuration "
     "file.";
 
 // @brief message for dump config option
 static const char dump_config_message[] =
-    "Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.";
-#endif
+    "Optional. Path to JSON file to dump IE parameters, which were set by application.";
 
 static const char shape_message[] =
     "Optional. Set shape for network input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
@@ -169,7 +167,7 @@ static const char shape_message[] =
     " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
 static const char data_shape_message[] =
-    " Required for networks with dynamic shapes. Set shape for input blobs."
+    "Required for networks with dynamic shapes. Set shape for input blobs."
     " In case of one input size: \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\"."
     " In case of several input sizes provide the same number for each input (except cases with single shape for any "
     "input):"
@@ -187,7 +185,7 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 
 // @brief message for single load network
 static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadNetwork."
-                                             "All CNNNetwork options (like re-shape) will be ignored";
+                                             " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
@@ -309,13 +307,11 @@ DEFINE_bool(pcseq, false, pcseq_message);
 DEFINE_bool(use_device_mem, false, use_device_mem_message);
 #endif
 
-#ifdef USE_OPENCV
 /// @brief Define flag for loading configuration file <br>
 DEFINE_string(load_config, "", load_config_message);
 
 /// @brief Define flag for dumping configuration file <br>
 DEFINE_string(dump_config, "", dump_config_message);
-#endif
 
 /// @brief Define flag for input shape <br>
 DEFINE_string(shape, "", shape_message);
@@ -359,7 +355,7 @@ DEFINE_bool(inference_only, true, inference_only_message);
 /**
  * @brief This function show a help message
  */
-static void showUsage() {
+static void show_usage() {
     std::cout << std::endl;
     std::cout << "benchmark_app [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
@@ -380,7 +376,7 @@ static void showUsage() {
     std::cout << "    -t                        " << execution_time_message << std::endl;
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
-    std::cout << "    -data_shape             " << data_shape_message << std::endl;
+    std::cout << "    -data_shape               " << data_shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
     std::cout << "    -cache_dir \"<path>\"       " << cache_dir_message << std::endl;
     std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
@@ -399,10 +395,8 @@ static void showUsage() {
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
     std::cout << "    -pcseq                    " << pcseq_message << std::endl;
-#ifdef USE_OPENCV
     std::cout << "    -dump_config              " << dump_config_message << std::endl;
     std::cout << "    -load_config              " << load_config_message << std::endl;
-#endif
     std::cout << "    -qb                       " << gna_qb_message << std::endl;
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;

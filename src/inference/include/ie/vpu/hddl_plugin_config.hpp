@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,7 +146,7 @@ namespace VPUConfigParams {
 
 /**
  * @deprecated Use InferenceEngine::HDDL_GRAPH_TAG instead
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for ov_intel_hddl_plugin]
  * Type: Arbitrary non-empty string. If empty (""), equals no set, default: "";
  * This option allows to specify the number of MYX devices used for inference a specific Executable network.
  * Note: Only one network would be allocated to one device.
@@ -166,7 +166,7 @@ DECLARE_VPU_HDDL_CONFIG_KEY(GRAPH_TAG);
 
 /**
  * @deprecated Use InferenceEngine::HDDL_STREAM_ID instead
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for ov_intel_hddl_plugin]
  * Type: Arbitrary non-empty string. If empty (""), equals no set, default: "";
  * This config makes the executable networks to be allocated on one certain device (instead of multiple devices).
  * And all inference through this executable network, will be done on this device.
@@ -184,7 +184,7 @@ DECLARE_VPU_HDDL_CONFIG_KEY(STREAM_ID);
 
 /**
  * @deprecated Use InferenceEngine::HDDL_DEVICE_TAG instead
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for ov_intel_hddl_plugin]
  * Type: Arbitrary non-empty string. If empty (""), equals no set, default: "";
  * This config allows user to control device flexibly. This config gives a "tag" for a certain device while
  * allocating a network to it. Afterward, user can allocating/deallocating networks to this device with this "tag".
@@ -202,7 +202,7 @@ DECLARE_VPU_HDDL_CONFIG_KEY(DEVICE_TAG);
 
 /**
  * @deprecated Use InferenceEngine::HDDL_BIND_DEVICE instead
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for ov_intel_hddl_plugin]
  * Type: "YES/NO", default is "NO".
  * This config is a sub-config of DEVICE_TAG, and only available when "DEVICE_TAG" is set. After a user load a
  * network, the user got a handle for the network.
@@ -217,7 +217,7 @@ DECLARE_VPU_HDDL_CONFIG_KEY(BIND_DEVICE);
 
 /**
  * @deprecated Use InferenceEngine::HDDL_RUNTIME_PRIORITY instead
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for ov_intel_hddl_plugin]
  * Type: A signed int wrapped in a string, default is "0".
  * This config is a sub-config of DEVICE_TAG, and only available when "DEVICE_TAG" is set and "BIND_DEVICE" is "False".
  * When there are multiple devices running a certain network (a same network running on multiple devices in Bypass
@@ -229,7 +229,7 @@ DECLARE_VPU_HDDL_CONFIG_KEY(RUNTIME_PRIORITY);
 
 /**
  * @deprecated Use InferenceEngine::HDDL_USE_SGAD instead
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for ov_intel_hddl_plugin]
  * Type: "YES/NO", default is "NO".
  * SGAD is short for "Single Graph All Device". With this scheduler, once application allocates 1 network, all devices
  * (managed by SGAD scheduler) will be loaded with this graph. The number of network that can be loaded to one device
@@ -240,7 +240,7 @@ DECLARE_VPU_HDDL_CONFIG_KEY(USE_SGAD);
 
 /**
  * @deprecated Use InferenceEngine::HDDL_GROUP_DEVICE instead
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for ov_intel_hddl_plugin]
  * Type: A signed int wrapped in a string, default is "0".
  * This config gives a "group id" for a certain device when this device has been reserved for certain client, client
  * can use this device grouped by calling this group id while other client can't use this device

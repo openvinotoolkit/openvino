@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -75,3 +75,17 @@ file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIB
 install(FILES ${source_list}
         DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gna)
+
+if(NOT BUILD_SHARED_LIBS)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${CMAKE_BINARY_DIR} COPYONLY)
+    install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
+            DESTINATION runtime/cmake
+            COMPONENT gna)
+
+    if(WIN32)
+        file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        install(FILES ${source_list}
+                DESTINATION ${IE_CPACK_LIBRARY_PATH}
+                COMPONENT gna)
+    endif()
+endif()

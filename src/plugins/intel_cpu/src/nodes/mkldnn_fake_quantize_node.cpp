@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1638,6 +1638,36 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
             arg.dst_step = (size_t) blk_size * dst_type_size;
             arg.block_size = (size_t) blk_size;
             arg.work_amount = (size_t)H;
+
+            (*pKernel)(&arg);
+        });
+    } else if (jqp.is_planar && srcDims.size() > 2) {
+        const int batch_size = 256;
+        const int B = div_up(H * W, batch_size);
+        parallel_nd(N, CB, D, B, [&](int n, int cb, int d, int b) {
+            auto arg = jit_quantize_call_args();
+
+            const int c = cb * blk_size;
+            const int h = b * batch_size / W;
+            const int w = b * batch_size % W;
+
+            const size_t data_off = srcDims.size() == 3 || srcDims.size() == 4 ?
+                                    n * s_str[0] + c * s_str[1] + h * s_str[2] + w :
+                                    n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w;
+
+            arg.from = &src[data_off * src_type_size];
+            arg.to = &dst[data_off * dst_type_size];
+            arg.crop_low = &crop_low[c];
+            arg.crop_high = &crop_high[c];
+            arg.input_scale = &input_scale[c];
+            arg.input_shift = &input_shift[c];
+            arg.output_scale = &output_scale[c];
+            arg.output_shift = &output_shift[c];
+
+            arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
+            arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
+            arg.block_size = is_blk_format ? (size_t) blk_size : nstl::min(blk_size, C - c);
+            arg.work_amount = (size_t)std::min(batch_size, H * W - b * batch_size);
 
             (*pKernel)(&arg);
         });

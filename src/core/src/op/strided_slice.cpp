@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -241,16 +241,29 @@ bool op::v1::StridedSlice::has_evaluate() const {
     return get_input_size() == 4;
 }
 
+namespace {
+bool strided_slice_input_check(const ov::Node* node) {
+    if (!node->get_input_tensor(1).has_and_set_bound() || !node->get_input_tensor(2).has_and_set_bound() ||
+        !node->get_input_tensor(3).has_and_set_bound())
+        return false;
+    return true;
+}
+}  // namespace
+
 bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound() ||
-        !input_value(3).get_tensor().has_and_set_bound())
+    if (!strided_slice_input_check(this))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound() ||
-        !input_value(3).get_tensor().has_and_set_bound())
+    if (!strided_slice_input_check(this))
         return false;
     return default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::StridedSlice::evaluate_label(TensorLabelVector& output_labels) const {
+    if (!strided_slice_input_check(this))
+        return false;
+    return default_label_evaluator(this, output_labels);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,10 @@
 
 #include <gflags/gflags.h>
 #include <iostream>
+
+namespace ov {
+namespace test {
+namespace conformance {
 
 static const char help_message[] = "Print a usage message.";
 static const char disable_test_config_message[] = "Optional. Ignore tests skipping rules and run all the test (except those which are skipped with DISABLED "
@@ -28,6 +32,7 @@ static const char skip_config_path_message[] = "Optional. Allows to specify path
                                                "Delimiter is `,` symbol. Default value is empty string.";
 static const char config_path_message[] = "Optional. Allows to specify path to file contains plugin config. "
                                           "Default value is empty string.";
+static const char extract_body_message[] = "Optional. Allows to count extracted operation bodies to report. Default value is false.";
 
 
 DEFINE_bool(h, false, help_message);
@@ -41,6 +46,7 @@ DEFINE_uint32(save_report_timeout, 60, save_report_timeout_message);
 DEFINE_bool(disable_test_config, true, disable_test_config_message);
 DEFINE_bool(extend_report, false, extend_report_config_message);
 DEFINE_bool(report_unique_name, false, report_unique_name_message);
+DEFINE_bool(extract_body, false, extract_body_message);
 
 /**
 * @brief This function shows a help message
@@ -55,6 +61,7 @@ static void showUsage() {
     std::cout << "    --skip_config_path  \"<paths>\"    " << disable_test_config_message << std::endl;
     std::cout << "    --config_path  \"<paths\"          " << config_path_message << std::endl;
     std::cout << "    --extend_report                  " << extend_report_config_message << std::endl;
+    std::cout << "    --extract_body                   " << extend_report_config_message << std::endl;
     std::cout << "    --report_unique_name             " << extend_report_config_message << std::endl;
     std::cout << "    --save_report_timeout            " << extend_report_config_message << std::endl;
     std::cout << "    --device                         " << target_device_message << std::endl;
@@ -62,3 +69,7 @@ static void showUsage() {
     std::cout << "    --output_folder \"<path>\"         " << output_folder_message << std::endl;
     std::cout << "    --plugin_lib_name                " << output_folder_message << std::endl;
 }
+
+}  // namespace conformance
+}  // namespace test
+}  // namespace ov

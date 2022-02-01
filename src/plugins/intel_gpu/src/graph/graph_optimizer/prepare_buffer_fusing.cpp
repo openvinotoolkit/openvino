@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,8 @@ bool concat_noop_optimization::match(concatenation_node& node) {
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
     auto& dep = node.get_dependency(0);
-    dep.merge_output_padding(node.get_output_layout().data_padding);
+    auto outputPadding = node.get_output_layout().data_padding;
+    dep.merge_output_padding(outputPadding);
     prog.extract_and_remove(node);
     // Node has been removed, so no further optimizations.
     return true;
@@ -222,7 +223,8 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     // Select output padding by propagating all required input paddings.
     auto padd = node.get_output_layout().data_padding;
     for (auto input : node.get_dependencies()) {
-        padd = padding::max(padd, input->get_output_layout().data_padding);
+        auto inputPadding = input->get_output_layout().data_padding;
+        padd = padding::max(padd, inputPadding);
     }
 
     auto lower_padd = padd.lower_size();

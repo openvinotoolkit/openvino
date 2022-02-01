@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,12 @@
 namespace {
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value, testing::AssertionResult>::type
-compare_values(const ov::runtime::Tensor& expected, const ov::runtime::Tensor& result, const size_t tolerance_bits) {
+compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_t tolerance_bits) {
     return ngraph::test::all_close_f(expected, result, tolerance_bits);
 }
 
-testing::AssertionResult compare_with_fp_tolerance(const ov::runtime::Tensor& expected_tensor,
-                                                   const ov::runtime::Tensor& result_tensor,
+testing::AssertionResult compare_with_fp_tolerance(const ov::Tensor& expected_tensor,
+                                                   const ov::Tensor& result_tensor,
                                                    const float tolerance) {
     auto comparison_result = testing::AssertionSuccess();
 
@@ -32,16 +32,14 @@ testing::AssertionResult compare_with_fp_tolerance(const ov::runtime::Tensor& ex
 
 template <typename T>
 typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
-compare_values(const ov::runtime::Tensor& expected, const ov::runtime::Tensor& result, const size_t) {
+compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_t) {
     return ov::test::all_close(expected, result);
 }
 
 // used for float16 and bfloat 16 comparisons
 template <typename T>
-typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type compare_values(
-    const ov::runtime::Tensor& expected_tensor,
-    const ov::runtime::Tensor& result_tensor,
-    const size_t tolerance_bits) {
+typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
+compare_values(const ov::Tensor& expected_tensor, const ov::Tensor& result_tensor, const size_t tolerance_bits) {
     auto exp_host_t = std::make_shared<ngraph::HostTensor>(expected_tensor.get_element_type(),
                                                            expected_tensor.get_shape(),
                                                            expected_tensor.data());
@@ -69,7 +67,7 @@ typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
 namespace ngraph {
 namespace test {
 std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const std::string& bin_path) {
-    ov::runtime::Core c;
+    ov::Core c;
     return c.read_model(xml_path, bin_path);
 }
 

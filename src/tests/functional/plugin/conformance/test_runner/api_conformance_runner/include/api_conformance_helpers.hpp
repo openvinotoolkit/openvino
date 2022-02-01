@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,18 +7,15 @@
 #include "conformance.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-// TODO: fix namespaces
-using namespace ConformanceTests;
-
 namespace ov {
 namespace test {
 namespace conformance {
 
 inline const std::string getPluginLibNameByDevice(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
-            { "AUTO", "AutoPlugin" },
-            { "HDDL", "HDDLPlugin" },
-            { "VPUX", "VPUXPlugin" },
+            { "AUTO", "ov_multi_plugin" },
+            { "HDDL", "ov_intel_hddl_plugin" },
+            { "VPUX", "ov_intel_vpux_plugin" },
             { "AUTO", "ov_auto_plugin" },
             { "CPU", "ov_intel_cpu_plugin" },
             { "GNA", "ov_intel_gna_plugin" },
@@ -26,7 +23,7 @@ inline const std::string getPluginLibNameByDevice(const std::string& deviceName)
             { "HETERO", "ov_hetero_plugin" },
             { "BATCH", "ov_auto_batch_plugin" },
             { "MULTI", "ov_multi_plugin" },
-            { "MYRIAD", "ov_intel_vpu_plugin" },
+            { "MYRIAD", "ov_intel_myriad_plugin" },
             { "TEMPLATE", "ov_template_plugin" },
     };
     if (devices.find(deviceName) == devices.end()) {
@@ -36,16 +33,16 @@ inline const std::string getPluginLibNameByDevice(const std::string& deviceName)
 }
 
 inline const std::pair<std::string, std::string> generateDefaultMultiConfig() {
-    return {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ConformanceTests::targetDevice};
+    return {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::conformance::targetDevice};
 }
 
 inline const std::pair<std::string, std::string> generateDefaultHeteroConfig() {
-    return { "TARGET_FALLBACK" , ConformanceTests::targetDevice };
+    return { "TARGET_FALLBACK" , ov::test::conformance::targetDevice };
 }
 
 inline const std::pair<std::string, std::string> generateDefaultBatchConfig() {
     // auto-batching with batch 1 (no real batching in fact, but full machinery is in action)
-    return { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ConformanceTests::targetDevice)};
+    return { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::conformance::targetDevice)};
 }
 
 inline const std::vector<std::map<std::string, std::string>> generateConfigs(const std::string& targetDevice,
@@ -73,11 +70,11 @@ inline const std::vector<std::map<std::string, std::string>> generateConfigs(con
 }
 
 inline const std::string generateComplexDeviceName(const std::string& deviceName) {
-    return deviceName + ":" + ConformanceTests::targetDevice;
+    return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
 inline const std::vector<std::string> returnAllPossibleDeviceCombination() {
-    std::vector<std::string> res{ConformanceTests::targetDevice};
+    std::vector<std::string> res{ov::test::conformance::targetDevice};
     std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO,
                                      CommonTestUtils::DEVICE_BATCH, CommonTestUtils::DEVICE_MULTI};
     for (const auto& device : devices) {

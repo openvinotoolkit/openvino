@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,6 +104,8 @@ op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
     : Op({image, output_shape, scales}),
       m_attrs(attrs) {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -435,6 +437,15 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
                                                          out_shape,
                                                          m_attrs);
         break;
+    case element::Type_t::bf16:
+        ngraph::runtime::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
+                                                          padded_input_shape,
+                                                          scales,
+                                                          axes,
+                                                          outputs[0]->get_data_ptr<bfloat16>(),
+                                                          out_shape,
+                                                          m_attrs);
+        break;
     case element::Type_t::i8:
         ngraph::runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
                                                         padded_input_shape,
@@ -468,6 +479,7 @@ bool op::v4::Interpolate::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::u8:
+    case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:
         return true;

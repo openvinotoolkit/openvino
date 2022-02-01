@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import multiprocessing
@@ -11,7 +11,8 @@ from openvino.runtime import Core, AsyncInferQueue   # pylint: disable=E0611,E04
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    add_tensor_names, cast_friendly_names, collect_model_outputs
+    add_tensor_names, cast_friendly_names, collect_model_outputs, \
+    process_raw_output, get_clean_name
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -44,7 +45,7 @@ class IEEngine(Engine):
 
         # save NetworkX graph to IR and use it to initialize IE Network
         self._model = self._set_model(model)[0]['model']
-        self._output_layers = [output.get_node().friendly_name for output in self._model.outputs]
+        self._output_layers = [get_clean_name(output.get_node().friendly_name) for output in self._model.outputs]
 
     def _set_model(self, model):
         """Creates IENetwork instances from NetworkX models in NXModel.
@@ -181,13 +182,14 @@ class IEEngine(Engine):
                                      annotations=batch_annotations)
 
         # Postprocess network output
-        output = predictions[self._output_layers[0]]
-        predictions[self._output_layers[0]] = self.postprocess_output(output, batch_meta)
+        outputs = process_raw_output(predictions)
+        output = outputs[self._output_layers[0]]
+        outputs[self._output_layers[0]] = self.postprocess_output(output, batch_meta)
 
         # Update metrics
         if batch_annotations:
             # TODO: Create some kind of an order for the correct metric calculation
-            logits = [predictions[name] for name in self._output_layers]  # output_layers are in a random order
+            logits = [outputs[name] for name in self._output_layers]  # output_layers are in a random order
             self._update_metrics(output=logits, annotations=batch_annotations,
                                  need_metrics_per_sample=need_metrics_per_sample)
 
@@ -288,7 +290,7 @@ class IEEngine(Engine):
         """
 
         def completion_callback(request, user_data):
-            start_time, batch_id = user_data
+            start_time, batch_id, batch_annotations, batch_meta = user_data
             predictions = request.results
             self._process_infer_output(stats_layout, predictions,
                                        batch_annotations, batch_meta,
@@ -319,7 +321,8 @@ class IEEngine(Engine):
         infer_queue.set_callback(completion_callback)
         for batch_id, data_batch in sampler_iter:
             batch_annotations, image_batch, batch_meta = self._process_batch(data_batch)
-            infer_queue.start_async(self._fill_input(compiled_model, image_batch), (start_time, batch_id))
+            user_data = (start_time, batch_id, batch_annotations, batch_meta)
+            infer_queue.start_async(self._fill_input(compiled_model, image_batch), user_data)
         infer_queue.wait_all()
         progress_log_fn('Inference finished')
 

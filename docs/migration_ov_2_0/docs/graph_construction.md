@@ -1,4 +1,4 @@
-# OpenVINO™ graph construction {#ov_graph_construction}
+# OpenVINO™ graph construction {#openvino_graph_construction}
 
 OpenVINO™ 2.0 includes nGraph engine in a common part. The `ngraph` namespace was changed to `ov`.
 Code snippets below show how application code should be changed for migration to OpenVINO™ 2.0.

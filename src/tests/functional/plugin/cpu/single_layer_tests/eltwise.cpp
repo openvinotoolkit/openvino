@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ protected:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             bool isReal = funcInput.get_element_type().is_real();
             switch (eltwiseType) {
                 case ngraph::helpers::EltwiseTypes::POWER:
@@ -196,7 +196,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Differen
         // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
 };
 
-std::map<std::string, std::string> additional_config;
+ov::AnyMap additional_config;
 
 std::vector<ElementType> netType = {ElementType::bf16, ElementType::f32};
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -48,7 +48,7 @@ ie_mark_target_as_cc(${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin ov_intel_cpu_plugin ov_intel_vpu_plugin)
+                    POSSIBLE_PLUGINS ov_auto_plugin ov_auto_batch_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin ov_intel_cpu_plugin ov_intel_myriad_plugin)
 
 # Export for build tree
 
@@ -138,6 +138,10 @@ set(OV_CORE_DIR ".")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")
+set(GNA_PATH "../${IE_CPACK_RUNTIME_PATH}")
+if(WIN32)
+    set(GNA_PATH "../${IE_CPACK_LIBRARY_PATH}/../Release")
+endif()
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,8 +91,16 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
         if (config.empty()) {
             IE_THROW() << "The list of configuration values is empty";
         }
+
+        std::vector<ov::PropertyName> supported_properties = Config::GetSupportedProperties(true);
         for (auto&& item : config) {
-            if (item.first != KEY_GNA_DEVICE_MODE) {
+            auto it = std::find(supported_properties.begin(), supported_properties.end(), item.first);
+            if (it != supported_properties.end()) {
+                if (!it->is_mutable()) {
+                    IE_THROW() << "The following config value cannot be changed dynamically "
+                               << "for compiled model in the GNA plugin: " << item.first;
+                }
+            } else if (item.first != KEY_GNA_DEVICE_MODE) {
                 IE_THROW() << "The following config value cannot be changed dynamically for ExecutableNetwork in the GNA plugin: "
                                    << item.first << ". Only " << KEY_GNA_DEVICE_MODE << " is supported.";
             }
@@ -119,7 +127,11 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
-        return plg->GetMetric(name, {});
+        if (ov::supported_properties == name) {
+            return Config::GetSupportedProperties(true);
+        } else {
+            return plg->GetMetric(name, {});
+        }
     }
 };
 
