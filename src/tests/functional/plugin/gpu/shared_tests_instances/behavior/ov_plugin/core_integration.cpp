@@ -254,7 +254,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricUarchVersionAndPrintNoThrow) {
 TEST_P(OVClassGetPropertyTest_GPU, GetMetricExecutionUnitsCountAndPrintNoThrow) {
     ov::Core ie;
 
-    uint32_t property = 0;
+    int32_t property = 0;
     ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::intel_gpu::execution_units_count));
 
     std::cout << "GPU_EXECUTION_UNITS_COUNT: " << property << std::endl;

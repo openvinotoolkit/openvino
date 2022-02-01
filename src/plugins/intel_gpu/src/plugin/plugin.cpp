@@ -693,7 +693,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
         }
     } else if (name == ov::intel_gpu::execution_units_count) {
-        return decltype(ov::intel_gpu::execution_units_count)::value_type {device_info.execution_units_count};
+        return static_cast<decltype(ov::intel_gpu::execution_units_count)::value_type>(device_info.execution_units_count);
     } else if (name == ov::intel_gpu::uarch_version) {
         std::stringstream s;
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0 && device_info.gfx_ver.revision == 0) {

@@ -24,7 +24,7 @@ Parameter GNAPlugin::GetConfig(const std::string& name, const std::map<std::stri
 Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const {
     if (ov::supported_properties == name) {
         return config.GetSupportedProperties();
-    } else if (ov::available_devices == name) {
+    } else if (ov::device::available == name) {
         return GetAvailableDevices().as<std::vector<std::string>>();
     } else if (ov::optimal_number_of_infer_requests == name) {
         uint32_t nireq = 1;
