@@ -4,11 +4,12 @@
 
 #include "openvino/frontend/paddle/frontend.hpp"
 
+#include <google/protobuf/stubs/logging.h>
+
 #include <fstream>
 #include <map>
 #include <string>
 #include <vector>
-#include <google/protobuf/stubs/logging.h>
 
 #include "decoder_proto.hpp"
 #include "framework.pb.h"

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
 #include <google/protobuf/stubs/logging.h>
+
+#include <fstream>
 #include <input_model.hpp>
 #include <onnx_import/onnx.hpp>
 #include <onnx_import/onnx_utils.hpp>
