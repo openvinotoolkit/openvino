@@ -127,3 +127,5 @@ xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElemen
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_63643 = xfail_test(reason="RuntimeError: Unsupported operation of type: Convolution name")
 xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes streams")
+
+xfail_issue_77668 = xfail_test(reason="Accuracy issue related to Gather-8.")
