@@ -56,3 +56,22 @@ using ov::SupportedOpsMap;
 }  // namespace runtime
 
 }  // namespace ov
+
+namespace std {
+inline ostream& operator<<(ostream& os, const map<string, float>& m) {
+    for (auto&& it : m) {
+        os << it.first << " " << it.second << " ";
+    }
+    return os;
+}
+
+inline istream& operator>>(istream& is, map<string, float>& m) {
+    m.clear();
+    string key;
+    float value;
+    while (is >> key >> value) {
+        m.emplace(key, value);
+    }
+    return is;
+}
+}  // namespace std

@@ -684,9 +684,8 @@ public:
             // create getInputs() based on GetInputsInfo()
             using namespace InferenceEngine::details;
 
-            if (exec->getInputs().empty()) {
+            if (exec->getInputs().empty() && !exec->GetInputsInfo().empty()) {
                 const auto& inputsInfo = exec->GetInputsInfo();
-                OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
 
                 std::vector<std::shared_ptr<const ov::Node>> params;
                 params.reserve(inputsInfo.size());
@@ -1785,6 +1784,10 @@ void Core::set_property(const std::string& deviceName, const AnyMap& config) {
 }
 
 Any Core::get_property(const std::string& deviceName, const std::string& name) const {
+    return get_property(deviceName, name, AnyMap{});
+}
+
+Any Core::get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const {
     OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
                     "You can only get_config of the HETERO itself (without devices). "
                     "get_config is also possible for the individual devices before creating the HETERO on top.");
@@ -1796,7 +1799,7 @@ Any Core::get_property(const std::string& deviceName, const std::string& name) c
                     "get_config is also possible for the individual devices before creating the AUTO on top.");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(deviceName);
+        auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
         if (ov::supported_properties == name) {
             try {
                 return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
@@ -1809,7 +1812,10 @@ Any Core::get_property(const std::string& deviceName, const std::string& name) c
                                          .as<std::vector<std::string>>();
                 std::vector<ov::PropertyName> supported_properties;
                 for (auto&& ro_property : ro_properties) {
-                    supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                        supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    }
                 }
                 for (auto&& rw_property : rw_properties) {
                     supported_properties.emplace_back(rw_property, PropertyMutability::RW);
@@ -1826,8 +1832,11 @@ Any Core::get_property(const std::string& deviceName, const std::string& name) c
     });
 }
 
-void Core::get_property(const std::string& deviceName, const std::string& name, ov::Any& to) const {
-    any_lexical_cast(get_property(deviceName, name), to);
+void Core::get_property(const std::string& deviceName,
+                        const std::string& name,
+                        const AnyMap& arguments,
+                        ov::Any& to) const {
+    any_lexical_cast(get_property(deviceName, name, arguments), to);
 }
 
 std::vector<std::string> Core::get_available_devices() const {
