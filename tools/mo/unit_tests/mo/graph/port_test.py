@@ -38,6 +38,9 @@ class TestsGetTensorNames(unittest.TestCase):
                          ("input", "B:1"), ("input", "B:2"), ("input", "C:0")])
         self.assertTrue(input_node.out_port(0).get_tensor_names() ==
                         ['A:0', 'B:0', 'B:1', 'B:2', 'C:0', 'Op1\\,Op2', 'input'])
+        input_node.out_port(0).remove_tensor_names()
+        self.assertTrue(input_node.out_port(0).get_tensor_debug_info() == [])
+        self.assertTrue(input_node.out_port(0).get_tensor_names() == [])
 
     def test_middle(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'),
@@ -60,6 +63,9 @@ class TestsGetTensorNames(unittest.TestCase):
                          ("input", "B:1"), ("input", "B:2"), ("input", "C:0")])
         self.assertTrue(input_node.out_port(0).get_tensor_names() ==
                         ['A:0', 'B:0', 'B:1', 'B:2', 'C:0', 'Op1\\,Op2', 'input'])
+        input_node.out_port(0).remove_tensor_names()
+        self.assertTrue(input_node.out_port(0).get_tensor_debug_info() == [])
+        self.assertTrue(input_node.out_port(0).get_tensor_names() == [])
 
     def test_port_renumber(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'),
@@ -78,6 +84,9 @@ class TestsGetTensorNames(unittest.TestCase):
                          ("input", "B:1"), ("input", "B:2"), ("input", "C:0")])
         self.assertTrue(input_node.out_port(0).get_tensor_names() ==
                         ['A:0', 'B:0', 'B:1', 'B:2', 'C:0', 'Op1\\,Op2', 'input'])
+        input_node.out_port(0).remove_tensor_names(port_renumber=True)
+        self.assertTrue(input_node.out_port(0).get_tensor_debug_info() == [])
+        self.assertTrue(input_node.out_port(0).get_tensor_names() == [])
 
     def test_reconnect_middle_case1(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'), ('Op3', 'Op3_data')])
