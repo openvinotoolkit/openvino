@@ -147,6 +147,15 @@ inline NullLogger&& operator<<(
     return std::move(logger);
 }
 
+#    define NGRAPH_ERR \
+        ::ngraph::NullLogger {}
+
+#    define NGRAPH_WARN \
+        ::ngraph::NullLogger {}
+
+#    define NGRAPH_INFO \
+        ::ngraph::NullLogger {}
+
 #    define NGRAPH_DEBUG \
         ::ngraph::NullLogger {}
 #endif
