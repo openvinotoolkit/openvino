@@ -87,7 +87,7 @@ TEST_P(OVHoldersTest, LoadedAny) {
     {
         ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);
-        any = compiled_model.get_property(METRIC_KEY(SUPPORTED_METRICS));
+        any = compiled_model.get_property(ov::supported_properties.name());
     }
 }
 

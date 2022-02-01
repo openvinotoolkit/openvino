@@ -193,15 +193,15 @@ int main(int argc, char* argv[]) {
 
         if (FLAGS_hint.empty()) {
             for (auto& device : devices) {
-                std::vector<std::string> supported_config_keys =
-                    core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                if (std::find(supported_config_keys.begin(),
-                              supported_config_keys.end(),
-                              CONFIG_KEY(PERFORMANCE_HINT)) != supported_config_keys.end()) {
-                    slog::warn << "-hint default value is determined as " << CONFIG_VALUE(THROUGHPUT)
+                auto supported_properties = core.get_property(device, ov::supported_properties);
+                if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
+                    supported_properties.end()) {
+                    slog::warn << "-hint default value is determined as " << ov::hint::PerformanceMode::THROUGHPUT
                                << " automatically for " << device
                                << " device. For more detailed information look at README." << slog::endl;
-                    FLAGS_hint = CONFIG_VALUE(THROUGHPUT);
+                    std::stringstream strm;
+                    strm << ov::hint::PerformanceMode::THROUGHPUT;
+                    FLAGS_hint = strm.str();
                 }
             }
         }
@@ -280,10 +280,9 @@ int main(int argc, char* argv[]) {
                 const std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
                     // set to user defined value
-                    std::vector<std::string> supported_config_keys =
-                        core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                    if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) ==
-                        supported_config_keys.end()) {
+                    auto supported_properties = core.get_property(device, ov::supported_properties);
+                    if (std::find(supported_properties.begin(), supported_properties.end(), key) ==
+                        supported_properties.end()) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
                                                "Please specify -nstreams for correct devices in format  "
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
@@ -350,11 +349,10 @@ int main(int argc, char* argv[]) {
                 else
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I16";
             } else {
-                std::vector<std::string> supported_config_keys =
-                    core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto supported_properties = core.get_property(device, ov::supported_properties);
                 auto supported = [&](const std::string& key) {
-                    return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) !=
-                           std::end(supported_config_keys);
+                    return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                           std::end(supported_properties);
                 };
                 if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
                     device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
@@ -380,7 +378,7 @@ int main(int argc, char* argv[]) {
 
         // Takes priority over config from file
         if (!FLAGS_cache_dir.empty()) {
-            core.set_property({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
+            core.set_property(ov::cache_dir(FLAGS_cache_dir));
         }
 
         bool isDynamicNetwork = false;
@@ -618,10 +616,9 @@ int main(int argc, char* argv[]) {
         next_step();
         // output of the actual settings that the device selected
         for (const auto& device : devices) {
-            std::vector<std::string> supported_config_keys =
-                core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            auto supported_properties = core.get_property(device, ov::supported_properties);
             slog::info << "Device: " << device << slog::endl;
-            for (const auto& cfg : supported_config_keys) {
+            for (const auto& cfg : supported_properties) {
                 try {
                     slog::info << "  {" << cfg << " , " << compiledModel.get_property(cfg).as<std::string>();
                     slog::info << " }" << slog::endl;

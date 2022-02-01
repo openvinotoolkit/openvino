@@ -105,25 +105,14 @@ int main(int argc, char* argv[]) {
         for (auto&& device : availableDevices) {
             slog::info << device << slog::endl;
 
-            // Query supported metrics and print all of them
-            slog::info << "\tSUPPORTED_METRICS: " << slog::endl;
-            std::vector<std::string> supportedMetrics = core.get_property(device, METRIC_KEY(SUPPORTED_METRICS));
-            for (auto&& metricName : supportedMetrics) {
-                if (metricName != METRIC_KEY(SUPPORTED_METRICS) && metricName != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                    slog::info << "\t\t" << metricName << " : " << slog::flush;
-                    print_any_value(core.get_property(device, metricName));
-                }
-            }
-
-            // Query supported config keys and print all of them
-            if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) !=
-                supportedMetrics.end()) {
-                slog::info << "\tSUPPORTED_CONFIG_KEYS (default values): " << slog::endl;
-                std::vector<std::string> supportedConfigKeys =
-                    core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                for (auto&& configKey : supportedConfigKeys) {
-                    slog::info << "\t\t" << configKey << " : " << slog::flush;
-                    print_any_value(core.get_property(device, configKey));
+            // Query supported properties and print all of them
+            slog::info << "\tSUPPORTED_PROPERTIES: " << slog::endl;
+            auto supported_properties = core.get_property(device, ov::supported_properties);
+            for (auto&& property : supported_properties) {
+                if (property != ov::supported_properties.name()) {
+                    slog::info << "\t\t" << (property.is_mutable() ? "Mutable: " : "Immutable: ") << property << " : "
+                               << slog::flush;
+                    print_any_value(core.get_property(device, property));
                 }
             }
 

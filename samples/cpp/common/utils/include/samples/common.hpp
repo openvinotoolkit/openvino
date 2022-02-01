@@ -977,12 +977,10 @@ inline void showAvailableDevices() {
 std::map<std::string, std::string> parseConfig(const std::string& configName, char comment = '#');
 
 inline std::string getFullDeviceName(ov::Core& core, std::string device) {
-    ov::Any p;
     try {
-        p = core.get_property(device, METRIC_KEY(FULL_DEVICE_NAME));
-        return p.as<std::string>();
+        return core.get_property(device, ov::device::full_name);
     } catch (ov::Exception&) {
-        return "";
+        return {};
     }
 }
 
