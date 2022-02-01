@@ -28,6 +28,7 @@ if (ENABLE_UB_SANITIZER)
     if (WIN32)
         message(FATAL_ERROR "UndefinedBehavior sanitizer is not supported in Windows")
     endif()
+    
     # TODO: Remove -fno-sanitize=null as thirdparty/ocl/clhpp_headers UBSAN compatibility resolved:
     # https://github.com/KhronosGroup/OpenCL-CLHPP/issues/17
     # Mute -fsanitize=function Indirect call of a function through a function pointer of the wrong type.
@@ -42,7 +43,11 @@ if (ENABLE_UB_SANITIZER)
     # Mute -fsanitize=enum Load of a value of an enumerated type which is not in the range of representable values for that enumerated type.
     #   Samples cases:
     #       load of value 4294967295, which is not a valid value for type 'const (anonymous namespace)::onnx::Field'
-    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=undefined -fno-sanitize=null -fno-sanitize=function -fno-sanitize=alignment -fno-sanitize=bool -fsanitize=enum")
+    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=undefined -fno-sanitize=null -fno-sanitize=alignment -fno-sanitize=bool -fsanitize=enum")
+    if(OV_COMPILER_IS_CLANG)
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-sanitize=function")
+    endif()
+
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # TODO: Remove -Wno-maybe-uninitialized after CVS-61143 fix
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -Wno-maybe-uninitialized")
