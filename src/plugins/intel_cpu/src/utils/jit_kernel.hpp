@@ -583,6 +583,47 @@ private:
     size_t _size {};
 };
 
+#ifdef CPU_DEBUG_CAPS
+
+class console {
+    console(const console &) = delete;
+    console & operator = (const console &) = delete;
+
+public:
+    console(jit_kernel & kernel);
+    void legacy(bool mode = true);
+    console & operator << (const char * str);
+    template<typename T>
+    console & operator << (const variable<T, register_tag> & var);
+    template<typename T, size_t N>
+    console & operator << (const variable<T[N], register_tag> & var);
+
+private:
+    void preamble();
+    void postamble();
+    template<typename T>
+    static void print_reg64(const char * name, T val);
+    template<typename T>
+    static void print_vec(const char * name, const T * vec, size_t size);
+
+private:
+    jit_kernel & _kernel;
+    bool _legacy_mode = false;  // For legacy kernels should be true
+};
+
+#else
+
+struct console {
+    console(jit_kernel &) {}
+    void legacy(bool) {}
+    template<typename T>
+    console & operator << (const T &) {
+        return *this;
+    }
+};
+
+#endif  // #ifdef CPU_DEBUG_CAPS
+
 }   // namespace internal
 
 struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
@@ -670,6 +711,14 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
     variable<T> var();
     template<typename T>
     variable<T> var(const T & val);
+    template<typename T>
+    variable<T> wrap(const Xbyak::Reg64 & reg);
+    template<typename T, size_t len = 16 / sizeof(T)>
+    variable<T[len]> wrap(const Xbyak::Xmm & reg);
+    template<typename T, size_t len = 32 / sizeof(T)>
+    variable<T[len]> wrap(const Xbyak::Ymm & reg);
+    template<typename T, size_t len = 64 / sizeof(T)>
+    variable<T[len]> wrap(const Xbyak::Zmm & reg);
 
     template<typename T>
     const T & constant(const T & c);
@@ -687,6 +736,12 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
     void uni_vblendps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, uint16_t mask);
     void uni_vblendps(const Xbyak::Ymm& y1, const Xbyak::Ymm& y2, uint16_t mask);
     void uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16_t mask);
+    void uni_push(const Xbyak::Xmm& x);
+    void uni_push(const Xbyak::Ymm& y);
+    void uni_push(const Xbyak::Zmm& z);
+    void uni_pop(const Xbyak::Xmm& x);
+    void uni_pop(const Xbyak::Ymm& y);
+    void uni_pop(const Xbyak::Zmm& z);
 
     void postamble();
 
@@ -702,6 +757,9 @@ private:
     jit_load_emitter _load_emitter;
     jit_store_emitter _store_emitter;
     internal::consts_table _consts;
+
+public:
+    internal::console cout;
 };
 
 template<typename T>
@@ -854,6 +912,30 @@ jit_kernel::variable<T> jit_kernel::var(const T & val) {
     variable<T> res(*this, internal::make_shared(reg, *this));
     res = val;
     return std::move(res);
+}
+
+template<typename T>
+jit_kernel::variable<T> jit_kernel::wrap(const Xbyak::Reg64 & reg) {
+    std::shared_ptr<Xbyak::Reg64> ptr(const_cast<Xbyak::Reg64*>(&reg), [](Xbyak::Reg64 *) {});
+    return internal::variable<T, internal::register_tag>(*this, ptr);
+}
+
+template<typename T, size_t len>
+jit_kernel::variable<T[len]> jit_kernel::wrap(const Xbyak::Xmm & reg) {
+    std::shared_ptr<Xbyak::Xmm> ptr(const_cast<Xbyak::Xmm*>(&reg), [](Xbyak::Xmm *) {});
+    return internal::variable<T[len], internal::register_tag>(*this, ptr);
+}
+
+template<typename T, size_t len>
+jit_kernel::variable<T[len]> jit_kernel::wrap(const Xbyak::Ymm & reg) {
+    std::shared_ptr<Xbyak::Ymm> ptr(const_cast<Xbyak::Ymm*>(&reg), [](Xbyak::Ymm *) {});
+    return internal::variable<T[len], internal::register_tag>(*this, ptr);
+}
+
+template<typename T, size_t len>
+jit_kernel::variable<T[len]> jit_kernel::wrap(const Xbyak::Zmm & reg) {
+    std::shared_ptr<Xbyak::Zmm> ptr(const_cast<Xbyak::Zmm*>(&reg), [](Xbyak::Zmm *) {});
+    return internal::variable<T[len], internal::register_tag>(*this, ptr);
 }
 
 template<typename T>
@@ -1028,6 +1110,73 @@ template<typename T, size_t N>
 variable<T[N], register_tag>::variable(jit_kernel & krnl, const shared_reg<reg_type> & reg)
     : base(krnl, reg) {
 }
+
+#ifdef CPU_DEBUG_CAPS
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// console
+
+template<typename T>
+console & console::operator << (const variable<T, register_tag> & var) {
+    preamble();
+    _kernel.push(_kernel.rax);
+    _kernel.push(abi_param1);
+    _kernel.push(abi_param2);
+
+    {
+        if (abi_param2.getIdx() != var.reg().getIdx()
+            || abi_param2.getKind() != var.reg().getKind()) {
+            if (var.reg().getBit() < abi_param2.getBit()) {
+                if (std::is_signed<T>::value)
+                    _kernel.movsx(abi_param2, var);
+                else
+                    _kernel.movzx(abi_param2, var);
+            } else {
+                _kernel.mov(abi_param2, var);
+            }
+        }
+        // align stack on 16-byte as ABI requires
+        auto s = _kernel.stack(0, 16);
+        _kernel.mov(abi_param1, reinterpret_cast<size_t>(var.reg().toString()));
+        _kernel.mov(_kernel.rax, reinterpret_cast<size_t>(&console::print_reg64<T>));
+        _kernel.call(_kernel.rax);
+    }
+
+    _kernel.pop(abi_param2);
+    _kernel.pop(abi_param1);
+    _kernel.pop(_kernel.rax);
+    postamble();
+    return *this;
+}
+
+template<typename T, size_t N>
+console & console::operator << (const variable<T[N], register_tag> & var) {
+    preamble();
+    _kernel.push(_kernel.rax);
+    _kernel.push(abi_param1);
+    _kernel.push(abi_param2);
+    _kernel.push(abi_param3);
+
+    {
+        // align stack on 16-byte as ABI requires
+        auto s = _kernel.stack(internal::reg_traits<T[N]>::size, 16);
+        _kernel.uni_vmovdqu(_kernel.ptr[s.pointer()], var);
+        _kernel.mov(abi_param1, reinterpret_cast<size_t>(var.reg().toString()));
+        _kernel.mov(abi_param2, s.pointer());
+        _kernel.mov(abi_param3, N);
+        _kernel.mov(_kernel.rax, reinterpret_cast<size_t>(&console::print_vec<T>));
+        _kernel.call(_kernel.rax);
+    }
+
+    _kernel.pop(abi_param3);
+    _kernel.pop(abi_param2);
+    _kernel.pop(abi_param1);
+    _kernel.pop(_kernel.rax);
+    postamble();
+    return *this;
+}
+
+#endif  // #ifdef CPU_DEBUG_CAPS
 
 }   // namespace internal
 

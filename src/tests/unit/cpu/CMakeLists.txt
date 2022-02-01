@@ -44,6 +44,10 @@ if (WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
 endif()
 
+if (ENABLE_CPU_DEBUG_CAPS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE CPU_DEBUG_CAPS)
+endif()
+
 ie_faster_build(${TARGET_NAME}
     UNITY
 )

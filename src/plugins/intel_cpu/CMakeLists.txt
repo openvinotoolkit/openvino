@@ -12,10 +12,6 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
 
-if (ENABLE_CPU_DEBUG_CAPS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_DEBUG_CAPS")
-endif()
-
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                           ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
@@ -45,6 +41,10 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
                                              ov_shape_inference
                                              inference_engine_snippets)
+
+if (ENABLE_CPU_DEBUG_CAPS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE CPU_DEBUG_CAPS)
+endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -87,6 +87,10 @@ if(BUILD_SHARED_LIBS)
         $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>
         )
+
+    if (ENABLE_CPU_DEBUG_CAPS)
+        target_compile_definitions(${TARGET_NAME}_obj PUBLIC CPU_DEBUG_CAPS)
+    endif()
 
     set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 

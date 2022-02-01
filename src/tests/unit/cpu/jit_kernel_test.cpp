@@ -273,14 +273,13 @@ struct jit_variable_load_store_test_kernel {
         kernel_impl<N> kernel;
         kernel.init();
 
-        const size_t size = 3;
+        const size_t size = N;
 
         std::array<SrcT, N> src {};
         std::array<DstT, N> result {};
 
         Params args = { src.data(), result.data(), size };
 
-        src.fill(static_cast<SrcT>(42));
         for (size_t i = 0; i < size; ++i) {
             src[i] = static_cast<SrcT>(i);
         }
@@ -303,13 +302,23 @@ private:
         void generate() override {
             jit_kernel::preamble();
 
+            jit_kernel::cout << "[ INFO     ] Hello from JIT kernel!\n";
+
             auto src_ptr = jit_kernel::arg(&Params::src);
             auto dst_ptr = jit_kernel::arg(&Params::dst);
             auto size = jit_kernel::arg(&Params::size);
 
+            jit_kernel::cout << "[ INFO     ] Size: " << size << "\n";
+
+            auto src = jit_kernel::var<SrcT[N]>();
             auto dst = jit_kernel::var<DstT[N]>();
 
+            jit_kernel::load(src, src_ptr, size);
             jit_kernel::load(dst, src_ptr, size);
+
+            jit_kernel::cout << "[ INFO     ] src: " << src << "\n";
+            jit_kernel::cout << "[ INFO     ] dst: " << dst << "\n";
+
             jit_kernel::store(dst_ptr, dst, size);
 
             jit_kernel::postamble();

@@ -6,7 +6,10 @@
 #include <stdexcept>
 #include <iostream>
 #include <cstring>
+#include <sstream>
 #include <unordered_set>
+#include <openvino/core/type/float16.hpp>
+#include "bfloat16.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
@@ -129,6 +132,16 @@ InferenceEngine::Precision type2precision<float>() {
 }
 
 template<>
+InferenceEngine::Precision type2precision<ov::float16>() {
+    return InferenceEngine::Precision::FP16;
+}
+
+template<>
+InferenceEngine::Precision type2precision<bfloat16_t>() {
+    return InferenceEngine::Precision::BF16;
+}
+
+template<>
 InferenceEngine::Precision type2precision<uint8_t>() {
     return InferenceEngine::Precision::U8;
 }
@@ -209,11 +222,279 @@ const void * consts_table::store(const void *data, size_t size) {
     return &dst[offset];
 }
 
+#ifdef CPU_DEBUG_CAPS
+
+namespace {
+
+template<typename T>
+const char * type_name();
+template<>
+const char * type_name<float>() {
+    return "f32";
+}
+template<>
+const char * type_name<ov::float16>() {
+    return "f16";
+}
+template<>
+const char * type_name<bfloat16_t>() {
+    return "bf16";
+}
+template<>
+const char * type_name<uint64_t>() {
+    return "u64";
+}
+template<>
+const char * type_name<uint32_t>() {
+    return "u32";
+}
+template<>
+const char * type_name<uint16_t>() {
+    return "u16";
+}
+template<>
+const char * type_name<uint8_t>() {
+    return "u8";
+}
+template<>
+const char * type_name<int64_t>() {
+    return "i64";
+}
+template<>
+const char * type_name<int32_t>() {
+    return "i32";
+}
+template<>
+const char * type_name<int16_t>() {
+    return "i16";
+}
+template<>
+const char * type_name<int8_t>() {
+    return "i8";
+}
+template<>
+const char * type_name<bool>() {
+    return "bool";
+}
+template<>
+const char * type_name<void>() {
+    return "void";
+}
+template<>
+const char * type_name<void*>() {
+    return "void*";
+}
+
+void print_str(const char * str) {
+    std::cout << str;
+}
+
+template<typename T>
+void print_value(const char * name, T val) {
+    std::stringstream ss;
+    ss << name << ":" << type_name<T>() << " { " << val << " }";
+    std::cout << ss.str();
+}
+
+template<typename T, typename U = T>
+void print_vector(const char * name, const T *vec, size_t size) {
+    std::stringstream ss;
+    ss << name << ":" << type_name<T>() << " { ";
+    ss << static_cast<U>(vec[0]);
+    for (size_t i = 1; i < size; ++i) {
+        ss << ", " << static_cast<U>(vec[i]);
+    }
+    ss << " }";
+    std::cout << ss.str();
+}
+
+}   // namespace
+
+console::console(jit_kernel & kernel)
+    : _kernel(kernel) {
+}
+
+void console::legacy(bool mode) {
+    _legacy_mode = mode;
+}
+
+console & console::operator << (const char * str) {
+    const char * cptr = _kernel.constant(str, std::strlen(str) + 1);
+    preamble();
+    _kernel.push(_kernel.rax);
+    _kernel.push(abi_param1);
+
+    {
+        // align stack on 16-byte as ABI requires
+        auto s = _kernel.stack(0, 16);
+        _kernel.mov(abi_param1, reinterpret_cast<size_t>(cptr));
+        _kernel.mov(_kernel.rax, reinterpret_cast<size_t>(print_str));
+        _kernel.call(_kernel.rax);
+    }
+
+    _kernel.pop(abi_param1);
+    _kernel.pop(_kernel.rax);
+    postamble();
+    return *this;
+}
+
+template<>
+void console::print_reg64(const char * name, uint64_t val) {
+    print_value(name, val);
+}
+template<>
+void console::print_reg64(const char * name, uint32_t val) {
+    print_value(name, val);
+}
+template<>
+void console::print_reg64(const char * name, uint16_t val) {
+    print_value(name, val);
+}
+template<>
+void console::print_reg64(const char * name, uint8_t val) {
+    print_value(name, val);
+}
+template<>
+void console::print_reg64(const char * name, int64_t val) {
+    print_value(name, val);
+}
+template<>
+void console::print_reg64(const char * name, int32_t val) {
+    print_value(name, val);
+}
+template<>
+void console::print_reg64(const char * name, int16_t val) {
+    print_value(name, val);
+}
+template<>
+void console::print_reg64(const char * name, int8_t val) {
+    print_value(name, val);
+}
+template<>
+void console::print_reg64(const char * name, bool val) {
+    print_value(name, val);
+}
+template<>
+void console::print_reg64(const char * name, void *val) {
+    print_value(name, val);
+}
+
+template<>
+void console::print_vec(const char * name, const float *vec, size_t size) {
+    print_vector(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const ov::float16 *vec, size_t size) {
+    print_vector<ov::float16, float>(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const bfloat16_t *vec, size_t size) {
+    print_vector<bfloat16_t, float>(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const uint64_t *vec, size_t size) {
+    print_vector(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const int64_t *vec, size_t size) {
+    print_vector(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const uint32_t *vec, size_t size) {
+    print_vector(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const int32_t *vec, size_t size) {
+    print_vector(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const uint16_t *vec, size_t size) {
+    print_vector(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const int16_t *vec, size_t size) {
+    print_vector(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const uint8_t *vec, size_t size) {
+    print_vector<uint8_t, uint32_t>(name, vec, size);
+}
+template<>
+void console::print_vec(const char * name, const int8_t *vec, size_t size) {
+    print_vector<int8_t, int32_t>(name, vec, size);
+}
+
+void console::preamble() {
+    const std::unordered_set<int> free_x64regs(_kernel.free_x64regs().begin(),
+                                               _kernel.free_x64regs().end());
+    for (size_t i = 0; i < x64regs().size(); ++i) {
+        const auto & reg = x64regs()[i].get();
+        if ((_legacy_mode || !free_x64regs.count(reg.getIdx()))
+            && reg.getIdx() != Xbyak::Operand::RSP)
+            _kernel.push(reg);
+    }
+
+    const cpu_isa_t isa = get_current_isa();
+    const std::unordered_set<int> free_rmmregs(_kernel.free_rmmregs().begin(),
+                                               _kernel.free_rmmregs().end());
+    for (size_t i = 0; i < xmmregs().size(); ++i) {
+        const auto & reg = xmmregs()[i].get();
+        if (_legacy_mode || !free_rmmregs.count(reg.getIdx())) {
+            switch (isa) {
+                case cpu_isa_t::avx512_common:
+                    _kernel.uni_push(zmmregs()[i].get());
+                    break;
+                case cpu_isa_t::avx2:
+                    _kernel.uni_push(ymmregs()[i].get());
+                    break;
+                default:
+                    _kernel.uni_push(reg);
+                    break;
+            }
+        }
+    }
+}
+
+void console::postamble() {
+    const cpu_isa_t isa = get_current_isa();
+    const std::unordered_set<int> free_rmmregs(_kernel.free_rmmregs().begin(),
+                                               _kernel.free_rmmregs().end());
+    for (size_t i = 0; i < xmmregs().size(); ++i) {
+        const size_t idx = xmmregs().size() - i - 1;
+        const auto & reg = xmmregs()[idx].get();
+        if (_legacy_mode || !free_rmmregs.count(reg.getIdx())) {
+            switch (isa) {
+                case cpu_isa_t::avx512_common:
+                    _kernel.uni_pop(zmmregs()[idx].get());
+                    break;
+                case cpu_isa_t::avx2:
+                    _kernel.uni_pop(ymmregs()[idx].get());
+                    break;
+                default:
+                    _kernel.uni_pop(reg);
+                    break;
+            }
+        }
+    }
+
+    const std::unordered_set<int> free_x64regs(_kernel.free_x64regs().begin(),
+                                               _kernel.free_x64regs().end());
+    for (size_t i = 0; i < x64regs().size(); ++i) {
+        const auto & reg = x64regs()[x64regs().size() - i - 1].get();
+        if ((_legacy_mode || !free_x64regs.count(reg.getIdx()))
+            && reg.getIdx() != Xbyak::Operand::RSP)
+            _kernel.pop(reg);
+    }
+}
+
+#endif  // #ifdef CPU_DEBUG_CAPS
+
 }   // namespace internal
 
 jit_kernel::jit_kernel()
     : _load_emitter(this, internal::get_current_isa())
-    , _store_emitter(this, internal::get_current_isa()) {
+    , _store_emitter(this, internal::get_current_isa())
+    , cout(*this) {
     _free_rmmregs.reserve(16);
     _free_rmmregs.reserve(16);
 
@@ -371,5 +652,36 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16
     vblendmps(z1 | k1, z1, z2);
 }
 
+void jit_kernel::uni_push(const Xbyak::Xmm& x) {
+    sub(rsp, 16);
+    uni_vmovdqu(ptr[rsp], x);
+}
+
+void jit_kernel::uni_push(const Xbyak::Ymm& y) {
+    sub(rsp, 32);
+    uni_vmovdqu(ptr[rsp], y);
+}
+
+void jit_kernel::uni_push(const Xbyak::Zmm& z) {
+    sub(rsp, 64);
+    uni_vmovdqu(ptr[rsp], z);
+}
+
+void jit_kernel::uni_pop(const Xbyak::Xmm& x) {
+    uni_vmovdqu(x, ptr[rsp]);
+    add(rsp, 16);
+}
+
+void jit_kernel::uni_pop(const Xbyak::Ymm& y) {
+    uni_vmovdqu(y, ptr[rsp]);
+    add(rsp, 32);
+}
+
+void jit_kernel::uni_pop(const Xbyak::Zmm& z) {
+    uni_vmovdqu(z, ptr[rsp]);
+    add(rsp, 64);
+}
+
 }   // namespace intel_cpu
 }   // namespace ov
+
