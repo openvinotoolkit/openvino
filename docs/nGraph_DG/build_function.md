@@ -12,7 +12,7 @@ for this purpose. In other words, `opsetX` defines a set of operations for build
 For a complete list of operation sets supported by Inference Engine, see [Available Operations Sets](../ops/opset.md).
 
 To add custom nGraph operations to an existing `CNNNetwork`, see 
-the [Add Custom nGraph Operations](../IE_DG/Extensibility_DG/Intro.md) document.
+the [Add Custom nGraph Operations](../OV_Runtime_UG/Extensibility_DG/Intro.md) document.
 
 Below you can find examples on to how build `ngraph::Function` from the `opset3` operations:
 
@@ -33,4 +33,4 @@ CNNNetwork net (ng_function);
 * [Operation Set `opset2` Specification](../ops/opset2.md)
 * [Operation Set `opset3` Specification](../ops/opset3.md)
 * [Operation Set `opset4` Specification](../ops/opset4.md)
-* [Inference Engine Extensibility Developer Guide](../IE_DG/Extensibility_DG/Intro.md)
+* [Inference Engine Extensibility Developer Guide](../OV_Runtime_UG/Extensibility_DG/Intro.md)

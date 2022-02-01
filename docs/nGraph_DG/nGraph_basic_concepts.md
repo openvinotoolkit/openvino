@@ -12,12 +12,12 @@ For details on how to build an nGraph Function, see the [Build nGraph Function](
 
 ## Operations
 
-`ngraph::Op` represents any abstract operations in the nGraph representation. You need to use this class to create [custom operations](../IE_DG/Extensibility_DG/AddingNGraphOps.md).
+`ngraph::Op` represents any abstract operations in the nGraph representation. You need to use this class to create [custom operations](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md).
 
 ## Operation Sets
 
 Operation set represents the set of some nGraph operations. `nGraph::Opset` is a class which provide a functionality to work with operation sets.
-Custom operation set should be created to support custom operation. Please read [Extensibility DevGuide](../IE_DG/Extensibility_DG/Intro.md) for more details.
+Custom operation set should be created to support custom operation. Please read [Extensibility DevGuide](../OV_Runtime_UG/Extensibility_DG/Intro.md) for more details.
 
 ## Static and Partial Shapes
 

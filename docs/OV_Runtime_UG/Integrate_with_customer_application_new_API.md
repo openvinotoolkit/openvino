@@ -457,7 +457,7 @@ Load the model to the device using `load_network()`:
 
 @endsphinxdirective
 
-This example is designed for CPU device, refer to the [Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md) page to read about more devices. 
+This example is designed for CPU device, refer to the [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) page to read about more devices. 
 
 #### Step 4. Prepare input 
 ```py

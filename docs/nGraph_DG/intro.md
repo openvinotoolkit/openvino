@@ -15,9 +15,9 @@ IR is still versioned but has a different meaning. For details, see [Deep Learni
 `ngraph::Function` passing it to `CNNNetwork`.
 
 4. Runtime reshape capability and constant folding are implemented through the nGraph code for more operations compared to previous releases.
-As a result, more models can be reshaped. For details, see the [dedicated guide about the reshape capability](../IE_DG/ShapeInference.md).
+As a result, more models can be reshaped. For details, see the [dedicated guide about the reshape capability](../OV_Runtime_UG/ShapeInference.md).
 
-5. Loading [model from ONNX format](../IE_DG/ONNX_Support.md) without converting it to the Inference Engine IR.
+5. Loading [model from ONNX format](../OV_Runtime_UG/ONNX_Support.md) without converting it to the Inference Engine IR.
 
 6. nGraph representation supports dynamic shapes. You can use `CNNNetwork::reshape()` method in order to specialize input shapes.
 
@@ -38,7 +38,7 @@ Both shapes and types are reinferred while loading to the Inference Engine using
 
 Alternative method to feed the Inference Engine with a model is to create the model in the run time.
 It is achieved by creation of the `ngraph::Function` construction using nGraph operation classes and optionally user-defined operations.
-For details, see [Add Custom nGraph Operations](../IE_DG/Extensibility_DG/AddingNGraphOps.md) and [examples](build_function.md).
+For details, see [Add Custom nGraph Operations](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md) and [examples](build_function.md).
 At this stage, the code is completely independent of the rest of the Inference Engine code and can be built separately.
 After you construct an instance of `ngraph::Function`, you can use it to create `CNNNetwork` by passing it to the new constructor for this class.
 
