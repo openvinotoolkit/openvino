@@ -61,6 +61,7 @@ using OVClassGetMetricTest_SUPPORTED_METRICS = OVClassBaseTestP;
 using OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
 using OVClassGetMetricTest_AVAILABLE_DEVICES = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME = OVClassBaseTestP;
+using OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID = OVClassBaseTestP;
 using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_GOPS = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
@@ -549,6 +550,21 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
     std::cout << "Full device name: " << std::endl << t << std::endl;
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::device::full_name);
+}
+
+TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID, GetMetricAndPrintNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    std::string t;
+
+    if (supportsDeviceID(ie, deviceName)) {
+        auto device_ids = ie.get_property(deviceName, ov::available_devices);
+        ASSERT_GT(device_ids.size(), 0);
+        OV_ASSERT_NO_THROW(t = ie.get_property(deviceName, ov::device::full_name, ov::device::id(device_ids.front())));
+        std::cout << "Device " << device_ids.front() << " " <<  ", Full device name: " << std::endl << t << std::endl;
+        OV_ASSERT_PROPERTY_SUPPORTED(ov::device::full_name);
+    } else {
+        GTEST_SKIP() << "Device id is not supported";
+    }
 }
 
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {

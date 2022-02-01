@@ -42,7 +42,7 @@ class OPENVINO_RUNTIME_API Core {
     class Impl;
     std::shared_ptr<Impl> _impl;
 
-    void get_property(const std::string& device_name, const std::string& name, ov::Any& to) const;
+    void get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments, Any& to) const;
 
 public:
     /** @brief Constructs OpenVINO Core instance using XML configuration file with
@@ -139,7 +139,7 @@ public:
      * @return A compiled model
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
         const std::shared_ptr<const ov::Model>& model,
         Properties&&... properties) {
         return compile_model(model, AnyMap{std::forward<Properties>(properties)...});
@@ -174,7 +174,7 @@ public:
      * @return A compiled model
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
         const std::shared_ptr<const ov::Model>& model,
         const std::string& device_name,
         Properties&&... properties) {
@@ -211,8 +211,8 @@ public:
      * @return A compiled model
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(const std::string& model_path,
-                                                                            Properties&&... properties) {
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
+                                                                           Properties&&... properties) {
         return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
 
@@ -248,9 +248,9 @@ public:
      * @return A compiled model
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(const std::string& model_path,
-                                                                            const std::string& device_name,
-                                                                            Properties&&... properties) {
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
+                                                                           const std::string& device_name,
+                                                                           Properties&&... properties) {
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
@@ -276,7 +276,7 @@ public:
      * @return A compiled model object
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
         const std::shared_ptr<const ov::Model>& model,
         const RemoteContext& context,
         Properties&&... properties) {
@@ -388,9 +388,9 @@ public:
      * @return A compiled model
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<CompiledModel, Properties...> import_model(std::istream& model_stream,
-                                                                           const std::string& device_name,
-                                                                           Properties&&... properties) {
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(std::istream& model_stream,
+                                                                          const std::string& device_name,
+                                                                          Properties&&... properties) {
         return import_model(model_stream, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
@@ -416,9 +416,9 @@ public:
      * @return A compiled model
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<CompiledModel, Properties...> import_model(std::istream& model_stream,
-                                                                           const RemoteContext& context,
-                                                                           Properties&&... properties) {
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(std::istream& model_stream,
+                                                                          const RemoteContext& context,
+                                                                          Properties&&... properties) {
         return import_model(model_stream, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
@@ -445,7 +445,7 @@ public:
      * @return An object containing a map of pairs a operation name -> a device name supporting this operation.
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<SupportedOpsMap, Properties...> query_model(
+    util::EnableIfAllStringAny<SupportedOpsMap, Properties...> query_model(
         const std::shared_ptr<const ov::Model>& model,
         const std::string& device_name,
         Properties&&... properties) const {
@@ -469,7 +469,7 @@ public:
      * @return nothing
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<void, Properties...> set_property(Properties&&... properties) {
+    util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
         set_property(AnyMap{std::forward<Properties>(properties)...});
     }
 
@@ -491,8 +491,8 @@ public:
      * @return nothing
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<void, Properties...> set_property(const std::string& device_name,
-                                                                  Properties&&... properties) {
+    util::EnableIfAllStringAny<void, Properties...> set_property(const std::string& device_name,
+                                                                 Properties&&... properties) {
         set_property(device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
@@ -510,10 +510,23 @@ public:
     /**
      * @brief Gets properties dedicated to device behaviour.
      *
+     * The method is targeted to extract information which can be set via set_property method.
+     *
+     * @param device_name  - A name of a device to get a properties value.
+     * @param name  - property name.
+     * @param arguments  - additional arguments to get property
+     * @return Value of property corresponding to property name.
+     */
+    Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const;
+
+    /**
+     * @brief Gets properties dedicated to device behaviour.
+     *
      * The method is needed to request common device or system properties.
      * It can be device name, temperature, other devices-specific values.
      *
      * @tparam T - type of returned value
+     * @tparam M - property mutability
      * @param deviceName  - A name of a device to get a properties value.
      * @param property  - property object.
      * @return Property value.
@@ -521,7 +534,50 @@ public:
     template <typename T, PropertyMutability M>
     T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
         auto to = Any::make<T>();
-        get_property(deviceName, property.name(), to);
+        get_property(deviceName, property.name(), {}, to);
+        return to.template as<T>();
+    }
+
+    /**
+     * @brief Gets properties dedicated to device behaviour.
+     *
+     * The method is needed to request common device or system properties.
+     * It can be device name, temperature, other devices-specific values.
+     *
+     * @tparam T - type of returned value
+     * @tparam M - property mutability
+     * @param deviceName  - A name of a device to get a properties value.
+     * @param property  - property object.
+     * @param arguments  - additional arguments to get property
+     * @return Property value.
+     */
+    template <typename T, PropertyMutability M>
+    T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
+        auto to = Any::make<T>();
+        get_property(deviceName, property.name(), arguments, to);
+        return to.template as<T>();
+    }
+
+    /**
+     * @brief Gets properties dedicated to device behaviour.
+     *
+     * The method is needed to request common device or system properties.
+     * It can be device name, temperature, other devices-specific values.
+     *
+     * @tparam T - type of returned value
+     * @tparam M - property mutability
+     * @tparam Args - set of additional arguments ended with property object variable
+     * @param deviceName  - A name of a device to get a properties value.
+     * @param property  - property object.
+     * @param args - Optional pack of pairs: (argument name, argument value) ended with property object
+     * @return Property value.
+     */
+    template <typename T, PropertyMutability M, typename... Args>
+    util::EnableIfAllStringAny<T, Args...> get_property(const std::string& deviceName,
+                                                        const ov::Property<T, M>& property,
+                                                        Args&&... args) const {
+        auto to = Any::make<T>();
+        get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}, to);
         return to.template as<T>();
     }
 
@@ -609,8 +665,8 @@ public:
      * @return A shared pointer to a created remote context.
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<RemoteContext, Properties...> create_context(const std::string& device_name,
-                                                                             Properties&&... properties) {
+    util::EnableIfAllStringAny<RemoteContext, Properties...> create_context(const std::string& device_name,
+                                                                            Properties&&... properties) {
         return create_context(device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 

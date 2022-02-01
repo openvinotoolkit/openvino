@@ -175,7 +175,7 @@ public:
      * @return nothing
      */
     template <typename... Properties>
-    util::EnableIfAllProperties<void, Properties...> set_property(Properties&&... properties) {
+    util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
         set_property(AnyMap{std::forward<Properties>(properties)...});
     }
 
