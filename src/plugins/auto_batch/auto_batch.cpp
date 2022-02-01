@@ -409,7 +409,6 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                                 AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
-                        std::cout << "BATCH!!!!!!!!!!!!!" << std::endl;
                     } else if ((status == std::cv_status::timeout) && sz) {
                         // timeout to collect the batch is over, have to execute the requests in the batch1 mode
                         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
@@ -715,7 +714,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
         // input(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
         const auto& params = function->get_parameters();
-        bool atLeastOneInputIsBatched = true;
         for (size_t input_id = 0; input_id < params.size(); input_id++) {
             const auto& input = params[input_id];
             const auto& shape = input->get_partial_shape();
@@ -726,34 +724,19 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             if (ov::DimensionTracker::get_label(shape[0])) {
                 const auto& static_shape = input->get_shape();
                 if (static_shape[0] != 1)
-                    IE_THROW(NotImplemented)
-                        << "Auto-batching does not reshape/re-batch originally batched networks!";
-                batched_inputs.insert(ngraph::op::util::get_ie_output_name(params[input_id]->output(0)));  // batched dim for the input
+                    IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
+                batched_inputs.insert(
+                    ngraph::op::util::get_ie_output_name(params[input_id]->output(0)));  // batched dim for the input
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
-                for (size_t s = 0; s < shape.size(); s++)
-                    atLeastOneInputIsBatched &= !ov::DimensionTracker::get_label(shape[s]);
+                for (size_t s = 1; s < shape.size(); s++)
+                    if (ov::DimensionTracker::get_label(shape[s]))
+                        IE_THROW(NotImplemented)
+                            << "Auto-batching operates only networks with inputs/outputs batched by 0th dimension";
             }
         }
-        // output(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
-        const auto& results = function->get_results();
-        bool atLeastOneOutputIsBatched = true;
-        for (size_t output_id = 0; output_id < results.size(); output_id++) {
-            const auto& output = results[output_id];
-            const auto& shape = output->get_output_partial_shape(0);
-            if (shape.is_dynamic())
-                IE_THROW(NotImplemented) << "Auto-batching does not support dynamic networks!";
-            if (ov::DimensionTracker::get_label(shape[0])) {
-                const auto& static_shape = output->get_shape();
-                if (static_shape[0] != 1)
-                    IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
-            } else {
-                for (size_t s = 0; s < shape.size(); s++)
-                    atLeastOneOutputIsBatched &= !ov::DimensionTracker::get_label(shape[s]);
-            }
-        }
-        if (!atLeastOneInputIsBatched || !atLeastOneOutputIsBatched)
-            IE_THROW(NotImplemented) << "Auto-batching supports only static networks with inputs/outputs with batch!";
+        if (!batched_inputs.size())
+            IE_THROW(NotImplemented) << "Auto-batching supports only networks with inputs featuring batched dim!";
     } catch (...) {
         // fallback to loading as if no Auto-Batching was involved
         auto res = GetCore()->LoadNetwork(network, deviceName, devCfgNoAutoBatch);
