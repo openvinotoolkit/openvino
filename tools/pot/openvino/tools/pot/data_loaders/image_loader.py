@@ -54,10 +54,11 @@ class ImageLoader(DataLoader):
             self._layout = Layout(self._layout)
             return
 
-        layout_from_ir = get_layout_values(input_node.graph.meta_data.get('layout', None))
-        if layout_from_ir is not None:
-            self._layout = Layout(layout_from_ir[input_node.name].get('source_layout', None))
-            return
+        if input_node.graph.meta_data.get('layout', None) not in [None, '()']:
+            layout_from_ir = get_layout_values(input_node.graph.meta_data.get('layout', None))
+            if layout_from_ir is not None:
+                self._layout = Layout(layout_from_ir[next(iter(layout_from_ir))].get('source_layout', None))
+                return
 
         image_colors_dim = (Dimension(3), Dimension(1))
         num_dims = len(self._shape)
