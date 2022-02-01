@@ -5,13 +5,13 @@
 
 import datetime
 import logging as log
-import os
 import sys
+from collections import defaultdict
 
 import numpy as np
 
 try:
-    from openvino.runtime import Core, Model, CompiledModel, InferRequest, ProfilingInfo, get_version
+    from openvino.runtime import Core, Model, CompiledModel, InferRequest, Output, get_version
 except Exception as e:
     exception_type = type(e).__name__
     print(f"The following error happened while importing OpenVINO Python API module:\n[ {exception_type} ] {e}")
@@ -20,7 +20,8 @@ except Exception as e:
 from openvino.tools.cross_check_tool.utils import get_config_dictionary, get_layers_list, print_output_layers, \
     input_processing, accuracy_metrics, validate_args, build_parser, set_logger, find_out_cct_mode, \
     print_all_over_the_net_metrics, update_global_accuracy_matrics, blob_counters, performance_metrics, \
-    manage_user_outputs_with_mapping, dump_output_file, load_dump, error_handling, print_input_layers, set_verbosity
+    manage_user_outputs_with_mapping, dump_output_file, load_dump, error_handling, print_input_layers, \
+    set_verbosity, perf_counts_to_dump, load_profiling_info
 
 
 ###
@@ -59,7 +60,7 @@ def get_model(model_path: str, core: Core):
 
 
 @error_handling('compiling model for {device} device')
-def get_compiled_model(core, model, device):
+def get_compiled_model(core: Core, model: Model, device: str):
     return core.compile_model(model=model, device_name=device)
 
 
@@ -69,12 +70,12 @@ def get_infer_request(compiled_model: CompiledModel):
 
 
 @error_handling('output \'{output}\' addition for network from model \'{model}\'')
-def get_model_copy_with_output(model: str, output, core: Core):
+def get_model_copy_with_output(model: str, output: tuple, core: Core):
     model_copy = get_model(model_path=model, core=core)
-    new_outputs = None
+    new_output = None
     if output not in ['None', None]:
-        new_outputs = model_copy.add_outputs(output)
-    return model_copy, new_outputs
+        new_output = model_copy.add_outputs(output).pop()
+    return model_copy, new_output
 
 
 @error_handling('getting model layers info')
@@ -87,39 +88,33 @@ def get_model_info(model: Model):
 ###
 
 
-@error_handling('processing inference')
-def get_infer_results(infer_request: InferRequest, inputs: dict):
-    return infer_request.infer(inputs=inputs)
+# TODO: replace ports by names in error_handing
+@error_handling('getting inference results for output: \'{output}\'')
+def get_infer_results(infer_request: InferRequest, output: Output):
+    return infer_request.get_tensor(output).data
 
 
 @error_handling('getting performance counts from infer request')
-def get_profiling_info(infer_request: InferRequest):
-    return infer_request.profiling_info
+def get_profiling_info(infer_request: InferRequest, port: Output):
+    for pi in infer_request.profiling_info:
+       if pi.node_name == port.node.friendly_name:
+           return pi
 
 
-@error_handling('getting inference results for outputs: \'{outputs}\' on \'{device}\' device')
-def infer(model: Model, core: Core, device: str, inputs: list, outputs: list):
+@error_handling('processing inference on \'{device}\' device')
+def infer(model: Model, core: Core, device: str, inputs: list, output=None):
     compiled_model = get_compiled_model(core=core, model=model, device=device)
     infer_request = get_infer_request(compiled_model)
     infer_request.infer(inputs)
-    #infer_dict = get_infer_results(infer_request=infer_request, inputs=inputs)
-    profiling_info = get_profiling_info(infer_request=infer_request)
-    #no_i = 'no_info'
-    #no_info_pc = {'cpu_time': no_i, 'node_type': no_i, 'real_time': no_i, 'status': no_i}
-    result = {}
-    for output in outputs:
-        #if output not in infer_dict:
-            #log.warning(f"There is no '{output}' layer in Inference Engine outputs results")
-            #continue
-        pc = [pc for pc in profiling_info if pc.node_name == output.node.name]
-        pc = pc.pop() if pc else ProfilingInfo()
-        result = {output: [infer_request.get_tensor(output).data, pc, device]}
-    return result
+    if output:
+        result = get_infer_results(infer_request, output)
+        prof_info = get_profiling_info(infer_request, output)
+        return result, prof_info
 
 
 @error_handling('getting inference results for outputs: \'{layers}\'')
 def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out_layers: list, inputs: list,
-                           ref_inputs: dict, core: Core, device: str, ref_core: Core, ref_device: str, layers: str,
+                           ref_inputs: list, core: Core, device: str, ref_core: Core, ref_device: str, layers: str,
                            num_of_iterations: int):
     global_times, ref_global_times = [], []
     if layers in ['None', None]:
@@ -127,9 +122,9 @@ def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out
         ref_model_copy, _ = get_model_copy_with_output(model=ref_model, output=layers, core=ref_core)
         for i in range(num_of_iterations):
             t1 = datetime.datetime.now()
-            infer(model=model_copy, core=core, device=device, inputs=inputs, outputs=out_layers)
+            infer(model=model_copy, core=core, device=device, inputs=inputs)
             t2 = datetime.datetime.now()
-            infer(model=ref_model_copy, core=ref_core, device=ref_device, inputs=ref_inputs, outputs=ref_out_layers)
+            infer(model=ref_model_copy, core=ref_core, device=ref_device, inputs=ref_inputs)
             t3 = datetime.datetime.now()
             global_times.append(t2 - t1)
             ref_global_times.append(t3 - t2)
@@ -144,7 +139,7 @@ def one_ir_mode(args):
     log.info(f'The same IR on both devices: {args.model}')
     out_layers = get_layers_list(model_layers, model_inputs, model_outputs, args.layers)
     print_input_layers(model_inputs)
-    print_output_layers(model_outputs)
+    print_output_layers(out_layers)
     ref_core = get_plugin(args.reference_device, args.l, args.reference_config)
     global_accuracy = []
     inputs = input_processing(model_path=args.model, model_inputs=model_inputs, input_file=args.input)
@@ -155,21 +150,15 @@ def one_ir_mode(args):
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
     for out_layer in out_layers:
-        log.info(f'Layer {out_layer[0]} statistics')
-        model_copy, new_outputs = get_model_copy_with_output(model=args.model, output=out_layer, core=core)
-        results = infer(model=model_copy, core=core, device=args.device, inputs=inputs, outputs=new_outputs)
-        #if out_layer not in results:
-            #continue
-        out_blob, pc, device = results[new_outputs[0]]
-        ref_results = infer(model=model_copy, core=ref_core, device=args.reference_device,
-                            inputs=inputs, outputs=new_outputs)
-        #if out_layer not in ref_results:
-            #continue
-        ref_out_blob, ref_pc, ref_device = ref_results[new_outputs[0]]
-        a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        performance_metrics(device, pc, ref_device, ref_pc)
-        blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
+        for i in range(out_layer.get_output_size()):
+            log.info(f'Layer {out_layer.friendly_name}, port {i} statistics')
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(out_layer.friendly_name, i), core=core)
+            out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            ref_out_blob, ref_pc = infer(model=model_copy, core=ref_core, device=args.reference_device, inputs=inputs, output=new_output)
+            a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            performance_metrics(args.device, pc, args.reference_device, ref_pc)
+            blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
     print_all_over_the_net_metrics(global_times=global_times, ref_global_times=ref_global_times,
                                    global_accuracy=global_accuracy)
 
@@ -180,7 +169,8 @@ def two_ir_mode(args):
     model = get_model(model_path=args.model, core=core)
     model_layers, model_inputs, model_outputs = get_model_info(model)
     ref_model = get_model(model_path=args.reference_model, core=ref_core)
-    ref_model_layers, ref_model_inputs, ref_model_outputs = get_model_info(model)
+    ref_model_layers, ref_model_inputs, ref_model_outputs = get_model_info(ref_model)
+    # TODO: do we need to check that layers are equal in both models?
     log.info(f'{args.device} vs {args.reference_device}')
     log.info(f'IR for {args.device} : {args.model}')
     log.info(f'IR for {args.reference_device} : {args.reference_model}')
@@ -188,8 +178,8 @@ def two_ir_mode(args):
     ref_out_layers = get_layers_list(ref_model_layers, ref_model_inputs, ref_model_outputs, args.layers)
     print_input_layers(model_inputs)
     print_output_layers(out_layers)
-    #layers_map = manage_user_outputs_with_mapping(mapping=args.mapping, reference_mapping=args.reference_mapping,
-                                                  #user_layers=out_layers)
+    # TODO: check if it's the same mapping that MO provides and if it's still available
+    #layers_map = manage_user_outputs_with_mapping(mapping=args.mapping, reference_mapping=args.reference_mapping, user_layers=out_layers)
     inputs = input_processing(model_path=args.model, model_inputs=model_inputs, input_file=args.input)
     ref_inputs = input_processing(model_path=args.reference_model, model_inputs=ref_model_inputs, input_file=args.input)
     global_accuracy = []
@@ -200,25 +190,25 @@ def two_ir_mode(args):
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
     for out_layer, ref_out_layer in zip(out_layers, ref_out_layers):
-        if out_layer == ref_out_layer:
-            log.info(f'Layer {out_layer} statistics')
+        if out_layer.friendly_name == ref_out_layer.friendly_name:
+            log.info(f'Layer {out_layer.friendly_name} statistics')
         else:
-            log.info(f'Statistics \'{out_layer}\' vs \'{ref_out_layer}\'')
-        model_copy = get_model_copy_with_output(model=args.model, output=out_layer, core=core)
-        ref_model_copy = get_model_copy_with_output(model=args.reference_model, output=ref_out_layer, core=ref_core)
-        results = infer(model=model_copy, core=core, device=args.device, inputs=inputs, outputs=[out_layer])
-        if out_layer not in results:
-            continue
-        out_blob, pc, device = results[out_layer]
-        ref_results = infer(model=ref_model_copy, core=ref_core, device=args.reference_device,
-                            inputs=ref_inputs, outputs=[ref_out_layer])
-        ref_out_blob, ref_pc, ref_device = ref_results[ref_out_layer]
-        if ref_out_layer not in ref_results:
-            continue
-        a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        performance_metrics(device, pc, ref_device, ref_pc)
-        blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
+            if out_layer.get_output_size() != ref_out_layer.get_output_size():
+                log.info(f"Skipping '{out_layer.friendly_name}\' vs \'{out_layer.friendly_name}\' " \
+                           "statistics due to different number of output ports!")
+                continue
+            log.info(f'Statistics \'{out_layer.friendly_name}\' vs \'{ref_out_layer.friendly_name}\'')
+        for i in range(out_layer.get_output_size()):
+            log.info(f'Port {i}:')
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(out_layer.friendly_name, i), core=core)
+            ref_model_copy, ref_new_output = get_model_copy_with_output(model=args.reference_model, output=(ref_out_layer.friendly_name, i), core=ref_core)
+            out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            ref_out_blob, ref_pc = infer(model=ref_model_copy, core=ref_core, device=args.reference_device,
+                                                                    inputs=ref_inputs, output=ref_new_output)
+            a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            performance_metrics(args.device, pc, args.reference_device, ref_pc)
+            blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
     print_all_over_the_net_metrics(global_times=global_times, ref_global_times=ref_global_times,
                                    global_accuracy=global_accuracy)
 
@@ -229,16 +219,14 @@ def dump_mode(args):
     model_layers, model_inputs, model_outputs = get_model_info(model)
     out_layers = get_layers_list(model_layers, model_inputs, model_outputs, args.layers)
     inputs = input_processing(args.model, model_inputs, args.input)
-    dump_dict = {}
+    dump_dict = defaultdict(list)
     for out_layer in out_layers:
-        log.info(f'Layer {out_layer} processing')
-        model_copy = get_model_copy_with_output(model=args.model, output=out_layer, core=core)
-        results = infer(model=model_copy, core=core, device=args.device, inputs=inputs, outputs=[out_layer])
-        if out_layer not in results:
-            continue
-        # TODO: convert pc to dump
-        out_blob, pc, _ = results[out_layer]
-        dump_dict[out_layer] = np.array({'blob': out_blob, 'pc': pc})
+        for i in range(out_layer.get_output_size()):
+            log.info(f'Layer {out_layer.friendly_name}, port {i} processing')
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(out_layer.friendly_name, i), core=core)
+            out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            dump_dict[out_layer.friendly_name].append(np.array({'blob': out_blob, 'pc': perf_counts_to_dump(pc)}))
+    dump_dict["device"] = args.device
     dump_output_file(args.model + '_' + args.device + '_dump.npz', dump_dict)
 
 
@@ -250,32 +238,26 @@ def load_mode(args):
     model_layers, model_inputs, model_outputs = get_model_info(model)
     out_layers = get_layers_list(model_layers, model_inputs, model_outputs, args.layers)
     print_input_layers(model_inputs)
-    print_output_layers(model_layers)
+    print_output_layers(out_layers)
     #layers_map = manage_user_outputs_with_mapping(mapping=args.mapping, reference_mapping=args.reference_mapping,
                                                   #user_layers=out_layers)
-    inputs = input_processing(args.model, model_inputs, args.input, out_layers)
+    inputs = input_processing(args.model, model_inputs, args.input)
     global_accuracy = []
     loaded = load_dump(args.load)
     for out_layer in out_layers:
-        ref_out_layer = out_layer
-        if out_layer == ref_out_layer:
-            log.info(f'Layer {out_layer} statistics')
+        if out_layer.friendly_name in loaded:
+            log.info(f'Layer {out_layer.friendly_name} statistics')
         else:
-            log.info(f'Statistics \'{out_layer}\' vs \'{ref_out_layer}\'')
-        model_copy = get_model_copy_with_output(model=args.model, output=out_layer, core=core)
-        results = infer(model=model_copy, core=core, device=args.device, inputs=inputs, outputs=[out_layer])
-        if out_layer not in results:
+            log.info(f'Statistics for layer \'{out_layer.friendly_name}\' was not dumped. Skipping this layer.')
             continue
-        out_blob, pc = results[out_layer]
-        if ref_out_layer not in loaded:
-            continue
-        ref_out_blob = loaded[ref_out_layer]['blob']
-        a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        if 'pc' in loaded[ref_out_layer]:
-            ref_pc = loaded[ref_out_layer]['pc']
-            performance_metrics(pc=pc, ref_pc=ref_pc)
-        blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
+        for i in range(out_layer.get_output_size()):
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(out_layer.friendly_name, i), core=core)
+            out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            ref_out_blob, ref_pc = loaded[out_layer.friendly_name][i]['blob'], load_profiling_info(loaded[out_layer.friendly_name][i]['pc'])
+            a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            performance_metrics(args.device, pc, loaded["device"], ref_pc)
+            blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
     print_all_over_the_net_metrics(global_accuracy=global_accuracy)
 
 

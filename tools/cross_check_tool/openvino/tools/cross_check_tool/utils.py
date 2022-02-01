@@ -8,6 +8,8 @@ import sys
 import traceback
 import xml
 
+from openvino.runtime import Layout, ProfilingInfo
+
 try:
     import cv2
 except Exception as e:
@@ -171,6 +173,7 @@ def build_parser():
     model.add_argument('--reference_model', '-ref_m', type=str, action=ExistingFileAction,
                        help='Path to an .xml file that represents the second IR to compare the metrics. '
                             'Uses --model if empty')
+    # TODO: allow to pass layer type
     model.add_argument('--layers', '-layers', type=str, default=None,
                        help='Defines layers to check. Options: all, None - for output layers check, list of '
                             'comma-separated layer names to check. Default value is None.')
@@ -278,9 +281,9 @@ def print_input_layers(inputs: list):
     log.info(f"{len(inputs)} {word} detected: {', '.join(input.any_name for input in inputs)}")
 
 
-def print_output_layers(outputs: list):
-    layers = 'layers' if len(outputs) > 1 else 'layer'
-    log.info(f"Statistics will be dumped for {len(outputs)} {layers}: {', '.join(output.any_name for output in outputs)}")
+def print_output_layers(output_layers: list):
+    layers = 'layers' if len(output_layers) > 1 else 'layer'
+    log.info(f"Statistics will be dumped for {len(output_layers)} {layers}: {', '.join(out_layer.friendly_name for out_layer in output_layers)}")
 
 
 ###
@@ -311,25 +314,35 @@ def read_multi_input_file(input_file: str, model_inputs: list):
     files = npz.files
     dump = []
     for model_input in model_inputs:
-        input_names = [name for name in model_input.names if name in files]
-        if not input_names:
+        if model_input.any_name not in files:
             raise Exception(f"Can not find input data for input {model_input.any_name} in multi-input file {input_file}.\n"
                             f"Input data was provided for layers: {', '.join(files)}\n"
                             f"Network inputs: {', '.join(input.any_name for input in model_inputs)}")
-        used_input_name = input_names.pop()
-        if 'blob' in npz[used_input_name].item(0):
-            just_blob = npz[used_input_name].item(0)['blob']
-            input_shape = model_input.shape
-            log.info(f'Layer {used_input_name} shape = {input_shape}, input blob from multi-input file shape = {just_blob.shape}')
+        if 'blob' in npz[model_input.any_name].item(0):
+            just_blob = npz[model_input.any_name].item(0)['blob']
+            input_shape = list(model_input.shape)
+            log.info(f'Layer {model_input.any_name} shape = {input_shape}, input blob from multi-input file shape = {just_blob.shape}')
             try:
                 reshaped_blob = np.reshape(just_blob, input_shape)
             except:
-                raise Exception(f'Can not reshape input blob from multi-input file for layer {used_input_name} to shape {input_shape}')
+                raise Exception(f'Can not reshape input blob from multi-input file for layer {model_input.any_name} to shape {input_shape}')
             dump.append(reshaped_blob)
         else:
             raise Exception(
-                f'Can not find \'blob\' parameter for input {used_input_name} in input file {input_file}')
+                f'Can not find \'blob\' parameter for input {model_input.any_name} in input file {input_file}')
     return dump
+
+
+def is_nchw_input(input):
+    if input.node.layout == Layout("NCHW"):
+        return True
+    shape = input.shape
+    if len(shape) != 4:
+        return False
+    if shape[1] == 3:
+        return True
+    else:
+        return False
 
 
 @error_handling('reading --input/-i by OpenCV python module. OpenCV version: {}. '
@@ -341,26 +354,28 @@ def read_image_file(input_file: str, model_inputs: list):
         if image is None:
             raise Exception('Can not read input image ' + input_file)
         shape = model_inputs[0].shape
+        # TODO: support CHW and HWC models
         if len(shape) != 4:
             raise Exception('Can not interpret input shape as image')
         n, c, h, w = shape
         image = cv2.resize(image, (w, h))
-        # TODO: add layout heuristic to support model with NHWC layout
-        image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-        image = image.reshape((n, c, h, w))
+        if is_nchw_input(model_inputs[0]):
+            image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
+        image = np.expand_dims(image, 0)
         input.append(image)
     else:
         raise Exception('Multi-input topology detected. Please provide multi-input file to --input key')
     return inputs
 
 
-def input_processing(model_path: str, model_inputs: list, input_file: str, layers_map: dict = None):
-    inputs = []
+def input_processing(model_path: str, model_inputs: list, input_file: str):
     if input_file is None:
-        for model_input in model_inputs:
-            inputs.append(np.clip(np.random.normal(0.5, 0.1, size=list(model_input.shape)), 0, 1))
+        # TODO: should we always dump it or add another command line parameter to do this?
+        inputs = [np.clip(np.random.normal(0.5, 0.1, size=list(input.shape)), 0, 1) for input in model_inputs]
         dump_output_file(model_path + '_random_input_dump.npz', {model_inputs[i].any_name: {'blob': inputs[i]} for i in range(len(model_inputs))})
         return inputs
+
+    # TODO: parse not image files only, parse several files in case several inputs
     try:
         inputs = read_multi_input_file(input_file=input_file, model_inputs=model_inputs)
     except:
@@ -503,31 +518,42 @@ def manage_user_outputs_with_mapping(mapping, reference_mapping, user_layers):
 def get_layers_list(all_layers: list, inputs: list, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
-            all_outputs = []
-            for layer in all_layers:
-                if layer.get_type_name() not in ['Constant', 'Result']:
-                    all_outputs += [(layer.friendly_name, i) for i in range(layer.get_output_size())]
-            return all_outputs
-            #return [output for output in [layer.outputs() for layer in all_layers if layer.get_type_name() not in ['Constant', 'Result']]]
+            return [layer for layer in all_layers if layer.get_type_name() not in ['Constant', 'Result']]
         else:
-            all_node_names = {node.friendly_name: node.outputs() for node in all_layers}
+            all_layers_map = {node.friendly_name: node for node in all_layers}
             user_layers = [layer.strip() for layer in layers.split(',')]
             new_outputs = []
-            # TODO: allow to pass (operation_name, port), tensor_name in --layers
             for user_layer in user_layers:
-                if user_layer not in all_node_names:
+                if user_layer not in all_layers_map:
                     raise Exception(f"Layer {user_layer} doesn't exist in the model")
-                #if user_layer in inputs:
-                    #raise Exception(f"Layer {user_layer} is input layer. Can not proceed")
-                if all_node_names[user_layer].get_type_name() != 'Result':
-                    new_outputs += all_node_names[user_layer].outputs
                 else:
-                    # if layer type is Result - add previous layer
-                    prev_layer = all_layers[len(all_layers)-2]
-                    new_outputs += prev_layer.outputs
+                    target_node = all_layers_map[user_layer]
+                    if target_node.get_type_name() != 'Result':
+                        new_outputs.append(target_node)
+                    else:
+                        # TODO: should we remove it to avoid misunderstanding ?
+                        # if layer type is Result - add previous layer
+                        new_outputs.append(all_layers[all_layers.index(target_node)-1])
             return new_outputs
     else:
-        return list((port.node.friendly_name, port.index) for port in outputs)
+        return [output.node for output in outputs]
+
+
+def perf_counts_to_dump(prof_info):
+    perf_count = {}
+    perf_count["status"] = prof_info.status
+    perf_count["real_time"] = prof_info.real_time
+    perf_count["cpu_time"] = prof_info.cpu_time
+    perf_count["exec_type"] = prof_info.exec_type
+    perf_count["node_type"] = prof_info.node_type
+    return perf_count
+
+
+def load_profiling_info(pi_dumped):
+    prof_info = ProfilingInfo()
+    for property, value in pi_dumped.items():
+        setattr(prof_info, property, value)
+    return prof_info
 
 
 ###
@@ -541,5 +567,6 @@ def dump_output_file(output_file, dump_dict):
 
 def load_dump(file_to_load: str):
     npz = np.load(file_to_load, allow_pickle=True)
-    dump = {file: npz[file].item(0) for file in npz}
+    dump = {file: [npz[file].item(i).item(0)  for i in range(npz[file].size)] for file in npz if file != "device"}
+    dump["device"] = npz["device"].item(0)
     return dump
