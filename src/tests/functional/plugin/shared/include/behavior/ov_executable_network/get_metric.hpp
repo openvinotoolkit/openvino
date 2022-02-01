@@ -259,7 +259,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
             deviceConfigValue.print(strm);
             strm << " ";
             heteroConfigValue.print(strm);
-            ASSERT_EQ(deviceConfigValue, heteroConfigValue) << strm.str();
+            ASSERT_EQ(deviceConfigValue, heteroConfigValue) << deviceConf << " " << strm.str();
         }
     }
 }
@@ -295,7 +295,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
             deviceConfigValue.print(strm);
             strm << " ";
             heteroConfigValue.print(strm);
-            ASSERT_EQ(deviceConfigValue, heteroConfigValue) << strm.str();
+            ASSERT_EQ(deviceConfigValue, heteroConfigValue) << deviceConf << " " << strm.str();
         }
     }
 }
