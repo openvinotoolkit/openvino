@@ -36,38 +36,38 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::findOrCreate
                             const std::string& key,
                             std::function<MKLDNNMemoryPtr(void)> create,
                             bool valid) {
-    std::unique_lock<std::mutex> lock(guard);
-    auto found = sharedWeights.find(key);
-
+    std::unique_lock<std::mutex> sharedMemoryLock;
     MKLDNNMemoryInfo::Ptr ptr;
     MKLDNNMemoryPtr newPtr;
+    do {
+        std::unique_lock<std::mutex> lock(guard);
+        auto found = sharedWeights.find(key);
 
-    if (found == sharedWeights.end()
-        || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock()))) {
-        newPtr = create();
-        ptr = std::make_shared<MKLDNNMemoryInfo>(newPtr, valid);
-        sharedWeights[key] = ptr;
-    }
-
-    return std::make_shared<MKLDNNSharedMemory>(ptr->valid.load(std::memory_order_relaxed)
-                                                ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
-                                                : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
+        if (found == sharedWeights.end()
+            || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock()))) {
+            newPtr = create();
+            ptr = std::make_shared<MKLDNNMemoryInfo>(newPtr, valid);
+            sharedWeights[key] = ptr;
+        }
+        sharedMemoryLock = std::unique_lock<std::mutex>(ptr->guard, std::defer_lock);
+    } while (!(ptr->valid.load(std::memory_order_relaxed) || sharedMemoryLock.try_lock()));
+    return std::make_shared<MKLDNNSharedMemory>(std::move(sharedMemoryLock), ptr, newPtr);
 }
 
 MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::get(const std::string& key) const {
-    std::unique_lock<std::mutex> lock(guard);
-    auto found = sharedWeights.find(key);
-
+    std::unique_lock<std::mutex> sharedMemoryLock;
     MKLDNNMemoryInfo::Ptr ptr;
     MKLDNNMemoryPtr newPtr;
+    do {
+        std::unique_lock<std::mutex> lock(guard);
+        auto found = sharedWeights.find(key);
 
-    if (found == sharedWeights.end()
-        || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock())))
-        IE_THROW() << "Unknown shared memory with key " << key;
-
-    return std::make_shared<MKLDNNSharedMemory>(ptr->valid.load(std::memory_order_relaxed)
-                                                ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
-                                                : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
+        if (found == sharedWeights.end()
+            || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock())))
+            IE_THROW() << "Unknown shared memory with key " << key;
+        sharedMemoryLock = std::unique_lock<std::mutex>(ptr->guard, std::defer_lock);
+    } while (!(ptr->valid.load(std::memory_order_relaxed) || sharedMemoryLock.try_lock()));
+    return std::make_shared<MKLDNNSharedMemory>(std::move(sharedMemoryLock), ptr, newPtr);
 }
 
 NumaNodesWeights::NumaNodesWeights() {
