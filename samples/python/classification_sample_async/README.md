@@ -67,18 +67,25 @@ To run the sample, you need specify a model and image:
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
-```
-python <path_to_omz_tools>/downloader.py --name alexnet
-```
 
-2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
 
 ```
-python <path_to_omz_tools>/converter.py --name alexnet
+python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 ```
 
-3. Perform inference of `banana.jpg` and `car.bmp` using `alexnet` model on a `GPU`, for example:
+2. Download a pre-trained model:
+```
+omz_downloader --name alexnet
+```
+
+3. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter:
+
+```
+omz_converter --name alexnet
+```
+
+4. Perform inference of `banana.jpg` and `car.bmp` using `alexnet` model on a `GPU`, for example:
 
 ```
 python classification_sample_async.py -m alexnet.xml -i banana.jpg car.bmp -d GPU
