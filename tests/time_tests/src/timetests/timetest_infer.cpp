@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <inference_engine.hpp>
 #include <iostream>
 
 #include "common_utils.h"
 #include "reshape_utils.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
-
-using namespace InferenceEngine;
 
 
 /**
@@ -24,10 +21,10 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
     auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
                        std::map<std::string, ov::PartialShape> reshapeShapes,
                        std::map<std::string, std::vector<size_t>> dataShapes) {
-        Core ie;
-        CNNNetwork cnnNetwork;
-        ExecutableNetwork exeNetwork;
-        InferRequest inferRequest;
+        InferenceEngine::Core ie;
+        InferenceEngine::CNNNetwork cnnNetwork;
+        InferenceEngine::ExecutableNetwork exeNetwork;
+        InferenceEngine::InferRequest inferRequest;
         size_t batchSize = 0;
 
         bool reshape = false;
@@ -40,12 +37,12 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
             SCOPED_TIMER(time_to_inference);
             {
                 SCOPED_TIMER(load_plugin);
+                TimeTest::setPerformanceConfig(ie, device);
                 ie.GetVersions(device);
+
+                if (isCacheEnabled)
+                    ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
             }
-            // Set performance and model cache configs
-            TimeTest::setPerformanceConfig(ie, device);
-            if (isCacheEnabled)
-                ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
             {
                 SCOPED_TIMER(create_exenetwork);
                 if (!isCacheEnabled) {
@@ -82,10 +79,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
             SCOPED_TIMER(first_inference);
             {
                 SCOPED_TIMER(fill_inputs);
-
                 const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
                 batchSize = batchSize != 0 ? batchSize : 1;
-
                 if (reshape) {
                     setBlobsStaticShapes(inferRequest, inputsInfo, dataShapes);
                     fillBlobs(inferRequest, inputsInfo, batchSize);

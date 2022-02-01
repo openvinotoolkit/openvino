@@ -55,33 +55,3 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
         }
     }
 }
-
-
-/**
- * @brief Fill infer_request tensors with random values (OV API 2)
- */
-void fillTensors(ov::InferRequest &infer_request, std::vector<ov::Output<const ov::Node>> &inputs) {
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        ov::Tensor input_tensor;
-
-        if (inputs[i].get_element_type() == ov::element::f32) {
-            input_tensor = fillTensorRandom<float>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::f16) {
-            input_tensor = fillTensorRandom<short>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::i32) {
-            input_tensor = fillTensorRandom<int32_t>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::u8) {
-            input_tensor = fillTensorRandom<uint8_t>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::i8) {
-            input_tensor = fillTensorRandom<int8_t>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::u16) {
-            input_tensor = fillTensorRandom<uint16_t>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::i16) {
-            input_tensor = fillTensorRandom<int16_t>(inputs[i]);
-        } else {
-            throw std::logic_error(
-                    "Input precision is not supported for " + inputs[i].get_element_type().get_type_name());
-        }
-        infer_request.set_input_tensor(i, input_tensor);
-    }
-}

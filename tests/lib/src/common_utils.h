@@ -83,15 +83,15 @@ void fillBlobRandom(InferenceEngine::Blob::Ptr &inputBlob) {
 /**
  * @brief Fill InferenceEngine tensor with random values (OV API 2.0)
  */
-template<typename T>
-ov::Tensor fillTensorRandom(ov::Output<const ov::Node> &input) {
+template<typename T, typename U>
+ov::Tensor fillTensorRandom(T &input) {
     ov::Tensor tensor{input.get_element_type(), input.get_shape()};
-    std::vector<T> values(ov::shape_size(input.get_shape()));
+    std::vector<U> values(ov::shape_size(input.get_shape()));
 
     for (size_t i = 0; i < values.size(); ++i)
-        values[i] = 1 + static_cast<T> (rand()) / (static_cast<T> (RAND_MAX / (std::numeric_limits<T>::max() - 1)));
+        values[i] = 1 + static_cast<U> (rand()) / (static_cast<U> (RAND_MAX / (std::numeric_limits<U>::max() - 1)));
 
-    std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
+    std::memcpy(tensor.data(), values.data(), sizeof(U) * values.size());
 
     return tensor;
 }
@@ -125,14 +125,39 @@ void fillBlobImInfo(InferenceEngine::Blob::Ptr &inputBlob,
 
 
 /**
- * @brief Fill InferRequest blobs with random values or image information
+ * @brief Fill infer_request tensors with random values (OV API 2)
+ */
+template<typename T>
+void fillTensors(ov::InferRequest &infer_request, std::vector<T> &inputs) {
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        ov::Tensor input_tensor;
+
+        if (inputs[i].get_element_type() == ov::element::f32) {
+            input_tensor = fillTensorRandom<T, float>(inputs[i]);
+        } else if (inputs[i].get_element_type() == ov::element::f16) {
+            input_tensor = fillTensorRandom<T, short>(inputs[i]);
+        } else if (inputs[i].get_element_type() == ov::element::i32) {
+            input_tensor = fillTensorRandom<T, int32_t>(inputs[i]);
+        } else if (inputs[i].get_element_type() == ov::element::u8) {
+            input_tensor = fillTensorRandom<T, uint8_t>(inputs[i]);
+        } else if (inputs[i].get_element_type() == ov::element::i8) {
+            input_tensor = fillTensorRandom<T, int8_t>(inputs[i]);
+        } else if (inputs[i].get_element_type() == ov::element::u16) {
+            input_tensor = fillTensorRandom<T, uint16_t>(inputs[i]);
+        } else if (inputs[i].get_element_type() == ov::element::i16) {
+            input_tensor = fillTensorRandom<T, int16_t>(inputs[i]);
+        } else {
+            throw std::logic_error(
+                    "Input precision is not supported for " + inputs[i].get_element_type().get_type_name());
+        }
+        infer_request.set_input_tensor(i, input_tensor);
+    }
+}
+
+
+/**
+ * @brief Fill InferRequest blobs with random values or image information (OV API 1)
  */
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
                const InferenceEngine::ConstInputsDataMap &inputsInfo,
                const size_t &batchSize);
-
-/**
- * @brief Fill InferRequest tensors with random values or image information
- */
-void fillTensors(ov::InferRequest &infer_request,
-                 std::vector<ov::Output<const ov::Node>> &inputs);
