@@ -150,7 +150,7 @@ void regclass_AsyncInferQueue(py::module m) {
                 Parameters
                 ----------
                 model : openvino.runtime.CompiledModel
-                    Model to be used as a base for a pool of InferRequests.
+                    Model to be used to create InferRequests in a pool.
 
                 jobs : int
                     Number of InferRequests objects in a pool. If 0, jobs number
@@ -186,6 +186,9 @@ void regclass_AsyncInferQueue(py::module m) {
         R"(
             Run asynchronous inference using next available InferRequest.
 
+            This function releases the GIL, so another Python thread can
+            work while this function runs in the background.
+
             Parameters
             ----------
             inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
@@ -206,8 +209,9 @@ void regclass_AsyncInferQueue(py::module m) {
             return self._is_ready();
         },
         R"(
-            One of 'flow control' functions. Blocking call.
-            If there is at least one free InferRequest in a pool, returns True. 
+            One of 'flow control' functions.
+            Blocks while waiting for any free request in the pool and after that it
+            either returns True or throws exception catched inside callbacks.
 
             Parameters
             ----------
@@ -216,6 +220,7 @@ void regclass_AsyncInferQueue(py::module m) {
             Returns
             ----------
             is_ready : bool
+                If there is at least one free InferRequest in a pool, returns True.
     )");
 
     cls.def(

@@ -38,7 +38,7 @@ def convert_dict_items(inputs: dict, py_types: dict) -> dict:
         new_inputs[k] = (
             val
             if isinstance(val, Tensor)
-            else Tensor(np.array(val, get_dtype(ov_type)))
+            else Tensor(np.array(val, get_dtype(ov_type), copy=False))
         )
     return new_inputs
 
@@ -95,12 +95,16 @@ class InferRequest(InferRequestBase):
 
         Parameters
         ----------
-        inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+        inputs : Union[dict[keys : values], list[values]], optional
             Data to set on input tensors.
+
+            Keys can be one of `int`, `str` or `openvino.runtime.ConstOutput`.
+
+            Values can be either `numpy.array` or `openvino.runtime.Tensor`.
 
         Returns
         ----------
-        infer : dict[openvino.runtime.ConstOutput : openvino.runtime.Tensor]
+        infer : dict[openvino.runtime.ConstOutput : numpy.array]
             Dictionary of results from output tensors with ports as keys.
         """
         return super().infer(
@@ -118,8 +122,12 @@ class InferRequest(InferRequestBase):
 
         Parameters
         ----------
-        inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+        inputs : Union[dict[keys : values], list[values]], optional
             Data to set on input tensors.
+
+            Keys can be one of `int`, `str` or `openvino.runtime.ConstOutput`.
+
+            Values can be either `numpy.array` or `openvino.runtime.Tensor`.
 
         userdata : Any
             Any data that will be passed inside callback call.                
@@ -167,12 +175,16 @@ class CompiledModel(CompiledModelBase):
 
         Parameters
         ----------
-        inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+        inputs : Union[dict[keys : values], list[values]], optional
             Data to set on input tensors.
+
+            Keys can be one of `int`, `str` or `openvino.runtime.ConstOutput`.
+
+            Values can be either `numpy.array` or `openvino.runtime.Tensor`.
 
         Returns
         ----------
-        infer_new_request : dict[openvino.runtime.ConstOutput : openvino.runtime.Tensor]
+        infer_new_request : dict[openvino.runtime.ConstOutput : numpy.array]
             Dictionary of results from output tensors with ports as keys.
         """
         return super().infer_new_request(
@@ -180,7 +192,9 @@ class CompiledModel(CompiledModelBase):
         )
 
     def __call__(self, inputs: Union[dict, list] = None) -> dict:
-        """Callable infer wrapper for CompiledModel."""
+        """
+        Callable infer wrapper for CompiledModel. Look at `infer_new_request` for reference.
+        """
         return self.infer_new_request(inputs)
 
 
@@ -213,9 +227,13 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
         Parameters
         ----------
-        inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor], optional
+        inputs : Union[dict[keys : values], list[values]], optional
             Data to set on input tensors of next available InferRequest from
             AsyncInferQueue's pool.
+
+            Keys can be one of `int`, `str` or `openvino.runtime.ConstOutput`.
+
+            Values can be either `numpy.array` or `openvino.runtime.Tensor`.
 
         userdata : Any, optional
             Any data that will be passed to a callback.
@@ -257,12 +275,12 @@ class Core(CoreBase):
         )
 
     def import_model(
-        self, model_file: str, device_name: str, config: dict = None
+        self, model_stream: str, device_name: str, config: dict = None
     ) -> CompiledModel:
         """Compile a model from given model file path."""
         return CompiledModel(
             super().import_model(
-                model_file, device_name, {} if config is None else config
+                model_stream, device_name, {} if config is None else config
             )
         )
 
@@ -276,7 +294,20 @@ class ExtendedModel(CompiledModel):
 
 
 def compile_model(model_path: str) -> CompiledModel:
-    """Compact method to compile model with AUTO plugin."""
+    """
+    Compact method to compile model with AUTO plugin.
+
+    Parameters
+    ----------
+    model_path : str
+        Path to file with model.
+
+    Returns
+    ----------
+    compile_model : openvino.ie_api.ExtendedModel
+        Extended version of `CompiledModel` that holds and
+        keeps alive `Core` object. 
+    """
     core = Core()
     return ExtendedModel(core, core.compile_model(model_path, "AUTO"))
 

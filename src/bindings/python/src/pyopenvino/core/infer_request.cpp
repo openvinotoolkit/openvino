@@ -31,12 +31,21 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const py::dict& inputs) {
-            auto tensor_map = Common::cast_to_tensor_name_map(inputs);
-            for (auto&& input : tensor_map) {
-                self._request.set_tensor(input.first, input.second);
-            }
+            Common::set_request_tensors(self._request, inputs);
         },
-        py::arg("inputs"));
+        py::arg("inputs"),
+        R"(
+            Set tensors using given keys.
+
+            Parameters
+            ----------
+            inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+                Data to set on tensors.
+
+            Returns
+            ----------
+            set_tensors : None
+        )");
 
     cls.def(
         "set_output_tensors",
@@ -46,7 +55,19 @@ void regclass_InferRequest(py::module m) {
                 self._request.set_output_tensor(output.first, output.second);
             }
         },
-        py::arg("outputs"));
+        py::arg("outputs"),
+        R"(
+            Set output tensors using given indexes.
+
+            Parameters
+            ----------
+            inputs : dict[int : openvino.runtime.Tensor]
+                Data to set on output tensors.
+
+            Returns
+            ----------
+            set_tensors : None
+        )");
 
     cls.def(
         "set_input_tensors",
@@ -56,7 +77,30 @@ void regclass_InferRequest(py::module m) {
                 self._request.set_input_tensor(input.first, input.second);
             }
         },
-        py::arg("inputs"));
+        py::arg("inputs"),
+        R"(
+            Set input tensors using given indexes.
+
+            Parameters
+            ----------
+            inputs : dict[int : openvino.runtime.Tensor]
+                Data to set on output tensors.
+
+            Returns
+            ----------
+            set_tensors : None
+        )");
+
+    // cls.def("set_batch_tensors", [](InferRequestWrapper& self, const const std::vector<ov::Tensor>& tensors){
+    //     self._request.set_input_tensors(tensors);
+    // }, py::arg("tensors"),
+    // );
+
+    // cls.def("set_batch_tensors", [](InferRequestWrapper& self, size_t idx, const const std::vector<ov::Tensor>&
+    // tensors){
+    //     self._request.set_input_tensors(idx, tensors);
+    // }, py::arg("idx"), py::arg("tensors"),
+    // );
 
     cls.def(
         "infer",
@@ -82,7 +126,7 @@ void regclass_InferRequest(py::module m) {
 
             Returns
             ----------
-            infer : dict[openvino.runtime.ConstOutput : openvino.runtime.Tensor]
+            infer : dict[openvino.runtime.ConstOutput : numpy.array]
                 Dictionary of results from output tensors with ports as keys.
         )");
 
@@ -107,8 +151,12 @@ void regclass_InferRequest(py::module m) {
         R"(
             Starts inference of specified input(s) in asynchronous mode.
             Returns immediately. Inference starts also immediately.
-            Calling any method while the request is running will lead to
-            throwning exceptions.
+
+            This function releases the GIL, so another Python thread can
+            work while this function runs in the background.
+
+            Calling any method on this InferRequest while the request is
+            running will lead to throwning exceptions.
 
             Parameters
             ----------

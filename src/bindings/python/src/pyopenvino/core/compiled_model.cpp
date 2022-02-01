@@ -70,7 +70,7 @@ void regclass_CompiledModel(py::module m) {
 
             Returns
             ----------
-            infer_new_request : dict[openvino.runtime.ConstOutput : openvino.runtime.Tensor]
+            infer_new_request : dict[openvino.runtime.ConstOutput : numpy.array]
                 Dictionary of results from output tensors with ports as keys.
         )");
 
@@ -103,7 +103,7 @@ void regclass_CompiledModel(py::module m) {
 
             Returns
             ----------
-            export_model : None)
+            export_model : None
         )");
 
     cls.def(

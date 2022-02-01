@@ -134,7 +134,7 @@ void regclass_Core(py::module m) {
             Parameters
             ----------
             model_path : str
-                Model acquired from read_model function.
+                A path to a model in IR / ONNX / PDPD format.
 
             device_name : str
                 Name of the device to load the model to.
@@ -162,7 +162,7 @@ void regclass_Core(py::module m) {
             Parameters
             ----------
             model_path : str
-                Model acquired from read_model function.
+                A path to a model in IR / ONNX / PDPD format.
 
             properties : dict
                 Optional dict of pairs: (property name, property value) relevant only for this load operation.
