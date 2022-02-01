@@ -304,9 +304,11 @@ class IEEngine(Engine):
 
         progress_log_fn = logger.info if print_progress else logger.debug
         try:
-            self._ie.set_property(self._device, {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
+            self._ie.set_property(self._device,
+                                  {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
         except AttributeError:
-            self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'}, self._device)
+            self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'},
+                                self._device)
         # Load model to the plugin
         compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
         try:
