@@ -680,7 +680,15 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         dnn->num_rotate_columns = num_inputs / dnn->num_rotate_rows;
     }
 
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    // if the nest layer is activation or pooling we dont need to allocate for outputs
+    // in the GNA mode
+    // TODO: we have to allocate in the GNA_SW_FP32 mode
+    auto out1 = getInputTo(layer->outData.front());
+    if (out1.size() == 1 && (LayerInfo(out1.begin()->second).isActivation() ||
+        LayerInfo(out1.begin()->second).isPooling())) {
+    } else {
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    }
 
     const auto kernelHW = convolution._kernel_y * convolution._kernel_x;
 
@@ -943,7 +951,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         num_data_bytes_in = num_rows * num_columns * inputs->getPrecision().size();
     }
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in);
+    //connectInput(layer, ptr_inputs, num_data_bytes_in);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
@@ -2075,8 +2083,16 @@ case name:\
         ptr_outputs,
         ptr_pwl_segments_target);
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+
+
+    auto out1 = getInputTo(layer->outData.front());
+    const auto skipConnectOutput = out1.size() == 1 && (LayerInfo(out1.begin()->second).isActivation() ||
+                                                        LayerInfo(out1.begin()->second).isPooling());
+
+    //connectInput(layer, ptr_inputs, num_data_bytes_in);
+    if (!skipConnectOutput) {
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    }
 
     if (ptr_pwl_segments_target != nullptr) {
         gnamem->getQueue(REGION_RO)->push_local_ptr(layer, ptr_pwl_segments_target,
