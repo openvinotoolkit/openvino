@@ -763,7 +763,7 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
                 auto newDims = childEdge->getMemory().getStaticDims();
                 newDims[0] = ext_mem.getStaticDims()[0];
 
-                auto tmpMem = MKLDNNMemory(eng);
+                MKLDNNMemory tmpMem(eng);
                 auto newDesc = childEdge->getMemory().getDesc().cloneWithNewDims(newDims, true);
                 tmpMem.Create(newDesc, childEdge->getMemory().GetData(), false);
 
@@ -864,7 +864,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
                 auto newDims = intr_blob.getStaticDims();
                 newDims[0] = outBloMem.getStaticDims()[0];
 
-                auto tmpMem = MKLDNNMemory(eng);
+                MKLDNNMemory tmpMem(eng);
                 auto newDesc = intr_blob.getDesc().cloneWithNewDims(newDims, true);
                 tmpMem.Create(newDesc, intr_blob.GetData(), false);
 
@@ -876,14 +876,12 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
             // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
-            if (config.batchLimit) {
-                if (node->isDynamicNode()) {
+            if (getProperty().batchLimit) {
+                if (node->isDynamicNode() && !getProperty().isNewApi) {
                     IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
                 }
                 int MB_to_process = node->batchToProcess();
                 size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * MB_to_process;
-            } else if (getProperty().batchLimit > 0) {
-                size_to_copy = std::accumulate(outDims.begin(), outDims.end(), (size_t)1, std::multiplies<size_t>());
             }
 
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);

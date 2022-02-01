@@ -156,13 +156,8 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::InferImpl() {
 
     if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
-    } else if (graph->getProperty().batchLimit > 0) {
+    } else if (graph->getProperty().isNewApi && graph->getProperty().batchLimit > 0) {
         const auto batch = _inputs.begin()->second->getTensorDesc().getDims()[0];
-        for (const auto& in : _inputs) {
-            if (in.second->getTensorDesc().getDims()[0] != batch) {
-                IE_THROW() << "Can't infer model with dynamic batch if input tensors have different batch size";
-            }
-        }
         SetBatch(batch);
     }
 

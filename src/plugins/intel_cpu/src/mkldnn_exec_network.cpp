@@ -79,21 +79,19 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     }
     bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
 
-    if (_cfg.batchLimit > 1) {
-        // check topology for applicability
-        if (!CanProcessDynBatch(_network)) {
-            IE_THROW() << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
-        }
-    }
-
-    _cfg.isNewApi = isNewApi;
+    _cfg.isNewApi = !isLegacyAPI();
 
     // WA for inference dynamic batch cases in new API
-    if (isNewApi) {
+    if (_cfg.isNewApi) {
         int64_t maxBatchSize = -1;
         if (canBeExecViaLegacyDynBatch(function, maxBatchSize)) {
             IE_ASSERT(maxBatchSize > -1);
             _cfg.batchLimit = maxBatchSize;
+        }
+    } else if (_cfg.batchLimit > 1) {
+        // check topology for applicability
+        if (!CanProcessDynBatch(_network)) {
+            IE_THROW() << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
     }
 
@@ -367,31 +365,29 @@ bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Mod
         return retVal;
     };
 
-    if (function->get_parameters().empty()) {
+    if (function->get_parameters().size() != 1) {
         return false;
     }
 
-    // before start to check other nodes we must be sure that get_parameters have the same batch upper bound
-    for (const auto& param : function->get_parameters()) {
-        const auto shape = param->get_output_partial_shape(0);
-        if (shape.rank().is_dynamic()) {
-            return false;
-        }
+    auto param = *function->get_parameters().begin();
+    const auto shape = param->get_output_partial_shape(0);
+    if (shape.rank().is_dynamic()) {
+        return false;
+    }
 
-        if (shape.rank().get_length() < 2) {
-            return false;
-        } else {
+    if (shape.rank().get_length() < 2) {
+        return false;
+    } else {
+        if (maxBatchSize == -1) {
+            maxBatchSize = shape[0].get_max_length();
+
             if (maxBatchSize == -1) {
-                maxBatchSize = shape[0].get_max_length();
-
-                if (maxBatchSize == -1) {
-                    return false;
-                }
-            }
-
-            if (!isDynBatchWithUpperBound(shape)) {
                 return false;
             }
+        }
+
+        if (!isDynBatchWithUpperBound(shape)) {
+            return false;
         }
     }
 
@@ -483,7 +479,8 @@ bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Mod
 
         if (type == Eltwise && std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(op) &&
             !(op->get_input_node_ptr(0)->get_type_info() == ngraph::op::Constant::get_type_info_static() ||
-                    op->get_input_node_ptr(1)->get_type_info() == ngraph::op::Constant::get_type_info_static())) {
+            op->get_input_node_ptr(1)->get_type_info() == ngraph::op::Constant::get_type_info_static()) &&
+                    op->get_input_partial_shape(0).rank().get_length() != op->get_input_partial_shape(1).rank().get_length()) {
                 return false;
         }
     }
