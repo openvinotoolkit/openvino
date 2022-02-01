@@ -3,6 +3,7 @@
 //
 
 #include <fstream>
+#include <google/protobuf/stubs/logging.h>
 #include <input_model.hpp>
 #include <onnx_import/onnx.hpp>
 #include <onnx_import/onnx_utils.hpp>
@@ -32,6 +33,10 @@ ONNX_FRONTEND_C_API void* GetFrontEndData() {
     res->m_creator = []() {
         return std::make_shared<FrontEnd>();
     };
+#ifndef OPENVINO_DEBUG_ENABLE
+    // disable protobuf logging
+    google::protobuf::SetLogHandler(nullptr);
+#endif
     return res;
 }
 

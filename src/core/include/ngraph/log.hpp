@@ -99,6 +99,7 @@ void default_logger_handler_func(const std::string& s);
 #    define PROJECT_ROOT_DIR ""
 #endif
 
+#ifdef ENABLE_OPENVINO_DEBUG
 #define NGRAPH_ERR                                                        \
     ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_ERROR,                  \
                       ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
@@ -120,8 +121,7 @@ void default_logger_handler_func(const std::string& s);
                       ngraph::default_logger_handler_func)                \
         .stream()
 
-#ifdef ENABLE_OPENVINO_DEBUG
-#    define NGRAPH_DEBUG                                                      \
+#define NGRAPH_DEBUG                                                          \
         ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
                           ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
                           __LINE__,                                           \
