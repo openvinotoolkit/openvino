@@ -13,11 +13,11 @@
 
 @endsphinxdirective
 
-If you want to install OpenVINO™ on your Linux machine, there are a few ways to accomplish this. We prepared following options for you: 
+If you want to install Intel® Distribution of OpenVINO™ toolkit on your Linux machine, there are a few ways to accomplish this. We prepared following options for you: 
 
-* [Install OpenVINO™ with an Installer](installing-openvino-linux.md)
-* [Install OpenVINO™ with yum](installing-openvino-yum.md)
-* [Install OpenVINO™ with apt](installing-openvino-apt.md)
-* [Install OpenVINO™ with Docker](installing-openvino-docker-linux.md)
+* [Install Intel® Distribution of OpenVINO™ with an Installer](installing-openvino-linux.md)
+* [Install Intel® Distribution of OpenVINO™ with yum](installing-openvino-yum.md)
+* [Install Intel® Distribution of OpenVINO™ with apt](installing-openvino-apt.md)
+* [Install Intel® Distribution of OpenVINO™ with Docker](installing-openvino-docker-linux.md)
 
 Enjoy your journey with OpenVINO™.

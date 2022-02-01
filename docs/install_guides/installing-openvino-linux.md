@@ -1,4 +1,4 @@
-# Install and Configure Intel® Distribution of OpenVINO™ toolkit for Linux* {#openvino_docs_install_guides_installing_openvino_linux}
+# Install and Configure Intel® Distribution of OpenVINO™ toolkit for Linux {#openvino_docs_install_guides_installing_openvino_linux}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
@@ -9,7 +9,7 @@
 
   * Ubuntu 18.04.x long-term support (LTS), 64-bit
   * Ubuntu 20.04.x long-term support (LTS), 64-bit
-  * Red Hat* Enterprise Linux* 8.x, 64-bit
+  * Red Hat Enterprise Linux 8.x, 64-bit
 
   .. note::
      Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is not longer supported.
@@ -50,7 +50,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 @sphinxdirective
 
 .. important::
-   Before you start your journey with installation of the OpenVINO, we encourage you to check up our :ref:`code samples <code samples>` in C, C++, and Python and :ref:`notebook tutorials <notebook tutorials>` that we prepared for you, so you could see all amazing things that you can achieve with our tool.
+   Before you start your journey with installation of the Intel® Distribution of OpenVINO™, we encourage you to check up our :ref:`code samples <code samples>` in C, C++, and Python and :ref:`notebook tutorials <notebook tutorials>` that we prepared for you, so you could see all amazing things that you can achieve with our tool.
 
 @endsphinxdirective
 
@@ -58,7 +58,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 1. Select and download the Intel® Distribution of OpenVINO™ toolkit installer file from [Intel® Distribution of OpenVINO™ toolkit for Linux*](https://software.intel.com/en-us/openvino-toolkit/choose-download).
 2. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
-3. Change directories to where you downloaded the Intel Distribution of OpenVINO toolkit for Linux\* file.<br>
+3. Change directories to where you downloaded the Intel Distribution of OpenVINO™ toolkit for Linux file.<br>
    If you downloaded the starter script to the current user's `Downloads` directory:
    ```sh
    cd ~/Downloads/
@@ -132,15 +132,15 @@ You must update several environment variables before you can compile and run Ope
 source <INSTALL_DIR>/intel/openvino_2022/bin/setupvars.sh
 ```  
 
-If you have more than one OpenVINO version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
+If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/intel/openvino_2022/bin/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO versions on your machine and want to switch among them, as each may require different setup.
+> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/intel/openvino_2022/bin/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
 
 The environment variables are set. Next, you can download some additional tools.
 
 ## <a name="model-optimizer">Step 4 (Optional): Download additional components
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO Model Development Tools can only be installed via PyPI now. See [Install OpenVINO Model Development Tools](@ref installing_model_dev_tools) for detailed steps.
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Model Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Model Development Tools](@ref installing_model_dev_tools) for detailed steps.
 
 ## <a name="optional-steps"></a>Step 5 (Optional): Configure Inference on non-CPU Devices
 
@@ -169,9 +169,9 @@ The environment variables are set. Next, you can download some additional tools.
 Now you are ready to try out the toolkit.
 
 Developing in Python:
-   * [Start with tensorflow models with OpenVINO](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Start with ONNX and PyTorch models with OpenVINO](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
-   * [Start with PaddlePaddle models with OpenVINO](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
+   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
+   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
 
 Developing in C++:
    * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
@@ -189,7 +189,7 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
    <div class="collapsible-section">
 
 @endsphinxdirective
-PRC developers might encounter pip errors during OpenVINO™ installation. To resolve the issues, try one of the following options:
+PRC developers might encounter pip errors during Intel® Distribution of OpenVINO™ installation. To resolve the issues, try one of the following options:
 * Add the download source using the `-i` parameter with the Python `pip` command. For example: 
 
    ```
@@ -197,7 +197,7 @@ PRC developers might encounter pip errors during OpenVINO™ installation. To re
    ```
 Use the `--trusted-host` parameter if the URL above is `http` instead of `https`.
 
-* If you run into incompatibility issues between components after installing new OpenVINO version, try running `requirements.txt` with the following command:
+* If you run into incompatibility issues between components after installing new Intel® Distribution of OpenVINO™ version, try running `requirements.txt` with the following command:
 
    ```
    pip install -r <INSTALL_DIR>/intel/openvino_2022/tools/requirements.txt
@@ -225,11 +225,11 @@ Use the `--trusted-host` parameter if the URL above is `http` instead of `https`
    
    To learn more about converting models from specific frameworks, go to:
    
-   - [Convert Your Caffe* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
-   - [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
-   - [Convert Your MXNet* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
-   - [Convert Your Kaldi* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
-   - [Convert Your ONNX* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
+   - [Convert Your Caffe Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
+   - [Convert Your TensorFlow Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+   - [Convert Your MXNet Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
+   - [Convert Your Kaldi Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
+   - [Convert Your ONNX Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
 
 @sphinxdirective
 .. raw:: html

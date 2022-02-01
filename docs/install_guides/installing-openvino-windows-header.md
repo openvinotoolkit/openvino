@@ -11,9 +11,9 @@
 
 @endsphinxdirective
 
-If you want to install OpenVINO™ on your Windows machine, there are a few ways to accomplish this. We prepared following options for you: 
+If you want to install Intel® Distribution of OpenVINO™ toolkit on your Windows machine, there are a few ways to accomplish this. We prepared following options for you: 
 
-* [Install OpenVINO™ with an Installer](installing-openvino-windows.md)
-* [Install OpenVINO™ with Docker](installing-openvino-docker-windows.md)
+* [Install Intel® Distribution of OpenVINO™ toolkit with an Installer](installing-openvino-windows.md)
+* [Install Intel® Distribution of OpenVINO™ toolkit with Docker](installing-openvino-docker-windows.md)
 
 Enjoy your journey with OpenVINO™.

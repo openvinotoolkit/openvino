@@ -6,7 +6,7 @@
 
 @endsphinxdirective
 
-Once you have your OpenVINO installed, and configured your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Configuration Guide](installing-openvino-linux-ivad-vpu.md), you can run our demos:
+Once you have your Intel® Distribution of OpenVINO™ Toolkit installed, and configured your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Configuration Guide](installing-openvino-linux-ivad-vpu.md), you can run our demos:
 
 1. Go to the **Inference Engine demo** directory:
    ```sh

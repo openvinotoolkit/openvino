@@ -1,4 +1,4 @@
-# GPU Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_gpu_setup_guide}
+# Set Up Intel® GPU for Use with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_gpu_setup_guide}
 
 @sphinxdirective
 
@@ -8,7 +8,7 @@
 
 ## Linux
 
-Once you have your OpenVINO installed, follow the steps to be able to work on GPU:
+Once you have your Intel® Distribution of OpenVINO™ Toolkit installed, follow the steps to be able to work on GPU:
 
 1. Go to the install_dependencies directory:
    ```sh

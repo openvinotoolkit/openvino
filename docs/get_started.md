@@ -5,7 +5,7 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install OpenVINO
+   :caption: Install Intel® Distribution of OpenVINO™ Toolkit
    
    Overview <openvino_docs_install_guides_installing_openvino_images>
    Linux <openvino_docs_install_guides_installing_openvino_linux_header>
@@ -23,15 +23,15 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Configure OpenVINO
+   :caption: Configure Intel® Distribution of OpenVINO™ Toolkit
    
    Configure Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux*<openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
    Configure Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Windows*<openvino_docs_install_guides_installing_openvino_windows_ivad_vpu>
    Intel® Movidius™ VPUs Setup Guide <openvino_docs_install_guides_movidius_setup_guide>
    Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
    Intel® Movidius™ VPUs Demos <openvino_docs_install_guides_movidius_demos>
-   GPU Setup Guide <openvino_docs_install_guides_gpu_setup_guide>
-   Neural Compute Stick 2 Setup Guide <openvino_docs_install_guides_ncs2_setup_guide>
+   Intel® GPU Setup Guide <openvino_docs_install_guides_gpu_setup_guide>
+   Intel® Neural Compute Stick 2 Setup Guide <openvino_docs_install_guides_ncs2_setup_guide>
    
 .. toctree::
    :maxdepth: 1

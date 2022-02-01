@@ -6,7 +6,7 @@
 
 @endsphinxdirective
 
-Once you have your OpenVINO installed, follow the steps to be able to work on NCS2:
+Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow the steps to be able to work on NCS2:
 
 1. Go to the install_dependencies directory:
    ```sh
