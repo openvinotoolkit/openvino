@@ -1,4 +1,10 @@
-# Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit and the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux* {#openvino_docs_install_guides_installing_openvino_linux_ivad_vpu}
+# Set Up Intel® Vision Accelerator Design with Intel® Movidius™ VPUs for Use with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_linux_ivad_vpu}
+
+@sphinxdirective
+
+.. _vpu guide:
+
+@endsphinxdirective
 
 > **NOTES**: 
 > - These steps are only required if you want to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.

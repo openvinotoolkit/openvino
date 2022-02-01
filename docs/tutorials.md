@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _notebook tutorials:
+
 .. toctree::
    :maxdepth: 2
    :caption: Notebooks
