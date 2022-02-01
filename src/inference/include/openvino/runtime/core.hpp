@@ -546,6 +546,26 @@ public:
      *
      * @tparam T - type of returned value
      * @tparam M - property mutability
+     * @param deviceName  - A name of a device to get a properties value.
+     * @param property  - property object.
+     * @param arguments  - additional arguments to get property
+     * @return Property value.
+     */
+    template <typename T, PropertyMutability M>
+    T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
+        auto to = Any::make<T>();
+        get_property(deviceName, property.name(), arguments, to);
+        return to.template as<T>();
+    }
+
+    /**
+     * @brief Gets properties dedicated to device behaviour.
+     *
+     * The method is needed to request common device or system properties.
+     * It can be device name, temperature, other devices-specific values.
+     *
+     * @tparam T - type of returned value
+     * @tparam M - property mutability
      * @tparam Args - set of additional arguments ended with property object variable
      * @param deviceName  - A name of a device to get a properties value.
      * @param property  - property object.
