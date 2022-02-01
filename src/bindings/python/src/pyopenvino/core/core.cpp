@@ -47,7 +47,17 @@ void regclass_Core(py::module m) {
             }
             self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
         },
-        py::arg("properties"));
+        py::arg("properties"),
+        R"(
+            Sets properties.
+            Parameters
+            ----------
+            properties : dict
+                Dict of pairs: (property name, property value)
+            Returns
+            ----------
+            set_property : None
+        )");
 
     cls.def(
         "set_property",
@@ -59,7 +69,19 @@ void regclass_Core(py::module m) {
             self.set_property(device_name, {properties_to_cpp.begin(), properties_to_cpp.end()});
         },
         py::arg("device_name"),
-        py::arg("properties"));
+        py::arg("properties"),
+        R"(
+            Sets properties for the device.
+            Parameters
+            ----------
+            device_name : str
+                Name of the device to load the model to.
+            properties : dict
+                Dict of pairs: (property name, property value)
+            Returns
+            ----------
+            set_property : None
+        )");
 
     cls.def(
         "compile_model",
@@ -173,7 +195,19 @@ void regclass_Core(py::module m) {
             return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
-        py::arg("name"));
+        py::arg("name"),
+        R"(
+            Gets properties dedicated to device behaviour.
+            Parameters
+            ----------
+            device_name : str
+                A name of a device to get a properties value.
+            name : str
+                Property name.
+            Returns
+            ----------
+            get_property : Any
+        )");
 
     // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(

@@ -51,7 +51,17 @@ void regclass_CompiledModel(py::module m) {
             }
             self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
         },
-        py::arg("properties"));
+        py::arg("properties"),
+        R"(
+            Sets properties for current compiled model.
+            Parameters
+            ----------
+            properties : dict
+                Dict of pairs: (property name, property value)
+            Returns
+            ----------
+            set_property : None
+        )");
 
     // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(
@@ -67,7 +77,17 @@ void regclass_CompiledModel(py::module m) {
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
             return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },
-        py::arg("name"));
+        py::arg("name"),
+        R"(
+            Gets properties for current compiled model.
+            Parameters
+            ----------
+            name : str
+                Property name.
+            Returns
+            ----------
+            get_property : Any
+        )");
 
     // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(
