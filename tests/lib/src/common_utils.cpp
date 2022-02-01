@@ -63,7 +63,6 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
  * @brief Fill infer_request tensors with random values or image information
  */
 void fillTensors(ov::InferRequest &infer_request, const std::vector<ov::Output<ov::Node>> &inputs) {
-    std::vector<std::pair<size_t, size_t>> input_image_sizes;
     for (size_t i = 0; i < inputs.size(); ++i) {
         ov::Tensor input_tensor;
         if (inputs[i].get_element_type() == ov::element::f32) {
