@@ -1149,7 +1149,7 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
         IE_THROW() << "MKLDNNGraph::InsertReorder: Cannot cast to MKLDNNReorderNode";
     }
     reorderPtr->setDescs(inDesc, outDesc);
-    reorderPtr->setIsOptimized(isOptimized);
+    reorderPtr->setOptimized(isOptimized);
 
     InsertNode(edge, newReorder, true);
 

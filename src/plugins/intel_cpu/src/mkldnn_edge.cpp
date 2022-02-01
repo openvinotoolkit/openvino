@@ -137,7 +137,7 @@ bool MKLDNNEdge::enforceReorder() {
     return false;
 }
 
-static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const MemoryDesc& rhsMemDesc) {
+bool isPhysicalMemCompatible(const MemoryDesc& lhsMemDesc, const MemoryDesc& rhsMemDesc) {
     if (!lhsMemDesc.isDefined() || !rhsMemDesc.isDefined() ||
         !(lhsMemDesc.getType() & MemoryDescType::Blocked) || !(rhsMemDesc.getType() & MemoryDescType::Blocked) ||
         (lhsMemDesc.getType() == DnnlBlocked && !lhsMemDesc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) ||
@@ -219,7 +219,7 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
 MKLDNNEdge::ReorderStatus MKLDNNEdge::needReorder() {
     bool optimized = false;
     if (!getInputDesc().isCompatible(getOutputDesc())) {
-        if (isPhycicalMemCompatible(getInputDesc(), getOutputDesc()) && !getParent()->isConstant()) {
+        if (isPhysicalMemCompatible(getInputDesc(), getOutputDesc()) && !getParent()->isConstant()) {
             optimized = true;
         } else {
             return ReorderStatus::Regular;

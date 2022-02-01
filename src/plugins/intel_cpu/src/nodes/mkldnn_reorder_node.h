@@ -44,11 +44,7 @@ public:
         outputShapes.push_back(this->output->getShape());
     }
 
-    bool getIsOptimized() {
-        return isOptimized;
-    }
-
-    void setIsOptimized(bool isOptimized) {
+    void setOptimized(bool isOptimized) {
         this->isOptimized = isOptimized;
     }
 

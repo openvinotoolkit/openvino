@@ -1660,11 +1660,8 @@ void MKLDNNGraphOptimizer::HorizontalReorderFusion(MKLDNNNodePtr& node, MKLDNNGr
         const auto edge = childEdges[edgeId].lock();
         if (edge->getChild()->getType() != Reorder)
             continue;
-        const auto reorder = edge->getChild();
-        const auto reorderPtr = dynamic_cast<MKLDNNReorderNode*>(reorder.get());
-        if (!reorderPtr || !reorderPtr->getIsOptimized())
-            continue;
 
+        const auto reorder = edge->getChild();
         auto key = MKLDNNReorderNode::getReorderArgs(edge->getInputDesc(), reorder->getChildEdgeAt(0)->getOutputDesc());
         key += "_port_" + std::to_string(edge->parent_port);
         if (reorders.count(key) > 0)
@@ -1687,10 +1684,11 @@ void MKLDNNGraphOptimizer::HorizontalReorderFusion(MKLDNNNodePtr& node, MKLDNNGr
             bool canRemove = true;
             for (auto childEdge : reorderNode->getChildEdges()) {
                 auto reorderChildEdge = childEdge.lock();
+                const auto& desc = reorderChildEdge->getOutputDesc();
                 auto reorderChild = reorderChildEdge->getChild();
-                const auto reorderPtr = dynamic_cast<MKLDNNReorderNode*>(reorderChild.get());
-                if (!firstReorderOutputDesc.isCompatible(reorderChildEdge->getOutputDesc()) ||
-                    !reorderPtr || !reorderPtr->getIsOptimized()) {
+                if (!firstReorderOutputDesc.isCompatible(desc) ||
+                    !isPhysicalMemCompatible(firstReorderOutputDesc, desc) ||
+                    reorderChildEdge->inPlace(MKLDNNEdge::LOOK_DOWN)) {
                     canRemove = false;
                     continue;
                 }

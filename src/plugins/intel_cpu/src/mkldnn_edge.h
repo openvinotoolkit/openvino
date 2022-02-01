@@ -21,6 +21,8 @@ class MKLDNNEdge;
 using MKLDNNEdgePtr = std::shared_ptr<MKLDNNEdge>;
 using MKLDNNEdgeWeakPtr = std::weak_ptr<MKLDNNEdge>;
 
+bool isPhysicalMemCompatible(const MemoryDesc& lhsMemDesc, const MemoryDesc& rhsMemDesc);
+
 class MKLDNNEdge {
 public:
     MKLDNNEdge(const std::shared_ptr<MKLDNNNode>& parent,
