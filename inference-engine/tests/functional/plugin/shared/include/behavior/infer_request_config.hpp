@@ -28,7 +28,7 @@ namespace BehaviorTestsDefinitions {
 using InferConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
-    ASSERT_EQ(0ul, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+    ASSERT_EQ(0ul, InferenceEngine::executorManager()->getExecutorsNumber());
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
@@ -48,18 +48,18 @@ TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
     }
 
     if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
-        ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+        ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
     } else if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
                (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
-        ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+        ASSERT_EQ(2u, InferenceEngine::executorManager()->getExecutorsNumber());
     } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) || (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
     } else {
-        ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+        ASSERT_EQ(1u, InferenceEngine::executorManager()->getExecutorsNumber());
     }
 }
 
 TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
-    ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+    ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
@@ -79,12 +79,12 @@ TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
     }
 
     if ((targetDevice == CommonTestUtils::DEVICE_GNA) || (targetDevice == CommonTestUtils::DEVICE_HDDL)) {
-        ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+        ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
     } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) || (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
     } else if (targetDevice == CommonTestUtils::DEVICE_MYRIAD) {
-        ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+        ASSERT_EQ(2u, InferenceEngine::executorManager()->getExecutorsNumber());
     } else {
-        ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+        ASSERT_EQ(1u, InferenceEngine::executorManager()->getExecutorsNumber());
     }
 }
 
