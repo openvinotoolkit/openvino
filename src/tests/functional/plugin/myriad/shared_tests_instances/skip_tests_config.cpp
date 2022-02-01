@@ -59,6 +59,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*_Hetero_Behavior.*OVExecGraphImportExportTest.*)",
         // TODO: Issue 65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        R"(.*importExportedFunctionConstantResultOnly.*elementType=(f32|f16).*)",
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
         R"(.*CoreThreadingTestsWithIterations.*)",
