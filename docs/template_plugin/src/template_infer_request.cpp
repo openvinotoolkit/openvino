@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <ngraph/runtime/host_tensor.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
 #include <string>
 #include <utility>
@@ -277,11 +278,57 @@ void TemplateInferRequest::inferPreprocess() {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _executableNetwork->_function->get_parameters()[index];
         auto parameterShape = networkInput.second->getTensorDesc().getDims();
+        auto srcShape = networkInput.second->getTensorDesc().getBlockingDesc().getBlockDims();
         const auto& parameterType = parameter->get_element_type();
-        _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
-            parameterType,
-            parameterShape,
-            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second)->rmap().as<void*>());
+        auto mem_blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second);
+        auto isNonRoiDesc = [](const BlockingDesc& desc) {
+            size_t exp_stride = 1;
+            for (size_t i = 0; i < desc.getBlockDims().size(); i++) {
+                size_t rev_idx = desc.getBlockDims().size() - i - 1;
+                OPENVINO_ASSERT(desc.getOrder()[rev_idx] == rev_idx,
+                                "Template plugin: unsupported tensors with mixed axes order: ",
+                                ngraph::vector_to_string(desc.getOrder()));
+                if (desc.getStrides()[rev_idx] != exp_stride || desc.getOffsetPaddingToData()[rev_idx] != 0) {
+                    return false;
+                }
+                exp_stride *= desc.getBlockDims()[rev_idx];
+            }
+            return true;
+        };
+        if (isNonRoiDesc(networkInput.second->getTensorDesc().getBlockingDesc())) {
+            // No ROI extraction is needed
+            _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType,
+                                                                                        parameterShape,
+                                                                                        mem_blob->rmap().as<void*>());
+        } else {
+            OPENVINO_ASSERT(parameterType.bitwidth() % 8 == 0,
+                            "Template plugin: Unsupported ROI tensor with element type having ",
+                            std::to_string(parameterType.bitwidth()),
+                            " bits size");
+            // Perform manual extraction of ROI tensor
+            // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
+            // Performance of manual extraction is not optimal, but it is ok for template implementation
+            _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType, parameterShape);
+            auto desc = mem_blob->getTensorDesc();
+            auto* src_data = mem_blob->rmap().as<uint8_t*>();
+            auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(_inputTensors[index]);
+            OPENVINO_ASSERT(dst_tensor, "Template plugin error: Can't cast created tensor to HostTensor");
+            auto* dst_data = dst_tensor->get_data_ptr<uint8_t>();
+            std::vector<size_t> indexes(parameterShape.size());
+            for (size_t dst_idx = 0; dst_idx < ov::shape_size(parameterShape); dst_idx++) {
+                size_t val = dst_idx;
+                size_t src_idx = 0;
+                for (size_t j1 = 0; j1 < indexes.size(); j1++) {
+                    size_t j = indexes.size() - j1 - 1;
+                    indexes[j] = val % parameterShape[j] + desc.getBlockingDesc().getOffsetPaddingToData()[j];
+                    val /= parameterShape[j];
+                    src_idx += indexes[j] * desc.getBlockingDesc().getStrides()[j];
+                }
+                memcpy(dst_data + dst_idx * parameterType.size(),
+                       src_data + src_idx * parameterType.size(),
+                       parameterType.size());
+            }
+        }
     }
     for (auto&& output : _outputs) {
         auto outputBlob = output.second;

@@ -160,6 +160,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _context(context)
                                                            , _workModeIsAUTO(true)
                                                            , _network(network) {
+    LOG_INFO("[AUTOPLUGIN]ExecutableNetwork start");
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
@@ -282,8 +283,10 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 // second, check the idle queue if all requests are in place
                 size_t destroynum = 0;
                 std::pair<int, WorkerInferRequest*> worker;
-                while (_idleWorkerRequests["CPU_HELP"].try_pop(worker))
+                while (_idleWorkerRequests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
+                    _cpuHelpInferCount += worker.second->_inferCount;
+                }
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(_confMutex);
                     _workerRequests["CPU_HELP"].clear();
@@ -520,10 +523,22 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
+    for (auto&& _workerRequest : _workerRequests) {
+         unsigned int count = 0;
+         for (auto& request : _workerRequest.second) {
+             count += request._inferCount;
+         }
+         if (_workerRequest.first == "CPU_HELP") {
+             LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
+         } else {
+             LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
+         }
+    }
     {
         std::lock_guard<std::mutex> lock(_confMutex);
         _workerRequests.clear();
     }
+    LOG_INFO("[AUTOPLUGIN]ExecutableNetwork end");
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
@@ -731,8 +746,16 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
                 if (bThroughputEnabledInPlugin ||
                     (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
+                    unsigned int upperBoundStreamsNum = 0;
                     std::map<std::string, InferenceEngine::Parameter> options;
                     options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
+                    try {
+                        auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
+                                                        METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                        upperBoundStreamsNum = std::get<1>(rangeOfStreams);
+                    } catch (const InferenceEngine::Exception &iie) {
+                        LOG_DEBUG("[AUTOPLUGIN] GetMetric RANGE_FOR_STREAMS failed");
+                    }
                     if (!_context.batchingDisabled) {
                         try {
                             optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
@@ -755,19 +778,17 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                                 requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
                             LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "user requested size", requests);
                             if (!requests) { // no limitations from user
-                                auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
-                                                        METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
-                                requests = optimalBatchSize * std::get<1>(rangeOfStreams);
+                                requests = optimalBatchSize * upperBoundStreamsNum * 2;
                                 LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "deduced size:", requests);
                             }
                         } catch (const InferenceEngine::Exception &iie) {
-                            LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for auto-batch failed :%s", iie.what());
+                            LOG_WARNING("[AUTOPLUGIN]deduce optimal infer requset num for auto-batch failed :%s", iie.what());
                         }
                         real = (std::max)(requests, optimalBatchSize);
                     } else if (deviceInfo.deviceName.find("VPUX") != std::string::npos) {
                         real = 8u;
                     } else {
-                        real = defaultNumForTPUT;
+                        real = upperBoundStreamsNum ? 2 * upperBoundStreamsNum : defaultNumForTPUT;
                     }
                 } else {
                     real = defaultNumForLatency;
