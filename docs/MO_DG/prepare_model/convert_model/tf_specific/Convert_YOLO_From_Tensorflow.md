@@ -65,11 +65,11 @@ cd tensorflow-yolo-v3
 ```sh
 git checkout ed60b90
 ```
-3. Download [coco.names](https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names) file from the DarkNet website **OR** use labels that fit your task.
+3. Download [coco.names](https://github.com/AlexeyAB/darknet/blob/master/data/coco.names) file from the DarkNet website **OR** use labels that fit your task.
 4. Download the [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights) (for the YOLOv3 model) or [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights) (for the YOLOv3-tiny model) file **OR** use your pre-trained weights with the same structure.
 5. Install PIL, which is used by the conversion script in the repo:
 ```sh
-pip install PIL
+pip install pillow
 ```
 6. Run a converter:
 - For YOLO-v3:
@@ -116,7 +116,7 @@ where:
 - `custom_attributes` is a parameter that stores all the YOLOv3 specific attributes:
     - `classes`, `coords`, `num`, and `masks` are attributes that you should copy from the configuration 
     file that was used for model training. If you used DarkNet officially shared weights,
-    you can use `yolov3.cfg` or `yolov3-tiny.cfg` configuration file from https://github.com/pjreddie/darknet/tree/master/cfg. Replace the default values in `custom_attributes` with the parameters that
+    you can use `yolov3.cfg` or `yolov3-tiny.cfg` configuration file from https://github.com/david8862/keras-YOLOv3-model-set/tree/master/cfg. Replace the default values in `custom_attributes` with the parameters that
     follow the `[yolo]` titles in the configuration file.
     - `anchors` is an optional parameter that is not used while inference of the model, but it used in a demo to parse `Region` layer output
     - `entry_points` is a node name list to cut off the model and append the Region layer with custom attributes specified above.

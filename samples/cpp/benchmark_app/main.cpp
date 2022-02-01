@@ -378,7 +378,7 @@ int main(int argc, char* argv[]) {
 
         // Takes priority over config from file
         if (!FLAGS_cache_dir.empty()) {
-            core.set_property({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
+            core.set_property(ov::cache_dir(FLAGS_cache_dir));
         }
 
         bool isDynamicNetwork = false;

@@ -105,12 +105,11 @@ int main(int argc, char* argv[]) {
         for (auto&& device : availableDevices) {
             slog::info << device << slog::endl;
 
-            // Query supported metrics and print all of them
+            // Query supported properties and print all of them
             slog::info << "\tSUPPORTED_PROPERTIES: " << slog::endl;
             auto supported_properties = core.get_property(device, ov::supported_properties);
             for (auto&& property : supported_properties) {
-                if (property != METRIC_KEY(SUPPORTED_METRICS) && property != METRIC_KEY(SUPPORTED_CONFIG_KEYS) &&
-                    property != ov::supported_properties.name()) {
+                if (property != ov::supported_properties.name()) {
                     slog::info << "\t\t" << (property.is_mutable() ? "Mutable: " : "Immutable: ") << property << " : "
                                << slog::flush;
                     print_any_value(core.get_property(device, property));

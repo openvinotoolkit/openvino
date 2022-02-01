@@ -56,6 +56,7 @@ void dynamicToStaticShapeTopK(std::shared_ptr<ngraph::Node> target) {
     }
 
     std::shared_ptr<ngraph::Node> new_topk;
+
     if (ngraph::is_type<ngraph::opset3::Constant>(target->get_input_node_shared_ptr(1)))
         new_topk = target->clone_with_new_inputs(target->input_values());
     else
@@ -65,7 +66,7 @@ void dynamicToStaticShapeTopK(std::shared_ptr<ngraph::Node> target) {
                 topk->get_provided_axis(),
                 topk->get_mode(),
                 topk->get_sort_type(),
-                topk->get_index_element_type());
+                ngraph::element::i32);
 
     for (auto &output : target->outputs()) {
         const auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(new_topk->output(output.get_index()), output_shape);
