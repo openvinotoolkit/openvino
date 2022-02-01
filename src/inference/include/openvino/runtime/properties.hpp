@@ -165,6 +165,11 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> sup
     "SUPPORTED_PROPERTIES"};
 
 /**
+ * @brief Read-only property to get a std::vector<std::string> of available device IDs
+ */
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
+
+/**
  * @brief Read-only property to get a name of name of a model
  */
 static constexpr Property<std::string, PropertyMutability::RO> model_name{"NETWORK_NAME"};
@@ -401,11 +406,6 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
     range_for_async_infer_requests{"RANGE_FOR_ASYNC_INFER_REQUESTS"};
 
 namespace device {
-
-/**
- * @brief Read-only property to get a std::vector<std::string> of available device IDs
- */
-static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available{"AVAILABLE_DEVICES"};
 
 /**
  * @brief the property for setting of required device to execute on
