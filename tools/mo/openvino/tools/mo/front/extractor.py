@@ -934,9 +934,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     fw_info = [(Node(graph, node_id).soft_get('name'), tensor_name)]
     if is_out_port and port == 0:
         tensor_name_no_port = Node(graph, node_id).soft_get('name')
-        # TODO: This can be optimized. Tensor names can be stored as set, which is initialized after model loading.
-        graph_tensor_names = graph.get_tensor_names_set()
-        if tensor_name_no_port in graph_tensor_names:
+        if graph.has_tensor_name(tensor_name_no_port):
             log.warning('Could not add user defined input name {} to tensor names list of as '
                         'graph contains tensor name with same name.'.format(tensor_name_no_port))
         else:
@@ -1087,8 +1085,10 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                     if smart_node.out_edges():
                         # User specified input is Parameter, so input cut is not needed, but
                         # Op name needs to be added to tensor names
-                        fw_info = []
                         op_name = smart_node.soft_get('name')
+                        if graph.has_tensor_name(op_name):
+                            continue
+                        fw_info = []
                         if 'fw_tensor_debug_info' in smart_node.out_edge(0):
                             fw_info += smart_node.out_edge(0)['fw_tensor_debug_info']
                         smart_node.out_edge(0)['fw_tensor_debug_info'] = fw_info + [(op_name, op_name)]

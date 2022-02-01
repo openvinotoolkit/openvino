@@ -1211,8 +1211,7 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
                 sigmoid_node['nchw_layout'] = True
 
                 # adding op name to tensor names list is needed for compatiblity with old api configs
-                op_output.in_port(0).get_connection().get_source().add_tensor_names([sigmoid_node['name']],
-                                                                                    [[sigmoid_node['name']]])
+                op_output.in_port(0).get_connection().get_source().add_tensor_names([sigmoid_node['name']])
 
         log.error('The predicted masks are produced by the "masks" layer for each bounding box generated with a '
                   '"detection_output" operation.\n Refer to operation specification in the documentation for the '
