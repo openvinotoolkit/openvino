@@ -13,6 +13,9 @@ Third party programs and their corresponding required notices and/or license ter
 Intel(R) Threading Building Blocks
 Copyright 2005-2020 Intel Corporation.  All Rights Reserved.
 
+Open Model Zoo (https://github.com/openvinotoolkit/open_model_zoo)
+Copyright (c) 2019-2022 Intel Corporation
+
 OpenCL ICD Loader
   Copyright (c) 2012-2019 The Khronos Group Inc.
   OpenCL is a trademark of Apple Inc. used under license by Khronos.
