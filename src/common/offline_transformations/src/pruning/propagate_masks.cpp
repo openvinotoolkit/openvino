@@ -571,7 +571,7 @@ public:
                                            opset6::Elu, opset6::HardSigmoid, opset6::PRelu, opset6::Mish,
                                            opset6::Softmax, opset6::SoftPlus, opset6::Convert, opset6::ConvertLike,
                                            opset6::AvgPool, opset6::MaxPool, opset6::ROIPooling, opset6::PSROIPooling,
-                                           opset6::Pad>();
+                                           opset6::Pad, opset6::MVN>();
 
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
