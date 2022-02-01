@@ -13,12 +13,12 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
                const size_t &batchSize) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
 
-    for (const InferenceEngine::ConstInputsDataMap::value_type &item : inputsInfo) {
+    for (const InferenceEngine::ConstInputsDataMap::value_type &item: inputsInfo) {
         if (isImage(item.second))
             input_image_sizes.push_back(getTensorHeightWidth(item.second->getTensorDesc()));
     }
 
-    for (const InferenceEngine::ConstInputsDataMap::value_type &item : inputsInfo) {
+    for (const InferenceEngine::ConstInputsDataMap::value_type &item: inputsInfo) {
         InferenceEngine::Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
 
         if (isImageInfo(inputBlob) && (input_image_sizes.size() == 1)) {
@@ -30,6 +30,8 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
                 fillBlobImInfo<short>(inputBlob, batchSize, image_size);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
                 fillBlobImInfo<int32_t>(inputBlob, batchSize, image_size);
+            } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
+                fillBlobImInfo<uint8_t>(inputBlob, batchSize, image_size);
             } else {
                 throw std::logic_error("Input precision is not supported for image info!");
             }
