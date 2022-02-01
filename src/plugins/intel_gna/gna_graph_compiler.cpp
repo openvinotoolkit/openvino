@@ -580,10 +580,10 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     auto effectiveInputWidth = in_width;
     auto effectiveInputHeight = in_height;
 
-    if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
-        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not supported";
-    }
+    // if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
+    //     convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0) {
+    //     THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not supported";
+    // }
 
     if (convolution._padding_x != convolution._pads_end.at(X_AXIS)) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along X axis";
@@ -591,6 +591,8 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     if (convolution._padding_y != convolution._pads_end.at(Y_AXIS)) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along Y axis";
     }
+    convolution._padding_x = convolution._pads_end.at(X_AXIS);
+    convolution._padding_y = convolution._pads_end.at(Y_AXIS);
 
     if (convolution._kernel_x > effectiveInputWidth ||
         convolution._kernel_y > effectiveInputHeight) {
@@ -626,10 +628,10 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
     const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
 
-    ValidateCnn2D(layer->name,
-        in_height, in_width, in_channels,
-        convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
-        inputPrec, convolution._dilation_y, convolution._dilation_x);
+    //ValidateCnn2D(layer->name,
+    //    in_height, in_width, in_channels,
+    //    convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
+    //    inputPrec, convolution._dilation_y, convolution._dilation_x);
 
     float weight_scale_factor = getScaleFactor(layer, QuantizedDataType::weights);
     float output_scale_factor = getScaleFactor(layer, QuantizedDataType::output);
