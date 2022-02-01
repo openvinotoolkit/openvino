@@ -7,7 +7,7 @@ from time import time
 
 import copy
 import numpy as np
-from openvino.runtime import Core, AsyncInferQueue   # pylint: disable=E0611,E0401
+from openvino.runtime import Core, AsyncInferQueue, Shape   # pylint: disable=E0611,E0401
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
@@ -18,7 +18,6 @@ from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
 from ..utils.logger import get_logger
 from ..utils.utils import create_tmp_dir, convert_output_key
-
 logger = get_logger(__name__)
 
 
@@ -234,9 +233,9 @@ class IEEngine(Engine):
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
             image_batch = {input_blob_name: np.stack(image_batch, axis=0)}
-            if image_batch[input_blob_name].shape != input_info[0].shape:
+            if Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
                 raise ValueError(f"Incompatible input shapes. "
-                                 f"Cannot infer {image_batch[input_blob_name].shape} into {input_info[0].shape}."
+                                 f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
                                  "Try to specify the layout of the model.")
             return image_batch
 

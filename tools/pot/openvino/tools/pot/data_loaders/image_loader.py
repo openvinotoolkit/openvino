@@ -4,8 +4,12 @@
 from cv2 import imread, IMREAD_GRAYSCALE
 
 from openvino.runtime import Layout, Dimension # pylint: disable=E0611,E0401
+from openvino.tools.mo.utils.cli_parser import get_layout_values
 from ..api.data_loader import DataLoader
 from ..data_loaders.utils import prepare_image, collect_img_files
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ImageLoader(DataLoader):
@@ -50,9 +54,9 @@ class ImageLoader(DataLoader):
             self._layout = Layout(self._layout)
             return
 
-        layout_from_ir = input_node.graph.graph.get('layout', None)
+        layout_from_ir = get_layout_values(input_node.graph.meta_data.get('layout', None))
         if layout_from_ir is not None:
-            self._layout = Layout(layout_from_ir)
+            self._layout = Layout(layout_from_ir[input_node.name].get('source_layout', None))
             return
 
         image_colors_dim = (Dimension(3), Dimension(1))
@@ -67,3 +71,4 @@ class ImageLoader(DataLoader):
                 self._layout = Layout("CHW")
             elif self._shape[2] in image_colors_dim:
                 self._layout = Layout("HWC")
+        logger.info(f'Layout value is set {self._layout}')
