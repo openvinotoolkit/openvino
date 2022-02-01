@@ -256,6 +256,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
 
         // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
         if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
+            std::stringstream strm;
             deviceConfigValue.print(strm);
             strm << " ";
             heteroConfigValue.print(strm);
@@ -291,7 +292,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
 
         // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
         if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
-            std::string strm;
+            std::stringstream strm;
             deviceConfigValue.print(strm);
             strm << " ";
             heteroConfigValue.print(strm);
