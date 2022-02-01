@@ -55,8 +55,8 @@ TEST_F(InputNoReorderEltwiseBF16, CompareWithRefs) {
 
     Run();
 
-    CheckNodeOfTypeCount(executableNetwork, "Reorder", 0);
-    CheckNodeOfTypeCount(executableNetwork, "Convert", 0);
-    CheckNodeOfTypeCount(executableNetwork, "Eltwise", 1);
+    CheckNumberOfNodesWithType(executableNetwork, "Reorder", 0);
+    CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);
+    CheckNumberOfNodesWithType(executableNetwork, "Eltwise", 1);
 }
 } // namespace CPULayerTestsDefinitions

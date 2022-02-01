@@ -70,7 +70,7 @@ TEST_P(ConvertToPluginSpecificNode, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckNodeOfTypeCount(executableNetwork, "Const", constNodeNum);
+    CheckNumberOfNodesWithType(executableNetwork, "Const", constNodeNum);
 }
 
 namespace {

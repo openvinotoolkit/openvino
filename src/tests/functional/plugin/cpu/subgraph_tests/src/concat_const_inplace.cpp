@@ -73,9 +73,9 @@ namespace {
 
         Run();
         if (this->GetParam() == Precision::BF16)
-            CheckNodeOfTypeCount(executableNetwork, "Reorder", 4);
+            CheckNumberOfNodesWithType(executableNetwork, "Reorder", 4);
         else
-            CheckNodeOfTypeCount(executableNetwork, "Reorder", 3);
+            CheckNumberOfNodesWithType(executableNetwork, "Reorder", 3);
     }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU, ConcatConstantInPlaceTest,
