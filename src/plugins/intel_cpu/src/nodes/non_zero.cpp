@@ -173,6 +173,7 @@ void NonZero::executeSpecified() {
     {
         size_t i1Stride = srcDims[2];
         size_t i0Stride = srcDims[1] * i1Stride;
+        size_t x2totalNonZeroCount = totalNonZeroCount * 2;
 
         parallel_for3d(srcDims[0], srcDims[1], srcDims[2],
                        [&](size_t ithr, size_t i0, size_t i1, size_t i2) {
@@ -182,7 +183,7 @@ void NonZero::executeSpecified() {
                            if (src[inputIndex] != zero) {
                                dst[outputIndex] = static_cast<int>(i0);
                                dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
-                               dst[outputIndex + totalNonZeroCount * 2] = static_cast<int>(i2);
+                               dst[outputIndex + x2totalNonZeroCount] = static_cast<int>(i2);
                                outputIndex++;
                            }
                        });
@@ -193,6 +194,8 @@ void NonZero::executeSpecified() {
         size_t i2Stride = srcDims[3];
         size_t i1Stride = srcDims[2] * i2Stride;
         size_t i0Stride = srcDims[1] * i1Stride;
+        size_t x2totalNonZeroCount = totalNonZeroCount * 2;
+        size_t x3totalNonZeroCount = totalNonZeroCount * 3;
 
         parallel_for4d(srcDims[0], srcDims[1], srcDims[2], srcDims[3],
                        [&](size_t ithr, size_t i0, size_t i1, size_t i2, size_t i3) {
@@ -202,8 +205,8 @@ void NonZero::executeSpecified() {
                            if (src[inputIndex] != zero) {
                                dst[outputIndex] = static_cast<int>(i0);
                                dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
-                               dst[outputIndex + totalNonZeroCount * 2] = static_cast<int>(i2);
-                               dst[outputIndex + totalNonZeroCount * 3] = static_cast<int>(i3);
+                               dst[outputIndex + x2totalNonZeroCount] = static_cast<int>(i2);
+                               dst[outputIndex + x3totalNonZeroCount] = static_cast<int>(i3);
                                outputIndex++;
                            }
                        });
@@ -215,6 +218,9 @@ void NonZero::executeSpecified() {
         size_t i2Stride = srcDims[3] * i3Stride;
         size_t i1Stride = srcDims[2] * i2Stride;
         size_t i0Stride = srcDims[1] * i1Stride;
+        size_t x2totalNonZeroCount = totalNonZeroCount * 2;
+        size_t x3totalNonZeroCount = totalNonZeroCount * 3;
+        size_t x4totalNonZeroCount = totalNonZeroCount * 4;
 
         parallel_for5d(srcDims[0], srcDims[1], srcDims[2], srcDims[3], srcDims[4],
                        [&](size_t ithr, size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
@@ -224,9 +230,9 @@ void NonZero::executeSpecified() {
                            if (src[inputIndex] != zero) {
                                dst[outputIndex] = static_cast<int>(i0);
                                dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
-                               dst[outputIndex + totalNonZeroCount * 2] = static_cast<int>(i2);
-                               dst[outputIndex + totalNonZeroCount * 3] = static_cast<int>(i3);
-                               dst[outputIndex + totalNonZeroCount * 4] = static_cast<int>(i4);
+                               dst[outputIndex + x2totalNonZeroCount] = static_cast<int>(i2);
+                               dst[outputIndex + x3totalNonZeroCount] = static_cast<int>(i3);
+                               dst[outputIndex + x4totalNonZeroCount] = static_cast<int>(i4);
                                outputIndex++;
                            }
                        });
