@@ -12,10 +12,7 @@ from collections import OrderedDict
 from copy import deepcopy
 import json
 
-try:
-    import openvino_telemetry as tm
-except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info

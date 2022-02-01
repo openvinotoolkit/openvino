@@ -17,10 +17,7 @@ except ModuleNotFoundError:
     execution_type = "install_prerequisites.{}".format("bat" if platform.system() == "Windows" else "sh")
 
 import openvino.tools.mo.utils.version as v
-try:
-    import openvino_telemetry as tm  # pylint: disable=import-error,no-name-in-module
-except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+import openvino.tools.mo.utils.telemetry_stub as tm
 from openvino.tools.mo.utils.error import classify_error_type
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 

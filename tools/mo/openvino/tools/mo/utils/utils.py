@@ -11,10 +11,7 @@ import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 
-try:
-    import openvino_telemetry as tm
-except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+import openvino.tools.mo.utils.telemetry_stub as tm
 
 
 def refer_to_faq_msg(question_num: int):

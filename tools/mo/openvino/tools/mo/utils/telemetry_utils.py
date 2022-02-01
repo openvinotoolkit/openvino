@@ -11,10 +11,7 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.utils.cli_parser import get_params_with_paths_list
 from openvino.tools.mo.utils.telemetry_params import telemetry_params
 
-try:
-    import openvino_telemetry as tm
-except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+import openvino.tools.mo.utils.telemetry_stub as tm
 
 
 def send_op_names_info(framework: str, graph: Graph):
