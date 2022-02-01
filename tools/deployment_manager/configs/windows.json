@@ -52,7 +52,7 @@
       "files": [
         "runtime/bin/intel64/Release/usb-ma2x8x.mvcmd",
         "runtime/bin/intel64/Release/pcie-ma2x8x.elf",
-        "runtime/bin/intel64/Release/ov_intel_vpu_plugin.dll"
+        "runtime/bin/intel64/Release/ov_intel_myriad_plugin.dll"
       ]
     },
     "gna": {
@@ -69,7 +69,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/intel64/Release/HDDLPlugin.dll",
+        "runtime/bin/intel64/Release/ov_intel_hddl_plugin.dll",
         "runtime/3rdparty/MovidiusDriver",
         "runtime/3rdparty/hddl"
       ]
