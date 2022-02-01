@@ -8,7 +8,7 @@ OpenVINO Model is a very simple thing: it stores shared pointers to `ov::op::v0:
 Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result or Sink operation
 (shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ov::Model` has a `std::shared_ptr<ov::Node>` type.
 
-For details on how to build an OpenVINO Model, see the [Build nGraph Function](./build_function.md) page.
+For details on how to build an OpenVINO Model, see the [Build Model from source](@ref build_model) section.
 
 ## Operations
 
@@ -28,7 +28,7 @@ OpenVINO has two types for shape representation:
 * `ov::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (undefined). `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise the conversion raises an exception.
 
 
-## Build OpenVINO Model from source
+## Build OpenVINO Model from source {#build_model}
 
 OpenVINO Model can be created from source, this section illustrates how to construct an OpenVINO Model composed of operations from an available opset.
 
