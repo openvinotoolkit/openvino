@@ -6,6 +6,7 @@
    :maxdepth: 1
    :hidden:
    
+   openvino_docs_MO_DG_IR_and_opsets
    openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
    openvino_docs_MO_DG_Additional_Optimization_Use_Cases
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
