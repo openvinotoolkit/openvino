@@ -76,34 +76,79 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def(
         "export_model",
-        // &ov::CompiledModel::export_model,
-        [](ov::CompiledModel& self, py::object model_stream) {
-            // if (!(py::hasattr(fileHandle,"write") &&
-            //     py::hasattr(fileHandle,"flush") )){
-            // throw py::type_error("MyClass::read_from_file_like_object(file): incompatible function argument:  `file`
-            // must be a file-like object, but `"
-            //                             +(std::string)(py::repr(fileHandle))+"` provided"
-            // );
-            // }
-            py::detail::pythonbuf buf(model_stream);
-            std::ostream _stream(&buf);
-            // self.export_model(_stream);
-            py::scoped_ostream_redirect output{_stream};
+        [](ov::CompiledModel& self) {
+            std::stringstream _stream;
             self.export_model(_stream);
+            return py::bytes(_stream.str());
         },
-        // py::call_guard<py::scoped_ostream_redirect, py::scoped_estream_redirect>(),
-        py::arg("model_stream"),
         R"(
-            Exports the compiled model to an output stream.
+            Exports the compiled model to bytes/output stream.
 
             Parameters
             ----------
-            model_stream : str
-                Stream where the model is going to be stored.
+            None
+
+            Returns
+            ----------
+            export_model : bytes
+                Bytes object that contains this compiled model.
+
+            Examples
+            ----------
+            user_stream = compiled.export_model()
+
+            with open('./my_model', 'wb') as f:
+                f.write(user_stream)
+
+            # ...
+
+            new_compiled = core.import_model(user_stream, "CPU")
+        )");
+
+    cls.def(
+        "export_model",
+        [](ov::CompiledModel& self, py::object& model_stream) {
+            if (!(py::isinstance(model_stream, pybind11::module::import("io").attr("BytesIO")))) {
+                throw py::type_error("CompiledModel.export_model(model_stream) incompatible function argument: "
+                                     "`model_stream` must be an io.BytesIO object but " +
+                                     (std::string)(py::repr(model_stream)) + "` provided");
+            }
+            std::stringstream _stream;
+            self.export_model(_stream);
+            model_stream.attr("flush")();
+            model_stream.attr("write")(py::bytes(_stream.str()));
+            model_stream.attr("seek")(0);  // Always rewind stream!
+        },
+        py::arg("model_stream"),
+        R"(
+            Exports the compiled model to bytes/output stream.
+
+            Advanced version of `export_model`. It utilizes, streams from standard
+            Python library `io`.
+
+            Function performs flushing of the stream, writes to it and then rewinds
+            the stream to the beginning (using seek(0)).
+
+            Parameters
+            ----------
+            model_stream : io.BytesIO
+                A stream object to which the model will be serialized.
 
             Returns
             ----------
             export_model : None
+
+            Examples
+            ----------
+            user_stream = io.BytesIO()
+            compiled.export_model(user_stream)
+
+            with open('./my_model', 'wb') as f:
+                f.write(user_stream.getvalue()) # or read() if seek(0) was applied before
+
+            # ...
+
+            new_compiled = core.import_model(user_stream, "CPU")
         )");
 
     cls.def(

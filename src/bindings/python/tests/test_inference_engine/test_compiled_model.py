@@ -41,8 +41,22 @@ def test_get_runtime_model(device):
     assert isinstance(runtime_func, Model)
 
 
-@pytest.mark.skip(reason="After infer will be implemented")
 def test_export_import():
+    core = Core()
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    compiled = core.compile_model(model, "CPU")
+
+    user_stream = compiled.export_model()
+
+    new_compiled = core.import_model(user_stream, "CPU")
+
+    img = read_image()
+    res = new_compiled.infer_new_request({"data": img})
+
+    assert np.argmax(res[new_compiled.outputs[0]]) == 2
+
+
+def test_export_import_advanced():
     import io 
 
     core = Core()
@@ -50,14 +64,15 @@ def test_export_import():
     compiled = core.compile_model(model, "CPU")
 
     user_stream = io.BytesIO()
-    compiled.export_model(model_stream=user_stream)
 
-    new_compiled = core.import_network(user_stream, "CPU")
+    compiled.export_model(user_stream)
+
+    new_compiled = core.import_model(user_stream, "CPU")
 
     img = read_image()
     res = new_compiled.infer_new_request({"data": img})
 
-    assert np.argmax(res["fc_out"][0]) == 3
+    assert np.argmax(res[new_compiled.outputs[0]]) == 2
 
 
 def test_get_input_i(device):
