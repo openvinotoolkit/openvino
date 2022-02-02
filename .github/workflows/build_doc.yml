@@ -90,7 +90,7 @@ jobs:
           path: build/docs/sphinx.log
 
       - name: 'Upload html'
-        if: github.event_name == 'push'
+        if: always()
         uses: actions/upload-artifact@v2
         with:
           name: openvino_html
