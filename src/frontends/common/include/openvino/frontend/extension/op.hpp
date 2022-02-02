@@ -44,7 +44,7 @@ inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
 // One-to-one operation mapping for OVOpType != void which means OV type is specified by OVOpType
 // See a specialization for OVOptype = void
 template <typename BaseConversionType, typename OVOpType = void>
-class FRONTEND_API OpExtensionBase : public BaseConversionType {
+class OpExtensionBase : public BaseConversionType {
 public:
     // All attributes come from OVOpType definition, op type in FW and OV match, available for OVOpType != void only
     // Attributes mapping can be modified with optional parameters
@@ -59,7 +59,7 @@ public:
 };
 
 template <typename BaseConversionType>
-class FRONTEND_API OpExtensionBase<BaseConversionType, void> : public BaseConversionType {
+class OpExtensionBase<BaseConversionType, void> : public BaseConversionType {
 public:
     // Default ctor is not available, you need to specify OV type with another ctor
     OpExtensionBase() = delete;
