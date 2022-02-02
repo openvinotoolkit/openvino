@@ -983,7 +983,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     // Concat axis validation
-    if (!GNALimitations::ValidateConvConcatAxis(concatLayer) && gnaFlags->log_level == PluginConfigParams::LOG_WARNING) {
+    if (!GNALimitations::ValidateConvConcatAxis(concatLayer) && gnaFlags->log_level == ov::log::Level::WARNING) {
         std::ostringstream in_dims_oss;
         auto in_dims = concatLayer->insData[0].lock()->getDims();
         std::copy(in_dims.begin(), in_dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
