@@ -148,7 +148,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name > 1
+        assert model_stat.get_place_by_operation_name >= 1
         assert place_stat.get_input_port == 1
         assert place_stat.lastArgInt == 1234
 
