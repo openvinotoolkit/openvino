@@ -116,6 +116,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                R"(
                 A set containing handles for all inputs targeted by the output
                 referenced by this output handle.
+
                 Returns
                 ----------
                 get_target_inputs : Set[Input]
@@ -129,6 +130,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                py::return_value_policy::reference_internal,
                R"(
                 A reference to the tensor descriptor for this output.
+
                 Returns
                 ----------
                 get_tensor : descriptor.Tensor

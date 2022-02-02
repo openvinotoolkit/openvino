@@ -69,10 +69,12 @@ void regclass_Core(py::module m) {
         py::arg("properties"),
         R"(
             Sets properties.
+
             Parameters
             ----------
             properties : dict
                 Dict of pairs: (property name, property value)
+
             Returns
             ----------
             set_property : None
@@ -91,12 +93,14 @@ void regclass_Core(py::module m) {
         py::arg("properties"),
         R"(
             Sets properties for the device.
+
             Parameters
             ----------
             device_name : str
                 Name of the device to load the model to.
             properties : dict
                 Dict of pairs: (property name, property value)
+
             Returns
             ----------
             set_property : None
@@ -464,12 +468,14 @@ void regclass_Core(py::module m) {
         py::arg("name"),
         R"(
             Gets properties dedicated to device behaviour.
+
             Parameters
             ----------
             device_name : str
                 A name of a device to get a properties value.
             name : str
                 Property name.
+
             Returns
             ----------
             get_property : Any

@@ -165,10 +165,12 @@ void regclass_CompiledModel(py::module m) {
         py::arg("properties"),
         R"(
             Sets properties for current compiled model.
+
             Parameters
             ----------
             properties : dict
                 Dict of pairs: (property name, property value)
+
             Returns
             ----------
             set_property : None
@@ -191,10 +193,12 @@ void regclass_CompiledModel(py::module m) {
         py::arg("name"),
         R"(
             Gets properties for current compiled model.
+
             Parameters
             ----------
             name : str
                 Property name.
+
             Returns
             ----------
             get_property : Any
