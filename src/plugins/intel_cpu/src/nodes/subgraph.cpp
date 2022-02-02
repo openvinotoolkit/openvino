@@ -261,12 +261,19 @@ static auto collapseLastDims(std::vector<size_t>& dims, size_t dimsToCollapse) -
 }
 
 void MKLDNNSnippetNode::define_schedule() {
-    auto edgeToBlockedShape = [](const MKLDNNEdgePtr& edge) -> ngraph::snippets::op::Subgraph::BlockedShape {
+    auto edgeToBlockedShape = [](const MKLDNNEdgePtr& edge) {
         const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
         ngraph::Shape shape(blockedDesc->getBlockDims());
         ngraph::AxisVector blocking(blockedDesc->getOrder());
         ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
-        return std::make_tuple(shape, blocking, precision);
+        return ngraph::snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
+    };
+    auto prependWithOnes = [this](const std::vector<size_t>& dims) {
+        if (tensorRank <= dims.size())
+            return dims;
+        VectorDims result(tensorRank, 1);
+        std::copy(dims.begin(), dims.end(), &result[tensorRank - dims.size()]);
+        return result;
     };
     ngraph::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
     for (size_t i = 0; i < inputShapes.size(); i++)
@@ -278,13 +285,6 @@ void MKLDNNSnippetNode::define_schedule() {
     exec_domain = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
     // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
     tensorRank = std::max(static_cast<size_t>(rank6D), exec_domain.size());
-    auto prependWithOnes = [this](const std::vector<size_t>& dims) {
-        if (tensorRank <= dims.size())
-            return dims;
-        VectorDims result(tensorRank, 1);
-        std::copy(dims.begin(), dims.end(), &result[tensorRank - dims.size()]);
-        return result;
-    };
     // Canonicalization broadcasts inputs and outputs to max input rank, which can be smaller than tensorRank
     // prepend to enable 6D scheduler
     exec_domain = prependWithOnes(exec_domain);

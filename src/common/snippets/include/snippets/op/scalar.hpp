@@ -21,25 +21,13 @@ public:
     OPENVINO_OP("Scalar", "SnippetsOpset", ov::op::v0::Constant);
 
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-    Scalar(const element::Type& type, Shape shape, T value) : Constant(type, shape, value) {validateScalarShape();}
-    explicit Scalar(const Constant& other) : Constant(other) {validateScalarShape();}
-    Scalar(const Scalar& other) : Constant(other) {validateScalarShape();}
+    Scalar(const element::Type& type, Shape shape, T value) : Constant(type, shape, value) {}
+    explicit Scalar(const Constant& other) : Constant(other) {}
+    Scalar(const Scalar& other) : Constant(other) {}
     Scalar& operator=(const Scalar&) = delete;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
-        check_new_args_count(this, new_args);
-        return std::make_shared<Scalar>(*this);
-    }
-
-private:
-    // Scalar currently supports only one-element constants, this could be changed in the future
-    void validateScalarShape() {
-        auto out_pshape = get_output_partial_shape(0);
-        NODE_VALIDATION_CHECK(this, out_pshape.is_static(), "ScalarEmitter supports only static input shapes");
-        NODE_VALIDATION_CHECK(this, out_pshape.get_shape().empty() || ov::shape_size(out_pshape.get_shape()) == 1,
-                              "ScalarEmitter supports only one-element constants, got ", out_pshape.get_shape(),
-                              " shape");
-    }
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    void validate_and_infer_types() override;
 };
 
 } // namespace op
