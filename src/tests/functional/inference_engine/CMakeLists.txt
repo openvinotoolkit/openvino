@@ -24,7 +24,7 @@ set(LINK_LIBRARIES
 set(DEPENDENCIES
     mock_engine
     template_extension
-    ov_template_extension
+    openvino_template_extension
     lptNgraphFunctions
     sharedTestClasses
     test_model_zoo

@@ -421,7 +421,7 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_extension)
+list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 
 if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")

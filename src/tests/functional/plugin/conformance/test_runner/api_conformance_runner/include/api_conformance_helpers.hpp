@@ -13,16 +13,15 @@ namespace conformance {
 
 inline const std::string getPluginLibNameByDevice(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
-            { "AUTO", "ov_multi_plugin" },
+            { "AUTO", "openvino_auto_plugin" },
             { "HDDL", "openvino_intel_hddl_plugin" },
             { "VPUX", "openvino_intel_vpux_plugin" },
-            { "AUTO", "openvino_auto_plugin" },
             { "CPU", "openvino_intel_cpu_plugin" },
             { "GNA", "openvino_intel_gna_plugin" },
             { "GPU", "openvino_intel_gpu_plugin" },
             { "HETERO", "openvino_hetero_plugin" },
             { "BATCH", "openvino_auto_batch_plugin" },
-            { "MULTI", "ov_multi_plugin" },
+            { "MULTI", "openvino_auto_plugin" },
             { "MYRIAD", "openvino_intel_myriad_plugin" },
             { "TEMPLATE", "openvino_template_plugin" },
     };
