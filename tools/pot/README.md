@@ -1,5 +1,22 @@
 # Post-Training Optimization Tool {#pot_README}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   pot_InstallationGuide
+   pot_docs_LowPrecisionOptimizationGuide
+   pot_compression_algorithms_quantization_README
+   Best Practices <pot_docs_BestPractices>
+   Command-line Interface <pot_compression_cli_README>
+   pot_compression_api_README
+   pot_configs_README
+   pot_docs_FrequentlyAskedQuestions
+
+@endsphinxdirective
+
 ## Introduction
 
 Post-training Optimization Tool (POT) is designed to accelerate the inference of deep learning models by applying
@@ -32,7 +49,7 @@ POT is opensourced on GitHub as a part of OpenVINO and available at https://gith
 Further documentation presumes that you are familiar with the basic Deep Learning concepts, such as model inference,
 dataset preparation, model optimization, as well as with the OpenVINO&trade; toolkit and its components such 
 as  [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) 
-and [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README).
+and [Accuracy Checker Tool](@ref omz_tools_accuracy_checker).
 
 ## Usage options
 ![](docs/images/use_cases.png) 
@@ -74,4 +91,4 @@ OpenVINO provides several examples that demonstrates usage of POT optimization w
 * [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md)
 * [Post-Training Optimization Best Practices](docs/BestPractices.md)
 * [POT Frequently Asked Questions](docs/FrequentlyAskedQuestions.md) 
-* [INT8 Quantization by Using Web-Based Interface of the DL Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Int_8_Quantization.html)
+* [INT8 Quantization by Using Web-Based Interface of the DL Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Int_8_Quantization.html)

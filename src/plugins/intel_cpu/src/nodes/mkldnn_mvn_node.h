@@ -101,15 +101,20 @@ public:
         INSIDE_SQRT,
         OUTSIDE_SQRT
     };
+
+    enum MVNLayoutType {
+        planar,
+        block,
+        by_channel
+    };
     struct MVNAttrs {
-        bool planar_layout;
+        MVNLayoutType layout;
         std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
         bool initAcrossChannels_;
         bool execAcrossChannels_;
         bool normalizeVariance_;
         float epsValue_;
         MVNEpsMode epsMode_;
-        bool is_nhwc;
         InferenceEngine::Precision src_prc;
         InferenceEngine::Precision dst_prc;
     };

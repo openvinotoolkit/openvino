@@ -42,7 +42,7 @@ The benefit of this mode is you can compute accuracy in case you have annotation
 algorithms family when this mode is selected.
 There are two options to define engine parameters in that mode:
   - Refer to the existing Accuracy Checker configuration file which is represented by the YAML file. It can be a file used for full-precision model validation. In this case, you should define only the `"config"` parameter containing a path to the AccuracyChecker configuration file.
-  - Define all the [required Accuracy Checker parameters](@ref omz_tools_accuracy_checker_accuracy_checker_launcher_dlsdk_launcher_readme)
+  - Define all the [required Accuracy Checker parameters](@ref omz_tools_accuracy_checker_dlsdk_launcher)
     directly in the JSON file. In this case, POT just passes the corresponding dictionary of parameters to the Accuracy Checker when instantiating it.
     For more details, refer to the corresponding Accuracy Checker information and examples of configuration files provided with the tool:
     - 8-bit quantization of [SSD-MobileNet model](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/examples/quantization/object_detection/ssd_mobilenetv1_int8.json)

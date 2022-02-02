@@ -158,8 +158,7 @@ int main(int argc, char* argv[]) {
         std::map<std::string, std::string> device_nstreams = parse_nstreams_value_per_device(devices, FLAGS_nstreams);
 
         // Load device config file if specified
-        std::map<std::string, std::map<std::string, std::string>> config;
-
+        std::map<std::string, ov::AnyMap> config;
         if (!FLAGS_load_config.empty()) {
             load_config(FLAGS_load_config, config);
         }
@@ -187,22 +186,22 @@ int main(int argc, char* argv[]) {
             config["GPU"][CONFIG_KEY(CONFIG_FILE)] = FLAGS_c;
         }
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
-            auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE));
-            core.set_config({{CONFIG_KEY(CONFIG_FILE), ext}}, "GPU");
+            auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE)).as<std::string>();
+            core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
         if (FLAGS_hint.empty()) {
             for (auto& device : devices) {
-                std::vector<std::string> supported_config_keys =
-                    core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                if (std::find(supported_config_keys.begin(),
-                              supported_config_keys.end(),
-                              CONFIG_KEY(PERFORMANCE_HINT)) != supported_config_keys.end()) {
-                    slog::warn << "-hint default value is determined as " << CONFIG_VALUE(THROUGHPUT)
+                auto supported_properties = core.get_property(device, ov::supported_properties);
+                if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
+                    supported_properties.end()) {
+                    slog::warn << "-hint default value is determined as " << ov::hint::PerformanceMode::THROUGHPUT
                                << " automatically for " << device
                                << " device. For more detailed information look at README." << slog::endl;
-                    FLAGS_hint = CONFIG_VALUE(THROUGHPUT);
+                    std::stringstream strm;
+                    strm << ov::hint::PerformanceMode::THROUGHPUT;
+                    FLAGS_hint = strm.str();
                 }
             }
         }
@@ -244,7 +243,7 @@ int main(int argc, char* argv[]) {
         for (auto& device : devices) {
             if (!config.count(device))
                 config[device] = {};
-            std::map<std::string, std::string>& device_config = config.at(device);
+            auto& device_config = config.at(device);
 
             // high-level performance modes
             if (!ov_perf_hint.empty()) {
@@ -258,7 +257,7 @@ int main(int argc, char* argv[]) {
                 // set to user defined value
                 device_config[CONFIG_KEY(PERF_COUNT)] = FLAGS_pc ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
             } else if (device_config.count(CONFIG_KEY(PERF_COUNT)) &&
-                       (device_config.at(CONFIG_KEY(PERF_COUNT)) == "YES")) {
+                       (device_config.at(CONFIG_KEY(PERF_COUNT)).as<std::string>() == "YES")) {
                 slog::warn << "Performance counters for " << device
                            << " device is turned on. To print results use -pc option." << slog::endl;
             } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport) {
@@ -273,17 +272,17 @@ int main(int argc, char* argv[]) {
                 // set to default value
                 device_config[CONFIG_KEY(PERF_COUNT)] = FLAGS_pc ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
             }
-            perf_counts = (device_config.at(CONFIG_KEY(PERF_COUNT)) == CONFIG_VALUE(YES)) ? true : perf_counts;
+            perf_counts =
+                (device_config.at(CONFIG_KEY(PERF_COUNT)).as<std::string>() == CONFIG_VALUE(YES)) ? true : perf_counts;
 
             // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
                 const std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
                     // set to user defined value
-                    std::vector<std::string> supported_config_keys =
-                        core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                    if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) ==
-                        supported_config_keys.end()) {
+                    auto supported_properties = core.get_property(device, ov::supported_properties);
+                    if (std::find(supported_properties.begin(), supported_properties.end(), key) ==
+                        supported_properties.end()) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
                                                "Please specify -nstreams for correct devices in format  "
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
@@ -303,7 +302,7 @@ int main(int argc, char* argv[]) {
                         device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
                 }
                 if (device_config.count(key))
-                    device_nstreams[device] = device_config.at(key);
+                    device_nstreams[device] = device_config.at(key).as<std::string>();
             };
 
             if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
@@ -350,11 +349,10 @@ int main(int argc, char* argv[]) {
                 else
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I16";
             } else {
-                std::vector<std::string> supported_config_keys =
-                    core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto supported_properties = core.get_property(device, ov::supported_properties);
                 auto supported = [&](const std::string& key) {
-                    return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) !=
-                           std::end(supported_config_keys);
+                    return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                           std::end(supported_properties);
                 };
                 if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
                     device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
@@ -369,7 +367,7 @@ int main(int argc, char* argv[]) {
         }
 
         for (auto&& item : config) {
-            core.set_config(item.second, item.first);
+            core.set_property(item.first, item.second);
         }
 
         size_t batchSize = FLAGS_b;
@@ -380,7 +378,7 @@ int main(int argc, char* argv[]) {
 
         // Takes priority over config from file
         if (!FLAGS_cache_dir.empty()) {
-            core.set_config({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
+            core.set_property(ov::cache_dir(FLAGS_cache_dir));
         }
 
         bool isDynamicNetwork = false;
@@ -399,6 +397,8 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                            {{"load network time (ms)", duration_ms}});
+
+            convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
                                               batchSize,
@@ -434,6 +434,7 @@ int main(int argc, char* argv[]) {
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
             next_step();
+            convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
             // Parse input shapes if specified
             bool reshape = false;
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -464,9 +465,12 @@ int main(int argc, char* argv[]) {
             next_step();
             auto preproc = ov::preprocess::PrePostProcessor(model);
 
-            ov::ConfigMap user_precisions_map;
+            std::map<std::string, std::string> user_precisions_map;
             if (!FLAGS_iop.empty()) {
                 user_precisions_map = parseArgMap(FLAGS_iop);
+                convert_io_names_in_map(user_precisions_map,
+                                        std::const_pointer_cast<const ov::Model>(model)->inputs(),
+                                        std::const_pointer_cast<const ov::Model>(model)->outputs());
             }
 
             const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
@@ -490,12 +494,13 @@ int main(int argc, char* argv[]) {
                     type_to_set = iop_precision;
                 } else if (input_precision != ov::element::undefined) {
                     type_to_set = input_precision;
-                } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
+                } else if (!name.empty() && app_inputs_info[0].at(name).is_image() &&
+                           (inputFiles.count("") || inputFiles.count(name))) {
                     // image input, set U8
                     type_to_set = ov::element::u8;
                 }
 
-                auto& in = preproc.input(item.get_index());
+                auto& in = preproc.input(item.get_any_name());
                 if (type_to_set != ov::element::undefined) {
                     in.tensor().set_element_type(type_to_set);
 
@@ -584,6 +589,7 @@ int main(int argc, char* argv[]) {
                 statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                            {{"import network time (ms)", duration_ms}});
 
+            convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
                                               FLAGS_b,
@@ -618,11 +624,11 @@ int main(int argc, char* argv[]) {
         next_step();
         // output of the actual settings that the device selected
         for (const auto& device : devices) {
-            std::vector<std::string> supported_config_keys = core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            auto supported_properties = core.get_property(device, ov::supported_properties);
             slog::info << "Device: " << device << slog::endl;
-            for (const auto& cfg : supported_config_keys) {
+            for (const auto& cfg : supported_properties) {
                 try {
-                    slog::info << "  {" << cfg << " , " << compiledModel.get_config(cfg).as<std::string>();
+                    slog::info << "  {" << cfg << " , " << compiledModel.get_property(cfg).as<std::string>();
                     slog::info << " }" << slog::endl;
                 } catch (...) {
                 };
@@ -632,7 +638,7 @@ int main(int argc, char* argv[]) {
         // Update number of streams
         for (auto&& ds : device_nstreams) {
             const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
-            device_nstreams[ds.first] = core.get_config(ds.first, key).as<std::string>();
+            device_nstreams[ds.first] = core.get_property(ds.first, key).as<std::string>();
         }
 
         // Number of requests
@@ -643,7 +649,7 @@ int main(int argc, char* argv[]) {
             } else {
                 std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
-                    nireq = compiledModel.get_metric(key).as<unsigned int>();
+                    nireq = compiledModel.get_property(key).as<unsigned int>();
                 } catch (const std::exception& ex) {
                     IE_THROW() << "Every device used with the benchmark_app should "
                                << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS metric. "

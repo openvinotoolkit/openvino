@@ -10,16 +10,16 @@ using namespace ov::test::behavior;
 
 namespace {
 
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
         {},
 };
 
-const std::vector<std::map<std::string, std::string>> Multiconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_MYRIAD}}
+const std::vector<ov::AnyMap> Multiconfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_MYRIAD)}
 };
 
-const std::vector<std::map<std::string, std::string>> Autoconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_MYRIAD}}
+const std::vector<ov::AnyMap> Autoconfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_MYRIAD)}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestWaitTests,

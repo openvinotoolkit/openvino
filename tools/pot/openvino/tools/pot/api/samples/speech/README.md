@@ -8,7 +8,7 @@ A custom `ArkDataLoader` is created to load the dataset from files with .ark ext
 
 ## How to prepare the data
 
-To run this sample, you will need to use the .ark files for each model input from your \<DATA_FOLDER\>.
+To run this sample, you will need to use the .ark files for each model input from your `<DATA_FOLDER>`.
 For generating data from original formats to .ark, please, follow the [Kaldi data preparation tutorial](https://kaldi-asr.org/doc/data_prep.html).
 
 ## How to Run the Sample
