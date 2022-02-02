@@ -21,7 +21,7 @@ enum class Category;
 
 class PluginConfiguration;
 
-struct ThroughputStreamsOption : public AsParameterEnabler {
+struct OvThroughputStreamsOption : public AsParameterEnabler {
     using value_type = Optional<unsigned int>;
 
     static std::string key();

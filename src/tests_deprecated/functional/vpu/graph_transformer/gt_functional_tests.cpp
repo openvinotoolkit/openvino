@@ -53,6 +53,7 @@
 #include <vpu/configuration/options/enable_async_dma.hpp>
 #include <vpu/configuration/options/performance_hint.hpp>
 #include "vpu/configuration/options/performance_hint_num_requests.hpp"
+#include "vpu/configuration/options/ov_throughput_streams.hpp"
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -135,6 +136,8 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<EnableAsyncDMAOption>();
     _configuration.registerOption<PerformanceHintOption>();
     _configuration.registerOption<PerformanceHintNumRequestsOption>();
+    _configuration.registerOption<OvThroughputStreamsOption>();
+
 
     _inputsInfo.clear();
     _outputsInfo.clear();

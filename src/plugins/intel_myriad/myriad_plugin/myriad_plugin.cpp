@@ -65,6 +65,7 @@
 #include <vpu/configuration/options/enable_mx_boot.hpp>
 #include "vpu/configuration/options/performance_hint.hpp"
 #include "vpu/configuration/options/performance_hint_num_requests.hpp"
+#include "vpu/configuration/options/ov_throughput_streams.hpp"
 
 #include "myriad_plugin.h"
 
@@ -244,6 +245,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _parsedConfig.registerOption<EnableMXBootOption>();
     _parsedConfig.registerOption<PerformanceHintOption>();
     _parsedConfig.registerOption<PerformanceHintNumRequestsOption>();
+    _parsedConfig.registerOption<OvThroughputStreamsOption>();
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(

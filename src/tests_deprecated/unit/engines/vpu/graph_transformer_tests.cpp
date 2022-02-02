@@ -55,6 +55,7 @@
 #include <vpu/configuration/options/enable_async_dma.hpp>
 #include "vpu/configuration/options/performance_hint.hpp"
 #include "vpu/configuration/options/performance_hint_num_requests.hpp"
+#include "vpu/configuration/options/ov_throughput_streams.hpp"
 
 namespace vpu {
 
@@ -253,6 +254,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<EnableAsyncDMAOption>();
     configuration.registerOption<PerformanceHintOption>();
     configuration.registerOption<PerformanceHintNumRequestsOption>();
+    configuration.registerOption<OvThroughputStreamsOption>();
 
     return configuration;
 }

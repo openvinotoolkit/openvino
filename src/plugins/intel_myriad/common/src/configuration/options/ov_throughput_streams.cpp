@@ -12,7 +12,7 @@
 
 namespace vpu {
 
-void ThroughputStreamsOption::validate(const std::string& value) {
+void OvThroughputStreamsOption::validate(const std::string& value) {
     if (value == defaultValue()) {
         return;
     }
@@ -28,31 +28,31 @@ void ThroughputStreamsOption::validate(const std::string& value) {
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
 }
 
-void ThroughputStreamsOption::validate(const PluginConfiguration& configuration) {
+void OvThroughputStreamsOption::validate(const PluginConfiguration& configuration) {
     validate(configuration[key()]);
 }
 
-std::string ThroughputStreamsOption::key() {
+std::string OvThroughputStreamsOption::key() {
     return ov::streams::num.name();
 }
 
-details::Access ThroughputStreamsOption::access() {
+details::Access OvThroughputStreamsOption::access() {
     return details::Access::Public;
 }
 
-details::Category ThroughputStreamsOption::category() {
+details::Category OvThroughputStreamsOption::category() {
     return details::Category::CompileTime;
 }
 
-std::string ThroughputStreamsOption::defaultValue() {
+std::string OvThroughputStreamsOption::defaultValue() {
     std::stringstream ss;
     ss << ov::streams::AUTO;
     return ss.str();
 }
 
-ThroughputStreamsOption::value_type ThroughputStreamsOption::parse(const std::string& value) {
+OvThroughputStreamsOption::value_type OvThroughputStreamsOption::parse(const std::string& value) {
     if (value == defaultValue()) {
-        return ThroughputStreamsOption::value_type();
+        return OvThroughputStreamsOption::value_type();
     }
 
     int intValue;
