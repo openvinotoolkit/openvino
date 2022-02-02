@@ -344,7 +344,10 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+    if (!this->_plugin)
+        return nullptr;
+    auto core = this->_plugin->GetCore();
+    if (!core || !core->isNewAPI())
         return nullptr;
     auto workerRequestPtrAndId = GetWorkerInferRequest();
     return std::make_shared<AutoBatchInferRequest>(inputs,
@@ -537,7 +540,8 @@ DeviceInformation AutoBatchInferencePlugin::ParseBatchDevice(const std::string& 
 }
 
 DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& devicesBatchCfg,
-                                                            const std::map<std::string, std::string>& config) const {
+                                                            const std::map<std::string, std::string>& config,
+                                                            std::shared_ptr<InferenceEngine::ICore> pCore) const {
     auto getDeviceConfig = [&](const DeviceName& deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
         std::string deviceName = deviceParser.getDeviceName();
@@ -549,7 +553,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
 
-        return _pCore->GetSupportedConfig(deviceName, tconfig);
+        return pCore->GetSupportedConfig(deviceName, tconfig);
     };
 
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
@@ -569,15 +573,18 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
 }
 
 RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine::ParamMap& config) {
+    auto pCore = GetCore();
+    if (!pCore)
+        return RemoteContext::Ptr();
     auto cfg = config;
     auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     if (it == cfg.end())
         IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
 
     auto val = it->second;
-    auto metaDevice = ParseMetaDevice(val, std::map<std::string, std::string>());
+    auto metaDevice = ParseMetaDevice(val, std::map<std::string, std::string>(), pCore);
     cfg.erase(it);
-    return _pCore->CreateContext(metaDevice.deviceName, cfg);
+    return pCore->CreateContext(metaDevice.deviceName, cfg);
 }
 
 Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
@@ -657,8 +664,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     const InferenceEngine::CNNNetwork& network,
     const std::shared_ptr<InferenceEngine::RemoteContext> ctx,
     const std::map<std::string, std::string>& config) {
-    _pCore = GetCore();
-    if (_pCore == nullptr) {
+    auto pCore = GetCore();
+    if (pCore == nullptr) {
         IE_THROW() << "Please, work with Auto-Batching device via InferencEngine::Core object";
     }
     auto fullConfig = mergeConfigs(_config, config);
@@ -666,7 +673,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     if (device_batch == fullConfig.end()) {
         IE_THROW() << "KEY_AUTO_BATCH key is not set for BATCH device";
     }
-    auto metaDevice = ParseMetaDevice(device_batch->second, fullConfig);
+    auto metaDevice = ParseMetaDevice(device_batch->second, fullConfig, pCore);
     const auto& deviceName = metaDevice.deviceName;
     const auto& deviceConfig = metaDevice.config;
     auto deviceConfigNoAutoBatch = deviceConfig;
@@ -682,7 +689,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     }
     const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
     const auto perfConfigInTargetPlugin =
-        _pCore->GetConfig(deviceName, PluginConfigParams::KEY_PERF_COUNT).as<std::string>() == PluginConfigParams::YES;
+        pCore->GetConfig(deviceName, PluginConfigParams::KEY_PERF_COUNT).as<std::string>() == PluginConfigParams::YES;
     const bool enablePerfCounters = perfConfigInTargetPlugin || ((fullConfig.end() != perfConfig) &&
                                                                  (perfConfig->second == PluginConfigParams::YES));
     // check that the auto-batching is applicable in general
@@ -690,7 +697,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         std::set<std::string> batched_inputs;
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
         const auto tput = CONFIG_VALUE(THROUGHPUT);
-        const bool bTputInPlg = _pCore->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == tput;
+        const bool bTputInPlg = pCore->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == tput;
         const auto& mode = deviceConfig.find(CONFIG_KEY(PERFORMANCE_HINT));
         const bool bTputInLoadCfg = (mode != deviceConfig.end() && mode->second == tput);
         // if the auto-batching is enabled implicitly, we shall check the dims carefully, to avoid outstanding failures
@@ -740,8 +747,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             std::map<std::string, InferenceEngine::Parameter> options;
             options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network.getFunction());
             auto optBatchSize =
-                _pCore->GetMetric(deviceName, METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-            auto res = _pCore->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+                pCore->GetMetric(deviceName, METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+            auto res = pCore->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
             requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
             const auto& reqs = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
             if (reqs != config.end())
@@ -764,13 +771,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
 
         size_t batch1_footprint = 0;
         if (deviceName.find("GPU") != std::string::npos)
-            batch1_footprint = report_footprint(_pCore, deviceName);
-        executableNetworkWithoutBatch = ctx ? _pCore->LoadNetwork(network, ctx, deviceConfigNoAutoBatch)
-                                            : _pCore->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
+            batch1_footprint = report_footprint(pCore, deviceName);
+        executableNetworkWithoutBatch = ctx ? pCore->LoadNetwork(network, ctx, deviceConfigNoAutoBatch)
+                                            : pCore->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
         if (deviceName.find("GPU") != std::string::npos) {
-            batch1_footprint = report_footprint(_pCore, deviceName) - batch1_footprint;
+            batch1_footprint = report_footprint(pCore, deviceName) - batch1_footprint;
             if (batch1_footprint) {
-                const uint64_t total_mem = _pCore->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+                const uint64_t total_mem = pCore->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
                 const int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
                 int closest = pow(2, floor(log(estimated_batch) / log(2)));
                 closest = std::max(1, closest);
@@ -783,12 +790,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             for (const auto& input : batched_inputs)
                 shapes[input][0] = metaDevice.batchForDevice;
             reshaped.reshape(shapes);
-            executableNetworkWithBatch = ctx ? _pCore->LoadNetwork(reshaped, ctx, deviceConfigNoAutoBatch)
-                                             : _pCore->LoadNetwork(reshaped, deviceName, deviceConfigNoAutoBatch);
+            executableNetworkWithBatch = ctx ? pCore->LoadNetwork(reshaped, ctx, deviceConfigNoAutoBatch)
+                                             : pCore->LoadNetwork(reshaped, deviceName, deviceConfigNoAutoBatch);
         }
     } catch (...) {
         // fallback to loading as if no Auto-Batching was involved
-        auto res = _pCore->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
+        auto res = pCore->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
         _additionalSOPtrs.push_back(res._so);
         return res._ptr;
     }
@@ -811,12 +818,15 @@ InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(
     const InferenceEngine::CNNNetwork& network,
     const std::map<std::string, std::string>& config) const {
     auto cfg = config;
+    auto pCore = GetCore();
+    if (!pCore)
+        return InferenceEngine::QueryNetworkResult();
     for (auto c : cfg) {
         if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
             auto val = c.second;
             cfg.erase(c.first);
-            auto metaDevice = ParseMetaDevice(val, cfg);
-            return _pCore->QueryNetwork(network, metaDevice.deviceName, cfg);
+            auto metaDevice = ParseMetaDevice(val, cfg, pCore);
+            return pCore->QueryNetwork(network, metaDevice.deviceName, cfg);
         }
     }
     IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
