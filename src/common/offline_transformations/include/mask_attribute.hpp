@@ -44,6 +44,11 @@ public:
             : std::vector<value_type>(size) {
     }
 
+    explicit Mask(const size_t & size, const bool adjust_value)
+            : std::vector<value_type>(size),
+              m_adjust_value(adjust_value) {
+    }
+
     Mask(std::initializer_list<std::initializer_list<uint64_t>> list)
             : std::vector<value_type>() {
         for (const auto & dim_values : list) {
@@ -196,8 +201,17 @@ public:
         m_need_initialization = true;
     }
 
+    bool adjust_value() const {
+        return m_adjust_value;
+    }
+
 private:
     bool m_is_shape_like{false};
+    // Flag - if constant this mask is related to should be pruned
+    // by value. Means shape of the constant remains the same
+    // but correspondent dimensions values decreased by
+    // count of channels which should be pruned.
+    bool m_adjust_value{false};
 
     // Masks dependent on this mask vs methods, specifying how
     // this mask will be modifed by correspondent dependent mask
