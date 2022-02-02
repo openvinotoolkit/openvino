@@ -398,8 +398,9 @@ int main(int argc, char* argv[]) {
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                           {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
 
             convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
