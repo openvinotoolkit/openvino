@@ -34,6 +34,14 @@ addIeTargetTest(
             CPU
 )
 
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
+
+if (WIN32)
+    # Prevents defining min/max as macros
+    target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
+endif()
+
 ie_faster_build(${TARGET_NAME}
     UNITY
 )
