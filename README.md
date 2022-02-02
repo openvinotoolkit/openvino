@@ -44,7 +44,7 @@ Please report questions, issues and suggestions using:
 \* Other names and brands may be claimed as the property of others.
 
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
-[OpenVINO Runtime]:https://software.intel.com/en-us/articles/OpenVINO-InferEngine
+[OpenVINO Runtime™]:https://docs.openvino.ai/latest/openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html
 [Model Optimizer]:https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
 [tag on StackOverflow]:https://stackoverflow.com/search?q=%23openvino
 
