@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/sparse_conv.hpp"
+
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/op/sparse_conv.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
 using namespace std;
@@ -30,8 +31,10 @@ bool op::v1::SparseConv::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::v1::SparseConv::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_SparseConv_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v1::SparseConv>(new_args.at(0), new_args.at(1),
-                                           new_args.at(2), new_args.at(3),
+    return make_shared<op::v1::SparseConv>(new_args.at(0),
+                                           new_args.at(1),
+                                           new_args.at(2),
+                                           new_args.at(3),
                                            new_args.at(4));
 }
 
@@ -90,10 +93,7 @@ bool op::v1::SparseConv::evaluate(const HostTensorVector& outputs, const HostTen
             const float yj = inpPos[j * 3 + 1];
             const float zj = inpPos[j * 3 + 2];
 
-            if (xi - rw <= xj && xj <= xi + rw &&
-                yi - rh <= yj && yj <= yi + rh &&
-                zi - rd <= zj && zj <= zi + rd) {
-
+            if (xi - rw <= xj && xj <= xi + rw && yi - rh <= yj && yj <= yi + rh && zi - rd <= zj && zj <= zi + rd) {
                 const int w = std::min(static_cast<int>(xj - xi + kw * 0.5f), kw - 1);
                 const int h = std::min(static_cast<int>(yj - yi + kh * 0.5f), kh - 1);
                 const int d = std::min(static_cast<int>(zj - zi + kd * 0.5f), kd - 1);
