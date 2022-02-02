@@ -150,28 +150,18 @@ void Config::updateProperties() {
     if (!_config.empty())
         return;
 
-    auto toConfigString = [](const ov::Any& property) -> std::string {
-        std::stringstream strm;
-        property.print(strm);
-        return strm.str();
-    };
-
     switch (streamExecutorConfig._threadBindingType) {
     case IStreamsExecutor::ThreadBindingType::NONE:
         _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NO });
-        _config.insert({ ov::affinity.name(), toConfigString(ov::Affinity::NONE) });
         break;
     case IStreamsExecutor::ThreadBindingType::CORES:
         _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::YES });
-        _config.insert({ ov::affinity.name(), toConfigString(ov::Affinity::CORE) });
         break;
     case IStreamsExecutor::ThreadBindingType::NUMA:
         _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NUMA });
-        _config.insert({ ov::affinity.name(), toConfigString(ov::Affinity::NUMA) });
         break;
     case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
         _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE });
-        _config.insert({ ov::affinity.name(), toConfigString(ov::Affinity::HYBRID_AWARE) });
         break;
     }
     if (collectPerfCounters == true)
@@ -190,20 +180,16 @@ void Config::updateProperties() {
     _config.insert({ PluginConfigParams::KEY_DYN_BATCH_LIMIT, std::to_string(batchLimit) });
 
     _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
-    _config.insert({ ov::streams::num.name(), std::to_string(streamExecutorConfig._streams) });
 
     _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
-    _config.insert({ ov::inference_num_threads.name(), std::to_string(streamExecutorConfig._threads) });
 
     IE_SUPPRESS_DEPRECATED_START
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
     IE_SUPPRESS_DEPRECATED_END;
     if (enforceBF16) {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
-        _config.insert({ ov::hint::inference_precision.name(), ov::element::bf16.get_type_name() });
     } else {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
-        _config.insert({ ov::hint::inference_precision.name(), ov::element::f32.get_type_name() });
     }
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
