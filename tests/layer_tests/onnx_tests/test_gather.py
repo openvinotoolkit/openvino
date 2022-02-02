@@ -275,7 +275,6 @@ class TestGather(OnnxRuntimeLayerTest):
         dict(shape=[6, 8, 10, 12], axis=-1, indices=[[[2, -1], [3, 2]], [[5, -1], [3, -2]]],
              output_shape=[6, 8, 10, 2, 2, 2])]
 
-    @pytest.mark.xfail(reason='negative indices are not yet implemented on CPU: xxx-54630')
     @pytest.mark.parametrize("params", test_data_negative_indices)
     @pytest.mark.nightly
     def test_gather_nightly_negative_indices(self, params, ie_device, precision, ir_version,

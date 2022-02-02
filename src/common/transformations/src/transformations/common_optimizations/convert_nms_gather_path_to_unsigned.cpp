@@ -77,6 +77,7 @@ class UpdateConvertGather: public pass::MatcherPass {
                 auto indices = gather->input_value(1);
                 if (!ov::has_nms_selected_indices(indices.get_node()))
                     return false;
+                gather->get_rt_info()["dontReverseIndices"] = true;
                 auto out_type = (indices.get_element_type() == element::i64 ?  element::u64 : element::u32);
                 auto existing_convert = dynamic_pointer_cast<opset8::Convert>(indices.get_node_shared_ptr());
                 if (existing_convert && indices.get_target_inputs().size() == 1) {
