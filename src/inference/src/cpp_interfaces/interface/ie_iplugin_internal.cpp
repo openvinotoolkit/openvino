@@ -144,7 +144,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
         function->get_rt_info() = orig_function->get_rt_info();
     }
     const auto& core = GetCore();
-    if (function && core && !core) {
+    if (function && core && !core->isNewAPI()) {
         auto& rt_info = function->get_rt_info();
         if (rt_info.find("version") == rt_info.end()) {
             rt_info["version"] = int64_t(10);
