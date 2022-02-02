@@ -324,9 +324,6 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         MKLDNNNode::initOptimalPrimitiveDescriptor();
     } else if (!isDynamicNode() && !isConfigDefined(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
-//            if (config.inConfs[i].getMemDesc()->isDefined())
-//                continue;
-
             int num = getParentEdgeAt(i)->getInputNum();
             if (getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()) {
                 if (num >= 0) {
