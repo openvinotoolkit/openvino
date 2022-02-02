@@ -23,46 +23,45 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
     def try_get_nodes(input_model, node_name):
         found_nodes = []
         found_node_names = []
-        if node_name.count(":"):
-            regexp_pre = r'(\d+):(.+)'
-            match_pre = re.search(regexp_pre, node_name)
-            if match_pre:
-                port, name = match_pre.group(1), match_pre.group(2)
-                node = input_model.get_place_by_operation_name(name)
-                if not node:
-                    tensor = input_model.get_place_by_tensor_name(name)
-                    if tensor:
-                        if len(tensor.get_consuming_operations()) > 0:
-                            node = tensor.get_consuming_operations()[0]
-                if node:
-                    node_pre = node.get_input_port(input_port_index=int(port))
-                    if node_pre:
-                        found_node_names.append(name)
-                        found_nodes.append(node_pre)
+        regexp_pre = r'(\d+):(.+)'
+        match_pre = re.search(regexp_pre, node_name)
+        if match_pre:
+            port, name = match_pre.group(1), match_pre.group(2)
+            node = input_model.get_place_by_operation_name(name)
+            if not node:
+                tensor = input_model.get_place_by_tensor_name(name)
+                if tensor:
+                    if len(tensor.get_consuming_operations()) > 0:
+                        node = tensor.get_consuming_operations()[0]
+            if node:
+                node_pre = node.get_input_port(input_port_index=int(port))
+                if node_pre:
+                    found_node_names.append(name)
+                    found_nodes.append(node_pre)
 
-                    tensor = node.get_source_tensor(input_port_index=int(port))
-                    if tensor:
-                        found_node_names.append('Tensor:' + tensor.get_names()[0])
-                        found_nodes.append(tensor)
-            regexp_post = r'(.+):(\d+)'
-            match_post = re.search(regexp_post, node_name)
-            if match_post:
-                name, port = match_post.group(1), match_post.group(2)
-                node = input_model.get_place_by_operation_name(name)
-                if not node:
-                    tensor = input_model.get_place_by_tensor_name(name)
-                    if tensor:
-                        node = tensor.get_producing_operation()
-                if node:
-                    node_post = node.get_output_port(output_port_index=int(port))
-                    if node_post:
-                        found_node_names.append(name)
-                        found_nodes.append(node_post)
+                tensor = node.get_source_tensor(input_port_index=int(port))
+                if tensor:
+                    found_node_names.append('Tensor:' + tensor.get_names()[0])
+                    found_nodes.append(tensor)
+        regexp_post = r'(.+):(\d+)'
+        match_post = re.search(regexp_post, node_name)
+        if match_post:
+            name, port = match_post.group(1), match_post.group(2)
+            node = input_model.get_place_by_operation_name(name)
+            if not node:
+                tensor = input_model.get_place_by_tensor_name(name)
+                if tensor:
+                    node = tensor.get_producing_operation()
+            if node:
+                node_post = node.get_output_port(output_port_index=int(port))
+                if node_post:
+                    found_node_names.append(name)
+                    found_nodes.append(node_post)
 
-                    tensor = node.get_target_tensor(output_port_index=int(port))
-                    if tensor:
-                        found_node_names.append('Tensor:' + tensor.get_names()[0])
-                        found_nodes.append(tensor)
+                tensor = node.get_target_tensor(output_port_index=int(port))
+                if tensor:
+                    found_node_names.append('Tensor:' + tensor.get_names()[0])
+                    found_nodes.append(tensor)
         tensor = input_model.get_place_by_tensor_name(node_name)
         if tensor:
             found_node_names.append('Tensor:' + tensor.get_names()[0])
