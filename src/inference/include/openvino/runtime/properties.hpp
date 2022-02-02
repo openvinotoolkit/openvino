@@ -59,29 +59,31 @@ private:
 
 /** @cond INTERNAL */
 namespace util {
+struct PropertyTag {};
+
 template <typename... Args>
-struct AllProperties;
+struct StringAny;
 
 template <typename T, typename... Args>
-struct AllProperties<T, Args...> {
+struct StringAny<T, Args...> {
     constexpr static const bool value =
-        std::is_convertible<T, std::pair<std::string, ov::Any>>::value && AllProperties<Args...>::value;
+        std::is_convertible<T, std::pair<std::string, ov::Any>>::value && StringAny<Args...>::value;
 };
 
 template <typename T>
-struct AllProperties<T> {
+struct StringAny<T> {
     constexpr static const bool value = std::is_convertible<T, std::pair<std::string, ov::Any>>::value;
 };
 
 template <typename T, typename... Args>
-using EnableIfAllProperties = typename std::enable_if<AllProperties<Args...>::value, T>::type;
+using EnableIfAllStringAny = typename std::enable_if<StringAny<Args...>::value, T>::type;
 
 /**
  * @brief This class is used to bind property name with property type
  * @tparam T type of value used to pass or get property
  */
 template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
-struct BaseProperty {
+struct BaseProperty : public PropertyTag {
     using value_type = T;                                  //!< Property type
     constexpr static const auto mutability = mutability_;  //!< Property readability
 
@@ -468,7 +470,7 @@ struct Properties {
      * @return Pair of string key representation and type erased property value.
      */
     template <typename... Properties>
-    inline util::EnableIfAllProperties<std::pair<std::string, Any>, Properties...> operator()(
+    inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
         return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
