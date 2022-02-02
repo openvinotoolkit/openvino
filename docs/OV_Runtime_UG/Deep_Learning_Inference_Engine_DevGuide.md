@@ -1,4 +1,4 @@
-# Inference Engine Developer Guide {#openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide}
+# OpenVINO™ Runtime User Guide {#openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide}
 
 @sphinxdirective
 
