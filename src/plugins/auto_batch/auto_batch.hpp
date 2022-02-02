@@ -169,6 +169,7 @@ protected:
         const std::shared_ptr<InferenceEngine::RemoteContext> context,
         const std::map<std::string, std::string>& config);
     std::vector<std::shared_ptr<void>> _additionalSOPtrs;
+    std::shared_ptr<InferenceEngine::ICore> _pCore;  // need to keep the core as entire work happen thru that
 };
 
 }  // namespace AutoBatchPlugin
