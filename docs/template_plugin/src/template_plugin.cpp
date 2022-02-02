@@ -39,17 +39,17 @@ Plugin::Plugin() {
 
     // create default stream executor with a given name
     _waitExecutor =
-        InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
+        executorManager()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 }
 // ! [plugin:ctor]
 
 // ! [plugin:dtor]
 Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
-    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateStreamsExecutor");
-    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateWaitExecutor");
+    executorManager()->clear("TemplateStreamsExecutor");
+    executorManager()->clear("TemplateWaitExecutor");
     // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
-    // ExecutorManager::getInstance()->clear("TemplateCallbackExecutor");
+    // executorManager()->clear("TemplateCallbackExecutor");
 }
 // ! [plugin:dtor]
 

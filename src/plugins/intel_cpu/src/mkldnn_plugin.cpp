@@ -136,9 +136,9 @@ Engine::Engine() {
 }
 
 Engine::~Engine() {
-    ExecutorManager::getInstance()->clear("CPU");
-    ExecutorManager::getInstance()->clear("CPUStreamsExecutor");
-    ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
+    executorManager()->clear("CPU");
+    executorManager()->clear("CPUStreamsExecutor");
+    executorManager()->clear("CPUCallbackExecutor");
 }
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
