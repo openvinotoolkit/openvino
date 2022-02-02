@@ -126,13 +126,12 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT,
         ::testing::Values("GPU"));
 
-
 using OVClassGetPropertyTest_GPU = OVClassBaseTestP;
 TEST_P(OVClassGetPropertyTest_GPU, GetMetricAvailableDevicesAndPrintNoThrow) {
     ov::Core ie;
 
     std::vector<std::string> properties;
-    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::device::available));
+    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::available_devices));
 
     std::cout << "AVAILABLE_DEVICES: ";
     for (const auto& prop : properties) {
@@ -140,7 +139,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricAvailableDevicesAndPrintNoThrow) {
     }
     std::cout << std::endl;
 
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::available);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::available_devices);
 }
 
 TEST_P(OVClassGetPropertyTest_GPU, GetMetricRangeForAsyncInferRequestsAndPrintNoThrow) {
@@ -323,7 +322,7 @@ TEST_P(OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
     ov::Core ie;
     unsigned int p;
 
-    ov::AnyMap _options = {ov::hint::model_ptr(simpleNetwork)};
+    ov::AnyMap _options = {ov::hint::model(simpleNetwork)};
     ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::optimal_batch_size.name(), _options));
 
     std::cout << "GPU device optimal batch size: " << p << std::endl;
@@ -342,7 +341,7 @@ TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow
     ov::Core ie;
     unsigned int p;
 
-    ov::AnyMap _options = {ov::hint::model_ptr(simpleNetwork)};
+    ov::AnyMap _options = {ov::hint::model(simpleNetwork)};
     ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size.name(), _options));
 
     std::cout << "GPU device max available batch size: " << p << std::endl;
@@ -364,7 +363,7 @@ TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPr
 
     uint32_t n_streams = 2;
     int64_t available_device_mem_size = 1073741824;
-    ov::AnyMap _options = {ov::hint::model_ptr(simpleNetwork),
+    ov::AnyMap _options = {ov::hint::model(simpleNetwork),
                            ov::streams::num(n_streams),
                            ov::intel_gpu::hint::available_device_mem(available_device_mem_size)};
 

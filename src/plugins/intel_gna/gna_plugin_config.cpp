@@ -420,7 +420,7 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
     ov::PropertyMutability model_mutability = compiled ? ov::PropertyMutability::RO : ov::PropertyMutability::RW;
     const std::vector<ov::PropertyName> supported_properties = {
         { ov::supported_properties.name(), ov::PropertyMutability::RO },
-        { ov::device::available.name(), ov::PropertyMutability::RO },
+        { ov::available_devices.name(), ov::PropertyMutability::RO },
         { ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO },
         { ov::range_for_async_infer_requests.name(), ov::PropertyMutability::RO },
         { ov::device::capabilities.name(), ov::PropertyMutability::RO },

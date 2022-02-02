@@ -231,7 +231,7 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
  * @brief High-level OpenVINO model priority hint
  * Defines what model should be provided with more performant bounded resource first
  */
-static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
+static constexpr Property<Priority> model_priority{"OV_MODEL_PRIORITY"};
 
 /**
  * @brief Enum to define possible performance mode hints
@@ -285,7 +285,7 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * @brief This key identifies shared pointer to the ov::Model, required for some properties (ov::max_batch_size and
  * ov::optimal_batch_size)
  */
-static constexpr Property<std::shared_ptr<ov::Model>> model_ptr{"MODEL_PTR"};
+static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
 }  // namespace hint
 
 /**
@@ -392,8 +392,8 @@ static constexpr Property<std::tuple<unsigned int, unsigned int>, PropertyMutabi
  *
  * Property returns a value of unsigned int type,
  * Returns optimal batch size for a given network on the given device. The returned value is aligned to power of 2.
- * Also, ov::hint::model_ptr is the required option for this metric since the optimal batch size depends on the model,
- * so if the ov::hint::model_ptr is not given, the result of the metric is always 1.
+ * Also, ov::hint::model is the required option for this metric since the optimal batch size depends on the model,
+ * so if the ov::hint::model is not given, the result of the metric is always 1.
  * For the GPU the metric is queried automatically whenever the OpenVINO performance hint for the throughput is used,
  * so that the result (>1) governs the automatic batching (transparently to the application).
  * The automatic batching can be disabled with ALLOW_AUTO_BATCHING set to NO

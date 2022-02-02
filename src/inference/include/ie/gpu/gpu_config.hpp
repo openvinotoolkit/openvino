@@ -46,6 +46,12 @@ DECLARE_GPU_METRIC_KEY(UARCH_VERSION, std::string);
 DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
 
 /**
+ * @brief Metric to get statistics of GPU memory allocated by engine for each allocation type
+ * It contains information about current memory usage
+ */
+DECLARE_GPU_METRIC_KEY(MEMORY_STATISTICS, std::map<std::string, uint64_t>);
+
+/**
  * @brief Possible return value for OPTIMIZATION_CAPABILITIES metric
  *  - "HW_MATMUL" - Defines if device has hardware block for matrix multiplication
  */
@@ -80,6 +86,18 @@ DECLARE_GPU_CONFIG_KEY(PLUGIN_PRIORITY);
  * 0 means no throttle hint is set and default queue created.
  */
 DECLARE_GPU_CONFIG_KEY(PLUGIN_THROTTLE);
+
+/**
+ * @brief This key instructs the GPU plugin which cpu core type of TBB affinity used in load network.
+ * This option has 3 types of levels: HIGH, LOW, and ANY. It is only affected on Hybrid CPUs.
+ * - LOW - instructs the GPU Plugin to use LITTLE cores if they are available
+ * - MEDIUM (DEFAULT) - instructs the GPU Plugin to use any available cores (BIG or LITTLE cores)
+ * - HIGH - instructs the GPU Plugin to use BIG cores if they are available
+ */
+DECLARE_GPU_CONFIG_KEY(HOST_TASK_PRIORITY);
+DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_HIGH);
+DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_MEDIUM);
+DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_LOW);
 
 /**
  * @brief This key should be set to correctly handle NV12 input without pre-processing.

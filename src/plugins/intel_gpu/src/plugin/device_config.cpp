@@ -124,23 +124,39 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 queuePriority = cldnn::priority_mode_types::med;
             else
                 queuePriority = cldnn::priority_mode_types::low;
-        } else if (key == ov::hint::model_priority) {
-            std::stringstream ss(val);
-            ov::hint::Priority priority;
-            ss >> priority;
-            switch (priority) {
-                case ov::hint::Priority::LOW:
-                    queuePriority = cldnn::priority_mode_types::low;
-                    task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
-                    break;
-                case ov::hint::Priority::MEDIUM:
-                    queuePriority = cldnn::priority_mode_types::med;
-                    task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
-                    break;
-                case ov::hint::Priority::HIGH:
+        } else if (key.compare(PluginConfigParams::KEY_MODEL_PRIORITY) == 0 ||
+                   key == ov::hint::model_priority) {
+            if (key == ov::hint::model_priority) {
+                std::stringstream ss(val);
+                ov::hint::Priority priority;
+                ss >> priority;
+                switch (priority) {
+                    case ov::hint::Priority::LOW:
+                        queuePriority = cldnn::priority_mode_types::low;
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
+                        break;
+                    case ov::hint::Priority::MEDIUM:
+                        queuePriority = cldnn::priority_mode_types::med;
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+                        break;
+                    case ov::hint::Priority::HIGH:
+                        queuePriority = cldnn::priority_mode_types::high;
+                        task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
+                        break;
+                }
+            } else {
+                if (val.find(PluginConfigParams::MODEL_PRIORITY_HIGH) != std::string::npos) {
                     queuePriority = cldnn::priority_mode_types::high;
                     task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
-                    break;
+                } else if (val.find(PluginConfigParams::MODEL_PRIORITY_LOW) != std::string::npos) {
+                    queuePriority = cldnn::priority_mode_types::low;
+                    task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
+                } else if (val.find(PluginConfigParams::MODEL_PRIORITY_MED) != std::string::npos) {
+                    queuePriority = cldnn::priority_mode_types::med;
+                    task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+                } else {
+                    IE_THROW() << "Not found appropriate value for config key " << PluginConfigParams::KEY_MODEL_PRIORITY << ".\n";
+                }
             }
             if (getAvailableCoresTypes().size() > 1) {
                 if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG
@@ -329,6 +345,15 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
             else
                 IE_THROW(NotFound) << "Unsupported host task priority by plugin: " << val;
+        } else if (key.compare(GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY) == 0) {
+            if (val.compare(GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH) == 0)
+                task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
+            else if (val.compare(GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM) == 0)
+                task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
+            else if (val.compare(GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW) == 0)
+                task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
+            else
+                IE_THROW(NotFound) << "Unsupported host task priority by plugin: " << val;
         } else {
             IE_THROW(NotFound) << "Unsupported property key by plugin: " << key;
         }
@@ -385,12 +410,15 @@ void Config::adjustKeyMapValues() {
         if (queuePriority == cldnn::priority_mode_types::high && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
             s << ov::hint::Priority::HIGH;
             key_config_map[ov::hint::model_priority.name()] = s.str();
+            key_config_map[PluginConfigParams::KEY_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_HIGH;
         } else if (queuePriority == cldnn::priority_mode_types::low && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
             s << ov::hint::Priority::LOW;
             key_config_map[ov::hint::model_priority.name()] = s.str();
+            key_config_map[PluginConfigParams::KEY_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_LOW;
         } else if (queuePriority == cldnn::priority_mode_types::med && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::ANY) {
             s << ov::hint::Priority::MEDIUM;
             key_config_map[ov::hint::model_priority.name()] = s.str();
+            key_config_map[PluginConfigParams::KEY_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_MED;
         }
     }
     {
@@ -424,28 +452,32 @@ void Config::adjustKeyMapValues() {
         }
         key_config_map[CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE] = qt;
         key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = qt;
-        key_config_map[ov::intel_gpu::hint::queue_throttle.name()] = qt;
     }
     {
         std::stringstream ss;
         if (queueThrottle == cldnn::throttle_mode_types::high)
             ss << ov::intel_gpu::hint::ThrottleLevel::HIGH;
         else if (queueThrottle == cldnn::throttle_mode_types::low)
-            ss <<ov::intel_gpu::hint::ThrottleLevel::LOW;
+            ss << ov::intel_gpu::hint::ThrottleLevel::LOW;
         else
-            ss <<ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
+            ss << ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
         key_config_map[ov::intel_gpu::hint::queue_throttle.name()] = ss.str();
     }
     {
-        ov::hint::Priority mode;
-        switch (task_exec_config._threadPreferredCoreType) {
-        case IStreamsExecutor::Config::LITTLE:      mode = ov::hint::Priority::LOW; break;
-        case IStreamsExecutor::Config::BIG:         mode = ov::hint::Priority::HIGH; break;
-        case IStreamsExecutor::Config::ANY:default: mode = ov::hint::Priority::MEDIUM; break;
-        }
         std::stringstream s;
-        s << mode;
-        key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = s.str();
+        if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
+            s << ov::hint::Priority::LOW;
+            key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = s.str();
+            key_config_map[GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW;
+        } else if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
+            s << ov::hint::Priority::HIGH;
+            key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = s.str();
+            key_config_map[GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH;
+        } else {
+            s << ov::hint::Priority::MEDIUM;
+            key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = s.str();
+            key_config_map[GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM;
+        }
     }
     {
         std::string tm = PluginConfigParams::TUNING_DISABLED;
@@ -493,13 +525,10 @@ void Config::adjustKeyMapValues() {
 
 bool Config::isNewApiProperty(std::string property) {
     static const std::set<std::string> new_api_keys {
-        ov::optimal_batch_size.name(),
-        ov::max_batch_size.name(),
         ov::hint::model_priority.name(),
         ov::intel_gpu::hint::host_task_priority.name(),
         ov::intel_gpu::hint::queue_priority.name(),
         ov::intel_gpu::hint::queue_throttle.name(),
-        ov::intel_gpu::memory_statistics.name(),
         ov::compilation_num_threads.name(),
     };
     return new_api_keys.find(property) != new_api_keys.end();
