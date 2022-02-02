@@ -5,25 +5,23 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "auto_batch.hpp"
 
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <dimension_tracker.hpp>
-#include <ie_icore.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ie_performance_hints.hpp>
 #include <iostream>
 #include <map>
 #include <memory>
-#include <openvino/pass/manager.hpp>
 #include <string>
-#include <transformations/common_optimizations/dimension_tracking.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
-#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "dimension_tracker.hpp"
+#include "ie_icore.hpp"
+#include "ie_ngraph_utils.hpp"
+#include "ie_performance_hints.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/dimension_tracking.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
@@ -686,9 +684,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     auto metaDevice = ParseMetaDevice(device_batch->second, fullConfig);
     const auto& deviceName = metaDevice.deviceName;
     const auto& deviceConfig = metaDevice.config;
-    auto devCfgNoAutoBatch = deviceConfig;
+    auto deviceConfigNoAutoBatch = deviceConfig;
     // avoid recursive auto-batching
-    devCfgNoAutoBatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
+    deviceConfigNoAutoBatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
 
     std::set<std::string> batched_inputs;
     // check that the auto-batching is applicable in general
@@ -739,7 +737,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             IE_THROW(NotImplemented) << "Auto-batching supports only networks with inputs featuring batched dim!";
     } catch (...) {
         // fallback to loading as if no Auto-Batching was involved
-        auto res = GetCore()->LoadNetwork(network, deviceName, devCfgNoAutoBatch);
+        auto res = GetCore()->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
         _additionalSOPtrs.push_back(res._so);
         return res._ptr;
     }
@@ -783,8 +781,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     size_t batch1_footprint = 0;
     if (deviceName.find("GPU") != std::string::npos)
         batch1_footprint = report_footprint(GetCore(), deviceName);
-    auto executableNetworkWithoutBatch = ctx ? GetCore()->LoadNetwork(network, ctx, devCfgNoAutoBatch)
-                                             : GetCore()->LoadNetwork(network, deviceName, devCfgNoAutoBatch);
+    auto executableNetworkWithoutBatch = ctx ? GetCore()->LoadNetwork(network, ctx, deviceConfigNoAutoBatch)
+                                             : GetCore()->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
     if (deviceName.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(GetCore(), deviceName) - batch1_footprint;
         if (batch1_footprint) {
@@ -811,8 +809,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             for (const auto& input : batched_inputs)
                 shapes[input][0] = metaDevice.batchForDevice;
             reshaped.reshape(shapes);
-            executableNetworkWithBatch = ctx ? GetCore()->LoadNetwork(reshaped, ctx, devCfgNoAutoBatch)
-                                             : GetCore()->LoadNetwork(reshaped, deviceName, devCfgNoAutoBatch);
+            executableNetworkWithBatch = ctx ? GetCore()->LoadNetwork(reshaped, ctx, deviceConfigNoAutoBatch)
+                                             : GetCore()->LoadNetwork(reshaped, deviceName, deviceConfigNoAutoBatch);
         } catch (...) {
             executableNetworkWithBatch = {nullptr, nullptr};
         }
