@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+
 set(TARGET_NAME cpuFuncTests)
 
 add_library(cpuSpecificRtInfo STATIC $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.hpp
