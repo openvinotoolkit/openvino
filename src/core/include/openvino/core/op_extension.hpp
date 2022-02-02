@@ -41,9 +41,7 @@ public:
      *
      * @return
      */
-    virtual std::vector<ov::Extension::Ptr> get_attached_extensions() const {
-        return {};
-    }
+    virtual std::vector<ov::Extension::Ptr> get_attached_extensions() const = 0;
 
     /**
      * @brief Destructor

@@ -11,7 +11,7 @@ namespace frontend {
 namespace tensorflow {
 
 template <typename OVOpType = void>
-using OpExtension = ov::frontend::OpExtensionBase<ConversionExtension, OVOpType>;
+using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::tensorflow::ConversionExtension, OVOpType>;
 
 }  // namespace tensorflow
 }  // namespace frontend

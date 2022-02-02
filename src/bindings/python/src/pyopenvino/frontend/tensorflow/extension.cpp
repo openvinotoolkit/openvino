@@ -44,19 +44,33 @@ void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
 void regclass_frontend_tensorflow_OpExtension(py::module m) {
     py::class_<OpExtension<void>, std::shared_ptr<OpExtension<void>>, ConversionExtension> ext(
             m,
-            "OpExtensionONNX",
+            "OpExtensionTensorflow",
             py::dynamic_attr());
 
     ext.def(py::init([](const std::string& fw_type_name,
-                        const std::map<std::string, std::string>& attr_names_map = {},
-                        const std::map<std::string, ov::Any>& attr_values_map = {}) {
-        return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, attr_values_map);
-    }));
+                        const std::map<std::string, std::string>& attr_names_map,
+                        const std::map<std::string, py::object>& attr_values_map) {
+                std::map<std::string, ov::Any> any_map;
+                for (const auto& it : attr_values_map) {
+                    any_map[it.first] = it.second;
+                }
+                return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, any_map);
+            }), py::arg("fw_type_name"),
+            py::arg("attr_names_map") = std::map<std::string, std::string>(),
+            py::arg("attr_values_map") = std::map<std::string, ov::Any>());
 
     ext.def(py::init([](const std::string& ov_type_name,
                         const std::string& fw_type_name,
-                        const std::map<std::string, std::string>& attr_names_map = {},
-                        const std::map<std::string, ov::Any>& attr_values_map = {}) {
-        return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, attr_values_map);
-    }));
+                        const std::map<std::string, std::string>& attr_names_map,
+                        const std::map<std::string, py::object>& attr_values_map) {
+                std::map<std::string, ov::Any> any_map;
+                for (const auto& it : attr_values_map) {
+                    any_map[it.first] = it.second;
+                }
+                return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, any_map);
+            }),
+            py::arg("ov_type_name"),
+            py::arg("fw_type_name"),
+            py::arg("attr_names_map") = std::map<std::string, std::string>(),
+            py::arg("attr_values_map") = std::map<std::string, py::object>());
 }

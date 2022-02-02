@@ -17,6 +17,30 @@
 namespace ov {
 namespace frontend {
 
+inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
+    if (opset_name == "opset1") {
+        return ov::get_opset1();
+    } else if (opset_name == "opset2") {
+        return ov::get_opset2();
+    } else if (opset_name == "opset3") {
+        return ov::get_opset3();
+    } else if (opset_name == "opset4") {
+        return ov::get_opset4();
+    } else if (opset_name == "opset5") {
+        return ov::get_opset5();
+    } else if (opset_name == "opset6") {
+        return ov::get_opset6();
+    } else if (opset_name == "opset7") {
+        return ov::get_opset7();
+    } else if (opset_name == "opset8") {
+        return ov::get_opset8();
+    } else if (opset_name.empty() || opset_name == "latest") {
+        return ov::get_opset8();
+    } else {
+        FRONT_END_GENERAL_CHECK(false, "Unsupported opset name: ", opset_name);
+    }
+}
+
 // One-to-one operation mapping for OVOpType != void which means OV type is specified by OVOpType
 // See a specialization for OVOptype = void
 template <typename BaseConversionType, typename OVOpType = void>
@@ -41,9 +65,9 @@ public:
     OpExtensionBase() = delete;
 
     // Maps op with a given type in FW and matching OV type given in template parameter
-    OpExtensionBase(const std::string& fw_ov_type_name,
-                    const std::map<std::string, std::string>& attr_names_map = {},
-                    const std::map<std::string, ov::Any>& attr_values_map = {})
+    explicit OpExtensionBase(const std::string& fw_ov_type_name,
+                             const std::map<std::string, std::string>& attr_names_map = {},
+                             const std::map<std::string, ov::Any>& attr_values_map = {})
         : OpExtensionBase(fw_ov_type_name, fw_ov_type_name, attr_names_map, attr_values_map) {}
 
     // Maps op with a given type in FW and specified OV type given in template parameter
@@ -172,7 +196,7 @@ OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov
                                          ov_type_name);
                                  }
 
-                                 const auto& opset = ov::get_opset_by_name(opset_name);
+                                 const auto& opset = get_opset_by_name(opset_name);
                                  if (!opset.contains_type(op_name)) {
                                      FRONT_END_GENERAL_CHECK(false,
                                                              "OpenVINO opset doesn't contain operation with "
@@ -199,38 +223,26 @@ OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string
 template <typename OVOpType = void>
 using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtension, OVOpType>;
 
-//////////////////////////////////////////////
-
 // Per each FRAMEWORK this macro can be used once in one operation class definition
 // It defines a member inline function that creates required extension.
-
-#define OPENVINO_FRAMEWORK_MAP_4(FRAMEWORK, FW_TYPE_NAME, ATTR_NAME_MAP, ATTR_VALUE_MAP)                     \
-    template <typename T>                                                                                    \
-    struct __openvino_framework_map_helper_##FRAMEWORK {                                                     \
-        static auto get() -> std::shared_ptr<ov::frontend::FRAMEWORK::OpExtension<T>> {                      \
-            if (!std::string(FW_TYPE_NAME).empty())                                                          \
-                return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>((FW_TYPE_NAME),             \
-                                                                                 ATTR_NAME_MAP,              \
-                                                                                 ATTR_VALUE_MAP);            \
-            return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(ATTR_NAME_MAP, ATTR_VALUE_MAP); \
-        }                                                                                                    \
+#define OPENVINO_FRAMEWORK_MAP(FRAMEWORK, ...)                                                           \
+    template <typename T>                                                                                \
+    struct __openvino_framework_map_helper_##FRAMEWORK {                                                 \
+        static auto get() -> std::shared_ptr<ov::frontend::FRAMEWORK::OpExtension<T>> {                  \
+            auto make_spec_tuple = [](const std::string& s = "",                                         \
+                                      const std::map<std::string, std::string>& attr_mp = {},            \
+                                      const std::map<std::string, ov::Any>& val_mp = {}) {               \
+                return std::make_tuple(s, attr_mp, val_mp);                                              \
+            };                                                                                           \
+            auto params = make_spec_tuple(__VA_ARGS__);                                                  \
+            const auto& name = std::get<0>(params);                                                      \
+            const auto& attr_mp = std::get<1>(params);                                                   \
+            const auto& val_mp = std::get<2>(params);                                                    \
+            if (!name.empty())                                                                           \
+                return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(name, attr_mp, val_mp); \
+            return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(attr_mp, val_mp);           \
+        }                                                                                                \
     };
 
-#define OPENVINO_FRAMEWORK_MAP_3(FRAMEWORK, FW_TYPE_NAME, ATTR_NAME_MAP) \
-    OPENVINO_FRAMEWORK_MAP_4(FRAMEWORK, FW_TYPE_NAME, ATTR_NAME_MAP, {})
-#define OPENVINO_FRAMEWORK_MAP_2(FRAMEWORK, FW_TYPE_NAME) OPENVINO_FRAMEWORK_MAP_3(FRAMEWORK, FW_TYPE_NAME, {})
-#define OPENVINO_FRAMEWORK_MAP_1(FRAMEWORK)               OPENVINO_FRAMEWORK_MAP_2(FRAMEWORK, "")
-
-#define EXPAND(x)                                                   x
-#define GET_OPENVINO_FRAMEWORK_MAP_MACRO(_1, _2, _3, _4, NAME, ...) NAME
-#define FRAMEWORK_MAP_HELPER(...)                                     \
-    EXPAND(GET_OPENVINO_FRAMEWORK_MAP_MACRO(__VA_ARGS__,              \
-                                            OPENVINO_FRAMEWORK_MAP_4, \
-                                            OPENVINO_FRAMEWORK_MAP_3, \
-                                            OPENVINO_FRAMEWORK_MAP_2, \
-                                            OPENVINO_FRAMEWORK_MAP_1)(__VA_ARGS__))
-
-#define OPENVINO_FRAMEWORK_MAP(...) FRAMEWORK_MAP_HELPER(__VA_ARGS__)
-//////////////////////////////////////////////
 }  // namespace frontend
 }  // namespace ov

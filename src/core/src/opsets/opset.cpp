@@ -156,27 +156,3 @@ const ngraph::OpSet& ngraph::get_opset8() {
     static OpSet opset(ov::get_opset8());
     return opset;
 }
-
-const ov::OpSet& ov::get_opset_by_name(const std::string& opset_name) {
-    if (opset_name == "opset1") {
-        return get_opset1();
-    } else if (opset_name == "opset2") {
-        return get_opset2();
-    } else if (opset_name == "opset3") {
-        return get_opset3();
-    } else if (opset_name == "opset4") {
-        return get_opset4();
-    } else if (opset_name == "opset5") {
-        return get_opset5();
-    } else if (opset_name == "opset6") {
-        return get_opset6();
-    } else if (opset_name == "opset7") {
-        return get_opset7();
-    } else if (opset_name == "opset8") {
-        return get_opset8();
-    } else if (opset_name == "latest") {
-        return get_opset8();
-    } else {
-        NGRAPH_CHECK(false, "Unsupported opset name: ", opset_name);
-    }
-}

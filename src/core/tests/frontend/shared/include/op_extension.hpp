@@ -13,9 +13,7 @@ struct OpExtensionFEParam {
     std::string m_frontEndName;
     std::string m_modelsPath;
     std::string m_modelName;
-    std::string m_translatorName;
-    std::shared_ptr<ov::frontend::FrontEnd> m_frontend;
-    std::shared_ptr<ov::Extension> m_extension;
+    std::vector<std::shared_ptr<ov::Extension>> m_extensions;
 };
 
 class Relu : public ov::op::Op {
@@ -30,6 +28,7 @@ public:
         ov::element::Type arg_type = get_input_element_type(0);
         ov::PartialShape arg_shape = get_input_partial_shape(0);
         set_output_type(0, arg_type, arg_shape);
+        m_validate_invoked = true;
     }
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         return std::make_shared<Relu>(new_args.at(0));
@@ -39,11 +38,10 @@ public:
     }
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
-        outputs = inputs;
-        return true;
+        return false;
     }
     bool has_evaluate() const override {
-        return true;
+        return false;
     }
 };
 

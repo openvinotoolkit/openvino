@@ -31,10 +31,15 @@ void FrontEndOpExtensionTest::initParamTest() {
 
 ///////////////////////////////////////////////////////////////////
 
-TEST_P(FrontEndOpExtensionTest, TestOpExtension) {
-    auto frontend = m_param.m_frontend;
-    bool invoked = false;
+TEST_P(FrontEndOpExtensionTest, TestOpExtensionVec) {
     ov::Core core;
-    core.add_extension(m_param.m_extension);
+    core.add_extension(m_param.m_extensions);
+    auto model = core.read_model(m_param.m_modelName);
+}
+
+TEST_P(FrontEndOpExtensionTest, TestOpExtension) {
+    ov::Core core;
+    for (size_t i = 0; i < m_param.m_extensions.size(); ++i)
+        core.add_extension(m_param.m_extensions[i]);
     auto model = core.read_model(m_param.m_modelName);
 }

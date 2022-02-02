@@ -136,5 +136,4 @@ const OPENVINO_API OpSet& get_opset5();
 const OPENVINO_API OpSet& get_opset6();
 const OPENVINO_API OpSet& get_opset7();
 const OPENVINO_API OpSet& get_opset8();
-const OPENVINO_API OpSet& get_opset_by_name(const std::string& opset_name);
 }  // namespace ov
