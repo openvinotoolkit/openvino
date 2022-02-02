@@ -40,58 +40,30 @@ To add suport of custom operations, see the [Add Custom OpenVINO Operations](../
 
 To build `ov::Model` from `opset8` operations please include next files:
 
-@sphinxdirective
-
-.. tab:: C++
-
-   .. code-block:: cpp
-
+ - C++
       @snippet example_ngraph_utils.cpp ov:include
 
-.. tab:: Python
-
-   .. code-block:: python
-
+ - Python
       import openvino.runtime.opset8 as ov
       from openvino.runtime import Model
 
-@endsphinxdirective
 
 Below an example of simple OpenVINO Model
 
-@sphinxdirective
-
-.. tab:: C++
-
-   .. code-block:: cpp
-
+ - C++
       @snippet example_ngraph_utils.cpp ov:create_simple_model
 
-.. tab:: Python
-
-   .. code-block:: python
-
+ - Python
       TBD
 
-@endsphinxdirective
 
 Example of OpenVINO Model with several outputs
 
-@sphinxdirective
-
-.. tab:: C++
-
-   .. code-block:: cpp
-
+ - C++
       @snippet example_ngraph_utils.cpp ov:create_advanced_model
 
-.. tab:: Python
-
-   .. code-block:: python
-
+ - Python
       TBD
-
-@endsphinxdirective
 
 ## FAQ
 
@@ -107,12 +79,12 @@ Example of OpenVINO Model with several outputs
 ## See Also
 
 * [Available Operation Sets](../ops/opset.md)
-* [Operation Set `opset1` Specification](../ops/opset1.md)
-* [Operation Set `opset2` Specification](../ops/opset2.md)
-* [Operation Set `opset3` Specification](../ops/opset3.md)
-* [Operation Set `opset4` Specification](../ops/opset4.md)
-* [Operation Set `opset5` Specification](../ops/opset5.md)
-* [Operation Set `opset6` Specification](../ops/opset6.md)
-* [Operation Set `opset7` Specification](../ops/opset7.md)
-* [Operation Set `opset8` Specification](../ops/opset8.md)
+* [opset1 Specification](../ops/opset1.md)
+* [opset2 Specification](../ops/opset2.md)
+* [opset3 Specification](../ops/opset3.md)
+* [opset4 Specification](../ops/opset4.md)
+* [opset5 Specification](../ops/opset5.md)
+* [opset6 Specification](../ops/opset6.md)
+* [opset7 Specification](../ops/opset7.md)
+* [opset8 Specification](../ops/opset8.md)
 * [Inference Engine Extensibility Developer Guide](../OV_Runtime_UG/Extensibility_DG/Intro.md)
