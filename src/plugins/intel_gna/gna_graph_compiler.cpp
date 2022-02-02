@@ -44,8 +44,6 @@ using namespace GNAPluginNS;
 
 #define CREATE(name) [](GNAGraphCompiler *p, CNNLayerPtr l) {p->name(l);}
 
-const GNALimitations::Cnn2D::Validator GNAGraphCompiler::cnn2dValidator;
-
 void GNAGraphCompiler::setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr) {
     this->gnamem = std::move(gnaMemPtr);
 }
@@ -191,6 +189,54 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     }
     layerInfoItem.reserved_size = split_size;
     split_connection.emplace(id, layerInfoItem);
+}
+
+void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(std::string target) {
+    if (InferenceEngine::GNAConfigParams::GNA_TARGET_3_0 == target) {
+        cnn2dValidator.reset(new GNALimitations::Cnn2D::Validator_30());
+    } else if (InferenceEngine::GNAConfigParams::GNA_TARGET_3_5 == target) {
+        cnn2dValidator.reset(new GNALimitations::Cnn2D::Validator_35());
+    }
+}
+
+void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(std::string name,
+                                                  const uint32_t inHeight,
+                                                  const uint32_t inWidth,
+                                                  const uint32_t inChannels,
+                                                  const uint32_t kH,
+                                                  const uint32_t kW,
+                                                  const uint32_t kN,
+                                                  const uint32_t strideH,
+                                                  const uint32_t strideW,
+                                                  const uint32_t dilH,
+                                                  const uint32_t dilW,
+                                                  OvGnaType inPrecision) const {
+    if (cnn2dValidator) {
+        cnn2dValidator
+            ->ValidateCnn2D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
+    } else {
+        THROW_GNA_EXCEPTION << "No CNN2D validator found for current target in layer " << name;
+    }
+}
+
+void GNAPluginNS::GNAGraphCompiler::ValidatePooling2D(std::string name,
+                                                      const uint32_t windowH,
+                                                      const uint32_t windowW,
+                                                      const uint32_t strideH,
+                                                      const uint32_t strideW) const {
+    if (cnn2dValidator) {
+        cnn2dValidator->ValidatePooling2D(name, windowH, windowW, strideH, strideW);
+    } else {
+        THROW_GNA_EXCEPTION << "No CNN2D validator found for current target in layer " << name;
+    }
+}
+
+bool GNAPluginNS::GNAGraphCompiler::IsCnn2DInputPaddingSupported(std::string name) const {
+    if (cnn2dValidator) {
+        return cnn2dValidator->IsPaddingSupported();
+    } else {
+        THROW_GNA_EXCEPTION << "No CNN2D validator found for current target in layer " << name;
+    }
 }
 
 void GNAGraphCompiler::DiagonalPrimitive(InferenceEngine::CNNLayerPtr layer) {
@@ -560,8 +606,9 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     auto effectiveInputWidth = in_width;
     auto effectiveInputHeight = in_height;
 
-    if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
-        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0) {
+    if (!IsCnn2DInputPaddingSupported(convolution.name) &&
+        (convolution._padding_x != 0 || convolution._padding_y != 0 ||
+        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0)) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not supported";
     }
 
@@ -606,7 +653,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
     const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
 
-    cnn2dValidator.ValidateCnn2D(layer->name,
+    ValidateCnn2D(layer->name,
         in_height, in_width, in_channels,
         convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
         convolution._dilation_y, convolution._dilation_x, inputPrec);
@@ -876,7 +923,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (is2DPooling) {
-        cnn2dValidator.ValidatePooling2D(layer->name, pooling._kernel_y, pooling._kernel_x, pooling._stride_y, pooling._stride_x);
+        ValidatePooling2D(layer->name, pooling._kernel_y, pooling._kernel_x, pooling._stride_y, pooling._stride_x);
     }
 
     auto& currentComponent = dnnComponents.addComponent(layer->name, "pooling");

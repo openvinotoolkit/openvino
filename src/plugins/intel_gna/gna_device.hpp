@@ -45,8 +45,6 @@ class GNADeviceHelper {
     std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
     Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
-    bool isGnaLibVersion2_1 = false;
-    bool isGnaLibVersion3_0 = false;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -79,13 +77,7 @@ public:
         initGnaPerfCounters();
 
         // check GNA Library version
-        const auto gnaLibVersion = GetGnaLibraryVersion();
-        if (gnaLibVersion.rfind("2.1", 0) == 0) {
-            isGnaLibVersion2_1 = true;
-        }
-        if (gnaLibVersion.rfind("3.0", 0) == 0) {
-            isGnaLibVersion3_0 = true;
-        }
+        GetGnaLibraryVersion();
     }
 
     GNADeviceHelper(const GNADeviceHelper&) = delete;
@@ -139,7 +131,7 @@ public:
     void getGnaPerfCounters(std::map<std::string,
                         InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
-    std::string getEffectiveGnaCompileTarget() const;
+    std::string GetCompileTarget() const;
 
  private:
     void open();
