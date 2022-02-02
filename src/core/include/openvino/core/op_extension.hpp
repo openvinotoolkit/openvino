@@ -57,7 +57,7 @@ namespace detail {
         res.emplace_back(typename T::template __openvino_framework_map_helper_##FRAMEWORK<T>().get());    \
     }                                                                                                     \
     template <class>                                                                                      \
-    static auto collect_attached_extensions_##FRAMEWORK(...)->void {}
+    static auto collect_attached_extensions_##FRAMEWORK(ov::Any)->void {}
 
 OV_COLLECT_ATTACHED_EXTENSIONS(onnx)
 OV_COLLECT_ATTACHED_EXTENSIONS(tensorflow)
