@@ -22,6 +22,14 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
+if (SELECTIVE_BUILD STREQUAL "ON")
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        # After disabling a block of code, some variables might be unused.
+        target_compile_options(${TARGET_NAME} INTERFACE
+                                -Wno-unused-local-typedefs)
+    endif()
+endif()
+
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
