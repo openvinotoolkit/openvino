@@ -143,13 +143,14 @@ void GNADeviceHelper::releaseModel(const uint32_t model_id) {
 
 bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
     const auto execTargetDevice = getTargetDevice(true);
-    return (isGnaLibVersion3_0 || isGnaLibVersion2_1) && isUpTo20HwGnaDevice(execTargetDevice);
+    return isUpTo20HwGnaDevice(execTargetDevice);
 }
 
 Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
     const std::map<std::string, Gna2DeviceVersion> targetMap {
         {InferenceEngine::GNAConfigParams::GNA_TARGET_2_0, Gna2DeviceVersion2_0},
         {InferenceEngine::GNAConfigParams::GNA_TARGET_3_0, Gna2DeviceVersion3_0},
+        {InferenceEngine::GNAConfigParams::GNA_TARGET_3_5, Gna2DeviceVersion3_5},
         {"", Gna2DeviceVersionSoftwareEmulation},
     };
     const auto f = targetMap.find(target);
@@ -166,9 +167,9 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
         THROW_GNA_EXCEPTION << "Unsupported " << key << " = \"" << target << "\"" << extraSuffix;
     };
     if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
-        if (!isGnaLibVersion2_1 && !isGnaLibVersion3_0)
-            throwUnsupportedGnaTarget(", when GNA Library version is 2.0.X.Y");
         parsed = Gna2DeviceVersion3_0;
+    } else if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_5) {
+        parsed = Gna2DeviceVersion3_5;
     } else if (target != InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
         throwUnsupportedGnaTarget("");
     }
@@ -177,7 +178,7 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
 
 Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
     if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-        return (isGnaLibVersion3_0 ||  isGnaLibVersion2_1) ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
+        return Gna2DeviceVersion3_0;
     return detectedGnaDevVersion;
 }
 
@@ -501,9 +502,16 @@ void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::
     retPerfCounters["1.2 Stall scoring time in HW"] = info;
 }
 
-std::string GNADeviceHelper::getEffectiveGnaCompileTarget() const {
-    if (getTargetDevice(false) == Gna2DeviceVersion3_0) {
-        return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
+std::string GNADeviceHelper::GetCompileTarget() const {
+    const std::map<Gna2DeviceVersion, std::string> targetMap = {
+        {Gna2DeviceVersion2_0, InferenceEngine::GNAConfigParams::GNA_TARGET_2_0},
+        {Gna2DeviceVersion3_0, InferenceEngine::GNAConfigParams::GNA_TARGET_3_0},
+        {Gna2DeviceVersion3_5, InferenceEngine::GNAConfigParams::GNA_TARGET_3_5},
+    };
+    const auto target = getTargetDevice(false);
+    auto found = targetMap.find(target);
+    if (found == targetMap.end()) {
+        THROW_GNA_EXCEPTION << "Unknown target Gna2DeviceVersion == " << target;
     }
-    return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
+    return found->second;
 }
