@@ -436,9 +436,9 @@ def test_op_extension_via_onnx_extension():
     ie.add_extension(OpExtension("FW_OV_OP"))
     ie.add_extension(OpExtension("OV_OP", "FW_OP_1"))
     ie.add_extension(OpExtension("OV_OP", "FW_OP_2", {"ov_attribute_1": "fw_attribute_1",
-                                                    "ov_attribute_2": "fw_attribute_2"}))
+                                                      "ov_attribute_2": "fw_attribute_2"}))
     ie.add_extension(OpExtension("OV_OP", "FW_OP_3", {"ov_attribute_1": "fw_attribute_1",
-                                                    "ov_attribute_2": "fw_attribute_2"},
+                                                      "ov_attribute_2": "fw_attribute_2"},
                                  {"ov_attribute_str": "string",
                                   "ov_attribute_int": 4,
                                   "ov_attribute_bool": True,
@@ -463,9 +463,9 @@ def test_op_extension_via_frontend_extension():
     ie.add_extension(OpExtension("FW_OV_OP"))
     ie.add_extension(OpExtension("OV_OP", "FW_OP_1"))
     ie.add_extension(OpExtension("OV_OP", "FW_OP_2", {"ov_attribute_1": "fw_attribute_1",
-                                                    "ov_attribute_2": "fw_attribute_2"}))
+                                                      "ov_attribute_2": "fw_attribute_2"}))
     ie.add_extension(OpExtension("OV_OP", "FW_OP_3", {"ov_attribute_1": "fw_attribute_1",
-                                                    "ov_attribute_2": "fw_attribute_2"},
+                                                      "ov_attribute_2": "fw_attribute_2"},
                                  {"ov_attribute_str": "string",
                                   "ov_attribute_int": 4,
                                   "ov_attribute_bool": True,

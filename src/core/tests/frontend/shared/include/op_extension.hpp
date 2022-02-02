@@ -28,7 +28,6 @@ public:
         ov::element::Type arg_type = get_input_element_type(0);
         ov::PartialShape arg_shape = get_input_partial_shape(0);
         set_output_type(0, arg_type, arg_shape);
-        m_validate_invoked = true;
     }
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         return std::make_shared<Relu>(new_args.at(0));
