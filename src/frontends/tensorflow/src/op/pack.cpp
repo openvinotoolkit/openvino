@@ -14,7 +14,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_pack_op(const NodeContext& node) {
-    auto axis = node.get_attribute<int32_t>("axis");
+    auto axis = node.get_attribute<int64_t>("axis");
     auto axis_const = make_shared<Constant>(element::i64, Shape{}, axis);
 
     OutputVector concat_inputs;

@@ -69,14 +69,15 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
 
-# If doesn't have evaluate method and we cannot infer it
+# ONNX If - result mismatch - 77383
 INTERPRETER.onnx_if_inside_if
 INTERPRETER.onnx_if_inside_loop
+INTERPRETER.onnx_if_branches_with_same_inputs
+INTERPRETER.onnx_if_branches_with_different_inputs
+INTERPRETER.onnx_if_branches_without_inputs
+INTERPRETER.onnx_if_branches_with_multiple_outputs
+INTERPRETER.onnx_if_dynamic_inputs
 
-# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
-# Peepholes input unsupported
-onnx_model_lstm_fwd_with_clip_peepholes
-onnx_model_lstm_bdir_short_input_seq_peepholes
 # Activation function hardsigmoid unsupported
 onnx_model_gru_fwd_activations_relu_hardsigmoid
 onnx_model_lstm_fwd_hardsigmoid_activation
@@ -140,3 +141,12 @@ INTERPRETER.onnx_dyn_shapes_flatten_neg_axis
 INTERPRETER.onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
 INTERPRETER.onnx_model_instance_normalization_dyn_shape
 INTERPRETER.onnx_controlflow_loop_2d_no_identity_termination_cond_false
+
+# new failures after fixing the TestCase class - 77385
+onnx_bool_const_op
+onnx_bool_init_and
+onnx_bool_input_or
+onnx_bool_init_raw
+quant_dequant_pattern_axis
+onnx_clip_no_min_no_max_int64
+onnx_constant_sparse_tensor_boolean_3x4

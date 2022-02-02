@@ -4,6 +4,9 @@
 
 #include "jit_kernel.hpp"
 #include <stdexcept>
+#include <iostream>
+#include <cstring>
+#include <unordered_set>
 
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
@@ -14,6 +17,11 @@ namespace {
 
 template<typename RegType>
 using registers = std::array<std::reference_wrapper<const RegType>, 16>;
+
+bool isRegAllocable(int id) {
+    return id != abi_param1.getIdx()          // function argument
+            && id != Operand::Code::RSP;      // stack pointer
+}
 
 template<typename RegType>
 const RegType & reserveReg(jit_kernel::reg_indices & freeRegs, const registers<RegType> & regs) {
@@ -132,22 +140,39 @@ cpu_isa_t get_current_isa() {
     return cpu_isa_t::sse41;
 }
 
-stack_frame::stack_frame(MKLDNNPlugin::jit_kernel & kernel, size_t size)
+stack_frame::stack_frame(MKLDNNPlugin::jit_kernel & kernel, size_t size, uint32_t alignment)
     : _kernel(kernel)
-    , _size(size) {
-    if (_size)
-        _kernel.sub(_kernel.rsp, _size);
+    , _size(size)
+    , _alignment(alignment) {
+    if (_size || _alignment) {
+        if (_size && _alignment == 1) {
+            _kernel.sub(_kernel.rsp, _size);
+        } else {
+            auto tmp = _kernel.var<size_t>();
+            tmp = _kernel.rsp;
+            _kernel.sub(_kernel.rsp, sizeof(size_t) + size);        // allocate
+            _kernel.and_(_kernel.rsp, ~(alignment - 1));            // align
+            _kernel.mov(_kernel.ptr[_kernel.rsp + size], tmp);      // remember previous rsp
+        }
+    }
 }
 
 stack_frame::stack_frame(stack_frame && rhs)
     : _kernel(rhs._kernel)
-    , _size(rhs._size) {
+    , _size(rhs._size)
+    , _alignment(rhs._alignment) {
     rhs._size = 0;
+    rhs._alignment = 0;
 }
 
 stack_frame::~stack_frame() {
-    if (_size)
-        _kernel.add(_kernel.rsp, _size);
+    if (_size || _alignment) {
+        if (_size && _alignment == 1) {
+            _kernel.add(_kernel.rsp, _size);
+        } else {
+            _kernel.mov(_kernel.rsp, _kernel.ptr[_kernel.rsp + _size]);
+        }
+    }
 }
 
 const Xbyak::Reg64 & stack_frame::pointer() const {
@@ -168,6 +193,21 @@ void stack_frame::clear() const {
     }
 }
 
+const void * consts_table::store(const void *data, size_t size) {
+    if (size > chunk_size)
+        throw std::runtime_error("Data size is too large");
+    const size_t capacity = _chunks.size() * chunk_size;
+    if (size > capacity - _size) {
+        _size = _chunks.size() * chunk_size;
+        _chunks.emplace_back();
+    }
+    auto & dst = _chunks.back();
+    const size_t offset = _size % chunk_size;
+    memcpy(&dst[offset], data, size);
+    _size += size;
+    return &dst[offset];
+}
+
 }   // namespace internal
 
 jit_kernel::jit_kernel()
@@ -176,14 +216,8 @@ jit_kernel::jit_kernel()
     _free_rmmregs.reserve(16);
     _free_rmmregs.reserve(16);
 
-    auto isRegReserved = [this](int idx) {
-        return idx == param1.getIdx()           // function argument
-                || idx == Operand::Code::RSP    // stack pointer
-                || idx == Operand::Code::RBP;   // frame pointer
-    };
-
     for (int reg = Operand::Code::RAX; reg <= Operand::Code::R15; ++reg) {
-        if (!isRegReserved(reg))
+        if (isRegAllocable(reg))
             _free_x64regs.emplace_back(reg);
         _free_rmmregs.emplace_back(reg);
     }
@@ -282,38 +316,43 @@ const AddressFrame & jit_kernel::address_frame(size_t size) const {
         return ptr;
 }
 
-jit_kernel::stack_frame jit_kernel::stack(size_t size) {
-    return stack_frame(*this, size);
+const jit_kernel::reg_indices & jit_kernel::free_x64regs() const {
+    return _free_x64regs;
 }
 
-void jit_kernel::uni_vpermps(const Xmm& x1, const int *mask, const Operand& op) {
-    uint8_t imm8 = static_cast<uint8_t>(*mask);
-    mov(x1, op);
+const jit_kernel::reg_indices & jit_kernel::free_rmmregs() const {
+    return _free_rmmregs;
+}
+
+jit_kernel::stack_frame jit_kernel::stack(size_t size, uint32_t alignment) {
+    return stack_frame(*this, size, alignment);
+}
+
+void jit_kernel::uni_vpermps(const Xmm& x1, const uint8_t mask[4], const Operand& op) {
+    uint8_t imm8 = 0;
+    for (size_t i = 0; i < 4; ++i)
+        imm8 |= mask[i] << (i * 2);
+    if (op != x1)
+        movdqu(x1, op);
     shufps(x1, op, imm8);
 }
 
-void jit_kernel::uni_vpermps(const Ymm& y1, const int *mask, const Operand& op) {
-    auto mreg = reserve<Ymm>();
-    auto mptr = reserve<Reg64>();
-
-    mov(mptr, (size_t)mask);
-    uni_vmovdqu(mreg, ptr[mptr]);
+void jit_kernel::uni_vpermps(const Ymm& y1, const uint8_t mask[8], const Operand& op) {
+    int data[8];
+    for (size_t i = 0; i < 8; ++i)
+        data[i] = mask[i];
+    auto mreg = var<int[8]>();
+    mreg = data;
     vpermps(y1, mreg, op);
-
-    free(mreg);
-    free(mptr);
 }
 
-void jit_kernel::uni_vpermps(const Zmm& z1, const int *mask, const Operand& op) {
-    auto mreg = reserve<Zmm>();
-    auto mptr = reserve<Reg64>();
-
-    mov(mptr, (size_t)mask);
-    uni_vmovdqu(mreg, ptr[mptr]);
+void jit_kernel::uni_vpermps(const Zmm& z1, const uint8_t mask[16], const Operand& op) {
+    int data[16];
+    for (size_t i = 0; i < 16; ++i)
+        data[i] = mask[i];
+    auto mreg = var<int[16]>();
+    mreg = data;
     vpermps(z1, mreg, op);
-
-    free(mreg);
-    free(mptr);
 }
 
 void jit_kernel::uni_vblendps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, uint16_t mask) {
