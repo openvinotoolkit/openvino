@@ -140,7 +140,7 @@ private:
         _taskExecutorGetResultIds.pop();
         _taskExecutorGetResultIds.push(id);
 
-        ie::ITaskExecutor::Ptr taskExecutor = _plugin->executorManager()->getExecutor(id);
+        ie::ITaskExecutor::Ptr taskExecutor = ie::executorManager()->getExecutor(id);
 
         return taskExecutor;
     }
