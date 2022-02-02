@@ -114,7 +114,6 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
 xfail_issue_58033 = xfail_test(reason="Einsum operation misses support for complex ellipsis equations")
 xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
-xfail_issue_54630 = xfail_test(reason="Gather with negative indices is not yet implemented on CPU")
 
 xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
 xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
@@ -128,3 +127,5 @@ xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElemen
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_63643 = xfail_test(reason="RuntimeError: Unsupported operation of type: Convolution name")
 xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes streams")
+
+xfail_issue_77668 = xfail_test(reason="Accuracy issue related to Gather-8.")
