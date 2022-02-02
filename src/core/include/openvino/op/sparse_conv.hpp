@@ -19,6 +19,7 @@ public:
 
     SparseConv(const Output<ngraph::Node>& features,
                const Output<ngraph::Node>& inp_pos,
+               const Output<ngraph::Node>& out_pos,
                const Output<ngraph::Node>& kernel,
                const Output<ngraph::Node>& offset);
 

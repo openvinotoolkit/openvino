@@ -14,10 +14,11 @@ using namespace ngraph;
 BWDCMP_RTTI_DEFINITION(ov::op::v1::SparseConv);
 
 ov::op::v1::SparseConv::SparseConv(const Output<Node>& features,
-                               const Output<Node>& inp_pos,
-                               const Output<Node>& kernel,
-                               const Output<Node>& offset)
-    : Op({features, inp_pos, kernel, offset}) {
+                                   const Output<Node>& inp_pos,
+                                   const Output<Node>& out_pos,
+                                   const Output<Node>& kernel,
+                                   const Output<Node>& offset)
+    : Op({features, inp_pos, out_pos, kernel, offset}) {
     constructor_validate_and_infer_types();
 }
 
@@ -30,13 +31,14 @@ shared_ptr<Node> op::v1::SparseConv::clone_with_new_inputs(const OutputVector& n
     NGRAPH_OP_SCOPE(v1_SparseConv_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::SparseConv>(new_args.at(0), new_args.at(1),
-                                           new_args.at(2), new_args.at(3));
+                                           new_args.at(2), new_args.at(3),
+                                           new_args.at(4));
 }
 
 void op::v1::SparseConv::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_SparseConv_validate_and_infer_types);
-    auto outShape = get_input_partial_shape(0);
-    auto kernelShape = get_input_partial_shape(2);
+    auto outShape = get_input_partial_shape(2);
+    auto kernelShape = get_input_partial_shape(3);
     outShape[1] = kernelShape[4];
     set_output_type(0, get_input_element_type(0), outShape);
 }
@@ -46,15 +48,17 @@ bool op::v1::SparseConv::evaluate(const HostTensorVector& outputs, const HostTen
 
     const float* features = inputs[0]->get_data_ptr<float>();
     const float* inpPos = inputs[1]->get_data_ptr<float>();
-    const float* kernel = inputs[2]->get_data_ptr<float>();
-    const float* offset = inputs[3]->get_data_ptr<float>();
+    const float* outPos = inputs[2]->get_data_ptr<float>();
+    const float* kernel = inputs[3]->get_data_ptr<float>();
+    const float* offset = inputs[4]->get_data_ptr<float>();
     float* out = outputs[0]->get_data_ptr<float>();
 
     const Shape outDims = get_default_output().get_shape();
     memset(out, 0, sizeof(float) * outDims[0] * outDims[1]);
 
-    const size_t numPoints = get_input_partial_shape(1).to_shape()[0];
-    Shape kernelDims = get_input_partial_shape(2).to_shape();
+    size_t numInpPoints = get_input_partial_shape(1).to_shape()[0];
+    const size_t numOutPoints = get_input_partial_shape(2).to_shape()[0];
+    Shape kernelDims = get_input_partial_shape(3).to_shape();
 
     // Kernel layout is DxHxWxICxOH
     const int kd = kernelDims[0];
@@ -68,13 +72,20 @@ bool op::v1::SparseConv::evaluate(const HostTensorVector& outputs, const HostTen
     float rh = kh * 0.51f;
     float rd = kd * 0.51f;
 
-    for (size_t i = 0; i < numPoints; ++i) {
-        const float xi = inpPos[i * 3] - offset[0];
-        const float yi = inpPos[i * 3 + 1] - offset[1];
-        const float zi = inpPos[i * 3 + 2] - offset[2];
+    for (size_t i = 0; i < numInpPoints; ++i) {
+        if (inpPos[i * 3] < 0) {
+            numInpPoints = i;
+            break;
+        }
+    }
+
+    for (size_t i = 0; i < numOutPoints; ++i) {
+        const float xi = outPos[i * 3] - offset[0];
+        const float yi = outPos[i * 3 + 1] - offset[1];
+        const float zi = outPos[i * 3 + 2] - offset[2];
 
         // Accumulate features which inside the kernel
-        for (size_t j = 0; j < numPoints; ++j) {
+        for (size_t j = 0; j < numInpPoints; ++j) {
             const float xj = inpPos[j * 3];
             const float yj = inpPos[j * 3 + 1];
             const float zj = inpPos[j * 3 + 2];

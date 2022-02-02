@@ -3,6 +3,8 @@
 //
 
 #include "ngraph/op/sparse_conv.hpp"
+#include "ngraph/op/convolution.hpp"
+#include "openvino/openvino.hpp"
 
 #include <string>
 #include <vector>
@@ -18,13 +20,19 @@ using namespace ngraph;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
+std::shared_ptr<Function> create_sparse_conv(size_t num_inp_pos, size_t num_out_pos,
+                                             size_t inp_channels, size_t out_channels) {
+    auto feat = make_shared<op::Parameter>(element::f32, Shape{num_inp_pos, inp_channels});
+    auto inp_pos = make_shared<op::Parameter>(element::f32, Shape{num_inp_pos, 3});
+    auto out_pos = make_shared<op::Parameter>(element::f32, Shape{num_out_pos, 3});
+    auto kernel = make_shared<op::Parameter>(element::f32, Shape{3, 3, 3, inp_channels, out_channels});
+    auto offset = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto conv = make_shared<op::v1::SparseConv>(feat, inp_pos, out_pos, kernel, offset);
+    return make_shared<Function>(OutputVector{conv}, ParameterVector{feat, inp_pos, out_pos, kernel, offset});
+}
+
 TEST(op_eval, sparse_conv_single_channel) {
-    auto arg0 = make_shared<op::Parameter>(element::f32, Shape{2, 1});
-    auto arg1 = make_shared<op::Parameter>(element::f32, Shape{2, 3});
-    auto arg2 = make_shared<op::Parameter>(element::f32, Shape{3, 3, 3, 1, 1});
-    auto arg3 = make_shared<op::Parameter>(element::f32, Shape{3});
-    auto conv = make_shared<op::v1::SparseConv>(arg0, arg1, arg2, arg3);
-    auto fun = make_shared<Function>(OutputVector{conv}, ParameterVector{arg0, arg1, arg2, arg3});
+    auto fun = create_sparse_conv(2, 2, 1, 1);
 
     std::vector<float> features{1.0f, 1.0f};
     std::vector<float> inp_pos{1.46057f, 3.3381f, 0.504631f,
@@ -38,6 +46,7 @@ TEST(op_eval, sparse_conv_single_channel) {
     ASSERT_TRUE(fun->evaluate({result},
                               {make_host_tensor<element::Type_t::f32>(Shape{2, 1}, features),
                                make_host_tensor<element::Type_t::f32>(Shape{2, 3}, inp_pos),
+                               make_host_tensor<element::Type_t::f32>(Shape{2, 3}, inp_pos),  // out_pos
                                make_host_tensor<element::Type_t::f32>(Shape{3, 3, 3, 1, 1}, kernel),
                                make_host_tensor<element::Type_t::f32>(Shape{3}, offset)}));
     EXPECT_EQ(result->get_element_type(), element::f32);
@@ -45,3 +54,124 @@ TEST(op_eval, sparse_conv_single_channel) {
     EXPECT_NEAR(result_data[0], 34.f, 0.000001);
     EXPECT_NEAR(result_data[1], 22.f, 0.000001);
 }
+
+static size_t generatePoses(size_t numPos, size_t maxGridExtent, std::vector<float>& data) {
+    std::set<tuple<int, int, int> > uniquePos;
+    for (int i = 0; i < numPos; ++i) {
+        int x = rand() % maxGridExtent;
+        int y = rand() % maxGridExtent;
+        int z = rand() % maxGridExtent;
+        uniquePos.insert(std::make_tuple(x, y, z));
+    }
+    numPos = uniquePos.size();
+
+    data.resize(numPos * 3);
+    size_t i = 0;
+    for (const auto& it : uniquePos) {
+        data[i * 3] = std::get<0>(it);
+        data[i * 3 + 1] = std::get<1>(it);
+        data[i * 3 + 2] = std::get<2>(it);
+        i += 1;
+    }
+    return numPos;
+}
+
+// Compare SparseConv with Conv3D
+struct SparseConvTest : ::testing::TestWithParam<tuple<size_t, size_t, size_t>> {};
+TEST_P(SparseConvTest, sparse_conv_like_conv3d) {
+    const size_t ic = get<0>(GetParam());
+    const size_t oc = get<1>(GetParam());
+    const size_t kernel = get<2>(GetParam());
+    static const size_t grid = 4;
+    size_t numInpPos = 100;
+    size_t numOutPos = 50;
+
+    // Generate random unique positions.
+    std::vector<float> inpPos, outPos;
+    numInpPos = generatePoses(numInpPos, grid, inpPos);
+    numOutPos = generatePoses(std::min(numOutPos, numInpPos), grid, outPos);
+
+    // Generate input features and kernel
+    std::vector<float> features(numInpPos * ic);
+    std::vector<float> denseFeatures(pow(grid, 3) * ic, 0.0f);
+    size_t kernelPlane = pow(kernel, 3);
+    std::vector<float> kernelDHWIO(ic * oc * kernelPlane);
+    std::vector<float> kernelOIDHW(ic * oc * kernelPlane);
+    std::vector<float> offset(3, 0.0f);
+    for (size_t j = 0; j < numInpPos; ++j) {
+        for (size_t i = 0; i < ic; ++i) {
+            float value = static_cast<float>(rand()) / RAND_MAX - 0.5f;
+            features[j * ic + i] = value;
+
+            int x = static_cast<int>(inpPos[j * 3]);
+            int y = static_cast<int>(inpPos[j * 3 + 1]);
+            int z = static_cast<int>(inpPos[j * 3 + 2]);
+            denseFeatures[((i * grid + z) * grid + y) * grid + x] = value;
+        }
+    }
+
+    for (size_t i = 0; i < ic; ++i) {
+        for (size_t j = 0; j < oc; ++j) {
+            for (size_t k = 0; k < kernelPlane; ++k) {
+                float value = static_cast<float>(rand()) / RAND_MAX - 0.5f;
+                kernelDHWIO[(k * ic + i) * oc + j] = value;
+                kernelOIDHW[(j * ic + i) * kernelPlane + k] = value;
+            }
+        }
+    }
+
+    // Define sparse conv
+    auto sparseConv = create_sparse_conv(numInpPos, numOutPos, ic, oc);
+
+    // Define dense Conv3D
+    // NOTE: SparseConv's kernel is DxHxWxICxOC but Conv3D's is OCxICxDxHxW
+    auto conv3d_inp = make_shared<op::Parameter>(element::f32, Shape{1, ic, grid, grid, grid});
+    auto conv3d_kernel = make_shared<op::Parameter>(element::f32, Shape{oc, ic, kernel, kernel, kernel});
+    auto conv3d = std::make_shared<op::v1::Convolution>(
+                                conv3d_inp, conv3d_kernel,
+                                ngraph::Strides({1, 1, 1}),  // strides
+                                ngraph::CoordinateDiff({}),  // pad_begin
+                                ngraph::CoordinateDiff({}),  // pad_end
+                                ngraph::Strides({1, 1, 1}),  // dilations
+                                ngraph::op::PadType::SAME_LOWER);
+
+    // Evaluate SparseConv
+    auto out = make_shared<HostTensor>();
+    ASSERT_TRUE(sparseConv->evaluate({out},
+                              {make_host_tensor<element::Type_t::f32>(Shape{numInpPos, ic}, features),
+                               make_host_tensor<element::Type_t::f32>(Shape{numInpPos, 3}, inpPos),
+                               make_host_tensor<element::Type_t::f32>(Shape{numOutPos, 3}, outPos),
+                               make_host_tensor<element::Type_t::f32>(Shape{kernel, kernel, kernel, ic, oc}, kernelDHWIO),
+                               make_host_tensor<element::Type_t::f32>(Shape{3}, offset)}));
+    EXPECT_EQ(out->get_element_type(), element::f32);
+    auto outData = read_vector<float>(out);
+
+    // Run Conv3D
+    ov::Core core;
+    std::shared_ptr<ov::Model> model(new ov::Model({conv3d}));
+    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
+    ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+    infer_request.set_tensor(conv3d_inp, ov::Tensor(element::f32, Shape{1, ic, grid, grid, grid}, denseFeatures.data()));
+    infer_request.set_tensor(conv3d_kernel, ov::Tensor(element::f32, Shape{oc, ic, kernel, kernel, kernel}, kernelOIDHW.data()));
+    infer_request.infer();
+
+    auto ref = infer_request.get_tensor(conv3d);
+
+    float* refData = ref.data<float>();
+    for (int n = 0; n < numOutPos; ++n) {
+        int x = static_cast<int>(outPos[n * 3]);
+        int y = static_cast<int>(outPos[n * 3 + 1]);
+        int z = static_cast<int>(outPos[n * 3 + 2]);
+        for (int ch = 0; ch < oc; ++ch) {
+            float refVal = refData[((ch * grid + z) * grid + y) * grid + x];
+            float outVal = outData[n * oc + ch];
+            EXPECT_NEAR(outVal, refVal, 0.000001);
+        }
+    }
+}
+INSTANTIATE_TEST_CASE_P(/**/, SparseConvTest, testing::Combine(
+    /*inp_channels*/ testing::Values(1, 3),
+    /*out_channels*/ testing::Values(1, 4),
+    /*kernel_size*/ testing::Values(3)
+));
