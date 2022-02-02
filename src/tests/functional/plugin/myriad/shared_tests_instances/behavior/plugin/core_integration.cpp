@@ -47,8 +47,12 @@ TEST_P(IEClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsF
 
     const auto optimizationCapabilities = optimizationCapabilitiesParameter.as<std::vector<std::string>>();
     ASSERT_EQ(optimizationCapabilities.size(), 2);
-    std::vector<std::string> refVal{ov::device::capability::EXPORT_IMPORT, ov::device::capability::FP16};
-    ASSERT_EQ(optimizationCapabilities, refVal);
+    ASSERT_NE(std::find(optimizationCapabilities.begin(),
+                        optimizationCapabilities.end(),
+                        ov::device::capability::EXPORT_IMPORT),
+              optimizationCapabilities.end());
+    ASSERT_NE(std::find(optimizationCapabilities.begin(), optimizationCapabilities.end(), ov::device::capability::FP16),
+              optimizationCapabilities.end());
 }
 
 INSTANTIATE_TEST_SUITE_P(

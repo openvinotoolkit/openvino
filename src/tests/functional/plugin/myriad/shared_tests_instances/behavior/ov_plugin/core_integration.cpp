@@ -5,6 +5,7 @@
 #include "behavior/ov_plugin/core_integration.hpp"
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <functional_test_utils/skip_tests_config.hpp>
 
 #include "common_test_utils/file_utils.hpp"
@@ -40,8 +41,10 @@ TEST_P(OVClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsF
     std::vector<std::string> device_capabilities;
     ASSERT_NO_THROW(device_capabilities = ie.get_property(deviceName, ov::device::capabilities));
     ASSERT_EQ(device_capabilities.size(), 2);
-    std::vector<std::string> refVal{ov::device::capability::EXPORT_IMPORT, ov::device::capability::FP16};
-    ASSERT_EQ(device_capabilities, refVal);
+    ASSERT_NE(std::find(device_capabilities.begin(), device_capabilities.end(), ov::device::capability::EXPORT_IMPORT),
+              device_capabilities.end());
+    ASSERT_NE(std::find(device_capabilities.begin(), device_capabilities.end(), ov::device::capability::FP16),
+              device_capabilities.end());
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricP, OVClassNetworkTestP_VPU_GetMetric, ::testing::ValuesIn(devices));
