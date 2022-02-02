@@ -41,7 +41,7 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
 }
 
 Any::~Any() {
-    _runtime_attribute_impl = {};
+    _temp_impl = {};
     _impl = {};
 }
 

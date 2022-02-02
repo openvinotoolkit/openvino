@@ -140,22 +140,6 @@ TEST_F(AnyTests, AnyAsStringInLine) {
     ASSERT_EQ("test", test);
 }
 
-TEST_F(AnyTests, IntAnyAsString) {
-    Any p = 4;
-    ASSERT_TRUE(p.is<int>());
-    ASSERT_FALSE(p.is<std::string>());
-    ASSERT_THROW(std::string test = p, ov::Exception);
-    ASSERT_THROW(std::string test = p.as<std::string>(), ov::Exception);
-}
-
-TEST_F(AnyTests, StringAnyAsInt) {
-    Any p = "4";
-    ASSERT_FALSE(p.is<int>());
-    ASSERT_TRUE(p.is<std::string>());
-    ASSERT_THROW((void)static_cast<int>(p), ov::Exception);
-    ASSERT_THROW((void)p.as<int>(), ov::Exception);
-}
-
 TEST_F(AnyTests, AnyAsInts) {
     std::vector<int> ref = {1, 2, 3, 4, 5};
     Any p = ref;
@@ -519,4 +503,16 @@ TEST_F(AnyTests, accessUsingWrongBaseReference) {
     ASSERT_FALSE(p.is<WrongBase>());
     ASSERT_NO_THROW(p.as<WrongDerived>());
     ASSERT_THROW(p.as<WrongBase>(), ov::Exception);
+}
+
+TEST_F(AnyTests, ToString) {
+    Any p = 42;
+    ASSERT_TRUE(p.is<int>());
+    ASSERT_EQ("42", p.as<std::string>());
+}
+
+TEST_F(AnyTests, FromString) {
+    Any p = "42";
+    ASSERT_TRUE(p.is<std::string>());
+    ASSERT_EQ(42, p.as<int>());
 }

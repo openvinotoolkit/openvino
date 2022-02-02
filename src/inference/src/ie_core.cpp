@@ -37,6 +37,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
@@ -223,6 +224,12 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         auto supported =
             (it != supportedMetricKeys.end()) && plugin.get_metric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
+        if (!supported) {
+            if (util::contains(plugin.get_property(ov::supported_properties), ov::device::capabilities)) {
+                supported = util::contains(plugin.get_property(ov::device::capabilities),
+                                           ov::device::capability::EXPORT_IMPORT);
+            }
+        }
         return supported;
     }
 
@@ -231,19 +238,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
-        bool supported = false;
-        std::vector<std::string> supportedMetricKeys;
-        try {
-            // If plugin doesn't support 'SUPPORTED_METRICS' - treat it as config is not supported as well
-            supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
-        } catch (...) {
-        }
-        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        if (it != supportedMetricKeys.end()) {
-            auto configKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {})->as<std::vector<std::string>>();
-            supported = std::find(configKeys.begin(), configKeys.end(), key) != configKeys.end();
-        }
-        return supported;
+        return util::contains(plugin.get_property(ov::supported_properties), key);
     }
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
@@ -333,29 +328,27 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
         // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
         auto targetFallbackIt = compileConfig.find("TARGET_FALLBACK");
+        if (targetFallbackIt == compileConfig.end()) {
+            targetFallbackIt = compileConfig.find(ov::device::priorities.name());
+        }
         if (targetFallbackIt != compileConfig.end()) {
             getMetricConfig[targetFallbackIt->first] = targetFallbackIt->second;
             compileConfig.erase(targetFallbackIt);
         }
 
         // 1. remove DEVICE_ID key
-        auto deviceIt = compileConfig.find(CONFIG_KEY(DEVICE_ID));
+        auto deviceIt = compileConfig.find(ov::device::id.name());
         if (deviceIt != compileConfig.end()) {
             getMetricConfig[deviceIt->first] = deviceIt->second;
             compileConfig.erase(deviceIt);
         }
 
         // 2. replace it with DEVICE_ARCHITECTURE value
-        auto supportedMetricKeys =
-            plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), getMetricConfig)->as<std::vector<std::string>>();
-        auto archIt =
-            std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
-        if (archIt != supportedMetricKeys.end()) {
-            auto value = plugin.get_metric(METRIC_KEY(DEVICE_ARCHITECTURE), getMetricConfig);
-            compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = value->as<std::string>();
+        if (util::contains(plugin.get_property(ov::supported_properties), ov::device::architecture)) {
+            compileConfig[ov::device::architecture.name()] = plugin.get_property(ov::device::architecture);
         } else {
             // Take device name if device does not support DEVICE_ARCHITECTURE metric
-            compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = deviceFamily;
+            compileConfig[ov::device::architecture.name()] = deviceFamily;
         }
         return compileConfig;
     }
@@ -1800,35 +1793,7 @@ Any Core::get_property(const std::string& deviceName, const std::string& name, c
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
-        if (ov::supported_properties == name) {
-            try {
-                return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
-            } catch (ie::Exception&) {
-                auto ro_properties = _impl->GetCPPPluginByName(parsed._deviceName)
-                                         .get_metric(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
-                                         .as<std::vector<std::string>>();
-                auto rw_properties = _impl->GetCPPPluginByName(parsed._deviceName)
-                                         .get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), parsed._config)
-                                         .as<std::vector<std::string>>();
-                std::vector<ov::PropertyName> supported_properties;
-                for (auto&& ro_property : ro_properties) {
-                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
-                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                        supported_properties.emplace_back(ro_property, PropertyMutability::RO);
-                    }
-                }
-                for (auto&& rw_property : rw_properties) {
-                    supported_properties.emplace_back(rw_property, PropertyMutability::RW);
-                }
-                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
-                return supported_properties;
-            }
-        }
-        try {
-            return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
-        } catch (ie::Exception&) {
-            return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
-        }
+        return _impl->GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     });
 }
 
