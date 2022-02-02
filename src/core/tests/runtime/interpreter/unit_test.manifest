@@ -96,10 +96,6 @@ INTERPRETER.ctc_greedy_decoder_f16
 onnx_model_softmax_axis_0
 onnx_model_reshape_negative_dim
 
-# Result mismatch - 77384
-onnx_model_softmax_axis_negative_1_opset11
-onnx_model_softmax_axis_negative_1_opset13
-
 # LogSoftmax's reference implementation doesn't handle scalar input properly
 onnx_model_logsoftmax_0D
 # Input body shape is changed during Loop iterations
