@@ -51,7 +51,6 @@ set(ENABLE_OPENVINO_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks")
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation dir.")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
 set(OVMS_DOCS_DIR "" CACHE PATH "Path to model server documentation dir.")
-set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
 set(GRAPH_CSV_DIR "" CACHE PATH "Path to the folder containing csv data for rendering graphs.")
 
 function(build_docs)
@@ -89,6 +88,8 @@ function(build_docs)
 
     # Sphinx folders, doxyrest templates and config
     set(SPHINX_CONF_IN "${DOCS_SOURCE_DIR}/conf.py")
+    set(SPHINX_TEMPLATES_IN "${DOCS_SOURCE_DIR}/_templates")
+    set(SPHINX_TEMPLATES_OUT "${RST_OUTPUT}/_templates")
     set(SPHINX_CONF_OUT "${RST_OUTPUT}/conf.py")
     set(SPHINX_STATIC_IN "${DOCS_SOURCE_DIR}/_static")
     set(SPHINX_STATIC_OUT "${RST_OUTPUT}/_static")
@@ -160,14 +161,6 @@ function(build_docs)
         --output_dir=${DOCS_BUILD_DIR}/ovms)
     endif()
 
-    # gst doc files
-    if(EXISTS "${GST_DOCS_DIR}")
-        get_filename_component(GST_DOCS_DIR "${GST_DOCS_DIR}" ABSOLUTE)
-        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir=${GST_DOCS_DIR}
-        --output_dir=${DOCS_BUILD_DIR}/gst)
-    endif()
-
     add_custom_target(preprocess_docs
                      COMMENT "Preprocess documentation"
                      VERBATIM)
@@ -198,6 +191,7 @@ function(build_docs)
                        COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN} ${API_DOCS_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_TEMPLATES_IN} ${SPHINX_TEMPLATES_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}

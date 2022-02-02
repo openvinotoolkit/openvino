@@ -31,8 +31,8 @@ TEST_MODELS = [
                                                                               'accuracy@top5': 0.906},
      {}, 'CPU'),
 
-    ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.721,
-                                                                                  'accuracy@top5': 0.907},
+    ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.728,
+                                                                                  'accuracy@top5': 0.909},
      {'use_fast_bias': False}, 'CPU'),
 
     ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.728,
@@ -219,6 +219,24 @@ def test_simplified_mode(tmp_path, models):
     _, _, _, _, expected_accuracy = SIMPLIFIED_TEST_MODELS[0]
     metrics = launch_simplified_mode(tmp_path, models, engine_config)
     assert metrics == pytest.approx(expected_accuracy, abs=0.006)
+
+
+DATAFREE_TEST_MODELS = [
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
+     {'accuracy@top1': 0.679, 'accuracy@top5': 0.888})
+]
+
+
+def test_datafree_mode(tmp_path, models):
+    engine_config = Dict({'type': 'data_free',
+                          'data_source': os.path.join(tmp_path, 'pot_dataset'),
+                          'generate_data': 'True',
+                          'subset_size': 30,
+                          'device': 'CPU'})
+
+    _, _, _, _, expected_accuracy = DATAFREE_TEST_MODELS[0]
+    metrics = launch_simplified_mode(tmp_path, models, engine_config)
+    assert metrics == pytest.approx(expected_accuracy, abs=0.06)
 
 
 def test_frame_extractor_tool():
