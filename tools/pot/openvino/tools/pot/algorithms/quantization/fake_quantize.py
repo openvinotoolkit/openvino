@@ -313,7 +313,7 @@ def get_quantized_model(model, create_stats_collector, activations_statistics,
     fake_quantize_config = compute_stats_layouts(config, model, qscheme=qscheme)
 
     # generate a list of fq nodes that require rescaling (first convolutions weight FQs)
-    fake_quantize_config.update(set_rescaling_factors(config['target_device'], model))
+    fake_quantize_config.update(set_rescaling_factors(config, model))
 
     weights_stats_layout = create_stats_collector(fake_quantize_config, model, for_weights=True)
 
@@ -386,32 +386,43 @@ def broadcast_fq_values(fq, node, min_level, max_level, fq_config):
     return min_level, max_level
 
 
-def set_rescaling_factors(target_device, model, scaling_factor=2.0):
+def set_rescaling_factors(config, model, scaling_factor=2.0):
     """
         Generate a list of weight FQ nodes for input convolutions
         for further rescaling of weights/FQs.
         Skip if target device is not CPU.
-        :param target_device: target device name
+        :param config: algo config
         :param model: NXModel instance
         :param scaling_factor: rescaling factor for first convolution nodes
     """
-    fqs_to_rescale = []
 
-    if target_device not in ['CPU', 'ANY'] or not get_nodes_by_type(model, ['Convolution'], recursively=False):
+    fqs_to_rescale = []
+    saturation_fix = config.get('saturation_fix', 'first_layer')
+
+    if config['target_device'] not in ['CPU', 'ANY'] \
+            or not get_nodes_by_type(model, ['Convolution'], recursively=False) \
+            or saturation_fix == 'no':
         return {'scaling_factor': 1.0,
                 'fqs_to_rescale': fqs_to_rescale}
 
     input_nodes = get_nodes_by_type(model, ['Parameter'], recursively=False)
+    fc_layers = get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS], recursively=False)
 
-    input_convolutions = get_first_convolutions(input_nodes)
+    fc_layers_to_rescale = []
+    if saturation_fix == 'first_layer':
+        fc_layers_to_rescale = get_first_convolutions(input_nodes)
+    elif saturation_fix == 'all':
+        fc_layers_to_rescale = fc_layers
 
-    for node in input_convolutions:
+    for node in fc_layers_to_rescale:
         fqs_to_rescale.append(get_node_input(node, 1).name)
 
-    conv_nodes_to_rescale = get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS], recursively=False)
-    conv_fqs_to_rescale = [get_node_input(node, 1).name for node in conv_nodes_to_rescale if
-                           'need_rescale' in node and node['need_rescale']]
-    fqs_to_rescale.extend(conv_fqs_to_rescale)
+    for fc_layer in fc_layers:
+        fq_input_name = get_node_input(fc_layer, 1).name
+        if 'need_rescale' in fc_layer and fc_layer['need_rescale'] and \
+                fq_input_name not in fqs_to_rescale:
+            fqs_to_rescale.append(fq_input_name)
+
     return {'scaling_factor': scaling_factor,
             'fqs_to_rescale': fqs_to_rescale}
 
