@@ -378,14 +378,14 @@ public:
                                const AnyMap& properties = {});
 
     /**
-     * @brief Imports a compiled model from a previously exported one
-     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param model_stream Model stream
-     * @param device_name Name of device to import compiled model for. Note, if @p device_name device was not used to
-     * compile the original mode, an exception is thrown
+     * @brief Imports a compiled model from the previously exported one.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_stream Model stream.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used to
+     * compile the original mode, an exception is thrown.
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
-     * load operation
-     * @return A compiled model
+     * load operation.
+     * @return A compiled model.
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(std::istream& model_stream,
@@ -407,13 +407,13 @@ public:
     CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const AnyMap& properties = {});
 
     /**
-     * @brief Imports a compiled model from a previously exported one with a specified remote context.
-     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param model_stream Model stream
-     * @param context Pointer to RemoteContext object
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_stream Model stream.
+     * @param context Pointer to a RemoteContext object.
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
-     * load operation
-     * @return A compiled model
+     * load operation.
+     * @return A compiled model.
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(std::istream& model_stream,
@@ -425,7 +425,7 @@ public:
     /**
      * @brief Query device if it supports the specified model with specified properties.
      *
-     * @param device_name A name of a device to query.
+     * @param device_name Name of a device to query.
      * @param model Model object to query.
      * @param properties Optional map of pairs: (property name, property value).
      * @return An object containing a map of pairs an operation name -> a device name supporting this operation.
@@ -437,12 +437,12 @@ public:
     /**
      * @brief Queries a device if it supports the specified model with specified properties.
      *
-     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param device_name A name of a device to query
-     * @param model Model object to query
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param device_name Name of a device to query.
+     * @param model Model object to query.
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
-     * query operation
-     * @return An object containing a map of pairs a operation name -> a device name supporting this operation.
+     * query operation.
+     * @return An object containing a map of pairs an operation name -> a device name supporting this operation.
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<SupportedOpsMap, Properties...> query_model(
@@ -454,7 +454,7 @@ public:
 
     /**
      * @brief Sets properties for all the
-     * registered devices, acceptable keys can be found in openvino/runtime/properties.hpp
+     * registered devices, acceptable keys can be found in openvino/runtime/properties.hpp.
      *
      * @param properties Map of pairs: (property name, property value).
      */
@@ -466,7 +466,6 @@ public:
      *
      * @tparam Properties Should be a pack of `std::pair<std::string, ov::Any>` types.
      * @param properties Optional pack of pairs: property name, property value.
-     * @return Nothing.
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
@@ -483,12 +482,11 @@ public:
     void set_property(const std::string& device_name, const AnyMap& properties);
 
     /**
-     * @brief Sets properties for device, acceptable keys can be found in openvino/runtime/properties.hpp
+     * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
      *
-     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param device_name An name of a device.
-     * @param properties Optional pack of pairs: (property name, property value)
-     * @return nothing
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param device_name Name of a device.
+     * @param properties Optional pack of pairs: (property name, property value).
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<void, Properties...> set_property(const std::string& device_name,
@@ -497,37 +495,37 @@ public:
     }
 
     /**
-     * @brief Gets properties dedicated to device behaviour.
+     * @brief Gets properties related to device behaviour.
      *
-     * The method is targeted to extract information which can be set via set_property method.
+     * The method extracts information that can be set via the set_property method.
      *
-     * @param device_name  - A name of a device to get a properties value.
-     * @param name  - property name.
-     * @return Value of property corresponding to property name.
+     * @param device_name  Name of a device to get a property value.
+     * @param name  Property name.
+     * @return Value of a property corresponding to the property name.
      */
     Any get_property(const std::string& device_name, const std::string& name) const;
 
     /**
-     * @brief Gets properties dedicated to device behaviour.
+     * @brief Gets properties related to device behaviour.
      *
-     * The method is targeted to extract information which can be set via set_property method.
+     * The method extracts information that can be set via the set_property method.
      *
-     * @param device_name  - A name of a device to get a properties value.
-     * @param name  - property name.
-     * @param arguments  - additional arguments to get property
-     * @return Value of property corresponding to property name.
+     * @param device_name  Name of a device to get a property value.
+     * @param name  Property name.
+     * @param arguments  Additional arguments to get a property.
+     * @return Value of a property corresponding to the property name.
      */
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const;
 
     /**
-     * @brief Gets properties dedicated to device behaviour.
+     * @brief Gets properties related to device behaviour.
      *
      * The method is needed to request common device or system properties.
      * It can be device name, temperature, and other devices-specific values.
      *
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
-     * @param deviceName  Name of a device to get a properties value.
+     * @param deviceName  Name of a device to get a property value.
      * @param property  Property object.
      * @return Property value.
      */
@@ -539,16 +537,16 @@ public:
     }
 
     /**
-     * @brief Gets properties dedicated to device behaviour.
+     * @brief Gets properties related to device behaviour.
      *
      * The method is needed to request common device or system properties.
      * It can be device name, temperature, other devices-specific values.
      *
-     * @tparam T - type of returned value
-     * @tparam M - property mutability
-     * @param deviceName  - A name of a device to get a properties value.
-     * @param property  - property object.
-     * @param arguments  - additional arguments to get property
+     * @tparam T Type of a returned value.
+     * @tparam M Property mutability.
+     * @param deviceName  Name of a device to get a property value.
+     * @param property  Property object.
+     * @param arguments  Additional arguments to get a property.
      * @return Property value.
      */
     template <typename T, PropertyMutability M>
@@ -559,17 +557,17 @@ public:
     }
 
     /**
-     * @brief Gets properties dedicated to device behaviour.
+     * @brief Gets properties related to device behaviour.
      *
      * The method is needed to request common device or system properties.
      * It can be device name, temperature, other devices-specific values.
      *
-     * @tparam T - type of returned value
-     * @tparam M - property mutability
-     * @tparam Args - set of additional arguments ended with property object variable
-     * @param deviceName  - A name of a device to get a properties value.
-     * @param property  - property object.
-     * @param args - Optional pack of pairs: (argument name, argument value) ended with property object
+     * @tparam T Type of a returned value.
+     * @tparam M Property mutability.
+     * @tparam Args Set of additional arguments ended with property object variable.
+     * @param deviceName  Name of a device to get a property value.
+     * @param property  Property object.
+     * @param args Optional pack of pairs: (argument name, argument value) ended with property object.
      * @return Property value.
      */
     template <typename T, PropertyMutability M, typename... Args>
@@ -648,7 +646,7 @@ public:
     void register_plugins(const std::string& xml_config_file);
 
     /**
-     * @brief Create a new remote shared context object on the specified accelerator device
+     * @brief Creates a new remote shared context object on the specified accelerator device
      * using specified plugin-specific low-level device API parameters (device handle, pointer, context, etc.).
      * @param device_name Name of a device to create a new shared context on.
      * @param properties Map of device-specific shared context properties.
@@ -657,7 +655,7 @@ public:
     RemoteContext create_context(const std::string& device_name, const AnyMap& properties);
 
     /**
-     * @brief Create a new shared context object on specified accelerator device
+     * @brief Creates a new shared context object on specified accelerator device
      * using specified plugin-specific low level device API properties (device handle, pointer, etc.)
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param device_name Name of a device to create new shared context on.

@@ -86,7 +86,7 @@ public:
      * @brief Gets a single input of a compiled model.
      * The input is represented as an output of the ov::op::v0::Parameter operation.
      * The input contains information about input tensor such as tensor shape, names, and element type.
-     * @return A compiled model input.
+     * @return Compiled model input.
      * @note If a model has more than one input, this method throws ov::Exception.
      */
     ov::Output<const ov::Node> input() const;
@@ -163,7 +163,7 @@ public:
     /**
      * @brief Sets properties for the current compiled model.
      *
-     * @param properties Map of pairs: (property name, property value)
+     * @param properties Map of pairs: (property name, property value).
      */
     void set_property(const AnyMap& properties);
 
@@ -172,7 +172,6 @@ public:
      *
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
      * @param properties Optional pack of pairs: (property name, property value).
-     * @return Nothing.
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
