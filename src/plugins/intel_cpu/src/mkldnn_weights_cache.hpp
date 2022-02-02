@@ -79,7 +79,6 @@ public:
 
         operator MKLDNNMemoryPtr() const;
         bool isValid() const;
-        bool tryLock();
         void valid(bool b);
 
     private:

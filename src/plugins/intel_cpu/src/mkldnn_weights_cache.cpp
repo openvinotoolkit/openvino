@@ -6,7 +6,6 @@
 
 #include <ie_system_conf.h>
 #include <memory>
-#include <thread>
 
 namespace MKLDNNPlugin {
 
@@ -27,10 +26,6 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::operator MKLDNNMemoryPtr() const {
 
 bool MKLDNNWeightsSharing::MKLDNNSharedMemory::isValid() const {
     return memory->valid.load(std::memory_order_acquire);
-}
-
-bool MKLDNNWeightsSharing::MKLDNNSharedMemory::tryLock() {
-    return lock.try_lock();
 }
 
 void MKLDNNWeightsSharing::MKLDNNSharedMemory::valid(bool b) {
@@ -54,11 +49,9 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::findOrCreate
             sharedWeights[key] = ptr;
         }
     }
-    const auto& res = std::make_shared<MKLDNNSharedMemory>(std::unique_lock<std::mutex>(ptr->guard,  std::defer_lock), ptr, newPtr);
-    while (!(res->isValid() || res->tryLock())) {
-        std::this_thread::yield();
-    }
-    return res;
+    return std::make_shared<MKLDNNSharedMemory>(ptr->valid.load(std::memory_order_relaxed)
+                                                ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
+                                                : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
 }
 
 MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::get(const std::string& key) const {
@@ -72,11 +65,9 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::get(const st
             || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock())))
             IE_THROW() << "Unknown shared memory with key " << key;
     }
-    const auto& res = std::make_shared<MKLDNNSharedMemory>(std::unique_lock<std::mutex>(ptr->guard,  std::defer_lock), ptr, newPtr);
-    while (!(res->isValid() || res->tryLock())) {
-        std::this_thread::yield();
-    }
-    return res;
+    return std::make_shared<MKLDNNSharedMemory>(ptr->valid.load(std::memory_order_relaxed)
+                                                ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
+                                                : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
 }
 
 NumaNodesWeights::NumaNodesWeights() {
