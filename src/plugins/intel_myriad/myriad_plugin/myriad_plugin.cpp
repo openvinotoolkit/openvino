@@ -9,6 +9,7 @@
 
 #include <ie_metric_helpers.hpp>
 #include <cpp/ie_cnn_network.h>
+#include <ie_api.h>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <legacy/ie_util_internal.hpp>
 
@@ -52,6 +53,8 @@
 #include <vpu/configuration/options/dump_all_passes.hpp>
 #include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
+#include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/detect_network_batch.hpp>
 #include <vpu/configuration/options/custom_layers.hpp>
 #include <vpu/configuration/options/config_file.hpp>
@@ -246,6 +249,10 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _parsedConfig.registerOption<PerformanceHintOption>();
     _parsedConfig.registerOption<PerformanceHintNumRequestsOption>();
     _parsedConfig.registerOption<OvThroughputStreamsOption>();
+IE_SUPPRESS_DEPRECATED_START
+    _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
+    _parsedConfig.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
+IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(

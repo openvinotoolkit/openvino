@@ -39,6 +39,8 @@
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 #include <vpu/configuration/options/dump_all_passes_directory.hpp>
 #include <vpu/configuration/options/dump_all_passes.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
+#include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/detect_network_batch.hpp>
@@ -443,6 +445,10 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<PerformanceHintOption>();
     configuration.registerOption<PerformanceHintNumRequestsOption>();
     configuration.registerOption<OvThroughputStreamsOption>();
+IE_SUPPRESS_DEPRECATED_START
+    configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
+    configuration.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
+IE_SUPPRESS_DEPRECATED_END
 
     return configuration;
 }

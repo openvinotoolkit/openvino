@@ -11,6 +11,7 @@
 #include <string>
 #include <limits>
 
+#include <vpu/configuration/options/disable_reorder.hpp>
 
 namespace vpu {
 
@@ -122,6 +123,10 @@ Stage StageBuilder::addReorderStage(const Model& model,
                                     const ie::CNNLayerPtr& layer,
                                     const Data& input,
                                     const Data& output) {
+    const auto* env = CompileEnv::getOrNull();
+    VPU_THROW_UNLESS(env == nullptr || !env->config.get<DisableReorderOption>(),
+                     "Tried to add Reorder Stage %v, while DISABLE_REORDER option was set",
+                     name);
     for (const auto& p : input->desc().dims()) {
         IE_ASSERT(p.second == output->desc().dim(p.first));
     }

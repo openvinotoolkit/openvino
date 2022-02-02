@@ -40,6 +40,8 @@
 #include <vpu/configuration/options/dump_all_passes_directory.hpp>
 #include <vpu/configuration/options/dump_all_passes.hpp>
 #include <vpu/configuration/options/device_id.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
+#include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/detect_network_batch.hpp>
 #include <vpu/configuration/options/custom_layers.hpp>
@@ -137,6 +139,11 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<PerformanceHintOption>();
     _configuration.registerOption<PerformanceHintNumRequestsOption>();
     _configuration.registerOption<OvThroughputStreamsOption>();
+
+IE_SUPPRESS_DEPRECATED_START
+    _configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
+    _configuration.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
+IE_SUPPRESS_DEPRECATED_END
 
 
     _inputsInfo.clear();
