@@ -35,8 +35,6 @@ The scheme below illustrates the typical workflow for deploying a trained deep l
 
 ![](img/BASIC_FLOW_IE_C.svg)
 
-\\* _nGraph_ is the internal graph representation in the OpenVINO™ toolkit. Use it to [build a model from source code](https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_build_function.html).
-
 
 ## Video
 
