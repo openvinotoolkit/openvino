@@ -6,52 +6,21 @@
 #include <ngraph/variant.hpp>
 
 namespace MKLDNNPlugin {
-class GraphComponent {
-public:
-    GraphComponent() = default;
-    GraphComponent(const ov::NodeVector& starts, const ov::NodeVector& ends) : starts(starts), ends(ends) {}
-
-    void add_start(const std::shared_ptr<ov::Node>& start) { starts.push_back(start); }
-    void add_end(const std::shared_ptr<ov::Node>& end) { ends.push_back(end); }
-
-    void set_starts(const ov::NodeVector& new_starts) { starts = new_starts; }
-    void set_ends(const ov::NodeVector& new_ends) { ends = new_ends; }
-
-    const ov::NodeVector& get_starts() { return starts; }
-    const ov::NodeVector& get_ends() { return ends; }
-
-private:
-    ov::NodeVector starts;
-    ov::NodeVector ends;
-};
-
 bool has_graph_component(const std::shared_ptr<ov::Node>& node);
-std::shared_ptr<GraphComponent> get_graph_component(const std::shared_ptr<ov::Node>& node);
-void update_graph_component(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<GraphComponent>& graph_component);
-void set_graph_component(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<GraphComponent>& graph_component);
+size_t get_graph_component(const std::shared_ptr<ov::Node>& node);
+void set_graph_component(const std::shared_ptr<ov::Node>& node, const size_t graph_component);
 
 class GraphComponentAttr : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("graph_component");
     GraphComponentAttr() = default;
-    GraphComponentAttr(const std::shared_ptr<GraphComponent>& _value) : value(_value) {}
+    GraphComponentAttr(const size_t _value) : value(_value) {}
 
-    const std::shared_ptr<GraphComponent>& get_value() { return value; }
-    void set_value(const std::shared_ptr<GraphComponent>& _value) { value = _value; }
-    std::string to_string() const override {
-        std::ostringstream ss;
-        ss << "Pointer: " << (size_t)value.get() << "\nStarts: ";
-        /*for (const auto& v : value->get_starts()) {
-            ss << v->get_friendly_name() << " ";
-        }
-        ss << "\nEnds: ";
-        for (const auto& v : value->get_ends()) {
-            ss << v->get_friendly_name() << " ";
-        }*/
-        return ss.str();
-    }
+    const size_t get_value() { return value; }
+    void set_value(const size_t _value) { value = _value; }
+    std::string to_string() const override { return std::to_string(value); }
 
 private:
-    std::shared_ptr<GraphComponent> value;
+    size_t value = 0;
 };
 }  // namespace MKLDNNPlugin

@@ -15,23 +15,22 @@ NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::MarkupOptimalBS, "MarkupOptimalBS", 0);
 
 namespace {
 size_t get_hueristic_optimal_batch(const std::shared_ptr<ov::Node>& node) {
-    std::set<std::string> batch1{"resnet_model/conv2d/Conv2D",
-                                 "resnet_model/conv2d_2/Conv2D",
-                                 "resnet_model/conv2d_3/Conv2D",
-                                 "resnet_model/conv2d_4/Conv2D",
-                                 //"resnet_model/conv2d_1/Conv2D",
-                                 "FIRST_COMPONENT",
-                                 "resnet_model/conv2d_6/Conv2D",
-                                 "resnet_model/conv2d_7/Conv2D",
-                                 "SECOND_COMPONENT",
-                                 ""
-    };
+    //std::set<std::string> batch1{"resnet_model/conv2d/Conv2D",
+    //                             "resnet_model/conv2d_2/Conv2D",
+    //                             "resnet_model/conv2d_3/Conv2D",
+    //                             "resnet_model/conv2d_4/Conv2D",
+    //                             //"resnet_model/conv2d_1/Conv2D",
+    //                             "FIRST_COMPONENT",
+    //                             "resnet_model/conv2d_6/Conv2D",
+    //                             "resnet_model/conv2d_7/Conv2D",
+    //                             "SECOND_COMPONENT",
+    //                             ""
+    //};
     std::set<std::string> batch2{"resnet_model/conv2d_5/Conv2D"};
 
-    //std::set<std::string> batch1{"resnet_model/conv2d_4/Conv2D",
-    //                            "resnet_model/conv2d_1/Conv2D",
-    //                            "resnet_model/conv2d_5/Conv2D",
-    //                            ""};
+    std::set<std::string> batch1{"resnet_model/conv2d/Conv2D",
+                                 "resnet_model/conv2d_5/Conv2D",
+                                ""};
     //std::set<std::string> batch2{};
 
     //std::set<std::string> batch1{"resnet_model/conv2d/Conv2D",
@@ -61,9 +60,9 @@ MKLDNNPlugin::MarkupOptimalBS::MarkupOptimalBS() {
         auto node = m.get_match_root();
         const size_t optimal_bs = get_hueristic_optimal_batch(node);
 
-        if (optimal_bs > 0) {
+        //if (optimal_bs > 0) {
             MKLDNNPlugin::set_optimal_bs(node, optimal_bs);
-        }
+        //}
         return false;
     };
 

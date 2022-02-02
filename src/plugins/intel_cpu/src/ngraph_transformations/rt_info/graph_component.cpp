@@ -10,16 +10,11 @@ bool has_graph_component(const std::shared_ptr<ov::Node>& node) {
     return node->get_rt_info().count(GraphComponentAttr::get_type_info_static());
 }
 
-std::shared_ptr<GraphComponent> get_graph_component(const std::shared_ptr<ov::Node>& node) {
+size_t get_graph_component(const std::shared_ptr<ov::Node>& node) {
     return node->get_rt_info().at(GraphComponentAttr::get_type_info_static()).as<GraphComponentAttr>().get_value();
 }
 
-void update_graph_component(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<GraphComponent>& graph_component) {
-    node->get_rt_info().at(GraphComponentAttr::get_type_info_static()).as<GraphComponentAttr>().set_value(graph_component);
-}
-
-void set_graph_component(const std::shared_ptr<ov::Node>& node,
-                         const std::shared_ptr<GraphComponent>& graph_component) {
+void set_graph_component(const std::shared_ptr<ov::Node>& node, const size_t graph_component) {
     node->get_rt_info().emplace(GraphComponentAttr::get_type_info_static(), GraphComponentAttr{graph_component});
 }
 }  // namespace MKLDNNPlugin
