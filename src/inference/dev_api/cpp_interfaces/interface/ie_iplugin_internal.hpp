@@ -268,7 +268,7 @@ public:
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
      */
-    const std::shared_ptr<ExecutorManager> & executorManager() const;
+    const std::shared_ptr<ExecutorManager>& executorManager() const;
 
     /**
      * @brief      Queries a plugin about supported layers in network
@@ -335,10 +335,10 @@ protected:
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const std::shared_ptr<const ov::Model>& function);
 
-    std::string _pluginName;                     //!< A device name that plugins enables
-    std::map<std::string, std::string> _config;  //!< A map config keys -> values
-    std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
-    std::shared_ptr<ExecutorManager> _executorManager; //!< A tasks execution manager
+    std::string _pluginName;                            //!< A device name that plugins enables
+    std::map<std::string, std::string> _config;         //!< A map config keys -> values
+    std::weak_ptr<ICore> _core;                         //!< A pointer to ICore interface
+    std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
 };
 
 /**

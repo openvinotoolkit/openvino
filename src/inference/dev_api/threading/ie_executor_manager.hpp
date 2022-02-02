@@ -9,14 +9,14 @@
 
 #pragma once
 
+#include <mutex>
 #include <string>
 #include <unordered_map>
-#include <vector>
 #include <utility>
-#include <mutex>
+#include <vector>
 
-#include "threading/ie_itask_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
+#include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 
@@ -41,7 +41,7 @@ public:
      * @param id An unique identificator of device (Usually string representation of TargetDevice)
      * @return A shared pointer to existing or newly ITaskExecutor
      */
-    virtual ITaskExecutor::Ptr getExecutor(const std::string & id) = 0;
+    virtual ITaskExecutor::Ptr getExecutor(const std::string& id) = 0;
 
     /// @private
     virtual IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) = 0;
@@ -53,7 +53,7 @@ public:
 
     virtual size_t getIdleCPUStreamsExecutorsNumber() const = 0;
 
-    virtual void clear(const std::string & id = {}) = 0;
+    virtual void clear(const std::string& id = {}) = 0;
     /**
      * @endcond
      */

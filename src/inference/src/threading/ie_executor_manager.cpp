@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "threading/ie_executor_manager.hpp"
+
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "threading/ie_executor_manager.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {
 namespace {
 class ExecutorManagerImpl : public ExecutorManager {
 public:
-    ITaskExecutor::Ptr getExecutor(const std::string & id) override;
+    ITaskExecutor::Ptr getExecutor(const std::string& id) override;
     IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) override;
     size_t getExecutorsNumber() const override;
     size_t getIdleCPUStreamsExecutorsNumber() const override;
@@ -21,14 +22,14 @@ public:
 
 private:
     std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
-    std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr> > cpuStreamsExecutors;
+    std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
     mutable std::mutex streamExecutorMutex;
     mutable std::mutex taskExecutorMutex;
 };
 
-}   // namespace
+}  // namespace
 
-ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string & id) {
+ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
     std::lock_guard<std::mutex> guard(taskExecutorMutex);
     auto foundEntry = executors.find(id);
     if (foundEntry == executors.end()) {
@@ -47,15 +48,14 @@ IStreamsExecutor::Ptr ExecutorManagerImpl::getIdleCPUStreamsExecutor(const IStre
             continue;
 
         const auto& executorConfig = it.first;
-        if (executorConfig._name == config._name &&
-            executorConfig._streams == config._streams &&
+        if (executorConfig._name == config._name && executorConfig._streams == config._streams &&
             executorConfig._threadsPerStream == config._threadsPerStream &&
             executorConfig._threadBindingType == config._threadBindingType &&
             executorConfig._threadBindingStep == config._threadBindingStep &&
             executorConfig._threadBindingOffset == config._threadBindingOffset)
-            if (executorConfig._threadBindingType != IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                 || executorConfig._threadPreferredCoreType == config._threadPreferredCoreType)
-            return executor;
+            if (executorConfig._threadBindingType != IStreamsExecutor::ThreadBindingType::HYBRID_AWARE ||
+                executorConfig._threadPreferredCoreType == config._threadPreferredCoreType)
+                return executor;
     }
     auto newExec = std::make_shared<CPUStreamsExecutor>(config);
     cpuStreamsExecutors.emplace_back(std::make_pair(config, newExec));
@@ -81,9 +81,10 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     } else {
         executors.erase(id);
         cpuStreamsExecutors.erase(
-            std::remove_if(cpuStreamsExecutors.begin(), cpuStreamsExecutors.end(),
+            std::remove_if(cpuStreamsExecutors.begin(),
+                           cpuStreamsExecutors.end(),
                            [&](const std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>& it) {
-                              return it.first._name == id;
+                               return it.first._name == id;
                            }),
             cpuStreamsExecutors.end());
     }
