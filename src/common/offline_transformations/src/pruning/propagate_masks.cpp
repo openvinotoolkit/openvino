@@ -650,6 +650,9 @@ class ngraph::pass::mask_propagation::Reshape : public MatcherPass {
 public:
     Reshape() {
         auto inputs = pattern::any_input(pattern::has_static_shape());
+        // Can't process subgraphs as shape input as this value
+        // could demand to be adjusted at several dimensions.
+        // So, we can't just put -1 on one of the dims of subgraph.
         auto weights = pattern::any_input();
         auto reshape = pattern::wrap_type<opset6::Reshape>({inputs, weights});
 
@@ -665,13 +668,15 @@ public:
                 if (is_type<opset6::GroupConvolution>(inp.get_node()))
                     return true;
 
+            const auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
+            if (!constant) {
+                    NGRAPH_DEBUG << "Can't process rehape node " << m_weights.get_node()->get_friendly_name()
+                                 << " with no constant as shape input.";
+                    return false;
+            }
+
             // Check reshape operation reshape only dimension without masks
             if (auto input_mask = getMask(m_input)) {
-                const auto constant = get_constant_from_source(m_weights.get_node_shared_ptr());
-                if (!constant) {
-                    NGRAPH_DEBUG << "Can't get constant from source " << m_weights.get_node()->get_friendly_name();
-                    return false;
-                }
                 auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
                 auto weights_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length(), true);
 
