@@ -1590,14 +1590,13 @@ size_t MKLDNNEltwiseNode::getOpInputsNum() const {
     }
 }
 
-// TODO [DS]: used only in FuseConvolutionSumAndConvolutionSumActivation
-// fix when reimplement this transformation for dynamic shapes
 bool MKLDNNEltwiseNode::isWithBroadcast() {
-    auto oDims = getOutputShapeAtPort(0).getStaticDims();
+    const auto& oDims = getOutputShapeAtPort(0).getDims();
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        auto iDims = getInputShapeAtPort(i).getStaticDims();
-        if (iDims != oDims)
+        const auto& iDims = getInputShapeAtPort(i).getDims();
+        if (!dimsEqualWeak(iDims, oDims)) {
             return true;
+        }
     }
 
     return false;

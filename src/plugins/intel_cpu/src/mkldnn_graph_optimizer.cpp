@@ -1074,8 +1074,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
     };
 
     for (auto &graphNode : graphNodes) {
-        // TODO [DS]: at this moment this transformation prohibit for dynamic case
-        if (graphNode->getType() != Eltwise || graphNode->getAlgorithm() != EltwiseAdd || graphNode->isDynamicNode() ||
+        if (graphNode->getType() != Eltwise || graphNode->getAlgorithm() != EltwiseAdd ||
                 std::dynamic_pointer_cast<MKLDNNEltwiseNode>(graphNode)->isWithBroadcast())
             continue;
 
