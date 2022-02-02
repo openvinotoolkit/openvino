@@ -19,7 +19,6 @@
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/op_conversions/convert_broadcast3.hpp>
-#include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -170,7 +169,7 @@ public:
     }
 };
 
-class ConvertBroadcast3BIDIRECTBroadcastLogicalOrTest: public CommonTestUtils::TestsCommon,
+class ConvertBroadcast3BIDIRECTBroadcastLogicalAndTest: public CommonTestUtils::TestsCommon,
                                                        public testing::WithParamInterface<std::tuple<InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -198,7 +197,7 @@ public:
         auto target_shape_node = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, target_shape);
         auto constant_one = opset1::Constant::create(ngraph::element::boolean, {1}, {1});
         auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
-        auto mul = std::make_shared<ngraph::opset1::LogicalOr>(input, broadcast);
+        auto mul = std::make_shared<ngraph::opset1::LogicalAnd>(input, broadcast);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input, target_shape_node});
     }
 };
@@ -219,7 +218,7 @@ TEST_P(ConvertBroadcast3BIDIRECTBroadcastMultiplyTest, CompareFunctions) {
     convert_broadcast3_test(f, f_ref);
 }
 
-TEST_P(ConvertBroadcast3BIDIRECTBroadcastLogicalOrTest, CompareFunctions) {
+TEST_P(ConvertBroadcast3BIDIRECTBroadcastLogicalAndTest, CompareFunctions) {
     convert_broadcast3_test(f, f_ref);
 }
 
@@ -296,7 +295,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBro
                         std::make_tuple(InputShape{2, DYN, 9},          TargetShape{3}),
                         std::make_tuple(InputShape{3, 3, DYN},          TargetShape{2})));
 
-INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastLogicalOrTest,
+INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastLogicalAndTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, TargetShape{5}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64},      TargetShape{4}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64},      TargetShape{3}),
