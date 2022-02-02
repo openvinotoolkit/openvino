@@ -138,10 +138,26 @@ def get_moc_frontends(argv: argparse.Namespace):
 
 
 def arguments_post_parsing(argv: argparse.Namespace):
+    use_legacy_frontend = argv.use_legacy_frontend
+    use_new_frontend = argv.use_new_frontend
+
+    if use_new_frontend and use_legacy_frontend:
+        raise Error('Options --use_new_frontend and --use_legacy_frontend must not be used simultaneously '
+                    'in the Model Optimizer command-line')
+
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
+
+    if not moc_front_end and use_new_frontend:
+        raise Error('Option --use_new_frontend is specified but the Model Optimizer is unable to find new frontend. '
+                    'Please ensure that your environment contains new frontend for the input model format.')
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
         deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
+
+    is_legacy_frontend = any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx])
+    if not is_legacy_frontend and use_legacy_frontend:
+        raise Error('Option --use_legacy_frontend is specified but Model Optimizer does not have legacy frontend for the input model format. '
+                    'Please try to convert the model without specifying --use_legacy_frontend option.')
 
     if any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
         if new_extensions_used(argv):
@@ -208,7 +224,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
     # dependency search does not break the MO pipeline
     def raise_ie_not_found():
         raise Error("Could not find the Inference Engine or nGraph Python API.\n"
-                    "Consider building the Inference Engine and nGraph Python APIs from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
+                    "Consider building the Inference Engine and nGraph Python APIs from sources or "
+                    "try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
                     "bat" if sys.platform == "windows" else "sh"))
     try:
         if not find_ie_version(silent=argv.silent):
