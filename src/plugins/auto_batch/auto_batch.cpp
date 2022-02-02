@@ -673,9 +673,21 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     // avoid recursive auto-batching
     deviceConfigNoAutoBatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
 
-    std::set<std::string> batched_inputs;
+    InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch, executableNetworkWithoutBatch;
+    // auto-batch settings
+    std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
+    for (auto c : fullConfig) {
+        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), c.first))
+            networkConfig.insert(c);
+    }
+    const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
+    const auto perfConfigInTargetPlugin =
+        _pCore->GetConfig(deviceName, PluginConfigParams::KEY_PERF_COUNT).as<std::string>() == PluginConfigParams::YES;
+    const bool enablePerfCounters = perfConfigInTargetPlugin || ((fullConfig.end() != perfConfig) &&
+                                                                 (perfConfig->second == PluginConfigParams::YES));
     // check that the auto-batching is applicable in general
     try {
+        std::set<std::string> batched_inputs;
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
         const auto tput = CONFIG_VALUE(THROUGHPUT);
         const bool bTputInPlg = _pCore->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == tput;
@@ -719,71 +731,53 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         }
         if (!batched_inputs.size())
             IE_THROW(NotImplemented) << "Auto-batching supports only networks with inputs featuring batched dim!";
-    } catch (...) {
-        // fallback to loading as if no Auto-Batching was involved
-        auto res = _pCore->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
-        _additionalSOPtrs.push_back(res._so);
-        return res._ptr;
-    }
 
-    if (!metaDevice.batchForDevice) {
-        unsigned int requests = 0;
-        unsigned int optimalBatchSize = 0;
-        // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
-        // let's query the optimal batch size
-        std::map<std::string, InferenceEngine::Parameter> options;
-        options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network.getFunction());
-        auto optBatchSize = _pCore->GetMetric(deviceName, METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-        auto res = _pCore->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
-        requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
-        const auto& reqs = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-        if (reqs != config.end())
-            requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
-        if (requests)
-            optBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
-        metaDevice.batchForDevice = optBatchSize;
-    }
-
-    const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
-    const auto perfConfigInTargetPlugin =
-        _pCore->GetConfig(deviceName, PluginConfigParams::KEY_PERF_COUNT).as<std::string>() == PluginConfigParams::YES;
-    const bool enablePerfCounters = perfConfigInTargetPlugin || ((fullConfig.end() != perfConfig) &&
-                                                                 (perfConfig->second == PluginConfigParams::YES));
-    auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
-        size_t footprint = 0;
-        // TODO: use the per-network metric (22.2) rather than plugin-level
-        auto stats = pCore->GetMetric(device, GPU_METRIC_KEY(MEMORY_STATISTICS)).as<std::map<std::string, uint64_t>>();
-        for (auto s : stats)
-            if (s.first.find("_current") != std::string::npos)
-                footprint += s.second;
-        return footprint;
-    };
-
-    size_t batch1_footprint = 0;
-    if (deviceName.find("GPU") != std::string::npos)
-        batch1_footprint = report_footprint(_pCore, deviceName);
-    auto executableNetworkWithoutBatch = ctx ? _pCore->LoadNetwork(network, ctx, deviceConfigNoAutoBatch)
-                                             : _pCore->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
-    if (deviceName.find("GPU") != std::string::npos) {
-        batch1_footprint = report_footprint(_pCore, deviceName) - batch1_footprint;
-        if (batch1_footprint) {
-            const uint64_t total_mem = _pCore->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
-            const int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
-            int closest = pow(2, floor(log(estimated_batch) / log(2)));
-            closest = std::max(1, closest);
-            metaDevice.batchForDevice = std::min(metaDevice.batchForDevice, closest);
+        if (!metaDevice.batchForDevice) {
+            unsigned int requests = 0;
+            unsigned int optimalBatchSize = 0;
+            // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
+            // let's query the optimal batch size
+            std::map<std::string, InferenceEngine::Parameter> options;
+            options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network.getFunction());
+            auto optBatchSize =
+                _pCore->GetMetric(deviceName, METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+            auto res = _pCore->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+            requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
+            const auto& reqs = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+            if (reqs != config.end())
+                requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
+            if (requests)
+                optBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
+            metaDevice.batchForDevice = optBatchSize;
         }
-    }
-    // auto-batch settings
-    std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
-    for (auto c : fullConfig) {
-        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), c.first))
-            networkConfig.insert(c);
-    }
 
-    InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
-    if (metaDevice.batchForDevice > 1 && batched_inputs.size()) {
-        try {
+        auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
+            size_t footprint = 0;
+            // TODO: use the per-network metric (22.2) rather than plugin-level
+            auto stats =
+                pCore->GetMetric(device, GPU_METRIC_KEY(MEMORY_STATISTICS)).as<std::map<std::string, uint64_t>>();
+            for (auto s : stats)
+                if (s.first.find("_current") != std::string::npos)
+                    footprint += s.second;
+            return footprint;
+        };
+
+        size_t batch1_footprint = 0;
+        if (deviceName.find("GPU") != std::string::npos)
+            batch1_footprint = report_footprint(_pCore, deviceName);
+        executableNetworkWithoutBatch = ctx ? _pCore->LoadNetwork(network, ctx, deviceConfigNoAutoBatch)
+                                            : _pCore->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
+        if (deviceName.find("GPU") != std::string::npos) {
+            batch1_footprint = report_footprint(_pCore, deviceName) - batch1_footprint;
+            if (batch1_footprint) {
+                const uint64_t total_mem = _pCore->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+                const int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
+                int closest = pow(2, floor(log(estimated_batch) / log(2)));
+                closest = std::max(1, closest);
+                metaDevice.batchForDevice = std::min(metaDevice.batchForDevice, closest);
+            }
+        }
+        if (metaDevice.batchForDevice > 1 && batched_inputs.size()) {
             CNNNetwork reshaped(InferenceEngine::details::cloneNetwork(network));
             ICNNNetwork::InputShapes shapes = reshaped.getInputShapes();
             for (const auto& input : batched_inputs)
@@ -791,14 +785,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             reshaped.reshape(shapes);
             executableNetworkWithBatch = ctx ? _pCore->LoadNetwork(reshaped, ctx, deviceConfigNoAutoBatch)
                                              : _pCore->LoadNetwork(reshaped, deviceName, deviceConfigNoAutoBatch);
-        } catch (...) {
-            executableNetworkWithBatch = {nullptr, nullptr};
         }
-    }
-
-    if (!executableNetworkWithBatch) {
-        executableNetworkWithBatch = executableNetworkWithoutBatch;
-        metaDevice.batchForDevice = 1;
+    } catch (...) {
+        // fallback to loading as if no Auto-Batching was involved
+        auto res = _pCore->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
+        _additionalSOPtrs.push_back(res._so);
+        return res._ptr;
     }
 
     return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkWithBatch,
