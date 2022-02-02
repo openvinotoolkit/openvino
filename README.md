@@ -45,6 +45,6 @@ Please report questions, issues and suggestions using:
 
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
 [OpenVINO Runtime]:https://software.intel.com/en-us/articles/OpenVINO-InferEngine
-[Model Optimizer]:https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer
+[Model Optimizer]:https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
 [tag on StackOverflow]:https://stackoverflow.com/search?q=%23openvino
 
