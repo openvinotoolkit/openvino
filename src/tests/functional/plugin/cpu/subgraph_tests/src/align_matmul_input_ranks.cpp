@@ -70,7 +70,7 @@ TEST_P(AlignMatMulInputRanksTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckNodeOfTypeCount(executableNetwork, "Reshape", expectedNumOfReshapes); // Squeeze / Unsqueeze turns into Reshape
+    CheckNumberOfNodesWithType(executableNetwork, "Reshape", expectedNumOfReshapes); // Squeeze / Unsqueeze turns into Reshape
     CheckPluginRelatedResults(executableNetwork, "MatMul");
 }
 
