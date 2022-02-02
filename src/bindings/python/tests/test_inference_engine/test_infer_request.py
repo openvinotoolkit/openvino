@@ -47,7 +47,7 @@ def create_simple_request_and_inputs(device):
 def test_get_profiling_info(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    core.set_config({"PERF_COUNT": "YES"}, device)
+    core.set_property(device, {"PERF_COUNT": "YES"})
     compiled = core.compile_model(model, device)
     img = read_image()
     request = compiled.create_infer_request()
@@ -248,7 +248,7 @@ def test_infer_list_as_inputs(device):
 def test_infer_mixed_keys(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    core.set_config({"PERF_COUNT": "YES"}, device)
+    core.set_property(device, {"PERF_COUNT": "YES"})
     model = core.compile_model(model, device)
 
     img = read_image()
@@ -366,7 +366,7 @@ def test_infer_queue_get_idle_handle(device):
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
     if device == "CPU":
-        if core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin")
 
     from openvino.runtime import Tensor

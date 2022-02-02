@@ -82,7 +82,7 @@ def run(args):
 
         if not args.perf_hint:
             for device in devices:
-                supported_config_keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                supported_config_keys = benchmark.core.get_property(device, 'SUPPORTED_CONFIG_KEYS')
                 if 'PERFORMANCE_HINT' in supported_config_keys:
                     logger.warning(f"-hint default value is determined as 'THROUGHPUT' automatically for {device} device" +
                                     "For more detailed information look at README.")
@@ -145,7 +145,7 @@ def run(args):
                 key = get_device_type_from_name(device) + "_THROUGHPUT_STREAMS"
                 if device in device_number_streams.keys():
                     ## set to user defined value
-                    supported_config_keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                    supported_config_keys = benchmark.core.get_property(device, 'SUPPORTED_CONFIG_KEYS')
                     if key not in supported_config_keys:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
@@ -197,7 +197,7 @@ def run(args):
                     else:
                         config[device]['GNA_PRECISION'] = 'I16'
             else:
-                supported_config_keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                supported_config_keys = benchmark.core.get_property(device, 'SUPPORTED_CONFIG_KEYS')
                 if 'CPU_THREADS_NUM' in supported_config_keys and args.number_threads and is_flag_set_in_command_line("nthreads"):
                     config[device]['CPU_THREADS_NUM'] = str(args.number_threads)
                 if 'CPU_THROUGHPUT_STREAMS' in supported_config_keys and args.number_streams and is_flag_set_in_command_line("streams"):
@@ -316,11 +316,11 @@ def run(args):
         next_step()
         ## actual device-deduced settings
         for device in devices:
-            keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+            keys = benchmark.core.get_property(device, 'SUPPORTED_CONFIG_KEYS')
             logger.info(f'DEVICE: {device}')
             for k in keys:
                 try:
-                    logger.info(f'  {k}  , {benchmark.core.get_config(device, k)}')
+                    logger.info(f'  {k}  , {benchmark.core.get_property(device, k)}')
                 except:
                     pass
 
@@ -328,7 +328,7 @@ def run(args):
         # Update number of streams
         for device in device_number_streams.keys():
             key = get_device_type_from_name(device) + '_THROUGHPUT_STREAMS'
-            device_number_streams[device] = benchmark.core.get_config(device, key)
+            device_number_streams[device] = benchmark.core.get_property(device, key)
 
         # ------------------------------------ 9. Creating infer requests and preparing input data ----------------------
         next_step()

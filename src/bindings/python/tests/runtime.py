@@ -45,7 +45,7 @@ class Runtime(object):
 
     def set_config(self, config: Dict[str, str]) -> None:
         """Set the inference engine configuration."""
-        self.backend.set_config(config, device_name=self.backend_name)
+        self.backend.set_property(device_name=self.backend_name, properties=config)
 
     def __repr__(self) -> str:
         return "<Runtime: Backend='{}'>".format(self.backend_name)

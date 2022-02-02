@@ -10,6 +10,7 @@
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
 #include <pyopenvino/core/tensor.hpp>
+#include <pyopenvino/graph/any.hpp>
 
 #include "common.hpp"
 
@@ -27,13 +28,60 @@ void regclass_Core(py::module m) {
 
     cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
 
+    // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(
         "set_config",
         [](ov::Core& self, const std::map<std::string, std::string>& config, const std::string& device_name) {
+            PyErr_WarnEx(PyExc_DeprecationWarning, "set_config() is deprecated, use set_property() instead.", 1);
             self.set_property(device_name, {config.begin(), config.end()});
         },
         py::arg("config"),
         py::arg("device_name") = "");
+
+    cls.def(
+        "set_property",
+        [](ov::Core& self, const std::map<std::string, py::object>& properties) {
+            std::map<std::string, PyAny> properties_to_cpp;
+            for (const auto& property : properties) {
+                properties_to_cpp[property.first] = PyAny(property.second);
+            }
+            self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
+        },
+        py::arg("properties"),
+        R"(
+            Sets properties.
+            Parameters
+            ----------
+            properties : dict
+                Dict of pairs: (property name, property value)
+            Returns
+            ----------
+            set_property : None
+        )");
+
+    cls.def(
+        "set_property",
+        [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
+            std::map<std::string, PyAny> properties_to_cpp;
+            for (const auto& property : properties) {
+                properties_to_cpp[property.first] = PyAny(property.second);
+            }
+            self.set_property(device_name, {properties_to_cpp.begin(), properties_to_cpp.end()});
+        },
+        py::arg("device_name"),
+        py::arg("properties"),
+        R"(
+            Sets properties for the device.
+            Parameters
+            ----------
+            device_name : str
+                Name of the device to load the model to.
+            properties : dict
+                Dict of pairs: (property name, property value)
+            Returns
+            ----------
+            set_property : None
+        )");
 
     cls.def(
         "compile_model",
@@ -131,17 +179,41 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("config") = py::none());
 
+    // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(
         "get_config",
         [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
+            PyErr_WarnEx(PyExc_DeprecationWarning, "get_config() is deprecated, use get_property() instead.", 1);
             return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
 
     cls.def(
+        "get_property",
+        [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
+            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
+        },
+        py::arg("device_name"),
+        py::arg("name"),
+        R"(
+            Gets properties dedicated to device behaviour.
+            Parameters
+            ----------
+            device_name : str
+                A name of a device to get a properties value.
+            name : str
+                Property name.
+            Returns
+            ----------
+            get_property : Any
+        )");
+
+    // todo: remove after Accuracy Checker migration to set/get_property API
+    cls.def(
         "get_metric",
         [](ov::Core& self, const std::string device_name, const std::string name) -> py::object {
+            PyErr_WarnEx(PyExc_DeprecationWarning, "get_metric() is deprecated, use get_property() instead.", 1);
             return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
