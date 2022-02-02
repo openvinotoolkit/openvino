@@ -50,6 +50,7 @@ class PropagateNMSPath: public pass::MatcherPass {
                     op::util::BroadcastBase,
                     opset8::StridedSlice,
                     opset8::VariadicSplit,
+                    op::util::GatherBase,
                     opset8::Concat,
                     opset8::Convert>();
             matcher_pass_callback callback = [=](pattern::Matcher &m) {
@@ -60,7 +61,7 @@ class PropagateNMSPath: public pass::MatcherPass {
                 })) {
                     ov::set_nms_selected_indices(node.get());
                 }
-                return true;
+                return false;
             };
             auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);
             register_matcher(m, callback);
