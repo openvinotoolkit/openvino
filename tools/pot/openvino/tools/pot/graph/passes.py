@@ -946,6 +946,7 @@ def remove_converts(graph: Graph):
             op.out_node(0)['Insert_Convert_operation_after'] = True
             # Mark Const and Convert operation to fold them
             source_op['need_shape_inference'] = True
+            op.out_node(0)['old_rt_info'] = op['rt_info']
             op['stop_value_propagation'] = False
             op['need_shape_inference'] = True
     graph.clean_up()
@@ -974,6 +975,7 @@ def add_removed_converts(graph: Graph):
         # Insert Convert operation after Const operation
         const_op.out_port(0).get_connection().insert_node(convert_op)
         convert_op.out_node().value = None
+        convert_op['rt_info'] = data_node['old_rt_info']
 
         # Convert Const value to FP16 to make types in graph consistent
         const_op.value, _, _ = convert_blob(const_op.value, np.float16)
