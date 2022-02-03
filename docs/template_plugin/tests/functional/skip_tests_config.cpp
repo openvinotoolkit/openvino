@@ -108,6 +108,7 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-71891
         R"(.*ReferenceTileTest.*rType=i4.*)",
         R"(.*ReferenceTileTest.*rType=u4.*)",
+        R"(.*DeviceID.*)",
     };
 
 #ifdef _WIN32
