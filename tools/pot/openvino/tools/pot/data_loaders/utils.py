@@ -40,10 +40,10 @@ def prepare_image(image, layout, dst_shape, central_fraction=None):
         image = crop(image, central_fraction)
 
     if layout == Layout('NCHW') or layout == Layout('CHW'):
-        image = cv.resize(image, dst_shape)
+        image = cv.resize(image, dst_shape[::-1])
         return image.transpose(2, 0, 1)
 
-    return cv.resize(image, dst_shape)
+    return cv.resize(image, dst_shape[::-1])
 
 
 def collect_img_files(data_source):
