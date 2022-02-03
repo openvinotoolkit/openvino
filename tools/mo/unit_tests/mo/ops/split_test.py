@@ -305,7 +305,8 @@ class TestVariadicSplitOp(unittest.TestCase):
 
     def test_variadic_split_value_inference_with_uint32(self):
         axis = int64_array(2)
-        # because sum of Python in and Numpy np.uint64 gives float64
+        # because sum of Python int and Numpy np.uint64 gives float64
+        
         # but np.split accepts only integers and raises error for floats
         # therefore needed to explicitly cast np.split arguments into integer
         # added this test for that case
