@@ -1,9 +1,9 @@
 # AccuracyAwareQuantization Algorithm {#pot_compression_algorithms_quantization_accuracy_aware_README}
 
 ## Overview
-AccuracyAware algorithm is designed to perform accurate 8-bit quantization and allows the model to stay in the 
+AccuracyAware algorithm is designed to perform accurate quantization and allows the model to stay in the 
 pre-defined range of accuracy drop, for example 1%, defined by the user in the configuration file. This may cause a 
-degradation in performance in comparison to [DefaultQuantization](../default/README.md) algorithm because some layers can be reverted back to the original precision.
+degradation in performance in comparison to [DefaultQuantization](../default/README.md) algorithm because some layers can be reverted back to the original precision. The algorithm requires annotated dataset and cannot be used with the [Simplified mode](@ref pot_docs_simplified_mode).
 
 > **NOTE**: In case of GNA `target_device`, POT moves INT8 weights to INT16 to stay in the pre-defined range of the accuracy drop. Thus, the algorithm works for the `performance` (INT8) preset only. For the `accuracy` preset, this algorithm is not performed, but the parameters tuning is available (if `tune_hyperparams` option is enabled).
 
@@ -55,6 +55,12 @@ Default value is `0.5`.
 to the floating-point precision. It can bring additional performance and accuracy boost but increase overall 
 quantization time. Default value is `False`.
 
+## Examples
+
 A template and full specification for AccuracyAwareQuantization algorithm can be found:
  * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_template.json)
  * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_spec.json)
+
+Example of using POT API with Accuracy-aware algorithm:
+ * [Quantization of Object Detection model with control of accuracy](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection)
+

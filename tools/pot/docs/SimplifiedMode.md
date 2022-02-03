@@ -1,9 +1,9 @@
 # Optimization with Simplified mode {#pot_docs_simplified_mode}
 
 ## Introduction
-Simplified mode is designed to simplify data preparation for model optimization process. The mode is represented by an implementation of Engine interface from the POT API that allows reading data from an arbitrary folder specified by user. For more details about POT API please refer to the corresponding [description](pot_compression_api_README). Currently, Simplified mode is available only for image data stored in a single folder in PGN or JPEG formats.
+Simplified mode is designed to simplify data preparation for the model optimization process. The mode is represented by an implementation of Engine interface from the POT API that allows reading data from an arbitrary folder specified by the user. For more details about POT API please refer to the corresponding [description](pot_compression_api_README). Currently, Simplified mode is available only for image data stored in a single folder in PGN or JPEG formats.
 
-Note: This mode cannot be used with accuracy-aware methods. Nevertheless, this mode can be helpful to estimate performance benefits when using optimization.
+Note: This mode cannot be used with accuracy-aware methods, i.e. there is no way to control accuracy after optimization. Nevertheless, this mode can be helpful to estimate performance benefits when using model optimizations.
 
 ## Usage
 To use Simplified mode you should prepare data and place them in a separate folder. No other files should be presented in this folder. There are two options to run POT in the Simplified mode:
