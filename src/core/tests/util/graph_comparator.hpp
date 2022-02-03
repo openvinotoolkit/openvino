@@ -49,10 +49,12 @@ public:
         fc.enable(TENSOR_NAMES);
         return fc;
     }
+
     FunctionsComparator& enable(CmpValues f) noexcept {
         m_comparison_flags = static_cast<CmpValues>(m_comparison_flags | f);
         return *this;
     }
+
     bool should_compare(CmpValues f) const noexcept {
         return m_comparison_flags & f;
     }
@@ -286,9 +288,11 @@ public:
         return Comparator(m_comparison_flags);
     }
 
-    void compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
+    Result compare_inputs(ngraph::Node* node1, ngraph::Node* node2);
 
-    void compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
+    Result compare_outputs(ngraph::Node* node1, ngraph::Node* node2);
+
+    Result compare_nodes(ngraph::Node* node1, ngraph::Node* node2);
 
 private:
     bool should_compare(CmpValues f) const noexcept {
