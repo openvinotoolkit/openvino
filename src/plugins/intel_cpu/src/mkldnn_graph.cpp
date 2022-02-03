@@ -737,10 +737,10 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
         if (ext_data_ptr != inter_data_ptr) {
             auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
 
-            auto ext_mem = std::unique_ptr<MKLDNNMemory>(new MKLDNNMemory(eng));
-            ext_mem->Create(ext_tdesc, ext_data_ptr, false);
+            MKLDNNMemory ext_mem(eng);
+            ext_mem.Create(ext_tdesc, ext_data_ptr, false);
 
-            childEdge->getMemory().SetData(*ext_mem, 0, false);
+            childEdge->getMemory().SetData(ext_mem, 0, false);
         }
 
         // todo: make sure 'name' exists in this map...
@@ -823,10 +823,10 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
                                 ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
                                 : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
-            auto outBloMem = std::unique_ptr<MKLDNNMemory>(new MKLDNNMemory(eng));
-            outBloMem->Create(outBlobDesc, ext_blob_ptr, false);
+            MKLDNNMemory outBloMem(eng);
+            outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
-            outBloMem->SetData(intr_blob, 0, false);
+            outBloMem.SetData(intr_blob, 0, false);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???

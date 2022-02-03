@@ -220,7 +220,9 @@ MKLDNNEdge::ReorderStatus MKLDNNEdge::needReorder() {
     bool optimized = false;
     auto inputPortDesc = getInputPortDesc();
     auto outPortDesc = getOutputPortDesc();
+    // Check whether the child node may accept the parent produced tensor
     if (!outPortDesc->isCompatible(*inputPortDesc)) {
+        // Performance optimization which exploit the fact that some tensors do not need actual data reordering to be read using different descriptors
         if (isPhycicalMemCompatible(*inputPortDesc->getMemDesc(), *outPortDesc->getMemDesc()) && !getParent()->isConstant()) {
             optimized = true;
         } else {
@@ -368,11 +370,21 @@ PortDescBaseCPtr MKLDNNEdge::getOutputPortDesc() const {
 }
 
 const MemoryDesc& MKLDNNEdge::getInputDesc() const {
-    return *getInputPortDesc()->getMemDesc();
+    auto memDescPtr = getInputPortDesc()->getMemDesc();
+    if (!memDescPtr) {
+        IE_THROW() << "Cannot get input memory descriptor for edge: " << getParent()->getName() << "->"
+                   << getChild()->getName();
+    }
+    return *memDescPtr;
 }
 
 const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
-    return *getOutputPortDesc()->getMemDesc();
+    auto memDescPtr = getOutputPortDesc()->getMemDesc();
+    if (!memDescPtr) {
+        IE_THROW() << "Cannot get output memory descriptor for edge: " << getParent()->getName() << "->"
+                   << getChild()->getName();
+    }
+    return *memDescPtr;
 }
 
 const MemoryDesc& MKLDNNEdge::getDesc() const {

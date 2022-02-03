@@ -33,15 +33,45 @@ namespace MKLDNNPlugin {
 
 class MKLDNNMemory;
 
+/**
+ * @interface IMemoryMngr
+ * @brief An interface to memory control object
+ */
+
 class IMemoryMngr {
 public:
     virtual ~IMemoryMngr() = default;
+
+    /**
+     * @brief Accessor to underlying memory buffer
+     * @return A pointer to underlying memory
+     */
     virtual void* getRawPtr() const noexcept = 0;
+
+    /**
+     * @brief Allows to set externally allocated memory buffer. In that case, the object has no control over the provided memory.
+     * @param ptr - pointer to the memory
+     * @param size - size of the memory buffer
+     */
     virtual void setExtBuff(void* ptr, size_t size) = 0;
+
+    /**
+     * @brief Resize underlying memory buffer
+     * @param size - new memory size in bytes
+     * @return status whether the memory reallocation was performed
+     */
     virtual bool resize(size_t size) = 0;
+
+    /**
+     * @brief Check if the object has control over underlying memory buffer
+     * @return status whether the object has control over underlying memory buffer
+     */
     virtual bool hasExtBuffer() const noexcept = 0;
 };
 
+/**
+ * @brief An implementation of the mem manager where memory reallocation occures only if bigger buffer is requested.
+ */
 class MemoryMngrWithReuse : public IMemoryMngr {
 public:
     MemoryMngrWithReuse() : _data(nullptr, release) {}
@@ -59,6 +89,9 @@ private:
     static void destroy(void *ptr);
 };
 
+/**
+ * @brief A proxy object that additionally implements observer pattern
+ */
 class DnnlMemoryMngr : public IMemoryMngr {
 public:
     explicit DnnlMemoryMngr(std::unique_ptr<IMemoryMngr> mngr) : _pMemMngr(std::move(mngr)) {}

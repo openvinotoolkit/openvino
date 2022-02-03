@@ -125,7 +125,7 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNReshapeNode::executeDynamicImpl(mkldnn::stream strm) {
-    //pass
+    execute(strm);
 }
 
 bool MKLDNNReshapeNode::created() const {
