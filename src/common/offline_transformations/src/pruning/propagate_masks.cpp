@@ -407,10 +407,11 @@ public:
             auto output_mask_row = output_mask.get();
 
             bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
-            const auto out_mask_callback = [input_mask_row, weights_mask_row, union_eltwise_type](Mask::Ptr cur_mask) -> bool {
+            const auto out_mask_callback = [input_mask_row, weights_mask_row, &union_eltwise_type](Mask::Ptr cur_mask) -> bool {
                 Mask::Ptr result_mask;
-                if (/*union_eltwise_type*/ false) {
+                if (union_eltwise_type) {
                     result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
+                    union_eltwise_type = false;
                 } else {
                     result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
                 }
@@ -827,7 +828,7 @@ public:
                 if (input_shape.size() > output_shape.size() &&
                     output_shape.size() == not_reshaped_dims + 1) {
                     const size_t elems_per_ch = std::accumulate(input_shape.begin() + not_reshaped_dims + 1,
-                                                                input_shape.end(), 1, std::multiplies<int>());
+                                                                input_shape.end(), 1, std::multiplies<size_t>());
 
                     input_mask->add_callback([weights_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
                         for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
