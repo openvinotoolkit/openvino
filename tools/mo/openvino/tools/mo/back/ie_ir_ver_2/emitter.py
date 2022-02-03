@@ -466,6 +466,12 @@ def find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_n
 
     return None
 
+def check_and_add_result_name(result_name:str, ordered_results:list):
+    if result_name in ordered_results:
+        log.warning("Result node with name {} has at least two tensor names corresponding "
+                    "to different original results.".format(result_name))
+    else:
+        ordered_results.append(result_name)
 
 def serialize_network(graph, net_element, unsupported):
     layers = SubElement(net_element, 'layers')
@@ -488,7 +494,7 @@ def serialize_network(graph, net_element, unsupported):
             found_result_name = find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_names)
 
             if found_result_name is not None:
-                ordered_results.append(found_result_name)
+                check_and_add_result_name(found_result_name)
             else:
                 log.warning("Output node with name {} is not found in graph.".format(output_name))
             continue
@@ -496,7 +502,7 @@ def serialize_network(graph, net_element, unsupported):
 
         # In this case Result node has the same name as output tensor
         if node.soft_get('type') == 'Result':
-            ordered_results.append(node.soft_get('name'))
+            check_and_add_result_name(node.soft_get('name'))
             continue
 
         # Here output data node count is checked. Each port cannot have more than one data node.
@@ -511,7 +517,7 @@ def serialize_network(graph, net_element, unsupported):
         for op_node in data_node.out_nodes():
             if op_node.soft_get('type') == 'Result':
                 found_result = True
-                ordered_results.append(op_node.soft_get('name'))
+                check_and_add_result_name(op_node.soft_get('name'))
                 break
 
         if not found_result:
@@ -541,6 +547,9 @@ def serialize_network(graph, net_element, unsupported):
         if not found_tensor_name:
             log.warning("Input node with name {} is not found in graph.".format(param_name))
 
+    print('ordered_results:')
+    print(ordered_results)
+    print('serialized before ordering:')
     for node in nodes:
         node = Node(graph, node)
         if node.soft_get('name') in serialized_inputs:
@@ -548,6 +557,9 @@ def serialize_network(graph, net_element, unsupported):
         if node.soft_get('name') in ordered_results:
             continue
         serialize_node(graph, node, layers, edges, unsupported)
+        if node.soft_get('type') == "Result":
+            print(node.soft_get('name'))
+    print('done')
 
     for output_name in ordered_results:
         node = graph.get_op_nodes(name=output_name)
