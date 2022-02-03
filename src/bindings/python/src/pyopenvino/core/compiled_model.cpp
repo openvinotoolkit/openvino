@@ -41,13 +41,13 @@ void regclass_CompiledModel(py::module m) {
         py::arg("inputs"));
 
     cls.def(
-            "export_model",
-            [](ov::CompiledModel& self) {
-                std::stringstream _stream;
-                self.export_model(_stream);
-                return py::bytes(_stream.str());
-            },
-            R"(
+        "export_model",
+        [](ov::CompiledModel& self) {
+            std::stringstream _stream;
+            self.export_model(_stream);
+            return py::bytes(_stream.str());
+        },
+        R"(
             Exports the compiled model to bytes/output stream.
 
             Parameters
@@ -72,21 +72,21 @@ void regclass_CompiledModel(py::module m) {
         )");
 
     cls.def(
-            "export_model",
-            [](ov::CompiledModel& self, py::object& model_stream) {
-                if (!(py::isinstance(model_stream, pybind11::module::import("io").attr("BytesIO")))) {
-                    throw py::type_error("CompiledModel.export_model(model_stream) incompatible function argument: "
-                                         "`model_stream` must be an io.BytesIO object but " +
-                                         (std::string)(py::repr(model_stream)) + "` provided");
-                }
-                std::stringstream _stream;
-                self.export_model(_stream);
-                model_stream.attr("flush")();
-                model_stream.attr("write")(py::bytes(_stream.str()));
-                model_stream.attr("seek")(0);  // Always rewind stream!
-            },
-            py::arg("model_stream"),
-            R"(
+        "export_model",
+        [](ov::CompiledModel& self, py::object& model_stream) {
+            if (!(py::isinstance(model_stream, pybind11::module::import("io").attr("BytesIO")))) {
+                throw py::type_error("CompiledModel.export_model(model_stream) incompatible function argument: "
+                                     "`model_stream` must be an io.BytesIO object but " +
+                                     (std::string)(py::repr(model_stream)) + "` provided");
+            }
+            std::stringstream _stream;
+            self.export_model(_stream);
+            model_stream.attr("flush")();
+            model_stream.attr("write")(py::bytes(_stream.str()));
+            model_stream.attr("seek")(0);  // Always rewind stream!
+        },
+        py::arg("model_stream"),
+        R"(
             Exports the compiled model to bytes/output stream.
 
             Advanced version of `export_model`. It utilizes, streams from standard

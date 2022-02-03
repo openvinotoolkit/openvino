@@ -57,7 +57,7 @@ def test_export_import():
 
 
 def test_export_import_advanced():
-    import io 
+    import io
 
     core = Core()
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
