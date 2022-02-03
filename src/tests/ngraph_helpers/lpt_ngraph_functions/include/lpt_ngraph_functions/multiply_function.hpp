@@ -51,7 +51,8 @@ public:
         const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
         const bool broadcast2,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fq2,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter);
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter,
+        const bool secondInputIsConstant = false);
 };
 
 }  // namespace subgraph

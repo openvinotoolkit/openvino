@@ -20,6 +20,7 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
     ngraph::element::Type expectedPrecisions;
+    bool secondInputIsConstant;
 };
 
 typedef std::tuple<
