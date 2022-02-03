@@ -15,6 +15,19 @@ POT tool provides three options to deal with the saturation issue which can be e
 * Apply for all layers in the model: "all" option
 * Not apply saturation fix at all: "no" option
 
+Below is an example of the section in POT configuration file with the `saturation_fix` option:
+```json
+"algorithms": [
+    {
+        "name": "DefaultQuantization",
+        "params": {
+            "preset": "performance",
+            "stat_subset_size": 300,
+            "saturation_fix": "all" // Apply the saturation fix to all the layers
+        }
+    }
+]
+```
 ## Recommendations
 If you observe the saturation issue we recommend trying the option "all" during the model quantization. If it does not help to improve the accuracy we recommend using [Quantization-aware training from NNCF](https://github.com/openvinotoolkit/nncf) and fine-tune the model.
 
@@ -22,3 +35,4 @@ If you are not planning to use legacy CPU HW you can use the option "no" which c
 
 ## See Also
 * [Lower Numerical Precision Deep Learning Inference and Training blogpost](https://www.intel.com/content/www/us/en/developer/articles/technical/lower-numerical-precision-deep-learning-inference-and-training.html)
+* [Configuration file desciption](@ref pot_configs_README)

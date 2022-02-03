@@ -35,7 +35,7 @@ features:
 * Two post-training 8-bit quantization algorithms: fast [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) and precise [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md).
 * Compression for different hardware targets such as CPU and GPU.
 * Multiple domains: Computer Vision, Natural Language Processing, Recommendation Systems, Speech Recognition.
-* [Command-line tool](docs/CLI.md) that provides a simple .
+* [Command-line tool](docs/CLI.md) that provides a simple interface for basic use cases.
 * [API](openvino/tools/pot/api/README.md) that helps to apply optimization methods within a custom inference script written with OpenVINO Python* API.
 * (Experimental) [Ranger algorithm](@ref pot_ranger_README) for model prodection in safity critical cases.
 
