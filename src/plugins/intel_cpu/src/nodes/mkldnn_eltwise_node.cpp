@@ -2013,9 +2013,8 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
 
 void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
-    // TODO [DS]: at this moment this transformation prohibit for dynamic case
     specialConvolutionAddFusing = (parentNode->getType() == Convolution || parentNode->getType() == BinaryConvolution) && getAlgorithm() == EltwiseAdd &&
-            getInputShapeAtPort(0) == getInputShapeAtPort(1);
+            dimsEqualWeak(getInputShapeAtPort(0).getDims(), getInputShapeAtPort(1).getDims());
     if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
         std::tie(scales, shifts) = getScalesAndShifts(parentNode.get());
         if ((parentNode->getType() == FullyConnected || parentNode->getType() == MatMul) && one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract,
