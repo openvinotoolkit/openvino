@@ -8,6 +8,7 @@
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -114,8 +115,11 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
         }
     }
 
-    if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
-        internalRequest = CreateInferRequestImpl(_parameters, _results);
+    if (this->_plugin) {
+        const auto& core = _plugin->GetCore();
+        if (core && core->isNewAPI())
+            internalRequest = CreateInferRequestImpl(_parameters, _results);
+    }
     if (!internalRequest)
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     internalRequest->setPointerToExecutableNetworkInternal(shared_from_this());
@@ -142,9 +146,27 @@ InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) con
 }
 
 InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) const {
-    if (name == METRIC_KEY(NETWORK_NAME)) {
+    if (name == ov::supported_properties) {
+        return decltype(ov::supported_properties)::value_type {
+            // Metrics
+            ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::model_name.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::optimal_number_of_infer_requests.name(), PropertyMutability::RO},
+
+            // Configs
+            PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
+            PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
+            PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
+            PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
+            PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW}
+        };
+    } else if (name == ov::model_name) {
         IE_ASSERT(!m_graphs.empty());
-        IE_SET_METRIC_RETURN(NETWORK_NAME, m_graphs[0]->getName());
+        return decltype(ov::model_name)::value_type {m_graphs[0]->getName()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
@@ -155,13 +177,14 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto && value : m_config.key_config_map)
-            configKeys.push_back(value.first);
+            if (!Config::isNewApiProperty(value.first))
+                configKeys.push_back(value.first);
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+    } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.throughput_streams;
         if (m_config.perfHintsConfig.ovPerfHint != CONFIG_VALUE(LATENCY))
             nr *= 2;
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
+        return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
