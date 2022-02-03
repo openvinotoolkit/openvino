@@ -36,7 +36,6 @@ public:
 
     bool _is_ready() {
         // Check if any request has finished already
-        // release GIL to avoid deadlock on python callback
         py::gil_scoped_release release;
         // acquire the mutex to access _errors and _idle_handles
         std::lock_guard<std::mutex> lock(_mutex);
