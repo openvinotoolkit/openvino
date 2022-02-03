@@ -262,6 +262,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID),
                                                CONFIG_KEY(PERF_COUNT),
+                                               ov::hint::performance_mode.name(),
                                                TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
         auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
