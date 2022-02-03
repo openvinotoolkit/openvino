@@ -129,6 +129,10 @@ static const char report_type_message[] =
 // @brief message for report_folder option
 static const char report_folder_message[] = "Optional. Path to a folder where statistics report is stored.";
 
+// @brief message for json_stats option
+static const char json_stats_message[] = "Optional. Enables JSON-based statistics output (by default reporting system "
+                                         "will use CSV format). Should be used together with -report_folder option.";
+
 // @brief message for exec_graph_path option
 static const char exec_graph_path_message[] =
     "Optional. Path to a file where to store executable graph information serialized.";
@@ -290,6 +294,9 @@ DEFINE_string(report_type, "", report_type_message);
 /// @brief Path to a folder where statistics report is stored
 DEFINE_string(report_folder, "", report_folder_message);
 
+/// @brief Enables JSON-based statistics reporting
+DEFINE_bool(json_stats, false, json_stats_message);
+
 /// @brief Path to a file where to store executable graph information serialized
 DEFINE_string(exec_graph_path, "", exec_graph_path_message);
 
@@ -392,6 +399,7 @@ static void show_usage() {
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
+    std::cout << "    -json_stats               " << json_stats_message;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
     std::cout << "    -pcseq                    " << pcseq_message << std::endl;
