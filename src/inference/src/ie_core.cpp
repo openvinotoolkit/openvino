@@ -331,7 +331,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     std::map<std::string, std::string> CreateCompileConfig(const ov::InferencePlugin& plugin,
                                                            const std::string& deviceFamily,
                                                            const std::map<std::string, std::string>& origConfig) const {
-        std::map<std::string, ie::Parameter> getMetricConfig;
+        std::map<std::string, Any> getMetricConfig;
         auto compileConfig = origConfig;
 
         // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
@@ -353,7 +353,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
         // 2. replace it with DEVICE_ARCHITECTURE value
         if (DeviceSupportsConfigKey(plugin, ov::device::architecture.name())) {
-            compileConfig[ov::device::architecture.name()] = plugin.get_property(ov::device::architecture);
+            compileConfig[ov::device::architecture.name()] =
+                plugin.get_property(ov::device::architecture, getMetricConfig);
         } else {
             // Take device name if device does not support DEVICE_ARCHITECTURE metric
             compileConfig[ov::device::architecture.name()] = deviceFamily;

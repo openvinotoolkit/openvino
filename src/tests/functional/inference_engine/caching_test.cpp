@@ -675,11 +675,13 @@ TEST_P(CachingTest, TestNoCacheSupported) {
 
 TEST_P(CachingTest, TestNoCacheMetricSupported) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _)).Times(AnyNumber())
+            .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
             .Times(AnyNumber()).WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _)).Times(0);
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -1020,12 +1022,18 @@ TEST_P(CachingTest, TestDeviceArchitecture) {
 
 TEST_P(CachingTest, TestNoDeviceArchitecture) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _)).Times(AnyNumber())
+            .WillRepeatedly(Invoke([&] (const std::string&, const std::map<std::string, Parameter>&) {
+                return std::vector<ov::PropertyName>{ov::device::capabilities.name()};
+            }));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber())
             .WillRepeatedly(Invoke([&] (const std::string&, const std::map<std::string, Parameter>&) {
                 return std::vector<std::string>{METRIC_KEY(IMPORT_EXPORT_SUPPORT)};
             }));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _)).Times(AnyNumber()).
+        WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{
+            ov::device::capability::EXPORT_IMPORT}));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(0);
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
@@ -1328,8 +1336,7 @@ TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
             .Times(AnyNumber()).WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
-            .Times(AtLeast(1)).WillRepeatedly(Return(std::vector<ov::PropertyName>{
-                ov::supported_properties.name()}));
+            .Times(AnyNumber()).WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     // Hetero supports Import/Export, but mock plugin does not
     deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock.1,mock.2");
     if (m_remoteContext) {
@@ -1707,6 +1714,8 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _))
             .Times(AnyNumber()).WillRepeatedly(Return(Parameter{false}));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _))
+            .Times(AnyNumber()).WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{}));
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
 
