@@ -291,7 +291,8 @@ int main(int argc, char* argv[]) {
                                                " or via configuration file.");
                     }
                     device_config[key] = device_nstreams.at(device);
-                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) && (FLAGS_api == "async")) {
+                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) &&
+                           (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
