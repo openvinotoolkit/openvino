@@ -19,6 +19,8 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/runtime/intel_gpu/properties.hpp"
+
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
@@ -341,7 +343,10 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+    if (!this->_plugin)
+        return nullptr;
+    const auto& core = _plugin->GetCore();
+    if (!core || !core->isNewAPI())
         return nullptr;
     auto workerRequestPtrAndId = GetWorkerInferRequest();
     return std::make_shared<AutoBatchInferRequest>(inputs,
@@ -428,8 +433,11 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {
     IInferRequestInternal::Ptr syncRequestImpl;
-    if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
-        syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
+    if (this->_plugin) {
+        const auto& core = _plugin->GetCore();
+        if (core && core->isNewAPI())
+            syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
+    }
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
@@ -742,7 +750,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
         size_t footprint = 0;
         // TODO: use the per-network metric (22.2) rather than plugin-level
-        auto stats = pCore->GetMetric(device, GPU_METRIC_KEY(MEMORY_STATISTICS)).as<std::map<std::string, uint64_t>>();
+        auto stats =
+            pCore->GetMetric(device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
         for (auto s : stats)
             if (s.first.find("_current") != std::string::npos)
                 footprint += s.second;
