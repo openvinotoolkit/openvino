@@ -443,10 +443,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--legacy_ir_generation',
                               help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     common_group.add_argument("--use_new_frontend",
-                              help="Use new frontend API for model processing",
+                              help="Force the usage of new frontend API for model processing",
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
-                              help="Use legacy API for model processing",
+                              help="Force the usage of legacy API for model processing",
                               action='store_true', default=False)
     return parser
 

@@ -194,6 +194,8 @@ Framework-agnostic parameters:
   --transformations_config TRANSFORMATIONS_CONFIG
                         Use the configuration file with transformations
                         description.
+  --use_new_frontend    Force the usage of new frontend API for model processing.
+  --use_legacy_frontend Force the usage of legacy API for model processing.
 ```
 
 The sections below provide details on using particular parameters and examples of CLI commands.
