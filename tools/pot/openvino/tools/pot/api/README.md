@@ -256,7 +256,7 @@ In order to implement a custom `Engine` class you may need to get familiar with 
 
 The Python* POT API provides the utility function to load model from the OpenVINO&trade; Intermediate Representation (IR):
 ```
-openvino.tools.pot..load_model(model_config)
+openvino.tools.pot.load_model(model_config)
 ```
 *Parameters*
 - `model_config` - dictionary describing a model that includes the following attributes:
