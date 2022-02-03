@@ -237,7 +237,7 @@ class IEEngine(Engine):
             if Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
-                                 "Try to specify the layout of the model.")
+                                 f"Try to specify the layout of the model.")
             return image_batch
 
         if len(input_info) == 2:
@@ -254,6 +254,10 @@ class IEEngine(Engine):
             image_tensor_name = image_tensor_node.get_any_name()
 
             image_tensor = (image_tensor_name, np.stack(image_batch, axis=0))
+            if Shape(image_tensor[1].shape) != image_tensor_node.shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {Shape(image_tensor[1].shape)} into {image_tensor_node.shape}."
+                                 f"Try to specify the layout of the model.")
 
             ch, height, width = image_batch[0].shape
             image_info = (image_info_name,

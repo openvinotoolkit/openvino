@@ -47,7 +47,8 @@ class ImageLoader(DataLoader):
         if image is None:
             raise Exception('Can not read the image: {}'.format(img_path))
 
-        return prepare_image(image, self._layout, (self.shape[H], self.shape[W]), self._crop_central_fraction)
+        return prepare_image(image, self._layout, (self.shape[H], self.shape[W]),
+                             self._crop_central_fraction, self._shape[C] == 1)
 
     def get_layout(self, input_node=None):
         if self._layout is not None:
@@ -58,7 +59,8 @@ class ImageLoader(DataLoader):
             self._layout = Layout(self._layout)
             return
 
-        if input_node and input_node.graph.meta_data.get('layout', None) not in [None, '()']:
+        if input_node and hasattr(input_node.graph, 'meta_data') \
+                and input_node.graph.meta_data.get('layout', None) not in [None, '()']:
             layout_from_ir = get_layout_values(input_node.graph.meta_data.get('layout', None))
             if layout_from_ir is not None:
                 layout_from_ir = layout_from_ir[next(iter(layout_from_ir))].get('source_layout', None)
