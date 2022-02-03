@@ -44,9 +44,10 @@ To build `ov::Model` from `opset8` operations please include next files:
       @snippet example_ngraph_utils.cpp ov:include
 
  - Python
+     ```python
       import openvino.runtime.opset8 as ov
       from openvino.runtime import Model
-
+      ```
 
 Below an example of simple OpenVINO Model
 
@@ -54,7 +55,9 @@ Below an example of simple OpenVINO Model
       @snippet example_ngraph_utils.cpp ov:create_simple_model
 
  - Python
-      TBD
+     ```python
+     TBD
+      ```
 
 
 Example of OpenVINO Model with several outputs
@@ -63,7 +66,9 @@ Example of OpenVINO Model with several outputs
       @snippet example_ngraph_utils.cpp ov:create_advanced_model
 
  - Python
-      TBD
+     ```python
+     TBD
+      ```
 
 ## FAQ
 
