@@ -35,10 +35,6 @@ onnx_model_erf
 onnx_model_addmul_abc
 IE_CPU.interpolate_down_scales_const_linear
 
-# Result mismatch - 77384
-onnx_model_softmax_axis_negative_1_opset11
-onnx_model_softmax_axis_negative_1_opset13
-
 # data [<name>] doesn't exist
 broadcast_trivial
 aliased_output
@@ -116,17 +112,6 @@ IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
 # I64 ONNX Clip Failing on ubuntu18/20_release CI
 IE_CPU.onnx_clip_no_min_no_max_int64 # -2147483648 is not close to 2147483647 at index 2
 IE_CPU.onnx_clip_no_min_set_max_int64 # -1 is not close to 2147483647 at index 0
-
-# TopK Incorrect input data/index values precision
-onnx_model_argmax_int32
-onnx_model_argmin_int32
-arg_max_dyn_shape
-
-# Result mismatch
-onnx_model_argmax_float
-onnx_model_argmin_float
-onnx_model_argmax_select_last_index
-onnx_model_argmin_select_last_index
 
 # Constant has zero dimension that is not allowable
 onnx_dyn_shapes_transpose
