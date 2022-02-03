@@ -547,9 +547,6 @@ def serialize_network(graph, net_element, unsupported):
         if not found_tensor_name:
             log.warning("Input node with name {} is not found in graph.".format(param_name))
 
-    print('ordered_results:')
-    print(ordered_results)
-    print('serialized before ordering:')
     for node in nodes:
         node = Node(graph, node)
         if node.soft_get('name') in serialized_inputs:
@@ -557,9 +554,6 @@ def serialize_network(graph, net_element, unsupported):
         if node.soft_get('name') in ordered_results:
             continue
         serialize_node(graph, node, layers, edges, unsupported)
-        if node.soft_get('type') == "Result":
-            print(node.soft_get('name'))
-    print('done')
 
     for output_name in ordered_results:
         node = graph.get_op_nodes(name=output_name)
