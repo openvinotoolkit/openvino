@@ -77,11 +77,22 @@ std::shared_ptr<ngraph::Function> buildRuntimeGraph(GraphMetaInfo& graphMetaInfo
         const auto inputs = getInputs(stageMeta);
 
         std::shared_ptr<ngraph::Node> node;
-        if (stageMeta.stageType == "Input") {
+        if (stageMeta.layerType == "Input") {
             params.emplace_back(std::make_shared<ngraph::op::Parameter>());
+            for (const auto& outPrecision : stageMeta.outPrecisions) {
+                if (outPrecision != Precision::FP16) {
+                    params.back()->set_element_type(InferenceEngine::details::convertPrecision(outPrecision));
+                    break;
+                }
+            }
             node = params.back();
         } else if (stageMeta.childrenNum == 0) {
             results.emplace_back(std::make_shared<ngraph::op::Result>(inputs.back()));
+            auto inputNode = inputs.back().get_node();
+            if (stageMeta.outPrecisions[0] != Precision::FP16) {
+                inputNode->set_output_type(0, InferenceEngine::details::convertPrecision(stageMeta.outPrecisions[0]),
+                                            ngraph::PartialShape(stageMeta.inputDims[0]));
+            }
             node = results.back();
         } else {
             node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(inputs, 0);
@@ -102,7 +113,6 @@ std::shared_ptr<ngraph::Function> buildRuntimeGraph(GraphMetaInfo& graphMetaInfo
 
     for (std::size_t i = 0; i < graphMetaInfo.stagesMeta.size(); i++) {
         const auto stageMeta = graphMetaInfo.stagesMeta[i];
-
         if (stageMeta.status == ie::InferenceEngineProfileInfo::LayerStatus::OPTIMIZED_OUT ||
             stageMetaIndexToNode.count(i) != 0 ||
             stageMeta.stageName == "<Receive-Tensor>" ||

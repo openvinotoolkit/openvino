@@ -1,0 +1,34 @@
+{
+    "model": {
+        "model_name": "model_name",    // Model name
+        "model": "<MODEL_PATH>",       // Path to model (.xml format)
+        "weights": "<PATH_TO_WEIGHTS>" // Path to weights (.bin format)
+    },
+    "engine": {
+
+        "type": "data_free",                  // Engine type​
+        "generate_data": "True",              // (Optional) If True, generate synthetic data and store to `data_source`​
+                                              // Otherwise, the dataset from `--data-source` will be used'​
+        "layout": "NCHW",                     // (Optional) Layout of input data. Supported: ["NCHW", "NHWC", "CHW", "CWH"]​
+        "shape": "[None, None, None, None]",  // (Optional) if model has dynamic shapes, input shapes must be provided​
+        "data_type": "image",                 // (Optional) You can specify the type of data to be generated.​
+                                              // Currently only `image` is supported.​
+                                              // It is planned to add 'text` and 'audio' cases​
+        "data_source": "PATH_TO_SOURCE"       // (Optional) You can specify path to directory​
+                                              // where synthetic dataset is located or will be generated and saved​
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "DefaultQuantization", // Optimization algorithm name
+                "params": {
+                    "preset": "performance",   // Preset [performance, mixed, accuracy] which control the quantization
+                                               // mode (symmetric, mixed (weights symmetric and activations asymmetric)
+                                               // and fully asymmetric respectively)
+                    "stat_subset_size": 300    // Size of subset to calculate activations statistics that can be used
+                                               // for quantization parameters calculation
+                }
+            }
+        ]
+    }
+}

@@ -87,7 +87,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
 
 #endif  // OPENVINO_STATIC_LIBRARY
 
-#endif  // NGRAPH_ONNX_FRONTEND_ENABLE
+#endif  // ENABLE_OV_ONNX_FRONTEND
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
