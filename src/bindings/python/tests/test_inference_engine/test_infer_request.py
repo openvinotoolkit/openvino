@@ -290,6 +290,7 @@ def test_infer_queue_is_ready(device):
     model = Model(ops.relu(param), [param])
     compiled = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled, 1)
+
     def callback(request, _):
         time.sleep(0.001)
     infer_queue.set_callback(callback)
