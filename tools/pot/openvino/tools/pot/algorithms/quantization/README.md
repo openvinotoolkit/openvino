@@ -29,7 +29,7 @@ wide range of DNN models:
    of performance improvement. The method requires annotated representative dataset and may require more time for quantization. For details, see the
    [AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
 
-For more details about the representation of the low-precision model please refer to this [document](@pot_docs_model_representation).
+For more details about the representation of the low-precision model please refer to this [document](@ref pot_docs_model_representation).
 
 ## See also
 * [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
