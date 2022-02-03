@@ -79,7 +79,7 @@ public:
         m_enable_accuracy_check = true;
     }
 
-    void accuracy_check(std::shared_ptr<ov::Model> ref_function, std::shared_ptr<ov::Model> cur_function);
+    void accuracy_check(const std::shared_ptr<ov::Model>& ref_function, const std::shared_ptr<ov::Model>& cur_function);
 
     std::shared_ptr<ov::Model> function, function_ref;
     ngraph::pass::Manager manager;
