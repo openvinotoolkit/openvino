@@ -86,25 +86,20 @@ int main(int argc, char* argv[]) {
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
         std::vector<std::string> outputs;
+        std::vector<size_t> ports;
+        // --------------------------- Processing custom outputs ---------------------------------------------
         if (!FLAGS_oname.empty()) {
             std::vector<std::string> output_names = convert_str_to_vector(FLAGS_oname);
-            std::vector<size_t> ports;
-            for (const auto& outBlobName : output_names) {
-                auto pos_layer = outBlobName.rfind(":");
+            for (const auto& output_name : output_names) {
+                auto pos_layer = output_name.rfind(":");
                 if (pos_layer == std::string::npos) {
-                    throw std::logic_error(std::string("Output ") + std::string(outBlobName) +
-                                           std::string(" doesn't have a port"));
+                    throw std::logic_error("Output " + output_name + " doesn't have a port");
                 }
-                outputs.push_back(outBlobName.substr(0, pos_layer));
+                outputs.push_back(output_name.substr(0, pos_layer));
                 try {
-                    ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1)));
+                    ports.push_back(std::stoi(output_name.substr(pos_layer + 1)));
                 } catch (const std::exception&) {
                     throw std::logic_error("Ports should have integer type");
-                }
-            }
-            if (!FLAGS_m.empty()) {
-                for (size_t i = 0; i < outputs.size(); i++) {
-                    model->add_output(outputs[i], ports[i]);
                 }
             }
         }
@@ -113,6 +108,12 @@ int main(int argc, char* argv[]) {
         // (already compiled)
         if (!FLAGS_m.empty()) {
             model = core.read_model(FLAGS_m);
+            if (!outputs.empty()) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    auto output = model->add_output(outputs[i], ports[i]);
+                    output.set_names({outputs[i] + ":" + std::to_string(ports[i])});
+                }
+            }
             check_number_of_inputs(model->inputs().size(), numInputFiles);
             const ov::Layout tensor_layout{"NC"};
             ov::preprocess::PrePostProcessor proc(model);
@@ -426,9 +427,9 @@ int main(int argc, char* argv[]) {
 
                                     ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
-                                    if (!FLAGS_oname.empty())
-                                        outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
+                                    if (!outputs.empty()) {
+                                        outputBlob = inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
+                                    }
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
