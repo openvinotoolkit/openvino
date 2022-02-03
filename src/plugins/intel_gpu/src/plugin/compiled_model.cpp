@@ -114,8 +114,11 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
         }
     }
 
-    if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
-        internalRequest = CreateInferRequestImpl(_parameters, _results);
+    if (this->_plugin) {
+        const auto& core = _plugin->GetCore();
+        if (core && core->isNewAPI())
+            internalRequest = CreateInferRequestImpl(_parameters, _results);
+    }
     if (!internalRequest)
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     internalRequest->setPointerToExecutableNetworkInternal(shared_from_this());
