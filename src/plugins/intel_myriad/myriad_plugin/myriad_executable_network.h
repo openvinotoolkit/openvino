@@ -70,11 +70,14 @@ public:
             IE_THROW() << "Can not create infer request: there is no available devices with platform ";
         }
         std::shared_ptr<MyriadInferRequest> syncRequestImpl;
-        if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
-            syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _parameters, _results,
-                                                                   _inputInfo, _outputInfo,
-                                                                   _graphMetaData.stagesMeta, _config, _log,
-                                                                   _executor, _constDatas, _isNetworkConstant);
+        if (this->_plugin) {
+            const auto& core = _plugin->GetCore();
+            if (core && core->isNewAPI())
+                syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _parameters, _results,
+                                                                       _inputInfo, _outputInfo,
+                                                                       _graphMetaData.stagesMeta, _config, _log,
+                                                                       _executor, _constDatas, _isNetworkConstant);
+        }
         if (!syncRequestImpl)
             syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _networkInputs, _networkOutputs,
                                                                    _inputInfo, _outputInfo,
