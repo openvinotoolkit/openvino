@@ -29,14 +29,11 @@ This section contains only three parameters:
         "config": "./configs/examples/accuracy_checker/mobilenet_v2.yaml"
     }
 ```
-The main parameter is `"type"` which can take two possible options: `"accuracy_checher"` (default), `"simplified"`, 
- and `"data_free"` which specify the engine that is used for model inference and validation (if supported):
-- **Data-free mode** and **Simplified mode** engines. These engines can be used only with `DefaultQuantization` algorithm to get fully quantized model. They do not use the Accuracy Checker tool and annotation. In the case of this mode the following parameters are applicable:
-  - `"data_source"` (Optional for Data-free) Specifies path to directory​ where to calibration data is stored.
+The main parameter is `"type"` which can take two possible options: `"accuracy_checher"` (default)or `"simplified"`. It specifies the engine that is used for model inference and validation (if supported):
+- **Simplified mode** engines. These engines can be used only with `DefaultQuantization` algorithm to get fully quantized model. They do not use the Accuracy Checker tool and annotation. In the case of this mode the following parameters are applicable:
+  - `"data_source"` Specifies path to directory​ where to calibration data is stored.
   - `"layout"` - (Optional) Layout of input data. Supported values: [`"NCHW"`, `"NHWC"`, `"CHW"`, `"CWH"`]​.
   - `"shape"` - (Optional) input shapes must be provided​ if model has dynamic shapes.
-  - `"generate_data"` - (valid for Data-free only) if `"True"` generate synthetic data and store to `data_source`​. Otherwise, the dataset from `--data-source` will be used.
-  - `"data_type"` - (valid for Data-free only) You can specify the type of data to be generated.​ Currently only `image` is supported.​ It is planned to add 'text` and 'audio' cases​
 - **Accuracy Checker** engine. It relies on the [Deep Learning Accuracy Validation Framework](@ref omz_tools_accuracy_checker_README) (Accuracy Checker) when inferencing DL models and working with datasets.
 The benefit of this mode is you can compute accuracy in case you have annotations. It is possible to use accuracy aware
 algorithms family when this mode is selected.

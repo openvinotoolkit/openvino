@@ -37,7 +37,7 @@ features:
 * Multiple domains: Computer Vision, Natural Language Processing, Recommendation Systems, Speech Recognition.
 * [Command-line tool](docs/CLI.md) that provides a simple .
 * [API](openvino/tools/pot/api/README.md) that helps to apply optimization methods within a custom inference script written with OpenVINO Python* API.
-* (Experimental) Ranger algorithm for model prodection in safity critical cases.
+* (Experimental) [Ranger algorithm](@ref pot_ranger_README) for model prodection in safity critical cases.
 
 The tool is aimed to fully automate the model transformation process without a need to change the model on the user's side. For details about 
 the low-precision flow in OpenVINO&trade;, see the [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md).
@@ -54,9 +54,8 @@ and [Accuracy Checker Tool](@ref omz_tools_accuracy_checker).
 ## Usage options
 ![](docs/images/use_cases.png) 
 
-The POT provides four basic usage options:
+The POT provides three basic usage options:
 * **Command-line interface (CLI)**:
-  * [**Data-free mode**](@ref pot_docs_data_free): this option can be used in case when only a model is available and there is no access to data. Currentlu, The data-free flow is available only for Computer Vision models. Please note that there can be significant deviation of model accuracy after optimization using this method.
   * [**Simplified mode**](@ref pot_docs_simplified_mode): this option can be used if the model from Computer Vision domain and there is an unannotated dataset that can be used for optimization. Please note that there can be deviation of accuracy after optimization using this method.
   * [**Model Zoo flow**](@ref pot_compression_cli_README): this option is recommended if the model from OpenVINO&trade; 
 [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or there is a valid [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README)
