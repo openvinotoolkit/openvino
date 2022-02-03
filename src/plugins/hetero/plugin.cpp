@@ -199,8 +199,8 @@ std::string Engine::DeviceArchitecture(const std::string& targetFallback) const 
     for (const auto& device : fallbackDevices) {
         InferenceEngine::DeviceIDParser parser(device);
 
-        std::vector<std::string> supportedMetricKeys =
-            GetCore()->GetMetric(parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS));
+        auto supportedMetricKeys =
+            GetCore()->GetMetric(parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
         auto arch = (it != supportedMetricKeys.end())
                         ? GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>()

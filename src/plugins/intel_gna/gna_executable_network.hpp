@@ -95,7 +95,7 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
             IE_THROW() << "The list of configuration values is empty";
         }
 
-        std::vector<ov::PropertyName> supported_properties = Config::GetSupportedProperties(true);
+        auto supported_properties = Config::GetSupportedProperties(true).as<std::vector<ov::PropertyName>>();
         for (auto&& item : config) {
             auto it = std::find(supported_properties.begin(), supported_properties.end(), item.first);
             if (it != supported_properties.end()) {

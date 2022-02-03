@@ -39,7 +39,7 @@ protected:
     Config config;
     void SetAndCompare(const std::string& key, const std::string& val) {
         config.UpdateFromMap({{key, val}});
-        EXPECT_EQ(config.GetParameter(key), val);
+        EXPECT_EQ(config.GetParameter(key).as<std::string>(), val);
     }
     void ExpectThrow(const std::string& key, const std::string& val) {
         EXPECT_THROW(config.UpdateFromMap({{key, val}}),

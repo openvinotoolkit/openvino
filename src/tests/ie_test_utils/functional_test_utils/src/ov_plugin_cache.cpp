@@ -61,11 +61,11 @@ std::shared_ptr<ov::Core> PluginCache::core(const std::string &deviceToCheck) {
     }
 
     if (!deviceToCheck.empty()) {
-        std::vector<std::string> metrics = ov_core->get_property(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS));
+        auto properties = ov_core->get_property(deviceToCheck, ov::supported_properties);
 
-        if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(AVAILABLE_DEVICES)) != metrics.end()) {
-            std::vector<std::string> availableDevices =
-                    ov_core->get_property(deviceToCheck, METRIC_KEY(AVAILABLE_DEVICES));
+        if (std::find(properties.begin(), properties.end(), ov::available_devices) != properties.end()) {
+            auto availableDevices =
+                    ov_core->get_property(deviceToCheck, ov::available_devices);
 
             if (availableDevices.empty()) {
                 std::cerr << "No available devices for " << deviceToCheck << std::endl;
