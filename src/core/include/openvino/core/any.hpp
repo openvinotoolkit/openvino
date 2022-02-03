@@ -734,14 +734,6 @@ public:
         throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
     }
 
-    operator bool&() & = delete;
-
-    operator const bool&() const& = delete;
-
-    operator const bool() const& = delete;
-
-    operator const bool &&() && = delete;
-
     /**
      * Dynamic cast to specified type
      * @tparam T type
@@ -802,6 +794,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator T&() & {
         return as<T>();
     }
@@ -812,6 +805,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator const T&() const& {
         return as<T>();
     }
@@ -822,6 +816,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator T&() const& {
         return const_cast<Any*>(this)->as<T>();
     }
@@ -832,6 +827,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator T &&() && {
         return std::move(as<T&&>());
     }
@@ -933,6 +929,12 @@ using AnyMap = std::map<std::string, Any>;
 using RTMap = AnyMap;
 
 using AnyVector = std::vector<ov::Any>;
+
+/** @cond INTERNAL */
+inline static void PrintTo(const Any& any, std::ostream* os) {
+    any.print(*os);
+}
+/** @endcond */
 
 }  // namespace ov
 

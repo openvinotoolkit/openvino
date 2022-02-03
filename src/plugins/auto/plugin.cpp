@@ -140,7 +140,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         std::string fullDeviceName = "";
         std::string uniqueName = "";
         if (parsed.getDeviceName() == "GPU") {
-            std::vector<std::string> supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+            auto supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
             if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
                 fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
             }
@@ -451,7 +451,7 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     if (metaDevices.size() > 1) {
         auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
             for (auto iter = devices.begin(); iter != devices.end();) {
-                std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                auto capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)).as<std::vector<std::string>>();
                 auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
                 if (supportNetwork != capability.end()) {
                     validDevices.push_back(std::move(*iter));
@@ -585,13 +585,13 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             try {
                 int priority = -1;
                 if (kvp.second == "LOW") {
-                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::LOW);
+                    priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::LOW);
                 }
                 if (kvp.second == "MEDIUM") {
-                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::MEDIUM);
+                    priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::MEDIUM);
                 }
                 if (kvp.second == "HIGH") {
-                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::HIGH);
+                    priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::HIGH);
                 }
                 if (priority < 0) {
                     IE_THROW() << "Unsupported config value: " << kvp.second
