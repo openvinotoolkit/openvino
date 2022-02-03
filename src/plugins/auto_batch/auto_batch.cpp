@@ -19,6 +19,8 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/runtime/intel_gpu/properties.hpp"
+
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
@@ -748,7 +750,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
         size_t footprint = 0;
         // TODO: use the per-network metric (22.2) rather than plugin-level
-        auto stats = pCore->GetMetric(device, GPU_METRIC_KEY(MEMORY_STATISTICS)).as<std::map<std::string, uint64_t>>();
+        auto stats =
+            pCore->GetMetric(device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
         for (auto s : stats)
             if (s.first.find("_current") != std::string::npos)
                 footprint += s.second;
