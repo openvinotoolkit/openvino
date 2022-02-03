@@ -458,8 +458,8 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
         }
     }
 
-    for (auto&& layerName : supported) {
-        if (InferenceEngine::details::contains(unsupported, layerName)) {
+    for (auto&& layerName : unsupported) {
+        if (InferenceEngine::details::contains(supported, layerName)) {
             supported.erase(layerName);
         }
     }
