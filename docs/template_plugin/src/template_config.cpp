@@ -34,8 +34,9 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
             perfCount = (CONFIG_VALUE(YES) == value);
         } else if (ov::hint::performance_mode == key) {
-            std::stringstream strm{value} >> performance_mode;
-        } if (throwOnUnsupported) {
+            std::stringstream strm{value};
+            strm >> performance_mode;
+        } else if (throwOnUnsupported) {
             IE_THROW(NotFound) << ": " << key;
         }
     }

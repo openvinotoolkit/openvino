@@ -9,12 +9,11 @@
 #include "behavior/ov_plugin/core_integration.hpp"
 
 using namespace ov::test::behavior;
-using namespace ov::PluginConfigParams;
 
 namespace {
 
 //
-// IE Class Common tests with <pluginName, device_name params>
+// OV Class Common tests with <pluginName, device_name params>
 //
 
 INSTANTIATE_TEST_SUITE_P(
@@ -26,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 //
-// IE Class GetMetric
+// OV Class GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(
@@ -67,21 +66,19 @@ INSTANTIATE_TEST_SUITE_P(
 
 
 //
-// IE Class GetConfig
+// OV Class GetConfig
 //
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetConfigTest, OVClassGetConfigTest,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
-using OVClassGetConfigTestTEMPLATE = BehaviorTestsUtils::OVClassNetworkTest;
+TEST(OVClassBasicTest, smoke_TEMPLATEGetSetConfigNoThrow) {
+    ov::Core core = createCoreWithTemplate();
 
-TEST_F(OVClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
-    ov::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
+    auto device_name = CommonTestUtils::DEVICE_TEMPLATE;
 
-    std::string device_name = CommonTestUtils::DEVICE_TEMPLATE;
-
-    for (auto&& property : core.get_property(device_name, ov::supported_properties) {
+    for (auto&& property : core.get_property(device_name, ov::supported_properties)) {
         if (ov::device::id == property) {
             std::cout << ov::device::id.name() << " : " << core.get_property(device_name, ov::device::id) << std::endl;
         } else if (ov::enable_profiling == property) {
@@ -96,13 +93,13 @@ TEST_F(OVClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
     }
 }
 
-// IE Class Query network
+// OV Class Query network
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
-// IE Class Load network
+// OV Class Load network
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,

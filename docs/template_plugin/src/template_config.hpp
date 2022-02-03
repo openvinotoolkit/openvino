@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 #include <threading/ie_istreams_executor.hpp>
-#include <openvio/runtime/properties.hpp>
+#include <openvino/runtime/properties.hpp>
 
 namespace TemplatePlugin {
 
