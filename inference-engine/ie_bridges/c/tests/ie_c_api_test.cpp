@@ -168,7 +168,7 @@ TEST(ie_core_register_plugin, registerPlugin) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_register_plugins, registerPlugins) {
+TEST(ie_core_register_plugins, DISABLED_registerPlugins) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -190,7 +190,7 @@ TEST(ie_core_register_plugins, registerPlugins) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_unregister_plugin, unregisterPlugin) {
+TEST(ie_core_unregister_plugin, DISABLED_unregisterPlugin) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create(plugins_xml, &core));
     ASSERT_NE(nullptr, core);
