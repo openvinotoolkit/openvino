@@ -101,6 +101,7 @@ declared in `namespace opset1`.
 * [Sinh](arithmetic/Sinh_1.md)
 * [SoftMax](activation/SoftMax_1.md)
 * [SpaceToDepth](movement/SpaceToDepth_1.md)
+* [SparseConv](sparse/SparseConv.md)
 * [Split](movement/Split_1.md)
 * [Sqrt](arithmetic/Sqrt_1.md)
 * [SquaredDifference](arithmetic/SquaredDifference_1.md)

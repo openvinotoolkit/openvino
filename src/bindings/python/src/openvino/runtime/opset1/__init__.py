@@ -95,6 +95,7 @@ from openvino.runtime.opset1.ops import sin
 from openvino.runtime.opset1.ops import sinh
 from openvino.runtime.opset1.ops import softmax
 from openvino.runtime.opset1.ops import space_to_depth
+from openvino.runtime.opset1.ops import sparse_conv
 from openvino.runtime.opset1.ops import split
 from openvino.runtime.opset1.ops import sqrt
 from openvino.runtime.opset1.ops import squared_difference

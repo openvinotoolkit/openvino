@@ -2823,3 +2823,24 @@ def variadic_split(
     @return VariadicSplit node
     """
     return _get_node_factory_opset1().create("VariadicSplit", as_nodes(data, axis, split_lengths))
+
+
+@nameable_op
+def sparse_conv(
+    features: NodeInput,
+    inp_pos: NodeInput,
+    out_pos: NodeInput,
+    kernel: NodeInput,
+    offset: NodeInput,
+) -> Node:
+    """Create a node which performs convolution with dense filter to a sparse tensor.
+
+    @param features: Input features.
+    @param inp_pos: Input positions. Number of points should be equal to number of features.
+    @param out_pos: Output positions in which convolution is calculated.
+    @param kernel: Dense convolutional filters.
+    @param offset: Voxels offset.
+    @return Output features with number of points from <out_pos>.
+    """
+    inputs = as_nodes(features, inp_pos, out_pos, kernel, offset)
+    return _get_node_factory_opset1().create("SparseConv", inputs)

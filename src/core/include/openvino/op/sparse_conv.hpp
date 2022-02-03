@@ -13,8 +13,8 @@ namespace v1 {
 class OPENVINO_API SparseConv : public Op {
 public:
     OPENVINO_OP("SparseConv", "opset1", op::Op, 1);
-
     BWDCMP_RTTI_DECLARATION;
+
     SparseConv() = default;
 
     SparseConv(const Output<ngraph::Node>& features,
