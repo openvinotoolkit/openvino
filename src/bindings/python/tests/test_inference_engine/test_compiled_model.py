@@ -14,22 +14,22 @@ is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
 
 
-def test_get_metric(device):
+def test_get_property_model_name(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    network_name = exec_net.get_metric("NETWORK_NAME")
+    network_name = exec_net.get_property("NETWORK_NAME")
     assert network_name == "test_model"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
-def test_get_config(device):
+def test_get_property(device):
     core = Core()
-    if core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+    if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
         pytest.skip("Can't run on ARM plugin due-to CPU dependent test")
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    config = exec_net.get_config("PERF_COUNT")
+    config = exec_net.get_property("PERF_COUNT")
     assert config == "NO"
 
 
@@ -267,7 +267,7 @@ def test_infer_new_request_wrong_port_name(device):
     exec_net = ie.compile_model(func, device)
     with pytest.raises(KeyError) as e:
         exec_net.infer_new_request({"_data_": tensor})
-    assert "Port for tensor named _data_ was not found!" in str(e.value)
+    assert "Port for tensor _data_ was not found!" in str(e.value)
 
 
 def test_infer_tensor_wrong_input_data(device):
@@ -279,7 +279,7 @@ def test_infer_tensor_wrong_input_data(device):
     exec_net = ie.compile_model(func, device)
     with pytest.raises(TypeError) as e:
         exec_net.infer_new_request({0.: tensor})
-    assert "Incompatible key type for tensor named: 0." in str(e.value)
+    assert "Incompatible key type for tensor: 0." in str(e.value)
 
 
 def test_infer_numpy_model_from_buffer(device):
@@ -307,3 +307,19 @@ def test_infer_tensor_model_from_buffer(device):
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": tensor})
     assert np.argmax(res[list(res)[0]]) == 2
+
+
+def test_direct_infer(device):
+    core = Core()
+    with open(test_net_bin, "rb") as f:
+        bin = f.read()
+    with open(test_net_xml, "rb") as f:
+        xml = f.read()
+    model = core.read_model(model=xml, weights=bin)
+    img = read_image()
+    tensor = Tensor(img)
+    comp_model = core.compile_model(model, device)
+    res = comp_model({"data": tensor})
+    assert np.argmax(res[comp_model.outputs[0]]) == 2
+    ref = comp_model.infer_new_request({"data": tensor})
+    assert np.array_equal(ref[comp_model.outputs[0]], res[comp_model.outputs[0]])

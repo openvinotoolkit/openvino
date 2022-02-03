@@ -8,13 +8,12 @@
 #include "common_test_utils/test_constants.hpp"
 
 // TODO: fix namespaces
-using namespace ConformanceTests;
 
 namespace ov {
 namespace test {
 namespace conformance {
 
-inline const std::string getPluginLibNameByDevice(const std::string& deviceName) {
+inline const std::string get_plugin_lib_name_by_device(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
             { "AUTO", "ov_auto_plugin" },
             { "HDDL", "HDDLPlugin" },
@@ -34,21 +33,16 @@ inline const std::string getPluginLibNameByDevice(const std::string& deviceName)
     return devices.at(deviceName);
 }
 
-inline const std::pair<std::string, ov::Any> generateDefaultMultiConfig() {
-    return {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ConformanceTests::targetDevice};
-}
 
-inline const std::pair<std::string, ov::Any> generateDefaultHeteroConfig() {
-    return { "TARGET_FALLBACK" , ConformanceTests::targetDevice };
-}
-
-inline const std::vector<ov::AnyMap> generateConfigs(const std::string& targetDevice,
+inline const std::vector<ov::AnyMap> generate_configs(const std::string& targetDevice,
                                                                          const std::vector<ov::AnyMap>& config = {}) {
     std::pair<std::string, ov::Any> defaultConfig;
     if (targetDevice ==  std::string(CommonTestUtils::DEVICE_MULTI) || targetDevice ==  std::string(CommonTestUtils::DEVICE_AUTO)) {
-        defaultConfig = generateDefaultMultiConfig();
+        defaultConfig = ov::device::priorities(ov::test::conformance::targetDevice);
     } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
-        defaultConfig = generateDefaultHeteroConfig();
+        defaultConfig = ov::device::priorities(ov::test::conformance::targetDevice);
+    } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
+        defaultConfig = { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::conformance::targetDevice)};
     } else {
         throw std::runtime_error("Incorrect target device: " + targetDevice);
     }
@@ -64,20 +58,20 @@ inline const std::vector<ov::AnyMap> generateConfigs(const std::string& targetDe
     return resultConfig;
 }
 
-inline const std::string generateComplexDeviceName(const std::string& deviceName) {
-    return deviceName + ":" + ConformanceTests::targetDevice;
+inline const std::string generate_complex_device_name(const std::string& deviceName) {
+    return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
-inline const std::vector<std::string> returnAllPossibleDeviceCombination() {
-    std::vector<std::string> res{ConformanceTests::targetDevice};
+inline const std::vector<std::string> return_all_possible_device_combination() {
+    std::vector<std::string> res{ov::test::conformance::targetDevice};
     std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI};
     for (const auto& device : devices) {
-        res.emplace_back(generateComplexDeviceName(device));
+        res.emplace_back(generate_complex_device_name(device));
     }
     return res;
 }
 
-const std::vector<ov::AnyMap> emptyConfig = {
+const std::vector<ov::AnyMap> empty_config = {
         {},
 };
 

@@ -47,12 +47,12 @@ protected:
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
-    Config configuration;
+    ov::AnyMap configuration;
 
     std::shared_ptr<ov::Model> function, functionRefs = nullptr;
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
-    std::vector<ngraph::PartialShape> inputDynamicShapes;
-    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
+    std::vector<ov::PartialShape> inputDynamicShapes;
+    std::vector<std::vector<ov::Shape>> targetStaticShapes;
     ElementType inType = ov::element::undefined, outType = ov::element::undefined;
 
     ov::CompiledModel executableNetwork;

@@ -55,6 +55,12 @@ namespace ov {
 // Specify the default device when no device name is provided.
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
+template <typename T>
+struct Parsed {
+    std::string _deviceName;
+    std::map<std::string, T> _config;
+};
+
 namespace {
 
 #ifndef OPENVINO_STATIC_LIBRARY
@@ -71,12 +77,6 @@ std::string parseXmlConfig(const std::string& xmlFile) {
 }
 
 #endif
-
-template <typename T>
-struct Parsed {
-    std::string _deviceName;
-    std::map<std::string, T> _config;
-};
 
 template <typename T = ie::Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
@@ -497,6 +497,11 @@ public:
         return newAPI;
     }
 
+    ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override {
+        auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ParamMap{});
+        return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._ptr;
+    }
+
     ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
                                                           const std::shared_ptr<ie::RemoteContext>& context,
                                                           const std::map<std::string, std::string>& config) override {
@@ -548,8 +553,11 @@ public:
             const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
-                // no need for this config key in the rest of loading
-                config.erase(batch_mode);
+                // virtual plugins like AUTO/MULTI will need the config
+                // e.g to deduce the #requests correctly
+                // otherwise, no need for this config key in the rest of loading
+                if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
+                    config.erase(batch_mode);
                 if (disabled)
                     return;
             }
@@ -676,9 +684,8 @@ public:
             // create getInputs() based on GetInputsInfo()
             using namespace InferenceEngine::details;
 
-            if (exec->getInputs().empty()) {
+            if (exec->getInputs().empty() && !exec->GetInputsInfo().empty()) {
                 const auto& inputsInfo = exec->GetInputsInfo();
-                OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
 
                 std::vector<std::shared_ptr<const ov::Node>> params;
                 params.reserve(inputsInfo.size());
@@ -1424,9 +1431,7 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     if (deviceName.find("AUTO") == 0) {
         IE_THROW() << "AUTO device does not support remote context";
     }
-
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ParamMap());
-    return _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._ptr;
+    return _impl->GetDefaultContext(deviceName);
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
@@ -1779,6 +1784,10 @@ void Core::set_property(const std::string& deviceName, const AnyMap& config) {
 }
 
 Any Core::get_property(const std::string& deviceName, const std::string& name) const {
+    return get_property(deviceName, name, AnyMap{});
+}
+
+Any Core::get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const {
     OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
                     "You can only get_config of the HETERO itself (without devices). "
                     "get_config is also possible for the individual devices before creating the HETERO on top.");
@@ -1790,7 +1799,7 @@ Any Core::get_property(const std::string& deviceName, const std::string& name) c
                     "get_config is also possible for the individual devices before creating the AUTO on top.");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(deviceName);
+        auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
         if (ov::supported_properties == name) {
             try {
                 return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
@@ -1803,7 +1812,10 @@ Any Core::get_property(const std::string& deviceName, const std::string& name) c
                                          .as<std::vector<std::string>>();
                 std::vector<ov::PropertyName> supported_properties;
                 for (auto&& ro_property : ro_properties) {
-                    supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                        supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    }
                 }
                 for (auto&& rw_property : rw_properties) {
                     supported_properties.emplace_back(rw_property, PropertyMutability::RW);
@@ -1820,8 +1832,11 @@ Any Core::get_property(const std::string& deviceName, const std::string& name) c
     });
 }
 
-void Core::get_property(const std::string& deviceName, const std::string& name, ov::Any& to) const {
-    any_lexical_cast(get_property(deviceName, name), to);
+void Core::get_property(const std::string& deviceName,
+                        const std::string& name,
+                        const AnyMap& arguments,
+                        ov::Any& to) const {
+    any_lexical_cast(get_property(deviceName, name, arguments), to);
 }
 
 std::vector<std::string> Core::get_available_devices() const {

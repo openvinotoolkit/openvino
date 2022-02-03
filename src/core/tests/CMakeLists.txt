@@ -48,6 +48,7 @@ set(SRC
     coordinate.cpp
     coordinate_range.cpp
     copy.cpp
+    copy_runtime_info.cpp
     element_type.cpp
     eval.cpp
     extension.cpp
@@ -79,6 +80,7 @@ set(SRC
     pass/serialization/const_compression.cpp
     pass/serialization/deterministicity.cpp
     pass/serialization/serialize.cpp
+    pass/serialization/from_model.cpp
     pattern.cpp
     preprocess.cpp
     replace_node.cpp
@@ -461,7 +463,6 @@ endif()
 # TODO: Enable these tests in new infrastructure
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/interpolate.in.cpp
     backend/sqrt.in.cpp
 )
 
@@ -476,6 +477,7 @@ set(OP_EVAL_TEST_SRC
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
+    op_eval/loop.cpp
     op_eval/matmul.cpp
     op_eval/memory.cpp
     op_eval/mish.cpp

@@ -22,6 +22,7 @@ public:
     builder::subgraph::Constant constant;
     std::string layerName;
     std::string expectedKernelType;
+    bool parentHasOneConsumer;
 };
 
 typedef std::tuple <

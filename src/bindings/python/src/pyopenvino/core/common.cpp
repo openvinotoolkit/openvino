@@ -162,10 +162,15 @@ const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
     if (!inputs.empty()) {
         for (auto&& input : inputs) {
-            if (py::isinstance<py::str>(input.first)) {
-                request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
+            // Cast second argument to tensor
+            auto tensor = Common::cast_to_tensor(input.second);
+            // Check if key is compatible, should be port/string/integer
+            if (py::isinstance<ov::Output<const ov::Node>>(input.first)) {
+                request.set_tensor(input.first.cast<ov::Output<const ov::Node>>(), tensor);
+            } else if (py::isinstance<py::str>(input.first)) {
+                request.set_tensor(input.first.cast<std::string>(), tensor);
             } else if (py::isinstance<py::int_>(input.first)) {
-                request.set_input_tensor(input.first.cast<size_t>(), Common::cast_to_tensor(input.second));
+                request.set_input_tensor(input.first.cast<size_t>(), tensor);
             } else {
                 throw py::type_error("Incompatible key type for tensor named: " + input.first.cast<std::string>());
             }
@@ -296,18 +301,12 @@ PyAny from_ov_any(const ov::Any& any) {
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     try {
-        auto parameter_value = actual.get_property(METRIC_KEY(SUPPORTED_METRICS));
-        auto supported_metrics = parameter_value.as<std::vector<std::string>>();
-        const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
-        if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
-            parameter_value = actual.get_property(key);
-            if (parameter_value.is<unsigned int>())
-                return parameter_value.as<unsigned int>();
-            else
-                IE_THROW() << "Unsupported format for " << key << "!"
-                           << " Please specify number of infer requests directly!";
+        auto supported_properties = actual.get_property(ov::supported_properties);
+        if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
+            supported_properties.end()) {
+            return actual.get_property(ov::optimal_number_of_infer_requests);
         } else {
-            IE_THROW() << "Can't load network: " << key << " is not supported!"
+            IE_THROW() << "Can't load network: " << ov::optimal_number_of_infer_requests.name() << " is not supported!"
                        << " Please specify number of infer requests directly!";
         }
     } catch (const std::exception& ex) {

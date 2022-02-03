@@ -10,7 +10,7 @@
 #include "api_conformance_helpers.hpp"
 
 namespace {
-using namespace ConformanceTests;
+using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,

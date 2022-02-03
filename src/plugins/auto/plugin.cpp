@@ -16,6 +16,7 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
+#include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -60,7 +61,8 @@ namespace {
                     res.push_back(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
                     res.push_back(PluginConfigParams::KEY_PERF_COUNT);
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-                    res.push_back(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY);
+                    res.push_back(ov::hint::model_priority.name());
+                    res.push_back(PluginConfigParams::KEY_ALLOW_AUTO_BATCHING);
                     return res;
                 }();
 }  // namespace
@@ -277,11 +279,15 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              config.first.c_str(), config.second.c_str());
                  }
              }
+             auto tmpiter = std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
+                            return (config.first == CONFIG_KEY(ALLOW_AUTO_BATCHING));
+                            });
+             if (tmpiter != fullConfig.end())
+                 deviceConfig.insert({tmpiter->first, tmpiter->second});
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
         }
-
         return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
@@ -575,9 +581,18 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                    IE_THROW() << "Unsupported config value: " << kvp.second
                               << " for key: " << kvp.first;
                }
-        } else if (kvp.first == MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY) {
+        } else if (kvp.first == ov::hint::model_priority.name()) {
             try {
-                int priority = std::stoi(kvp.second);
+                int priority = -1;
+                if (kvp.second == "LOW") {
+                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::LOW);
+                }
+                if (kvp.second == "MEDIUM") {
+                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::MEDIUM);
+                }
+                if (kvp.second == "HIGH") {
+                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::HIGH);
+                }
                 if (priority < 0) {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                         << " for key: " << kvp.first;
@@ -586,6 +601,11 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             } catch(...) {
                 IE_THROW() << "Unsupported config value: " << kvp.second
                            << " for key: " << kvp.first;
+            }
+        } else if (kvp.first == PluginConfigParams::KEY_ALLOW_AUTO_BATCHING) {
+            if (kvp.second == PluginConfigParams::NO) {
+                context.batchingDisabled = true;
+                continue;
             }
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
             PerfHintsConfig::CheckConfigAndValue(kvp);

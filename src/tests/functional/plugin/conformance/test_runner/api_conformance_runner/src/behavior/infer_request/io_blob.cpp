@@ -10,7 +10,7 @@
 
 namespace {
 using namespace BehaviorTestsDefinitions;
-using namespace ConformanceTests;
+using namespace ov::test::conformance;
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
                         ::testing::Combine(

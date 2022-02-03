@@ -59,29 +59,31 @@ private:
 
 /** @cond INTERNAL */
 namespace util {
+struct PropertyTag {};
+
 template <typename... Args>
-struct AllProperties;
+struct StringAny;
 
 template <typename T, typename... Args>
-struct AllProperties<T, Args...> {
+struct StringAny<T, Args...> {
     constexpr static const bool value =
-        std::is_convertible<T, std::pair<std::string, ov::Any>>::value && AllProperties<Args...>::value;
+        std::is_convertible<T, std::pair<std::string, ov::Any>>::value && StringAny<Args...>::value;
 };
 
 template <typename T>
-struct AllProperties<T> {
+struct StringAny<T> {
     constexpr static const bool value = std::is_convertible<T, std::pair<std::string, ov::Any>>::value;
 };
 
 template <typename T, typename... Args>
-using EnableIfAllProperties = typename std::enable_if<AllProperties<Args...>::value, T>::type;
+using EnableIfAllStringAny = typename std::enable_if<StringAny<Args...>::value, T>::type;
 
 /**
  * @brief This class is used to bind property name with property type
  * @tparam T type of value used to pass or get property
  */
 template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
-struct BaseProperty {
+struct BaseProperty : public PropertyTag {
     using value_type = T;                                  //!< Property type
     constexpr static const auto mutability = mutability_;  //!< Property readability
 
@@ -292,7 +294,7 @@ namespace log {
  * @brief Enum to define possible log levels
  */
 enum class Level {
-    NO = -1,      //!< disable any loging
+    NO = -1,      //!< disable any logging
     ERR = 0,      //!< error events that might still allow the application to continue running
     WARNING = 1,  //!< potentially harmful situations which may further lead to ERROR
     INFO = 2,     //!< informational messages that display the progress of the application at coarse-grained level
@@ -304,7 +306,7 @@ enum class Level {
 inline std::ostream& operator<<(std::ostream& os, const Level& level) {
     switch (level) {
     case Level::NO:
-        return os << "NO";
+        return os << "LOG_NONE";
     case Level::ERR:
         return os << "LOG_ERROR";
     case Level::WARNING:
@@ -323,7 +325,7 @@ inline std::ostream& operator<<(std::ostream& os, const Level& level) {
 inline std::istream& operator>>(std::istream& is, Level& level) {
     std::string str;
     is >> str;
-    if (str == "NO") {
+    if (str == "LOG_NONE") {
         level = Level::NO;
     } else if (str == "LOG_ERROR") {
         level = Level::ERR;
@@ -468,10 +470,10 @@ struct Properties {
      * @return Pair of string key representation and type erased property value.
      */
     template <typename... Properties>
-    inline util::EnableIfAllProperties<std::pair<std::string, Any>, Properties...> operator()(
+    inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {device_name, AnyMap{std::pair<std::string, Any>{configs...}}};
+        return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
     }
 };
 
@@ -480,7 +482,7 @@ struct Properties {
  * Usage Example:
  * @code
  * core.compile_model("HETERO"
- *     ov::target_falLback("GPU", "CPU"),
+ *     ov::device::priorities("GPU", "CPU"),
  *     ov::device::properties("CPU", ov::enable_profiling(true)),
  *     ov::device::properties("GPU", ov::enable_profiling(false)));
  * @endcode
@@ -556,23 +558,12 @@ constexpr static const auto FP32 = "FP32";                    //!< Device suppor
 constexpr static const auto BF16 = "BF16";                    //!< Device supports bf16 inference
 constexpr static const auto FP16 = "FP16";                    //!< Device supports fp16 inference
 constexpr static const auto INT8 = "INT8";                    //!< Device supports int8 inference
+constexpr static const auto INT16 = "INT16";                  //!< Device supports int16 inference
 constexpr static const auto BIN = "BIN";                      //!< Device supports binary inference
 constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device supports winograd optimization
 constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports model export and import
 }  // namespace capability
 }  // namespace device
-
-/**
- * @brief The key with the list of device targets used to fallback unsupported layers
- * by HETERO plugin
- */
-static constexpr device::Priorities target_fallback{"TARGET_FALLBACK"};
-
-/**
- * @brief The key for enabling of dumping the topology with details of layers and details how
- * this network would be executed on different devices to the disk in GraphViz format.
- */
-static constexpr Property<bool, PropertyMutability::RW> dump_graph_dot{"HETERO_DUMP_GRAPH_DOT"};
 
 namespace streams {
 /**
