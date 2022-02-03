@@ -43,8 +43,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // CVS-64094
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
-        // CVS-64080
-        R"(.*ReferenceMishLayerTest.*dimensionDynamic.*)",
         //CVS-64012
         R"(.*ReferenceDeformableConvolutionLayerTest.*f16.*real_offset_padding_stride_dialation.*)",
         R"(.*ReferenceDeformableConvolutionLayerTest.*bf16.*)",
