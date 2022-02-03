@@ -80,6 +80,6 @@ The following command-line options are available to run the tool:
 
 ## See Also
 
-* [Optimization with Data-free mode(@ref pot_docs_data_free_mode)
+* [Optimization with Data-free mode](@ref pot_docs_data_free_mode)
 * [Optimization with Simplified mode(@ref pot_docs_simplified_mode)
 * [Post-Training Optimization Best Practices](@ref pot_docs_BestPractices)
