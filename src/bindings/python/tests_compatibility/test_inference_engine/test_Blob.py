@@ -151,7 +151,7 @@ def test_blob_set_shape_after_async_infer():
     net = ng.function_to_cnn(function)
     net.reshape({"data": [(1, 5), 4, 20, 20]})
     ie_core = IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     request = exec_net.requests[0]
     request.async_infer({"data": np.ones([4, 4, 20, 20])})
