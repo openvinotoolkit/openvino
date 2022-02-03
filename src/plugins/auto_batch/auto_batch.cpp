@@ -440,12 +440,8 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {
-    IInferRequestInternal::Ptr syncRequestImpl;
-    if (this->_plugin) {
-        const auto& core = _plugin->GetCore();
-        if (core && core->isNewAPI())
-            syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
-    }
+    // trying to create the new API request first
+    IInferRequestInternal::Ptr syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
@@ -562,7 +558,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
 
-        return _pCore->GetSupportedConfig(deviceName, tconfig);
+        return GetCore()->GetSupportedConfig(deviceName, tconfig);
     };
 
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
@@ -588,9 +584,12 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
         IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
 
     auto val = it->second.as<std::string>();
+    auto core = GetCore();
+    if (!core)
+        return nullptr;
     auto metaDevice = ParseMetaDevice(val, std::map<std::string, std::string>());
     cfg.erase(it);
-    return _pCore->CreateContext(metaDevice.deviceName, cfg);
+    return core->CreateContext(metaDevice.deviceName, cfg);
 }
 
 Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
@@ -671,7 +670,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     const InferenceEngine::CNNNetwork& network,
     const std::shared_ptr<InferenceEngine::RemoteContext> ctx,
     const std::map<std::string, std::string>& config) {
-    _pCore = GetCore();
+    _pCore = GetCore();  // keep the shared_ptr as a member so the core is not released (GetCore returns the same ptr)
     if (_pCore == nullptr) {
         IE_THROW() << "Please, work with Auto-Batching device via InferencEngine::Core object";
     }
@@ -834,13 +833,16 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadE
 InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(
     const InferenceEngine::CNNNetwork& network,
     const std::map<std::string, std::string>& config) const {
+    auto core = GetCore();
+    if (!core)
+        return InferenceEngine::QueryNetworkResult();
     auto cfg = config;
     for (auto c : cfg) {
         if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
             auto val = c.second;
             cfg.erase(c.first);
             auto metaDevice = ParseMetaDevice(val, cfg);
-            return _pCore->QueryNetwork(network, metaDevice.deviceName, cfg);
+            return core->QueryNetwork(network, metaDevice.deviceName, cfg);
         }
     }
     IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
