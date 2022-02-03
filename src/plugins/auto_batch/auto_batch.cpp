@@ -22,6 +22,7 @@
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
