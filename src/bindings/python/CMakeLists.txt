@@ -25,9 +25,9 @@ if(ENABLE_WHEEL)
 endif()
 
 if(ENABLE_OV_CORE_UNIT_TESTS)
-    add_subdirectory(tests/mock/ov_mock_py_frontend)
-    add_dependencies(pyopenvino ov_mock_py_frontend)
-    set_target_properties(ov_mock_py_frontend PROPERTIES
+    add_subdirectory(tests/mock/mock_py_frontend)
+    add_dependencies(pyopenvino openvino_mock_py_frontend)
+    set_target_properties(openvino_mock_py_frontend PROPERTIES
             LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
