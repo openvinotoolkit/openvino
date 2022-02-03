@@ -55,7 +55,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaUserClass() {
     OpExtensionFEParam res;
     res.m_frontEndName = ONNX_FE;
     res.m_modelsPath = std::string(TEST_ONNX_MODELS_DIRNAME);
-    res.m_modelName = "2in_2out/2in_2out.pb";
+    res.m_modelName = "controlflow/loop_2d_add.onnx";
     // use core OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{std::make_shared<ov::OpExtension<Relu1>>(),
                                                                    std::make_shared<ov::OpExtension<Relu2>>(),
@@ -68,7 +68,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaONNXConstructor() {
     OpExtensionFEParam res;
     res.m_frontEndName = ONNX_FE;
     res.m_modelsPath = std::string(TEST_ONNX_MODELS_DIRNAME);
-    res.m_modelName = "2in_2out/2in_2out.pb";
+    res.m_modelName = "controlflow/loop_2d_add.onnx";
     // use ov::frontend::onnx OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{
         std::make_shared<ov::frontend::onnx::OpExtension<>>("CustomRelu_5"),
@@ -100,7 +100,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaCommonConstructor() {
     OpExtensionFEParam res;
     res.m_frontEndName = ONNX_FE;
     res.m_modelsPath = std::string(TEST_ONNX_MODELS_DIRNAME);
-    res.m_modelName = "2in_2out/2in_2out.pb";
+    res.m_modelName = "controlflow/loop_2d_add.onnx";
     // use ov::frontend::OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{
         std::make_shared<ov::frontend::OpExtension<>>("CustomRelu_9"),
