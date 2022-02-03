@@ -219,13 +219,21 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return DeviceSupportsImportExport(plugin);
     }
 
+    bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
+        try {
+            return util::contains(plugin.get_property(ov::supported_properties), key);
+        } catch (...) {
+            return false;
+        }
+    }
+
     bool DeviceSupportsImportExport(const ov::InferencePlugin& plugin) const {
         auto supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         auto supported =
             (it != supportedMetricKeys.end()) && plugin.get_metric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
         if (!supported) {
-            if (util::contains(plugin.get_property(ov::supported_properties), ov::device::capabilities)) {
+            if (DeviceSupportsConfigKey(plugin, ov::device::capabilities.name())) {
                 supported = util::contains(plugin.get_property(ov::device::capabilities),
                                            ov::device::capability::EXPORT_IMPORT);
             }
@@ -234,11 +242,11 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     bool DeviceSupportsCacheDir(const ov::InferencePlugin& plugin) const {
-        return DeviceSupportsConfigKey(plugin, CONFIG_KEY(CACHE_DIR));
-    }
-
-    bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
-        return util::contains(plugin.get_property(ov::supported_properties), key);
+        try {
+            return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
+        } catch (...) {
+            return false;
+        }
     }
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
@@ -344,7 +352,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         // 2. replace it with DEVICE_ARCHITECTURE value
-        if (util::contains(plugin.get_property(ov::supported_properties), ov::device::architecture)) {
+        if (DeviceSupportsConfigKey(plugin, ov::device::architecture.name())) {
             compileConfig[ov::device::architecture.name()] = plugin.get_property(ov::device::architecture);
         } else {
             // Take device name if device does not support DEVICE_ARCHITECTURE metric
