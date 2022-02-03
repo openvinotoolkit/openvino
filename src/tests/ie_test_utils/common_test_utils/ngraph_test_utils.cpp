@@ -5,6 +5,93 @@
 #include <functional_test_utils/include/functional_test_utils/blob_utils.hpp>
 #include "ngraph_test_utils.hpp"
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <functional_test_utils/include/functional_test_utils/ov_tensor_utils.hpp>
+
+
+            using CompareMap = std::map<ov::NodeTypeInfo, std::function<void(
+                    const std::shared_ptr<ov::Node> &node,
+                    size_t port,
+                    const ov::runtime::Tensor &expected,
+                    const ov::runtime::Tensor &actual,
+                    double absThreshold,
+                    double relThreshold)>>;
+
+            //CompareMap getCompareMap();
+
+CompareMap getCompareMap();
+
+
+
+
+namespace {
+                void compare(const std::shared_ptr<ov::Node> &node,
+                             size_t port,
+                             const ov::runtime::Tensor &expected,
+                             const ov::runtime::Tensor &actual,
+                             double absThreshold,
+                             double relThreshold) {
+                    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+                }
+
+                void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> &node,
+                             size_t port,
+                             const ov::runtime::Tensor &expected,
+                             const ov::runtime::Tensor &actual,
+                             double absThreshold,
+                             double relThreshold) {
+                    ASSERT_EQ(expected.get_size(), actual.get_size());
+
+                    size_t expSize = 0;
+                    size_t actSize = 0;
+
+                    const float* expBuf = expected.data<const float>();
+                    const float* actBuf = actual.data<const float>();
+                    ASSERT_NE(expBuf, nullptr);
+                    ASSERT_NE(actBuf, nullptr);
+
+                    for (size_t i = 0; i < actual.get_size(); i+=7) {
+                        if (expBuf[i] == -1)
+                            break;
+                        expSize += 7;
+                    }
+                    for (size_t i = 0; i < actual.get_size(); i+=7) {
+                        if (actBuf[i] == -1)
+                            break;
+                        actSize += 7;
+                    }
+                    ASSERT_EQ(expSize, actSize);
+                    ov::test::utils::compare(expected, actual, 1e-2f, relThreshold);
+                }
+
+                template<typename T>
+                void compareResults(const std::shared_ptr<ov::Node> &node,
+                                    size_t port,
+                                    const ov::runtime::Tensor &expected,
+                                    const ov::runtime::Tensor &actual,
+                                    double absThreshold,
+                                    double relThreshold) {
+                    return compare(ngraph::as_type_ptr<T>(node), port, expected, actual, absThreshold, relThreshold);
+                }
+
+            } // namespace
+
+            CompareMap getCompareMap() {
+                CompareMap compareMap{
+#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), compareResults<NAMESPACE::NAME>},
+
+#include "ngraph/opsets/opset1_tbl.hpp"
+#include "ngraph/opsets/opset2_tbl.hpp"
+#include "ngraph/opsets/opset3_tbl.hpp"
+#include "ngraph/opsets/opset4_tbl.hpp"
+#include "ngraph/opsets/opset5_tbl.hpp"
+#include "ngraph/opsets/opset6_tbl.hpp"
+#include "ngraph/opsets/opset7_tbl.hpp"
+#include "ngraph/opsets/opset8_tbl.hpp"
+
+#undef NGRAPH_OP
+                };
+                return compareMap;
+            }
 
 namespace {
 
@@ -190,51 +277,84 @@ void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std:
 }
 } // namespace
 
-void TransformationTestsF::accuracy_check(std::shared_ptr<ov::Model> ref_function,
-                                          std::shared_ptr<ov::Model> cur_function) {
+void compare(const std::shared_ptr<ov::Model> &function,
+             const std::vector<ov::Tensor>& expected,
+             const std::vector<ov::Tensor>& actual) {
+    ASSERT_EQ(expected.size(), actual.size());
+    ASSERT_EQ(expected.size(), function->get_results().size());
+    auto compareMap = getCompareMap();
+    const auto& results = function->get_results();
+    for (size_t j = 0; j < results.size(); j++) {
+        const auto result = results[j];
+        for (size_t i = 0; i < result->get_input_size(); ++i) {
+            std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
+//            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
+//                std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
+//                if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+//                    inputNode = nextNodePtr;
+//                }
+//            }
+            auto it = compareMap.find(inputNode->get_type_info());
+            it->second(inputNode, i, expected[j], actual[j],
+                       std::numeric_limits<double>::max(),
+                       std::numeric_limits<double>::max());
+        }
+    }
+}
+
+void TransformationTestsF::accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
+                                          const std::shared_ptr<ov::Model>& cur_function) {
     try {
         if (ref_function->is_dynamic() || cur_function->is_dynamic()) {
             return;
         }
-        std::vector<std::vector<uint8_t>> input_data;
+        //std::vector<std::vector<uint8_t>> input_data;
+        std::map<std::shared_ptr<ov::Node>, ov::Tensor> input_data;
         ngraph::element::TypeVector types;
-        for (auto param : ref_function->get_parameters()) {
+        for (const auto& param : ref_function->get_parameters()) {
             types.push_back(param->get_element_type());
 
             auto layout = InferenceEngine::Layout::ANY;
             if (ov::is_scalar(param->get_shape())) {
                 layout = InferenceEngine::Layout::SCALAR;
             }
-            InferenceEngine::TensorDesc td(InferenceEngine::Precision::FP32, param->get_shape(), layout);
-            const auto &input = FuncTestUtils::createAndFillBlob(td);
-            const auto &input_size = input->byteSize();
-
-            std::vector<uint8_t> data;
-            data.resize(input_size);
-
-            auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
-            IE_ASSERT(memory);
-
-            const auto lockedMemory = memory->wmap();
-            const auto buffer = lockedMemory.as<const std::uint8_t *>();
-            std::copy(buffer, buffer + input_size, data.data());
-
-            input_data.push_back(std::move(data));
+            const auto &tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(),
+                                                                        param->get_shape());
+//            InferenceEngine::TensorDesc td(InferenceEngine::Precision::FP32, param->get_shape(), layout);
+//            const auto &input = FuncTestUtils::createAndFillBlob(td);
+//            const auto &input_size = input->byteSize();
+//
+//            std::vector<uint8_t> data;
+//            data.resize(input_size);
+//
+//            auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
+//            IE_ASSERT(memory);
+//
+//            const auto lockedMemory = memory->wmap();
+//            const auto buffer = lockedMemory.as<const std::uint8_t *>();
+//            std::copy(buffer, buffer + input_size, data.data());
+//
+//            input_data.push_back(std::move(data));
+            input_data[param] = tensor;
         }
 
-        auto ref_outputs = ngraph::helpers::interpreterFunction(ref_function, input_data, types);
-        auto outputs = ngraph::helpers::interpreterFunction(cur_function, input_data, types);
+//        auto ref_outputs = ngraph::helpers::interpreterFunction(ref_function, input_data, types);
+//        auto outputs = ngraph::helpers::interpreterFunction(cur_function, input_data, types);
+
+        auto ref_outputs = ngraph::helpers::interpretFunction(ref_function, input_data);
+        auto outputs = ngraph::helpers::interpretFunction(ref_function, input_data);
 
         IE_ASSERT(ref_outputs.size() == outputs.size());
 
-        for (size_t i = 0; i < ref_outputs.size(); ++i) {
-            IE_ASSERT(ref_outputs[i].second.size() == outputs[i].second.size());
-            auto * ref = reinterpret_cast<float *>(ref_outputs[i].second.data());
-            auto * out = reinterpret_cast<float *>(outputs[i].second.data());
-            size_t size = ref_outputs[i].second.size() / sizeof(float);
-            IE_ASSERT(size > 0);
-            Compare<float, float>(ref, out, size, 1e-5);
-        }
+
+//        for (size_t i = 0; i < ref_outputs.size(); ++i) {
+//            IE_ASSERT(ref_outputs[i].second.size() == outputs[i].second.size());
+//            auto * ref = reinterpret_cast<float *>(ref_outputs[i].second.data());
+//            auto * out = reinterpret_cast<float *>(outputs[i].second.data());
+//            size_t size = ref_outputs[i].second.size() / sizeof(float);
+//            IE_ASSERT(size > 0);
+//            Compare<float, float>(ref, out, size, 1e-5);
+//        }
     }
     catch (const std::runtime_error &re) {
         GTEST_FATAL_FAILURE_(re.what());
