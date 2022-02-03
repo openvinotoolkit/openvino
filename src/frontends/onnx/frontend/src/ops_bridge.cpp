@@ -437,7 +437,7 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("Softplus", 1, softplus);
     REGISTER_OPERATOR("Softsign", 1, softsign);
     REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
-    REGISTER_OPERATOR("SparseConv", 1, sparse_conv);
+    // REGISTER_OPERATOR("SparseConv", 1, sparse_conv);
     REGISTER_OPERATOR("Split", 1, split);
     REGISTER_OPERATOR("Split", 13, split);
     REGISTER_OPERATOR("Sqrt", 1, sqrt);

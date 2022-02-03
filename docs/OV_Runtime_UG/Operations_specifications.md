@@ -4,7 +4,7 @@
 
 .. toctree::
    :maxdepth: 1
-   
+
    openvino_docs_ops_arithmetic_Abs_1
    openvino_docs_ops_arithmetic_Acos_1
    openvino_docs_ops_arithmetic_Acosh_3
@@ -51,6 +51,7 @@
    openvino_docs_ops_sparse_EmbeddingBagOffsetsSum_3
    openvino_docs_ops_sparse_EmbeddingBagPackedSum_3
    openvino_docs_ops_sparse_EmbeddingSegmentsSum_3
+   openvino_docs_ops_sparse_SparseConv
    openvino_docs_ops_comparison_Equal_1
    openvino_docs_ops_arithmetic_Erf_1
    openvino_docs_ops_activation_Exp_1

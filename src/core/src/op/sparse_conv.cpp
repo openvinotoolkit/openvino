@@ -42,7 +42,7 @@ void op::v1::SparseConv::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_SparseConv_validate_and_infer_types);
     auto outShape = get_input_partial_shape(2);
     auto kernelShape = get_input_partial_shape(3);
-    outShape[1] = kernelShape[4];
+    outShape[1] = kernelShape[0];
     set_output_type(0, get_input_element_type(0), outShape);
 }
 
@@ -63,12 +63,13 @@ bool op::v1::SparseConv::evaluate(const HostTensorVector& outputs, const HostTen
     const size_t numOutPoints = get_input_partial_shape(2).to_shape()[0];
     Shape kernelDims = get_input_partial_shape(3).to_shape();
 
-    // Kernel layout is DxHxWxICxOH
-    const int kd = kernelDims[0];
-    const int kh = kernelDims[1];
-    const int kw = kernelDims[2];
-    const int IC = kernelDims[3];
-    const int OC = kernelDims[4];
+    // Kernel layout is OCxICxDxHxW
+    const int OC = kernelDims[0];
+    const int IC = kernelDims[1];
+    const int kd = kernelDims[2];
+    const int kh = kernelDims[3];
+    const int kw = kernelDims[4];
+    const int kernelPlane = kd * kh * kw;
 
     // See https://github.com/isl-org/Open3D/blob/master/python/open3d/ml/torch/python/layers/convolutions.py
     float rw = kw * 0.51f;
@@ -99,10 +100,11 @@ bool op::v1::SparseConv::evaluate(const HostTensorVector& outputs, const HostTen
                 const int d = std::min(static_cast<int>(zj - zi + kd * 0.5f), kd - 1);
 
                 const float* featuresOffset = features + j * IC;
-                for (size_t ic = 0; ic < IC; ++ic) {
-                    const float* kernelOffset = kernel + OC * (ic + IC * (w + kw * (h + kh * d)));
-                    for (size_t oc = 0; oc < OC; ++oc) {
-                        out[i * OC + oc] += kernelOffset[oc] * featuresOffset[ic];
+                const float* kernelOffset = kernel + (d * kh + h) * kw + w;
+                for (size_t oc = 0; oc < OC; ++oc) {
+                    for (size_t ic = 0; ic < IC; ++ic) {
+                        out[i * OC + oc] += kernelOffset[0] * featuresOffset[ic];
+                        kernelOffset += kernelPlane;
                     }
                 }
             }

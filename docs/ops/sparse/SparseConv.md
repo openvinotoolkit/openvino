@@ -18,7 +18,7 @@
 
 *   **3**: `out_pos` Positions tensor in which convolution is computed and then result is returned. Shape is `MxZ` where `M` is a number of output position and `Z` equals to dimensionality. **Required.**
 
-*   **4**: `kernel` Dense weights similar to regular Convolution layer. Shape is `DxHxWxICxOC` (3D convolution). **Required.**
+*   **4**: `kernel` Dense weights similar to regular Convolution layer. Shape is `OCxICxDxHxW` (3D convolution). **Required.**
 
 *   **5**: `offset` Vector of `Z` offset values. Usually, filled by zeros for odd kernel size and by `-0.5` for even kernel size.  **Required.**
 
