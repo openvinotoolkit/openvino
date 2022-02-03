@@ -190,7 +190,7 @@ def set_default_tensor_names_for_parameters_results(graph: Graph):
             continue
         new_tensor_name = port.get_default_tensor_name()
         op_name = port.node.soft_get('name')
-        port.add_tensor_names([op_name], [[new_tensor_name]])
+        port.add_tensor_names([new_tensor_name, op_name])
 
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
