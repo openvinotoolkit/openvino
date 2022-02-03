@@ -7,8 +7,10 @@ import os
 import sys
 import traceback
 import xml
+from pathlib import Path
 
-from openvino.runtime import Layout, ProfilingInfo
+from openvino.runtime import Layout, ProfilingInfo, Output
+from openvino.runtime.utils.types import get_dtype
 
 try:
     import cv2
@@ -164,7 +166,7 @@ def build_parser():
     )
 
     model = parser.add_argument_group('Model specific arguments')
-    model.add_argument('--input', '-i', type=str, action=ExistingFileAction,
+    model.add_argument('--input', '-i', type=str,
                        help='Path to an input image file or multi-input file to infer. Generates input(s) from normal '
                             'distribution if empty')
     # model.add_argument('--batch', '-b', type=int, help='Overrides batch size. Default is inherited from model')
@@ -333,54 +335,86 @@ def read_multi_input_file(input_file: str, model_inputs: list):
     return dump
 
 
-def is_nchw_input(input):
-    if input.node.layout == Layout("NCHW"):
+def is_chw_input(input):
+    if input.node.layout == Layout("NCHW") or input.node.layout == Layout("CHW"):
         return True
     shape = input.shape
-    if len(shape) != 4:
-        return False
-    if shape[1] == 3:
-        return True
-    else:
-        return False
+    if len(shape) == 4:
+        return shape[1] == 3
+    if len(shape) == 3:
+        return shape[0] == 3
+    return False
 
 
 @error_handling('reading --input/-i by OpenCV python module. OpenCV version: {}. '
                 'It may happen due to wrong input image format'.format(cv2.__version__))
-def read_image_file(input_file: str, model_inputs: list):
-    inputs = list()
-    if len(model_inputs) == 1:
-        image = cv2.imread(input_file)
-        if image is None:
-            raise Exception('Can not read input image ' + input_file)
-        shape = model_inputs[0].shape
-        # TODO: support CHW and HWC models
-        if len(shape) != 4:
-            raise Exception('Can not interpret input shape as image')
-        n, c, h, w = shape
-        image = cv2.resize(image, (w, h))
-        if is_nchw_input(model_inputs[0]):
-            image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-        image = np.expand_dims(image, 0)
-        input.append(image)
-    else:
-        raise Exception('Multi-input topology detected. Please provide multi-input file to --input key')
+def read_image_file(image_file: str, model_input: Output):
+    image_file = str(image_file)
+    log.info(f'Prepare image {image_file}')
+    image = cv2.imread(image_file)
+    if image is None:
+        raise Exception('Can not read input image ' + image_file)
+    shape = model_input.shape
+    if len(shape) != 4:
+        raise Exception('Can not interpret input shape as image')
+    n, c, h, w = shape
+    image = cv2.resize(image, (w, h))
+    if is_chw_input(model_input):
+        image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
+    if len(shape) == 4:
+        image = np.expand_dims(image, 0) # Add batch dimension
+    return image
+
+
+def get_random_inputs(model_inputs, model_path):
+    # TODO: should we always dump it or add another command line parameter to do this?
+    inputs = [np.clip(np.random.normal(0.5, 0.1, size=list(input.shape)), 0, 1) for input in model_inputs]
+    dump_output_file(model_path + '_random_input_dump.npz', {model_inputs[i].any_name: {'blob': inputs[i]} for i in range(len(model_inputs))})
     return inputs
+
+
+def read_binary_file(bin_file, model_input):
+    log.info(f"Prepare binary file {str(bin_file)}")
+    binary_file_size = os.path.getsize(bin_file)
+    blob_size = model_input.tensor.size
+    if blob_size != binary_file_size:
+        raise Exception(f"File {bin_file} contains {binary_file_size} bytes but model expects {blob_size}")
+    return np.reshape(np.fromfile(bin_file, get_dtype(model_input.element_type)), list(model_input.shape))
 
 
 def input_processing(model_path: str, model_inputs: list, input_file: str):
     if input_file is None:
-        # TODO: should we always dump it or add another command line parameter to do this?
-        inputs = [np.clip(np.random.normal(0.5, 0.1, size=list(input.shape)), 0, 1) for input in model_inputs]
-        dump_output_file(model_path + '_random_input_dump.npz', {model_inputs[i].any_name: {'blob': inputs[i]} for i in range(len(model_inputs))})
-        return inputs
-
-    # TODO: parse not image files only, parse several files in case several inputs
-    try:
-        inputs = read_multi_input_file(input_file=input_file, model_inputs=model_inputs)
-    except:
-        inputs = read_image_file(input_file=input_file, model_inputs=model_inputs)
-    return inputs
+        return get_random_inputs(model_inputs, model_path)
+    else:
+        inputs = input_file.split(',')
+        input_names = [input.any_name for input in model_inputs]
+        input_data = {}
+        for i in range(min(len(inputs), len(model_inputs))):
+            splited = inputs[i].rsplit(':', maxsplit=1)
+            if len(splited) == 0:
+                raise Exception(f"Can't parse {'input_file'} input parameter!")
+            tensor_name = None
+            if len(splited) == 1:
+                tensor_name = input_names[i]
+            else:
+                tensor_name = splited.pop(0)
+            path = Path(splited.pop())
+            if path.exists() and path.is_file():
+                IMAGE_EXTENSIONS = ['.jpeg', '.jpg', '.png', '.bmp']
+                BINARY_EXTENSIONS = ['.bin']
+                NUMPY_EXTENSIONS = ['.npy', '.npz']
+                current_input = model_inputs[input_names.index(tensor_name)]
+                if path.suffix.lower() in IMAGE_EXTENSIONS:
+                    input_data[tensor_name] = read_image_file(path, current_input)
+                elif path.suffix.lower() in BINARY_EXTENSIONS:
+                    input_data[tensor_name] = read_binary_file(path, current_input)
+                elif path.suffix.lower() in NUMPY_EXTENSIONS:
+                    return read_multi_input_file(path, model_inputs)
+            elif path.is_dir():
+                raise Exception(f"Path `{path}` is a directory! Provide full path to an input file!")
+            elif not path.exists():
+                raise Exception(f"Input file `{path}` doen't exist!")
+    return input_data
 
 
 def accuracy_metrics(out_blob, ref_out_blob):

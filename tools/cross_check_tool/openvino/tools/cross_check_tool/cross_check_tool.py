@@ -7,7 +7,7 @@ import datetime
 import logging as log
 import sys
 from collections import defaultdict
-
+from typing import Union
 import numpy as np
 
 try:
@@ -102,7 +102,7 @@ def get_profiling_info(infer_request: InferRequest, port: Output):
 
 
 @error_handling('processing inference on \'{device}\' device')
-def infer(model: Model, core: Core, device: str, inputs: list, output=None):
+def infer(model: Model, core: Core, device: str, inputs: Union[list, dict], output=None):
     compiled_model = get_compiled_model(core=core, model=model, device=device)
     infer_request = get_infer_request(compiled_model)
     infer_request.infer(inputs)
