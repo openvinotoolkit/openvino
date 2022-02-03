@@ -428,7 +428,8 @@ int main(int argc, char* argv[]) {
                                     ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
                                     if (!outputs.empty()) {
-                                        outputBlob = inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
+                                        outputBlob =
+                                            inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
                                     }
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerFrame * sizeof(float);
