@@ -21,7 +21,7 @@ struct MishParams {
           inputShape(inputShape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
+          inputData(CreateTensor(inputShape, iType, iValues)),
           refData(CreateTensor(iType, oValues)),
           testcaseName(test_name) {}
 
