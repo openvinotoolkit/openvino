@@ -551,6 +551,7 @@ public:
         } else {
             // check whether the Auto-Batching is disabled explicitly
             const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            const auto& batch_timeout = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
                 // virtual plugins like AUTO/MULTI will need the config
@@ -558,8 +559,11 @@ public:
                 // otherwise, no need for this config key in the rest of loading
                 if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
                     config.erase(batch_mode);
-                if (disabled)
+                if (disabled) {
+                    if (config.end() != batch_timeout)
+                        config.erase(batch_timeout);
                     return;
+                }
             }
             // check whether if the Auto-Batching is applicable to the device
             auto device = ov::parseDeviceNameIntoConfig(deviceName);
@@ -575,8 +579,11 @@ public:
             bool bTputInLoadCfg = (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT));
             const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
             bool bExclReqsEnabled = (excl != config.end() && excl->second == CONFIG_VALUE(YES));
-            if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
+            if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg)) {
+                if (config.end() != batch_timeout)
+                    config.erase(batch_timeout);
                 return;
+            }
         }
         auto function = network.getFunction();
         // have to execute the DetectionOutput separately (without batching)

@@ -279,11 +279,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              config.first.c_str(), config.second.c_str());
                  }
              }
-             auto tmpiter = std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
-                            return (config.first == CONFIG_KEY(ALLOW_AUTO_BATCHING));
-                            });
+             auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
              if (tmpiter != fullConfig.end())
                  deviceConfig.insert({tmpiter->first, tmpiter->second});
+             if (fullConfig.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) == fullConfig.end())  // do not override user's val
+                deviceConfig.insert({CONFIG_KEY(AUTO_BATCH_TIMEOUT), "100"});
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
