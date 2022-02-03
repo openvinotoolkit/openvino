@@ -136,7 +136,7 @@ void regclass_frontend_OpExtension(py::module m) {
             }),
             py::arg("fw_type_name"),
             py::arg("attr_names_map") = std::map<std::string, std::string>(),
-            py::arg("attr_values_map") = std::map<std::string, ov::Any>());
+            py::arg("attr_values_map") = std::map<std::string, py::object>());
 
     ext.def(py::init([](const std::string& ov_type_name,
                         const std::string& fw_type_name,
