@@ -1,12 +1,12 @@
-#include <ie_core.hpp>
+#include <openvino/runtime/core.hpp>
+#include <openvino/runtime/intel_gpu/properties.hpp>
 
 int main() {
-using namespace InferenceEngine;
 //! [part0]
-InferenceEngine::Core core;
-auto network = core.ReadNetwork("sample.xml");
-auto exeNetwork = core.LoadNetwork(network, "GPU");
-std::map<std::string, uint64_t> statistics_map = core.GetMetric("GPU", GPU_METRIC_KEY(MEMORY_STATISTICS));
+ov::Core core;
+auto model = core.read_model("sample.xml");
+auto compiledModel = core.compile_model(model, "GPU");
+std::map<std::string, uint64_t> statistics_map = core.get_property("GPU", ov::intel_gpu::memory_statistics);
 //! [part0]
 return 0;
 }

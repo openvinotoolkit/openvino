@@ -300,16 +300,16 @@ TEST_P(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
 
 TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ov::hint::ModelPriority value;
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::ModelPriority::LOW)));
+    ov::hint::Priority value;
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
-    EXPECT_EQ(value, ov::hint::ModelPriority::LOW);
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::ModelPriority::MEDIUM)));
+    EXPECT_EQ(value, ov::hint::Priority::LOW);
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
-    EXPECT_EQ(value, ov::hint::ModelPriority::MEDIUM);
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::ModelPriority::HIGH)));
+    EXPECT_EQ(value, ov::hint::Priority::MEDIUM);
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
-    EXPECT_EQ(value, ov::hint::ModelPriority::HIGH);
+    EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {

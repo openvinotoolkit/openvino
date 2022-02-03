@@ -585,13 +585,13 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             try {
                 int priority = -1;
                 if (kvp.second == "LOW") {
-                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::LOW);
+                    priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::LOW);
                 }
                 if (kvp.second == "MEDIUM") {
-                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::MEDIUM);
+                    priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::MEDIUM);
                 }
                 if (kvp.second == "HIGH") {
-                    priority = static_cast<int>(ov::hint::ModelPriority::HIGH) - static_cast<int>(ov::hint::ModelPriority::HIGH);
+                    priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::HIGH);
                 }
                 if (priority < 0) {
                     IE_THROW() << "Unsupported config value: " << kvp.second

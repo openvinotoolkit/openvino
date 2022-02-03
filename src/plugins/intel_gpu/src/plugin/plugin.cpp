@@ -16,6 +16,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <ie_algorithm.hpp>
 
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
@@ -23,6 +24,7 @@
 #include "intel_gpu/plugin/itt.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "ie_icore.hpp"
 
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
@@ -328,9 +330,11 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
 }
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
-    streamsSet = (config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end());
+    streamsSet = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end() ||
+                 config.find(ov::streams::num.name()) != config.end();
     throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
-                    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
+                    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end() ||
+                    config.find(ov::intel_gpu::hint::queue_throttle.name()) != config.end();
     std::string device_id;
     if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
         device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
@@ -521,8 +525,8 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     Parameter result;
 
     std::string device_id;
-    if (options.find(PluginConfigParams::KEY_DEVICE_ID) != options.end()) {
-        device_id = options.find(PluginConfigParams::KEY_DEVICE_ID)->second.as<std::string>();
+    if (options.find(ov::device::id.name()) != options.end()) {
+        device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
     Config config = _impl->m_configs.GetConfig(device_id);
 
@@ -606,13 +610,43 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    std::string device_id = GetConfig(CONFIG_KEY(DEVICE_ID), options);
+    std::string device_id = GetConfig(ov::device::id.name(), options);
 
     auto iter = device_map.find(device_id);
     auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
     auto device_info = device->get_info();
+    bool is_new_api = GetCore()->isNewAPI();
 
-    if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+    if (name == ov::supported_properties) {
+        return decltype(ov::supported_properties)::value_type {
+            // Metrics
+            ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::range_for_async_infer_requests.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
+
+            // Configs
+            PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
+            PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
+            PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
+            PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
+            PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
+            PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW}
+        };
+    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(AVAILABLE_DEVICES));
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
@@ -624,7 +658,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(DEVICE_TYPE));
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
         metrics.push_back(METRIC_KEY(OPTIMAL_BATCH_SIZE));
-        metrics.push_back(GPU_METRIC_KEY(MAX_BATCH_SIZE));
+        metrics.push_back(METRIC_KEY(MAX_BATCH_SIZE));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
@@ -634,22 +668,36 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::vector<std::string> availableDevices = { };
         for (auto const& dev : device_map)
             availableDevices.push_back(dev.first);
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
-    } else if (name == GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)) {
-        IE_SET_METRIC_RETURN(GPU_DEVICE_TOTAL_MEM_SIZE, device_info.max_global_mem_size);
-    } else if (name == METRIC_KEY(DEVICE_TYPE)) {
-        auto dev_type = device_info.dev_type == cldnn::device_type::discrete_gpu ? Metrics::DeviceType::discrete : Metrics::DeviceType::integrated;
-        IE_SET_METRIC_RETURN(DEVICE_TYPE, dev_type);
-    } else if (name == METRIC_KEY(DEVICE_GOPS)) {
-        std::map<InferenceEngine::Precision, float> gops;
-        gops[InferenceEngine::Precision::I8] = GetGOPS(device_info, cldnn::data_types::i8);
-        gops[InferenceEngine::Precision::U8] = GetGOPS(device_info, cldnn::data_types::u8);
-        gops[InferenceEngine::Precision::FP16] = GetGOPS(device_info, cldnn::data_types::f16);
-        gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, cldnn::data_types::f32);
-        IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
-    } else if (name == GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)) {
-        IE_SET_METRIC_RETURN(GPU_EXECUTION_UNITS_COUNT, device_info.execution_units_count);
-    } else if (name == GPU_METRIC_KEY(UARCH_VERSION)) {
+        return decltype(ov::available_devices)::value_type {availableDevices};
+    } else if (name == ov::intel_gpu::device_total_mem_size) {
+        return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
+    } else if (name == ov::device::type) {
+        if (is_new_api) {
+            auto dev_type = device_info.dev_type == cldnn::device_type::discrete_gpu ? ov::device::Type::DISCRETE : ov::device::Type::INTEGRATED;
+            return decltype(ov::device::type)::value_type {dev_type};
+        } else {
+            auto dev_type = device_info.dev_type == cldnn::device_type::discrete_gpu ? Metrics::DeviceType::discrete : Metrics::DeviceType::integrated;
+            IE_SET_METRIC_RETURN(DEVICE_TYPE, dev_type);
+        }
+    } else if (name == ov::device::gops) {
+        if (is_new_api) {
+            std::map<element::Type, float> gops;
+            gops[element::i8] = GetGOPS(device_info, cldnn::data_types::i8);
+            gops[element::u8] = GetGOPS(device_info, cldnn::data_types::u8);
+            gops[element::f16] = GetGOPS(device_info, cldnn::data_types::f16);
+            gops[element::f32] = GetGOPS(device_info, cldnn::data_types::f32);
+            return decltype(ov::device::gops)::value_type {gops};
+        } else {
+            std::map<InferenceEngine::Precision, float> gops;
+            gops[InferenceEngine::Precision::I8] = GetGOPS(device_info, cldnn::data_types::i8);
+            gops[InferenceEngine::Precision::U8] = GetGOPS(device_info, cldnn::data_types::u8);
+            gops[InferenceEngine::Precision::FP16] = GetGOPS(device_info, cldnn::data_types::f16);
+            gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, cldnn::data_types::f32);
+            IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
+        }
+    } else if (name == ov::intel_gpu::execution_units_count) {
+        return static_cast<decltype(ov::intel_gpu::execution_units_count)::value_type>(device_info.execution_units_count);
+    } else if (name == ov::intel_gpu::uarch_version) {
         std::stringstream s;
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0 && device_info.gfx_ver.revision == 0) {
             s << "unknown";
@@ -658,27 +706,28 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
               << static_cast<int>(device_info.gfx_ver.minor) << "."
               << static_cast<int>(device_info.gfx_ver.revision);
         }
-        IE_SET_METRIC_RETURN(GPU_UARCH_VERSION, s.str());
-    } else if (name == METRIC_KEY(OPTIMAL_BATCH_SIZE)) {
+        return decltype(ov::intel_gpu::uarch_version)::value_type {s.str()};
+    } else if (name == METRIC_KEY(OPTIMAL_BATCH_SIZE) ||
+               name == ov::optimal_batch_size) {
         auto next_pow_of_2 = [] (float x) {
-            return pow(2, ceil(log(x)/log(2)));
+            return pow(2, ceil(std::log(x)/std::log(2)));
         };
         auto closest_pow_of_2 = [] (float x) {
-            return pow(2, floor(log(x)/log(2)));
+            return pow(2, floor(std::log(x)/std::log(2)));
         };
         GPU_DEBUG_GET_INSTANCE(debug_config);
-        auto model_param = options.find("MODEL_PTR");
+        auto model_param = options.find(ov::hint::model.name());
         if (model_param == options.end()) {
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "[GPU_OPTIMAL_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
+                GPU_DEBUG_COUT << "[GPU_OPTIMAL_BATCH_SIZE] ov::hint::model is not set: return 1" << std::endl;
             }
-            IE_SET_METRIC_RETURN(OPTIMAL_BATCH_SIZE, static_cast<unsigned int>(1));
+            return decltype(ov::optimal_batch_size)::value_type {static_cast<unsigned int>(1)};
         }
         std::shared_ptr<ngraph::Function> model;
         try {
             model = model_param->second.as<std::shared_ptr<ngraph::Function>>();
         } catch (...) {
-            IE_THROW() << "[GPU_OPTIMAL_BATCH_SIZE] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
+            IE_THROW() << "[GPU_OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
         }
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
             GPU_DEBUG_COUT << "DEVICE_INFO:"
@@ -718,9 +767,9 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
             batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));
         std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
-        options_for_max_batch["MODEL_PTR"] = model;
+        options_for_max_batch[ov::hint::model.name()] = model;
         options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-        auto max_batch_size = GetMetric(GPU_METRIC_KEY(MAX_BATCH_SIZE), options_for_max_batch).as<unsigned int>();
+        auto max_batch_size = GetMetric(ov::max_batch_size.name(), options_for_max_batch).as<unsigned int>();
         unsigned int closest = closest_pow_of_2(max_batch_size);
         batch = std::min(closest, batch);
         batch = std::min(256u, batch); //batch 256 is a max
@@ -729,37 +778,42 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             GPU_DEBUG_COUT << "MAX_BATCH: " << max_batch_size << std::endl;
             GPU_DEBUG_COUT << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
         }
-        IE_SET_METRIC_RETURN(OPTIMAL_BATCH_SIZE, batch);
-    } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
+        return decltype(ov::optimal_batch_size)::value_type {batch};
+    } else if (name == ov::device::full_name) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, deviceName);
+        return decltype(ov::device::full_name)::value_type {deviceName};
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto opt : _impl->m_configs.GetConfig(device_id).key_config_map)
-            configKeys.push_back(opt.first);
+        for (auto opt : _impl->m_configs.GetConfig(device_id).key_config_map) {
+            // Exclude new API properties
+            if (!Config::isNewApiProperty(opt.first))
+                configKeys.push_back(opt.first);
+        }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
+    } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
 
-        capabilities.push_back(METRIC_VALUE(FP32));
-        capabilities.push_back(METRIC_VALUE(BIN));
-        capabilities.push_back(METRIC_VALUE(BATCHED_BLOB));
+        capabilities.push_back(ov::device::capability::FP32);
+        capabilities.push_back(ov::device::capability::BIN);
+        if (!is_new_api)
+            capabilities.push_back(METRIC_VALUE(BATCHED_BLOB));
         if (device_info.supports_fp16)
-            capabilities.push_back(METRIC_VALUE(FP16));
+            capabilities.push_back(ov::device::capability::FP16);
         if (device_info.supports_imad || device_info.supports_immad)
-            capabilities.push_back(METRIC_VALUE(INT8));
+            capabilities.push_back(ov::device::capability::INT8);
         if (device_info.supports_immad)
-            capabilities.push_back(METRIC_VALUE(GPU_HW_MATMUL));
+            capabilities.push_back(ov::intel_gpu::capability::HW_MATMUL);
 
-        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
-    } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
+        return decltype(ov::device::capabilities)::value_type {capabilities};
+    } else if (name == ov::range_for_async_infer_requests) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, range);
-    } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
+    } else if (name == ov::range_for_streams) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, 2);
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
-    } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS)) {
+    } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS) ||
+               name == ov::intel_gpu::memory_statistics) {
         std::map<std::string, uint64_t> statistics;
         for (auto const &item : statistics_map) {
             // Before collecting memory statistics of each context, it's updated with the latest memory statistics from engine.
@@ -772,12 +826,13 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                 }
             }
         }
-        IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
-    } else if (name == GPU_METRIC_KEY(MAX_BATCH_SIZE)) {
+        return decltype(ov::intel_gpu::memory_statistics)::value_type {statistics};
+    } else if (name == METRIC_KEY(MAX_BATCH_SIZE) ||
+               name == ov::max_batch_size) {
         const auto& config = _impl->m_configs.GetConfig(device_id);
         uint32_t n_streams = static_cast<uint32_t>(config.throughput_streams);
         uint64_t occupied_device_mem = 0;
-        auto statistic_result = GetMetric(GPU_METRIC_KEY(MEMORY_STATISTICS), options).as<std::map<std::string, uint64_t>>();
+        auto statistic_result = GetMetric(ov::intel_gpu::memory_statistics.name(), options).as<std::map<std::string, uint64_t>>();
         auto occupied_usm_dev = statistic_result.find("usm_device_current");
         if (occupied_usm_dev != statistic_result.end()) {
             occupied_device_mem = occupied_usm_dev->second;
@@ -791,11 +846,11 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
 
         int64_t max_batch_size = 1;
 
-        if (options.find("MODEL_PTR") == options.end()) {
+        if (options.find(ov::hint::model.name()) == options.end()) {
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
                 GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
             }
-            IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
+            return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
         }
         if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
             try {
@@ -816,26 +871,27 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] n_streams : " << n_streams << std::endl;
         }
 
-        if (options.find("AVAILABLE_DEVICE_MEM_SIZE") != options.end()) {
+        if (options.find(ov::intel_gpu::hint::available_device_mem.name()) != options.end()) {
             try {
-                available_device_mem = std::min(static_cast<int64_t>(available_device_mem), options.find("AVAILABLE_DEVICE_MEM_SIZE")->second.as<int64_t>());
+                available_device_mem = std::min(static_cast<int64_t>(available_device_mem),
+                                                options.find(ov::intel_gpu::hint::available_device_mem.name())->second.as<int64_t>());
                 GPU_DEBUG_IF(debug_config->verbose >= 2) {
                     GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
                 }
             } catch (...) {
-                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: AVAILABLE_DEVICE_MEM_SIZE should be int64_t type";
+                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: ov::intel_gpu::hint::available_device_mem should be int64_t type";
             }
             if (available_device_mem < 0) {
-                IE_THROW() << "[GPU_MAX_BATCH_SIZE] AVAILABLE_DEVICE_MEM_SIZE value should be greater than 0 for max batch size calculation";
+                IE_THROW() << "[GPU_MAX_BATCH_SIZE] ov::intel_gpu::hint::available_device_mem value should be greater than 0 for max batch size calculation";
             }
         }
 
         std::shared_ptr<ngraph::Function> model;
-        auto model_param = options.find("MODEL_PTR")->second;
+        auto model_param = options.find(ov::hint::model.name())->second;
         try {
             model = model_param.as<std::shared_ptr<ngraph::Function>>();
         } catch (...) {
-            IE_THROW() << "[GPU_MAX_BATCH_SIZE] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
+            IE_THROW() << "[GPU_MAX_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
         }
 
         InferenceEngine::CNNNetwork network(model);
@@ -913,7 +969,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                 GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
             }
         }
-        IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
+        return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }

@@ -13,7 +13,7 @@ namespace {
             DefaultConfigurationTest,
             ::testing::Combine(
                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                    ::testing::Values(DefaultParameter{GPU_CONFIG_KEY(PLUGIN_THROTTLE), InferenceEngine::Parameter{std::string{"0"}}})),
+                    ::testing::Values(DefaultParameter{GPU_CONFIG_KEY(PLUGIN_THROTTLE), InferenceEngine::Parameter{std::string{"2"}}})),
             DefaultConfigurationTest::getTestCaseName);
 
     IE_SUPPRESS_DEPRECATED_START
@@ -164,10 +164,6 @@ namespace {
             {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, "1"}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY, "0"}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY, "1"}},
-            {{InferenceEngine::GPUConfigParams::KEY_GPU_MODEL_PRIORITY, InferenceEngine::GPUConfigParams::GPU_QUEUE_PRIORITY_HIGH
-                                                        + std::string("|") + InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_ANY}},
-            {{InferenceEngine::GPUConfigParams::KEY_GPU_MODEL_PRIORITY, InferenceEngine::GPUConfigParams::GPU_QUEUE_PRIORITY_LOW
-                                                        + std::string("|") + InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_ANY}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS, "1"}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS, "4"}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, InferenceEngine::PluginConfigParams::YES}},

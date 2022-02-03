@@ -132,6 +132,16 @@ DECLARE_METRIC_KEY(RANGE_FOR_STREAMS, std::tuple<unsigned int, unsigned int>);
 DECLARE_METRIC_KEY(OPTIMAL_BATCH_SIZE, unsigned int);
 
 /**
+ * @brief Metric to get maximum batch size which does not cause performance degradation due to memory swap impact.
+ *
+ * Metric returns a value of unsigned int type,
+ * Note that the returned value may not aligned to power of 2.
+ * Also, MODEL_PTR is the required option for this metric since the available max batch size depends on the model size.
+ * If the MODEL_PTR is not given, it will return 1.
+ */
+DECLARE_METRIC_KEY(MAX_BATCH_SIZE, unsigned int);
+
+/**
  * @brief Metric to provide a hint for a range for number of async infer requests. If device supports streams,
  * the metric provides range for number of IRs per stream.
  *
@@ -240,6 +250,15 @@ namespace PluginConfigParams {
  */
 #define CONFIG_VALUE(name)         InferenceEngine::PluginConfigParams::name
 #define DECLARE_CONFIG_VALUE(name) static constexpr auto name = #name
+
+/**
+ * @brief (Optional) config key that defines what model should be provided with more performant bounded resource first
+ * It provides 3 types of levels: High, Medium and Low. The default value is Medium
+ */
+DECLARE_CONFIG_KEY(MODEL_PRIORITY);
+DECLARE_CONFIG_VALUE(MODEL_PRIORITY_HIGH);
+DECLARE_CONFIG_VALUE(MODEL_PRIORITY_MED);
+DECLARE_CONFIG_VALUE(MODEL_PRIORITY_LOW);
 
 /**
  * @brief High-level OpenVINO Performance Hints
