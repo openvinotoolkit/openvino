@@ -129,6 +129,8 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+#define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
+
 static std::string getDeviceFullName() {
     std::string brand_string;
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -556,75 +558,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, con
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
-
-/**
- * Map new properties (ov::...) to legacy parameters (CONFIG_KEY(...))
- *
- * Direct mapping (no processing required):
- * ov::enable_profiling.name()       -> CONFIG_KEY(PERF_COUNT)
- * ov::hint::performance_mode.name() -> CONFIG_KEY(PERFORMANCE_HINT)
- * ov::hint::num_requests.name()     -> CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)
- * ov::cache_dir.name()              -> CONFIG_KEY(CACHE_DIR)
- *
- * Indirect mapping (new string name or even different value format):
- * ov::streams::num.name()              "NUM_STREAMS"           -> CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
- * ov::affinity.name()                  "AFFINITY"              -> CONFIG_KEY(CPU_BIND_THREAD)
- * ov::inference_num_threads.name()     "INFERENCE_NUM_THREADS" -> CONFIG_KEY(CPU_THREADS_NUM)
- * ov::hint::inference_precision.name() "BF16"                  -> CONFIG_KEY(ENFORCE_BF16) "YES"
- */
-static std::map<std::string, std::string> mapToLegacyConfig(const std::map<std::string, std::string>& config) {
-    const std::unordered_map<std::string, std::string> newToLegacy {
-        {ov::streams::num.name(),              CONFIG_KEY(CPU_THROUGHPUT_STREAMS)},
-        {ov::affinity.name(),                  CONFIG_KEY(CPU_BIND_THREAD)},
-        {ov::inference_num_threads.name(),     CONFIG_KEY(CPU_THREADS_NUM)},
-        {ov::hint::inference_precision.name(), CONFIG_KEY(ENFORCE_BF16)}
-    };
-
-    if (config.count(ov::hint::inference_precision.name())) {
-        const auto& inference_precision = config.at(ov::hint::inference_precision.name());
-        if (!one_of(inference_precision, "bf16", "f32"))
-            IE_THROW() << "Unsupported inference_precision hint: " << inference_precision;
-    }
-
-    std::map<std::string, std::string> configWithLegacyParameters;
-
-    for (const auto& property : config) {
-        // insert corresponding legacy parameter
-        if (newToLegacy.count(property.first)) {
-            const auto& legacyKey = newToLegacy.at(property.first);
-            configWithLegacyParameters[legacyKey] = property.second;
-        } else {
-            // just copy
-            configWithLegacyParameters[property.first] = property.second;
-        }
-    }
-
-    /* Correct value options for BF16 legacy representation.
-     * INFERENCE_PRECISION_HINT bf16                = ENFORCE_BF16 YES
-     * INFERENCE_PRECISION_HINT f32                 = ENFORCE_BF16 NO
-     * INFERENCE_PRECISION_HINT any_other_precision -> throw */
-    if (configWithLegacyParameters.count(CONFIG_KEY(ENFORCE_BF16))) {
-        auto& value = configWithLegacyParameters.at(CONFIG_KEY(ENFORCE_BF16));
-        if (value == "bf16")
-            value = "YES";
-        else if (value == "f32")
-            value = "NO";
-    }
-
-    /* Correct value options for BF16 legacy representation.
-     * AFFINITY CORE = CPU_BIND_THREAD YES
-     * AFFINITY NONE = CPU_BIND_THREAD NO */
-    if (configWithLegacyParameters.count(CONFIG_KEY(CPU_BIND_THREAD))) {
-        auto& value = configWithLegacyParameters.at(CONFIG_KEY(CPU_BIND_THREAD));
-        if (value == "CORE")
-            value = "YES";
-        else if (value == "NONE")
-            value = "NO";
-    }
-
-    return configWithLegacyParameters;
-}
-
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
@@ -646,7 +579,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         };
 
         if (!supported_precisions.count(input_precision)) {
-            IE_THROW(NotImplemented)
+            IE_CPU_PLUGIN_THROW(NotImplemented)
                         << "Input image format " << input_precision << " is not supported yet...";
         }
     }
@@ -745,10 +678,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
-    // internally legacy configuration is continued to be used
-    auto legacyConfig = mapToLegacyConfig(config);
 
-    conf.readProperties(legacyConfig);
+    conf.readProperties(config);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
@@ -757,18 +688,14 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
-    // internally legacy configuration is continued to be used
-    auto legacyConfig = mapToLegacyConfig(config);
-
-    // accumulate config parameters on engine level
-    streamsSet = (legacyConfig.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != legacyConfig.end());
-    engConfig.readProperties(legacyConfig);
+    streamsSet = (config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != config.end());
+    engConfig.readProperties(config);
 }
 
 bool Engine::isLegacyAPI() const {
     const auto& core = GetCore();
     if (!core)
-        IE_THROW() << "Unable to get API version. Core is unavailable";
+        IE_CPU_PLUGIN_THROW() << "Unable to get API version. Core is unavailable";
 
     return !core->isNewAPI();
 }
@@ -779,7 +706,7 @@ Parameter Engine::GetConfigLegacy(const std::string& name, const std::map<std::s
     if (option != engConfig._config.end()) {
         result = option->second;
     } else {
-        IE_THROW() << "Unsupported config parameter: " << name;
+        IE_CPU_PLUGIN_THROW() << ". Unsupported config parameter: " << name;
     }
     return result;
 }
@@ -823,7 +750,8 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
         return perfHintNumRequests;
     }
-    // because of some implementation details legacy params still need to be supported even for new API
+    /* Internally legacy parameters are used with new API as part of migration procedure.
+     * This fallback can be removed as soon as migration completed */
     return GetConfigLegacy(name, options);
 }
 
@@ -885,7 +813,7 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     }
 
-    IE_THROW() << "Unsupported metric key " << name;
+    IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
 }
 
 Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
@@ -900,8 +828,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     };
 
     if (name == ov::supported_properties) {
-        std::vector<ov::PropertyName> roProperties {RO_property(ov::available_devices.name()),
-                                                    RO_property(ov::supported_properties.name()),
+        std::vector<ov::PropertyName> roProperties {RO_property(ov::supported_properties.name()),
+                                                    RO_property(ov::available_devices.name()),
                                                     RO_property(ov::range_for_async_infer_requests.name()),
                                                     RO_property(ov::range_for_streams.name()),
                                                     RO_property(ov::device::full_name.name()),
@@ -915,7 +843,6 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::hint::inference_precision.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
-                                                    RW_property(ov::cache_dir.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -947,7 +874,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return range;
     }
-    // because of some implementation details legacy params still need to be supported even for new API
+    /* Internally legacy parameters are used with new API as part of migration procedure.
+     * This fallback can be removed as soon as migration completed */
     return GetMetricLegacy(name, options);
 }
 
@@ -1037,7 +965,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
             res.supportedLayersMap.emplace(layerName, GetName());
         }
     } else {
-        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
+        IE_CPU_PLUGIN_THROW() << "Only ngraph-based models are supported!";
     }
 
     return res;

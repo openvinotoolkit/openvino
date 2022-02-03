@@ -101,11 +101,25 @@ TEST(OVClassBasicTest, smoke_SetConfigInferenceNumThreads) {
 TEST(OVClassBasicTest, smoke_SetConfigStreamsNum) {
     ov::Core ie;
     int32_t value = 0;
-    const int32_t num_streams = 1;
+    int32_t num_streams = 1;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::streams::num(num_streams)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::streams::num));
+    auto setGetProperty = [&ie](int32_t& getProperty, int32_t setProperty){
+        ASSERT_NO_THROW(ie.set_property("CPU", ov::streams::num(setProperty)));
+        ASSERT_NO_THROW(getProperty = ie.get_property("CPU", ov::streams::num));
+    };
+
+    setGetProperty(value, num_streams);
     ASSERT_EQ(num_streams, value);
+
+    num_streams = ov::streams::NUMA;
+
+    setGetProperty(value, num_streams);
+    ASSERT_GT(value, 0); // value has been configured automatically
+
+    num_streams = ov::streams::AUTO;
+
+    setGetProperty(value, num_streams);
+    ASSERT_GT(value, 0); // value has been configured automatically
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigAffinity) {

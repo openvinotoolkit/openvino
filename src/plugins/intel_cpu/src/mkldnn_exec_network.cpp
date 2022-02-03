@@ -225,8 +225,15 @@ Parameter MKLDNNExecNetwork::GetConfigLegacy(const std::string &name) const {
     }
 }
 
+/**
+ * Only legacy parameters are supported.
+ * No RW peroperties supported for new API.
+ * All the RO properties are covered with GetMetric() method and
+ * GetConfig() is not expected to be called by new API with params from new configuration API.
+ */
 Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
-    // because of some implementation details legacy params still need to be supported even for new API
+    /* Internally legacy parameters are used with new API as part of migration procedure.
+     * This fallback can be removed as soon as migration completed */
     return GetConfigLegacy(name);
 }
 
@@ -276,6 +283,7 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
 
     if (name == ov::supported_properties) {
         return std::vector<ov::PropertyName> {
+            RO_property(ov::supported_properties.name()),
             RO_property(ov::model_name.name()),
             RO_property(ov::optimal_number_of_infer_requests.name()),
             RO_property(ov::streams::num.name()),
@@ -326,7 +334,8 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
         return perfHintNumRequests;
     }
-    // because of some implementation details legacy params still need to be supported even for new API
+    /* Internally legacy parameters are used with new API as part of migration procedure.
+     * This fallback can be removed as soon as migration completed */
     return GetMetricLegacy(name, graph);
 }
 
