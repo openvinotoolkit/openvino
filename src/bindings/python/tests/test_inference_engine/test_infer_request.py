@@ -47,7 +47,7 @@ def create_simple_request_and_inputs(device):
 def test_get_profiling_info(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    core.set_config({"PERF_COUNT": "YES"}, device)
+    core.set_property(device, {"PERF_COUNT": "YES"})
     compiled = core.compile_model(model, device)
     img = read_image()
     request = compiled.create_infer_request()
@@ -248,7 +248,7 @@ def test_infer_list_as_inputs(device):
 def test_infer_mixed_keys(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    core.set_config({"PERF_COUNT": "YES"}, device)
+    core.set_property(device, {"PERF_COUNT": "YES"})
     model = core.compile_model(model, device)
 
     img = read_image()
@@ -331,6 +331,27 @@ def test_infer_queue_fail_on_py_model(device):
     assert "unsupported operand type(s) for +" in str(e.value)
 
 
+def test_infer_queue_get_idle_handle(device):
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    core = Core()
+    compiled = core.compile_model(model, device)
+    queue = AsyncInferQueue(compiled, 2)
+    niter = 10
+
+    for _ in range(len(queue)):
+        queue.start_async()
+    queue.wait_all()
+    for request in queue:
+        assert request.wait_for(0)
+
+    for _ in range(niter):
+        idle_id = queue.get_idle_request_id()
+        assert queue[idle_id].wait_for(0)
+        queue.start_async()
+    queue.wait_all()
+
+
 @pytest.mark.parametrize("data_type",
                          [np.float32,
                           np.int32,
@@ -345,7 +366,7 @@ def test_infer_queue_fail_on_py_model(device):
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
     if device == "CPU":
-        if core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin")
 
     from openvino.runtime import Tensor
