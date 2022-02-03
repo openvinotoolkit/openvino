@@ -46,7 +46,6 @@ void regclass_graph_Type(py::module m) {
         },
         py::is_operator());
 
-
     type.def_property_readonly("bitwidth", &ov::element::Type::bitwidth);
     type.def_property_readonly("is_real", &ov::element::Type::is_real);
     type.def("get_type_name", &ov::element::Type::get_type_name);
