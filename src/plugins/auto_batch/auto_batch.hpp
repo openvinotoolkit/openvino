@@ -106,6 +106,7 @@ public:
     void CopyOutputsIfNeeded();
     AutoBatchExecutableNetwork::WorkerInferRequest& _myBatchedRequestWrapper;
     std::exception_ptr _exceptionPtr;
+    bool _wasBatchedRequestUsed;
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> _perfMap;
 
 protected:
