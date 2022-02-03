@@ -216,11 +216,11 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
-        std::string ov_perf_hint;
+        ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
         if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
-            ov_perf_hint = CONFIG_VALUE(THROUGHPUT);
+            ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
         else if (FLAGS_hint == "latency")
-            ov_perf_hint = CONFIG_VALUE(LATENCY);
+            ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
 
         auto getDeviceTypeFromName = [](std::string device) -> std::string {
             return device.substr(0, device.find_first_of(".("));
@@ -250,33 +250,33 @@ int main(int argc, char* argv[]) {
 
             // high-level performance modes
             if (!ov_perf_hint.empty()) {
-                device_config[CONFIG_KEY(PERFORMANCE_HINT)] = ov_perf_hint;
+                device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
                 if (FLAGS_nireq != 0)
-                    device_config[CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)] = std::to_string(FLAGS_nireq);
+                    device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
             }
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
                 // set to user defined value
-                device_config[CONFIG_KEY(PERF_COUNT)] = FLAGS_pc ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
-            } else if (device_config.count(CONFIG_KEY(PERF_COUNT)) &&
-                       (device_config.at(CONFIG_KEY(PERF_COUNT)).as<std::string>() == "YES")) {
+                device_config.emplace(ov::enable_profiling(FLAGS_pc));
+            } else if (device_config.count(ov::enable_profiling.name()) &&
+                       (device_config.at(ov::enable_profiling.name()).as<bool>())) {
                 slog::warn << "Performance counters for " << device
                            << " device is turned on. To print results use -pc option." << slog::endl;
             } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport) {
                 slog::warn << "Turn on performance counters for " << device << " device since report type is "
                            << FLAGS_report_type << "." << slog::endl;
-                device_config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
+                device_config.emplace(ov::enable_profiling(true));
             } else if (!FLAGS_exec_graph_path.empty()) {
                 slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
                            << slog::endl;
-                device_config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
+                device_config.emplace(ov::enable_profiling(true));
             } else {
                 // set to default value
-                device_config[CONFIG_KEY(PERF_COUNT)] = FLAGS_pc ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+                device_config.emplace(ov::enable_profiling(FLAGS_pc));
             }
             perf_counts =
-                (device_config.at(CONFIG_KEY(PERF_COUNT)).as<std::string>() == CONFIG_VALUE(YES)) ? true : perf_counts;
+                (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
             // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
@@ -344,7 +344,7 @@ int main(int argc, char* argv[]) {
                     device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
             } else if (device.find("MYRIAD") != std::string::npos) {
-                device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
+                device_config.emplace(ov::log::level(ov::log::Level::WARNING));
                 setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 if (FLAGS_qb == 8)
