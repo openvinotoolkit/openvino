@@ -24,8 +24,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferDynamicNetworkWithSetTensor2times.*",
         ".*InferRequestDynamicTests.GetSameTensor2times.*",
         ".*InferRequestDynamicTests.InferDynamicNetworkWithSetTensor.*",
-        // TODO: Issue: 67972
-        R"(.*Hetero.*InferRequestDynamicTests.*)",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
@@ -61,6 +59,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*_Hetero_Behavior.*OVExecGraphImportExportTest.*)",
         // TODO: Issue 65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        R"(.*importExportedFunctionConstantResultOnly.*elementType=(f32|f16).*)",
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
         R"(.*CoreThreadingTestsWithIterations.*)",

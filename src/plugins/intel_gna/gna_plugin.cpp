@@ -399,9 +399,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
             auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
-            IE_ASSERT(config.inputScaleFactors.size() > inputIdx);
-
-            if (!config.inputScaleFactors.empty()) {
+            if (!config.inputScaleFactorsPerInput.empty() || !config.inputScaleFactors.empty()) {
                 gnawarn() << "WARNING: Scale factor calculated during model quantization (" << scaleInput
                     << ") will be used instead of user input (" << (*inputs_ptr_)[input.first].scale_factor << ").\n";
                 if ((*inputs_ptr_)[input.first].scale_factor < scaleInput) {
@@ -410,8 +408,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
                         << "Input values will be clamped.\n";
                 }
             }
-
-            config.inputScaleFactors[inputIdx] = scaleInput;
+            config.inputScaleFactorsPerInput[input.first] = scaleInput;
             (*inputs_ptr_)[input.first].scale_factor = scaleInput;
         }
 
@@ -431,8 +428,11 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
             (*inputs_ptr_)[input.first].Update(input.second);
 
             // update scale factor from config
-            if (id < config.inputScaleFactors.size()) {
-                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactors[id];
+            if (config.inputScaleFactorsPerInput.count(input.first)) {
+                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactorsPerInput[input.first];
+            } else if (id < config.inputScaleFactors.size()) {
+                config.inputScaleFactorsPerInput[input.first] = config.inputScaleFactors[id];
+                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactorsPerInput[input.first];
             }
 
             id++;
@@ -492,7 +492,7 @@ bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CN
             (intel_dnn_orientation_t orientation, size_t numBytesPerElem, size_t numElem, void* outputPtr) {
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
-        outputs_.at(portName).ptrs.resize(gnaFlags->gna_lib_async_threads_num);
+        outputs_.at(portName).ptrs.resize(gnaFlags->num_requests);
         outputs_.at(portName).orientation = orientation;
         outputs_.at(portName).num_bytes_per_element = numBytesPerElem;
         outputs_.at(portName).scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : GNAPluginNS::kScaleFactorDefault;
@@ -751,7 +751,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     //  Check the network
     std::string error;
-    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error, gnaFlags->log_level == PluginConfigParams::LOG_WARNING)) {
+    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error, gnaFlags->log_level == ov::log::Level::WARNING)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
@@ -896,9 +896,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // fill in extra storage with memory layers
     graphCompiler.fillMemoryConnections(memoryPairs);
 
-    if (!graphCompiler.memory_connection.empty() && gnaFlags->gna_lib_async_threads_num != 1) {
+    if (!graphCompiler.memory_connection.empty() && gnaFlags->num_requests != 1) {
         // TODO: check if updating the number of threads is needed for sw_fp32
-        gnaFlags->gna_lib_async_threads_num = 1;
+        gnaFlags->num_requests = 1;
         if (!gnaFlags->sw_fp32)
             InitGNADevice();
     }
@@ -921,7 +921,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     for (auto && input : inputs_data_map_) {
-        inputs_ptr_->at(input.first).ptrs.resize(gnaFlags->gna_lib_async_threads_num);
+        inputs_ptr_->at(input.first).ptrs.resize(gnaFlags->num_requests);
     }
 
     // Creating Layer primitives
@@ -989,8 +989,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRWBytes();
-    if (gnaFlags->gna_lib_async_threads_num > 1) {
-        gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
+    if (gnaFlags->num_requests > 1) {
+        gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->num_requests - 1), 64);
     }
 
     gnamem->commit(gnaFlags->compact_mode);
@@ -1017,7 +1017,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // creating same gna RW segment for parallel infer requests
-    for (int i = 1; i != gnaFlags->gna_lib_async_threads_num; i++) {
+    for (int i = 1; i != gnaFlags->num_requests; i++) {
         gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
         // this can be improved by just copy all structures, but we are too lazy
         dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
@@ -1176,7 +1176,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         } else {
             IE_THROW(RequestBusy)
                                << "GNA executable network has max of "
-                               << static_cast<uint32_t >(gnaFlags->gna_lib_async_threads_num)
+                               << static_cast<uint32_t >(gnaFlags->num_requests)
                                << " parallel infer requests, please sync one of already running";
         }
     }
@@ -1539,9 +1539,16 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     // If scale factors are defined in configuration we still need to use them instead of imported values,
     // for example to change the scale factors for the old models.
-    if (!config.inputScaleFactors.empty()) {
-        IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
-        // TODO: config should  use the map of inputs as well
+    if (!config.inputScaleFactorsPerInput.empty()) {
+        IE_ASSERT(config.inputScaleFactorsPerInput.size() <= inputs_ptr_->size());
+        for (auto&& sf : config.inputScaleFactorsPerInput) {
+            if (sf.second != GNAPluginNS::kScaleFactorDefault) {
+                gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << sf.first << std::endl;
+                (*inputs_ptr_)[sf.first].scale_factor = sf.second;
+            }
+        }
+    } else if (!config.inputScaleFactors.empty()) {
+         IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
         for (size_t id = 0; id < config.inputScaleFactors.size(); ++id) {
             if (id < inputs_ptr_->size() && config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
                 gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << id << std::endl;

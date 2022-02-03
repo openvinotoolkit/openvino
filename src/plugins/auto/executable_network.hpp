@@ -45,6 +45,7 @@ struct DeviceInformation {
 struct AutoContext {
     bool           needPerfCounters = {false};
     unsigned int   modelPriority = 0;
+    bool           batchingDisabled = {false};
 };
 
 struct AutoLoadContext {
@@ -83,6 +84,7 @@ public:
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
+        unsigned int                              _inferCount = 0;
         int                                       _index = 0;
     };
     using NotBusyWorkerRequests = InferenceEngine::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
@@ -156,6 +158,7 @@ private:
     mutable std::mutex                                                  _confMutex;
     bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
+    int                                                                 _cpuHelpInferCount = 0;
 };
 
 }  // namespace MultiDevicePlugin

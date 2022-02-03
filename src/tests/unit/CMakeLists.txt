@@ -20,7 +20,7 @@ if (ENABLE_INTEL_GNA)
     add_subdirectory(gna)
 endif ()
 
-if (ENABLE_INTEL_VPU)
+if (ENABLE_INTEL_MYRIAD)
     add_subdirectory(vpu)
 endif ()
 
