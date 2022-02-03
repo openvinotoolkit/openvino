@@ -520,12 +520,12 @@ TEST_F(AnyTests, FromString) {
 TEST_F(AnyTests, BoolToString) {
     {
         Any p = true;
-        ASSERT_TRUE(p.is<int>());
+        ASSERT_TRUE(p.is<bool>());
         ASSERT_EQ("YES", p.as<std::string>());
     }
     {
         Any p = false;
-        ASSERT_TRUE(p.is<int>());
+        ASSERT_TRUE(p.is<bool>());
         ASSERT_EQ("NO", p.as<std::string>());
     }
 }
