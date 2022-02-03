@@ -2382,9 +2382,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         auto quantized = getInjectedData<QuantizedLayerParams>(prevLayer);
         if (quantized) {
             if (quantized->lowPrecision) {
-                inputs_ptr_->at(prevLayer->name).set_precision(Precision::I8);
+                inputs_ptr_->at(prevLayer->name).set_precision(InferenceEngine::Precision::I8);
             } else {
-              inputs_ptr_->at(prevLayer->name).set_precision(Precision::I16);
+                inputs_ptr_->at(prevLayer->name).set_precision(InferenceEngine::Precision::I16);
             }
         }
         if (0 == inputs_ptr_->at(prevLayer->name).get_allocated_size()) {
