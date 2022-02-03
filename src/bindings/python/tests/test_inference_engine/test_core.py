@@ -153,17 +153,17 @@ def test_available_devices(device):
                               f"available devices '{', '.join(devices)}'"
 
 
-def test_get_config():
+def test_get_property():
     ie = Core()
-    conf = ie.get_config("CPU", "CPU_BIND_THREAD")
+    conf = ie.get_property("CPU", "CPU_BIND_THREAD")
     assert conf == "YES"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_get_metric_list_of_str():
+def test_get_property_list_of_str():
     ie = Core()
-    param = ie.get_metric("CPU", "OPTIMIZATION_CAPABILITIES")
+    param = ie.get_property("CPU", "OPTIMIZATION_CAPABILITIES")
     assert isinstance(param, list), "Parameter value for 'OPTIMIZATION_CAPABILITIES' " \
                                     f"metric must be a list but {type(param)} is returned"
     assert all(isinstance(v, str) for v in param), \
@@ -172,9 +172,9 @@ def test_get_metric_list_of_str():
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_get_metric_tuple_of_two_ints():
+def test_get_property_tuple_of_two_ints():
     ie = Core()
-    param = ie.get_metric("CPU", "RANGE_FOR_STREAMS")
+    param = ie.get_property("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
                                      f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), \
@@ -183,9 +183,9 @@ def test_get_metric_tuple_of_two_ints():
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_get_metric_tuple_of_three_ints():
+def test_get_property_tuple_of_three_ints():
     ie = Core()
-    param = ie.get_metric("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
+    param = ie.get_property("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' " \
                                      f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), "Not all of the parameter values for " \
@@ -194,9 +194,9 @@ def test_get_metric_tuple_of_three_ints():
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_get_metric_str():
+def test_get_property_str():
     ie = Core()
-    param = ie.get_metric("CPU", "FULL_DEVICE_NAME")
+    param = ie.get_property("CPU", "FULL_DEVICE_NAME")
     assert isinstance(param, str), "Parameter value for 'FULL_DEVICE_NAME' " \
                                    f"metric must be string but {type(param)} is returned"
 
