@@ -112,13 +112,14 @@ def get_common_argument_parser():
         default=False,
         help='Keep Convolution, Deconvolution and FullyConnected weights uncompressed')
 
-    data_free_opt = parser.add_argument_group('DataFreeEngine options')
-
-    data_free_opt.add_argument(
+    parser.add_argument(
         '--data-source',
-        default='../../../pot_dataset',
-        help='Path to directory where synthetic dataset is located or will be generated and saved. '
-             'Default: `../../../pot_dataset`')
+        help='Valid for DataFree and Simplified modes. For Simplified mode path to dataset dir is required. '
+             'For DataFree mode specify path to directory '
+             'where syntetic dataset is located or will be generated and saved. '
+             'For DataFree mode default: `./pot_dataset`')
+
+    data_free_opt = parser.add_argument_group('DataFree mode options')
 
     data_free_opt.add_argument(
         '--shape',
@@ -147,21 +148,23 @@ def get_common_argument_parser():
 
 
 def check_dependencies(args):
-    if (args.quantize is not None and
-            (args.model is None or
-             args.weights is None or
-             args.ac_config is None and args.engine != 'data_free')):
-        raise ValueError(
-            '--quantize option requires model, weights, and AC config to be specified.')
     if args.quantize is None and args.config is None:
         raise ValueError(
             'Either --config or --quantize option should be specified')
     if args.quantize is not None and args.config is not None:
         raise ValueError('Either --config or --quantize option should be specified')
+    if args.quantize is not None and (args.model is None or args.weights is None):
+        raise ValueError(
+            '--quantize option requires model and weights to be specified.')
+    if (args.quantize is not None and args.ac_config is None and
+            (args.engine == 'accuracy_checker' or args.engine is None)):
+        raise ValueError(
+            '--quantize option requires AC config to be specified '
+            'or --engine should be `data_free` or `simplified`.')
     if args.quantize == 'accuracy_aware' and args.max_drop is None:
         raise ValueError('For AccuracyAwareQuantization --max-drop should be specified')
-    if args.engine == 'data_free' and args.ac_config is not None:
-        raise ValueError('Either DataFree mode or AC config should be specified')
+    if args.config is None and args.engine == 'simplified' and args.data_source is None:
+        raise ValueError('For Simplified mode `--data-source` option should be specified')
     check_extra_arguments(args, 'model')
     check_extra_arguments(args, 'weights')
     check_extra_arguments(args, 'preset')
