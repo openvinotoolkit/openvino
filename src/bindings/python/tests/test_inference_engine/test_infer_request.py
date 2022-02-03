@@ -286,9 +286,13 @@ def test_infer_queue(device):
 
 def test_infer_queue_is_ready(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
     compiled = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled, 1)
+    def callback(request, _):
+        time.sleep(0.001)
+    infer_queue.set_callback(callback)
     assert infer_queue.is_ready()
     infer_queue.start_async()
     assert not infer_queue.is_ready()
