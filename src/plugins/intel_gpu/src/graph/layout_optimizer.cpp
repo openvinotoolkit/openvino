@@ -1667,6 +1667,24 @@ bool layout_optimizer::all_users_simple_format_until_output(program_node& origin
     if (cur_node.is_output()) return true;
     if (cur_depth > max_depth) return false;
 
+    auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
+        // Target transform: Rotate feature dim to back to be taken as inner-most axis
+        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+        // ex) 0(b), 3(f), 1(y), 2(x)
+        if ((int32_t) order[1] != order.size() - 1) return false;
+        if ((int32_t) order[0] != 0) return false;
+        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
+            if ((int32_t)order[i] !=  (i - 1)) return false;
+        }
+        return true;
+    };
+
+    if (cur_node.is_type<permute>()) {
+        auto& permute_order = cur_node.as<permute>().get_primitive()->permute_order;
+        if (!is_rotating_except_batch(permute_order))
+            return false;
+    }
+
     if (cur_node.is_in_data_flow() && (cur_node.type() != origin_node.type())) {
         const auto& fmt = get_preferred_format(cur_node);
         if (fmt != format::any && !format::is_simple_data_format(fmt)) {
