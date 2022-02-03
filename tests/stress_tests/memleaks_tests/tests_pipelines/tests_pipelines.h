@@ -13,5 +13,5 @@
 #include <inference_engine.hpp>
 
 // tests_pipelines/tests_pipelines.cpp
-TestResult common_test_pipeline(std::vector<std::function<void()>> test_pipeline, const int &n);
+TestResult common_test_pipeline(const std::vector<std::function<void()>> &test_pipeline, const int &n);
 // tests_pipelines/tests_pipelines.cpp

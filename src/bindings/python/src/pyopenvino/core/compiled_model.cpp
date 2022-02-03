@@ -6,6 +6,8 @@
 
 #include <pybind11/stl.h>
 
+#include <pyopenvino/graph/any.hpp>
+
 #include "common.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/infer_request.hpp"
@@ -41,15 +43,57 @@ void regclass_CompiledModel(py::module m) {
     cls.def("export_model", &ov::CompiledModel::export_model, py::arg("model_stream"));
 
     cls.def(
+        "set_property",
+        [](ov::CompiledModel& self, const std::map<std::string, py::object>& properties) {
+            std::map<std::string, PyAny> properties_to_cpp;
+            for (const auto& property : properties) {
+                properties_to_cpp[property.first] = PyAny(property.second);
+            }
+            self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
+        },
+        py::arg("properties"),
+        R"(
+            Sets properties for current compiled model.
+            Parameters
+            ----------
+            properties : dict
+                Dict of pairs: (property name, property value)
+            Returns
+            ----------
+            set_property : None
+        )");
+
+    // todo: remove after Accuracy Checker migration to set/get_property API
+    cls.def(
         "get_config",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
+            PyErr_WarnEx(PyExc_DeprecationWarning, "get_config() is deprecated, use get_property() instead.", 1);
             return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },
         py::arg("name"));
 
     cls.def(
+        "get_property",
+        [](ov::CompiledModel& self, const std::string& name) -> py::object {
+            return Common::from_ov_any(self.get_property(name)).as<py::object>();
+        },
+        py::arg("name"),
+        R"(
+            Gets properties for current compiled model.
+            Parameters
+            ----------
+            name : str
+                Property name.
+            Returns
+            ----------
+            get_property : Any
+        )");
+
+    // todo: remove after Accuracy Checker migration to set/get_property API
+    cls.def(
         "get_metric",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
+            PyErr_WarnEx(PyExc_DeprecationWarning, "get_metric() is deprecated, use get_property() instead.", 1);
             return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },
         py::arg("name"));
