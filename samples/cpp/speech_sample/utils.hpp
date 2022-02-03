@@ -223,7 +223,8 @@ float get_gna_frequency_mhz() {
     const uint8_t gemini_lake_model = 122;
     const uint8_t ice_lake_model = 126;
     const uint8_t tgl_model = 140;
-    const uint8_t next_model = 151;
+    const uint8_t adl_s_model = 151;
+    const uint8_t adl_p_model = 154;
 
     native_cpuid(&eax, &ebx, &ecx, &edx);
     family = (eax >> 8) & 0xF;
@@ -242,7 +243,8 @@ float get_gna_frequency_mhz() {
         case cannon_lake_model:
         case ice_lake_model:
         case tgl_model:
-        case next_model:
+        case adl_s_model:
+        case adl_p_model:
             return 400;
         case gemini_lake_model:
             return 200;
