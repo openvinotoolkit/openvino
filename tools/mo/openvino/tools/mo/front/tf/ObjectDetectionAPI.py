@@ -1860,4 +1860,3 @@ class ObjectDetectionAPIConstValueOverride(FrontReplacementFromConfigFileGeneral
                 continue
             node.value = mo_array(pipeline_config.get_param(pipeline_config_name))
             node.value = node.value.reshape(node.shape)
-0
