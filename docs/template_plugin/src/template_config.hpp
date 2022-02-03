@@ -6,9 +6,9 @@
 
 #include <ie_parameter.hpp>
 #include <map>
+#include <openvino/runtime/properties.hpp>
 #include <string>
 #include <threading/ie_istreams_executor.hpp>
-#include <openvino/runtime/properties.hpp>
 
 namespace TemplatePlugin {
 
