@@ -8,11 +8,11 @@
 #include "openvino/opsets/opset8.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
-#ifdef ov_mock1_frontend_EXPORTS
+#ifdef openvino_mock1_frontend_EXPORTS
 #    define MOCK_API OPENVINO_CORE_EXPORTS
 #else
 #    define MOCK_API OPENVINO_CORE_IMPORTS
-#endif  // ov_mock1_frontend_EXPORTS
+#endif  // openvino_mock1_frontend_EXPORTS
 
 using namespace ngraph;
 using namespace ov::frontend;
