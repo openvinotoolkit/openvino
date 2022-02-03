@@ -64,3 +64,9 @@ A template and full specification for AccuracyAwareQuantization algorithm can be
 Example of using POT API with Accuracy-aware algorithm:
  * [Quantization of Object Detection model with control of accuracy](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection)
 
+ ## See also
+* [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
+* [Use POT Command-line for Model Zoo models](@ref pot_compression_cli_README)
+* [POT API](@ref pot_compression_api_README)
+* [Post-Training Optimization Best Practices](@ref pot_docs_BestPractices)
+

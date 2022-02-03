@@ -112,8 +112,30 @@ mode on the existing HW.
             - `"outlier_prob"` - outlier probability used in the "quantile" estimator
 - `"use_layerwise_tuning"` - enables layer-wise fine-tuning of model parameters (biases, Convolution/MatMul weights and FakeQuantize scales) by minimizing the mean squared error between original and quantized layer outputs.
 Enabling this option may increase compressed model accuracy, but will result in increased execution time and memory consumption.
+
+## Examples
             
  A template and full specification for DefaultQuantization algorithm can be found:
  * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_template.json)
  * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_spec.json)
+
+Command-line example:
+* [Quantization of Image Classification model](https://docs.openvino.ai/latest/pot_configs_examples_README.html) 
+
+API tutorials:
+* [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
+* [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
+* [Quantization of Segmentation model for mediacal data](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize)
+* [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
+
+API examples:
+* [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
+* [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
+* [Speech example for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
+
+## See also
+* [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
+* [Use POT Command-line for Model Zoo models](@ref pot_compression_cli_README)
+* [POT API](@ref pot_compression_api_README)
+* [Post-Training Optimization Best Practices](@ref pot_docs_BestPractices)
 

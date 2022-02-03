@@ -12,6 +12,8 @@
 
 @endsphinxdirective
 
+## Introduction
+
 The primary optimization feature of the Post-training Optimization Tool (POT) is 8-bit uniform quantization which allows substantially increasing inference performance on all the platforms that have 8-bit instructions, for example, modern generations of CPU and GPU. Another benefit of quantization is a significant reduction of model footprint which in most cases achieves 4x. 
 
 During the quantization process, the POT tool runs inference of the optimizing model to estimate quantization parameters for input activations of the quantizable operation. It means that a calibration dataset is required to perform quantization. This dataset may have or not have annotation depending on the quantization algorithm that is used.
