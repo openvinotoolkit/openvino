@@ -559,7 +559,7 @@ cdef class IECore:
         .. code-block:: python
 
             ie = IECore()
-            ie.register_plugin(plugin="ov_intel_cpu_plugin", device_name="MY_NEW_PLUGIN")
+            ie.register_plugin(plugin="openvino_intel_cpu_plugin", device_name="MY_NEW_PLUGIN")
         """
         self.impl.registerPlugin(plugin_name.encode(), device_name.encode())
 

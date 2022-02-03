@@ -35,7 +35,7 @@ using namespace ov::frontend;
 
 static std::string find_my_pathname() {
 #ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ov_runtime" SHARED_LIB_SUFFIX);
+    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"openvino" SHARED_LIB_SUFFIX);
     WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
     std::wstring ws(wpath);

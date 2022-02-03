@@ -64,7 +64,7 @@ def test_is_dynamic():
     function = create_relu([-1, 3, 20, 20])
     net = ng.function_to_cnn(function)
     ie = IECore()
-    ie.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie.load_network(net, "TEMPLATE")
     assert exec_net.outputs["out"].is_dynamic
     p_shape = ng.partial_shape_from_data(exec_net.outputs["out"])

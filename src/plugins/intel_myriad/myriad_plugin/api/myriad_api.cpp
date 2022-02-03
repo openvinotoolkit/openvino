@@ -9,5 +9,5 @@
 using namespace InferenceEngine;
 using namespace vpu::MyriadPlugin;
 
-static const Version version = {{2, 1}, CI_BUILD_NUMBER, "ov_intel_myriad_plugin"};
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_intel_myriad_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version, std::make_shared<Mvnc>())

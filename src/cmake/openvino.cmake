@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ov_runtime)
+set(TARGET_NAME openvino)
 
 add_library(${TARGET_NAME} $<TARGET_OBJECTS:ngraph_obj>
                            $<TARGET_OBJECTS:frontend_common_obj>
@@ -48,7 +48,7 @@ ie_mark_target_as_cc(${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS ov_auto_plugin ov_auto_batch_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin ov_intel_cpu_plugin ov_intel_myriad_plugin)
+                    POSSIBLE_PLUGINS openvino_auto_plugin openvino_auto_batch_plugin openvino_hetero_plugin openvino_intel_gpu_plugin openvino_intel_gna_plugin openvino_intel_cpu_plugin openvino_intel_myriad_plugin)
 
 # Export for build tree
 
@@ -68,11 +68,11 @@ target_include_directories(${TARGET_NAME}_dev INTERFACE $<BUILD_INTERFACE:${Open
                                                         $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
                                                         $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
                                                         $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
-                                                        $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>
+                                                        $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>
                                                         )
 
 target_compile_definitions(${TARGET_NAME}_dev INTERFACE
-    $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_COMPILE_DEFINITIONS>)
+    $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} pugixml::static openvino::itt openvino::util)
 add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)

@@ -10,7 +10,7 @@ source_group("src" FILES ${PYBIND_FE_SRC})
 
 pybind11_add_module(${PYBIND_FE_NAME} MODULE ${PYBIND_FE_SRC})
 
-set(DEPENDENCIES ov_mock_py_frontend openvino::runtime)
+set(DEPENDENCIES openvino_mock_py_frontend openvino::runtime)
 set(DEFINITIONS)
 
 if (ENABLE_OV_ONNX_FRONTEND)

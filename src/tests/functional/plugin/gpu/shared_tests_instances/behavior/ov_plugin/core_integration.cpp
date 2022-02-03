@@ -23,7 +23,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
         OVClassBasicTestP,
-        ::testing::Values(std::make_pair("ov_intel_gpu_plugin", "GPU")));
+        ::testing::Values(std::make_pair("openvino_intel_gpu_plugin", "GPU")));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassNetworkTestP, OVClassNetworkTestP, ::testing::Values("GPU"));
 

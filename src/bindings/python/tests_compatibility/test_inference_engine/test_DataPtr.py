@@ -60,7 +60,7 @@ def test_is_dynamic():
         net.input_info["data"].input_data.shape
     assert  "Cannot return dims for Data with dynamic shapes!" in str(e.value)
     ie = IECore()
-    ie.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie.load_network(net, "TEMPLATE")
     assert exec_net.input_info["data"].input_data.is_dynamic
     p_shape = ng.partial_shape_from_data(exec_net.input_info["data"].input_data)

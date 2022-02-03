@@ -18,7 +18,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassBasicTestP, IEClassBasicTestP,
-        ::testing::Values(std::make_pair("ov_template_plugin", CommonTestUtils::DEVICE_TEMPLATE)));
+        ::testing::Values(std::make_pair("openvino_template_plugin", CommonTestUtils::DEVICE_TEMPLATE)));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassNetworkTestP, IEClassNetworkTestP,

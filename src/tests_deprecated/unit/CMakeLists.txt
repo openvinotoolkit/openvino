@@ -28,7 +28,7 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
             )
     source_group("gna" FILES ${GNA_TESTS})
     list(APPEND TEST_SRC ${GNA_TESTS})
-    list(APPEND TEST_DEPS ov_intel_gna_plugin_test_static)
+    list(APPEND TEST_DEPS openvino_intel_gna_plugin_test_static)
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
         set_source_files_properties(engines/gna/graph_tools/graph_copy_tests.cpp
@@ -77,7 +77,7 @@ if (ENABLE_INTEL_MYRIAD)
             )
     include_directories(
             engines/vpu/myriad_tests/helpers
-            $<TARGET_PROPERTY:ov_intel_myriad_plugin,SOURCE_DIR>
+            $<TARGET_PROPERTY:openvino_intel_myriad_plugin,SOURCE_DIR>
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 

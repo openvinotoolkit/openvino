@@ -24,7 +24,7 @@ class PluginInfo {
     bool load_internal();
 
 public:
-    std::string m_file_name;  // Plugin file name, e.g. "libov_ir_frontend.so"
+    std::string m_file_name;  // Plugin file name, e.g. "libopenvino_ir_frontend.so"
     std::string m_file_path;  // Plugin file full path
 
     PluginInfo() = default;

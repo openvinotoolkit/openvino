@@ -9,7 +9,7 @@ list(FILTER SRC EXCLUDE REGEX standalone_build)
 
 add_executable(${TARGET_NAME} ${SRC})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes ov_tensorflow_frontend openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes openvino_tensorflow_frontend openvino::runtime)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -64,9 +64,9 @@ else()
 endif()
 
 add_dependencies(${TARGET_NAME} tensorflow_test_models)
-add_dependencies(${TARGET_NAME} ov_tensorflow_frontend)
+add_dependencies(${TARGET_NAME} openvino_tensorflow_frontend)
 
-get_target_property(TENSORFLOW_FRONTEND_SRC_DIR ov_tensorflow_frontend SOURCE_DIR)
+get_target_property(TENSORFLOW_FRONTEND_SRC_DIR openvino_tensorflow_frontend SOURCE_DIR)
 target_include_directories(${TARGET_NAME} PRIVATE ${TENSORFLOW_FRONTEND_SRC_DIR}/src/pass/)
 
 add_subdirectory(standalone_build)

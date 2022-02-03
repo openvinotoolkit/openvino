@@ -9,7 +9,7 @@ list(FILTER SRC EXCLUDE REGEX standalone_build)
 
 add_executable(${TARGET_NAME} ${SRC})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes ov_paddle_frontend openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes openvino_paddle_frontend openvino::runtime)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -56,11 +56,11 @@ else()
 endif()
 
 add_dependencies(${TARGET_NAME} paddle_test_models)
-add_dependencies(${TARGET_NAME} ov_paddle_frontend)
+add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 
 # Fuzzy tests for PaddlePaddle use IE_CPU engine
 if (ENABLE_INTEL_CPU)
-    add_dependencies(${TARGET_NAME} ov_intel_cpu_plugin)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
 
 add_subdirectory(standalone_build)

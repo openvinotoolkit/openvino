@@ -9,7 +9,7 @@ ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            ov_template_plugin
+            openvino_template_plugin
         LINK_LIBRARIES
             openvino::funcSharedTests
         INCLUDES
@@ -21,7 +21,7 @@ ov_add_test_target(
 )
 
 if(ENABLE_HETERO)
-    add_dependencies(${TARGET_NAME} ov_hetero_plugin)
+    add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
 endif()
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)

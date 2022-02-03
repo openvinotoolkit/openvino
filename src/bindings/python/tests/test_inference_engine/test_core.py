@@ -216,7 +216,7 @@ def test_query_model(device):
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
     ie = Core()
-    ie.register_plugin("ov_intel_cpu_plugin", "BLA")
+    ie.register_plugin("openvino_intel_cpu_plugin", "BLA")
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(func, "BLA")
     assert isinstance(exec_net, CompiledModel), \
@@ -304,9 +304,9 @@ def test_add_extension_template_extension(device):
 
     core = Core()
     if platform == "win32":
-        core.add_extension(library_path="ov_template_extension.dll")
+        core.add_extension(library_path="openvino_template_extension.dll")
     else:
-        core.add_extension(library_path="libov_template_extension.so")
+        core.add_extension(library_path="libopenvino_template_extension.so")
     model = core.read_model(model=ir)
     assert isinstance(model, Model)
 

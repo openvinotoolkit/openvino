@@ -89,8 +89,8 @@ def test_query_network(device):
 def test_register_plugin():
     ie = IECore()
     if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
-        pytest.skip("Can't run on ARM plugin due-to ov_intel_cpu_plugin specific test")
-    ie.register_plugin("ov_intel_cpu_plugin", "BLA")
+        pytest.skip("Can't run on ARM plugin due-to openvino_intel_cpu_plugin specific test")
+    ie.register_plugin("openvino_intel_cpu_plugin", "BLA")
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, "BLA")
     assert isinstance(exec_net, ExecutableNetwork), "Cannot load the network to the registered plugin with name 'BLA'"
@@ -101,7 +101,7 @@ def test_register_plugin():
 def test_register_plugins():
     ie = IECore()
     if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
-        pytest.skip("Can't run on ARM plugin due-to ov_intel_cpu_plugin specific test")
+        pytest.skip("Can't run on ARM plugin due-to openvino_intel_cpu_plugin specific test")
     if platform == "linux" or platform == "linux2":
         ie.register_plugins(plugins_xml)
     elif platform == "darwin":
