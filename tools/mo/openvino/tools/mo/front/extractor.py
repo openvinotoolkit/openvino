@@ -930,8 +930,12 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     input_op = Parameter(graph, dict(shape=shape, user_shape=user_shape, data_type=data_type, initial_node_name=node_id,
                                      name=get_new_placeholder_name(node_id, is_out_port, port)))
 
-    tensor_name = Node(graph, node_id).soft_get('name') + ":" + str(port)
+    if is_out_port:
+        tensor_name = Node(graph, node_id).soft_get('name') + ":" + str(port)
+    else:
+        tensor_name = str(port) + ":" + Node(graph, node_id).soft_get('name')
     fw_info = [(Node(graph, node_id).soft_get('name'), tensor_name)]
+
     if is_out_port and port == 0:
         tensor_name_no_port = Node(graph, node_id).soft_get('name')
         # TODO: This can be optimized. Tensor names can be stored as set, which is initialized after model loading.
