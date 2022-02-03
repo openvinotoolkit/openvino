@@ -494,7 +494,7 @@ def serialize_network(graph, net_element, unsupported):
             found_result_name = find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_names)
 
             if found_result_name is not None:
-                check_and_add_result_name(found_result_name)
+                check_and_add_result_name(found_result_name, ordered_results)
             else:
                 log.warning("Output node with name {} is not found in graph.".format(output_name))
             continue
@@ -502,7 +502,7 @@ def serialize_network(graph, net_element, unsupported):
 
         # In this case Result node has the same name as output tensor
         if node.soft_get('type') == 'Result':
-            check_and_add_result_name(node.soft_get('name'))
+            check_and_add_result_name(node.soft_get('name'), ordered_results)
             continue
 
         # Here output data node count is checked. Each port cannot have more than one data node.
@@ -517,7 +517,7 @@ def serialize_network(graph, net_element, unsupported):
         for op_node in data_node.out_nodes():
             if op_node.soft_get('type') == 'Result':
                 found_result = True
-                check_and_add_result_name(op_node.soft_get('name'))
+                check_and_add_result_name(op_node.soft_get('name'), ordered_results)
                 break
 
         if not found_result:
