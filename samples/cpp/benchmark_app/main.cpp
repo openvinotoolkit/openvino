@@ -249,7 +249,7 @@ int main(int argc, char* argv[]) {
             auto& device_config = config.at(device);
 
             // high-level performance modes
-            if (!ov_perf_hint.empty()) {
+            if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
                 device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
                 if (FLAGS_nireq != 0)
                     device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
@@ -275,8 +275,7 @@ int main(int argc, char* argv[]) {
                 // set to default value
                 device_config.emplace(ov::enable_profiling(FLAGS_pc));
             }
-            perf_counts =
-                (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
+            perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
             // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
@@ -292,7 +291,7 @@ int main(int argc, char* argv[]) {
                                                " or via configuration file.");
                     }
                     device_config[key] = device_nstreams.at(device);
-                } else if (ov_perf_hint.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
+                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
