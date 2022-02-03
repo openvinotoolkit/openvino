@@ -50,6 +50,7 @@ public:
         const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
         const DeviceInformation& networkDevices,
         const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
+        std::shared_ptr<InferenceEngine::ICore> pCore,
         const bool needPerfCounters = false);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override;
@@ -78,6 +79,7 @@ protected:
     std::mutex _workerRequestsMutex;
 
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
+    std::shared_ptr<InferenceEngine::ICore> _pCore;  // need to keep the core as entire work happen thru that
     bool _needPerfCounters = false;
     std::atomic_size_t _numRequestsCreated = {0};
     std::atomic_int _timeOut = {0};  // in ms
@@ -174,7 +176,6 @@ protected:
         const std::shared_ptr<InferenceEngine::RemoteContext> context,
         const std::map<std::string, std::string>& config);
     std::vector<std::shared_ptr<void>> _additionalSOPtrs;
-    std::shared_ptr<InferenceEngine::ICore> _pCore;  // need to keep the core as entire work happen thru that
 };
 
 }  // namespace AutoBatchPlugin
