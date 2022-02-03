@@ -18,6 +18,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::FixRtInfo, "FixRtInfo", 0);
 bool ngraph::pass::FixRtInfo::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // TODO: enable conditional compile
     // RUN_ON_FUNCTION_SCOPE(FixRtInfo);
+    return false;
 
     for (auto& node : f->get_ops()) {
         // Recursively apply transformation for sub-graph based operations

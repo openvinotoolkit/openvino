@@ -108,6 +108,9 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             for (const shared_ptr<Node>& n : func->get_ops()) {
                 function_changed |= node_pass->run_on_node(n);
             }
+        } else {
+            std::cout << "ERROR in manager" << std::endl;
+            throw std::runtime_error("ERROR in manager");
         }
 
         if (m_visualize) {

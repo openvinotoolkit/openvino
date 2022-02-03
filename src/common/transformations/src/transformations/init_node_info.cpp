@@ -25,6 +25,7 @@ bool ngraph::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ngraph::Func
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
             if (auto sub_graph = sub_graph_node->get_function()) {
+                std::cout << " 1 " << std::endl;
                 run_on_model(sub_graph);
             }
         }
