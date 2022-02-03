@@ -28,6 +28,7 @@ void regclass_InferRequest(py::module m) {
             }),
             py::arg("other"));
 
+    // Python API exclusive function
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const py::dict& inputs) {
@@ -47,6 +48,65 @@ void regclass_InferRequest(py::module m) {
             set_tensors : None
         )");
 
+    cls.def(
+        "set_tensors",
+        [](InferRequestWrapper& self, const std::string& tensor_name, const std::vector<ov::Tensor>& tensors) {
+            self._request.set_tensors(tensor_name, tensors);
+        },
+        py::arg("tensor_name"),
+        py::arg("tensors"),
+        R"(
+            Sets batch of tensors for input data to infer by tensor name.
+            Model input shall have batch dimension and number of tensors shall
+            match with batch size. Current version supports set tensors to model inputs only.
+            In case if `tensor_name` is associated with output (or any other non-input node),
+            an exception will be thrown.
+
+            Parameters
+            ----------
+            tensor_name : str
+                Name of input tensor.
+
+            tensors : list[openvino.runtime.Tensor]
+                Input tensors for batched infer request. The type of each tensor
+                must match the model input element type and shape (except batch dimension).
+                Total size of tensors shall match with input's size.
+
+            Returns
+            ----------
+            set_tensors : None
+        )");
+
+    cls.def(
+        "set_tensors",
+        [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) {
+            self._request.set_tensors(port, tensors);
+        },
+        py::arg("port"),
+        py::arg("tensors"),
+        R"(
+            Sets batch of tensors for input data to infer by tensor name.
+            Model input shall have batch dimension and number of tensors shall
+            match with batch size. Current version supports set tensors to model inputs only.
+            In case if `port` is associated with output (or any other non-input node),
+            an exception will be thrown.
+
+            Parameters
+            ----------
+            port : openvino.runtime.ConstOutput
+                Port of input tensor.
+
+            tensors : list[openvino.runtime.Tensor]
+                Input tensors for batched infer request. The type of each tensor
+                must match the model input element type and shape (except batch dimension).
+                Total size of tensors shall match with input's size.
+
+            Returns
+            ----------
+            set_tensors : None
+        )");
+
+    // Python API exclusive function
     cls.def(
         "set_output_tensors",
         [](InferRequestWrapper& self, const py::dict& outputs) {
@@ -69,6 +129,7 @@ void regclass_InferRequest(py::module m) {
             set_tensors : None
         )");
 
+    // Python API exclusive function
     cls.def(
         "set_input_tensors",
         [](InferRequestWrapper& self, const py::dict& inputs) {
@@ -91,16 +152,55 @@ void regclass_InferRequest(py::module m) {
             set_tensors : None
         )");
 
-    // cls.def("set_batch_tensors", [](InferRequestWrapper& self, const const std::vector<ov::Tensor>& tensors){
-    //     self._request.set_input_tensors(tensors);
-    // }, py::arg("tensors"),
-    // );
+    cls.def(
+        "set_input_tensors",
+        [](InferRequestWrapper& self, const std::vector<ov::Tensor>& tensors) {
+            self._request.set_input_tensors(tensors);
+        },
+        py::arg("tensors"),
+        R"(
+            Sets batch of tensors for single input data.
+            Model input shall have batch dimension and number of `tensors`
+            shall match with batch size.
 
-    // cls.def("set_batch_tensors", [](InferRequestWrapper& self, size_t idx, const const std::vector<ov::Tensor>&
-    // tensors){
-    //     self._request.set_input_tensors(idx, tensors);
-    // }, py::arg("idx"), py::arg("tensors"),
-    // );
+            Parameters
+            ----------
+            tensors : list[openvino.runtime.Tensor]
+                Input tensors for batched infer request. The type of each tensor
+                must match the model input element type and shape (except batch dimension).
+                Total size of tensors shall match with input's size.
+
+            Returns
+            ----------
+            set_tensors : None
+        )");
+
+    cls.def(
+        "set_input_tensors",
+        [](InferRequestWrapper& self, size_t idx, const std::vector<ov::Tensor>& tensors) {
+            self._request.set_input_tensors(idx, tensors);
+        },
+        py::arg("idx"),
+        py::arg("tensors"),
+        R"(
+            Sets batch of tensors for single input data to infer by index.
+            Model input shall have batch dimension and number of `tensors`
+            shall match with batch size.
+
+            Parameters
+            ----------
+            idx : int
+                Index of input tensor.
+
+            tensors : list[openvino.runtime.Tensor]
+                Input tensors for batched infer request. The type of each tensor
+                must match the model input element type and shape (except batch dimension).
+                Total size of tensors shall match with input's size.
+
+            Returns
+            ----------
+            set_tensors : None
+        )");
 
     cls.def(
         "infer",

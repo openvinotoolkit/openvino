@@ -28,6 +28,8 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
 
+ov::Tensor tensor_from_pointer(const ov::element::Type element_type, const ov::Shape& shape, py::array& array);
+
 ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);

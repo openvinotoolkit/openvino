@@ -29,12 +29,47 @@ void regclass_Tensor(py::module m) {
                 array : numpy.array
 
                 shared_memory : bool
-                    If true this Tensor memory is being shared with a host,
+                    If `True` this Tensor memory is being shared with a host,
                     that means the responsibility of keeping host memory is
                     on the side of a user. Any action performed on the host
                     memory will be reflected on this Tensor's memory!
-                    If false, data is being copied to this Tensor.
-                    Default: false
+                    If `False`, data is being copied to this Tensor.
+
+                    Requires data to be C_CONTIGUOUS if `True`.
+
+                    Default: `False`
+
+                Returns
+                ----------
+                __init__ : openvino.runtime.Tensor
+            )");
+
+    cls.def(py::init([](const ov::element::Type element_type, const ov::Shape& shape, py::array& array) {
+                return Common::tensor_from_pointer(element_type, shape, array);
+            }),
+            py::arg("element_type"),
+            py::arg("shape"),
+            py::arg("array"),
+            R"(
+                Another Tensor's special constructor.
+
+                Mainly to match with C++ API, please use it only in advanced cases if necessary!
+
+                Parameters
+                ----------
+                element_type : openvino.runtime.Type
+
+                shape : openvino.runtime.Shape
+
+                array : numpy.array
+                    Underlaying methods will retrieve pointer on first element
+                    from it, which is simulating `host_ptr` from C++ API.
+                    Tensor memory is being shared with a host,
+                    that means the responsibility of keeping host memory is
+                    on the side of a user. Any action performed on the host
+                    memory will be reflected on this Tensor's memory!
+
+                    Data is required to be C_CONTIGUOUS.
 
                 Returns
                 ----------
