@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <threading/ie_istreams_executor.hpp>
+#include <openvio/runtime/properties.hpp>
 
 namespace TemplatePlugin {
 
@@ -32,6 +33,7 @@ struct Configuration {
     int deviceId = 0;
     bool perfCount = true;
     InferenceEngine::IStreamsExecutor::Config _streamsExecutorConfig;
+    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
 };
 // ! [configuration:header]
 
