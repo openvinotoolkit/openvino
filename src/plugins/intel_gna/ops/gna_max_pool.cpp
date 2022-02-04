@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "max_pool.hpp"
+#include "gna_max_pool.hpp"
 #include <assert.h>
 
 #include "ngraph/attribute_visitor.hpp"

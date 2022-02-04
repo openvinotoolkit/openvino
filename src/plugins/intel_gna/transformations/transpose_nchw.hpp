@@ -11,18 +11,17 @@ namespace GNAPluginNS {
 /**
  * @brief TODO
  */
-class SubstituteGNAConvolutionNoReshape : public ngraph::pass::MatcherPass {
+class SubstituteGNAConvolution : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    SubstituteGNAConvolutionNoReshape();
+    SubstituteGNAConvolution();
 };
-#if 0
-class SubstituteGNAConvolutionWithReshape : public ngraph::pass::MatcherPass {
+
+class SubstituteGNAMaxPool : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    SubstituteGNAConvolutionWithReshape();
+    SubstituteGNAMaxPool();
 };
-#endif
 
 class TransposeNCHW : public ngraph::pass::FunctionPass {
 public:
