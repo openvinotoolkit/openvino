@@ -2583,7 +2583,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
     auto& engine = get_test_engine();
     bool f16_supported = engine.get_device_info().supports_fp16;
     if (!f16_supported) {
-        std::cout << "[ SKIPPED  ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        std::cout << "[ SKIPPED ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
         return;
     }
 
@@ -2600,8 +2600,8 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
     VF<FLOAT16> input1_flatten = flatten_4d<FLOAT16>(format::bfyx, input1_rnd);
     VF<FLOAT16> input2_flatten = flatten_4d<FLOAT16>(format::bfyx, input2_rnd);
 
-    auto input1 = engine.allocate_memory({ data_types::f16,format::bfyx, input1_tensor });
-    auto input2 = engine.allocate_memory({ data_types::f16,format::bfyx, input2_tensor });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, input1_tensor });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, input2_tensor });
 
     set_values(input1, input1_flatten);
     set_values(input2, input2_flatten);
