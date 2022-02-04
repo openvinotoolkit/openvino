@@ -853,7 +853,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
         }
         auto it_streams = options.find("GPU_THROUGHPUT_STREAMS");
-        if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
+        if (it_streams != options.end()) {
             if (it_streams->second.is<uint32_t>()) {
                 n_streams = it_streams->second.as<uint32_t>();
             } else if (it_streams->second.is<std::string>()) {
