@@ -65,7 +65,7 @@ class ImageNetDataLoader(DataLoader):
         """
         image = imread(os.path.join(self.config.data_source, index))
         image = self._preprocess(image)
-        return image.transpose(2, 0, 1)
+        return image
 
     def _preprocess(self, image):
         """ Does preprocessing of an image according to the preprocessing config.

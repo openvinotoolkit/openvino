@@ -7,7 +7,7 @@ from time import time
 
 import copy
 import numpy as np
-from openvino.runtime import Core, AsyncInferQueue   # pylint: disable=E0611,E0401
+from openvino.runtime import Core, AsyncInferQueue, Shape   # pylint: disable=E0611,E0401
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
@@ -233,7 +233,12 @@ class IEEngine(Engine):
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
-            return {input_blob_name: np.stack(image_batch, axis=0)}
+            image_batch = {input_blob_name: np.stack(image_batch, axis=0)}
+            if Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
+                                 f"Try to specify the layout of the model.")
+            return image_batch
 
         if len(input_info) == 2:
             image_info_nodes = list(filter(
@@ -249,6 +254,10 @@ class IEEngine(Engine):
             image_tensor_name = image_tensor_node.get_any_name()
 
             image_tensor = (image_tensor_name, np.stack(image_batch, axis=0))
+            if Shape(image_tensor[1].shape) != image_tensor_node.shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {Shape(image_tensor[1].shape)} into {image_tensor_node.shape}."
+                                 f"Try to specify the layout of the model.")
 
             ch, height, width = image_batch[0].shape
             image_info = (image_info_name,
