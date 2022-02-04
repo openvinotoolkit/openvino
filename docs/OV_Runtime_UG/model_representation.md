@@ -51,7 +51,7 @@ To build an `ov::Model` instance from `opset8` operations, include next files:
       from openvino.runtime import Model
       ```
 
-Below an example of simple OpenVINO Model
+The following code demonstrates how to create a simple model:
 
  - C++
       @snippet example_ngraph_utils.cpp ov:create_simple_model
