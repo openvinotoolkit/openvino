@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_mock_py_frontend/mock_py_frontend.hpp"
+#include "mock_py_frontend/mock_py_frontend.hpp"
 
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
