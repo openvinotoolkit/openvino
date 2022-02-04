@@ -308,8 +308,8 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     // WA for gcc 4.8 ( fails compilation with member init-list)
     _device = networkDevice;
     auto time_out = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
-    if (time_out != config.end())
-        _timeOut = ParseTimeoutValue(time_out->second.as<std::string>());
+    IE_ASSERT(time_out != config.end());
+    _timeOut = ParseTimeoutValue(time_out->second.as<std::string>());
 }
 
 AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {
@@ -639,6 +639,7 @@ IE_DEFINE_PLUGIN_CREATE_FUNCTION(AutoBatchInferencePlugin, version)
 
 AutoBatchInferencePlugin::AutoBatchInferencePlugin() {
     _pluginName = "BATCH";
+    _config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = "1000";  // default value, in ms
 }
 
 InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(
