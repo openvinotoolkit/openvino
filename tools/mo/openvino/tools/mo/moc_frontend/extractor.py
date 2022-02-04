@@ -33,6 +33,9 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
                 if tensor:
                     if len(tensor.get_consuming_operations()) > 0:
                         node = tensor.get_consuming_operations()[0]
+                        if node and node.get_names()[0] != "":
+                            found_node_names.append('Tensor:' + node.get_names()[0])
+                            found_nodes.append(node)
             if node:
                 node_pre = node.get_input_port(input_port_index=int(port))
                 if node_pre:
@@ -84,7 +87,8 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
 
     # TODO: Add support for input/output group name and port index here (58562)
     # For new frontends logic shall be extended to additionally support input and output group names
-    return found_nodes[0]
+    idx = next((idx for idx, name in enumerate(found_node_names) if 'Tensor' in name), 0)
+    return found_nodes[idx]
 
 
 def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None, list, dict, np.ndarray],
