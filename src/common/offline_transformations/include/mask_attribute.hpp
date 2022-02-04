@@ -127,7 +127,7 @@ public:
         return result_mask;
     }
 
-    Mask::Ptr union_masks_reversed(Mask *const mask) {
+    Mask::Ptr union_masks_reversed(Mask *const mask) const {
         auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
         auto result_iter = result_mask->rbegin();
         auto mask_1_iter = rbegin();
@@ -167,6 +167,9 @@ public:
         m_dependencies.push_back(mask.get());
     }
 
+    std::function<bool(Mask::Ptr)> get_callback(Mask::Ptr mask) {
+        return m_callbacks[mask.get()];
+    }
 
     /* Modify state of this mask by corresponding callback,
     which returns modifying success status (bool) and then
@@ -220,6 +223,12 @@ public:
 
     bool adjust_value() const {
         return m_adjust_value;
+    }
+
+    std::vector<Mask*> dependencies() const {
+        auto res = std::vector<Mask*>();
+        std::copy(m_dependencies.begin(), m_dependencies.end(), std::back_inserter(res));
+        return res;
     }
 
 private:
