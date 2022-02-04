@@ -336,7 +336,7 @@ python3 mri_reconstruction_demo.py \
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
 - [Inference Engine Extensibility Mechanism](../OV_Runtime_UG/Extensibility_DG/Intro.md)
-- [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md)
+- [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md)
 - [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 
