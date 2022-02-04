@@ -16,7 +16,7 @@ class ReshapeChain : public SubgraphBaseTest {
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
-        InputShape inputShapes{{-1, -1, -1, -1}, {{10, 20, 30, 40}}};
+        InputShape inputShapes{{-1, -1, -1, -1}, {{10, 20, 30, 40}, {16, 24, 16, 24}, {4, 8, 12, 16}}};
 
         init_input_shapes({inputShapes});
         auto ngPrc = ngraph::element::f32;
@@ -28,7 +28,7 @@ class ReshapeChain : public SubgraphBaseTest {
         auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(reshape1, reshapeParam2, true);
         auto reshapeParam3 = ngraph::builder::makeConstant<int>(secondInPrc, {1}, {-1});
         auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(reshape2, reshapeParam3, true);
-        auto reshapeParam4 = ngraph::builder::makeConstant<int>(secondInPrc, {2}, {500, -1});
+        auto reshapeParam4 = ngraph::builder::makeConstant<int>(secondInPrc, {2}, {4, -1});
         auto reshape4 = std::make_shared<ngraph::opset1::Reshape>(reshape3, reshapeParam4, true);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reshape4)};
