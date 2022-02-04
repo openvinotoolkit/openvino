@@ -254,7 +254,8 @@ void regclass_AsyncInferQueue(py::module m) {
             return self.get_idle_request_id();
         },
         R"(
-        Returns next free id of InferRequest from queue's pool.
+        Returns next free id of InferRequest from queue's pool. Blocking call.
+        Function waits for any request to complete and then returns this request's id.
 
         Parameters
         ----------

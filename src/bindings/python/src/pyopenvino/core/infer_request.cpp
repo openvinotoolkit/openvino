@@ -830,7 +830,7 @@ void regclass_InferRequest(py::module m) {
 
             Returns
             ----------
-            results : dict[openvino.runtime.ConstOutput : openvino.runtime.Tensor]
+            results : dict[openvino.runtime.ConstOutput : numpy.array]
                 Dictionary of results from output tensors with ports as keys.
         )");
 }
