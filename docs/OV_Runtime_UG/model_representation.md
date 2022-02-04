@@ -20,6 +20,7 @@ The `ov::Op` class represents any abstract operation in the model representation
 
 Operation set (opset) is a collection of operations that can be used to construct a model. The `ov::OpSet` class  provides a functionality to work with operation sets.
 For each operation set, OpenVINO™ Runtime provides a separate namespace, for example  `opset8`.
+Operation sets allow to differentiate releases of OpenVINO, each release introduces new operations and add these operations to new operation set, also operation sets help to introduce new version of operations which change behavior of old operations. The usage of operation sets allows to avoid changes in the end application if new operations were introduced.
 
 ## Static and Partial Shapes
 
@@ -86,12 +87,4 @@ The following code creates a model with several outputs:
 ## See Also
 
 * [Available Operation Sets](../ops/opset.md)
-* [opset1 Specification](../ops/opset1.md)
-* [opset2 Specification](../ops/opset2.md)
-* [opset3 Specification](../ops/opset3.md)
-* [opset4 Specification](../ops/opset4.md)
-* [opset5 Specification](../ops/opset5.md)
-* [opset6 Specification](../ops/opset6.md)
-* [opset7 Specification](../ops/opset7.md)
-* [opset8 Specification](../ops/opset8.md)
 * [OpenVINO™ Runtime Extensibility Developer Guide](../OV_Runtime_UG/Extensibility_DG/Intro.md)

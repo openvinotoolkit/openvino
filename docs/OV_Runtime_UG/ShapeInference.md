@@ -223,4 +223,4 @@ The Inference Engine provides a special mechanism that allows adding support of 
 
 ### See Also:
 
-[Hello Reshape Python Sample](../../inference_engine/ie_bridges/python/sample/hello_reshape_ssd/README.html)
+[Hello Reshape Python Sample](../../samples/python/hello_reshape_ssd/README.html)
