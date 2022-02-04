@@ -29,11 +29,10 @@ This section contains only three parameters:
         "config": "./configs/examples/accuracy_checker/mobilenet_v2.yaml"
     }
 ```
-The main parameter is `"type"` which can take two possible options: `"accuracy_checher"` (default)or `"simplified"`. It specifies the engine that is used for model inference and validation (if supported):
+The main parameter is `"type"` which can take two possible options: `"accuracy_checher"` (default) or `"simplified"`. It specifies the engine that is used for model inference and validation (if supported):
 - **Simplified mode** engines. These engines can be used only with `DefaultQuantization` algorithm to get fully quantized model. They do not use the Accuracy Checker tool and annotation. In the case of this mode the following parameters are applicable:
   - `"data_source"` Specifies path to directory​ where to calibration data is stored.
   - `"layout"` - (Optional) Layout of input data. Supported values: [`"NCHW"`, `"NHWC"`, `"CHW"`, `"CWH"`]​.
-  - `"shape"` - (Optional) input shapes must be provided​ if model has dynamic shapes.
 - **Accuracy Checker** engine. It relies on the [Deep Learning Accuracy Validation Framework](@ref omz_tools_accuracy_checker_README) (Accuracy Checker) when inferencing DL models and working with datasets.
 The benefit of this mode is you can compute accuracy in case you have annotations. It is possible to use accuracy aware
 algorithms family when this mode is selected.
@@ -57,7 +56,5 @@ For a quick start, many examples of configuration files are provided [here](http
 For details on how to run the Post-Training Optimization Tool with a sample configuration file, see the [example](@ref pot_configs_examples_README).
 
 ## See Also
-
-* [Optimization with Data-free mode(@ref pot_docs_data_free_mode)
-* [Optimization with Simplified mode(@ref pot_docs_simplified_mode)
+* [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
 * [POT API](@ref pot_compression_api_README)
