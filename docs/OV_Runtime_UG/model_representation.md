@@ -34,7 +34,7 @@ There are two types used for shape representation:
 
 You can create a model from source. This section illustrates how to construct a model composed of operations from an available operation set.
 
-Operation Set `opsetX` integrates a list of OpenVINO pre-compiled operations that work for this purpose. In other words, `opsetX` defines a set of operations for building a graph.
+Operation set `opsetX` integrates a list of pre-compiled operations that work for this purpose. In other words, `opsetX` defines a set of operations for building a graph.
 
 For a complete list of operation sets supported by OpenVINO, see [Available Operations Sets](../ops/opset.md).
 
