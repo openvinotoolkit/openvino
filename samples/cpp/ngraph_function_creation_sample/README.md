@@ -2,7 +2,7 @@
 
 This sample demonstrates how to execute an synchronous inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a model, which uses weights from LeNet classification model, which is known to work well on digit classification tasks.
 
-You do not need an XML file to create a model. The API of ngraph::Function allows to create a model on the fly from the source code.
+You do not need an XML file to create a model. The API of ngraph::Function allows creating a model on the fly from the source code.
 
 The following Inference Engine C++ API is used in the application:
 

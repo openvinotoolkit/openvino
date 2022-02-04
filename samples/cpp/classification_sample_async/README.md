@@ -1,7 +1,7 @@
 # Image Classification Async C++ Sample {#openvino_inference_engine_samples_classification_sample_async_README}
 
 This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API.  
-Models with only 1 input and output are supported.
+Models with only one input and output are supported.
 
 In addition to regular images, the sample also supports single-channel `ubyte` images as an input for LeNet model.
 
@@ -9,10 +9,10 @@ The following Inference Engine C++ API is used in the application:
 
 | Feature | API | Description |
 | :--- | :--- | :--- |
-| Asynchronous Infer | `ov::InferRequest::start_async`, `ov::InferRequest::set_callback` | Do asynchronous inference with callback |
-| Model Operations | `ov::Output::get_shape`, `ov::set_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count |
-| Infer Request Operations | `ov::InferRequest::get_input_tensor` | Get a input tensor |
-| Tensor Operations | `ov::shape_size`, `ov::Tensor::data` | Get a tensor shape size and its data |
+| Asynchronous Infer | `ov::InferRequest::start_async`, `ov::InferRequest::set_callback` | Do asynchronous inference with callback. |
+| Model Operations | `ov::Output::get_shape`, `ov::set_batch` |  Manage the model, operate with its batch size. Set batch size using input image count. |
+| Infer Request Operations | `ov::InferRequest::get_input_tensor` | Get an input tensor. |
+| Tensor Operations | `ov::shape_size`, `ov::Tensor::data` | Get a tensor shape size and its data. |
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
@@ -25,7 +25,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 
 ## How It Works
 
-Upon the start-up, the sample application reads command line parameters and loads specified model and input images (or a
+At startup, the sample application reads command line parameters and loads the specified model and input images (or a
 folder with images) to the Inference Engine plugin. The batch size of the model is set according to the number of read images. The batch mode is an independent attribute on the asynchronous mode. Asynchronous mode works efficiently with any batch size.
 
 Then, the sample creates an inference request object and assigns completion callback for it. In scope of the completion callback
@@ -44,13 +44,13 @@ To build the sample, please use instructions available at [Build the Sample Appl
 
 ## Running
 
-Run the application with the `-h` option to see the usage message:
+Run the application with the `-h` option to see the usage instructions:
 
 ```
 classification_sample_async -h
 ```
 
-Usage message:
+Usage instructions:
 
 ```
 [ INFO ] OpenVINO Runtime version ......... <version>
@@ -59,10 +59,10 @@ Usage message:
 classification_sample_async [OPTION]
 Options:
 
-    -h                      Print a usage message.
+    -h                      Print usage instructions.
     -m "<path>"             Required. Path to an .xml file with a trained model.
-    -i "<path>"             Required. Path to a folder with images or path to an image files: a .ubyte file for LeNet and a .bmp file for the other models.
-    -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma_separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified.
+    -i "<path>"             Required. Path to a folder with images or path to image files: a .ubyte file for LeNet and a .bmp file for other models.
+    -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma_separated_devices_list>" format to specify the HETERO plugin. Sample will look for a suitable plugin for the device specified.
 
 Available target devices: <devices>
 ```
@@ -82,7 +82,7 @@ To run the sample, you need specify a model and image:
 
 ### Example
 
-1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
+1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
 
 ```
 python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]

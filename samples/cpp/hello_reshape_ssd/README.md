@@ -1,7 +1,7 @@
 # Hello Reshape SSD C++ Sample {#openvino_inference_engine_samples_hello_reshape_ssd_README}
 
 This sample demonstrates how to do synchronous inference of object detection models using [input reshape feature](../../../docs/IE_DG/ShapeInference.md).
-Models with only 1 input and output are supported.
+Models with only one input and output are supported.
 
 The following Inference Engine C++ API is used in the application:
 
@@ -66,7 +66,7 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 omz_downloader --name person-detection-retail-0013
 ```
 
-3. `person-detection-retail-0013` does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use a other model that is not in the Inference Engine IR or ONNX format, you can convert it using the model converter script:
+3. `person-detection-retail-0013` does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use another model that is not in the Inference Engine IR or ONNX format, you can convert it using the model converter script:
 
 ```
 omz_converter --name <model_name>

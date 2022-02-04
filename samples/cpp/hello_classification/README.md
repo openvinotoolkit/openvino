@@ -1,18 +1,18 @@
 # Hello Classification C++ Sample {#openvino_inference_engine_samples_hello_classification_README}
 
 This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.  
-Models with only 1 input and output are supported.
+Models with only one input and output are supported.
 
 The following Inference Engine C++ API is used in the application:
 
 | Feature | API | Description |
 | :--- | :--- | :--- |
 | OpenVINO Runtime Version | `ov::get_openvino_version` | Get Openvino API version |
-| Basic Infer Flow | `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: reading and compile model, create infer request, configure input and output tensors |
+| Basic Infer Flow | `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: read and compile a model, create an infer request, configure input and output tensors |
 | Synchronous Infer | `ov::InferRequest::infer` | Do synchronous inference |
 | Model Operations | `ov::Model::inputs`, `ov::Model::outputs` | Get inputs and outputs of a model |
 | Tensor Operations | `ov::Tensor::get_shape` | Get a tensor shape |
-| Preprocessing | `ov::preprocess::InputTensorInfo::set_element_type`, `ov::preprocess::InputTensorInfo::set_layout`, `ov::preprocess::InputTensorInfo::set_spatial_static_shape`, `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputModelInfo::set_layout`, `ov::preprocess::OutputTensorInfo::set_element_type`, `ov::preprocess::PrePostProcessor::build` | Set image of the original size as input for a model with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference |
+| Preprocessing | `ov::preprocess::InputTensorInfo::set_element_type`, `ov::preprocess::InputTensorInfo::set_layout`, `ov::preprocess::InputTensorInfo::set_spatial_static_shape`, `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputModelInfo::set_layout`, `ov::preprocess::OutputTensorInfo::set_element_type`, `ov::preprocess::PrePostProcessor::build` | Set image of the original size as input for a model with other input size. Resize and layout conversions are performed automatically by the corresponding plugin just before inference. |
 
 | Options | Values |
 | :--- | :--- |
@@ -23,7 +23,7 @@ The following Inference Engine C++ API is used in the application:
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin and performs synchronous inference. Then processes output data and write it to a standard output stream.
+At startup, the sample application reads command line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin and performs synchronous inference. Then processes output data and write it to a standard output stream.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
@@ -53,7 +53,7 @@ To run the sample, you need specify a model and image:
 
 ### Example
 
-1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
+1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
 
 ```
 python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
@@ -71,7 +71,7 @@ omz_downloader --name googlenet-v1
 omz_converter --name googlenet-v1
 ```
 
-4. Perform inference of `car.bmp` using `googlenet-v1` model on a `GPU`, for example:
+4. Perform inference of `car.bmp` using the `googlenet-v1` model on a `GPU`, for example:
 
 ```
 hello_classification googlenet-v1.xml car.bmp GPU
