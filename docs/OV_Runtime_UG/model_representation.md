@@ -76,7 +76,7 @@ Example of OpenVINO Model with several outputs
    - To receive additional messages about applied graph modifications, rebuild the OpenVINO runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
    - OpenVINO Model can be visualized to image from xDot format:
     @snippet example_ngraph_utils.cpp ov:visualize
-   - OpenVINO Model can be serialized to IR:
+   - A model can be serialized to IR:
     @snippet example_ngraph_utils.cpp ov:serialize
  - How can I develop my own transformation pass?
    - Please take a look to [Transformations Developer Guide](./nGraphTransformation.md)
