@@ -5,6 +5,7 @@
 #include "openvino/core/any.hpp"
 
 #include <string>
+#include <limits>
 
 namespace ov {
 
