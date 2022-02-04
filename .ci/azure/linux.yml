@@ -23,9 +23,9 @@ jobs:
 - job: Lin
   strategy:
     matrix:
-      Dynamic:
-        CMAKE_BUILD_SHARED_LIBS: 'ON'
-        PYTHON_STATIC_ARGS:
+      # Dynamic:
+      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
+      #   PYTHON_STATIC_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
@@ -245,7 +245,6 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/mo/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
-    enabled: true
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
@@ -336,7 +335,6 @@ jobs:
     workingDirectory: $(INSTALL_DIR)/samples_bin
     displayName: 'Samples Smoke Tests'
     continueOnError: false
-    enabled: true
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -355,7 +353,6 @@ jobs:
     workingDirectory: $(LAYER_TESTS_DIR)
     displayName: 'Layer Tests'
     continueOnError: false
-    enabled: true
 
   - task: PublishTestResults@2
     condition: always()
