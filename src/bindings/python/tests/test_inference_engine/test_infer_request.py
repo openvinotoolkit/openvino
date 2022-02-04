@@ -277,12 +277,27 @@ def test_infer_queue(device):
 
     img = read_image()
     infer_queue.set_callback(callback)
-    assert infer_queue.is_ready
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()
     assert all(job["finished"] for job in jobs_done)
     assert all(job["latency"] > 0 for job in jobs_done)
+
+
+def test_infer_queue_is_ready(device):
+    core = Core()
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    compiled = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled, 1)
+
+    def callback(request, _):
+        time.sleep(0.001)
+    infer_queue.set_callback(callback)
+    assert infer_queue.is_ready()
+    infer_queue.start_async()
+    assert not infer_queue.is_ready()
+    infer_queue.wait_all()
 
 
 def test_infer_queue_fail_on_cpp_model(device):
@@ -298,7 +313,6 @@ def test_infer_queue_fail_on_cpp_model(device):
 
     img = read_image()
     infer_queue.set_callback(callback)
-    assert infer_queue.is_ready
 
     with pytest.raises(RuntimeError) as e:
         for _ in range(jobs):
@@ -321,7 +335,6 @@ def test_infer_queue_fail_on_py_model(device):
 
     img = read_image()
     infer_queue.set_callback(callback)
-    assert infer_queue.is_ready
 
     with pytest.raises(TypeError) as e:
         for _ in range(jobs):
@@ -434,7 +447,6 @@ def test_results_async_infer(device):
 
     img = read_image()
     infer_queue.set_callback(callback)
-    assert infer_queue.is_ready
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()

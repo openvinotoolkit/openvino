@@ -35,24 +35,26 @@ public:
     }
 
     bool _is_ready() {
+        // Check if any request has finished already
         py::gil_scoped_release release;
-        std::unique_lock<std::mutex> lock(_mutex);
-        _cv.wait(lock, [this] {
-            return !(_idle_handles.empty());
-        });
+        // acquire the mutex to access _errors and _idle_handles
+        std::lock_guard<std::mutex> lock(_mutex);
         if (_errors.size() > 0)
             throw _errors.front();
         return !(_idle_handles.empty());
     }
 
     size_t get_idle_request_id() {
-        // Wait for any of _idle_handles
+        // Wait for any request to complete and return its id
+        // release GIL to avoid deadlock on python callback
         py::gil_scoped_release release;
+        // acquire the mutex to access _errors and _idle_handles
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
             return !(_idle_handles.empty());
         });
         size_t idle_handle = _idle_handles.front();
+        // wait for request to make sure it returned from callback
         _requests[idle_handle]._request.wait();
         if (_errors.size() > 0)
             throw _errors.front();
@@ -60,11 +62,14 @@ public:
     }
 
     void wait_all() {
-        // Wait for all requests to complete
+        // Wait for all request to complete
+        // release GIL to avoid deadlock on python callback
         py::gil_scoped_release release;
         for (auto&& request : _requests) {
             request._request.wait();
         }
+        // acquire the mutex to access _errors
+        std::lock_guard<std::mutex> lock(_mutex);
         if (_errors.size() > 0)
             throw _errors.front();
     }
@@ -80,8 +85,12 @@ public:
                 } catch (const std::exception& e) {
                     throw ov::Exception(e.what());
                 }
-                // Add idle handle to queue
-                _idle_handles.push(handle);
+                {
+                    // acquire the mutex to access _idle_handles
+                    std::lock_guard<std::mutex> lock(_mutex);
+                    // Add idle handle to queue
+                    _idle_handles.push(handle);
+                }
                 // Notify locks in getIdleRequestId()
                 _cv.notify_one();
             });
@@ -105,10 +114,16 @@ public:
                     f_callback(_requests[handle], _user_ids[handle]);
                 } catch (py::error_already_set py_error) {
                     assert(PyErr_Occurred());
+                    // acquire the mutex to access _errors
+                    std::lock_guard<std::mutex> lock(_mutex);
                     _errors.push(py_error);
                 }
-                // Add idle handle to queue
-                _idle_handles.push(handle);
+                {
+                    // acquire the mutex to access _idle_handles
+                    std::lock_guard<std::mutex> lock(_mutex);
+                    // Add idle handle to queue
+                    _idle_handles.push(handle);
+                }
                 // Notify locks in getIdleRequestId()
                 _cv.notify_one();
             });
