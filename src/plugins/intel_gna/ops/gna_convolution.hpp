@@ -167,4 +167,4 @@ private:
                             std::vector<T>& output_shapes);
 };
 } // namespace Op
-}  // namespace GNAPluginNS
+} // namespace GNAPluginNS
