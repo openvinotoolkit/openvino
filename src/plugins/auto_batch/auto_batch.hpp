@@ -106,6 +106,11 @@ public:
     void CopyOutputsIfNeeded();
     AutoBatchExecutableNetwork::WorkerInferRequest& _myBatchedRequestWrapper;
     std::exception_ptr _exceptionPtr;
+    enum eExecutionFlavor : uint8_t {
+        NOT_EXECUTED,
+        BATCH_EXECUTED,
+        TIMEOUT_EXECUTED
+    } _wasBatchedRequestUsed = eExecutionFlavor::NOT_EXECUTED;
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> _perfMap;
 
 protected:

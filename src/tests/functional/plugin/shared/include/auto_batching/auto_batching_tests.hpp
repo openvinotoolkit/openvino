@@ -80,8 +80,11 @@ protected:
                                                     device_name + "(" + std::to_string(num_batch) + ")",
                                                config);
 
+            auto network_outputs = net.getOutputsInfo();
+            ASSERT_EQ(network_outputs.size(), 1) << " Auto-Batching tests use networks with single output";
+            auto output = network_outputs.begin();  //single output
             for (size_t j = 0; j < num_requests; j++) {
-                outputs.push_back(net.getOutputsInfo().begin()->first); //single output
+                outputs.push_back(output->first);
                 outElementsCount.push_back(
                         std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), 1,
                                         std::multiplies<size_t>()));
@@ -103,6 +106,11 @@ protected:
                     const auto inBlobBuf = inBlob->cbuffer().as<uint8_t *>();
                     inData.push_back(std::vector<uint8_t>(inBlobBuf, inBlobBuf + blobSize));
                 }
+                if (!use_get_blob) {
+                    auto blob = FuncTestUtils::createAndFillBlob(output->second->getTensorDesc());
+                    inf_req.SetBlob(output->first, blob);
+                }
+
                 auto refOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
                 ref.push_back(refOutData);
             }
