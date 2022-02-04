@@ -1,4 +1,4 @@
-# OpenVINO Model Representation {#openvino_docs_OV_Runtime_UG_Model_Representation}
+# Model Representation in OpenVINO™ Runtime {#openvino_docs_OV_Runtime_UG_Model_Representation}
 
 The OpenVINO Model represents neural networks in uniform format. User can create different operations and combined their to one `ov::Model`.
 
