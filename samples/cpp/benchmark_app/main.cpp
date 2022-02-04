@@ -656,13 +656,12 @@ int main(int argc, char* argv[]) {
             if (FLAGS_api == "sync") {
                 nireq = 1;
             } else {
-                std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
-                    nireq = compiledModel.get_property(key).as<unsigned int>();
+                    nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
                 } catch (const std::exception& ex) {
                     IE_THROW() << "Every device used with the benchmark_app should "
-                               << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS metric. "
-                               << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
+                               << "support " << ov::optimal_number_of_infer_requests.name()
+                               << " Failed to query the metric for the " << device_name << " with error:" << ex.what();
                 }
             }
         }
