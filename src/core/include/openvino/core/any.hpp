@@ -106,8 +106,7 @@ class OPENVINO_API Any {
     };
 
     template <class U>
-    static typename std::enable_if<EqualityComparable<U>::value, bool>::type equal_impl(const U& rhs,
-                                                                                        const U& lhs) {
+    static typename std::enable_if<EqualityComparable<U>::value, bool>::type equal_impl(const U& rhs, const U& lhs) {
         return rhs == lhs;
     }
 
