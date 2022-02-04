@@ -302,7 +302,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                     m_telemetry);
             }
         }
-        #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else if (variants[0].is<std::wstring>()) {
             std::wstring suffix = L".pb";
             std::wstring model_path = variants[0].as<std::wstring>();
@@ -312,8 +312,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                     m_telemetry);
             }
         }
-        #endif
-        else if (variants[0].is <GraphIterator::Ptr>()) {
+#endif
+        else if (variants[0].is<GraphIterator::Ptr>()) {
             auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
             return std::make_shared<InputModel>(graph_iterator, m_telemetry);
         }
