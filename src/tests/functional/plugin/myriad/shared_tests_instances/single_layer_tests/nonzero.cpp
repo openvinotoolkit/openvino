@@ -5,7 +5,6 @@
 #include "single_layer_tests/nonzero.hpp"
 
 #include "common/myriad_common_test_utils.hpp"
-#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 
 #include <vector>

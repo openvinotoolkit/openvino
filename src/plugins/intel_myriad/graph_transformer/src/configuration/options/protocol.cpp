@@ -7,7 +7,6 @@
 #include "vpu/configuration/plugin_configuration.hpp"
 
 #include <vpu/myriad_config.hpp>
-#include <vpu/vpu_plugin_config.hpp>
 
 #include <unordered_map>
 
@@ -16,17 +15,11 @@ namespace vpu {
 namespace {
 
 const std::unordered_map<std::string, ncDeviceProtocol_t>& string2protocol() {
-IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_map<std::string, ncDeviceProtocol_t> converters = {
         {InferenceEngine::MYRIAD_USB,   ncDeviceProtocol_t::NC_USB},
         {InferenceEngine::MYRIAD_PCIE,  ncDeviceProtocol_t::NC_PCIE},
         {std::string(),                 ncDeviceProtocol_t::NC_ANY_PROTOCOL},
-
-        // Deprecated
-        {VPU_MYRIAD_CONFIG_VALUE(USB), ncDeviceProtocol_t::NC_USB},
-        {VPU_MYRIAD_CONFIG_VALUE(PCIE),  ncDeviceProtocol_t::NC_PCIE}
     };
-IE_SUPPRESS_DEPRECATED_END
     return converters;
 }
 

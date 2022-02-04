@@ -8,7 +8,6 @@
 #include "vpu/configuration/plugin_configuration.hpp"
 
 #include <vpu/myriad_config.hpp>
-#include <vpu/myriad_plugin_config.hpp>
 
 #include <unordered_map>
 
@@ -17,22 +16,13 @@ namespace vpu {
 namespace {
 
 const std::unordered_map<std::string, MovidiusDdrType>& string2type() {
-IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_map<std::string, MovidiusDdrType> converters = {
         {InferenceEngine::MYRIAD_DDR_AUTO,         MovidiusDdrType::AUTO },
         {InferenceEngine::MYRIAD_DDR_MICRON_2GB,   MovidiusDdrType::MICRON_2GB },
         {InferenceEngine::MYRIAD_DDR_SAMSUNG_2GB,  MovidiusDdrType::SAMSUNG_2GB },
         {InferenceEngine::MYRIAD_DDR_HYNIX_2GB,    MovidiusDdrType::HYNIX_2GB },
         {InferenceEngine::MYRIAD_DDR_MICRON_1GB,   MovidiusDdrType::MICRON_1GB },
-
-        // Deprecated
-        {VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO),        MovidiusDdrType::AUTO },
-        {VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB),      MovidiusDdrType::MICRON_2GB },
-        {VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB),     MovidiusDdrType::SAMSUNG_2GB },
-        {VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB),       MovidiusDdrType::HYNIX_2GB },
-        {VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB),      MovidiusDdrType::MICRON_1GB }
     };
-IE_SUPPRESS_DEPRECATED_END
     return converters;
 }
 

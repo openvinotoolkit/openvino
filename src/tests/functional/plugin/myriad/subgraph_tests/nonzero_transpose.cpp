@@ -5,7 +5,6 @@
 #include <shared_test_classes/base/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
-#include <vpu/myriad_plugin_config.hpp>
 
 namespace {
 

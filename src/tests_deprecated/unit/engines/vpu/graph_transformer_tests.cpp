@@ -57,6 +57,7 @@
 #include <vpu/configuration/options/enable_async_dma.hpp>
 #include "vpu/configuration/options/performance_hint.hpp"
 #include "vpu/configuration/options/performance_hint_num_requests.hpp"
+#include "vpu/configuration/options/ov_throughput_streams.hpp"
 
 namespace vpu {
 
@@ -255,20 +256,11 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<EnableAsyncDMAOption>();
     configuration.registerOption<PerformanceHintOption>();
     configuration.registerOption<PerformanceHintNumRequestsOption>();
-
+    configuration.registerOption<OvThroughputStreamsOption>();
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
     configuration.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
-    configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
-    configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
-    configuration.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
-    configuration.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
-    configuration.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
-    configuration.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
-    configuration.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
-    configuration.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
 IE_SUPPRESS_DEPRECATED_END
-
     return configuration;
 }
 

@@ -53,9 +53,9 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
-#include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/custom_layers.hpp>
 #include <vpu/configuration/options/config_file.hpp>

@@ -1,13 +1,13 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <cstddef>
 #include <string>
 
 #include "vpu/configuration/as_parameter_enabler.hpp"
+#include "vpu/utils/optional.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace vpu {
@@ -21,8 +21,8 @@ enum class Category;
 
 class PluginConfiguration;
 
-struct PerformanceHintNumRequestsOption : public AsParameterEnabler {
-    using value_type = int;
+struct OvThroughputStreamsOption : public AsParameterEnabler {
+    using value_type = Optional<unsigned int>;
 
     static std::string key();
     static void validate(const std::string&);

@@ -11,7 +11,6 @@
 #include <string>
 #include <precision_utils.h>
 #include <tests_common.hpp>
-#include <vpu/vpu_plugin_config.hpp>
 #include "vpu_case_params.hpp"
 #include "vpu_param_containers.hpp"
 
