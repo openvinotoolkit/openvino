@@ -36,7 +36,7 @@ You can create a model from source. This section illustrates how to construct a 
 
 Operation set `opsetX` integrates a list of pre-compiled operations that work for this purpose. In other words, `opsetX` defines a set of operations for building a graph.
 
-For a complete list of operation sets supported by OpenVINO, see [Available Operations Sets](../ops/opset.md).
+For a complete list of operation sets supported in OpenVINO™ toolkit, see [Available Operations Sets](../ops/opset.md).
 
 To add suport of custom operations, see the [Add Custom OpenVINO Operations](../OV_Runtime_UG/Extensibility_DG/Intro.md) document.
 
