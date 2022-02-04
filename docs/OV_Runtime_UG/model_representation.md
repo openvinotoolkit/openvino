@@ -92,4 +92,4 @@ Example of OpenVINO Model with several outputs
 * [opset6 Specification](../ops/opset6.md)
 * [opset7 Specification](../ops/opset7.md)
 * [opset8 Specification](../ops/opset8.md)
-* [Inference Engine Extensibility Developer Guide](../OV_Runtime_UG/Extensibility_DG/Intro.md)
+* [OpenVINO™ Runtime Extensibility Developer Guide](../OV_Runtime_UG/Extensibility_DG/Intro.md)
