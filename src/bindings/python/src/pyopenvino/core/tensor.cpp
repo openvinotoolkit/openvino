@@ -44,23 +44,20 @@ void regclass_Tensor(py::module m) {
                 __init__ : openvino.runtime.Tensor
             )");
 
-    cls.def(py::init([](const ov::element::Type element_type, const ov::Shape& shape, py::array& array) {
-                return Common::tensor_from_pointer(element_type, shape, array);
+    cls.def(py::init([](py::array& array, const ov::Shape& shape) {
+                return Common::tensor_from_pointer(array, shape);
             }),
-            py::arg("element_type"),
-            py::arg("shape"),
             py::arg("array"),
+            py::arg("shape"),
             R"(
                 Another Tensor's special constructor.
 
-                Mainly to match with C++ API, please use it only in advanced cases if necessary!
+                It take an array or slice of it and shape that will be
+                selected starting from the first element of given array/slice. 
+                Please use it only in advanced cases if necessary!
 
                 Parameters
                 ----------
-                element_type : openvino.runtime.Type
-
-                shape : openvino.runtime.Shape
-
                 array : numpy.array
                     Underlaying methods will retrieve pointer on first element
                     from it, which is simulating `host_ptr` from C++ API.
@@ -71,9 +68,26 @@ void regclass_Tensor(py::module m) {
 
                     Data is required to be C_CONTIGUOUS.
 
+                shape : openvino.runtime.Shape
+
                 Returns
                 ----------
                 __init__ : openvino.runtime.Tensor
+
+                Examples
+                ----------
+                import openvino.runtime as ov
+                import numpy as np
+
+                arr = np.array([[1, 2, 3], [4, 5, 6]])
+
+                t = ov.Tensor(arr[1][0:1], ov.Shape([3]))
+
+                t.data[0] = 9
+
+                print(arr)
+                >>> [[1 2 3]
+                >>>  [9 5 6]]
             )");
 
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));
