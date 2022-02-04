@@ -852,18 +852,19 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             }
             return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
         }
-        auto it_streams = options.find("GPU_THROUGHPUT_STREAMS");
-        if (it_streams != options.end()) {
-            if (it_streams->second.is<uint32_t>()) {
-                n_streams = it_streams->second.as<uint32_t>();
-            } else if (it_streams->second.is<std::string>()) {
-                std::string n_streams_str = it_streams->second.as<std::string>();
-                if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO)) {
+        if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
+            try {
+                n_streams = options.find("GPU_THROUGHPUT_STREAMS")->second.as<uint32_t>();
+            } catch (...) {
+                try {
+                    std::string n_streams_str = options.find("GPU_THROUGHPUT_STREAMS")->second.as<std::string>();
+                    if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO)) {
+                        IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+                    }
+                    n_streams = config.GetDefaultNStreamsForThroughputMode();
+                } catch (...) {
                     IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
                 }
-                n_streams = config.GetDefaultNStreamsForThroughputMode();
-            } else {
-                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
             }
         }
         GPU_DEBUG_IF(debug_config->verbose >= 2) {

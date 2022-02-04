@@ -3,6 +3,7 @@
 //
 
 #include "openvino/core/any.hpp"
+#include <string>
 
 namespace ov {
 
@@ -102,5 +103,70 @@ Any::Base* Any::operator->() {
 
 const Any::Base* Any::operator->() const {
     return _impl.get();
+}
+
+void Any::read_impl(std::istream& is, bool& value) {
+    std::string str;
+    is >> str;
+    if (str == "YES") {
+            value = true;
+    } else if (str == "NO") {
+        value = false;
+    } else {
+        OPENVINO_UNREACHABLE("Could not convert to bool from string " + str);
+    }
+}
+
+template<typename F>
+static auto stream_to(std::istream& is, F&& f) ->decltype(f(std::declval<const std::string&>())) {
+    std::string str;
+    is >> str;
+    try {
+        return f(str);
+    } catch(std::exception& e) {
+        OPENVINO_UNREACHABLE(std::string{"Could not convert to: "} +
+            typeid(decltype(f(std::declval<const std::string&>()))).name() +
+            " from string " + str + ": " + e.what());
+    }
+}
+
+void Any::read_impl(std::istream& is, int& value) {
+    value = stream_to(is, [] (const std::string& str) {return std::stoi(str);});
+}
+void Any::read_impl(std::istream& is, long& value) {
+    value = stream_to(is, [] (const std::string& str) {return std::stol(str);});
+}
+void Any::read_impl(std::istream& is, long long& value) {
+    value = stream_to(is, [] (const std::string& str) {return std::stoll(str);});
+}
+
+void Any::read_impl(std::istream& is, unsigned& value) {
+    value = stream_to(is, [] (const std::string& str) {
+        auto ul = std::stoul(str);
+        if (ul > std::numeric_limits<unsigned>::max()) {
+            throw std::out_of_range{"Out of range"};
+        }
+        return static_cast<unsigned>(ul);
+    });
+}
+void Any::read_impl(std::istream& is, unsigned long& value) {
+    value = stream_to(is, [] (const std::string& str) {return std::stoul(str);});
+}
+void Any::read_impl(std::istream& is, unsigned long long& value) {
+    value = stream_to(is, [] (const std::string& str) {return std::stoull(str);});
+}
+
+void Any::read_impl(std::istream& is, float& value) {
+    value = stream_to(is, [] (const std::string& str) {return std::stof(str);});
+}
+void Any::read_impl(std::istream& is, double& value) {
+    value = stream_to(is, [] (const std::string& str) {return std::stod(str);});
+}
+void Any::read_impl(std::istream& is, long double& value) {
+    value = stream_to(is, [] (const std::string& str) {return std::stold(str);});
+}
+
+void Any::print_impl(std::ostream& os, const bool& b) {
+    os << (b ? "YES" : "NO");
 }
 }  // namespace ov
