@@ -8,6 +8,7 @@
 #include <string>
 
 #include "vpu/configuration/as_parameter_enabler.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace vpu {
 
