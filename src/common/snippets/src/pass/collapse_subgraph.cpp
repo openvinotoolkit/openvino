@@ -86,6 +86,8 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
     auto is_layout_oblivious_unary = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Abs>(n)
             || ov::is_type<opset1::Clamp>(n)
+            || ov::is_type<opset1::Floor>(n)
+            || ov::is_type<opset1::Ceiling>(n)
             || ov::is_type<opset1::Elu>(n)
             || ov::is_type<opset1::Erf>(n)
             || ov::is_type<opset1::Exp>(n)
