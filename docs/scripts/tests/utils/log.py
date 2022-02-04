@@ -19,8 +19,8 @@ class LogParser:
     )
 
     # a regex that is used to match log lines containing a filepath,
-    # a line number, and an error or warning
-    regex = r'(.*?):?([0-9]*):? ?(warning|error): (.+)'
+    # a line number, and an error,warning or critical
+    regex = r'^(?!\*)(.*?):?([0-9]*):? ?(warning|error|critical): (.+)'
 
     def __init__(self, log: Path):
         """
