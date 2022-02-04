@@ -76,7 +76,7 @@ Example of OpenVINO Model with several outputs
 
  - Does OpenVINO have any capabilities to debug the Model structure and Model modification?
    - To receive additional messages about applied graph modifications, rebuild the OpenVINO runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
-   - OpenVINO Model can be visualized to image from xDot format:
+   - A model can be visualized to image from the xDot format:
     @snippet example_ngraph_utils.cpp ov:visualize
    - A model can be serialized to IR:
     @snippet example_ngraph_utils.cpp ov:serialize
