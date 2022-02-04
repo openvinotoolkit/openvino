@@ -23,7 +23,7 @@ For each operation set, OpenVINO™ Runtime provides a separate namespace, for e
 
 ## Static and Partial Shapes
 
-OpenVINO has two types for shape representation: 
+There are two types used for shape representation: 
 
 * `ov::Shape` - Represents static (fully defined) shapes.
 
