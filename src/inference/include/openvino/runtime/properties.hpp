@@ -18,6 +18,7 @@
 
 #include "ie_precision.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 
 namespace ov {

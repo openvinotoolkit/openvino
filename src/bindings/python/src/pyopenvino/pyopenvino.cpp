@@ -153,6 +153,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_ConversionExtensionBase(m);
     regclass_frontend_ConversionExtension(m);
     regclass_frontend_ProgressReporterExtension(m);
+    regclass_frontend_OpExtension(m);
 
     // transformations
     regmodule_offline_transformations(m);

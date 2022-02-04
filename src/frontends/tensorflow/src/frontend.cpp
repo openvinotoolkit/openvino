@@ -273,7 +273,17 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
-    } else if (variants[0].is<GraphIterator::Ptr>()) {
+    }
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    else if (variants[0].is<std::wstring>()) {
+        std::wstring suffix = L".pb";
+        std::wstring model_path = variants[0].as<std::wstring>();
+        if (ov::util::ends_with(model_path, suffix)) {
+            return true;
+        }
+    }
+#endif
+    else if (variants[0].is<GraphIterator::Ptr>()) {
         return true;
     }
     return false;
@@ -291,7 +301,19 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                     std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
                     m_telemetry);
             }
-        } else if (variants[0].is<GraphIterator::Ptr>()) {
+        }
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        else if (variants[0].is<std::wstring>()) {
+            std::wstring suffix = L".pb";
+            std::wstring model_path = variants[0].as<std::wstring>();
+            if (ov::util::ends_with(model_path, suffix)) {
+                return std::make_shared<InputModel>(
+                    std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
+                    m_telemetry);
+            }
+        }
+#endif
+        else if (variants[0].is<GraphIterator::Ptr>()) {
             auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
             return std::make_shared<InputModel>(graph_iterator, m_telemetry);
         }
