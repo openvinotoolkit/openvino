@@ -32,7 +32,7 @@ There are two types used for shape representation:
 
 ## Build a Model in OpenVINO™ Runtime {#build_model}
 
-OpenVINO Model can be created from source, this section illustrates how to construct an OpenVINO Model composed of operations from an available opset.
+You can create a model from source. This section illustrates how to construct a model composed of operations from an available operation set.
 
 Operation Set `opsetX` integrates a list of OpenVINO pre-compiled operations that work for this purpose. In other words, `opsetX` defines a set of operations for building a graph.
 
