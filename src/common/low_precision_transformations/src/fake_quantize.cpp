@@ -104,11 +104,7 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
             return false;
         }
 
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) > 1) {
-            return false;
-        }
-
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) == 1ul) {
+        while (eltwiseOutputPShape.size() > shape.size()) {
             shape.insert(shape.begin(), 1ul);
         }
 
