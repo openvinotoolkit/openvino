@@ -137,12 +137,16 @@ void op::v5::Loop::validate_and_infer_types() {
     // WA: input description with index 0 or 1 means that Loop consructor will duplicate it in
     // the inputs.
     // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
-    size_t input_offset = 2;
+    int64_t input_offset = 2;
     for (const auto& in_desc : m_input_descriptions[0]) {
         if (in_desc->m_input_index == 0 || in_desc->m_input_index == 1) {
             input_offset--;
         }
     }
+    // input_offset < 0 means that there are several duplications of external_port_id
+    // (the same ext_port_id is connected to several Parameters in the port map) in input_desc,
+    // this can lead to wrong or undefined behavior, so throw exception here. Ticket: 47302
+    NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions[0].size() + input_offset,
