@@ -41,10 +41,17 @@ public:
                                                      const std::map<std::string, std::string>& config) override;
 
 private:
+    bool isLegacyAPI() const;
+
+    InferenceEngine::Parameter GetMetricLegacy(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const;
+
+    InferenceEngine::Parameter GetConfigLegacy(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const;
+
     Config engConfig;
     NumaNodesWeights weightsSharing;
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
     bool streamsSet = false;
+    const std::string deviceFullName;
 };
 
 }  // namespace MKLDNNPlugin
