@@ -257,6 +257,75 @@ size_t jit_divide_emitter::aux_vecs_count() const {
     return exec_prc_ == Precision::I32 ? 1 : 0;
 }
 
+/// FLOOR ///
+jit_floor_emitter::jit_floor_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_floor_emitter::jit_floor_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_floor_emitter::get_inputs_num() const { return 2; }
+
+void jit_floor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) const {
+    if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx2) {
+        emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_common) {
+        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else {
+        assert(!"unsupported isa");
+    }
+}
+
+template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+void jit_floor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+    h->uni_vroundps(vmm_dst, vmm_src, 1);
+}
+
+size_t jit_floor_emitter::aux_vecs_count() const {
+    return 1;
+}
+
+/// CEILING ///
+jit_ceiling_emitter::jit_ceiling_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_ceiling_emitter::jit_ceiling_emitter(jit_generator* host, cpu_isa_t host_isa, Precision exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_ceiling_emitter::get_inputs_num() const { return 2; }
+
+void jit_ceiling_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs,
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) const {
+    if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx2) {
+        emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_common) {
+        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else {
+        assert(!"unsupported isa");
+    }
+}
+
+template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+void jit_ceiling_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+    h->uni_vroundps(vmm_dst, vmm_src, 2);
+}
+
+size_t jit_ceiling_emitter::aux_vecs_count() const {
+    return 1;
+}
+
 /// FLOOR_MOD ///
 jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
