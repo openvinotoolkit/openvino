@@ -280,10 +280,9 @@ def find_out_cct_mode(args):
 
 def print_input_layers(inputs: list):
     word = 'inputs' if len(inputs) > 1 else 'input'
-    log.info(f"{len(inputs)} {word} detected: {', '.join(input.any_name for input in inputs)}")
+    log.info(f"{len(inputs)} {word} detected: {', '.join(f'{input.any_name} {input.shape}' for input in inputs)}")
 
-
-def print_output_layers(output_layers: list):
+def print_output_layers(output_layers: list, extra = {}):
     layers = 'layers' if len(output_layers) > 1 else 'layer'
     log.info(f"Statistics will be dumped for {len(output_layers)} {layers}: {', '.join(out_layer.friendly_name for out_layer in output_layers)}")
 
@@ -398,6 +397,8 @@ def input_processing(model_path: str, model_inputs: list, input_file: str):
                 tensor_name = input_names[i]
             else:
                 tensor_name = splited.pop(0)
+            if tensor_name not in input_names:
+                raise Exception(f"Input with name {tensor_name} doesn't exist in the model!")
             path = Path(splited.pop())
             if path.exists() and path.is_file():
                 IMAGE_EXTENSIONS = ['.jpeg', '.jpg', '.png', '.bmp']
@@ -413,7 +414,7 @@ def input_processing(model_path: str, model_inputs: list, input_file: str):
             elif path.is_dir():
                 raise Exception(f"Path `{path}` is a directory! Provide full path to an input file!")
             elif not path.exists():
-                raise Exception(f"Input file `{path}` doen't exist!")
+                raise Exception(f"Input file `{path}` doesn't exist!")
     return input_data
 
 
@@ -486,7 +487,7 @@ def update_global_accuracy_matrics(global_accuracy: list, current_accuracy: dict
     return global_accuracy
 
 
-def print_all_over_the_net_metrics(global_accuracy: (str, float), global_times: list = None,
+def print_all_over_the_net_metrics(global_accuracy: list, global_times: list = None,
                                    ref_global_times: list = None):
     if global_times is not None and ref_global_times is not None and len(global_times) and len(ref_global_times):
         log.info('-' * 70, extra={'no_lvl': True})
@@ -561,13 +562,7 @@ def get_layers_list(all_layers: list, inputs: list, outputs: list, layers: str):
                 if user_layer not in all_layers_map:
                     raise Exception(f"Layer {user_layer} doesn't exist in the model")
                 else:
-                    target_node = all_layers_map[user_layer]
-                    if target_node.get_type_name() != 'Result':
-                        new_outputs.append(target_node)
-                    else:
-                        # TODO: should we remove it to avoid misunderstanding ?
-                        # if layer type is Result - add previous layer
-                        new_outputs.append(all_layers[all_layers.index(target_node)-1])
+                    new_outputs.append(all_layers_map[user_layer])
             return new_outputs
     else:
         return [output.node for output in outputs]
