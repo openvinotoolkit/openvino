@@ -62,7 +62,7 @@ The following code demonstrates how to create a simple model:
       ```
 
 
-Example of OpenVINO Model with several outputs
+The following code creates a model with several outputs:
 
  - C++
       @snippet example_ngraph_utils.cpp ov:create_advanced_model
