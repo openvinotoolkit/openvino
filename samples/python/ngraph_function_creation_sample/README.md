@@ -32,7 +32,7 @@ each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_custo
 
 ## Running
 
-To run the sample, you need specify a model weights and device.
+To run the sample, you need to specify model weights and device.
 
 ```
 python ngraph_function_creation_sample.py <path_to_model> <device_name>
