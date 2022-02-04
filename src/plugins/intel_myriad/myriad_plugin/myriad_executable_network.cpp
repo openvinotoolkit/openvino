@@ -245,7 +245,7 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
             optimalNumOfInferRequests =
                     _config.get<PerformanceHintOption>() == CONFIG_VALUE(THROUGHPUT) ? optimalNumOfInferRequests : 1;
         }
-        if (_config.get<PerformanceHintNumRequestsOption>() != -1) {
+        if (_config.get<PerformanceHintNumRequestsOption>() != 0) {
             optimalNumOfInferRequests =
                     std::min(optimalNumOfInferRequests,
                              static_cast<unsigned int>(_config.get<PerformanceHintNumRequestsOption>()));

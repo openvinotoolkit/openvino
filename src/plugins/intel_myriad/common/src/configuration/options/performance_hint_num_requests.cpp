@@ -32,13 +32,13 @@ details::Category PerformanceHintNumRequestsOption::category() {
 }
 
 std::string PerformanceHintNumRequestsOption::defaultValue() {
-    return "-1";
+    return "0";
 }
 
 PerformanceHintNumRequestsOption::value_type PerformanceHintNumRequestsOption::parse(const std::string& value) {
     try {
         auto returnValue = std::stoi(value);
-        if (returnValue > 0 || returnValue == -1) {
+        if (returnValue >= 0) {
             return returnValue;
         } else {
             throw std::logic_error("wrong val");
