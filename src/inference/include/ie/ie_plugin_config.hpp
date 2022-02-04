@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,6 +118,28 @@ DECLARE_METRIC_VALUE(BATCHED_BLOB);
  * String value for metric name is "RANGE_FOR_STREAMS".
  */
 DECLARE_METRIC_KEY(RANGE_FOR_STREAMS, std::tuple<unsigned int, unsigned int>);
+/**
+ * @brief Metric to query information optimal batch size for the given device and the network
+ *
+ * Metric returns a value of unsigned int type,
+ * Returns optimal batch size for a given network on the given device. The returned value is aligned to power of 2.
+ * Also, MODEL_PTR is the required option for this metric since the optimal batch size depends on the model,
+ * so if the MODEL_PTR is not given, the result of the metric is always 1.
+ * For the GPU the metric is queried automatically whenever the OpenVINO performance hint for the throughput is used,
+ * so that the result (>1) governs the automatic batching (transparently to the application).
+ * The automatic batching can be disabled with ALLOW_AUTO_BATCHING set to NO
+ */
+DECLARE_METRIC_KEY(OPTIMAL_BATCH_SIZE, unsigned int);
+
+/**
+ * @brief Metric to get maximum batch size which does not cause performance degradation due to memory swap impact.
+ *
+ * Metric returns a value of unsigned int type,
+ * Note that the returned value may not aligned to power of 2.
+ * Also, MODEL_PTR is the required option for this metric since the available max batch size depends on the model size.
+ * If the MODEL_PTR is not given, it will return 1.
+ */
+DECLARE_METRIC_KEY(MAX_BATCH_SIZE, unsigned int);
 
 /**
  * @brief Metric to provide a hint for a range for number of async infer requests. If device supports streams,
@@ -230,6 +252,15 @@ namespace PluginConfigParams {
 #define DECLARE_CONFIG_VALUE(name) static constexpr auto name = #name
 
 /**
+ * @brief (Optional) config key that defines what model should be provided with more performant bounded resource first
+ * It provides 3 types of levels: High, Medium and Low. The default value is Medium
+ */
+DECLARE_CONFIG_KEY(MODEL_PRIORITY);
+DECLARE_CONFIG_VALUE(MODEL_PRIORITY_HIGH);
+DECLARE_CONFIG_VALUE(MODEL_PRIORITY_MED);
+DECLARE_CONFIG_VALUE(MODEL_PRIORITY_LOW);
+
+/**
  * @brief High-level OpenVINO Performance Hints
  * unlike low-level config keys that are individual (per-device), the hints are smth that every device accepts
  * and turns into device-specific settings
@@ -243,12 +274,25 @@ DECLARE_CONFIG_VALUE(THROUGHPUT);
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
  */
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS);
+/**
+ * @brief (Optional) config key that governs Auto-Batching (with YES/NO values, below)
+ */
+DECLARE_CONFIG_KEY(ALLOW_AUTO_BATCHING);
 
 /**
  * @brief generic boolean values
  */
 DECLARE_CONFIG_VALUE(YES);
 DECLARE_CONFIG_VALUE(NO);
+
+/**
+ * @brief Auto-batching configuration, string for the device + batch size, e.g. "GPU(4)"
+ */
+DECLARE_CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG);
+/**
+ * @brief Auto-batching configuration: string with timeout (in ms), e.g. "100"
+ */
+DECLARE_CONFIG_KEY(AUTO_BATCH_TIMEOUT);
 
 /**
  * @brief Limit `#threads` that are used by Inference Engine for inference on the CPU.

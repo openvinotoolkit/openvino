@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -8,13 +8,14 @@ import numpy as np
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.middle.passes.convert_data_type import convert_blobs, SUPPORTED_DATA_TYPES
 from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'data_node': {'kind': 'data', 'value': None, 'shape': int64_array([5])},
                     'op_node': { 'kind': 'op', 'op': 'Result'}}
 
 
-class TestConvertBlob(unittest.TestCase):
+class TestConvertBlob(UnitTestWithMockedTelemetry):
     def test_convert_blob_to_fp32_from_fp64(self):
         graph = build_graph(nodes_attributes,
                             [('data_node', 'op_node', {'bin': 1})],

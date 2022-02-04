@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.middle.passes.infer import type_infer
@@ -63,6 +63,9 @@ class GraphTransformer:
         graph.clean_up()
 
         self.fq_name_swapper.rename_fqs_in_the_end(graph)
+        graph.clean_up()
+
+        self.fq_removal.optimize_for_gp_hw(graph, self.target_device)
         graph.clean_up()
 
         return graph

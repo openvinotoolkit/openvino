@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import math
@@ -86,15 +86,15 @@ def correct_pad(pad, rank):
     if pad_len < rank:
         return np.pad(pad, (0, rank - pad_len), 'constant').astype(np.int64)
     elif pad_len > rank:
-        return np.array(pad[: rank]).astype(np.int64)
+        return int64_array(pad[: rank])
     else:
-        return np.array(pad, dtype=np.int64)
+        return int64_array(pad)
 
 
 def correct_scales_using_dst_shape(node, dst_shape, src_shape, axes):
     scales_value = node.in_port(2).data.get_value()
     if scales_value is None or len(scales_value) != len(dst_shape):
-        corrected_scales = np.zeros(len(dst_shape))
+        corrected_scales = np.zeros(len(dst_shape), dtype=np.float32)
         for i, axis in enumerate(list(axes)):
             corrected_scales[i] = dst_shape[i] / src_shape[axis]
         node.in_port(2).data.set_value(corrected_scales)

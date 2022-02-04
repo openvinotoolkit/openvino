@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 /**
@@ -7,11 +7,11 @@
  */
 #pragma once
 
-#include <format_reader.h>
-
 #include <functional>
 #include <string>
 #include <vector>
+
+#include "format_reader.h"
 
 namespace FormatReader {
 /**

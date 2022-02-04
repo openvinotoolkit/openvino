@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,6 +6,7 @@ import numpy as np
 from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.transpose import Transpose
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.kaldi.loader.utils import read_binary_integer32_token, read_blob
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -25,7 +26,7 @@ class CopyFrontExtractor(FrontReplacementOp):
         node_name = node.soft_get('name', node.id)
         const_attrs = {
                        'name': node_name + '/indexes',
-                       'value': np.array(weights),
+                       'value': mo_array(weights),
                        'shape': [weights_size],
                        'data_type': np.int32
                       }

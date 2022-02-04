@@ -1,9 +1,9 @@
-# Quantized networks compute and restrictions {#quantized_networks}
+# Quantized networks compute and restrictions {#openvino_docs_ie_plugin_dg_quantized_networks}
 
 One of the feature of Inference Engine is the support of quantized networks with different precisions: INT8, INT4, etc.
 However, it is up to the plugin to define what exact precisions are supported by the particular HW.
 All quantized networks which can be expressed in IR have a unified representation by means of *FakeQuantize* operation. 
-For more details about low-precision model representation please refer to this [document](@ref lp_representation).
+For more details about low-precision model representation please refer to this [document](@ref openvino_docs_ie_plugin_dg_lp_representation).
 
 ### Interpreting FakeQuantize at runtime
 During the model load each plugin can interpret quantization rules expressed in *FakeQuantize* operations:
@@ -46,4 +46,4 @@ Below we define these rules as follows:
 - Non-unified quantization parameters for Eltwise and Concat operations.  
 - Non-quantized network output, i.e. there are no quantization parameters for it.
 
-[qdq_propagation]: ../images/qdq_propagation.png
+[qdq_propagation]: images/qdq_propagation.png

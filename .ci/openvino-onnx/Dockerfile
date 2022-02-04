@@ -28,6 +28,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         autoconf \
         automake \
         build-essential \
+        ninja-build \
         cmake \
         curl \
         git \
@@ -54,22 +55,26 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 COPY . /openvino/
 WORKDIR /openvino/build
 RUN cmake .. \
+    -G Ninja \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-    -DENABLE_VPU=OFF \
+    -DENABLE_INTEL_MYRIAD_COMMON=OFF \
     -DENABLE_INTEL_GNA=OFF \
     -DENABLE_OPENCV=OFF \
     -DENABLE_CPPLINT=OFF \
+    -DENABLE_NCC_STYLE=OFF \
     -DENABLE_TESTS=OFF \
-    -DENABLE_MKL_DNN=ON \
+    -DENABLE_INTEL_CPU=ON \
     -DENABLE_INTEL_GPU=OFF \
     -DENABLE_PROFILING_ITT=OFF \
     -DENABLE_SAMPLES=OFF \
     -DENABLE_PYTHON=ON \
     -DPYTHON_EXECUTABLE=/usr/bin/python3 \
     -DENABLE_OV_ONNX_FRONTEND=ON \
+    -DENABLE_OV_PADDLE_FRONTEND=OFF \
+    -DENABLE_OV_TF_FRONTEND=OFF \
     -DENABLE_OPENVINO_DEBUG=OFF \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist
-RUN make -j $(nproc) install
+RUN ninja install
 
 # Run tests via tox
 WORKDIR /openvino/src/bindings/python

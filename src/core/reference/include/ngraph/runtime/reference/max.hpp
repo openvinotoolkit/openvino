@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,7 @@ namespace runtime {
 namespace reference {
 template <typename T>
 void max(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
-    T minval =
-        std::numeric_limits<T>::has_infinity ? T(-std::numeric_limits<T>::infinity()) : std::numeric_limits<T>::min();
+    T minval = std::numeric_limits<T>::lowest();
 
     constexpr bool dont_keep_dims_in_output = false;
     const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);

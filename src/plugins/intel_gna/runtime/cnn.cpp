@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -186,8 +186,6 @@ void CNNMaxPool2DFloat(intel_dnn_component_t* component) {
 
 } // namespace
 
-#if GNA_LIB_VER == 2
-
 namespace {
 
 bool matchesPaddedArea(unsigned filterIndex, unsigned outputIndex, unsigned inputSize, unsigned paddingSize, unsigned stride) {
@@ -281,8 +279,6 @@ void CNN2DFilter32(intel_dnn_component_t* component) {
         kernelIndex += ALIGN(kh * kw * kc, GNAPluginNS::GNALimitations::convEachKernelByteAlignment / sizeof(float));
     }
 }
-
-#endif
 
 namespace {
 template<class T>

@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import OrderedDict
@@ -173,6 +173,7 @@ class BiasCorrection(Algorithm):
             assigns = ge.get_nodes_by_type(main_node.graph, ['Assign'], recursively=False)
             for node_name in checked_input_names:
                 node = ge.get_node_by_name(main_node.graph, node_name, recursively=False)
+
                 if node.type == 'ReadValue':
                     output_nodes.extend(nu.get_lstm_ends(node, assigns, checked_input_names))
 
@@ -183,13 +184,15 @@ class BiasCorrection(Algorithm):
                 # Jump over Split nodes
                 if node_input_0.type in self._split_types:
                     node_input_0 = nu.get_node_input(node_input_0, 0)
+
+            node_input_0_name = nu.create_node_name(node_input_0)
             if node.type in self._types_with_bias \
                     and (nu.node_with_quantized_weights(node) and not self._apply_for_all_nodes):
                 if node_input_0.fullname not in checked_stat_names:
                     checked_stat_names.append(node_input_0.fullname)
                     checked_input_names.append(node_input_0.fullname)
                     stats_nodes.append(node_input_0)
-                    self._collected_stat_inputs.append(node_input_0.fullname)
+                    self._collected_stat_inputs.append(node_input_0_name)
             elif is_this_branch_node and len(node_parents) > 1:
                 return
             else:
@@ -254,23 +257,28 @@ class BiasCorrection(Algorithm):
 
     @staticmethod
     def _create_parameters_for_input_nodes(input_nodes):
-        outputs_shapes = {n.name: nu.get_output_shape(n, 0).copy() for n in input_nodes}
+        outputs_shapes = {nu.create_node_name(n): nu.get_output_shape(n, 0).copy() for n in input_nodes}
         inputs_data = []
+        param_type = 'Parameter'
         for input_node in input_nodes:
-            c_input_shape = outputs_shapes[input_node.name]
+            input_node_name = nu.create_node_name(input_node)
+            c_input_shape = outputs_shapes[input_node_name]
             c_input_shape[0] = 1
-            parameter_name = input_node.name + '/parameter'
-            param_node = ge.create_node(input_node.graph, parameter_name, 'Parameter',
-                                        {'shape': c_input_shape})
-            for _, port in input_node.out_ports().items():
-                for in_port in port.get_destinations():
-                    in_port.disconnect()
-                    in_port.connect(param_node.out_port(0))
-
+            if input_node.type == param_type:
+                parameter_name = input_node.name
+            else:
+                input_node_data_type = nu.get_node_data_type(input_node)
+                parameter_name = input_node_name + '/parameter'
+                param_node = ge.create_node(input_node.graph, parameter_name, param_type,
+                                            {'shape': c_input_shape, 'data_type': input_node_data_type})
+                for _, port in input_node.out_ports().items():
+                    for in_port in port.get_destinations():
+                        in_port.disconnect()
+                        in_port.connect(param_node.out_port(0))
             inputs_data.append({
-                'param_name': param_node.name,
+                'param_name': parameter_name,
                 'param_shape': tuple(c_input_shape),
-                'input_name': input_node.name
+                'input_name': input_node_name
             })
 
         return inputs_data
@@ -281,6 +289,9 @@ class BiasCorrection(Algorithm):
             output_name = output_node.name
             result_name = output_name + '/result'
             result_node = ge.create_node(output_node.graph, result_name, 'Result', {})
+            for out_node in output_node.out_nodes().values():
+                if 'fw_tensor_debug_info' in out_node:
+                    del out_node['fw_tensor_debug_info']
             result_node.in_port(0).connect(output_node.out_port(0))
             if output_name in self._fp32_statistics:
                 self._fp32_statistics[output_name]['batch_mean_in'] = []
@@ -314,8 +325,8 @@ class BiasCorrection(Algorithm):
         return feed_dicts
 
     def _reshape_model_by_feed_dict(self, feed_dict, model_copy):
-        current_inputs = self._launcher.model.input_info
-        current_shapes = {input_name: tuple(current_inputs[input_name].input_data.shape) for input_name in
+        current_inputs = self._launcher.model.inputs
+        current_shapes = {input_const.get_node().friendly_name: tuple(input_const.partial_shape) for input_const in
                           current_inputs}
         feed_shapes = {input_name: tuple(feed_dict[input_name].shape) for input_name in feed_dict}
         if feed_shapes != current_shapes:
@@ -405,8 +416,9 @@ class BiasCorrection(Algorithm):
                 add_node_name = nu.reset_node_fullname(add_node_name, add_node['orig_node_name'])
             axis = OPERATIONS_CHANNEL_AXIS[node.type]
             self._channel_axis[add_node_name] = axis
-            if node.fullname in biased_after_param_nodes:
-                input_name = biased_after_param_nodes[node.fullname]
+            node_name = node.fullname
+            if node_name in biased_after_param_nodes:
+                input_name = biased_after_param_nodes[node_name]
                 statistics_layout[input_name] = {'batch_mean_param_in': agf.batch_mean}
                 self._collected_stat_inputs.append(input_name)
             statistics_layout[add_node_name] =\
@@ -447,7 +459,8 @@ class BiasCorrection(Algorithm):
             node_children = self.get_node_children(node)
             if node.type in self._types_with_bias:
                 node_input = nu.get_node_input(node, 0)
-                biased_after_param_nodes[node.fullname] = node_input.fullname
+                node_input_name = nu.create_node_name(node_input)
+                biased_after_param_nodes[node.fullname] = node_input_name
                 return
             for node_child in node_children:
                 walk_to_children(node_child, parameter_name)

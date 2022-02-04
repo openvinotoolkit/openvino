@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -91,7 +91,7 @@ class ConvertSlice(MiddleReplacementPattern):
                 steps = node.in_port(4).data.get_value()
                 assert steps is not None, 'The input with steps is not constant for node {}'.format(node_name)
             else:
-                steps = np.ones([axes.size])
+                steps = np.ones([axes.size], dtype=np.int64)
 
             ss_begin_mask = np.zeros(len(input_shape), dtype=np.int64)
             ss_end_mask = np.zeros(len(input_shape), dtype=np.int64)

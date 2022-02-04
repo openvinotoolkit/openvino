@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,10 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/frontend_exceptions.hpp"
-#include "common/telemetry_extension.hpp"
-#include "manager.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "pyopenvino/graph/model.hpp"
 
 namespace py = pybind11;
 
@@ -18,7 +18,7 @@ using namespace ov::frontend;
 
 void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
-    fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
+    fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
 
     fem.def(
         "load",
@@ -41,7 +41,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(InputModel::Ptr) const>(&FrontEnd::convert),
+            static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const InputModel::Ptr&) const>(&FrontEnd::convert),
             py::arg("model"),
             R"(
                 Completely convert and normalize entire function, throws if it is not possible.
@@ -58,7 +58,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<void (FrontEnd::*)(std::shared_ptr<ov::Model>) const>(&FrontEnd::convert),
+            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Model>&) const>(&FrontEnd::convert),
             py::arg("function"),
             R"(
                 Completely convert the remaining, not converted part of a function.
@@ -137,32 +137,30 @@ void regclass_frontend_FrontEnd(py::module m) {
             )");
 
     fem.def("add_extension",
-            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension));
+            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension),
+            R"(
+                Add extension defined by an object inheriting from Extension 
+                used in order to extend capabilities of Frontend.
+
+                Parameters
+                ----------
+                extension : Extension
+                    Provided extension object.
+            )");
+
+    fem.def("add_extension",
+            static_cast<void (FrontEnd::*)(const std::string& extension_path)>(&FrontEnd::add_extension),
+            R"(
+                Add extension defined in external library indicated by a extension_path 
+                used in order to extend capabilities of Frontend.
+
+                Parameters
+                ----------
+                extension_path : str
+                    A path to extension.
+            )");
 
     fem.def("__repr__", [](const FrontEnd& self) -> std::string {
         return "<FrontEnd '" + self.get_name() + "'>";
     });
-}
-
-void regclass_frontend_Extension(py::module m) {
-    py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext(m, "Extension", py::dynamic_attr());
-}
-
-void regclass_frontend_TelemetryExtension(py::module m) {
-    {
-        py::class_<TelemetryExtension, std::shared_ptr<TelemetryExtension>, ov::Extension> ext(m,
-                                                                                               "TelemetryExtension",
-                                                                                               py::dynamic_attr());
-
-        ext.def(py::init([](const std::string& event_category,
-                            const TelemetryExtension::event_callback& send_event,
-                            const TelemetryExtension::error_callback& send_error,
-                            const TelemetryExtension::error_callback& send_stack_trace) {
-            return std::make_shared<TelemetryExtension>(event_category, send_event, send_error, send_stack_trace);
-        }));
-
-        ext.def("send_event", &TelemetryExtension::send_event);
-        ext.def("send_error", &TelemetryExtension::send_error);
-        ext.def("send_stack_trace", &TelemetryExtension::send_stack_trace);
-    }
 }

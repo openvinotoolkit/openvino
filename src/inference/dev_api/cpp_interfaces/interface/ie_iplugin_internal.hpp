@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,6 +83,17 @@ INFERENCE_ENGINE_API_CPP(InputsDataMap) copyInfo(const InputsDataMap& networkInp
  * @return copy of network outputs
  */
 INFERENCE_ENGINE_API_CPP(OutputsDataMap) copyInfo(const OutputsDataMap& networkOutputs);
+
+/**
+ * @brief Set input and output information to executable network. This method is used to
+ * set additional information to InferenceEngine::IExecutableNetworkInternal created by device plugin.
+ * @param exeNetwork Executable network object
+ * @param function Model with initial execution info
+ */
+INFERENCE_ENGINE_API_CPP(void)
+SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                  const std::shared_ptr<const ov::Model>& function,
+                  bool new_api);
 
 /**
  * @interface IInferencePlugin
@@ -314,7 +325,7 @@ protected:
      * @param function Function with initial execution info
      */
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                           const std::shared_ptr<ov::Model>& function);
+                           const std::shared_ptr<const ov::Model>& function);
 
     std::string _pluginName;                     //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values

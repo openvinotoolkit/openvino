@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -81,7 +81,7 @@ class SparseSegmentSum(Op):
             "Some value in indices tensor is out of range"
 
         # infer
-        output_value = np.zeros([num_segments] + data_shape[1:].tolist(), dtype=np.float)
+        output_value = np.zeros([num_segments] + data_shape[1:].tolist(), dtype=np.float32)
         output_shape = output_value.shape
         for i in range(len(segment_ids_value)):
             segment_id = int(segment_ids_value[i])

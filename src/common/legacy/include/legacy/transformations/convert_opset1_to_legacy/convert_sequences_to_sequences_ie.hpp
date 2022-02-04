@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertLSTMSequenceMatcher);
-class INFERENCE_ENGINE_API_CLASS(ConvertGRUSequenceMatcher);
-class INFERENCE_ENGINE_API_CLASS(ConvertRNNSequenceMatcher);
+class ConvertLSTMSequenceMatcher;
+class ConvertGRUSequenceMatcher;
+class ConvertRNNSequenceMatcher;
 
 }  // namespace pass
 }  // namespace ngraph

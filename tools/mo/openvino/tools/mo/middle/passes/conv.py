@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -6,6 +6,7 @@ import logging as log
 import numpy as np
 
 from openvino.tools.mo.front.common.layout import get_batch_dim, get_features_dim
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import add_attrs_props
 from openvino.tools.mo.front.extractor import update_ie_fields
 from openvino.tools.mo.graph.graph import Node, Graph
@@ -98,15 +99,15 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
 
     # Transform values
     weights.value = np.squeeze(weights.value)
-    weights.shape = np.array(weights.value.shape, dtype=np.int64)
+    weights.shape = int64_array(weights.value.shape)
 
     bias.value = np.squeeze(bias.value)
-    bias.shape = np.array(bias.value.shape, dtype=np.int64)
+    bias.shape = int64_array(bias.value.shape)
 
     # Broadcast weights if they are scalar
     if weights.value.ndim == 0 and bias.value.ndim == 1:
-        weights.value = np.full(bias.shape, weights.value.item())
-        weights.shape = np.array(weights.value.shape, dtype=np.int64)
+        weights.value = np.full(bias.shape, weights.value.item(), dtype=weights.value.dtype)
+        weights.shape = int64_array(weights.value.shape)
 
     if bias.shape != weights.shape:
         log.warning('Mul->Add to ScaleShift conversion stopped {} != {}'.format(weights.shape, bias.shape))

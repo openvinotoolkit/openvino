@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,10 +34,9 @@ public:
     DetectionOutputBase() = default;
     DetectionOutputBase(const OutputVector& args);
 
-    void validate_and_infer_types_base(const AttributesBase& attrs, Dimension num_classes);
+    void validate_base(const AttributesBase& attrs);
 
     bool visit_attributes_base(AttributeVisitor& visitor, AttributesBase& attrs);
-
     Dimension compute_num_classes(const AttributesBase& attrs);
 };
 }  // namespace util

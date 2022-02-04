@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.op import Op
@@ -35,7 +34,7 @@ class SharedWeightsDuplication(MiddleReplacementPattern):
                     out_node = Node(graph, v)
                     e_attrs = d
                     graph.remove_edge(node.id, out_node.id)
-                    data = Op.create_input_data_node(graph, "Copy_{}".format(node.id), np.array(node.value),
+                    data = Op.create_input_data_node(graph, "Copy_{}".format(node.id), mo_array(node.value),
                                                      graph.node[node.id])
 
                     graph.add_edges_from([(data.id, out_node.id, e_attrs)])

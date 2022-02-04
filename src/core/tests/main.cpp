@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,6 @@
 #include "gtest/gtest.h"
 #include "ngraph/log.hpp"
 #include "ngraph/ngraph.hpp"
-#include "runtime/backend.hpp"
-#include "runtime/backend_manager.hpp"
 
 using namespace std;
 
@@ -30,8 +28,6 @@ int main(int argc, char** argv) {
             cpath = argv[i];
         }
     }
-    ngraph::runtime::Backend::set_backend_shared_library_search_directory(cpath);
-
     int rc = RUN_ALL_TESTS();
 
     return rc;

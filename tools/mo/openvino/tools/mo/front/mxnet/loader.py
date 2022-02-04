@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -8,6 +8,7 @@ import os
 import mxnet as mx
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import add_outputs_identity
 from openvino.tools.mo.front.mxnet.extractor import common_mxnet_fields
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states, create_mxnet_edge
@@ -92,6 +93,8 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
     else:
         input_names = input_names.split(',')
 
+    graph.inputs_order = input_names
+
     rnn_states = init_rnn_states(model_nodes)
     names_rnn_states = list(rnn_states.keys())
 
@@ -100,11 +103,11 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
     fw_name_map = {}
     for i, node in enumerate(model_nodes):
         if node['name'] in model_params._arg_params and node['name'] not in input_names:
-            node['value'] = np.array(model_params._arg_params[node['name']].asnumpy(), dtype=np.float32)
+            node['value'] = mo_array(model_params._arg_params[node['name']].asnumpy(), dtype=np.float32)
         elif node['name'] in model_params._aux_params and node['name'] not in input_names:
-            node['value'] = np.array(model_params._aux_params[node['name']].asnumpy(), dtype=np.float32)
+            node['value'] = mo_array(model_params._aux_params[node['name']].asnumpy(), dtype=np.float32)
         elif node['name'] in names_rnn_states:
-            node['value'] = np.zeros(rnn_states[node['name']])
+            node['value'] = np.zeros(rnn_states[node['name']], dtype=np.float32)
         node_name = graph.unique_id(node['name'])
         graph.add_node(node_name, **symbol_attrs(node))
         if hasattr(graph, 'op_names_statistic') and 'op' in node:
@@ -123,6 +126,8 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
         used_indices_set = used_indices_set.union(used_indices)
 
     output_ids = [index_node_keys[node_id] for node_id in set(range(len(model_nodes))) - used_indices_set]
+
+    graph.outputs_order = output_ids
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code

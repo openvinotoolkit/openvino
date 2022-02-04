@@ -1,7 +1,7 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "manager.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "ngraph/ngraph.hpp"
 #include "tokenizer.h"
 #include <string>

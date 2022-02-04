@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.kaldi.loader.utils import read_binary_bool_token, read_binary_integer32_token, collect_until_token, \
     read_binary_float_token
@@ -48,7 +49,7 @@ class TdnnComponentFrontExtractor(FrontExtractorOp):
         collect_until_token(pb, b'<RankInOut>')
         rank_in_out = read_binary_integer32_token(pb), read_binary_integer32_token(pb)
 
-        biases = np.array(bias_params) if len(bias_params) != 0 else None
+        biases = mo_array(bias_params) if len(bias_params) != 0 else None
         attrs = {
             'weights': np.reshape(weights, weights_shape),
             'biases': biases,

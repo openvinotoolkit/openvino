@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import numpy as np
 
 from openvino.tools.mo.ops.interpolate import Interpolate
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
@@ -30,7 +29,7 @@ class InterpolateV1ToInterpolate(FrontReplacementPattern):
             interpolate1_name = node.soft_get('name', node.id)
             interpolate4 = create_op_with_const_inputs(graph, Interpolate,
                                                        {
-                                                           2: np.array([1.0, 1.0]),
+                                                           2: mo_array([1.0, 1.0]),
                                                            3: int64_array(node.axes)
                                                        },
                                                        {

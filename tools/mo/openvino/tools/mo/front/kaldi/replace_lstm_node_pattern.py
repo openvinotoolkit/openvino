@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
 from openvino.tools.mo.middle.MakeKaldiConstReshapable import create_const_with_batch_from_input
 from openvino.tools.mo.ops.MatMul import FullyConnected
 from openvino.tools.mo.ops.activation_ops import Tanh, Sigmoid
@@ -188,8 +189,8 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         join_forget_remember_sum.in_port(1).connect(join_remember_candidates_mul.out_port(0))
 
         # (7)Eltwise(sum) -> Clamp
-        join_forget_clamp = create_op_with_const_inputs(graph, Clamp, {1: np.array(-node.clip_value, dtype=np.float32),
-                                                                       2: np.array(node.clip_value, dtype=np.float32)},
+        join_forget_clamp = create_op_with_const_inputs(graph, Clamp, {1: float32_array(-node.clip_value),
+                                                                       2: float32_array(node.clip_value)},
                                                         {'name': 'join_forget_clamp'},
                                                         join_forget_remember_sum)
         #

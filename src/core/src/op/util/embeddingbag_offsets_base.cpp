@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/util/embeddingbag_offsets_base.hpp"
 
+#include "embeddingbag_offsets_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 
@@ -55,16 +56,6 @@ void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
                           get_input_element_type(INDICES),
                           ")");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(INDICES).is_dynamic() || get_input_partial_shape(INDICES).to_shape().size() == 1,
-        "INDICES must be 1D");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(OFFSETS).is_dynamic() || get_input_partial_shape(OFFSETS).to_shape().size() == 1,
-        "OFFSETS must be 1D");
-
     if (get_input_size() >= 4) {
         NODE_VALIDATION_CHECK(this,
                               get_input_element_type(DEFAULT_INDEX) == element::i64 ||
@@ -78,10 +69,6 @@ void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
                               ") must match indices element type (",
                               get_input_element_type(INDICES),
                               ")");
-
-        NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(DEFAULT_INDEX).compatible(PartialShape{}),
-                              "DEFAULT_INDEX must be a scalar");
     }
 
     if (get_input_size() == 5) {
@@ -92,31 +79,18 @@ void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
                               ") must match embedding table element type (",
                               get_input_element_type(EMB_TABLE),
                               ")");
-
-        NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(PER_SAMPLE_WEIGHTS).is_dynamic() ||
-                                  get_input_partial_shape(PER_SAMPLE_WEIGHTS).to_shape().size() == 1,
-                              "PER_SAMPLE_WEIGHTS must be 1D");
-
-        NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(INDICES).compatible(get_input_partial_shape(PER_SAMPLE_WEIGHTS)),
-                              "INDICES and PER_SAMPLE_WEIGHTS shape must be same");
     }
 
     element::Type result_et = get_input_element_type(EMB_TABLE);
 
-    const PartialShape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
-    const PartialShape& offsets_shape = get_input_partial_shape(OFFSETS);
+    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
+    std::vector<PartialShape> input_shapes;
+    for (int i = 0; i < get_input_size(); i++)
+        input_shapes.push_back(get_input_partial_shape(i));
 
-    PartialShape result_shape;
-    if (emb_table_shape.rank().is_static()) {
-        result_shape = emb_table_shape;
-        result_shape[0] = offsets_shape.rank().is_static() ? offsets_shape[0] : Dimension::dynamic();
-    } else {
-        result_shape = PartialShape::dynamic();
-    }
+    shape_infer(this, input_shapes, result_shapes);
 
-    set_output_type(0, result_et, result_shape);
+    set_output_type(0, result_et, result_shapes[0]);
 }
 
 bool ov::op::util::EmbeddingBagOffsetsBase::visit_attributes(AttributeVisitor& visitor) {

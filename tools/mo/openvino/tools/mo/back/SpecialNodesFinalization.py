@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -8,11 +8,12 @@ from collections import defaultdict
 import numpy as np
 
 from openvino.tools.mo.back.pass_separator import BackFinish
-from openvino.tools.mo.ops.tensor_iterator import TensorIterator
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.tensor_iterator import TensorIterator
 from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.runtime_info import RTInfo
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
@@ -86,6 +87,7 @@ class CreateConstNodesReplacement(BackReplacementPattern):
                                            'override_output_shape': node.has_valid('force_shape'),
                                            'force_type': node.soft_get('force_type', None),
                                            'correct_data_type': node.soft_get('correct_data_type', None),
+                                           'rt_info': node.soft_get('rt_info', RTInfo()),
                                            }).create_node()
                 const_node.add_input_port(0)
                 graph.add_edges_from([(const_node_name, node.id, {'out': 0})])

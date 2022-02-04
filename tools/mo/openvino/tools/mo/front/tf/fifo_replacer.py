@@ -1,13 +1,19 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+from collections import defaultdict
 
 import numpy as np
 
-from openvino.tools.mo.ops.parameter import Parameter
-from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph, FrontReplacementPattern
+from openvino.tools.mo.front.extractor import add_input_ops
+from openvino.tools.mo.front.output_cut import OutputCut
+from openvino.tools.mo.front.user_data_repack import UserDataRepack
 from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_precision, SUPPORTED_DATA_TYPES
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.utils.error import Error
 
 
 class FIFOQueue(FrontReplacementSubgraph):
@@ -54,8 +60,10 @@ class FIFOQueue(FrontReplacementSubgraph):
         true_placeholder_shape = match['placeholder'].shape
         placeholder_shape = match['fifo_queue'].shapes[0]
         placeholder_data_type = match['fifo_queue'].types[0]
-        assert true_placeholder_shape.ndim <= 1
-        if true_placeholder_shape.ndim == 1 and len(true_placeholder_shape) > 1:
+        # in case OOB conversion batch_size placeholder shape is not required
+        # so use a shape specified in FIFOQueueV2 shapes list attribute
+        assert true_placeholder_shape is None or true_placeholder_shape.ndim <= 1
+        if true_placeholder_shape is not None and true_placeholder_shape.ndim == 1 and len(true_placeholder_shape) > 1:
             log.warning(
                 'Placeholder \'{}\' got non 0-dimensional shape {} in FIFOQueue pattern. Placeholder will have the '
                 'same shape after folding the pattern instead of {} shape which is original for the network.'
@@ -113,3 +121,52 @@ class QueueDequeueManyV2(FrontReplacementSubgraph):
         graph.remove_node(match['queue_deque'].id)
         graph.remove_node(match['fifo_queue'].id)
 
+
+class FIFOQueueDequeueCut(FrontReplacementPattern):
+    """
+    Cuts FIFOQueue -> QueueDequeue pattern in order to enable Out Of the Box (OOB) usage.
+    Pass runs only if user didn't specify any input names and shapes.
+    This transformation relies on output shapes and types extracted from QueueDequeue node.
+    In the meantime, the transformations FIFOQueue and QueueDequeueManyV2 expects output shapes and types extracted
+    from FIFOQueue node.
+    """
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['cmd_params'].input is None]
+
+    def run_before(self):
+        return [OutputCut]
+
+    def run_after(self):
+        return [UserDataRepack]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        fifo_qd_shapes = defaultdict(list)
+        for node in graph.get_op_nodes():
+            if node.op not in ["QueueDequeue", "QueueDequeueV2"]:
+                continue
+
+            new_inputs = ""
+            fifo_qd_name = node.soft_get('name', node.id)
+            for port_idx, port in node.out_ports().items():
+                if port.disconnected():
+                    continue
+                if not np_data_type_to_precision(node.types[port_idx]) in SUPPORTED_DATA_TYPES:
+                    raise Error("Data type {} is not supported for the"
+                                "node {}".format(node.types[port_idx], fifo_qd_name))
+
+                fifo_qd_shapes[fifo_qd_name].append(dict(
+                    shape=node.shapes[port_idx],
+                    out=port_idx,
+                    data_type=node.types[port_idx]
+                ))
+                new_inputs += "{}:{}, ".format(fifo_qd_name, port_idx)
+
+            log.error(
+                "Found TF {} operation in the model. "
+                "PLEASE NOTE, the model will contain new input(s) ".format(node.op)
+                + new_inputs +
+                "created due to automatically triggered pruning transformation for this operation.",
+                extra={'is_warning': True}
+            )
+
+        add_input_ops(graph, fifo_qd_shapes, True)

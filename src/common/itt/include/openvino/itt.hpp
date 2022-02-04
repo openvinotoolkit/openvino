@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@
 #include <string>
 #include <utility>
 
+/** @ingroup ie_dev_profiling
+  * @brief openvino namespace
+  */
 namespace openvino
 {
     namespace itt

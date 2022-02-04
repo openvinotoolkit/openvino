@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ private:
 
 class OPENVINO_API ModelPass : public PassBase {
 public:
-    OPENVINO_RTTI("ov::pass::FunctionPass");
+    OPENVINO_RTTI("ov::pass::ModelPass");
     ~ModelPass() override;
     OPENVINO_DEPRECATED("run_on_function() method is deprecated. Please use run_on_model() instead.")
     virtual bool run_on_function(std::shared_ptr<ov::Model> m);

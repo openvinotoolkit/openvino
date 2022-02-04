@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 
 #include <sys/stat.h>
 
-#include <ngraph/log.hpp>
+#include <openvino/util/log.hpp>
 #include <string>
 #include <vector>
 
@@ -45,7 +45,7 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
-            {"paddle", "paddlepaddle"},
+            {"paddle", "paddle"},
         };
         auto it = predefined_frontends.find(factory.m_name);
         if (it != predefined_frontends.end()) {
@@ -61,7 +61,6 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
 
 // TODO: change to std::filesystem for C++17
 static std::vector<std::string> list_files(const std::string& path) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<std::string> res;
     try {
         const auto prefix = std::string(FRONTEND_LIB_PREFIX);
@@ -82,7 +81,6 @@ static std::vector<std::string> list_files(const std::string& path) {
         // Ignore exceptions
     }
     return res;
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void ov::frontend::find_plugins(const std::string& dir_name, std::vector<PluginInfo>& res) {
@@ -99,7 +97,7 @@ void ov::frontend::find_plugins(const std::string& dir_name, std::vector<PluginI
             }) == res.end()) {
             res.emplace_back(std::move(plugin_info));
         } else {
-            NGRAPH_DEBUG << "Static frontend for '" << plugin_info.m_file_name << "' is already loaded\n";
+            OPENVINO_DEBUG << "Static frontend for '" << plugin_info.m_file_name << "' is already loaded\n";
         }
     }
 }
@@ -139,27 +137,27 @@ bool PluginInfo::load_internal() {
     try {
         so = ov::util::load_shared_object(m_file_path.c_str());
     } catch (const std::exception& ex) {
-        NGRAPH_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
+        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
         return false;
     }
 
     auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetAPIVersion"));
     if (!info_addr) {
-        NGRAPH_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have API version" << std::endl;
+        OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have API version" << std::endl;
         return false;
     }
     FrontEndVersion plug_info{reinterpret_cast<FrontEndVersion>(info_addr())};
 
     if (plug_info != OV_FRONTEND_API_VERSION) {
         // Plugin has incompatible API version, do not load it
-        NGRAPH_DEBUG << "Loaded FrontEnd [" << m_file_path << "] has incompatible API version" << plug_info
-                     << std::endl;
+        OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] has incompatible API version" << plug_info
+                       << std::endl;
         return false;
     }
 
     auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetFrontEndData"));
     if (!creator_addr) {
-        NGRAPH_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have Frontend Data" << std::endl;
+        OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have Frontend Data" << std::endl;
         return false;
     }
 

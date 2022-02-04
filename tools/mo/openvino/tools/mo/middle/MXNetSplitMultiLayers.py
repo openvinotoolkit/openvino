@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_insert, int64_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -139,7 +140,7 @@ class MXNetSplitLayersToRNNSequence(MiddleReplacementPattern):
             output_hidden = Op._create_data_node(
                 rnn_layer.graph,
                 name=rnn_layer.out_node(1).name + '/LayerSplit/' + str(l),
-                attrs={'shape': np.array(state_size)}
+                attrs={'shape': mo_array(state_size)}
             )
 
             current_data_nodes = [output_data, output_hidden]
@@ -148,7 +149,7 @@ class MXNetSplitLayersToRNNSequence(MiddleReplacementPattern):
                 output_cell = Op._create_data_node(
                     rnn_layer.graph,
                     name=rnn_layer.out_node(2).name + '/LayerSplit/' + str(l),
-                    attrs={'shape': np.array(state_size)}
+                    attrs={'shape': mo_array(state_size)}
                 )
                 current_data_nodes.append(output_cell)
 

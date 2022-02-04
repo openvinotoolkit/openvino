@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,9 @@ ov::Any get_opset(const ngraph::Node::RTMap& rt_info) {
 
 void assign_runtime_info(const ngraph::Node::RTMap& from, ngraph::Node::RTMap& to) {
     auto opset = get_opset(to);
-    to = from;
+    for (auto& item : from) {
+        to[item.first] = item.second;
+    }
     if (!opset.empty()) {
         to["opset"] = opset;
     }
@@ -62,7 +64,6 @@ void assign_runtime_info(const ngraph::Node::RTMap& from, ngraph::Node::RTMap& t
 void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to) {
     auto& attrs = to->get_rt_info();
     auto opset = get_opset(attrs);
-    attrs.clear();
 
     for (const auto& item : from->get_rt_info()) {
         bool copy = item.first != "opset";

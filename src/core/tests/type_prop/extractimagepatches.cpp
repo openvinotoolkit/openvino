@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -163,4 +163,16 @@ TEST(type_prop, extractimagepatches_large_stride_same_padding) {
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
     EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 1, 1}));
+}
+
+TEST(type_prop, extractimagepatches_dyn) {
+    auto data = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto sizes = Shape{3, 3};
+    auto strides = Strides{5, 5};
+    auto rates = Shape{1, 1};
+    auto padtype_padding = op::PadType::VALID;
+    auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
+
+    EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i64);
+    EXPECT_TRUE(extractimagepatches->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 }

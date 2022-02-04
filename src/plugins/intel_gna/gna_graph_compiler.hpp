@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include <vector>
 
 #include <legacy/ie_layers.h>
-#include "descriptions/gna_input_desc.hpp"
+#include "descriptions/gna_desc.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "connection_details.hpp"
 #include "backend/dnn.hpp"
@@ -33,8 +33,8 @@ class GNAGraphCompiler {
 private:
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
-    std::shared_ptr<GNAPluginNS::InputDesc> inputDesc;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
+    std::shared_ptr<GNAPluginNS::GnaInputs> inputs_ptr_;
 
     // layers with extra storage for connections and additional
     // non trivial processing
@@ -60,8 +60,8 @@ public:
 
     void setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr);
     void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);
-    void setInputDescPtr(std::shared_ptr<GNAPluginNS::InputDesc> inputDescPtr);
     void setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr);
+    void setInputsPtr(std::shared_ptr<GNAPluginNS::GnaInputs> inputsPtr);
 
     void fillMemoryConnections(std::unordered_map<std::string,
             std::vector<InferenceEngine::CNNLayerPtr>> &memoryPairs);
@@ -128,12 +128,11 @@ public:
 
     void finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_width,
-        uint32_t out_batch, uint32_t out_channels, uint32_t out_width);
-#if GNA_LIB_VER == 2
+        uint32_t out_batch, uint32_t out_channels, uint32_t out_width,
+        uint32_t in_kernel_x, uint32_t in_kernel_y, bool transpose);
     void finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,
         uint32_t out_batch, uint32_t out_channels, uint32_t out_height, uint32_t out_width);
-#endif
 
     void Reset();
 };

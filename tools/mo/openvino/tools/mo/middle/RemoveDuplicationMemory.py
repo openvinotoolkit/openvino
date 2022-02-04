@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.crop import Crop
@@ -48,8 +47,8 @@ class RemoveMemoryDuplicationPattern(MiddleReplacementPattern):
                         child_of_child.disconnect()
                         crop_node = Crop(graph, {'name': graph.unique_id(prefix='Splice_crop_'),
                                                  'offset': (left_cont_out - left_cont) * mem_shape[-1],
-                                                 'dim': np.array([len(child['context']) * mem_shape[-1]]),
-                                                 'axis': np.array([-1])}).create_node()
+                                                 'dim': mo_array([len(child['context']) * mem_shape[-1]]),
+                                                 'axis': mo_array([-1])}).create_node()
                         child.out_port(0).connect(crop_node.in_port(0))
                         crop_node.out_port(0).connect(child_of_child)
                         crop_node.out_port(0).data.set_shape(child.out_port(0).data.get_shape())
@@ -116,8 +115,8 @@ class MergeNeighborSplicePattern(MiddleReplacementPattern):
                         # insert Crop if we have not one
                         crop_node = Crop(graph, {'name': graph.unique_id(prefix='Splice_crop_'),
                                                  'offset': (len(new_context) - len(rem_node.context)) * mem_shape[-1],
-                                                 'dim': np.array([len(rem_node['context']) * mem_shape[-1]]),
-                                                 'axis': np.array([-1])}).create_node()
+                                                 'dim': mo_array([len(rem_node['context']) * mem_shape[-1]]),
+                                                 'axis': mo_array([-1])}).create_node()
                         new_node.out_port(0).connect(crop_node.in_port(0))
                         crop_node.out_port(0).connect(out_port_rem)
                         crop_node.out_port(0).data.set_shape(out_transfer_shape)
@@ -129,9 +128,9 @@ class MergeNeighborSplicePattern(MiddleReplacementPattern):
                     if out_transfer['op'] != 'Crop':
                         # insert Crop if we have not one
                         crop_node = Crop(graph, {'name': graph.unique_id(prefix='Splice_crop_'),
-                                                 'offset': np.array([0]),
-                                                 'dim': np.array([len(new_node['context']) * mem_shape[-1]]),
-                                                 'axis': np.array([-1])}).create_node()
+                                                 'offset': mo_array([0]),
+                                                 'dim': mo_array([len(new_node['context']) * mem_shape[-1]]),
+                                                 'axis': mo_array([-1])}).create_node()
                         new_node.out_port(0).connect(crop_node.in_port(0))
                         out_port_rem.disconnect()
                         crop_node.out_port(0).connect(out_port_rem)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +32,10 @@
 // TODO: remove this pass usage
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
+#include <transformations/common_optimizations/dimension_tracking.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
+#include <transformations/disable_decompression_convert_constant_folding.hpp>
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
@@ -117,7 +119,8 @@ ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_
     if (input) {
         return ngraph_type == ngraph::element::f16 ? ngraph::element::f32 : ngraph_type;
     } else {
-        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::i32) {
+        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::u64 ||
+            ngraph_type == ngraph::element::i32 || ngraph_type == ngraph::element::u32) {
             return ngraph::element::i32;
         } else if (ngraph_type != ngraph::element::f32) {
             return ngraph::element::f32;
@@ -438,9 +441,10 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
                 manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
-                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
+                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(false);
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
+                manager.register_pass<::ov::pass::DisableDecompressionConvertConstantFolding>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();
                 // OneHotToLegacy changes output precision
                 manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(

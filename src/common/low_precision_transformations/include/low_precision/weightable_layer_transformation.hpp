@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,11 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransformation{
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief WeightableLayerTransformation is base type for weightable operation transformation.
+ */
+class LP_TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransformation {
 public:
     WeightableLayerTransformation(const Params& params);
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
@@ -32,6 +36,7 @@ protected:
     bool decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& weightableLayer, size_t outChannelsShapeIndex = 0ul) const;
     static bool isGroup(const std::shared_ptr<Node>& node);
     static bool isDepthwise(const std::shared_ptr<Node>& node);
+    virtual size_t getInputChannels(const std::shared_ptr<ngraph::Node> conv) const = 0;
 
 public:
     static std::shared_ptr<opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);

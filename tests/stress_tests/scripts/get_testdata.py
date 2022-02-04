@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Script to acquire model IRs for stress tests.
@@ -148,7 +148,6 @@ def main():
         requirements = [
             args.mo_tool.parents[3] / "requirements.txt",
             omz_path / "tools" / "model_tools" / "requirements.in",
-            omz_path / "tools" / "model_tools" / "requirements-caffe2.in",
             omz_path / "tools" / "model_tools" / "requirements-pytorch.in"
         ]
         Venv.create_n_install_requirements(*requirements)

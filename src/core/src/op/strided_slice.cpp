@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "strided_slice_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -132,24 +133,6 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     });
     NODE_VALIDATION_CHECK(this, are_attr_sizes_eq, "All masks of StridedSlice must have the same size");
 
-    const auto& data_rank = get_input_partial_shape(0).rank();
-    const auto& begin_shape = get_input_partial_shape(1);
-    if (begin_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              begin_shape.rank().get_length() == 1,
-                              "Begin input must be 1D (begin rank: ",
-                              begin_shape.rank(),
-                              ").");
-    }
-    const auto& end_shape = get_input_partial_shape(2);
-    if (end_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              end_shape.rank().get_length() == 1,
-                              "End input must be 1D (end rank: ",
-                              end_shape.rank(),
-                              ").");
-    }
-
     // Fill up strides input with default strides if not set by this point.
     if (get_input_size() < 4) {
         set_argument(3, calculate_default_strides(get_input_node_ptr(1)->output(0), get_input_node_ptr(2)->output(0)));
@@ -159,26 +142,15 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    auto begin_const = get_constant_from_source(input_value(1));
-    auto end_const = get_constant_from_source(input_value(2));
-    auto strides = get_constant_from_source(input_value(3));
-
-    if (begin_const && end_const && strides) {
-        set_output_type(0,
-                        get_input_element_type(0),
-                        infer_slice_shape(this,
-                                          get_input_partial_shape(0),
-                                          begin_const->cast_vector<int64_t>(),
-                                          end_const->cast_vector<int64_t>(),
-                                          strides->cast_vector<int64_t>(),
-                                          convert_mask_to_axis_set(get_begin_mask()),
-                                          convert_mask_to_axis_set(get_end_mask()),
-                                          convert_mask_to_axis_set(get_new_axis_mask()),
-                                          convert_mask_to_axis_set(get_shrink_axis_mask()),
-                                          convert_mask_to_axis_set(get_ellipsis_mask())));
-    } else {
-        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(data_rank));
+    std::vector<ov::PartialShape> input_shapes;
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
+    for (size_t input_idx = 0; input_idx < get_input_size(); ++input_idx) {
+        input_shapes.push_back(get_input_partial_shape(input_idx));
     }
+
+    shape_infer(this, input_shapes, output_shapes);
+
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 AxisSet op::v1::StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t>& mask) const {
@@ -269,16 +241,29 @@ bool op::v1::StridedSlice::has_evaluate() const {
     return get_input_size() == 4;
 }
 
+namespace {
+bool strided_slice_input_check(const ov::Node* node) {
+    if (!node->get_input_tensor(1).has_and_set_bound() || !node->get_input_tensor(2).has_and_set_bound() ||
+        !node->get_input_tensor(3).has_and_set_bound())
+        return false;
+    return true;
+}
+}  // namespace
+
 bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound() ||
-        !input_value(3).get_tensor().has_and_set_bound())
+    if (!strided_slice_input_check(this))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound() ||
-        !input_value(3).get_tensor().has_and_set_bound())
+    if (!strided_slice_input_check(this))
         return false;
     return default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::StridedSlice::evaluate_label(TensorLabelVector& output_labels) const {
+    if (!strided_slice_input_check(this))
+        return false;
+    return default_label_evaluator(this, output_labels);
 }

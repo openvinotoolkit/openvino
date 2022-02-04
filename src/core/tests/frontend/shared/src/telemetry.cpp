@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "telemetry.hpp"
 
-#include <common/telemetry_extension.hpp>
-
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;

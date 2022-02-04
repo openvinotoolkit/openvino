@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from openvino.tools.mo.front.tf.common import tf_data_type_decode
 from openvino.tools.mo.utils.error import Error
@@ -16,7 +17,7 @@ def tf_tensor_shape(pb):
 
 
 def tf_int_list(pb):
-    return np.array(pb.i, dtype=np.int64)
+    return int64_array(pb.i)
 
 
 def tf_dtype_extractor(pb_dtype, default=None):
@@ -59,17 +60,17 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
     decode_err_msg = 'Failed to parse a tensor with Unicode characters. Note that Inference Engine does not support ' \
                      'string literals, so the string constant should be eliminated from the graph.'
     if pb_tensor.tensor_content:
-        value = np.array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))
+        value = mo_array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))
     else:
         # load typed value
         if type_helper[0] != np.str:
-            value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
+            value = mo_array(type_helper[1](pb_tensor), dtype=type_helper[0])
         else:
             try:
-                value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
+                value = mo_array(type_helper[1](pb_tensor), dtype=type_helper[0])
             except UnicodeDecodeError:
                 log.error(decode_err_msg, extra={'is_warning': True})
-                value = np.array(type_helper[1](pb_tensor))
+                value = mo_array(type_helper[1](pb_tensor))
 
     # Ignore an empty value, if len(shape) > 1
     # For example, value = [] and shape = [1, 1, 0]
@@ -85,10 +86,10 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
         if value_length == 1:
             # return scalar if shape is [] otherwise broadcast according to shape
             try:
-                return np.array(value[0], dtype=type_helper[0])
+                return mo_array(value[0], dtype=type_helper[0])
             except UnicodeDecodeError:
                 log.error(decode_err_msg, extra={'is_warning': True})
-                return np.array(value[0])
+                return mo_array(value[0])
         else:
             # no shape, return value as is
             return value

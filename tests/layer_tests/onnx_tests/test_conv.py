@@ -1,12 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import os
 
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -16,7 +15,8 @@ class TestConv(OnnxRuntimeLayerTest):
             inputs_dict[input] = np.random.randn(*inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
-    def create_net(self, shape, weights_shape, dilations, group, pads, strides, bias, ir_version, auto_pad=None):
+    def create_net(self, shape, weights_shape, dilations, group, pads, strides, bias, ir_version,
+                   auto_pad=None):
         """
             ONNX net                    IR net
 
@@ -119,7 +119,8 @@ class TestConv(OnnxRuntimeLayerTest):
                 nodes_attributes = {
                     'input': {'kind': 'op', 'type': 'Parameter'},
                     'input_data': {'shape': shape, 'kind': 'data'},
-                    'before_shape_const_indata': {'shape': [len(input_shape)], 'value': input_shape, 'kind': 'data'},
+                    'before_shape_const_indata': {'shape': [len(input_shape)], 'value': input_shape,
+                                                  'kind': 'data'},
                     'before_shape_const': {'kind': 'op', 'type': 'Const'},
                     'before_shape_const_data': {'shape': [len(input_shape)], 'kind': 'data'},
                     'reshape_before': {'kind': 'op', 'type': 'Reshape'},
@@ -127,11 +128,13 @@ class TestConv(OnnxRuntimeLayerTest):
                     'kernel_indata': {'kind': 'data', 'shape': [len(weights_const.flatten())]},
                     'kernel': {'kind': 'op', 'type': 'Const'},
                     'kernel_data': {'kind': 'data', 'value': None},
-                    'node': {'kind': 'op', 'type': 'Convolution' if group == 1 else 'GroupConvolution',
+                    'node': {'kind': 'op',
+                             'type': 'Convolution' if group == 1 else 'GroupConvolution',
                              'dilations': [1, dilations[0]],
                              'pads_begin': [0, _pads[0, 0]], 'pads_end': [0, _pads[1, 0]]},
                     'node_data': {'shape': node_shape, 'kind': 'data'},
-                    'after_shape_const_indata': {'shape': [len(output_shape)], 'value': output_shape, 'kind': 'data'},
+                    'after_shape_const_indata': {'shape': [len(output_shape)],
+                                                 'value': output_shape, 'kind': 'data'},
                     'after_shape_const': {'kind': 'op', 'type': 'Const'},
                     'after_shape_const_data': {'shape': [len(output_shape)], 'kind': 'data'},
                     'reshape_after': {'kind': 'op', 'type': 'Reshape'},
@@ -154,11 +157,12 @@ class TestConv(OnnxRuntimeLayerTest):
                          ('after_shape_const_data', 'reshape_after'),
                          ('reshape_after', 'reshape_after_data')]
                 if bias:
-                    nodes_attributes.update({'const_indata': {'kind': 'data', 'value': bias_const.flatten()},
-                                             'const': {'kind': 'op', 'type': 'Const'},
-                                             'const_data': {'kind': 'data', 'shape': None},
-                                             'bias': {'type': 'Add', 'kind': 'op'},
-                                             'bias_data': {'kind': 'data', 'shape': output_shape}})
+                    nodes_attributes.update(
+                        {'const_indata': {'kind': 'data', 'value': bias_const.flatten()},
+                         'const': {'kind': 'op', 'type': 'Const'},
+                         'const_data': {'kind': 'data', 'shape': None},
+                         'bias': {'type': 'Add', 'kind': 'op'},
+                         'bias_data': {'kind': 'data', 'shape': output_shape}})
                     edges += [('reshape_after_data', 'bias'),
                               ('const_indata', 'const'),
                               ('const', 'const_data'),
@@ -178,8 +182,10 @@ class TestConv(OnnxRuntimeLayerTest):
                     'kernel_indata': {'kind': 'data', 'value': weights_const.flatten()},
                     'kernel': {'kind': 'op', 'type': 'Const'},
                     'kernel_data': {'kind': 'data', 'shape': _weights_shape},
-                    'node': {'kind': 'op', 'type': 'Convolution' if group == 1 else 'GroupConvolution',
-                             'dilations': dilations, 'pads_begin': _pads[0, :], 'pads_end': _pads[1, :]},
+                    'node': {'kind': 'op',
+                             'type': 'Convolution' if group == 1 else 'GroupConvolution',
+                             'dilations': dilations, 'pads_begin': _pads[0, :],
+                             'pads_end': _pads[1, :]},
                     'node_data': {'shape': output_shape, 'kind': 'data'},
                     'result': {'kind': 'op', 'type': 'Result'}}
                 edges = [('input', 'input_data'),
@@ -190,11 +196,12 @@ class TestConv(OnnxRuntimeLayerTest):
                          ('node', 'node_data')]
 
                 if bias:
-                    nodes_attributes.update({'const_indata': {'kind': 'data', 'value': bias_const.flatten()},
-                                             'const': {'kind': 'op', 'type': 'Const'},
-                                             'const_data': {'kind': 'data', 'shape': None},
-                                             'bias': {'type': 'Add', 'kind': 'op'},
-                                             'bias_data': {'kind': 'data', 'shape': output_shape}})
+                    nodes_attributes.update(
+                        {'const_indata': {'kind': 'data', 'value': bias_const.flatten()},
+                         'const': {'kind': 'op', 'type': 'Const'},
+                         'const_data': {'kind': 'data', 'shape': None},
+                         'bias': {'type': 'Add', 'kind': 'op'},
+                         'bias_data': {'kind': 'data', 'shape': output_shape}})
                     edges += [('node_data', 'bias'),
                               ('const_indata', 'const'),
                               ('const', 'const_data'),
@@ -243,42 +250,78 @@ class TestConv(OnnxRuntimeLayerTest):
         dict(weights_shape=[3, 1, 3, 5], group=3)]
 
     test_data_4D_autopad = [
-        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[1, 1, 1, 1], strides=[1, 1], dilations=[1, 1]),
-        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[2, 2, 2, 2], strides=[1, 1], dilations=[2, 2]),
-        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[3, 5, 3, 5], strides=[1, 1], dilations=[3, 5]),
-        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[1, 1, 1, 1], strides=[2, 2], dilations=[1, 1]),
-        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[2, 2, 2, 2], strides=[2, 2], dilations=[2, 2]),
-        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[3, 5, 3, 5], strides=[2, 2], dilations=[3, 5]),
-        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[1, 0, 1, 0], strides=[3, 5], dilations=[1, 1]),
-        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[2, 0, 2, 0], strides=[3, 5], dilations=[2, 2]),
-        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[3, 3, 3, 3], strides=[3, 5], dilations=[3, 5]),
-        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[2, 1, 2, 1], strides=[1, 1], dilations=[1, 1]),
-        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[4, 2, 4, 2], strides=[1, 1], dilations=[2, 2]),
-        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[6, 5, 6, 5], strides=[1, 1], dilations=[3, 5]),
-        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[2, 1, 2, 1], strides=[2, 2], dilations=[1, 1]),
-        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[4, 2, 4, 2], strides=[2, 2], dilations=[2, 2]),
-        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[6, 5, 6, 5], strides=[2, 2], dilations=[3, 5]),
-        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[2, 0, 2, 0], strides=[3, 5], dilations=[1, 1]),
-        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[4, 0, 4, 0], strides=[3, 5], dilations=[2, 2]),
-        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[6, 3, 6, 3], strides=[3, 5], dilations=[3, 5]),
-        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[1, 1, 1, 1], strides=[1, 1], dilations=[1, 1]),
-        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[2, 2, 2, 2], strides=[1, 1], dilations=[2, 2]),
-        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[3, 5, 3, 5], strides=[1, 1], dilations=[3, 5]),
-        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[1, 1, 1, 1], strides=[2, 2], dilations=[1, 1]),
-        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[2, 2, 2, 2], strides=[2, 2], dilations=[2, 2]),
-        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[3, 5, 3, 5], strides=[2, 2], dilations=[3, 5]),
-        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[1, 0, 1, 0], strides=[3, 5], dilations=[1, 1]),
-        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[2, 0, 2, 0], strides=[3, 5], dilations=[2, 2]),
-        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[3, 3, 3, 3], strides=[3, 5], dilations=[3, 5]),
-        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[1, 2, 1, 2], strides=[1, 1], dilations=[1, 1]),
-        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[2, 4, 2, 4], strides=[1, 1], dilations=[2, 2]),
-        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[3, 10, 3, 10], strides=[1, 1], dilations=[3, 5]),
-        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[1, 2, 1, 2], strides=[2, 2], dilations=[1, 1]),
-        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[2, 4, 2, 4], strides=[2, 2], dilations=[2, 2]),
-        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[3, 10, 3, 10], strides=[2, 2], dilations=[3, 5]),
-        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[1, 0, 1, 0], strides=[3, 5], dilations=[1, 1]),
-        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[2, 2, 2, 2], strides=[3, 5], dilations=[2, 2]),
-        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[3, 8, 3, 8], strides=[3, 5], dilations=[3, 5])]
+        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[1, 1, 1, 1], strides=[1, 1],
+             dilations=[1, 1]),
+        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[2, 2, 2, 2], strides=[1, 1],
+             dilations=[2, 2]),
+        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[3, 5, 3, 5], strides=[1, 1],
+             dilations=[3, 5]),
+        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[1, 1, 1, 1], strides=[2, 2],
+             dilations=[1, 1]),
+        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[2, 2, 2, 2], strides=[2, 2],
+             dilations=[2, 2]),
+        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[3, 5, 3, 5], strides=[2, 2],
+             dilations=[3, 5]),
+        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[1, 0, 1, 0], strides=[3, 5],
+             dilations=[1, 1]),
+        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[2, 0, 2, 0], strides=[3, 5],
+             dilations=[2, 2]),
+        dict(weights_shape=[1, 3, 3, 3], group=1, pads=[3, 3, 3, 3], strides=[3, 5],
+             dilations=[3, 5]),
+        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[2, 1, 2, 1], strides=[1, 1],
+             dilations=[1, 1]),
+        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[4, 2, 4, 2], strides=[1, 1],
+             dilations=[2, 2]),
+        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[6, 5, 6, 5], strides=[1, 1],
+             dilations=[3, 5]),
+        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[2, 1, 2, 1], strides=[2, 2],
+             dilations=[1, 1]),
+        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[4, 2, 4, 2], strides=[2, 2],
+             dilations=[2, 2]),
+        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[6, 5, 6, 5], strides=[2, 2],
+             dilations=[3, 5]),
+        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[2, 0, 2, 0], strides=[3, 5],
+             dilations=[1, 1]),
+        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[4, 0, 4, 0], strides=[3, 5],
+             dilations=[2, 2]),
+        dict(weights_shape=[1, 3, 5, 3], group=1, pads=[6, 3, 6, 3], strides=[3, 5],
+             dilations=[3, 5]),
+        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[1, 1, 1, 1], strides=[1, 1],
+             dilations=[1, 1]),
+        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[2, 2, 2, 2], strides=[1, 1],
+             dilations=[2, 2]),
+        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[3, 5, 3, 5], strides=[1, 1],
+             dilations=[3, 5]),
+        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[1, 1, 1, 1], strides=[2, 2],
+             dilations=[1, 1]),
+        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[2, 2, 2, 2], strides=[2, 2],
+             dilations=[2, 2]),
+        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[3, 5, 3, 5], strides=[2, 2],
+             dilations=[3, 5]),
+        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[1, 0, 1, 0], strides=[3, 5],
+             dilations=[1, 1]),
+        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[2, 0, 2, 0], strides=[3, 5],
+             dilations=[2, 2]),
+        dict(weights_shape=[3, 1, 3, 3], group=3, pads=[3, 3, 3, 3], strides=[3, 5],
+             dilations=[3, 5]),
+        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[1, 2, 1, 2], strides=[1, 1],
+             dilations=[1, 1]),
+        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[2, 4, 2, 4], strides=[1, 1],
+             dilations=[2, 2]),
+        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[3, 10, 3, 10], strides=[1, 1],
+             dilations=[3, 5]),
+        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[1, 2, 1, 2], strides=[2, 2],
+             dilations=[1, 1]),
+        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[2, 4, 2, 4], strides=[2, 2],
+             dilations=[2, 2]),
+        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[3, 10, 3, 10], strides=[2, 2],
+             dilations=[3, 5]),
+        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[1, 0, 1, 0], strides=[3, 5],
+             dilations=[1, 1]),
+        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[2, 2, 2, 2], strides=[3, 5],
+             dilations=[2, 2]),
+        dict(weights_shape=[3, 1, 3, 5], group=3, pads=[3, 8, 3, 8], strides=[3, 5],
+             dilations=[3, 5])]
 
     test_data_5D_precommit = [
         dict(weights_shape=[1, 3, 3, 3, 3], group=1),
@@ -291,42 +334,78 @@ class TestConv(OnnxRuntimeLayerTest):
         dict(weights_shape=[3, 1, 5, 4, 3], group=3)]
 
     test_data_5D_autopad = [
-        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[1, 1, 1, 1, 1, 1], strides=[1, 1, 1], dilations=[1, 1, 1]),
-        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[2, 2, 2, 2, 2, 2], strides=[1, 1, 1], dilations=[2, 2, 2]),
-        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[3, 4, 5, 3, 4, 5], strides=[1, 1, 1], dilations=[3, 4, 5]),
-        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[1, 1, 1, 1, 1, 1], strides=[2, 2, 2], dilations=[1, 1, 1]),
-        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[2, 2, 2, 2, 2, 2], strides=[2, 2, 2], dilations=[2, 2, 2]),
-        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[3, 4, 5, 3, 4, 5], strides=[2, 2, 2], dilations=[3, 4, 5]),
-        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[1, 1, 0, 1, 1, 0], strides=[3, 4, 5], dilations=[1, 1, 1]),
-        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[2, 2, 0, 2, 2, 0], strides=[3, 4, 5], dilations=[2, 2, 2]),
-        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[3, 4, 3, 3, 4, 3], strides=[3, 4, 5], dilations=[3, 4, 5]),
-        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[1, 1, 2, 1, 2, 2], strides=[1, 1, 1], dilations=[1, 1, 1]),
-        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[2, 3, 4, 2, 3, 4], strides=[1, 1, 1], dilations=[2, 2, 2]),
-        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[3, 6, 10, 3, 6, 10], strides=[1, 1, 1], dilations=[3, 4, 5]),
-        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[1, 1, 2, 1, 2, 2], strides=[2, 2, 2], dilations=[1, 1, 1]),
-        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[2, 3, 4, 2, 3, 4], strides=[2, 2, 2], dilations=[2, 2, 2]),
-        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[3, 6, 10, 3, 6, 10], strides=[2, 2, 2], dilations=[3, 4, 5]),
-        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[1, 1, 0, 1, 2, 0], strides=[3, 4, 5], dilations=[1, 1, 1]),
-        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[2, 3, 2, 2, 3, 2], strides=[3, 4, 5], dilations=[2, 2, 2]),
-        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[3, 6, 8, 3, 6, 8], strides=[3, 4, 5], dilations=[3, 4, 5]),
-        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[1, 1, 1, 1, 1, 1], strides=[1, 1, 1], dilations=[1, 1, 1]),
-        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[2, 2, 2, 2, 2, 2], strides=[1, 1, 1], dilations=[2, 2, 2]),
-        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[3, 4, 5, 3, 4, 5], strides=[1, 1, 1], dilations=[3, 4, 5]),
-        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[1, 1, 1, 1, 1, 1], strides=[2, 2, 2], dilations=[1, 1, 1]),
-        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[2, 2, 2, 2, 2, 2], strides=[2, 2, 2], dilations=[2, 2, 2]),
-        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[3, 4, 5, 3, 4, 5], strides=[2, 2, 2], dilations=[3, 4, 5]),
-        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[1, 1, 0, 1, 1, 0], strides=[3, 4, 5], dilations=[1, 1, 1]),
-        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[2, 2, 0, 2, 2, 0], strides=[3, 4, 5], dilations=[2, 2, 2]),
-        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[3, 4, 3, 3, 4, 3], strides=[3, 4, 5], dilations=[3, 4, 5]),
-        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[2, 1, 1, 2, 2, 1], strides=[1, 1, 1], dilations=[1, 1, 1]),
-        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[4, 3, 2, 4, 3, 2], strides=[1, 1, 1], dilations=[2, 2, 2]),
-        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[6, 6, 5, 6, 6, 5], strides=[1, 1, 1], dilations=[3, 4, 5]),
-        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[2, 1, 1, 2, 2, 1], strides=[2, 2, 2], dilations=[1, 1, 1]),
-        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[4, 3, 2, 4, 3, 2], strides=[2, 2, 2], dilations=[2, 2, 2]),
-        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[6, 6, 5, 6, 6, 5], strides=[2, 2, 2], dilations=[3, 4, 5]),
-        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[2, 1, 0, 2, 2, 0], strides=[3, 4, 5], dilations=[1, 1, 1]),
-        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[4, 3, 0, 4, 3, 0], strides=[3, 4, 5], dilations=[2, 2, 2]),
-        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[6, 6, 3, 6, 6, 3], strides=[3, 4, 5], dilations=[3, 4, 5])]
+        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[1, 1, 1, 1, 1, 1], strides=[1, 1, 1],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[2, 2, 2, 2, 2, 2], strides=[1, 1, 1],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[3, 4, 5, 3, 4, 5], strides=[1, 1, 1],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[1, 1, 1, 1, 1, 1], strides=[2, 2, 2],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[2, 2, 2, 2, 2, 2], strides=[2, 2, 2],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[3, 4, 5, 3, 4, 5], strides=[2, 2, 2],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[1, 1, 0, 1, 1, 0], strides=[3, 4, 5],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[2, 2, 0, 2, 2, 0], strides=[3, 4, 5],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[1, 3, 3, 3, 3], group=1, pads=[3, 4, 3, 3, 4, 3], strides=[3, 4, 5],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[1, 1, 2, 1, 2, 2], strides=[1, 1, 1],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[2, 3, 4, 2, 3, 4], strides=[1, 1, 1],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[3, 6, 10, 3, 6, 10], strides=[1, 1, 1],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[1, 1, 2, 1, 2, 2], strides=[2, 2, 2],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[2, 3, 4, 2, 3, 4], strides=[2, 2, 2],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[3, 6, 10, 3, 6, 10], strides=[2, 2, 2],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[1, 1, 0, 1, 2, 0], strides=[3, 4, 5],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[2, 3, 2, 2, 3, 2], strides=[3, 4, 5],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[1, 3, 3, 4, 5], group=1, pads=[3, 6, 8, 3, 6, 8], strides=[3, 4, 5],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[1, 1, 1, 1, 1, 1], strides=[1, 1, 1],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[2, 2, 2, 2, 2, 2], strides=[1, 1, 1],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[3, 4, 5, 3, 4, 5], strides=[1, 1, 1],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[1, 1, 1, 1, 1, 1], strides=[2, 2, 2],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[2, 2, 2, 2, 2, 2], strides=[2, 2, 2],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[3, 4, 5, 3, 4, 5], strides=[2, 2, 2],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[1, 1, 0, 1, 1, 0], strides=[3, 4, 5],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[2, 2, 0, 2, 2, 0], strides=[3, 4, 5],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[3, 1, 3, 3, 3], group=3, pads=[3, 4, 3, 3, 4, 3], strides=[3, 4, 5],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[2, 1, 1, 2, 2, 1], strides=[1, 1, 1],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[4, 3, 2, 4, 3, 2], strides=[1, 1, 1],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[6, 6, 5, 6, 6, 5], strides=[1, 1, 1],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[2, 1, 1, 2, 2, 1], strides=[2, 2, 2],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[4, 3, 2, 4, 3, 2], strides=[2, 2, 2],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[6, 6, 5, 6, 6, 5], strides=[2, 2, 2],
+             dilations=[3, 4, 5]),
+        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[2, 1, 0, 2, 2, 0], strides=[3, 4, 5],
+             dilations=[1, 1, 1]),
+        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[4, 3, 0, 4, 3, 0], strides=[3, 4, 5],
+             dilations=[2, 2, 2]),
+        dict(weights_shape=[3, 1, 5, 4, 3], group=3, pads=[6, 6, 3, 6, 6, 3], strides=[3, 4, 5],
+             dilations=[3, 4, 5])]
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.parametrize("dilations", [[1], [2]])
@@ -334,19 +413,23 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("strides", [[1], [2]])
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.nightly
-    def test_conv_3D(self, params, dilations, pads, strides, bias, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, shape=[2, 3, 25], dilations=dilations, pads=pads, strides=strides,
+    def test_conv_3D(self, params, dilations, pads, strides, bias, ie_device, precision, ir_version,
+                     temp_dir, api_2):
+        self._test(*self.create_net(**params, shape=[2, 3, 25], dilations=dilations, pads=pads,
+                                    strides=strides,
                                     bias=bias, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_3D_autopad[:-1])
     @pytest.mark.parametrize("auto_pad", ['SAME_UPPER', 'SAME_LOWER'])
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.nightly
     @pytest.mark.xfail(reason='autopad dimetions do not agree with framework')
-    def test_conv_3D_autopad(self, params, auto_pad, bias, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, shape=[2, 3, 25], bias=bias, auto_pad=auto_pad, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_conv_3D_autopad(self, params, auto_pad, bias, ie_device, precision, ir_version,
+                             temp_dir, api_2):
+        self._test(*self.create_net(**params, shape=[2, 3, 25], bias=bias, auto_pad=auto_pad,
+                                    ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.parametrize("dilations", [[3, 5]])
@@ -355,10 +438,11 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.precommit
     def test_conv_4D_precommit(self, params, dilations, pads, strides, bias, ie_device, precision,
-                               ir_version, temp_dir):
-        self._test(*self.create_net(**params, shape=[2, 3, 25, 25],  dilations=dilations, pads=pads, strides=strides,
+                               ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, shape=[2, 3, 25, 25], dilations=dilations, pads=pads,
+                                    strides=strides,
                                     bias=bias, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.parametrize("dilations", [[1, 1], [2, 2], [3, 5]])
@@ -366,19 +450,24 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("strides", [[1, 1], [2, 2], [3, 5]])
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.nightly
-    def test_conv_4D(self, params, dilations, pads, strides, bias, ie_device, precision, ir_version, temp_dir):
+    def test_conv_4D(self, params, dilations, pads, strides, bias, ie_device, precision, ir_version,
+                     temp_dir, api_2):
         self._test(
-            *self.create_net(**params, shape=[2, 3, 25, 25], dilations=dilations, pads=pads, strides=strides, bias=bias,
-                             ir_version=ir_version), ie_device, precision, ir_version, temp_dir=temp_dir)
+            *self.create_net(**params, shape=[2, 3, 25, 25], dilations=dilations, pads=pads,
+                             strides=strides, bias=bias,
+                             ir_version=ir_version), ie_device, precision, ir_version,
+            temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D_autopad[:-1])
     @pytest.mark.parametrize("auto_pad", ['SAME_UPPER', 'SAME_LOWER'])
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.nightly
     @pytest.mark.xfail(reason='autopad dimetions do not agree with framework')
-    def test_conv_4D_autopad(self, params, auto_pad, bias, ie_device, precision, ir_version, temp_dir):
+    def test_conv_4D_autopad(self, params, auto_pad, bias, ie_device, precision, ir_version,
+                             temp_dir, api_2):
         self._test(*self.create_net(**params, shape=[2, 3, 25, 25], bias=bias, auto_pad=auto_pad,
-                                    ir_version=ir_version), ie_device, precision, ir_version, temp_dir=temp_dir)
+                                    ir_version=ir_version), ie_device, precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.parametrize("dilations", [[3, 4, 5]])
@@ -387,10 +476,12 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.precommit
     def test_conv_5D_precommit(self, params, dilations, pads, strides, bias, ie_device, precision,
-                               ir_version, temp_dir):
-        self._test(*self.create_net(**params, shape=[2, 3, 25, 25, 25], dilations=dilations, pads=pads, strides=strides,
-                                    bias=bias, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                               ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net(**params, shape=[2, 3, 25, 25, 25], dilations=dilations, pads=pads,
+                             strides=strides,
+                             bias=bias, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.parametrize("dilations", [[1, 1, 1], [2, 2, 2], [3, 4, 5]])
@@ -398,16 +489,22 @@ class TestConv(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("strides", [[1, 1, 1], [2, 2, 2], [3, 4, 5]])
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.nightly
-    def test_conv_5D(self, params, dilations, pads, strides, bias, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, shape=[2, 3, 25, 25, 25], dilations=dilations, pads=pads, strides=strides,
-                                    bias=bias, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_conv_5D(self, params, dilations, pads, strides, bias, ie_device, precision, ir_version,
+                     temp_dir, api_2):
+        self._test(
+            *self.create_net(**params, shape=[2, 3, 25, 25, 25], dilations=dilations, pads=pads,
+                             strides=strides,
+                             bias=bias, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D_autopad[:-1])
     @pytest.mark.parametrize("auto_pad", ['SAME_UPPER', 'SAME_LOWER'])
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.nightly
     @pytest.mark.xfail(reason='autopad dimetions do not agree with framework')
-    def test_conv_5D_autopad(self, params, auto_pad, bias, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, shape=[2, 3, 25, 25, 25], bias=bias, auto_pad=auto_pad,
-                                    ir_version=ir_version), ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_conv_5D_autopad(self, params, auto_pad, bias, ie_device, precision, ir_version,
+                             temp_dir, api_2):
+        self._test(
+            *self.create_net(**params, shape=[2, 3, 25, 25, 25], bias=bias, auto_pad=auto_pad,
+                             ir_version=ir_version), ie_device, precision, ir_version,
+            temp_dir=temp_dir, api_2=api_2)

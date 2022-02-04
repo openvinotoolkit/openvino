@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,8 @@
 
 #include "gna_plugin_log.hpp"
 
-#if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
 #include <gna/gna_config.hpp>
-#endif
 
 namespace GNAPluginNS {
 namespace backend {
@@ -125,7 +123,6 @@ public:
                                             true);
     }
 
-#if GNA_LIB_VER == 2
     template<class A, class B, class C, class D>
     static void InitConvolutional2DComponent(intel_dnn_component_t& comp,
         OvGnaTensor inputTensor,
@@ -161,7 +158,6 @@ public:
     // Recomputes number of outputs from CNN1D operations using legacy or new formula
     // If isOperationCnnLegacySpecific() is true the number of outputs will also be recomputed for legacy compatibility
     static void updateNumberOfOutputsIfPoolingEnabled(Gna2Model& gnaModel, bool useLegacyFormula);
-#endif
 
     template<class A, class B>
     static void InitMaxpoolComponent(intel_dnn_component_t &cmp,
@@ -300,17 +296,9 @@ public:
 
     void WriteDnnText(const char *filename, intel_dnn_number_type_t logging_precision);
 
-
-#if GNA_LIB_VER == 2
     void InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0);
+
     void DestroyGNAStruct(Gna2Model *gnaModel);
-#else
-
-    void InitGNAStruct(intel_nnet_type_t *ptr_nnet);
-
-    void DestroyGNAStruct(intel_nnet_type_t *ptr_nnet);
-
-#endif
 
     uint32_t *ptr_active_outputs() { return (ptr_active_outputs_); }
 
@@ -345,11 +333,7 @@ public:
 
     void WriteInputAndOutputText();
 
-#if GNA_LIB_VER == 1
-    void WriteInputAndOutputTextGNA(intel_nnet_type_t *nnet);
-#else
     void WriteInputAndOutputTextGNA(const Gna2Model & model);
-#endif
 
     void BeginNewWrite(uint32_t index);
 
@@ -444,7 +428,6 @@ private:
                                                     void *&ptr_biases,
                                                     bool postInitMem);
 
-#if GNA_LIB_VER == 2
     static void InitConvolutional2DComponentPrivate(intel_dnn_component_t& comp,
         OvGnaTensor inputTensor,
         OvGnaTensor outputTensor,
@@ -458,7 +441,6 @@ private:
         void*& ptr_outputs,
         void*& ptr_filters,
         void*& ptr_biases);
-#endif
 
     static void InitAffineComponentPrivate(intel_dnn_component_t &comp,
                                            uint32_t num_rows_in,

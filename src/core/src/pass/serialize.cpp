@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -452,6 +452,22 @@ public:
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
             const auto& attrs = a->get();
             m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+            const auto& attrs = a->get();
+            std::stringstream shape_str_stream;
+            shape_str_stream << attrs;
+            auto shape_str = shape_str_stream.str();
+            if (shape_str[0] == '{' && shape_str[shape_str.size() - 1] == '}')
+                shape_str = shape_str.substr(1, shape_str.size() - 2);
+            m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+            const auto& attrs = a->get();
+            std::stringstream dim_str_stream;
+            dim_str_stream << attrs;
+            auto dim_str = dim_str_stream.str();
+            if (dim_str[0] == '{' && dim_str[dim_str.size() - 1] == '}')
+                dim_str = dim_str.substr(1, dim_str.size() - 2);
+            m_xml_node.append_attribute(name.c_str()).set_value(dim_str.c_str());
         } else {
             throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }
@@ -696,74 +712,6 @@ bool has_dynamic_output(const std::shared_ptr<Node>& n) {
     return false;
 }
 
-bool resolve_dynamic_shapes(const ngraph::Function& f) {
-    const auto& f_ops = f.get_ordered_ops();
-    if (std::all_of(f_ops.begin(), f_ops.end(), [](const std::shared_ptr<Node>& results) {
-            return !results->is_dynamic() && !has_dynamic_output(results);
-        })) {
-        return false;
-    }
-
-    auto f_clone = ngraph::clone_function(f);
-    const auto& f_clone_ops = f_clone->get_ordered_ops();
-    NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
-
-    for (size_t id = 0; id < f_ops.size(); ++id) {
-        auto& op = f_ops[id];
-        auto& clone_op = f_clone_ops[id];
-        ov::pass::enable_constant_folding(clone_op);  // to be able to fold ShapeOfs
-        if (auto op_subgraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
-            resolve_dynamic_shapes(*op_subgraph->get_function());
-        }
-
-        op->validate_and_infer_types();
-        clone_op->validate_and_infer_types();
-
-        // dynamic_to_static function converts dynamic dimensions to static using
-        // upperbound (get_max_length) dimension value.
-        auto dynamic_to_static = [&op](const PartialShape& shape) -> PartialShape {
-            if (shape.is_static() || shape.rank().is_dynamic()) {
-                return shape;
-            }
-            std::vector<Dimension> out_shape;
-            std::transform(std::begin(shape),
-                           std::end(shape),
-                           std::back_inserter(out_shape),
-                           [](const Dimension& d) -> Dimension {
-                               return d.get_max_length();
-                           });
-            return out_shape;
-        };
-
-        OutputVector replacements(clone_op->get_output_size());
-        if (!clone_op->constant_fold(replacements, clone_op->input_values())) {
-            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
-                clone_op->set_output_type(output_id,
-                                          clone_op->output(output_id).get_element_type(),
-                                          dynamic_to_static(clone_op->output(output_id).get_partial_shape()));
-                op->set_output_type(output_id,
-                                    clone_op->output(output_id).get_element_type(),
-                                    clone_op->output(output_id).get_partial_shape());
-            }
-        } else {
-            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
-                op->set_output_type(output_id,
-                                    replacements[output_id].get_element_type(),
-                                    replacements[output_id].get_partial_shape());
-            }
-
-            for (size_t i = 0; i < replacements.size(); ++i) {
-                auto node_output = clone_op->output(i);
-                auto replacement = replacements.at(i);
-                if (replacement.get_node_shared_ptr() && (node_output != replacement)) {
-                    node_output.replace(replacement);
-                }
-            }
-        }
-    }
-    return true;
-}
-
 void auto_pad_resolving(ov::Node* node) {
     const std::set<ov::op::PadType> pad_agnostic_types = {
         ov::op::PadType::SAME_LOWER,
@@ -829,9 +777,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     const std::unordered_map<ngraph::Node*, int> layer_ids = create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
-
-    // TODO remove resolve_dynamic_shapes function completely when support for -1 will be implemented in the MO
-    bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
     const bool exec_graph = is_exec_graph(f);
 
@@ -1004,10 +949,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         edge.append_attribute("from-port").set_value(e.from_port);
         edge.append_attribute("to-layer").set_value(e.to_layer);
         edge.append_attribute("to-port").set_value(e.to_port);
-    }
-    // move back dynamic shapes
-    if (has_dynamic_shapes) {
-        f.validate_nodes_and_infer_types();
     }
 }
 

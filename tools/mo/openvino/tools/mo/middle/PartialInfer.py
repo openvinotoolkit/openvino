@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import logging as log
 
-from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, shape_array, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, shape_array, \
+    dynamic_dimension_value, unmask_shape
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.infer import partial_infer
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -34,7 +35,7 @@ class PartialInfer(MiddleReplacementPattern):
                       'call "reshape" method in the Inference Engine and specify static input shapes. For optimal '
                       'performance, it is still recommended to update input shapes with fixed ones using "--input" or '
                       '"--input_shape" command-line parameters.'
-                      .format(','.join('name="{}" shape="{}"'.format(name, unmask_shape(shape))
-                                       for name, shape in dynamic_inputs.items())),
+                      .format(','.join(f'name="{name}" shape="{unmask_shape(param_shape)}"'
+                                       for name, param_shape in dynamic_inputs.items())),
                       extra={'is_warning': True})
         partial_infer(graph)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,9 +24,23 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
+class Model;
+
+OPENVINO_API
+std::shared_ptr<Model> clone_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+
+namespace frontend {
+class FrontEnd;
+}
+
 class ModelAccessor;
 /// A user-defined function.
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
+    friend class frontend::FrontEnd;
+    friend OPENVINO_API std::shared_ptr<Model> clone_model(const Model& func,
+                                                           std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+    std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
+
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
         static const ::ov::DiscreteTypeInfo type_info{"Function", 0};
@@ -116,6 +130,8 @@ public:
     ov::Output<ov::Node> add_output(const std::string& op_name, size_t output_idx);
     ov::Output<ov::Node> add_output(const ov::Output<ov::Node>& port);
 
+    void reshape(const ov::PartialShape& partial_shape);
+    void reshape(const std::map<size_t, ov::PartialShape>& partial_shapes);
     void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
     void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes);
 
@@ -199,14 +215,14 @@ public:
     /// \param value Output containing Node
     int64_t get_result_index(const ov::Output<const ov::Node>& value) const;
 
-    /// \deprecated Use evaluate with ov::runtime::Tensor instead
+    /// \deprecated Use evaluate with ov::Tensor instead
     /// \brief Evaluate the function on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the function. This additional information can be shared across nodes.
     OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
     bool evaluate(const ov::HostTensorVector& output_tensors,
                   const ov::HostTensorVector& input_tensors,
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
@@ -216,8 +232,8 @@ public:
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the function. This additional information can be shared across nodes.
-    bool evaluate(ov::runtime::TensorVector& output_tensors,
-                  const ov::runtime::TensorVector& input_tensors,
+    bool evaluate(ov::TensorVector& output_tensors,
+                  const ov::TensorVector& input_tensors,
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
 
     /// \brief Return a list of function's sinks.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ void ov::op::v0::PriorBoxClustered::validate_and_infer_types() {
         const auto num_priors = m_attrs.widths.size();
         set_output_type(0, element::f32, ov::Shape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
     } else {
-        set_output_type(0, element::f32, ov::PartialShape::dynamic());
+        set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
     }
 }
 

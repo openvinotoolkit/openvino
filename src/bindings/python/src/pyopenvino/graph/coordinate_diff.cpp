@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,4 +34,23 @@ void regclass_graph_CoordinateDiff(py::module m) {
         std::string shape_str = py::cast(self).attr("__str__")().cast<std::string>();
         return "<" + class_name + ": (" + shape_str + ")>";
     });
+
+    coordinate_diff.def("__setitem__", [](ov::CoordinateDiff& self, size_t key, std::ptrdiff_t& value) {
+        self[key] = value;
+    });
+
+    coordinate_diff.def("__getitem__", [](const ov::CoordinateDiff& self, size_t key) {
+        return self[key];
+    });
+
+    coordinate_diff.def("__len__", [](const ov::CoordinateDiff& self) {
+        return self.size();
+    });
+
+    coordinate_diff.def(
+        "__iter__",
+        [](const ov::CoordinateDiff& self) {
+            return py::make_iterator(self.begin(), self.end());
+        },
+        py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
 }

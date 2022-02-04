@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -262,7 +262,7 @@ class LayerInfo {
     bool isFakeQuantize() const noexcept {
         return isOfType("FakeQuantize");
     }
-    bool isNonFunctional() const noexcept {
+    bool isNonFunctional() const {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
     bool isReshape() const noexcept {
@@ -271,8 +271,26 @@ class LayerInfo {
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
+    bool isPermuteViaReshape() const {
+        if (!isOfType("reshape")) return false;
+
+        auto input_dims = layer->insData[0].lock()->getDims();
+        auto output_dims = layer->outData[0]->getDims();
+
+        if (input_dims.size() != output_dims.size()) {
+            return false;
+        }
+
+        input_dims.erase(std::remove(input_dims.begin(), input_dims.end(), 1), input_dims.end());
+        output_dims.erase(std::remove(output_dims.begin(), output_dims.end(), 1), output_dims.end());
+
+        if (input_dims != output_dims) {
+            return false;
+        }
+        return true;
+    }
     // @brief this not only mathematically trivial, has some WA for kaldi case
-    bool isTrivialPermute() const noexcept {
+    bool isTrivialPermute() const {
         if (!isPermute()) return false;
 
         auto layerOrder = layer->GetParamAsInts("order");

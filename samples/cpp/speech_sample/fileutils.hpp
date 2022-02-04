@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,25 +11,25 @@
 /// @brief Interface to work with files like input and output
 class BaseFile {
 public:
-    virtual void LoadFile(const char* fileName,
-                          uint32_t arrayIndex,
-                          std::string& ptrName,
-                          std::vector<uint8_t>& memory,
-                          uint32_t* ptrNumRows,
-                          uint32_t* ptrNumColumns,
-                          uint32_t* ptrNumBytesPerElement) = 0;
+    virtual void load_file(const char* fileName,
+                           uint32_t arrayIndex,
+                           std::string& ptrName,
+                           std::vector<uint8_t>& memory,
+                           uint32_t* ptrNumRows,
+                           uint32_t* ptrNumColumns,
+                           uint32_t* ptrNumBytesPerElement) = 0;
 
-    virtual void SaveFile(const char* fileName,
-                          bool shouldAppend,
-                          std::string name,
-                          void* ptrMemory,
-                          uint32_t numRows,
-                          uint32_t numColumns) = 0;
+    virtual void save_file(const char* fileName,
+                           bool shouldAppend,
+                           std::string name,
+                           void* ptrMemory,
+                           uint32_t numRows,
+                           uint32_t numColumns) = 0;
 
-    virtual void GetFileInfo(const char* fileName,
-                             uint32_t numArrayToFindSize,
-                             uint32_t* ptrNumArrays,
-                             uint32_t* ptrNumMemoryBytes) = 0;
+    virtual void get_file_info(const char* fileName,
+                               uint32_t numArrayToFindSize,
+                               uint32_t* ptrNumArrays,
+                               uint32_t* ptrNumMemoryBytes) = 0;
 };
 
 /// @brief Responsible to work with .ark files
@@ -43,10 +43,10 @@ public:
      * @param ptrNumMemoryBytes pointer to specific number of memory bytes
      * @return none.
      */
-    void GetFileInfo(const char* fileName,
-                     uint32_t numArrayToFindSize,
-                     uint32_t* ptrNumArrays,
-                     uint32_t* ptrNumMemoryBytes) override;
+    void get_file_info(const char* fileName,
+                       uint32_t numArrayToFindSize,
+                       uint32_t* ptrNumArrays,
+                       uint32_t* ptrNumMemoryBytes) override;
 
     /**
      * @brief Load Kaldi ARK speech feature vector file
@@ -59,13 +59,13 @@ public:
      * @param ptrNumBytesPerElement pointer to number bytes per element (size of float by default)
      * @return none.
      */
-    void LoadFile(const char* fileName,
-                  uint32_t arrayIndex,
-                  std::string& ptrName,
-                  std::vector<uint8_t>& memory,
-                  uint32_t* ptrNumRows,
-                  uint32_t* ptrNumColumns,
-                  uint32_t* ptrNumBytesPerElement) override;
+    void load_file(const char* fileName,
+                   uint32_t arrayIndex,
+                   std::string& ptrName,
+                   std::vector<uint8_t>& memory,
+                   uint32_t* ptrNumRows,
+                   uint32_t* ptrNumColumns,
+                   uint32_t* ptrNumBytesPerElement) override;
 
     /**
      * @brief Save Kaldi ARK speech feature vector file
@@ -77,12 +77,12 @@ public:
      * @param numColumns number of columns
      * @return none.
      */
-    void SaveFile(const char* fileName,
-                  bool shouldAppend,
-                  std::string name,
-                  void* ptrMemory,
-                  uint32_t numRows,
-                  uint32_t numColumns) override;
+    void save_file(const char* fileName,
+                   bool shouldAppend,
+                   std::string name,
+                   void* ptrMemory,
+                   uint32_t numRows,
+                   uint32_t numColumns) override;
 };
 
 /// @brief Responsible to work with .npz files
@@ -96,10 +96,10 @@ public:
      * @param ptrNumMemoryBytes pointer to specific number of memory bytes
      * @return none.
      */
-    void GetFileInfo(const char* fileName,
-                     uint32_t numArrayToFindSize,
-                     uint32_t* ptrNumArrays,
-                     uint32_t* ptrNumMemoryBytes) override;
+    void get_file_info(const char* fileName,
+                       uint32_t numArrayToFindSize,
+                       uint32_t* ptrNumArrays,
+                       uint32_t* ptrNumMemoryBytes) override;
 
     /**
      * @brief Load Numpy* uncompressed NPZ speech feature vector file
@@ -112,13 +112,13 @@ public:
      * @param ptrNumBytesPerElement pointer to number bytes per element (size of float by default)
      * @return none.
      */
-    void LoadFile(const char* fileName,
-                  uint32_t arrayIndex,
-                  std::string& ptrName,
-                  std::vector<uint8_t>& memory,
-                  uint32_t* ptrNumRows,
-                  uint32_t* ptrNumColumns,
-                  uint32_t* ptrNumBytesPerElement) override;
+    void load_file(const char* fileName,
+                   uint32_t arrayIndex,
+                   std::string& ptrName,
+                   std::vector<uint8_t>& memory,
+                   uint32_t* ptrNumRows,
+                   uint32_t* ptrNumColumns,
+                   uint32_t* ptrNumBytesPerElement) override;
 
     /**
      * @brief Save Numpy* uncompressed NPZ speech feature vector file
@@ -130,10 +130,10 @@ public:
      * @param numColumns number of columns
      * @return none.
      */
-    void SaveFile(const char* fileName,
-                  bool shouldAppend,
-                  std::string name,
-                  void* ptrMemory,
-                  uint32_t numRows,
-                  uint32_t numColumns) override;
+    void save_file(const char* fileName,
+                   bool shouldAppend,
+                   std::string name,
+                   void* ptrMemory,
+                   uint32_t numRows,
+                   uint32_t numColumns) override;
 };

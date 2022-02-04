@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -9,6 +9,7 @@ import networkx as nx
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import add_attrs_props, update_ie_fields
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.utils import class_registration
@@ -252,7 +253,7 @@ class Op(object):
         if attrs is None:
             attrs = {}
         data_node = graph.unique_id(name)
-        default_attrs = dict(kind='data', name=data_node, value=np.array(value), shape=np.array(value.shape),
+        default_attrs = dict(kind='data', name=data_node, value=mo_array(value), shape=mo_array(value.shape),
                              data_type=None, infer=None)
         default_attrs.update(attrs)
         graph.add_node(data_node, **add_attrs_props(default_attrs))
@@ -331,7 +332,7 @@ class Op(object):
             return
         for idx in range(dims_to_add):
             node.value = np.expand_dims(node.value, axis=-1)
-        node.shape = np.array(node.value.shape)
+        node.shape = mo_array(node.value.shape)
 
     @staticmethod
     def normalize_outputs(node: Node):

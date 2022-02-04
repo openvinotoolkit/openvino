@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.ops.activation_ops import Log
 from openvino.tools.mo.ops.elementwise import Add
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
 from openvino.tools.mo.ops.const import Const
@@ -23,7 +24,7 @@ class Log1p(FrontReplacementOp):
         const_dtype = np.float32
         if node.has_valid('data_type'):
             const_dtype = node.data_type
-        const = Const(graph, {'value': np.array([1], dtype=const_dtype)}).create_node()
+        const = Const(graph, {'value': mo_array([1], dtype=const_dtype)}).create_node()
         add = Add(graph, {'name': node.name + '/Add_'}).create_node()
         log = Log(graph, {'name': node.name + '/Log_'}).create_node()
 

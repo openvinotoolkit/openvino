@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 // #include <openvino/cc/selective_build.h>
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 #include "remarks.hpp"
 
 #include "snippets/pass/assign_registers.hpp"
@@ -13,8 +13,9 @@
 
 #include <iterator>
 
-bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr<Function>& f) {
+bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(AssignRegisters);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::AssignRegisters")
     int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
     using Reg = size_t;
     auto ops = f->get_ordered_ops();
@@ -143,7 +144,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
     for (auto n : f->get_ordered_ops()) {
         auto& rt = n->get_rt_info();
-        // nothing to do for function signature
+        // nothing to do for model signature
         if (std::dynamic_pointer_cast<opset1::Parameter>(n) || std::dynamic_pointer_cast<opset1::Result>(n)) {
             continue;
         }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -7,6 +7,7 @@ import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, shape_insert, is_fully_defined, \
     dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 
 
 def make_equal_rank(shape_1: np.ndarray, shape_2: np.ndarray):
@@ -93,7 +94,7 @@ def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, a
     """
     assert np.all(np.diff(axes_mapping) >= 0), "axes_mapping is not sorted"
     assert len(axes_mapping) == len(input_shape), "size of axes_mapping does not match to rank of input"
-    axes_mapping = np.array(list(map(lambda axis: axis + len(target_shape) if axis < 0 else axis, axes_mapping)))
+    axes_mapping = mo_array(list(map(lambda axis: axis + len(target_shape) if axis < 0 else axis, axes_mapping)))
 
     res = target_shape.copy()
     for i, axis in enumerate(axes_mapping):

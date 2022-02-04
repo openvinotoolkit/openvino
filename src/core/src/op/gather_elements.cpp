@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/gather_elements.hpp"
+
+#include <gather_elements_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/shape.hpp"
@@ -32,69 +34,9 @@ void op::v6::GatherElements::validate_and_infer_types() {
 
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);
-    auto data_rank = data_pshape.rank();
-    auto indices_rank = indices_pshape.rank();
-
-    int64_t axis = m_axis;
-    if (m_axis < 0 && data_rank.is_static())
-        axis += data_rank.get_length();
-
-    set_output_type(0, data_type, indices_pshape);
-
-    NODE_VALIDATION_CHECK(this, data_rank.is_dynamic() || data_rank.get_length() >= 1, "data rank must be >= 1.");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        data_rank.is_dynamic() || ((-data_rank.get_length() <= m_axis) && (m_axis < data_rank.get_length())),
-        "axis must be within interval (-data.rank,  data.rank - 1). But instead Got: ",
-        m_axis);
-
-    NODE_VALIDATION_CHECK(this,
-                          indices_rank.is_dynamic() || indices_rank.get_length() >= 1,
-                          "indices rank must be >= 1.");
-
-    if (data_rank.is_static() && indices_rank.is_dynamic()) {
-        ov::PartialShape out_shape_info(data_pshape);
-        out_shape_info[axis] = Dimension::dynamic();
-        set_output_type(0, data_type, out_shape_info);
-        return;
-    }
-
-    if (data_rank.is_dynamic()) {
-        if (indices_rank.is_dynamic())
-            set_output_type(0, data_type, ov::PartialShape::dynamic());
-        return;
-    }
-
-    // left only case when data_rank.is_static() && indices_rank.is_static()
-    NODE_VALIDATION_CHECK(this,
-                          data_rank.get_length() == indices_rank.get_length(),
-                          "data and indices rank must be equal. But instead got: ",
-                          data_rank.get_length(),
-                          " and ",
-                          indices_rank.get_length());
-
-    ov::PartialShape output_pshape(indices_pshape);
-    for (int i = 0; i < indices_rank.get_length(); i++) {
-        if (i != axis) {
-            // if size of the current dimension of indices is unknown it will be retrieved from data
-            // e.g., if data_shape = {4, 4, ?}, indices_shape = {1, ?, 5} and axis = 0
-            // (and if intervals intersect) then output_pshape will be {1, 4, 5}
-
-            NODE_VALIDATION_CHECK(this,
-                                  data_pshape[i].compatible(indices_pshape[i]),
-                                  "Shapes ",
-                                  data_pshape,
-                                  " and ",
-                                  indices_pshape,
-                                  " are not consistent. data and indices must have equal or "
-                                  "intersecting sizes, except for axis ",
-                                  m_axis);
-
-            output_pshape[i] = data_pshape[i] & indices_pshape[i];
-        }
-    }
-    set_output_type(0, data_type, output_pshape);
+    std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape}, output_shapes = {PartialShape{}};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, data_type, output_shapes[0]);
 }
 
 bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor) {

@@ -1,0 +1,206 @@
+/* overrides */
+.switcher-set {display: none;}
+
+#openvino-documentation > h1 {
+	display: none;
+}
+
+img {
+	cursor: default;
+}
+
+/* === SEPARATOR HEADERS ================================================= */
+.HP_separator-header { 
+	font-weight: bold;
+	text-align: center;
+	width: 100%;
+	height: 2em;
+	line-height: 2em;
+	margin: 40px auto;
+}
+
+.HP_separator-header p { 
+	display: inline-block;
+	line-height: 1em;
+	margin: 0 auto;
+	color: #0068B5;
+	background-color: #fff;
+	padding: 0 15px;
+}
+
+.HP_separator-header::before { 
+    display: block;
+	content: "";
+	position: relative;
+	top: 1em;
+	margin: 0;
+    border-top: 1px solid #0068B5;
+    width: 100%;
+	z-index: -1;
+}
+
+/* === HEADER BANNER ===================================================== */
+#HP_head_banner {
+	width: 100%;
+	height: auto;
+	background: left / cover no-repeat url("../images/head_banner.jpg");
+	overflow: hidden;
+	padding: 3% 5% 5% 5%;
+	margin-bottom: 20px;
+	margin-top: -15px;
+}
+#HP_head_banner > p {
+float: right;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #fff;
+    width: 100%;
+    text-align: right;
+    background-color: #0008;
+    margin-bottom: 40px;
+    margin-top: 10px;
+}
+#HP_head_banner > div {
+	float: left;
+	width: 350px;
+}
+#HP_head_banner > div > a {
+	height: 2em;
+	width: 2em;
+	float: left;
+	margin-right: 5px;
+	text-align: center;
+	background-color: #fff;
+	padding: 3px;
+	
+	transition: all 0.5s;
+	-webkit-transition: all 0.5s;
+	-moz-transition: all 0.5s;
+	-o-transition: all 0.5s;
+	-ms-transition: all 0.5s;
+}
+#HP_head_banner > div > a img{
+	vertical-align: inherit;
+	transition: all 0.5s;
+	-webkit-transition: all 0.5s;
+	-moz-transition: all 0.5s;
+	-o-transition: all 0.5s;
+	-ms-transition: all 0.5s;
+}
+
+#HP_head_banner > div > a:nth-of-type(1) {
+	width: 9em;
+	padding: 4px;
+	font-weight: bold;
+	color: #0068B5;
+	text-decoration: none;
+}
+
+#HP_head_banner > div > a:hover {
+	color: #fff;
+	background-color: #0068B5;
+}
+#HP_head_banner > div > a:hover img{
+	filter: brightness(0%) invert(100%);
+}
+
+#HP_head_banner ~ div ~ p {
+	text-align: left;
+}
+
+.HP_img_chart {
+	display: block;
+	margin: 40px auto 60px auto;
+	width:80%;
+}
+img.HP_img_chart ~ p {
+	margin-top: -40px;
+	font-size: 0.7em;
+}
+
+
+/* === INFORMATION BOXES ================================================= */
+.HP_infoboxes {
+	width: 100%;
+	height: auto;
+	margin: 0; 
+	margin-bottom: 10px;
+}
+.HP_infoboxes a {
+	background-color: #0068B5;
+	height: 150px;
+	padding: 5px 2%;
+	float: left;
+	margin: 0 1% 10px 1%;
+	width: 32%;
+}
+
+.HP_infoboxes a p,
+.HP_infoboxes a h3 {
+	color: #fff;
+	margin: 0;
+	text-align: left;
+	
+	transition: all 0.5s;
+	-webkit-transition: all 0.5s;
+	-moz-transition: all 0.5s;
+	-o-transition: all 0.5s;
+	-ms-transition: all 0.5s;
+}
+.HP_infoboxes a h3 {
+	display: table-cell;
+	width: 300px;
+	vertical-align: middle;
+	height: 35px;
+	border-bottom: solid 1px #fff;
+	font-weight: bold;
+	font-size: 1em;
+	margin-bottom: 5px;
+}
+.HP_infoboxes a p {
+	font-size: 0.9em;
+	line-height: 1.5em;
+	    margin-top: 5px;
+}
+
+.HP_infoboxes a:hover h3 {
+	font-size: 1.1em;
+	text-decoration:none !important;
+}
+/*.HP_infoboxes a:hover p {
+	margin-top: 10px;
+	text-decoration:none !important;
+}*/
+
+/* === screen wide =================================================== */
+/* =================================================================== */
+@media only screen and (min-width: 901px) {
+	.HP_infoboxes a {
+		width: 32%;
+	}	
+	.HP_infoboxes a:nth-of-type(1), 
+	.HP_infoboxes a:nth-of-type(4), 
+	.HP_infoboxes a:nth-of-type(7) {
+		margin-left: 0;
+	}
+	.HP_infoboxes a:nth-of-type(3), 
+	.HP_infoboxes a:nth-of-type(6), 
+	.HP_infoboxes a:nth-of-type(9) {
+		margin-right: 0;
+	}	
+}
+/* === screen narrow =================================================== */
+/* =================================================================== */
+@media only screen and (max-width: 900px) {
+	.HP_infoboxes a {
+		width: 48%;
+		margin-left: 0;
+		margin-right: 2%;
+	}	
+	.HP_infoboxes a:nth-of-type(2n) {
+		margin-left: 2%;
+		margin-right: 0;
+	}	
+}
+
+

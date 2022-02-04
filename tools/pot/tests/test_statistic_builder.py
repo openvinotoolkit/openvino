@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -105,4 +105,4 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
     ir_name = f'{model_name}_stat_{type_max}_{type_min}' if type_min is not None \
         else f'{model_name}_stat_mean'
     check_model(tmp_path, model_with_nodes, ir_name, model_framework)
-    assert len(set(nodes_names)) == add_output_nodes
+    assert len(set(nodes_names[model.name])) == add_output_nodes

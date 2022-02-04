@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.ops.split import Split, VariadicSplit
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -30,7 +31,7 @@ class SqueezeAxis(FrontReplacementOp):
             name = node.soft_get('name', node.id)
             for out_port in node.out_ports().values():
                 if node.has_valid('axis'):
-                    squeeze_node = create_op_with_const_inputs(graph, Squeeze, {1: np.array(node.axis)},
+                    squeeze_node = create_op_with_const_inputs(graph, Squeeze, {1: mo_array(node.axis)},
                                                                {'name': name + '/Squeeze_'})
                     out_port.get_connection().insert_node(squeeze_node)
                 elif node.is_in_port_connected(1):

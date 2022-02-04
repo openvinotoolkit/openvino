@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.ops.loop import Loop
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.graph.graph import Graph, Node
@@ -33,7 +34,7 @@ class WhileNormalize(FrontReplacementSubgraph):
 
         # connect execution condition port
         exec_cond_node = Const(graph, {'name': loop_name + '/ExecutionConditionValue',
-                                       'value': np.array(True, dtype=np.bool)}).create_node()
+                                       'value': mo_array(True, dtype=np.bool)}).create_node()
         loop_node.in_port(1).get_connection().set_source(exec_cond_node.out_port(0))
 
         loop_node.body.clean_up()

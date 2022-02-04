@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <istream>
 #include <memory>
 
-#include "ir_frontend/utility.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "utils.hpp"
 

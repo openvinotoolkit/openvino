@@ -4,13 +4,13 @@ Remote Blob API of GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU_Remote
 The GPU plugin implementation of the `RemoteContext` and `RemoteBlob` interfaces supports GPU
 pipeline developers who need video memory sharing and interoperability with existing native APIs
 such as OpenCL\*, Microsoft DirectX\*, or VAAPI\*.
-Using these interfaces allows to avoid any memory copy overhead when plugging the OpenVINO™ inference
-into an existing GPU pipeline. It also enables OpenCL kernels participating in the pipeline to become
+Using these interfaces allows you to avoid any memory copy overhead when plugging the OpenVINO™ inference 
+into an existing GPU pipeline. It also enables OpenCL kernels participating in the pipeline to become 
 native buffer consumers or producers of the OpenVINO™ inference.
 Since the GPU plugin works on top of the clDNN library, the functionality above is also implemented
 using OpenCL and its sharing extensions provided by Intel®.
 
-There are two interoperability scenarios that are supported for the Remote Blob API:
+There are two interoperability scenarios supported by the Remote Blob API:
 
 * GPU plugin context and memory objects can be constructed from low-level device, display, or memory
 handles and used to create the OpenVINO™ `ExecutableNetwork` or `Blob` class.
@@ -76,7 +76,7 @@ the plugin for further execution of inference primitives. Sharing of the queue c
 method to guarantee that submission of inference primitives into given queue is finished before
 returning of control back to calling thread.
 
-This sharing mechanism allows to do pipeline synchonization on app side and avoid blocking of host thread
+This sharing mechanism allows to do pipeline synchronization on app side and avoid blocking of host thread
 on waiting for completion of inference. Pseudocode may look as follows:
 
 @snippet snippets/GPU_RemoteBlob_API3.cpp part0
@@ -87,7 +87,7 @@ on waiting for completion of inference. Pseudocode may look as follows:
    to the command queue. In such cases `StartAsync()` call takes much more time to return control to the calling thread
    as internally it waits for partial or full network completion.
    Examples of operations: Loop, TensorIterator, DetectionOutput, NonMaxSuppression
- - Synchonization of pre/post processing jobs and inference pipleine inside shared queue is the user responsibility
+ - Synchronization of pre/post processing jobs and inference pipeline inside shared queue is the user responsibility
  - Throughput mode is not available when queue sharing is used, i.e. only single stream can be used for each executable network.
 
 ## Low-Level Methods and Their Parameter Description

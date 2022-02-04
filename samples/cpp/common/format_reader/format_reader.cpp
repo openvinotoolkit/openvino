@@ -1,20 +1,23 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <format_reader.h>
-
 #include <iostream>
 
-#include "MnistUbyte.h"
+// clang-format off
 #include "bmp.h"
+#include "MnistUbyte.h"
+#include "yuv_nv12.h"
 #include "opencv_wrapper.h"
+#include "format_reader.h"
+// clang-format on
 
 using namespace FormatReader;
 
 std::vector<Registry::CreatorFunction> Registry::_data;
 
 Register<MnistUbyte> MnistUbyte::reg;
+Register<YUV_NV12> YUV_NV12::reg;
 #ifdef USE_OPENCV
 Register<OCVReader> OCVReader::reg;
 #else

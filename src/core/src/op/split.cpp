@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/runtime/reference/split.hpp"
 
 #include <numeric>
+#include <split_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -34,11 +35,7 @@ bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Split::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Split_validate_and_infer_types);
-    const ov::PartialShape& data_ps = get_input_partial_shape(0);
-    const ov::PartialShape& axis_ps = get_input_partial_shape(1);
     const element::Type& axis_et = get_input_element_type(1);
-
-    NODE_VALIDATION_CHECK(this, axis_ps.rank().compatible(0), "'axis' input must be a scalar. Got: ", axis_ps);
 
     NODE_VALIDATION_CHECK(this,
                           axis_et.is_integral_number(),
@@ -50,48 +47,13 @@ void op::v1::Split::validate_and_infer_types() {
                           "Attribute 'num_splits' must be greater than zero. Got: ",
                           m_num_splits);
 
-    ov::PartialShape each_output_shape{data_ps};
-    const Rank data_rank = data_ps.rank();
-    const auto axis_input = get_constant_from_source(input_value(1));
-    if (axis_input && data_rank.is_static()) {
-        auto axis = axis_input->cast_vector<int64_t>()[0];
-        axis = ngraph::normalize_axis(this, axis, data_rank);
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
+    std::vector<ov::PartialShape> output_shapes;
+    shape_infer(this, input_shapes, output_shapes);
 
-        if (data_ps[axis].is_static()) {
-            const auto dimension_at_axis = data_ps[axis].get_length();
-
-            NODE_VALIDATION_CHECK(this,
-                                  dimension_at_axis % m_num_splits == 0,
-                                  "Dimension of data input shape along 'axis': ",
-                                  dimension_at_axis,
-                                  " must be evenly divisible by 'num_splits' attribute value: ",
-                                  m_num_splits);
-
-            each_output_shape[axis] = dimension_at_axis / m_num_splits;
-        } else {
-            const auto dim_interval_at_axis = data_ps[axis].get_interval();
-            NODE_VALIDATION_CHECK(this,
-                                  dim_interval_at_axis.get_max_val() >= static_cast<int64_t>(m_num_splits),
-                                  "The interval maximum of the dimension for data input shape along 'axis' must be "
-                                  "greater or equal to 'num_splits' attribute. Got: ",
-                                  dim_interval_at_axis,
-                                  " and ",
-                                  m_num_splits);
-
-            auto dim_interval_at_axis_min =
-                static_cast<int64_t>(dim_interval_at_axis.get_min_val() * (1.0f / m_num_splits));
-            auto dim_interval_at_axis_max = dim_interval_at_axis.get_max_val();
-            if (dim_interval_at_axis.has_upper_bound()) {
-                dim_interval_at_axis_max = static_cast<int64_t>(dim_interval_at_axis_max * (1.0f / m_num_splits));
-            }
-            each_output_shape[axis] = Dimension(dim_interval_at_axis_min, dim_interval_at_axis_max);
-        }
-    } else {
-        each_output_shape = ov::PartialShape::dynamic(data_ps.rank());
-    }
-
+    set_output_size(m_num_splits);
     for (size_t i = 0; i < m_num_splits; ++i) {
-        set_output_type(i, get_input_element_type(0), each_output_shape);
+        set_output_type(i, get_input_element_type(0), output_shapes[i]);
     }
 
     set_input_is_relevant_to_shape(0);

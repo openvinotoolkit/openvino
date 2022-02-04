@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ public:
             const std::vector<float>& outputLowValues,
             const std::vector<float>& outputHighValues);
 
-    static bool outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize);
+    static bool outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize, bool isConvertExpected = false);
 
     static void getInputIntervals(
             std::shared_ptr<opset1::FakeQuantize> quantize,

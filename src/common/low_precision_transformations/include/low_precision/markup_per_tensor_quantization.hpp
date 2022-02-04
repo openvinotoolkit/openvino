@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,15 @@ class LP_TRANSFORMATIONS_API MarkupPerTensorQuantization;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MarkupPerTensorQuantization transformation marks operations as required per-tensor quantization according to the
+ * provided restrictions.
+ *
+ * For more details about the transformation, refer to
+ * [MarkupPerTensorQuantization](@ref openvino_docs_IE_DG_lpt_MarkupPerTensorQuantization) page
+ * in the Inference Engine Developer Guide.
+ */
 class ngraph::pass::low_precision::MarkupPerTensorQuantization : public ngraph::pass::FunctionPass {
 public:
     class PerTensorQuantization {

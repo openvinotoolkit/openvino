@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ TEST(type_prop, result_layout) {
     EXPECT_EQ(result->get_layout(), "NHWC");
     result->set_layout(ov::Layout());
     EXPECT_TRUE(result->get_layout().empty());
-    EXPECT_EQ(result->input(0).get_rt_info().count(ov::LayoutAttribute::get_type_info_static()), 0);
+    EXPECT_EQ(result->output(0).get_rt_info().count(ov::LayoutAttribute::get_type_info_static()), 0);
 }
 
 TEST(type_prop, result_layout_empty) {
@@ -48,6 +48,6 @@ TEST(type_prop, result_layout_empty) {
 TEST(type_prop, result_layout_invalid) {
     auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto result = make_shared<opset1::Result>(a);
-    result->input(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = "NCHW";  // incorrect way
+    result->output(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = "NCHW";  // incorrect way
     ASSERT_THROW(result->get_layout(), ov::Exception);
 }

@@ -1,25 +1,24 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset7.hpp>
-
 #include "op_table.hpp"
+#include "openvino/opsets/opset7.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::frontend::tf::detail;
+using namespace ov::frontend::tensorflow::detail;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_max_pool_op(const NodeContext& node) {
     auto ng_input = node.get_input(0);
 
-    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-    auto tf_ksize = node.get_attribute<std::vector<int32_t>>("ksize");
+    auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
+    auto tf_ksize = node.get_attribute<std::vector<int64_t>>("ksize");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 
@@ -68,6 +67,6 @@ OutputVector translate_max_pool_op(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

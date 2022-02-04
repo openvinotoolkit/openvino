@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -155,13 +155,13 @@ def get_image_tensors(image_paths, info, batch_sizes):
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
 
-            if info.scale or info.mean:
+            if info.scale.size or info.mean.size:
                 blue, green, red = cv2.split(image)
-                if info.mean:
+                if info.mean.size:
                     blue = np.subtract(blue, info.mean[0])
                     green = np.subtract(green, info.mean[1])
                     red = np.subtract(red, info.mean[2])
-                if info.scale:
+                if info.scale.size:
                     blue = np.divide(blue, info.scale[0])
                     green = np.divide(green, info.scale[1])
                     red = np.divide(red, info.scale[2])
@@ -204,7 +204,7 @@ def get_dtype(precision):
       'f32' : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
       'i32'  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
       'i64'  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
-      'fp16' : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
+      'f16' : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
       'i16'  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
       'u16'  : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
       'i8'   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),
@@ -314,20 +314,22 @@ def parse_path(path, app_input_info):
     """
     Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3 or file1/dir1,file2/dir2" into two dicts - with binary files and with images
     """
-    input_names = sorted(list(info.name for info in app_input_info))
+    input_names = list(info.name for info in app_input_info)
+    input_node_names = list(info.node_name for info in app_input_info)
     parsed_names = re.findall(r"([^,]\w+):", path)
-    wrong_names = list(name for name in parsed_names if name not in input_names)
+    wrong_names = list(name for name in parsed_names if name not in input_names + input_node_names)
     if wrong_names:
         raise Exception(
             f"Wrong input mapping! Cannot find inputs: {wrong_names}. "
             f"Available inputs: {input_names}. "
             "Please check `-i` input data"
         )
+    tensor_names = [parsed_name if parsed_name in input_names else input_names[input_node_names.index(parsed_name)] for parsed_name in parsed_names]
     input_pathes = [path for path in re.split(r"[^,]\w+:", path) if path]
     input_path_mapping = defaultdict(list)
     # input mapping is used
-    if parsed_names:
-        input_path_mapping = {input_: files.strip(",").split(",") for input_, files in zip(parsed_names, input_pathes)}
+    if tensor_names:
+        input_path_mapping = {input_: files.strip(",").split(",") for input_, files in zip(tensor_names, input_pathes)}
     else:
         input_files = list()
         _input_pathes = input_pathes[0].strip(",").split(",")
