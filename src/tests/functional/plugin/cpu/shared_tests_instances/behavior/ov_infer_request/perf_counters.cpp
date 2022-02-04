@@ -27,16 +27,16 @@ TEST_P(OVInferRequestPerfCountersTest, CheckOperationInProfilingInfo) {
     }
 }
 
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
         {}
 };
 
-const std::vector<std::map<std::string, std::string>> Multiconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
+const std::vector<ov::AnyMap> Multiconfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
 
-const std::vector<std::map<std::string, std::string>> Autoconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
+const std::vector<ov::AnyMap> Autoconfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestPerfCountersTest,

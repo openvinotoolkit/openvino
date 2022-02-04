@@ -33,10 +33,10 @@ static const char model_message[] =
 
 /// @brief message for performance hint
 static const char hint_message[] =
-    "Optional. Performance hint (optimize for latency or throughput). "
-    "The hint allows the OpenVINO device to select the right network-specific settings,"
-    "as opposite to just accepting specific values from the sample command line."
-    "So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
+    "Optional. Performance hint (optimize for latency or throughput)."
+    " The hint allows the OpenVINO device to select the right network-specific settings,"
+    " as opposite to just accepting specific values from the sample command line."
+    " So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
@@ -129,6 +129,10 @@ static const char report_type_message[] =
 // @brief message for report_folder option
 static const char report_folder_message[] = "Optional. Path to a folder where statistics report is stored.";
 
+// @brief message for json_stats option
+static const char json_stats_message[] = "Optional. Enables JSON-based statistics output (by default reporting system "
+                                         "will use CSV format). Should be used together with -report_folder option.";
+
 // @brief message for exec_graph_path option
 static const char exec_graph_path_message[] =
     "Optional. Path to a file where to store executable graph information serialized.";
@@ -167,7 +171,7 @@ static const char shape_message[] =
     " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
 static const char data_shape_message[] =
-    " Required for networks with dynamic shapes. Set shape for input blobs."
+    "Required for networks with dynamic shapes. Set shape for input blobs."
     " In case of one input size: \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\"."
     " In case of several input sizes provide the same number for each input (except cases with single shape for any "
     "input):"
@@ -185,7 +189,7 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 
 // @brief message for single load network
 static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadNetwork."
-                                             "All CNNNetwork options (like re-shape) will be ignored";
+                                             " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
@@ -290,6 +294,9 @@ DEFINE_string(report_type, "", report_type_message);
 /// @brief Path to a folder where statistics report is stored
 DEFINE_string(report_folder, "", report_folder_message);
 
+/// @brief Enables JSON-based statistics reporting
+DEFINE_bool(json_stats, false, json_stats_message);
+
 /// @brief Path to a file where to store executable graph information serialized
 DEFINE_string(exec_graph_path, "", exec_graph_path_message);
 
@@ -376,7 +383,7 @@ static void show_usage() {
     std::cout << "    -t                        " << execution_time_message << std::endl;
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
-    std::cout << "    -data_shape             " << data_shape_message << std::endl;
+    std::cout << "    -data_shape               " << data_shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
     std::cout << "    -cache_dir \"<path>\"       " << cache_dir_message << std::endl;
     std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
@@ -392,6 +399,7 @@ static void show_usage() {
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
+    std::cout << "    -json_stats               " << json_stats_message;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
     std::cout << "    -pcseq                    " << pcseq_message << std::endl;

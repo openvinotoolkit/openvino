@@ -10,6 +10,7 @@
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
 #include <pyopenvino/core/tensor.hpp>
+#include <pyopenvino/graph/any.hpp>
 
 #include "common.hpp"
 
@@ -27,36 +28,102 @@ void regclass_Core(py::module m) {
 
     cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
 
-    cls.def("set_config",
-            (void (ov::Core::*)(const ConfigMap&, const std::string&)) & ov::Core::set_config,
-            py::arg("config"),
-            py::arg("device_name") = "");
+    // todo: remove after Accuracy Checker migration to set/get_property API
+    cls.def(
+        "set_config",
+        [](ov::Core& self, const std::map<std::string, std::string>& config, const std::string& device_name) {
+            PyErr_WarnEx(PyExc_DeprecationWarning, "set_config() is deprecated, use set_property() instead.", 1);
+            self.set_property(device_name, {config.begin(), config.end()});
+        },
+        py::arg("config"),
+        py::arg("device_name") = "");
 
-    cls.def("compile_model",
-            (ov::CompiledModel(
-                ov::Core::*)(const std::shared_ptr<const ov::Model>&, const std::string&, const ConfigMap&)) &
-                ov::Core::compile_model,
-            py::arg("model"),
-            py::arg("device_name"),
-            py::arg("config") = py::dict());
+    cls.def(
+        "set_property",
+        [](ov::Core& self, const std::map<std::string, py::object>& properties) {
+            std::map<std::string, PyAny> properties_to_cpp;
+            for (const auto& property : properties) {
+                properties_to_cpp[property.first] = PyAny(property.second);
+            }
+            self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
+        },
+        py::arg("properties"),
+        R"(
+            Sets properties.
+            Parameters
+            ----------
+            properties : dict
+                Dict of pairs: (property name, property value)
+            Returns
+            ----------
+            set_property : None
+        )");
 
-    cls.def("compile_model",
-            (ov::CompiledModel(ov::Core::*)(const std::shared_ptr<const ov::Model>&, const ConfigMap&)) &
-                ov::Core::compile_model,
-            py::arg("model"),
-            py::arg("config") = py::dict());
+    cls.def(
+        "set_property",
+        [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
+            std::map<std::string, PyAny> properties_to_cpp;
+            for (const auto& property : properties) {
+                properties_to_cpp[property.first] = PyAny(property.second);
+            }
+            self.set_property(device_name, {properties_to_cpp.begin(), properties_to_cpp.end()});
+        },
+        py::arg("device_name"),
+        py::arg("properties"),
+        R"(
+            Sets properties for the device.
+            Parameters
+            ----------
+            device_name : str
+                Name of the device to load the model to.
+            properties : dict
+                Dict of pairs: (property name, property value)
+            Returns
+            ----------
+            set_property : None
+        )");
 
-    cls.def("compile_model",
-            (ov::CompiledModel(ov::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
-                ov::Core::compile_model,
-            py::arg("model_path"),
-            py::arg("device_name"),
-            py::arg("config") = py::dict());
+    cls.def(
+        "compile_model",
+        [](ov::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
+           const std::string& device_name,
+           const std::map<std::string, std::string>& config) {
+            return self.compile_model(model, device_name, {config.begin(), config.end()});
+        },
+        py::arg("model"),
+        py::arg("device_name"),
+        py::arg("config") = py::dict());
 
-    cls.def("compile_model",
-            (ov::CompiledModel(ov::Core::*)(const std::string&, const ConfigMap&)) & ov::Core::compile_model,
-            py::arg("model_path"),
-            py::arg("config") = py::dict());
+    cls.def(
+        "compile_model",
+        [](ov::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
+           const std::map<std::string, std::string>& config) {
+            return self.compile_model(model, ov::AnyMap{config.begin(), config.end()});
+        },
+        py::arg("model"),
+        py::arg("config") = py::dict());
+
+    cls.def(
+        "compile_model",
+        [](ov::Core& self,
+           const std::string& model_path,
+           const std::string& device_name,
+           const std::map<std::string, std::string>& config) {
+            return self.compile_model(model_path, device_name, {config.begin(), config.end()});
+        },
+        py::arg("model_path"),
+        py::arg("device_name"),
+        py::arg("config") = py::dict());
+
+    cls.def(
+        "compile_model",
+        [](ov::Core& self, const std::string& model_path, const std::map<std::string, std::string>& config) {
+            return self.compile_model(model_path, ov::AnyMap{config.begin(), config.end()});
+        },
+        py::arg("model_path"),
+        py::arg("config") = py::dict());
 
     cls.def("get_versions", &ov::Core::get_versions, py::arg("device_name"));
 
@@ -102,23 +169,52 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "import_model",
-        (ov::CompiledModel(ov::Core::*)(std::istream&, const std::string&, const ConfigMap&)) & ov::Core::import_model,
+        [](ov::Core& self,
+           std::istream& model_file,
+           const std::string& device_name,
+           const std::map<std::string, std::string>& config) {
+            return self.import_model(model_file, device_name, {config.begin(), config.end()});
+        },
         py::arg("model_file"),
         py::arg("device_name"),
         py::arg("config") = py::none());
 
+    // todo: remove after Accuracy Checker migration to set/get_property API
     cls.def(
         "get_config",
         [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_config(device_name, name)).as<py::object>();
+            PyErr_WarnEx(PyExc_DeprecationWarning, "get_config() is deprecated, use get_property() instead.", 1);
+            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
 
     cls.def(
+        "get_property",
+        [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
+            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
+        },
+        py::arg("device_name"),
+        py::arg("name"),
+        R"(
+            Gets properties dedicated to device behaviour.
+            Parameters
+            ----------
+            device_name : str
+                A name of a device to get a properties value.
+            name : str
+                Property name.
+            Returns
+            ----------
+            get_property : Any
+        )");
+
+    // todo: remove after Accuracy Checker migration to set/get_property API
+    cls.def(
         "get_metric",
         [](ov::Core& self, const std::string device_name, const std::string name) -> py::object {
-            return Common::from_ov_any(self.get_metric(device_name, name)).as<py::object>();
+            PyErr_WarnEx(PyExc_DeprecationWarning, "get_metric() is deprecated, use get_property() instead.", 1);
+            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
@@ -129,13 +225,17 @@ void regclass_Core(py::module m) {
 
     cls.def("unload_plugin", &ov::Core::unload_plugin, py::arg("device_name"));
 
-    cls.def("query_model",
-            (ov::SupportedOpsMap(
-                ov::Core::*)(const std::shared_ptr<const ov::Model>&, const std::string&, const ConfigMap&)) &
-                ov::Core::query_model,
-            py::arg("model"),
-            py::arg("device_name"),
-            py::arg("config") = py::dict());
+    cls.def(
+        "query_model",
+        [](ov::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
+           const std::string& device_name,
+           const std::map<std::string, std::string>& config) {
+            return self.query_model(model, device_name, {config.begin(), config.end()});
+        },
+        py::arg("model"),
+        py::arg("device_name"),
+        py::arg("config") = py::dict());
 
     cls.def("add_extension",
             static_cast<void (ov::Core::*)(const std::string&)>(&ov::Core::add_extension),

@@ -122,8 +122,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                                                        const std::string& mean_string,
                                                        const std::vector<ov::Output<const ov::Node>>& input_info);
 
-void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config);
-void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config);
+void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config);
+void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config);
 
 extern const std::vector<std::string> supported_image_extensions;
 extern const std::vector<std::string> supported_binary_extensions;
@@ -133,3 +133,21 @@ bool is_image_file(const std::string& filePath);
 bool contains_binaries(const std::vector<std::string>& filePaths);
 std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
                                                     const std::vector<std::string>& extensions);
+
+std::string parameter_name_to_tensor_name(
+    const std::string& name,
+    const std::vector<ov::Output<const ov::Node>>& inputs_info,
+    const std::vector<ov::Output<const ov::Node>>& outputs_info = std::vector<ov::Output<const ov::Node>>());
+
+template <class T>
+void convert_io_names_in_map(
+    T& map,
+    const std::vector<ov::Output<const ov::Node>>& inputs_info,
+    const std::vector<ov::Output<const ov::Node>>& outputs_info = std::vector<ov::Output<const ov::Node>>()) {
+    T new_map;
+    for (auto& item : map) {
+        new_map[item.first == "" ? "" : parameter_name_to_tensor_name(item.first, inputs_info, outputs_info)] =
+            std::move(item.second);
+    }
+    map = new_map;
+}

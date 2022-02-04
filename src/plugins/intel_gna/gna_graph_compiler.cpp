@@ -983,7 +983,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     // Concat axis validation
-    if (!GNALimitations::ValidateConvConcatAxis(concatLayer) && gnaFlags->log_level == PluginConfigParams::LOG_WARNING) {
+    if (!GNALimitations::ValidateConvConcatAxis(concatLayer) && gnaFlags->log_level == ov::log::Level::WARNING) {
         std::ostringstream in_dims_oss;
         auto in_dims = concatLayer->insData[0].lock()->getDims();
         std::copy(in_dims.begin(), in_dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
@@ -1248,7 +1248,9 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (in_4b_total_size != in_2b_total_size) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs size mismatch " << in_4b_total_size << " != " << in_2b_total_size;
+        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs size mismatch "
+            << "(note: For Multiply, Add and Subtract layers, auto broadcasting is only supported for constant inputs) "
+            << in_4b_total_size << " != " << in_2b_total_size;
     }
 
     // If batch size > 1 the data is reshaped to one with batch size = 1
@@ -2380,9 +2382,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         auto quantized = getInjectedData<QuantizedLayerParams>(prevLayer);
         if (quantized) {
             if (quantized->lowPrecision) {
-                inputs_ptr_->at(prevLayer->name).set_precision(Precision::I8);
+                inputs_ptr_->at(prevLayer->name).set_precision(InferenceEngine::Precision::I8);
             } else {
-              inputs_ptr_->at(prevLayer->name).set_precision(Precision::I16);
+                inputs_ptr_->at(prevLayer->name).set_precision(InferenceEngine::Precision::I16);
             }
         }
         if (0 == inputs_ptr_->at(prevLayer->name).get_allocated_size()) {

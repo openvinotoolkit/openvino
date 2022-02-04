@@ -29,6 +29,7 @@ namespace ov {
 
 class Node;
 class RuntimeAttribute;
+
 class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
@@ -50,6 +51,19 @@ class OPENVINO_API Any {
     struct Ostreamable {
         template <class U>
         static auto test(U*) -> decltype(std::declval<std::ostream&>() << std::declval<U>(), std::true_type()) {
+            return {};
+        }
+        template <typename>
+        static auto test(...) -> std::false_type {
+            return {};
+        }
+        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
+    };
+
+    template <class T>
+    struct Istreamable {
+        template <class U>
+        static auto test(U*) -> decltype(std::declval<std::istream&>() >> std::declval<U&>(), std::true_type()) {
             return {};
         }
         template <typename>
@@ -160,6 +174,7 @@ class OPENVINO_API Any {
         virtual Base::Ptr copy() const = 0;
         virtual bool equal(const Base& rhs) const = 0;
         virtual void print(std::ostream& os) const = 0;
+        virtual void read(std::istream& os) = 0;
 
         virtual const DiscreteTypeInfo& get_type_info() const = 0;
         virtual std::shared_ptr<RuntimeAttribute> as_runtime_attribute() const;
@@ -260,6 +275,10 @@ class OPENVINO_API Any {
             os << runtime_attribute->to_string();
         }
 
+        void read(std::istream&) override {
+            throw ov::Exception{"Pointer to runtime attribute is not readable from std::istream"};
+        }
+
         T runtime_attribute;
     };
 
@@ -326,6 +345,20 @@ class OPENVINO_API Any {
 
         void print(std::ostream& os) const override {
             print_impl(os, value);
+        }
+
+        template <class U>
+        static typename std::enable_if<Istreamable<U>::value>::type read_impl(std::istream& is, U& value) {
+            is >> value;
+        }
+
+        template <class U>
+        static typename std::enable_if<!Istreamable<U>::value>::type read_impl(std::istream&, U&) {
+            throw ov::Exception{"Could print type without std::istream& operator>>(std::istream&, T) defined"};
+        }
+
+        void read(std::istream& is) override {
+            read_impl(is, value);
         }
 
         T value;
@@ -608,6 +641,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator T&() & {
         return as<T>();
     }
@@ -618,6 +652,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator const T&() const& {
         return as<T>();
     }
@@ -628,6 +663,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator T&() const& {
         return const_cast<Any*>(this)->as<T>();
     }
@@ -638,6 +674,7 @@ public:
      * @return casted object
      */
     template <typename T>
+    OPENVINO_DEPRECATED("Please use as() method")
     operator T &&() && {
         return std::move(as<T&&>());
     }
@@ -690,6 +727,15 @@ public:
     void print(std::ostream& stream) const;
 
     /**
+     * @brief Read into underlying object from the given input stream.
+     * Uses operator>> if it is defined, leaves stream unchanged otherwise.
+     * In case of empty any or nullptr stream immediately returns.
+     *
+     * @param stream Output stream object will be printed to.
+     */
+    void read(std::istream& stream);
+
+    /**
      * @brief Return pointer to underlined interface
      * @return underlined interface
      */
@@ -725,9 +771,17 @@ struct AsTypePtr<Any> {
 };
 }  // namespace util
 
-using RTMap = std::map<std::string, Any>;
+using AnyMap = std::map<std::string, Any>;
+
+using RTMap = AnyMap;
 
 using AnyVector = std::vector<ov::Any>;
+
+/** @cond INTERNAL */
+inline static void PrintTo(const Any& any, std::ostream* os) {
+    any.print(*os);
+}
+/** @endcond */
 
 }  // namespace ov
 

@@ -55,13 +55,16 @@ MKLDNNConcatNode::MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW(NotImplemented) << errorMessage;
     }
 
+    const auto inRank = getInputShapeAtPort(0).getRank();
     auto concatOp = ngraph::as_type_ptr<ngraph::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
     if (axis < 0) {
-        this->axis = concatOp->get_input_shape(0).size() + axis;
-    } else {
-        this->axis = axis;
+        axis += inRank;
     }
+    if (axis >= inRank || axis < 0) {
+        IE_THROW() << "Concat node with name '" << getName() << "' has invalid value of axis parameter: " << axis;
+    }
+    this->axis = axis;
 }
 
 void MKLDNNConcatNode::getSupportedDescriptors() {

@@ -4,10 +4,12 @@
 
 #include "cpp/ie_executable_network.hpp"
 
+#include "any_copy.hpp"
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
+#include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -162,7 +164,7 @@ ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) 
                 return param;
             }
         }
-        throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+        throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
     });
 }
 
@@ -194,7 +196,7 @@ ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name)
                 return result;
             }
         }
-        throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+        throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
     });
 }
 
@@ -206,16 +208,50 @@ void CompiledModel::export_model(std::ostream& networkModel) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
 }
 
-void CompiledModel::set_config(const ie::ParamMap& config) {
+void CompiledModel::set_property(const AnyMap& config) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
-ie::Parameter CompiledModel::get_config(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), _so});
+Any CompiledModel::get_property(const std::string& name) const {
+    OV_EXEC_NET_CALL_STATEMENT({
+        if (ov::supported_properties == name) {
+            try {
+                auto supported_properties = _impl->GetMetric(name).as<std::vector<PropertyName>>();
+                supported_properties.erase(std::remove_if(supported_properties.begin(),
+                                                          supported_properties.end(),
+                                                          [](const ov::PropertyName& name) {
+                                                              return name == METRIC_KEY(SUPPORTED_METRICS) ||
+                                                                     name == METRIC_KEY(SUPPORTED_CONFIG_KEYS);
+                                                          }),
+                                           supported_properties.end());
+                return supported_properties;
+            } catch (ie::Exception&) {
+                auto ro_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+                auto rw_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+                std::vector<ov::PropertyName> supported_properties;
+                for (auto&& ro_property : ro_properties) {
+                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                        supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    }
+                }
+                for (auto&& rw_property : rw_properties) {
+                    supported_properties.emplace_back(rw_property, PropertyMutability::RW);
+                }
+                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
+                return supported_properties;
+            }
+        }
+        try {
+            return {_impl->GetMetric(name), _so};
+        } catch (ie::Exception&) {
+            return {_impl->GetConfig(name), _so};
+        }
+    });
 }
 
-ie::Parameter CompiledModel::get_metric(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), _so});
+void CompiledModel::get_property(const std::string& name, Any& to) const {
+    any_lexical_cast(get_property(name), to);
 }
 
 RemoteContext CompiledModel::get_context() const {

@@ -18,12 +18,12 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16
 };
 
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
     {}
 };
 
-const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
-        {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_MYRIAD}}
+const std::vector<ov::AnyMap> HeteroConfigs = {
+    {ov::device::priorities(CommonTestUtils::DEVICE_MYRIAD, CommonTestUtils::DEVICE_CPU)}
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
