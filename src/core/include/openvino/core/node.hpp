@@ -55,6 +55,9 @@ class Result;
 struct AutoBroadcastSpec;
 }  // namespace op
 namespace pass {
+
+class ResolveNameCollisions;
+
 namespace pattern {
 class Matcher;
 }  // namespace pattern
@@ -62,6 +65,7 @@ class Matcher;
 using HostTensor = ngraph::runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
+using TensorLabelVector = std::vector<TensorLabel>;
 
 template <typename NodeType>
 class Input;
@@ -122,6 +126,8 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class Output;
 
     friend class Model;
+    // To fix collisions in generated friendly name
+    friend class pass::ResolveNameCollisions;
 
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
@@ -238,6 +244,7 @@ public:
                           const ov::EvaluationContext& evaluationContext) const;
     virtual bool evaluate_lower(ov::TensorVector& output_values) const;
     virtual bool evaluate_upper(ov::TensorVector& output_values) const;
+    virtual bool evaluate_label(TensorLabelVector& output_labels) const;
 
     virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
     /// \brief Decomposes the FusedOp into a sub-graph consisting of core openvino ops

@@ -27,19 +27,19 @@ TEST_P(OVInferRequestPerfCountersTest, CheckOperationInProfilingInfo) {
     }
 }
 
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
         {}
 };
 
-const std::vector<std::map<std::string, std::string>> Multiconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
+const std::vector<ov::AnyMap> Multiconfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
 };
 
-const std::vector<std::map<std::string, std::string>> Autoconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
+const std::vector<ov::AnyMap> Autoconfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
 };
 
-const std::vector<std::map<std::string, std::string>> AutoBatchConfigs = {
+const std::vector<ov::AnyMap> AutoBatchConfigs = {
         {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU}}
 };
 

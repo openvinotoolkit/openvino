@@ -353,7 +353,7 @@ std::map<std::string, std::vector<std::string>> parse_input_parameters(
             input_name = search_string.substr(0, start_pos);
         auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
         if (!input_name.empty()) {
-            return_value[input_name].push_back(input_value);
+            return_value[parameter_name_to_tensor_name(input_name, input_info)].push_back(input_value);
         } else {
             for (auto& item : input_info) {
                 return_value[item.get_any_name()].push_back(input_value);
@@ -647,7 +647,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 }
 
 #ifdef USE_OPENCV
-void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
+void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
     slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
     auto plugin_to_opencv_format = [](const std::string& str) -> std::string {
         if (str.find("_") != std::string::npos) {
@@ -668,14 +668,18 @@ void dump_config(const std::string& filename, const std::map<std::string, std::m
         throw std::runtime_error("Error: Can't open config file : " + filename);
     for (auto device_it = config.begin(); device_it != config.end(); ++device_it) {
         fs << plugin_to_opencv_format(device_it->first) << "{:";
-        for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it)
-            fs << param_it->first << param_it->second;
+        std::stringstream strm;
+        for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it) {
+            strm << param_it->first;
+            param_it->second.print(strm);
+        }
+        fs << strm.str();
         fs << "}";
     }
     fs.release();
 }
 
-void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
+void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config) {
     slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
     auto opencv_to_plugin_format = [](const std::string& str) -> std::string {
         std::string new_str(str);
@@ -701,12 +705,14 @@ void load_config(const std::string& filename, std::map<std::string, std::map<std
     }
 }
 #else
-void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
+void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
         std::string deviceName = item.first;
         for (const auto& option : item.second) {
-            jsonConfig[deviceName][option.first] = option.second;
+            std::stringstream strm;
+            option.second.print(strm);
+            jsonConfig[deviceName][option.first] = strm.str();
         }
     }
 
@@ -718,7 +724,7 @@ void dump_config(const std::string& filename, const std::map<std::string, std::m
     ofs << jsonConfig;
 }
 
-void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
+void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config) {
     std::ifstream ifs(filename);
     if (!ifs.is_open()) {
         throw std::runtime_error("Can't load config file \"" + filename + "\".");
@@ -790,4 +796,39 @@ std::vector<std::string> filter_files_by_extensions(const std::vector<std::strin
         }
     }
     return filtered;
+}
+
+std::string parameter_name_to_tensor_name(const std::string& name,
+                                          const std::vector<ov::Output<const ov::Node>>& inputs_info,
+                                          const std::vector<ov::Output<const ov::Node>>& outputs_info) {
+    if (std::any_of(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
+            try {
+                return name == port.get_any_name();
+            } catch (const ov::Exception&) {
+                return false;  // Some ports might have no names - so this is workaround
+            }
+        })) {
+        return name;
+    } else if (std::any_of(outputs_info.begin(), outputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
+                   try {
+                       return name == port.get_any_name();
+                   } catch (const ov::Exception&) {
+                       return false;  // Some ports might have no names - so this is workaround
+                   }
+               })) {
+        return name;
+    } else {
+        for (const auto& port : inputs_info) {
+            if (name == port.get_node()->get_friendly_name()) {
+                return port.get_any_name();
+            }
+        }
+        for (const auto& port : outputs_info) {
+            if (name == port.get_node()->get_input_node_ptr(0)->get_friendly_name()) {
+                return port.get_any_name();
+            }
+        }
+    }
+    throw std::runtime_error("Provided I/O name \"" + name +
+                             "\" is not found neither in tensor names nor in nodes names.");
 }

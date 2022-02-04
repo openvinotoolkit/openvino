@@ -73,9 +73,9 @@ jobs:
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       # For running Python API tests
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
@@ -93,7 +93,7 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
-        -DENABLE_INTEL_VPU=OFF
+        -DENABLE_INTEL_MYRIAD_COMMON=OFF
         -DENABLE_INTEL_GNA=OFF
         -DENABLE_OPENCV=OFF
         -DENABLE_CPPLINT=OFF

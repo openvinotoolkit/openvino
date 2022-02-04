@@ -1,55 +1,167 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/tensor_iterator.hpp"
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset8.hpp>
+
 #include "base_reference_test.hpp"
-#include <ngraph/op/util/attr_types.hpp>
+#include "functional_test_utils/skip_tests_config.hpp"
+
 #include "ngraph_functions/builders.hpp"
 
-using namespace reference_tests;
-using namespace ov;
-
 namespace {
+struct TIFunctionalBase {
+    virtual std::shared_ptr<ov::Model> create_function(const std::vector<reference_tests::Tensor> &ti_inputs,
+                                                        const std::vector<reference_tests::Tensor> &results) = 0;
+
+    TIFunctionalBase() = default;
+
+    virtual ~TIFunctionalBase() = default;
+};
+
+struct TIDynamicInputs : public TIFunctionalBase {
+    std::shared_ptr<ov::Model> create_function(const std::vector<reference_tests::Tensor> &ti_inputs,
+                                                const std::vector<reference_tests::Tensor> &results) override {
+        auto X = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Y = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+
+        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+        // Body parameters
+        auto Xi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Yi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M_body = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto body_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+
+        auto trip_count = std::make_shared<ov::opset8::Constant>(ngraph::element::i64, ov::Shape{1}, 3);
+        auto exec_condition = std::make_shared<ov::opset8::Constant>(ngraph::element::boolean, ov::Shape{1}, true);
+        // Body
+        auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
+        auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo},
+                                                ov::ParameterVector{Xi, Yi, M_body});
+
+        auto tensor_iterator = std::make_shared<ov::opset8::TensorIterator>();
+        tensor_iterator->set_function(body);
+
+        tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
+        tensor_iterator->set_sliced_input(Yi, Y, 0, 1, 1, -1, 0);
+        tensor_iterator->set_merged_input(M_body, M, Zo);
+
+        // Output 0 is last Zo
+        auto out1 = tensor_iterator->get_iter_value(Zo, -1);
+        return std::make_shared<ov::Model>(ov::OutputVector{out1}, ov::ParameterVector{X, Y, M});
+    }
+};
+
+struct TensorIteratorParams {
+    TensorIteratorParams(const std::shared_ptr<TIFunctionalBase> &functional,
+                            const std::vector<reference_tests::Tensor> &ti_inputs,
+                            const std::vector<reference_tests::Tensor> &expected_results,
+                            const std::string &test_case_name)
+        : function(functional),
+            inputs(ti_inputs),
+            expected_results(expected_results),
+            test_case_name(test_case_name) {}
+
+    std::shared_ptr<TIFunctionalBase> function;
+    std::vector<reference_tests::Tensor> inputs;
+    std::vector<reference_tests::Tensor> expected_results;
+    std::string test_case_name;
+};
+
+class ReferenceTILayerTest : public testing::TestWithParam<TensorIteratorParams>,
+                                public reference_tests::CommonReferenceTest {
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        auto params = GetParam();
+        function = params.function->create_function(params.inputs, params.expected_results);
+        inputData.reserve(params.inputs.size());
+        refOutData.reserve(params.expected_results.size());
+        for (auto &input_tensor: params.inputs) {
+            inputData.push_back(input_tensor.data);
+        }
+        for (auto &expected_tensor: params.expected_results) {
+            refOutData.push_back(expected_tensor.data);
+        }
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<TensorIteratorParams> &obj) {
+        auto param = obj.param;
+        return param.test_case_name;
+    }
+};
+
+TEST_P(ReferenceTILayerTest, TensorIteratorWithHardcodedRefs) {
+    Exec();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_TensorIterator_With_Hardcoded_Refs,
+    ReferenceTILayerTest,
+    ::testing::Values(
+        TensorIteratorParams(
+            std::make_shared<TIDynamicInputs>(),
+            std::vector<reference_tests::Tensor>{
+                reference_tests::Tensor(ov::element::f32, ov::Shape{1, 2}, std::vector<float>{2, 3}),
+                reference_tests::Tensor(ov::element::f32, ov::Shape{2, 1}, std::vector<float>{4, 5}),
+                reference_tests::Tensor(ov::element::f32, ov::Shape{1, 1}, std::vector<float>{5})},
+            std::vector<reference_tests::Tensor>{
+                reference_tests::Tensor(ov::element::f32, ov::Shape{1, 1}, std::vector<float>{240})},
+            "tensor_iterator_dynamic_inputs")),
+    ReferenceTILayerTest::getTestCaseName);
+
 enum TensorIteratorBodyType {
     RNN,
     GRU,
     LSTM,
 };
 
-struct TensorIteratorParams {
+struct TensorIteratorStaticParams;
+
+struct TIStaticFunctionalBase {
+    virtual std::shared_ptr<ov::Model> create_function(const TensorIteratorStaticParams& params) = 0;
+    TIStaticFunctionalBase() = default;
+    virtual ~TIStaticFunctionalBase() = default;
+};
+
+struct TensorIteratorStaticParams {
     template <class T>
-    TensorIteratorParams(
+    TensorIteratorStaticParams(
+        const std::shared_ptr<TIStaticFunctionalBase>& functional,
         const size_t batchSize, const size_t inputSize, const size_t hiddenSize, const size_t seqLength,
-        const float clip, const ngraph::op::RecurrentSequenceDirection& direction,
+        const float clip, const ov::op::RecurrentSequenceDirection& direction,
         const TensorIteratorBodyType& body_type,
-        const element::Type_t& iType,
+        const ov::element::Type_t& iType,
         const std::vector<T>& XValues, const std::vector<T>& H_tValues,  const std::vector<T>& C_tValues, const std::vector<int64_t>& S_tValues,
         const std::vector<T>& WValues, const std::vector<T>& RValues, const std::vector<T>& BValues,
         const std::vector<T>& YValues, const std::vector<T>& HoValues, const std::vector<T>& CoValues,
         const std::string& testcaseName = "") :
+        function(functional),
         batchSize(batchSize), inputSize(inputSize), hiddenSize(hiddenSize), seqLength(seqLength),
         clip(clip), body_type(body_type), direction(direction), iType(iType), oType(iType),
         testcaseName(testcaseName) {
             switch (body_type) {
                 case TensorIteratorBodyType::LSTM: {
-                    Shape XShape = Shape{batchSize, seqLength, inputSize};
-                    Shape H_tShape = Shape{batchSize, hiddenSize};
-                    Shape C_tShape = Shape{batchSize, hiddenSize};
-                    Shape S_tShape = Shape{batchSize};
-                    Shape WShape = Shape{4 * hiddenSize, inputSize};
-                    Shape RShape = Shape{4 * hiddenSize, hiddenSize};
-                    Shape BShape = Shape{4 * hiddenSize};
-                    Shape YShape = Shape{batchSize, seqLength, hiddenSize};
-                    Shape HoShape = Shape{batchSize, hiddenSize};
-                    Shape CoShape = Shape{batchSize, hiddenSize};
+                    ov::Shape XShape = ov::Shape{batchSize, seqLength, inputSize};
+                    ov::Shape H_tShape = ov::Shape{batchSize, hiddenSize};
+                    ov::Shape C_tShape = ov::Shape{batchSize, hiddenSize};
+                    ov::Shape S_tShape = ov::Shape{batchSize};
+                    ov::Shape WShape = ov::Shape{4 * hiddenSize, inputSize};
+                    ov::Shape RShape = ov::Shape{4 * hiddenSize, hiddenSize};
+                    ov::Shape BShape = ov::Shape{4 * hiddenSize};
+                    ov::Shape YShape = ov::Shape{batchSize, seqLength, hiddenSize};
+                    ov::Shape HoShape = ov::Shape{batchSize, hiddenSize};
+                    ov::Shape CoShape = ov::Shape{batchSize, hiddenSize};
 
                     X = reference_tests::Tensor(XShape, iType, XValues);
                     H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
                     C_t = reference_tests::Tensor(C_tShape, iType, C_tValues);
-                    S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+                    S_t = reference_tests::Tensor(S_tShape, ov::element::Type_t::i64, S_tValues);
                     W = reference_tests::Tensor(WShape, iType, WValues);
                     R = reference_tests::Tensor(RShape, iType, RValues);
                     B = reference_tests::Tensor(BShape, iType, BValues);
@@ -59,18 +171,18 @@ struct TensorIteratorParams {
                     break;
                 }
                 case TensorIteratorBodyType::GRU: {
-                    Shape XShape = Shape{batchSize, seqLength, inputSize};
-                    Shape H_tShape = Shape{batchSize, hiddenSize};
-                    Shape S_tShape = Shape{batchSize};
-                    Shape WShape = Shape{3 * hiddenSize, inputSize};
-                    Shape RShape = Shape{3 * hiddenSize, hiddenSize};
-                    Shape BShape = Shape{3 * hiddenSize};
-                    Shape YShape = Shape{batchSize, seqLength, hiddenSize};
-                    Shape HoShape = Shape{batchSize, hiddenSize};
+                    ov::Shape XShape = ov::Shape{batchSize, seqLength, inputSize};
+                    ov::Shape H_tShape = ov::Shape{batchSize, hiddenSize};
+                    ov::Shape S_tShape = ov::Shape{batchSize};
+                    ov::Shape WShape = ov::Shape{3 * hiddenSize, inputSize};
+                    ov::Shape RShape = ov::Shape{3 * hiddenSize, hiddenSize};
+                    ov::Shape BShape = ov::Shape{3 * hiddenSize};
+                    ov::Shape YShape = ov::Shape{batchSize, seqLength, hiddenSize};
+                    ov::Shape HoShape = ov::Shape{batchSize, hiddenSize};
 
                     X = reference_tests::Tensor(XShape, iType, XValues);
                     H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
-                    S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+                    S_t = reference_tests::Tensor(S_tShape, ov::element::Type_t::i64, S_tValues);
                     W = reference_tests::Tensor(WShape, iType, WValues);
                     R = reference_tests::Tensor(RShape, iType, RValues);
                     B = reference_tests::Tensor(BShape, iType, BValues);
@@ -79,18 +191,18 @@ struct TensorIteratorParams {
                     break;
                 }
                 case TensorIteratorBodyType::RNN: {
-                    Shape XShape = Shape{batchSize, seqLength, inputSize};
-                    Shape H_tShape = Shape{batchSize, hiddenSize};
-                    Shape S_tShape = Shape{batchSize};
-                    Shape WShape = Shape{hiddenSize, inputSize};
-                    Shape RShape = Shape{hiddenSize, hiddenSize};
-                    Shape BShape = Shape{hiddenSize};
-                    Shape YShape = Shape{batchSize, seqLength, hiddenSize};
-                    Shape HoShape = Shape{batchSize, hiddenSize};
+                    ov::Shape XShape = ov::Shape{batchSize, seqLength, inputSize};
+                    ov::Shape H_tShape = ov::Shape{batchSize, hiddenSize};
+                    ov::Shape S_tShape = ov::Shape{batchSize};
+                    ov::Shape WShape = ov::Shape{hiddenSize, inputSize};
+                    ov::Shape RShape = ov::Shape{hiddenSize, hiddenSize};
+                    ov::Shape BShape = ov::Shape{hiddenSize};
+                    ov::Shape YShape = ov::Shape{batchSize, seqLength, hiddenSize};
+                    ov::Shape HoShape = ov::Shape{batchSize, hiddenSize};
 
                     X = reference_tests::Tensor(XShape, iType, XValues);
                     H_t = reference_tests::Tensor(H_tShape, iType, H_tValues);
-                    S_t = reference_tests::Tensor(S_tShape, element::Type_t::i64, S_tValues);
+                    S_t = reference_tests::Tensor(S_tShape, ov::element::Type_t::i64, S_tValues);
                     W = reference_tests::Tensor(WShape, iType, WValues);
                     R = reference_tests::Tensor(RShape, iType, RValues);
                     B = reference_tests::Tensor(BShape, iType, BValues);
@@ -101,6 +213,8 @@ struct TensorIteratorParams {
             }
         }
 
+    std::shared_ptr<TIStaticFunctionalBase> function;
+
     size_t batchSize;
     size_t inputSize;
     size_t hiddenSize;
@@ -108,10 +222,10 @@ struct TensorIteratorParams {
     size_t sequenceAxis = 1;
     float clip;
     TensorIteratorBodyType body_type;
-    ngraph::op::RecurrentSequenceDirection direction;
+    ov::op::RecurrentSequenceDirection direction;
 
-    element::Type_t iType;
-    element::Type_t oType;
+    ov::element::Type_t iType;
+    ov::element::Type_t oType;
 
     reference_tests::Tensor X;
     reference_tests::Tensor H_t;
@@ -126,51 +240,17 @@ struct TensorIteratorParams {
     std::string testcaseName;
 };
 
-class ReferenceTensorIteratorTest : public testing::TestWithParam<TensorIteratorParams>, public CommonReferenceTest {
-public:
-    void SetUp() override {
-        auto params = GetParam();
-        function = CreateFunction(params);
-        if (params.body_type == TensorIteratorBodyType::LSTM) {
-            inputData = {params.X.data, params.H_t.data, params.C_t.data};
-            refOutData = {params.Y.data, params.Ho.data, params.Co.data};
-        } else {
-            inputData = {params.X.data, params.H_t.data};
-            refOutData = {params.Y.data, params.Ho.data};
-        }
-    }
-
-    static std::string getTestCaseName(const testing::TestParamInfo<TensorIteratorParams>& obj) {
-        auto param = obj.param;
-        std::ostringstream result;
-        result << "bSize=" << param.batchSize;
-        result << "_iSize=" << param.inputSize;
-        result << "_hSize=" << param.hiddenSize;
-        result << "_sLength=" << param.seqLength;
-        result << "_clip=" << param.clip;
-        result << "_body=" << param.body_type;
-        result << "_xType=" << param.X.type;
-        result << "_xShape=" << param.X.shape;
-        if (param.testcaseName != "") {
-            result << "_direction=" << param.direction;
-            result << "_" << param.testcaseName;
-        } else {
-            result << "_direction=" << param.direction;
-        }
-        return result.str();
-    }
-
-private:
-    static std::shared_ptr<Model> CreateFunction(const TensorIteratorParams& params) {
+struct TIStaticInputs : public TIStaticFunctionalBase {
+    std::shared_ptr<ov::Model> create_function(const TensorIteratorStaticParams& params) override {
         std::vector<std::vector<size_t>> inputShapes;
         std::shared_ptr<ov::Model> function;
-        auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<ov::opset8::TensorIterator>();
 
         // Each case consist of 3 steps:
         // 1. Create TensorIterator body.
         // 2. Set PortMap
         // 3. Create outer function
-        auto axis = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1},
+        auto axis = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1},
                                                                std::vector<int64_t>{static_cast<int64_t>(params.sequenceAxis)});
         switch (params.body_type) {
             case TensorIteratorBodyType::LSTM: {
@@ -191,13 +271,13 @@ private:
                 // 1. Create TensorIterator body.
                 inputShapes[0][params.sequenceAxis] = 1; // sliced dimension
                 auto body_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1], inputShapes[2]});
-                auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
+                auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
 
-                auto W = std::make_shared<ngraph::opset1::Constant>(params.W.type, params.W.shape, params.W.data.data());
-                auto R = std::make_shared<ngraph::opset1::Constant>(params.R.type, params.R.shape, params.R.data.data());
-                auto B = std::make_shared<ngraph::opset1::Constant>(params.B.type, params.B.shape, params.B.data.data());
-                auto lstm_cell = std::make_shared<ngraph::opset4::LSTMCell>(out_vector[0],
+                auto W = std::make_shared<ov::opset8::Constant>(params.W.type, params.W.shape, params.W.data.data());
+                auto R = std::make_shared<ov::opset8::Constant>(params.R.type, params.R.shape, params.R.data.data());
+                auto B = std::make_shared<ov::opset8::Constant>(params.B.type, params.B.shape, params.B.data.data());
+                auto lstm_cell = std::make_shared<ov::opset8::LSTMCell>(out_vector[0],
                                                                             out_vector[1],
                                                                             out_vector[2],
                                                                             W,
@@ -209,18 +289,18 @@ private:
                                                                             std::vector<float>{},
                                                                             params.clip);
 
-                auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(lstm_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(unsqueeze),
-                                             std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
-                                             std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
+                auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(lstm_cell->output(0), axis);
+                ov::ResultVector results{std::make_shared<ov::opset8::Result>(unsqueeze),
+                                             std::make_shared<ov::opset8::Result>(lstm_cell->output(0)),
+                                             std::make_shared<ov::opset8::Result>(lstm_cell->output(1))};
                 auto body = std::make_shared<ngraph::Function>(results, body_params, "lstm_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
-                if (params.direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
+                if (params.direction == ov::op::RecurrentSequenceDirection::FORWARD) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, params.sequenceAxis);
                     tensor_iterator->get_concatenated_slices(results[0], 0, 1, 1, -1, params.sequenceAxis);
-                } else if (params.direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
+                } else if (params.direction == ov::op::RecurrentSequenceDirection::REVERSE) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, params.sequenceAxis);
                     tensor_iterator->get_concatenated_slices(results[0], -1, -1, 1, 0, params.sequenceAxis);
                 } else {
@@ -254,13 +334,13 @@ private:
                 // 1. Create TensorIterator body.
                 inputShapes[0][params.sequenceAxis] = 1; // sliced dimension
                 auto body_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1]});
-                auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
+                auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
 
-                auto W = std::make_shared<ngraph::opset1::Constant>(params.W.type, params.W.shape, params.W.data.data());
-                auto R = std::make_shared<ngraph::opset1::Constant>(params.R.type, params.R.shape, params.R.data.data());
-                auto B = std::make_shared<ngraph::opset1::Constant>(params.B.type, params.B.shape, params.B.data.data());
-                auto gru_cell = std::make_shared<ngraph::opset4::GRUCell>(out_vector[0],
+                auto W = std::make_shared<ov::opset8::Constant>(params.W.type, params.W.shape, params.W.data.data());
+                auto R = std::make_shared<ov::opset8::Constant>(params.R.type, params.R.shape, params.R.data.data());
+                auto B = std::make_shared<ov::opset8::Constant>(params.B.type, params.B.shape, params.B.data.data());
+                auto gru_cell = std::make_shared<ov::opset8::GRUCell>(out_vector[0],
                                                                           out_vector[1],
                                                                           W,
                                                                           R,
@@ -272,17 +352,17 @@ private:
                                                                           params.clip,
                                                                           false);
 
-                auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(gru_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0)),
-                                             std::make_shared<ngraph::opset1::Result>(unsqueeze)};
+                auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(gru_cell->output(0), axis);
+                ngraph::ResultVector results{std::make_shared<ov::opset8::Result>(gru_cell->output(0)),
+                                             std::make_shared<ov::opset8::Result>(unsqueeze)};
                 auto body = std::make_shared<ngraph::Function>(results, body_params, "gru_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
-                if (params.direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
+                if (params.direction == ov::op::RecurrentSequenceDirection::FORWARD) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, params.sequenceAxis);
                     tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, params.sequenceAxis);
-                } else if (params.direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
+                } else if (params.direction == ov::op::RecurrentSequenceDirection::REVERSE) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, params.sequenceAxis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, params.sequenceAxis);
                 } else {
@@ -313,13 +393,13 @@ private:
                 // 1. Create TensorIterator body.
                 inputShapes[0][params.sequenceAxis] = 1; // sliced dimension
                 auto body_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1]});
-                auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
+                auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
 
-                auto W = std::make_shared<ngraph::opset1::Constant>(params.W.type, params.W.shape, params.W.data.data());
-                auto R = std::make_shared<ngraph::opset1::Constant>(params.R.type, params.R.shape, params.R.data.data());
-                auto B = std::make_shared<ngraph::opset1::Constant>(params.B.type, params.B.shape, params.B.data.data());
-                auto rnn_cell = std::make_shared<ngraph::opset4::RNNCell>(out_vector[0],
+                auto W = std::make_shared<ov::opset8::Constant>(params.W.type, params.W.shape, params.W.data.data());
+                auto R = std::make_shared<ov::opset8::Constant>(params.R.type, params.R.shape, params.R.data.data());
+                auto B = std::make_shared<ov::opset8::Constant>(params.B.type, params.B.shape, params.B.data.data());
+                auto rnn_cell = std::make_shared<ov::opset8::RNNCell>(out_vector[0],
                                                                           out_vector[1],
                                                                           W,
                                                                           R,
@@ -330,17 +410,17 @@ private:
                                                                           std::vector<float>{},
                                                                           params.clip);
 
-                auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(rnn_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell),
-                                             std::make_shared<ngraph::opset1::Result>(unsqueeze)};
+                auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(rnn_cell->output(0), axis);
+                ngraph::ResultVector results{std::make_shared<ov::opset8::Result>(rnn_cell),
+                                             std::make_shared<ov::opset8::Result>(unsqueeze)};
                 auto body = std::make_shared<ngraph::Function>(results, body_params, "rnn_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
-                if (params.direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
+                if (params.direction == ov::op::RecurrentSequenceDirection::FORWARD) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, params.sequenceAxis);
                     tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, params.sequenceAxis);
-                } else if (params.direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
+                } else if (params.direction == ov::op::RecurrentSequenceDirection::REVERSE) {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, params.sequenceAxis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, params.sequenceAxis);
                 } else {
@@ -359,18 +439,56 @@ private:
     }
 };
 
-TEST_P(ReferenceTensorIteratorTest, CompareWithRefs) {
+class ReferenceTILayerStaticTest : public testing::TestWithParam<TensorIteratorStaticParams>,
+        public reference_tests::CommonReferenceTest {
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        auto params = GetParam();
+        function = params.function->create_function(params);
+        if (params.body_type == TensorIteratorBodyType::LSTM) {
+            inputData = {params.X.data, params.H_t.data, params.C_t.data};
+            refOutData = {params.Y.data, params.Ho.data, params.Co.data};
+        } else {
+            inputData = {params.X.data, params.H_t.data};
+            refOutData = {params.Y.data, params.Ho.data};
+        }
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<TensorIteratorStaticParams>& obj) {
+        auto param = obj.param;
+        std::ostringstream result;
+        result << "bSize=" << param.batchSize;
+        result << "_iSize=" << param.inputSize;
+        result << "_hSize=" << param.hiddenSize;
+        result << "_sLength=" << param.seqLength;
+        result << "_clip=" << param.clip;
+        result << "_body=" << param.body_type;
+        result << "_xType=" << param.X.type;
+        result << "_xShape=" << param.X.shape;
+        if (param.testcaseName != "") {
+            result << "_direction=" << param.direction;
+            result << "_" << param.testcaseName;
+        } else {
+            result << "_direction=" << param.direction;
+        }
+        return result.str();
+    }
+};
+
+TEST_P(ReferenceTILayerStaticTest, CompareWithRefs) {
     Exec();
 }
 
-template <element::Type_t ET>
-std::vector<TensorIteratorParams> generateParams() {
-    using T = typename element_type_traits<ET>::value_type;
+template <ov::element::Type_t ET>
+std::vector<TensorIteratorStaticParams> generateParams() {
+    using T = typename ov::element_type_traits<ET>::value_type;
 
-    std::vector<TensorIteratorParams> params {
-        TensorIteratorParams(
+    std::vector<TensorIteratorStaticParams> params {
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::LSTM,
+            0.7f, ov::op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::LSTM,
             ET,
             std::vector<T>{
                 1, 9.97466, 9.39302, 2.15312, 9.99136, 3.1248, 4.56923, 4.4912, 7.02771, 9.41985,
@@ -586,9 +704,10 @@ std::vector<TensorIteratorParams> generateParams() {
                 1.33748, 1.32752, 1.34137, 1.22801, 1.29593, 1.35132, 1.34559, 1.34566, 1.25679, 1.22266,
                 1.32026, 1.30789, 1.32044, 1.27895, 1.24474, 1.25944, 1.23589, 1.33827, 1.27907, 1.21865,
                 1.31284, 1.31868, 1.26086, 1.28443, 1.24866, 1.22491, 1.28812, 1.22855, 1.35744, 1.37287}),
-        TensorIteratorParams(
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::LSTM,
+            0.7f, ov::op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::LSTM,
             ET,
             std::vector<T>{
                 1, 9.97466, 9.39302, 2.15312, 9.99136, 3.1248, 4.56923, 4.4912, 7.02771, 9.41985,
@@ -804,9 +923,10 @@ std::vector<TensorIteratorParams> generateParams() {
                 1.33748, 1.32752, 1.34137, 1.22801, 1.29593, 1.35132, 1.34559, 1.34566, 1.25679, 1.22266,
                 1.32026, 1.30789, 1.32044, 1.27895, 1.24474, 1.25944, 1.23589, 1.33827, 1.27907, 1.21865,
                 1.31284, 1.31868, 1.26086, 1.28443, 1.24866, 1.22491, 1.28812, 1.22855, 1.35744, 1.37287}),
-        TensorIteratorParams(
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::GRU,
+            0.7f, ov::op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::GRU,
             ET,
             std::vector<T>{
                 1, 9.97466, 9.39302, 2.15312, 9.99136, 3.1248, 4.56923, 4.4912, 7.02771, 9.41985,
@@ -991,9 +1111,10 @@ std::vector<TensorIteratorParams> generateParams() {
                 0.718451, 0.706082, 0.718631, 0.677138, 0.64293, 0.657632, 0.634079, 0.73646, 0.677257, 0.616843,
                 0.711027, 0.716871, 0.659048, 0.682622, 0.646854, 0.623101, 0.686311, 0.626743, 0.755629, 0.771058},
             std::vector<T>{0}),
-        TensorIteratorParams(
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::GRU,
+            0.7f, ov::op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::GRU,
             ET,
             std::vector<T>{
                 1, 9.97466, 9.39302, 2.15312, 9.99136, 3.1248, 4.56923, 4.4912, 7.02771, 9.41985,
@@ -1178,9 +1299,10 @@ std::vector<TensorIteratorParams> generateParams() {
                 0.718451, 0.706082, 0.718631, 0.677138, 0.64293, 0.657632, 0.634079, 0.73646, 0.677257, 0.616843,
                 0.711027, 0.716871, 0.659048, 0.682622, 0.646854, 0.623101, 0.686311, 0.626743, 0.755629, 0.771058},
             std::vector<T>{0}),
-        TensorIteratorParams(
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::RNN,
+            0.f, ov::op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::RNN,
             ET,
             std::vector<T>{
                 -1, 0.780309, -0.738585, -0.920481, 0.652872, 0.0641558, 0.91262, -0.0761474, 0.847476, -0.252158,
@@ -1323,9 +1445,10 @@ std::vector<TensorIteratorParams> generateParams() {
                 0.662279, -0.589603, 0.901327, 0.980076, -0.823804, -0.997316, 0.998387, -0.547919, 0.932731, -0.869742,
                 -0.97941, 0.979603, 0.934784, -0.947689, -0.950645, -0.962226, 0.998866, -0.990042, -0.547825, 0.689601},
             std::vector<T>{0}),
-        TensorIteratorParams(
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::RNN,
+            0.f, ov::op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::RNN,
             ET,
             std::vector<T>{
                 -1, 0.780309, -0.738585, -0.920481, 0.652872, 0.0641558, 0.91262, -0.0761474, 0.847476, -0.252158,
@@ -1472,14 +1595,15 @@ std::vector<TensorIteratorParams> generateParams() {
     return params;
 }
 
-template <element::Type_t ET>
-std::vector<TensorIteratorParams> generateParamsBF16() {
-    using T = typename element_type_traits<ET>::value_type;
+template <ov::element::Type_t ET>
+std::vector<TensorIteratorStaticParams> generateParamsBF16() {
+    using T = typename ov::element_type_traits<ET>::value_type;
 
-    std::vector<TensorIteratorParams> params {
-        TensorIteratorParams(
+    std::vector<TensorIteratorStaticParams> params {
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::LSTM,
+            0.7f, ov::op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::LSTM,
             ET,
             std::vector<T>{
                 1, 4.75, 10, 7.46875, 9.375, 1, 2.15625, 3.71875, 10, 2.3125,
@@ -1695,9 +1819,10 @@ std::vector<TensorIteratorParams> generateParamsBF16() {
                 1.34375, 1.27344, 1.25781, 1.32031, 1.28906, 1.24219, 1.28125, 1.34375, 1.24219, 1.21875,
                 1.28906, 1.32031, 1.35156, 1.27344, 1.28125, 1.29688, 1.28125, 1.22656, 1.35156, 1.23438,
                 1.32812, 1.32812, 1.32031, 1.35938, 1.32812, 1.25781, 1.21875, 1.32031, 1.28906, 1.375}),
-        TensorIteratorParams(
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::LSTM,
+            0.7f, ov::op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::LSTM,
             ET,
             std::vector<T>{
                 1, 4.75, 10, 7.46875, 9.375, 1, 2.15625, 3.71875, 10, 2.3125,
@@ -1913,9 +2038,10 @@ std::vector<TensorIteratorParams> generateParamsBF16() {
                 1.34375, 1.27344, 1.25781, 1.32031, 1.28906, 1.24219, 1.28125, 1.34375, 1.24219, 1.21875,
                 1.28906, 1.32031, 1.35156, 1.27344, 1.28125, 1.29688, 1.28125, 1.22656, 1.35156, 1.23438,
                 1.32812, 1.32812, 1.32031, 1.35938, 1.32812, 1.25781, 1.21875, 1.32031, 1.28906, 1.375}),
-        TensorIteratorParams(
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::GRU,
+            0.7f, ov::op::RecurrentSequenceDirection::FORWARD, TensorIteratorBodyType::GRU,
             ET,
             std::vector<T>{
                 1, 4.75, 10, 7.46875, 9.375, 1, 2.15625, 3.71875, 10, 2.3125,
@@ -2100,9 +2226,10 @@ std::vector<TensorIteratorParams> generateParamsBF16() {
                 0.6875, 0.707031, 0.746094, 0.671875, 0.675781, 0.691406, 0.671875, 0.625, 0.753906, 0.636719,
                 0.730469, 0.730469, 0.714844, 0.753906, 0.730469, 0.652344, 0.621094, 0.714844, 0.6875, 0.761719},
             std::vector<T>{0}),
-        TensorIteratorParams(
+        TensorIteratorStaticParams(
+            std::make_shared<TIStaticInputs>(),
             5, 10, 10, 10,
-            0.7f, op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::GRU,
+            0.7f, ov::op::RecurrentSequenceDirection::REVERSE, TensorIteratorBodyType::GRU,
             ET,
             std::vector<T>{
                 1, 4.75, 10, 7.46875, 9.375, 1, 2.15625, 3.71875, 10, 2.3125,
@@ -2291,14 +2418,14 @@ std::vector<TensorIteratorParams> generateParamsBF16() {
     return params;
 }
 
-std::vector<TensorIteratorParams> generateCombinedParams() {
-    const std::vector<std::vector<TensorIteratorParams>> generatedParams {
-        generateParams<element::Type_t::f64>(),
-        generateParams<element::Type_t::f32>(),
-        generateParams<element::Type_t::f16>(),
-        generateParamsBF16<element::Type_t::bf16>(),
+std::vector<TensorIteratorStaticParams> generateCombinedParams() {
+    const std::vector<std::vector<TensorIteratorStaticParams>> generatedParams {
+        generateParams<ov::element::Type_t::f64>(),
+        generateParams<ov::element::Type_t::f32>(),
+        generateParams<ov::element::Type_t::f16>(),
+        generateParamsBF16<ov::element::Type_t::bf16>(),
     };
-    std::vector<TensorIteratorParams> combinedParams;
+    std::vector<TensorIteratorStaticParams> combinedParams;
 
     for (const auto& params : generatedParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
@@ -2306,6 +2433,6 @@ std::vector<TensorIteratorParams> generateCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_TensorIterator_With_Hardcoded_Refs, ReferenceTensorIteratorTest,
-    testing::ValuesIn(generateCombinedParams()), ReferenceTensorIteratorTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TensorIterator_With_Hardcoded_Refs, ReferenceTILayerStaticTest,
+    testing::ValuesIn(generateCombinedParams()), ReferenceTILayerStaticTest::getTestCaseName);
 } // namespace

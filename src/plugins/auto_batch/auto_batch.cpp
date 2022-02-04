@@ -19,6 +19,8 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/runtime/intel_gpu/properties.hpp"
+
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
@@ -341,7 +343,10 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+    if (!this->_plugin)
+        return nullptr;
+    const auto& core = _plugin->GetCore();
+    if (!core || !core->isNewAPI())
         return nullptr;
     auto workerRequestPtrAndId = GetWorkerInferRequest();
     return std::make_shared<AutoBatchInferRequest>(inputs,
@@ -358,7 +363,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
     auto batch_id = num % _device.batchForDevice;
     if (!batch_id) {  // need new request
         _workerRequests.push_back(std::make_shared<WorkerInferRequest>());
-        auto workerRequestPtr = _workerRequests.back();
+        auto workerRequestPtr = _workerRequests.back().get();
         workerRequestPtr->_inferRequestBatched = {_network->CreateInferRequest(), _network._so};
         workerRequestPtr->_batchSize = _device.batchForDevice;
         workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
@@ -428,8 +433,11 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {
     IInferRequestInternal::Ptr syncRequestImpl;
-    if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
-        syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
+    if (this->_plugin) {
+        const auto& core = _plugin->GetCore();
+        if (core && core->isNewAPI())
+            syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
+    }
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
@@ -516,20 +524,6 @@ std::map<std::string, std::string> mergeConfigs(std::map<std::string, std::strin
 
 }  // namespace
 
-std::map<std::string, std::string> AutoBatchInferencePlugin::GetSupportedConfig(
-    const std::map<std::string, std::string>& config,
-    const std::string& deviceName) const {
-    std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-    std::map<std::string, std::string> supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = config.find(key);
-        if (config.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    return supportedConfig;
-}
-
 DeviceInformation AutoBatchInferencePlugin::ParseBatchDevice(const std::string& deviceWithBatch) {
     auto&& d = deviceWithBatch;
     auto openingBracket = d.find_first_of('(');
@@ -560,7 +554,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
 
-        return GetSupportedConfig(tconfig, deviceName);
+        return GetCore()->GetSupportedConfig(deviceName, tconfig);
     };
 
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
@@ -585,7 +579,7 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
     if (it == cfg.end())
         IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
 
-    auto val = it->second;
+    auto val = it->second.as<std::string>();
     auto metaDevice = ParseMetaDevice(val, std::map<std::string, std::string>());
     cfg.erase(it);
     return GetCore()->CreateContext(metaDevice.deviceName, cfg);
@@ -756,7 +750,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
         size_t footprint = 0;
         // TODO: use the per-network metric (22.2) rather than plugin-level
-        auto stats = pCore->GetMetric(device, GPU_METRIC_KEY(MEMORY_STATISTICS)).as<std::map<std::string, uint64_t>>();
+        auto stats =
+            pCore->GetMetric(device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
         for (auto s : stats)
             if (s.first.find("_current") != std::string::npos)
                 footprint += s.second;
@@ -771,7 +766,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     if (deviceName.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(GetCore(), deviceName) - batch1_footprint;
         if (batch1_footprint) {
-            const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+            const auto total_mem =
+                GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)).as<uint64_t>();
             const int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
             int closest = pow(2, floor(log(estimated_batch) / log(2)));
             closest = std::max(1, closest);

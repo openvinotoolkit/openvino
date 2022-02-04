@@ -20,6 +20,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationFQSubgraph.*activation=(Exp|Log).*)",
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
+        // TODO: Issue 32541
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
@@ -41,6 +42,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)",
         R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
+        R"(.*importExportedFunctionParameterResultOnly.*)",
+        R"(.*importExportedFunctionConstantResultOnly.*)",
+        R"(.*importExportedIENetworkConstantResultOnly.*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*)",
 
         // TODO: Issue 57363 (Param -> Result subgraphs)
         R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=1_.*)",

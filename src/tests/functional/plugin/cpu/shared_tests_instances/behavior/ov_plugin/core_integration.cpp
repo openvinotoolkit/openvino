@@ -15,7 +15,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassCommon, OVClassBasicTestP,
-        ::testing::Values(std::make_pair("ov_intel_cpu_plugin", "CPU")));
+        ::testing::Values(std::make_pair("openvino_intel_cpu_plugin", "CPU")));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassNetworkTestP, OVClassNetworkTestP,
@@ -83,12 +83,12 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedThrow) {
     ov::Core ie;
     std::string value = {};
 
-    ASSERT_NO_THROW(ie.set_config({{KEY_CPU_THREADS_NUM, "1"}}, "CPU"));
-    ASSERT_NO_THROW(value = ie.get_config("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
+    ASSERT_NO_THROW(ie.set_property("CPU", {{KEY_CPU_THREADS_NUM, "1"}}));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
     ASSERT_EQ("1", value);
 
-    ASSERT_NO_THROW(ie.set_config({{KEY_CPU_THREADS_NUM, "4"}}, "CPU"));
-    ASSERT_NO_THROW(value = ie.get_config("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
+    ASSERT_NO_THROW(ie.set_property("CPU", {{KEY_CPU_THREADS_NUM, "4"}}));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
     ASSERT_EQ("4", value);
 }
 

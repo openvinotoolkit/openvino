@@ -3,7 +3,7 @@
 #
 
 set(FRONTEND_INSTALL_INCLUDE "runtime/include/")
-set(FRONTEND_NAME_PREFIX "ov_")
+set(FRONTEND_NAME_PREFIX "openvino_")
 set(FRONTEND_NAME_SUFFIX "_frontend")
 
 set(FRONTEND_NAMES "" CACHE INTERNAL "")
@@ -35,7 +35,7 @@ function(ov_generate_frontends_hpp)
     endif()
 
     # add frontends to libraries including ov_frontends.hpp
-    ov_target_link_frontends(ov_runtime)
+    ov_target_link_frontends(openvino)
 
     set(ov_frontends_hpp "${CMAKE_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
     set(frontends_hpp_in "${IEDevScripts_DIR}/frontends/ov_frontends.hpp.in")
@@ -182,7 +182,8 @@ macro(ov_add_frontend)
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${OV_FRONTEND_LINK_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
 
     # WA for TF frontends which always requires protobuf (not protobuf-lite)
     # if TF FE is built in static mode, use protobuf for all other FEs

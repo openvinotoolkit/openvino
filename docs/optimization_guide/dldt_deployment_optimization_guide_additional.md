@@ -26,7 +26,7 @@ usually gives the same best latency as a single request on the single socket, bu
 $ benchmark_app -m <model.xml> -nstreams 2
  ```
 Number of NUMA nodes on the machine can be queried via 'lscpu'.
-Please see more on the NUMA support in the [Optimization Guide](supported_plugins/MULTI.md).
+Please see more on the NUMA support in the [Optimization Guide](../IE_DG/supported_plugins/MULTI.md).
  
   
  ##  Threading 
