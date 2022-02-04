@@ -101,10 +101,7 @@ inline bool ends_with(const std::string& src, const char* with) {
  */
 template <typename T>
 inline bool ends_with(const std::basic_string<T>& str, const std::basic_string<T>& suffix) {
-    if (str.length() >= suffix.length()) {
-        return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
-    }
-    return false;
+    return str.length() >= suffix.length() && 0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix);
 }
 
 std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);
