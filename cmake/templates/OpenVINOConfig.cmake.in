@@ -180,7 +180,7 @@ if(ENABLE_INTEL_GNA AND NOT ENABLE_INTEL_GNA_SHARED AND NOT libGNA_FOUND)
                         NO_DEFAULT_PATH)
 endif()
 
-if(NOT TARGET ov_runtime)
+if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
 
