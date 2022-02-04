@@ -997,14 +997,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
 
-    // TODO: Remove when issue causing failure in subset of tests from:
-    // smoke_Decompose2DConvStridesDilations/Decompose2DConvTest.CompareWithRefs including:
-    //    M=0_IS=(1.8.8.32)_K(1.2)_S(2.1)_PB(1.1)_PE(3.1)_D=(1.1)_O=4_AP=valid_B=(1.4.1.1)_B=(1.1.1.4)_MPP=(1.2)_MPS=(1.1)_netPRC=FP32
-    //    targetDevice=GNA__configItem=GNA_DEVICE_MODE_GNA_SW_FP32_configItem=GNA_EXEC_TARGET_GNA_TARGET_2_0_configItem=GNA_SCALE_FACTOR_0_1
-    // is resolved
-    const auto disableCompactMode = gnaFlags->sw_fp32 && unaligned_concat_converted;
-
-    gnamem->commit(gnaFlags->compact_mode && !disableCompactMode);
+    gnamem->commit(gnaFlags->compact_mode);
 
     dnn->Init(gnamem->getBasePtr(),
              gnamem->getTotalBytes(),

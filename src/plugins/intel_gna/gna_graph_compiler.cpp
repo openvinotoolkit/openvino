@@ -2314,7 +2314,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                 auto ss = FindSSAfterCO(layer, concat, special_offset);
 
                 if (LayerInfo(ss).isCropBeforeSubgraph()) {
-                    gnamem->reserve_ptr(layer, ptr, num_data_bytes_out, 64);
+                    gnamem->reserve_ptr(nullptr, ptr, num_data_bytes_out, 64);
                     return;
                 }
                 auto newConcat = CNNNetGetNextLayerSkipCertain(ss, 0, 0, [](CNNLayerPtr) {return false; }).first;
@@ -2332,7 +2332,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                     auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*> (layer.get());
                     special_offset -= cropLayer->offset[1] * precision;
                 }
-                gnamem->bind_ptr(layer, ptr, &concatLayerInfoItem.gna_ptr, special_offset);
+                gnamem->bind_ptr(nullptr, ptr, &concatLayerInfoItem.gna_ptr, special_offset);
                 return;
             }
 
