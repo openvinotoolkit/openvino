@@ -41,7 +41,7 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
 }
 
 Any::~Any() {
-    _runtime_attribute_impl = {};
+    _temp_impl = {};
     _impl = {};
 }
 
@@ -52,7 +52,9 @@ Any::Any(const char* str) : Any(std::string{str}) {}
 Any::Any(const std::nullptr_t) : Any() {}
 
 void Any::impl_check() const {
-    OPENVINO_ASSERT(_impl != nullptr, "Any was not initialized.");
+    if (_impl == nullptr) {
+        OPENVINO_UNREACHABLE("Any was not initialized.");
+    }
 }
 
 const std::type_info& Any::type_info() const {
