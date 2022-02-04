@@ -60,6 +60,9 @@ public:
     /// \return Description of Node
     const std::string& get_description() const;
 
+    const std::string& input(int index) const;
+    std::size_t get_inputs_size() const;
+
     const std::vector<std::reference_wrapper<const std::string>>& get_output_names() const;
     const std::string& output(int index) const;
     std::size_t get_outputs_size() const;

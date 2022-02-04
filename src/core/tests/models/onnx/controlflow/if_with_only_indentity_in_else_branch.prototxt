@@ -1,0 +1,238 @@
+ir_version: 6
+graph {
+  node {
+    output: "zero"
+    name: "Constant_6"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 0
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "input"
+    input: "zero"
+    output: "unsqueeze"
+    op_type: "Unsqueeze"
+  }
+  node {
+    output: "pads"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 10
+        data_type: 7
+        int64_data: 0
+        int64_data: 0
+        int64_data: 1
+        int64_data: 0
+        int64_data: 0
+        int64_data: 0
+        int64_data: 0
+        int64_data: 1
+        int64_data: 0
+        int64_data: 0
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "unsqueeze"
+    input: "pads"
+    output: "pad"
+    name: "Pad_1"
+    op_type: "Pad"
+    attribute {
+      name: "mode"
+      type: STRING
+      s: "constant"
+    }
+  }
+  node {
+    input: "pad"
+    output: "avgpool"
+    name: "AveragePool_2"
+    op_type: "AveragePool"
+    attribute {
+      name: "ceil_mode"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "kernel_shape"
+      ints: 3
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "pads"
+      ints: 0
+      ints: 0
+      ints: 0
+      ints: 0
+      ints: 0
+      ints: 0
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 1
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+  }
+  node {
+    output: "index"
+    name: "Constant_3"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 1
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "avgpool"
+    output: "avgpool_shape"
+    name: "Shape_4"
+    op_type: "Shape"
+  }
+  node {
+    input: "avgpool_shape"
+    input: "index"
+    output: "gather"
+    name: "Gather_5"
+    op_type: "Gather"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
+  }
+  node {
+    output: "one"
+    name: "Constant_6"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 1
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "gather"
+    input: "one"
+    output: "equal"
+    name: "Equal_7"
+    op_type: "Equal"
+  }
+  node {
+    input: "equal"
+    output: "if"
+    name: "If_8"
+    op_type: "If"
+    attribute {
+      name: "then_branch"
+      g {
+        node {
+          input: "avgpool"
+          input: "one"
+          output: "then_output"
+          name: "Squeeze_9"
+          op_type: "Squeeze"
+        }
+        name: "then"
+        output {
+          name: "then_output"
+        }
+      }
+      type: GRAPH
+    }
+    attribute {
+      name: "else_branch"
+      g {
+        node {
+          input: "avgpool"
+          output: "else_output"
+          name: "Identity_10"
+          op_type: "Identity"
+        }
+        name: "else"
+        output {
+          name: "else_output"
+        }
+      }
+      type: GRAPH
+    }
+  }
+  node {
+    input: "input"
+    input: "if"
+    output: "output"
+    name: "Add_11"
+    op_type: "Add"
+  }
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}
