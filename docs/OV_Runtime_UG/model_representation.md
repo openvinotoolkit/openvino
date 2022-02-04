@@ -10,7 +10,7 @@ Sinks of the graph have no consumers and are not included in the results vector.
 
 Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
 
-For details on how to build an OpenVINO Model, see the [Build Model from source](@ref build_model) section.
+For details on how to build a model in OpenVINO™ Runtime, see the [Build Model from Source](@ref build_model) section.
 
 ## Operations
 
