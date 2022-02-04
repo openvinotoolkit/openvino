@@ -143,7 +143,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                                                orig_function->get_friendly_name());
         function->get_rt_info() = orig_function->get_rt_info();
     }
-    if (function && GetCore() && !GetCore()->isNewAPI()) {
+    const auto& core = GetCore();
+    if (function && core && !core->isNewAPI()) {
         auto& rt_info = function->get_rt_info();
         if (rt_info.find("version") == rt_info.end()) {
             rt_info["version"] = int64_t(10);
@@ -286,7 +287,8 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const std::shared_ptr<const ov::Model>& function) {
-    bool newAPI = this->GetCore() && this->GetCore()->isNewAPI();
+    const auto& core = GetCore();
+    bool newAPI = core && core->isNewAPI();
     InferenceEngine::SetExeNetworkInfo(exeNetwork, function, newAPI);
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
