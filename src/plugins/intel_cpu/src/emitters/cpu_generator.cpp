@@ -87,14 +87,14 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // jitters[ngraph::opset1::Acos::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Asin::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Atan::get_type_info_static()] = CREATE_EMITTER(); // not supported
-    // jitters[ngraph::opset1::Ceiling::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::Ceiling::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_ceiling_emitter);
     jitters[ngraph::opset1::Clamp::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_clamp_emitter);
     // jitters[ngraph::opset1::Cos::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Cosh::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::Elu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_elu_emitter);
     jitters[ngraph::opset1::Erf::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_erf_emitter);
     jitters[ngraph::opset1::Exp::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_exp_emitter);
-    // jitters[ngraph::opset1::Floor::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::Floor::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_floor_emitter);
     // jitters[ngraph::opset1::Log::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::LogicalNot::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_logical_not_emitter);
     jitters[ngraph::opset1::Negative::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_negative_emitter);
