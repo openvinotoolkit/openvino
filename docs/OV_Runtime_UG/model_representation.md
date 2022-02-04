@@ -74,7 +74,7 @@ The following code creates a model with several outputs:
 
 ## FAQ
 
- - Does OpenVINO have any capabilities to debug the Model structure and Model modification?
+ ### Does OpenVINO™ Runtime provide any capabilities to debug the model structure and model modification?
    - To receive additional messages about applied graph modifications, rebuild the OpenVINO runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
    - A model can be visualized to image from the xDot format:
     @snippet example_ngraph_utils.cpp ov:visualize
