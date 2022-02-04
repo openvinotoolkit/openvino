@@ -63,7 +63,7 @@ omz_downloader --name alexnet
 omz_converter --name alexnet
 ```
 
-4. Perform inference of `banana.jpg` using `alexnet` model on a `GPU`, for example:
+4. Perform inference of `banana.jpg` using the `alexnet` model on a `GPU`, for example:
 
 ```
 python hello_classification.py alexnet.xml banana.jpg GPU
