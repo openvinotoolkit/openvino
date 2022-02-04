@@ -29,6 +29,7 @@ from openvino.tools.mo.ops.pooling import Pooling
 from openvino.tools.mo.utils.class_registration import update_registration
 from openvino.tools.mo.utils.import_extensions import import_by_path
 from openvino.tools.mo.utils.ir_reader.extender import Extender
+from openvino.tools.mo.ops.GRU import GRU
 
 # Operations not registered in collect_ops() function
 custom_ops = {
@@ -40,6 +41,7 @@ custom_ops = {
     'Divide': Div,
     'GroupConvolution': Convolution,
     'GroupConvolutionBackpropData': Deconvolution,
+    'GRUSequence': GRU,
     'Loop': Loop,
     'MaxPool': Pooling,
     'Multiply': Mul,
