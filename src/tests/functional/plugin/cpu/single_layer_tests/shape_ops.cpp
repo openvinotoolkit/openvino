@@ -118,7 +118,8 @@ protected:
 
 
         std::vector<InputShape> inputShapes =
-                {inpDesc.inputShape, InputShape{{inpDesc.data[0].size()}, std::vector<Shape>(inpDesc.inputShape.second.size(), {inpDesc.data[0].size()})}};
+                {inpDesc.inputShape, InputShape{{static_cast<ov::Dimension::value_type>(inpDesc.data[0].size())},
+                                                std::vector<Shape>(inpDesc.inputShape.second.size(), {inpDesc.data[0].size()})}};
         init_input_shapes(inputShapes);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
