@@ -78,7 +78,7 @@ Example of OpenVINO Model with several outputs
     @snippet example_ngraph_utils.cpp ov:visualize
    - A model can be serialized to IR:
     @snippet example_ngraph_utils.cpp ov:serialize
- - How can I develop my own transformation pass?
+### How can I develop my own transformation pass?
    - Please take a look to [Transformations Developer Guide](./nGraphTransformation.md)
 
 ## See Also
