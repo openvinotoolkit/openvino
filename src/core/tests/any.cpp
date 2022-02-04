@@ -534,4 +534,15 @@ TEST_F(AnyTests, BoolFromString) {
         ASSERT_TRUE(p.is<std::string>());
         ASSERT_EQ(false, p.as<bool>());
     }
+    {
+        Any p = "Some";
+        ASSERT_TRUE(p.is<std::string>());
+        ASSERT_THROW(p.as<bool>(), ov::Exception);
+    }
+}
+
+TEST_F(AnyTests, NotIntFromStringThrow) {
+    Any p = "not42";
+    ASSERT_TRUE(p.is<std::string>());
+    ASSERT_THROW(p.as<int>(), ov::Exception);
 }

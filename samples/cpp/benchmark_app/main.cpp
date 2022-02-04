@@ -16,7 +16,6 @@
 
 #include "gna/gna_config.hpp"
 #include "gpu/gpu_config.hpp"
-#include "vpu/vpu_plugin_config.hpp"
 
 #include "samples/args_helper.hpp"
 #include "samples/common.hpp"
