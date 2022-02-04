@@ -30,7 +30,7 @@ There are two types used for shape representation:
 * `ov::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (undefined). `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise the conversion raises an exception.
 
 
-## Build OpenVINO Model from source {#build_model}
+## Build a Model in OpenVINO™ Runtime {#build_model}
 
 OpenVINO Model can be created from source, this section illustrates how to construct an OpenVINO Model composed of operations from an available opset.
 
