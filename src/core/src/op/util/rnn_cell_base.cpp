@@ -135,9 +135,7 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vec
     const auto& x_pshape = input.at(X);
     const auto& w_pshape = input.at(W);
 
-    NODE_VALIDATION_CHECK(this,
-                          (x_pshape[1].compatible(w_pshape[1])),
-                          "RNNCellBase mismatched input_size dimension.");
+    NODE_VALIDATION_CHECK(this, (x_pshape[1].compatible(w_pshape[1])), "RNNCellBase mismatched input_size dimension.");
 }
 
 ov::op::util::ActivationFunction ov::op::util::RNNCellBase::get_activation_function(size_t idx) const {
