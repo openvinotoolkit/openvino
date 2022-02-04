@@ -55,6 +55,18 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         }
 
         if (!is_single_value) {
+            const auto& fq_input_shape = fq->get_input_partial_shape(0);
+            if (fq_input_shape.rank().is_dynamic())
+                return false;
+
+            const auto diff = fq_input_shape.size() - const_shape.size();
+            if (diff > 0) {
+                // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
+                const_shape.insert(const_shape.begin(), diff, 1);
+                new_const = std::make_shared<opset5::Reshape>(new_const,
+                        op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
+            }
+
             // disallow constant shapes other than (N, 1, 1, ..., 1) or (1, C, 1, ..., 1)
             if (!(const_shape[0] > 1 && const_shape[0] == const_shape_size) &&
                 !(const_shape.size() > 1 && const_shape[1] == const_shape_size)) {
@@ -84,13 +96,6 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
                                                  });
             if (fq_user_is_concat)
                 return false;
-            auto diff = fq->get_input_partial_shape(0).rank().get_length() - static_cast<Dimension::value_type>(const_shape.size());
-            if (diff > 0) {
-                // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
-                const_shape.insert(const_shape.begin(), diff, 1);
-                new_const = std::make_shared<opset5::Reshape>(new_const,
-                        op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
-            }
         }
 
         auto input_low_sub = std::make_shared<opset5::Subtract>(fq->input_value(1), new_const);
