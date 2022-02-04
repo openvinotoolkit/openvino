@@ -38,7 +38,8 @@ function(add_common_target TARGET_NAME STATIC_IE)
     target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
             $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:mvnc,INTERFACE_INCLUDE_DIRECTORIES>)
 
     if(WIN32)
         set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
