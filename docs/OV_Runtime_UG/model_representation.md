@@ -41,7 +41,7 @@ For a complete list of operation sets supported in OpenVINO™ toolkit, see [Ava
 
 To add suport of custom operations, see the [Add Custom OpenVINO Operations](../OV_Runtime_UG/Extensibility_DG/Intro.md) document.
 
-To build an `ov::Model` instance from `opset8` operations, include next files:
+To build an `ov::Model` instance from `opset8` operations, include the following files:
 
  - C++
       @snippet example_ngraph_utils.cpp ov:include
