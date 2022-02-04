@@ -631,14 +631,15 @@ int main(int argc, char* argv[]) {
         next_step();
         // output of the actual settings that the device selected
         for (const auto& device : devices) {
-            auto supported_properties = core.get_property(device, ov::supported_properties);
+            auto supported_properties = compiledModel.get_property(ov::supported_properties);
             slog::info << "Device: " << device << slog::endl;
             for (const auto& cfg : supported_properties) {
-                try {
-                    slog::info << "  {" << cfg << " , " << compiledModel.get_property(cfg).as<std::string>();
-                    slog::info << " }" << slog::endl;
-                } catch (...) {
-                };
+                slog::info << "  {" << cfg << " , ";
+                std::stringstream strm;
+                compiledModel.get_property(cfg).print(strm);
+                strm << "";
+                slog::info << strm.str();
+                slog::info << " }" << slog::endl;
             }
         }
 

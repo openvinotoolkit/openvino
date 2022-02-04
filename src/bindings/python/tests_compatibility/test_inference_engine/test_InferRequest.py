@@ -592,7 +592,7 @@ def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
     ie_core = ie.IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     exec_net.requests[0].input_blobs["data"].set_shape(ref_shape)
     assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
@@ -616,7 +616,7 @@ def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
     ie_core = ie.IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     exec_net.infer({"data": np.ones(ref_shape)})
     assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
@@ -639,7 +639,7 @@ def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
     ie_core = ie.IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
     tensor_desc.dims = ref_shape
@@ -662,7 +662,7 @@ def test_infer_dynamic_network_twice():
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
     ie_core = ie.IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     request = exec_net.requests[0]
     request.infer({"data": np.ones(ref_shape1)})
@@ -681,7 +681,7 @@ def test_infer_dynamic_network_with_set_blob_twice():
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
     ie_core = ie.IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     request = exec_net.requests[0]
     td = request.input_blobs['data'].tensor_desc
@@ -710,7 +710,7 @@ def test_async_infer_dynamic_network_3_requests(shapes):
     net = ng.function_to_cnn(function)
     net.reshape({"data": [3, 4, (20, 50), (20, 50)]})
     ie_core = ie.IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE", num_requests=3)
     for i,request in enumerate(exec_net.requests):
         request.async_infer({"data": np.ones(shapes[i])})
@@ -725,7 +725,7 @@ def test_set_blob_with_incorrect_name():
     function = create_encoder([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
     ie_core = ie.IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
     tensor_desc.dims = [4, 4, 20, 20]
@@ -740,7 +740,7 @@ def test_set_blob_with_incorrect_size():
     function = create_encoder([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
     ie_core = ie.IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
     tensor_desc.dims = [tensor_desc.dims[0]*2, 4, 20, 20]
@@ -760,7 +760,7 @@ def test_set_blob_after_async_infer():
     net = ng.function_to_cnn(function)
     net.reshape({"data": [(0, 5), 4, 20, 20]})
     ie_core = ie.IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     request = exec_net.requests[0]
     tensor_desc = request.input_blobs['data'].tensor_desc
