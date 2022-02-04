@@ -14,7 +14,7 @@ For details on how to build a model in OpenVINO™ Runtime, see the [Build Model
 
 ## Operations
 
-`ov::Op` represents any abstract operations in the OpenVINO Model representation. You need to use this class to create [custom operations](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md).
+The `ov::Op` class represents any abstract operation in the model representation. Use this class to create [custom operations](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md).
 
 ## Operation Sets
 
