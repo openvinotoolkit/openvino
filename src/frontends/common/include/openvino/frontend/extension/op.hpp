@@ -17,6 +17,9 @@
 namespace ov {
 namespace frontend {
 
+/// \brief The helper function to return an instance of OpSet class initialized with
+/// operations from provided opset by name.
+/// \param opset_name Opset name (opsetN) to initialize OpSet class.
 inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
     if (opset_name == "opset1") {
         return ov::get_opset1();

@@ -107,7 +107,7 @@ public:
         m_buffer_valid = false;
     }
 
-    virtual void set_as_any(const ov::Any& x) override {
+    void set_as_any(const ov::Any& x) override {
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
             set(x.as<VAT>());
@@ -152,7 +152,7 @@ public:
         m_buffer_valid = false;
     }
 
-    virtual void set_as_any(const ov::Any& x) override {
+    void set_as_any(const ov::Any& x) override {
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
             set(x.as<VAT>());
