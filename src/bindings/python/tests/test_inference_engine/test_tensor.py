@@ -210,16 +210,16 @@ def test_set_shape(ov_type, numpy_dtype):
     assert list(ov_tensor.shape) == list(ref_shape)
     ov_tensor.shape = ref_shape
     assert list(ov_tensor.shape) == list(ref_shape)
-    
+
     ones_arr = np.ones(list(ov_tensor.shape), numpy_dtype)
     ov_tensor.data[:] = ones_arr
     assert np.array_equal(ov_tensor.data, ones_arr)
-    
+
     ov_tensor.set_shape(ref_shape_np)
     assert list(ov_tensor.shape) == ref_shape_np
     ov_tensor.shape = ref_shape_np
     assert list(ov_tensor.shape) == ref_shape_np
-    
+
     zeros = np.zeros(ref_shape_np, numpy_dtype)
     ov_tensor.data[:] = zeros
     assert np.array_equal(ov_tensor.data, zeros)

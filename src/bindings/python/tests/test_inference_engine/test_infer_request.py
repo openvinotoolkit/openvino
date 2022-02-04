@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
-from multiprocessing import shared_memory
 import numpy as np
 import os
 from sys import platform
@@ -169,7 +168,7 @@ def test_batched_tensors(device):
     one_shape = Shape([1, 2, 2, 2])
     batch_shape = Shape([batch, 2, 2, 2])
     one_shape_size = np.prod(one_shape)
-    
+
     core = Core()
 
     if platform == "win32":
@@ -181,18 +180,18 @@ def test_batched_tensors(device):
     data1.set_friendly_name("input0")
     data1.get_output_tensor(0).set_names({"tensor_input0"})
     data1.set_layout(Layout("N..."))
-    
+
     constant = ops.constant([1], np.float32)
-    
+
     op1 = ops.add(data1, constant)
     op1.set_friendly_name("Add0")
-    
+
     res1 = ops.result(op1)
     res1.set_friendly_name("Result0")
     res1.get_output_tensor(0).set_names({"tensor_output0"})
 
     model = Model([res1], [data1])
-    
+
     compiled = core.compile_model(model)
 
     buffer = np.zeros([one_shape_size * batch * 2], dtype=np.float32)
@@ -206,11 +205,11 @@ def test_batched_tensors(device):
         # Use of special constructor for Tensor.
         # It creates a Tensor from pointer, thus it requires only
         # one element from original buffer, and shape to "crop".
-        tensor = Tensor(buffer[_start : (_start + 1)], one_shape)
+        tensor = Tensor(buffer[_start:(_start + 1)], one_shape)
         tensors.append(tensor)
 
     req.set_input_tensors(tensors)  # using list overload!
-    
+
     actual_tensor = req.get_tensor("tensor_output0")
     actual = actual_tensor.data
     for test_num in range(0, 5):
@@ -221,7 +220,7 @@ def test_batched_tensors(device):
         req.infer()  # Adds '1' to each element
 
         for j in range(0, one_shape_size * batch):
-            assert np.array_equal(actual[j], test_num + 11) 
+            assert np.array_equal(actual[j], test_num + 11)
 
 
 def test_inputs_outputs_property(device):
