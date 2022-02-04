@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,6 @@ void regclass_frontend_NodeContext(py::module m) {
         [=](NodeContext& self, const std::string& name, const py::object& default_value, const py::object& dtype)
             -> py::object {
             auto any = self.get_attribute_as_any(name);
-            auto module = py::module_::import("openvino.runtime");
 
             auto type = m.attr("Type");
             if (dtype == type) {
