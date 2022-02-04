@@ -143,10 +143,6 @@ void op::v5::Loop::validate_and_infer_types() {
             input_offset--;
         }
     }
-    // input_offset < 0 means that there are several duplications of external_port_id
-    // (the same ext_port_id is connected to several Parameters in the port map) in input_desc,
-    // this can lead to wrong or undefined behavior, so throw exception here. Ticket: 47302
-    NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions[0].size() + input_offset,

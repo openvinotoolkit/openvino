@@ -75,24 +75,27 @@ ov::Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
 }
 
 ov::Node::~Node() {
-    // raise a flag to reset nodes cache
-    for_each(m_shared_rt_info.cbegin(), m_shared_rt_info.cend(), [](const std::shared_ptr<SharedRTInfo>& info) {
-        info->set_use_topological_cache(false);
-    });
+    try {
+        // raise a flag to reset nodes cache
+        for_each(m_shared_rt_info.cbegin(), m_shared_rt_info.cend(), [](const std::shared_ptr<SharedRTInfo>& info) {
+            info->set_use_topological_cache(false);
+        });
 
-    for (descriptor::Input& input : m_inputs) {
-        if (input.has_output()) {
-            // This test adds 1 to the actual count, so a count of 2 means this input is the only
-            // reference to the node.
-            if (input.get_output().get_node().use_count() == 2) {
-                // Don't want to trigger a deep recursive delete
-                NodeVector nodes{input.get_output().get_node()};
+        for (descriptor::Input& input : m_inputs) {
+            if (input.has_output()) {
+                // This test adds 1 to the actual count, so a count of 2 means this input is the only
+                // reference to the node.
+                if (input.get_output().get_node().use_count() == 2) {
+                    // Don't want to trigger a deep recursive delete
+                    NodeVector nodes{input.get_output().get_node()};
+                    input.remove_output();
+                    safe_delete(nodes, true);
+                    return;
+                }
                 input.remove_output();
-                safe_delete(nodes, true);
-                return;
             }
-            input.remove_output();
         }
+    } catch (...) {
     }
 }
 
