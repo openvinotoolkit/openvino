@@ -60,18 +60,17 @@ class OPENVINO_API Any {
         constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
     };
 
-    template <class T>
-    struct Istreamable {
-        template <class U>
-        static auto test(U*) -> decltype(std::declval<std::istream&>() >> std::declval<U&>(), std::true_type()) {
-            return {};
-        }
-        template <typename>
-        static auto test(...) -> std::false_type {
-            return {};
-        }
-        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
-    };
+    template <class U>
+    static typename std::enable_if<Ostreamable<U>::value && !std::is_same<bool, U>::value>::type print_impl(
+        std::ostream& os,
+        const U& value) {
+        os << value;
+    }
+
+    static void print_impl(std::ostream& os, const bool& b);
+
+    template <class U>
+    static typename std::enable_if<!Ostreamable<U>::value>::type print_impl(std::ostream&, const U&) {}
 
     template <typename T>
     struct EqualityComparable {
@@ -105,6 +104,17 @@ class OPENVINO_API Any {
         static long test(...);
         constexpr static const bool value = sizeof(test<std::vector<T...>>(nullptr)) == sizeof(char);
     };
+
+    template <class U>
+    static typename std::enable_if<EqualityComparable<U>::value, bool>::type equal_impl(const U& rhs, const U& lhs) {
+        return rhs == lhs;
+    }
+
+    template <class U>
+    [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
+                                                                                                      const U&) {
+        throw ov::Exception{"Could not compare types without equality operator"};
+    }
 
     template <typename T>
     struct HasBaseMemberType {
@@ -156,6 +166,42 @@ class OPENVINO_API Any {
         }
         constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
     };
+
+    template <class T>
+    struct Istreamable {
+        template <class U>
+        static auto test(U*) -> decltype(std::declval<std::istream&>() >> std::declval<U&>(), std::true_type()) {
+            return {};
+        }
+        template <typename>
+        static auto test(...) -> std::false_type {
+            return {};
+        }
+        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
+    };
+
+    template <class U>
+    static typename std::enable_if<Istreamable<U>::value && !std::is_same<bool, U>::value>::type read_impl(
+        std::istream& is,
+        U& value) {
+        is >> value;
+    }
+
+    static void read_impl(std::istream& is, bool& value);
+    static void read_impl(std::istream& is, int& value);
+    static void read_impl(std::istream& is, long& value);
+    static void read_impl(std::istream& is, long long& value);
+    static void read_impl(std::istream& is, unsigned& value);
+    static void read_impl(std::istream& is, unsigned long& value);
+    static void read_impl(std::istream& is, unsigned long long& value);
+    static void read_impl(std::istream& is, float& value);
+    static void read_impl(std::istream& is, double& value);
+    static void read_impl(std::istream& is, long double& value);
+
+    template <class U>
+    static typename std::enable_if<!Istreamable<U>::value>::type read_impl(std::istream&, U&) {
+        throw ov::Exception{"Could read type without std::istream& operator>>(std::istream&, T) defined"};
+    }
 
     /**
      * @brief Base API of erased type
@@ -253,17 +299,6 @@ class OPENVINO_API Any {
             return std::make_shared<Impl<T>>(this->runtime_attribute);
         }
 
-        template <class U>
-        static typename std::enable_if<EqualityComparable<U>::value, bool>::type equal_impl(const U& rhs,
-                                                                                            const U& lhs) {
-            return rhs == lhs;
-        }
-        template <class U>
-        [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
-                                                                                                          const U&) {
-            throw ov::Exception{"Could not compare types without equality operator"};
-        }
-
         bool equal(const Base& rhs) const override {
             if (rhs.is<T>()) {
                 return equal_impl(this->runtime_attribute, rhs.as<T>());
@@ -317,17 +352,6 @@ class OPENVINO_API Any {
             return base_type_info_impl<T>();
         }
 
-        template <class U>
-        static typename std::enable_if<EqualityComparable<U>::value, bool>::type equal_impl(const U& rhs,
-                                                                                            const U& lhs) {
-            return rhs == lhs;
-        }
-        template <class U>
-        [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
-                                                                                                          const U&) {
-            throw ov::Exception{"Could not compare types without equality operator"};
-        }
-
         bool equal(const Base& rhs) const override {
             if (rhs.is<T>()) {
                 return equal_impl(this->value, rhs.as<T>());
@@ -335,40 +359,8 @@ class OPENVINO_API Any {
             return false;
         }
 
-        template <class U>
-        static typename std::enable_if<Ostreamable<U>::value && !std::is_same<bool, U>::value>::type print_impl(
-            std::ostream& os,
-            const U& value) {
-            os << value;
-        }
-
-        template <class U>
-        static typename std::enable_if<!Ostreamable<U>::value>::type print_impl(std::ostream&, const U&) {}
-
-        static void print_impl(std::ostream& os, const bool& b) {
-            os << (b ? "YES" : "NO");
-        }
-
         void print(std::ostream& os) const override {
             print_impl(os, value);
-        }
-
-        template <class U>
-        static typename std::enable_if<Istreamable<U>::value && !std::is_same<bool, U>::value>::type read_impl(
-            std::istream& is,
-            U& value) {
-            is >> value;
-        }
-
-        static void read_impl(std::istream& is, bool& value) {
-            std::string str;
-            is >> str;
-            value = str == "YES";
-        }
-
-        template <class U>
-        static typename std::enable_if<!Istreamable<U>::value>::type read_impl(std::istream&, U&) {
-            throw ov::Exception{"Could read type without std::istream& operator>>(std::istream&, T) defined"};
         }
 
         void read(std::istream& is) override {
