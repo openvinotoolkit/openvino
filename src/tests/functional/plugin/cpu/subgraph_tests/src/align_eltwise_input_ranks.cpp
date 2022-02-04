@@ -185,7 +185,7 @@ protected:
             if (layer_type == "Subgraph") {
                 nodes_found++;
                 auto output_layout = n->get_rt_info().at(ExecGraphInfoSerialization::OUTPUT_LAYOUTS).as<std::string>();
-                ASSERT_EQ("aBcd8b", output_layout);
+                ASSERT_TRUE(output_layout == "aBcd8b" || output_layout == "aBcd16b");
             }
         }
         ASSERT_GT(nodes_found, 0);
