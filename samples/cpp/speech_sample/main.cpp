@@ -145,8 +145,7 @@ int main(int argc, char* argv[]) {
                 gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
         }
         if (FLAGS_pc) {
-            genericPluginConfig[InferenceEngine::PluginConfigParams::KEY_PERF_COUNT] =
-                InferenceEngine::PluginConfigParams::YES;
+            genericPluginConfig.emplace(ov::enable_profiling(true));
         }
         if (FLAGS_q.compare("user") == 0) {
             if (!FLAGS_rg.empty()) {

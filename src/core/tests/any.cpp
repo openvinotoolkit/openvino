@@ -510,19 +510,6 @@ TEST_F(AnyTests, FromString) {
     ASSERT_EQ(42, p.as<int>());
 }
 
-TEST_F(AnyTests, BoolToString) {
-    {
-        Any p = true;
-        ASSERT_TRUE(p.is<bool>());
-        ASSERT_EQ("YES", p.as<std::string>());
-    }
-    {
-        Any p = false;
-        ASSERT_TRUE(p.is<bool>());
-        ASSERT_EQ("NO", p.as<std::string>());
-    }
-}
-
 TEST_F(AnyTests, BoolFromString) {
     {
         Any p = "YES";

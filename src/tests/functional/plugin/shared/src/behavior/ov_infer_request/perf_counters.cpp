@@ -18,7 +18,7 @@ void OVInferRequestPerfCountersTest::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(targetDevice, configuration) = this->GetParam();
     function = ngraph::builder::subgraph::makeConvPoolRelu();
-    configuration.insert({ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES });
+    configuration.insert(ov::enable_profiling(true));
     execNet = core->compile_model(function, targetDevice, configuration);
     req = execNet.create_infer_request();
 }
