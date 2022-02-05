@@ -258,7 +258,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
         } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0 ||
-                   key == ov::streams::num) {
+                   key == ov::num_streams) {
             if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0) {
                 throughput_streams = GetDefaultNStreamsForThroughputMode();
             } else {
@@ -498,7 +498,7 @@ void Config::adjustKeyMapValues() {
     key_config_map[ov::cache_dir.name()] = kernels_cache_dir;
 
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
-    key_config_map[ov::streams::num.name()] = std::to_string(throughput_streams);
+    key_config_map[ov::num_streams.name()] = std::to_string(throughput_streams);
 
     key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;
     key_config_map[ov::device::id.name()] = device_id;

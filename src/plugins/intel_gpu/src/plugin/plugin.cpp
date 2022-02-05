@@ -331,7 +331,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
     streamsSet = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end() ||
-                 config.find(ov::streams::num.name()) != config.end();
+                 config.find(ov::num_streams.name()) != config.end();
     throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
                     config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end() ||
                     config.find(ov::intel_gpu::hint::queue_throttle.name()) != config.end();

@@ -104,19 +104,19 @@ TEST(OVClassBasicTest, smoke_SetConfigStreamsNum) {
     int32_t num_streams = 1;
 
     auto setGetProperty = [&ie](int32_t& getProperty, int32_t setProperty){
-        ASSERT_NO_THROW(ie.set_property("CPU", ov::streams::num(setProperty)));
-        ASSERT_NO_THROW(getProperty = ie.get_property("CPU", ov::streams::num));
+        ASSERT_NO_THROW(ie.set_property("CPU", ov::num_streams(setProperty)));
+        ASSERT_NO_THROW(getProperty = ie.get_property("CPU", ov::num_streams));
     };
 
     setGetProperty(value, num_streams);
     ASSERT_EQ(num_streams, value);
 
-    num_streams = ov::streams::NUMA;
+    num_streams = ov::NumStreams::NUMA;
 
     setGetProperty(value, num_streams);
     ASSERT_GT(value, 0); // value has been configured automatically
 
-    num_streams = ov::streams::AUTO;
+    num_streams = ov::NumStreams::AUTO;
 
     setGetProperty(value, num_streams);
     ASSERT_GT(value, 0); // value has been configured automatically

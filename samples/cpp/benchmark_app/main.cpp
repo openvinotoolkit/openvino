@@ -278,20 +278,20 @@ int main(int argc, char* argv[]) {
 
             // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
-                const std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
                     // set to user defined value
                     auto supported_properties = core.get_property(device, ov::supported_properties);
-                    if (std::find(supported_properties.begin(), supported_properties.end(), key) ==
+                    if (std::find(supported_properties.begin(), supported_properties.end(), ov::num_streams) ==
                         supported_properties.end()) {
-                        throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
+                        throw std::logic_error("Device " + device + " doesn't support config key '" +
+                                               ov::num_streams.name() + "'! " +
                                                "Please specify -nstreams for correct devices in format  "
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
                     }
-                    device_config[key] = device_nstreams.at(device);
-                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) &&
-                           (FLAGS_api == "async")) {
+                    device_config.emplace(ov::num_streams(device_nstreams.at(device)));
+                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED &&
+                           !device_config.count(ov::num_streams.name()) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
@@ -301,29 +301,40 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
                     if (std::string::npos == device.find("MYRIAD"))  // MYRIAD sets the default number of
                                                                      // streams implicitly (without _AUTO)
-                        device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
+                        device_config.emplace(ov::num_streams(ov::NumStreams::AUTO));
                 }
-                if (device_config.count(key))
-                    device_nstreams[device] = device_config.at(key).as<std::string>();
+                auto it_streams = device_config.find(ov::num_streams.name());
+                if (it_streams != device_config.end())
+                    device_nstreams[device] = it_streams->second.as<std::string>();
+            };
+
+            auto fix_pin_option = [](const std::string& str) -> std::string {
+                if (str == "NO")
+                    return "NONE";
+                else if (str == "YES")
+                    return "CORE";
+                else
+                    return str;
             };
 
             if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
                 if (isFlagSetInCommandLine("nthreads"))
-                    device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
+                    device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
 
                 if (isFlagSetInCommandLine("enforcebf16"))
                     device_config[CONFIG_KEY(ENFORCE_BF16)] = FLAGS_enforcebf16 ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
 
                 if (isFlagSetInCommandLine("pin")) {
                     // set to user defined value
-                    device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
-                } else if (!device_config.count(CONFIG_KEY(CPU_BIND_THREAD))) {
-                    if ((device_name.find("MULTI") != std::string::npos) &&
+                    device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
+                } else {
+                    auto it_affinity = device_config.find(ov::affinity.name());
+                    if (it_affinity != device_config.end() && (device_name.find("MULTI") != std::string::npos) &&
                         (device_name.find("GPU") != std::string::npos)) {
                         slog::warn << "Turn off threads pinning for " << device
                                    << " device since multi-scenario with GPU device is used." << slog::endl;
-                        device_config[CONFIG_KEY(CPU_BIND_THREAD)] = CONFIG_VALUE(NO);
+                        it_affinity->second = ov::Affinity::NONE;
                     }
                 }
 
@@ -356,14 +367,14 @@ int main(int argc, char* argv[]) {
                     return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
                            std::end(supported_properties);
                 };
-                if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
-                    device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
+                if (supported(ov::inference_num_threads.name()) && isFlagSetInCommandLine("nthreads")) {
+                    device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
                 }
-                if (supported(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) && isFlagSetInCommandLine("nstreams")) {
-                    device_config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = FLAGS_nstreams;
+                if (supported(ov::num_streams.name()) && isFlagSetInCommandLine("nstreams")) {
+                    device_config.emplace(ov::num_streams(FLAGS_nstreams));
                 }
-                if (supported(CONFIG_KEY(CPU_BIND_THREAD)) && isFlagSetInCommandLine("pin")) {
-                    device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
+                if (supported(ov::affinity.name()) && isFlagSetInCommandLine("pin")) {
+                    device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
                 }
             }
         }
@@ -645,8 +656,7 @@ int main(int argc, char* argv[]) {
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {
-            const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
-            device_nstreams[ds.first] = core.get_property(ds.first, key).as<std::string>();
+            device_nstreams[ds.first] = core.get_property(ds.first, ov::num_streams.name()).as<std::string>();
         }
 
         // Number of requests

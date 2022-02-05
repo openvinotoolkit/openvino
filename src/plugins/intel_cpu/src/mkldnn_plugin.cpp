@@ -718,9 +718,9 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig._streams;
         return static_cast<uint32_t>(streams); // ov::optimal_number_of_infer_requests has no negative values
-    } else if (name == ov::streams::num) {
+    } else if (name == ov::num_streams) {
         const auto streams = engConfig.streamExecutorConfig._streams;
-        return static_cast<int32_t>(streams); // ov::streams::num has special negative values (AUTO = -1, NUMA = -2)
+        return static_cast<int32_t>(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
         switch (affinity) {
@@ -836,7 +836,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::device::capabilities.name())
         };
         // the whole config is RW before network is loaded.
-        std::vector<ov::PropertyName> rwProperties {RW_property(ov::streams::num.name()),
+        std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
                                                     RW_property(ov::enable_profiling.name()),
