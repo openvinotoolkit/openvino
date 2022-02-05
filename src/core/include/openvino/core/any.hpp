@@ -203,6 +203,8 @@ class OPENVINO_API Any {
         throw ov::Exception{"Could read type without std::istream& operator>>(std::istream&, T) defined"};
     }
 
+    static bool equal(std::type_index lhs, std::type_index rhs);
+
     /**
      * @brief Base API of erased type
      */
@@ -232,9 +234,11 @@ class OPENVINO_API Any {
         bool visit_attributes(AttributeVisitor&) const;
         std::string to_string() const;
 
+        bool is(const std::type_info& other) const;
+
         template <class T>
         bool is() const {
-            return typeid(decay_t<T>) == type_info();
+            return is(typeid(decay_t<T>));
         }
 
         template <class T>
@@ -474,11 +478,11 @@ public:
     template <class T>
     bool is() const {
         if (_impl != nullptr) {
-            if (_impl->type_info() == typeid(decay_t<T>)) {
+            if (_impl->is(typeid(decay_t<T>))) {
                 return true;
             }
             for (const auto& type_index : _impl->base_type_info()) {
-                if (type_index == typeid(decay_t<T>)) {
+                if (equal(type_index, typeid(decay_t<T>))) {
                     return true;
                 }
             }
@@ -497,7 +501,7 @@ public:
             _temp_impl = std::make_shared<Impl<decay_t<T>>>(T{});
             return _temp_impl->as<T>();
         } else {
-            if (_impl->type_info() == typeid(decay_t<T>)) {
+            if (_impl->is(typeid(decay_t<T>))) {
                 return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
             } else {
                 auto runtime_attribute = _impl->as_runtime_attribute();
@@ -532,7 +536,7 @@ public:
             _temp_impl = std::make_shared<Impl<decay_t<T>>>(T{});
             return _temp_impl->as<T>();
         } else {
-            if (_impl->type_info() == typeid(decay_t<T>)) {
+            if (_impl->is(typeid(decay_t<T>))) {
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             } else {
                 auto runtime_attribute = _impl->as_runtime_attribute();
@@ -568,7 +572,7 @@ public:
             _temp_impl = std::make_shared<Impl<decay_t<T>>>(T{});
             return _temp_impl->as<T>();
         } else {
-            if (_impl->type_info() == typeid(decay_t<T>)) {
+            if (_impl->is(typeid(decay_t<T>))) {
                 return *static_cast<const decay_t<T>*>(_impl->addressof());
             } else {
                 auto runtime_attribute = _impl->as_runtime_attribute();
@@ -603,7 +607,7 @@ public:
                             T>::type&&
     as() && {
         impl_check();
-        if (_impl->type_info() == typeid(std::string)) {
+        if (_impl->is(typeid(std::string))) {
             _temp_impl = std::make_shared<Impl<decay_t<T>>>();
             std::stringstream strm{as<std::string>()};
             _temp_impl->read(strm);
@@ -624,16 +628,16 @@ public:
                             T>::type&
     as() & {
         impl_check();
-        if (_impl->type_info() == typeid(decay_t<T>)) {
+        if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<decay_t<T>*>(_impl->addressof());
-        } else if (_impl->type_info() == typeid(std::string)) {
+        } else if (_impl->is(typeid(std::string))) {
             _temp_impl = std::make_shared<Impl<decay_t<T>>>();
             std::stringstream strm{as<std::string>()};
             _temp_impl->read(strm);
             return *static_cast<decay_t<T>*>(_temp_impl->addressof());
         }
         for (const auto& type_index : _impl->base_type_info()) {
-            if (type_index == typeid(decay_t<T>)) {
+            if (equal(type_index, typeid(decay_t<T>))) {
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
@@ -651,16 +655,16 @@ public:
                                   T>::type&
     as() const& {
         impl_check();
-        if (_impl->type_info() == typeid(decay_t<T>)) {
+        if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<const decay_t<T>*>(_impl->addressof());
-        } else if (_impl->type_info() == typeid(std::string)) {
+        } else if (_impl->is(typeid(std::string))) {
             _temp_impl = std::make_shared<Impl<decay_t<T>>>();
             std::stringstream strm{as<std::string>()};
             _temp_impl->read(strm);
             return *static_cast<const decay_t<T>*>(_temp_impl->addressof());
         }
         for (const auto& type_index : _impl->base_type_info()) {
-            if (type_index == typeid(decay_t<T>)) {
+            if (equal(type_index, typeid(decay_t<T>))) {
                 return *static_cast<const decay_t<T>*>(_impl->addressof());
             }
         }
@@ -693,11 +697,11 @@ public:
                             T>::type&
     as() & {
         impl_check();
-        if (_impl->type_info() == typeid(decay_t<T>)) {
+        if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<decay_t<T>*>(_impl->addressof());
         }
         for (const auto& type_index : _impl->base_type_info()) {
-            if (type_index == typeid(decay_t<T>)) {
+            if (equal(type_index, typeid(decay_t<T>))) {
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
@@ -715,11 +719,11 @@ public:
                                   T>::type&
     as() const& {
         impl_check();
-        if (_impl->type_info() == typeid(decay_t<T>)) {
+        if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<const decay_t<T>*>(_impl->addressof());
         }
         for (const auto& type_index : _impl->base_type_info()) {
-            if (type_index == typeid(decay_t<T>)) {
+            if (equal(type_index, typeid(decay_t<T>))) {
                 return *static_cast<const decay_t<T>*>(_impl->addressof());
             }
         }
@@ -734,7 +738,7 @@ public:
     template <typename T>
     typename std::enable_if<std::is_same<T, std::string>::value, T>::type&& as() && {
         impl_check();
-        if (_impl->type_info() == typeid(decay_t<T>)) {
+        if (_impl->is(typeid(decay_t<T>))) {
             return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
         } else {
             std::stringstream strm;
@@ -752,7 +756,7 @@ public:
     template <class T>
     typename std::enable_if<std::is_same<T, std::string>::value, T>::type& as() & {
         impl_check();
-        if (_impl->type_info() == typeid(decay_t<T>)) {
+        if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<decay_t<T>*>(_impl->addressof());
         } else {
             std::stringstream strm;
@@ -770,7 +774,7 @@ public:
     template <class T>
     const typename std::enable_if<std::is_same<T, std::string>::value, T>::type& as() const& {
         impl_check();
-        if (_impl->type_info() == typeid(decay_t<T>)) {
+        if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<const decay_t<T>*>(_impl->addressof());
         } else {
             std::stringstream strm;
