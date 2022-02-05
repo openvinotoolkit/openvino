@@ -106,7 +106,7 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vec
 
     // Verify static ranks for all inputs
     for (size_t i = 0; i < input.size(); i++) {
-        NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
+        NODE_VALIDATION_CHECK(this,
                               (input[i].rank().is_static()),
                               "RNNCellBase supports only static rank for input tensors. Input ",
                               i);
@@ -116,12 +116,12 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vec
     for (size_t i = 0; i < input.size(); i++) {
         if (i == B) {
             // verify only B input dimension which is 1D
-            NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
+            NODE_VALIDATION_CHECK(this,
                                   (input[i].rank().get_length() == 1),
                                   "RNNCellBase B input tensor dimension is not correct.");
         } else {
             // Verify all other input dimensions which are 2D tensor types
-            NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
+            NODE_VALIDATION_CHECK(this,
                                   (input[i].rank().get_length() == 2),
                                   "RNNCellBase input tensor dimension is not correct for ",
                                   i,
@@ -135,9 +135,7 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vec
     const auto& x_pshape = input.at(X);
     const auto& w_pshape = input.at(W);
 
-    NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
-                          (x_pshape[1].compatible(w_pshape[1])),
-                          "RNNCellBase mismatched input_size dimension.");
+    NODE_VALIDATION_CHECK(this, (x_pshape[1].compatible(w_pshape[1])), "RNNCellBase mismatched input_size dimension.");
 }
 
 ov::op::util::ActivationFunction ov::op::util::RNNCellBase::get_activation_function(size_t idx) const {

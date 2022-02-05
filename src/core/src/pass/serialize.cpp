@@ -1061,6 +1061,7 @@ pass::Serialize::Serialize(const std::string& xmlPath,
                            std::map<std::string, ngraph::OpSet> custom_opsets,
                            pass::Serialize::Version version)
     : m_xmlFile{nullptr},
+      m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
       m_version{version},
