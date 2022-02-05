@@ -39,7 +39,7 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteC
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"CLDNNPlugin executor", config.throughput_streams});
         } else if (config.exclusiveAsyncRequests) {
-            return ExecutorManager::getInstance()->getExecutor("GPU");
+            return executorManager()->getExecutor("GPU");
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"CLDNNPlugin executor", 1});

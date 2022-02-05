@@ -24,6 +24,7 @@
 namespace InferenceEngine {
 
 class ICore;
+class ExecutorManager;
 class IExecutableNetworkInternal;
 class RemoteContext;
 class IExtension;
@@ -247,6 +248,12 @@ public:
     virtual ICore* GetCore() const noexcept;
 
     /**
+     * @brief Gets reference to tasks execution manager
+     * @return Reference to ExecutorManager interface
+     */
+    const std::shared_ptr<ExecutorManager> & executorManager() const;
+
+    /**
      * @brief      Queries a plugin about supported layers in network
      * @param[in]  network  The network object to query
      * @param[in]  config   The map of configuration parameters
@@ -255,6 +262,7 @@ public:
     virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const;
 
 protected:
+    IInferencePlugin();
     ~IInferencePlugin() = default;
 
     /**
@@ -299,6 +307,7 @@ protected:
     std::string _pluginName;  //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values
     ICore* _core = nullptr;  //!< A pointer to ICore interface
+    std::shared_ptr<ExecutorManager> _executorManager; //!< A tasks execution manager
 };
 
 namespace details {
