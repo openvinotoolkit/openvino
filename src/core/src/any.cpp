@@ -9,8 +9,22 @@
 
 namespace ov {
 
+bool Any::equal(std::type_index lhs, std::type_index rhs) {
+    auto result = lhs == rhs;
+#ifdef __ANDROID__
+    if (!result) {
+        result = std::strcmp(lhs.name(), rhs.name()) == 0;
+    }
+#endif
+    return result;
+}
+
+bool Any::Base::is(const std::type_info& other) const {
+    return Any::equal(type_info(), other);
+}
+
 void Any::Base::type_check(const std::type_info& type_info_) const {
-    OPENVINO_ASSERT(type_info() == type_info_, "Bad cast from: ", type_info().name(), " To type: ", type_info_.name());
+    OPENVINO_ASSERT(is(type_info_), "Bad cast from: ", type_info().name(), " To type: ", type_info_.name());
 }
 
 std::shared_ptr<RuntimeAttribute> Any::Base::as_runtime_attribute() const {
