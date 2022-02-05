@@ -292,7 +292,7 @@ TEST_P(OVClassGetPropertyTest_GPU, CanSetDefaultValueBackToPluginNewAPI) {
     std::vector<ov::PropertyName> properties;
     ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
 
-    auto get_property_type(ov::Any& result) -> std::string() {
+    auto get_property_type = [](const ov::Any& prop) -> std::string {
         if (prop.is<std::string>())
             return std::string("<string>");
         else if (prop.is<ov::hint::Priority>())
@@ -306,7 +306,7 @@ TEST_P(OVClassGetPropertyTest_GPU, CanSetDefaultValueBackToPluginNewAPI) {
         else if (prop.is<bool>())
             return std::string("<bool>");
         else
-            return"std::string(<other>");
+            return std::string("<other>");
     };
 
     std::cout << "SUPPORTED_PROPERTIES:" << std::endl;

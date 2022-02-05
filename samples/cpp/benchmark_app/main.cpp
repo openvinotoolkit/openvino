@@ -285,14 +285,15 @@ int main(int argc, char* argv[]) {
                     if (std::find(supported_properties.begin(), supported_properties.end(), key) !=
                         supported_properties.end()) {
                         device_config[key] = device_nstreams.at(device);
-                    } else if (std::find(supported_properties.begin(), supported_properties.end(), ov::streams::num.name()) !=
-                               supported_properties.end()) {
+                    } else if (std::find(supported_properties.begin(),
+                                         supported_properties.end(),
+                                         ov::streams::num.name()) != supported_properties.end()) {
                         // Use API 2.0 key for streams
                         key = ov::streams::num.name();
                         device_config[key] = device_nstreams.at(device);
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +
-                                               "and '" + ov::streams::num.name() + "'!"
+                                               "and '" + ov::streams::num.name() + "'!" +
                                                "Please specify -nstreams for correct devices in format  "
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
@@ -306,14 +307,15 @@ int main(int argc, char* argv[]) {
                                   "but it still may be non-optimal for some cases, for more "
                                   "information look at README."
                                << slog::endl;
-                    if (std::string::npos == device.find("MYRIAD")) { // MYRIAD sets the default number of
-                                                                      // streams implicitly (without _AUTO)
+                    if (std::string::npos == device.find("MYRIAD")) {  // MYRIAD sets the default number of
+                                                                       // streams implicitly (without _AUTO)
                         auto supported_properties = core.get_property(device, ov::supported_properties);
                         if (std::find(supported_properties.begin(), supported_properties.end(), key) !=
                             supported_properties.end()) {
                             device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
-                        } else if (std::find(supported_properties.begin(), supported_properties.end(), ov::streams::num.name()) !=
-                                   supported_properties.end()) {
+                        } else if (std::find(supported_properties.begin(),
+                                             supported_properties.end(),
+                                             ov::streams::num.name()) != supported_properties.end()) {
                             // Use API 2.0 key for streams
                             key = ov::streams::num.name();
                             device_config[key] = std::to_string(ov::streams::AUTO);
@@ -654,7 +656,8 @@ int main(int argc, char* argv[]) {
                     std::stringstream ss;
                     compiledModel.get_property(cfg).print(ss);
                     slog::info << "  { " << cfg << " , " << ss.str() << " }" << slog::endl;
-                } catch (...) {}
+                } catch (...) {
+                }
             }
         }
 

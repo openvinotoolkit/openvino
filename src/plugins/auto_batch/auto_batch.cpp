@@ -492,8 +492,8 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
         auto reqs = 0;
         try {
             auto num_requests = _network->GetConfig(ov::hint::num_requests.name());
-            auto hint = num_requests.is<std::string>() ? num_requests.as<std::string>() :
-                                                         std::to_string(num_requests.as<uint32_t>());
+            auto hint = num_requests.is<std::string>() ? num_requests.as<std::string>()
+                                                       : std::to_string(num_requests.as<uint32_t>());
             reqs = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(hint);
             if (!reqs)  // no limitations from user, let's deduce the full blown #requests
                 // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
@@ -738,11 +738,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         // let's query the optimal batch size
         std::map<std::string, InferenceEngine::Parameter> options;
         options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network.getFunction());
-        auto optBatchSize =
-            GetCore()->GetMetric(deviceName, ov::optimal_batch_size.name(), options).as<unsigned int>();
+        auto optBatchSize = GetCore()->GetMetric(deviceName, ov::optimal_batch_size.name(), options).as<unsigned int>();
         auto num_requests = GetCore()->GetConfig(deviceName, ov::hint::num_requests.name());
-        auto num_requests_str = num_requests.is<std::string>() ? num_requests.as<std::string>() :
-                                                                 std::to_string(num_requests.as<uint32_t>());
+        auto num_requests_str = num_requests.is<std::string>() ? num_requests.as<std::string>()
+                                                               : std::to_string(num_requests.as<uint32_t>());
         requests = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests_str);
         const auto& reqs = config.find(ov::hint::num_requests.name());
         if (reqs != config.end())
@@ -754,8 +753,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
 
     const auto perfConfig = fullConfig.find(ov::enable_profiling.name());
     const auto profiling = GetCore()->GetConfig(deviceName, ov::enable_profiling.name());
-    bool perfConfigInTargetPlugin = profiling.is<std::string>() ? profiling.as<std::string>() == PluginConfigParams::YES :
-                                                                  profiling.as<bool>();
+    bool perfConfigInTargetPlugin =
+        profiling.is<std::string>() ? profiling.as<std::string>() == PluginConfigParams::YES : profiling.as<bool>();
     const bool enablePerfCounters = perfConfigInTargetPlugin || ((fullConfig.end() != perfConfig) &&
                                                                  (perfConfig->second == PluginConfigParams::YES));
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
