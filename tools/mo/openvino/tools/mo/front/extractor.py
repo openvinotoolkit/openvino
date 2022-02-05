@@ -936,7 +936,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
         tensor_name = str(port) + ":" + Node(graph, node_id).soft_get('name')
     fw_info = [(Node(graph, node_id).soft_get('name'), tensor_name)]
 
-    if is_out_port and port == 0:
+    if not is_out_port and port == 0:
         tensor_name_no_port = Node(graph, node_id).soft_get('name')
         if graph.has_tensor_name(tensor_name_no_port):
             log.warning('Could not add user defined input name {} to tensor names list of as '

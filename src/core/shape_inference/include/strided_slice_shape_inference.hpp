@@ -183,7 +183,7 @@ void shape_infer(const StridedSlice* op,
                             if (ub <= lb) {
                                 dimension = (ub - lb) / stride + 1;
                             }
-                        } else {
+                        } else if (stride != 0) {
                             // apply masks
                             if (begin_mask.count(axis)) {
                                 lb = 0;
