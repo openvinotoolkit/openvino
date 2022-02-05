@@ -292,18 +292,37 @@ TEST_P(OVClassGetPropertyTest_GPU, CanSetDefaultValueBackToPluginNewAPI) {
     std::vector<ov::PropertyName> properties;
     ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
 
+    auto get_property_type(ov::Any& result) -> std::string() {
+        if (prop.is<std::string>())
+            return std::string("<string>");
+        else if (prop.is<ov::hint::Priority>())
+            return std::string("<Priority>");
+        else if (prop.is<int>())
+            return std::string("<int>");
+        else if (prop.is<unsigned int>())
+            return std::string("<uint>");
+        else if (prop.is<ov::hint::PerformanceMode>())
+            return std::string("<PerformanceMode>");
+        else if (prop.is<bool>())
+            return std::string("<bool>");
+        else
+            return"std::string(<other>");
+    };
+
     std::cout << "SUPPORTED_PROPERTIES:" << std::endl;
     for (const auto& property : properties) {
         ov::Any prop;
         if (property.is_mutable()) {
             std::cout << "RW: " << property << " ";
             ASSERT_NO_THROW(prop = ie.get_property(deviceName, property));
+            std::cout << get_property_type(prop) << " ";
             prop.print(std::cout);
             std::cout << std::endl;
             ASSERT_NO_THROW(ie.set_property(deviceName, {{property, prop}}));
         } else {
             std::cout << "RO: " << property << " ";
             ASSERT_NO_THROW(prop = ie.get_property(deviceName, property));
+            std::cout << get_property_type(prop) << " ";
             prop.print(std::cout);
             std::cout << std::endl;
         }

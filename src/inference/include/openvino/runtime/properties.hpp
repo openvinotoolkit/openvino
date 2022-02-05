@@ -121,9 +121,25 @@ struct BaseProperty : public PropertyTag {
 private:
     const char* _name = nullptr;
 };
+
 template <typename T, PropertyMutability M>
 inline std::ostream& operator<<(std::ostream& os, const BaseProperty<T, M>& property) {
     return os << property.name();
+}
+
+template <typename T, PropertyMutability M>
+inline T string_to_property(const std::string& val, const BaseProperty<T, M>& property) {
+    std::stringstream ss(val);
+    T value;
+    ss >> value;
+    return value;
+}
+
+template <typename T>
+inline std::string property_to_string(const T& property) {
+    std::stringstream ss;
+    ss << property;
+    return ss.str();
 }
 }  // namespace util
 /** @endcond */
@@ -292,6 +308,11 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * ov::optimal_batch_size)
  */
 static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
+
+/**
+ * @brief Special key for auto batching feature configuration. Enabled by default
+ */
+static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
 }  // namespace hint
 
 /**

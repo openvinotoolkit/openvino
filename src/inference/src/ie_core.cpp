@@ -552,7 +552,7 @@ public:
             deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
         } else {
             // check whether the Auto-Batching is disabled explicitly
-            const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
                 // virtual plugins like AUTO/MULTI will need the config
@@ -572,8 +572,10 @@ public:
             if (metrics.end() == it)
                 return;
             // if applicable, the Auto-Batching is implicitly enabled via the performance hints
-            bool bTputInPlg = GetConfig(d, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
-            const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+            auto perfMode = GetConfig(d, ov::hint::performance_mode.name());
+            bool bTputInPlg = perfMode.is<std::string>() ? perfMode.as<std::string>() == CONFIG_VALUE(THROUGHPUT) :
+                                                           perfMode.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT;
+            const auto& mode = config.find(ov::hint::performance_mode.name());
             bool bTputInLoadCfg = (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT));
             const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
             bool bExclReqsEnabled = (excl != config.end() && excl->second == CONFIG_VALUE(YES));

@@ -259,7 +259,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             }
         } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0 ||
                    key == ov::streams::num) {
-            if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0) {
+            if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0 ||
+                val.compare(std::to_string(ov::streams::AUTO)) == 0) {
                 throughput_streams = GetDefaultNStreamsForThroughputMode();
             } else {
                 int val_i;
@@ -408,16 +409,13 @@ void Config::adjustKeyMapValues() {
     {
         std::stringstream s;
         if (queuePriority == cldnn::priority_mode_types::high && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
-            s << ov::hint::Priority::HIGH;
-            key_config_map[ov::hint::model_priority.name()] = s.str();
+            key_config_map[ov::hint::model_priority.name()] = ov::util::property_to_string(ov::hint::Priority::HIGH);
             key_config_map[PluginConfigParams::KEY_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_HIGH;
         } else if (queuePriority == cldnn::priority_mode_types::low && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
-            s << ov::hint::Priority::LOW;
-            key_config_map[ov::hint::model_priority.name()] = s.str();
+            key_config_map[ov::hint::model_priority.name()] = ov::util::property_to_string(ov::hint::Priority::LOW);
             key_config_map[PluginConfigParams::KEY_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_LOW;
         } else if (queuePriority == cldnn::priority_mode_types::med && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::ANY) {
-            s << ov::hint::Priority::MEDIUM;
-            key_config_map[ov::hint::model_priority.name()] = s.str();
+            key_config_map[ov::hint::model_priority.name()] = ov::util::property_to_string(ov::hint::Priority::MEDIUM);
             key_config_map[PluginConfigParams::KEY_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_MED;
         }
     }
@@ -433,14 +431,14 @@ void Config::adjustKeyMapValues() {
         key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY] = qp;
     }
     {
-        std::stringstream ss;
+        std::string priority;
         if (queuePriority == cldnn::priority_mode_types::high)
-            ss << ov::hint::Priority::HIGH;
+            priority = ov::util::property_to_string(ov::hint::Priority::HIGH);
         else if (queuePriority == cldnn::priority_mode_types::low)
-            ss << ov::hint::Priority::LOW;
+            priority = ov::util::property_to_string(ov::hint::Priority::LOW);
         else
-            ss << ov::hint::Priority::MEDIUM;
-        key_config_map[ov::intel_gpu::hint::queue_priority.name()] = ss.str();
+            priority = ov::util::property_to_string(ov::hint::Priority::MEDIUM);
+        key_config_map[ov::intel_gpu::hint::queue_priority.name()] = priority;
     }
     {
         std::string qt = "0";
@@ -454,28 +452,25 @@ void Config::adjustKeyMapValues() {
         key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = qt;
     }
     {
-        std::stringstream ss;
+        std::string throttleLevel;
         if (queueThrottle == cldnn::throttle_mode_types::high)
-            ss << ov::intel_gpu::hint::ThrottleLevel::HIGH;
+            throttleLevel = ov::util::property_to_string(ov::intel_gpu::hint::ThrottleLevel::HIGH);
         else if (queueThrottle == cldnn::throttle_mode_types::low)
-            ss << ov::intel_gpu::hint::ThrottleLevel::LOW;
+            throttleLevel = ov::util::property_to_string(ov::intel_gpu::hint::ThrottleLevel::LOW);
         else
-            ss << ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
-        key_config_map[ov::intel_gpu::hint::queue_throttle.name()] = ss.str();
+            throttleLevel = ov::util::property_to_string(ov::intel_gpu::hint::ThrottleLevel::MEDIUM);
+        key_config_map[ov::intel_gpu::hint::queue_throttle.name()] = throttleLevel;
     }
     {
         std::stringstream s;
         if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
-            s << ov::hint::Priority::LOW;
-            key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = s.str();
+            key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = ov::util::property_to_string(ov::hint::Priority::LOW);
             key_config_map[GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW;
         } else if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
-            s << ov::hint::Priority::HIGH;
-            key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = s.str();
+            key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = ov::util::property_to_string(ov::hint::Priority::HIGH);
             key_config_map[GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH;
         } else {
-            s << ov::hint::Priority::MEDIUM;
-            key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = s.str();
+            key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = ov::util::property_to_string(ov::hint::Priority::MEDIUM);
             key_config_map[GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM;
         }
     }
@@ -516,8 +511,8 @@ void Config::adjustKeyMapValues() {
         key_config_map[ov::intel_gpu::enable_loop_unrolling.name()] = PluginConfigParams::NO;
     }
 
-    key_config_map[PluginConfigParams::KEY_PERFORMANCE_HINT]= perfHintsConfig.ovPerfHint;
-    key_config_map[ov::hint::performance_mode.name()]= perfHintsConfig.ovPerfHint;
+    key_config_map[PluginConfigParams::KEY_PERFORMANCE_HINT] = perfHintsConfig.ovPerfHint;
+    key_config_map[ov::hint::performance_mode.name()] = perfHintsConfig.ovPerfHint;
 
     key_config_map[PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS] =
         std::to_string(perfHintsConfig.ovPerfHintNumRequests);
@@ -530,6 +525,7 @@ bool Config::isNewApiProperty(std::string property) {
         ov::intel_gpu::hint::queue_priority.name(),
         ov::intel_gpu::hint::queue_throttle.name(),
         ov::compilation_num_threads.name(),
+        ov::streams::num.name(),
     };
     return new_api_keys.find(property) != new_api_keys.end();
 }
