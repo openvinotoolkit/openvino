@@ -322,7 +322,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
         });
     }
-    auto executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+    auto executor = executorManager()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
                                      static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                                      1 /*single thread per stream*/,

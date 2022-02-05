@@ -133,8 +133,7 @@ ExecutableNetwork::ExecutableNetwork(
 
     const auto& networkName = network.getName();
     if (_config.get<ExclusiveAsyncRequestsOption>()) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor("MYRIAD");
+        _taskExecutor = executorManager()->getExecutor("MYRIAD");
     }
 
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
@@ -198,8 +197,7 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
     }
 
     if (_config.get<ExclusiveAsyncRequestsOption>()) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor("MYRIAD");
+        _taskExecutor = executorManager()->getExecutor("MYRIAD");
     }
 
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {

@@ -34,7 +34,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_p
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
         if (config.exclusiveAsyncRequests) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
-            return ExecutorManager::getInstance()->getExecutor("GPU");
+            return executorManager()->getExecutor("GPU");
         }  else if (config.throughput_streams > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"Intel GPU plugin executor", config.throughput_streams});
@@ -45,7 +45,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_p
     }()},
     m_config(config),
     m_taskExecutor{ _taskExecutor },
-    m_waitExecutor(InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
+    m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
     if (nullptr == casted_context) {
