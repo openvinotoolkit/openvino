@@ -60,18 +60,17 @@ class OPENVINO_API Any {
         constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
     };
 
-    template <class T>
-    struct Istreamable {
-        template <class U>
-        static auto test(U*) -> decltype(std::declval<std::istream&>() >> std::declval<U&>(), std::true_type()) {
-            return {};
-        }
-        template <typename>
-        static auto test(...) -> std::false_type {
-            return {};
-        }
-        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
-    };
+    template <class U>
+    static typename std::enable_if<Ostreamable<U>::value && !std::is_same<bool, U>::value>::type print_impl(
+        std::ostream& os,
+        const U& value) {
+        os << value;
+    }
+
+    static void print_impl(std::ostream& os, const bool& b);
+
+    template <class U>
+    static typename std::enable_if<!Ostreamable<U>::value>::type print_impl(std::ostream&, const U&) {}
 
     template <typename T>
     struct EqualityComparable {
@@ -105,6 +104,17 @@ class OPENVINO_API Any {
         static long test(...);
         constexpr static const bool value = sizeof(test<std::vector<T...>>(nullptr)) == sizeof(char);
     };
+
+    template <class U>
+    static typename std::enable_if<EqualityComparable<U>::value, bool>::type equal_impl(const U& rhs, const U& lhs) {
+        return rhs == lhs;
+    }
+
+    template <class U>
+    [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
+                                                                                                      const U&) {
+        throw ov::Exception{"Could not compare types without equality operator"};
+    }
 
     template <typename T>
     struct HasBaseMemberType {
@@ -156,6 +166,42 @@ class OPENVINO_API Any {
         }
         constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
     };
+
+    template <class T>
+    struct Istreamable {
+        template <class U>
+        static auto test(U*) -> decltype(std::declval<std::istream&>() >> std::declval<U&>(), std::true_type()) {
+            return {};
+        }
+        template <typename>
+        static auto test(...) -> std::false_type {
+            return {};
+        }
+        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
+    };
+
+    template <class U>
+    static typename std::enable_if<Istreamable<U>::value && !std::is_same<bool, U>::value>::type read_impl(
+        std::istream& is,
+        U& value) {
+        is >> value;
+    }
+
+    static void read_impl(std::istream& is, bool& value);
+    static void read_impl(std::istream& is, int& value);
+    static void read_impl(std::istream& is, long& value);
+    static void read_impl(std::istream& is, long long& value);
+    static void read_impl(std::istream& is, unsigned& value);
+    static void read_impl(std::istream& is, unsigned long& value);
+    static void read_impl(std::istream& is, unsigned long long& value);
+    static void read_impl(std::istream& is, float& value);
+    static void read_impl(std::istream& is, double& value);
+    static void read_impl(std::istream& is, long double& value);
+
+    template <class U>
+    static typename std::enable_if<!Istreamable<U>::value>::type read_impl(std::istream&, U&) {
+        throw ov::Exception{"Could read type without std::istream& operator>>(std::istream&, T) defined"};
+    }
 
     /**
      * @brief Base API of erased type
@@ -253,17 +299,6 @@ class OPENVINO_API Any {
             return std::make_shared<Impl<T>>(this->runtime_attribute);
         }
 
-        template <class U>
-        static typename std::enable_if<EqualityComparable<U>::value, bool>::type equal_impl(const U& rhs,
-                                                                                            const U& lhs) {
-            return rhs == lhs;
-        }
-        template <class U>
-        [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
-                                                                                                          const U&) {
-            throw ov::Exception{"Could not compare types without equality operator"};
-        }
-
         bool equal(const Base& rhs) const override {
             if (rhs.is<T>()) {
                 return equal_impl(this->runtime_attribute, rhs.as<T>());
@@ -317,17 +352,6 @@ class OPENVINO_API Any {
             return base_type_info_impl<T>();
         }
 
-        template <class U>
-        static typename std::enable_if<EqualityComparable<U>::value, bool>::type equal_impl(const U& rhs,
-                                                                                            const U& lhs) {
-            return rhs == lhs;
-        }
-        template <class U>
-        [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
-                                                                                                          const U&) {
-            throw ov::Exception{"Could not compare types without equality operator"};
-        }
-
         bool equal(const Base& rhs) const override {
             if (rhs.is<T>()) {
                 return equal_impl(this->value, rhs.as<T>());
@@ -335,26 +359,8 @@ class OPENVINO_API Any {
             return false;
         }
 
-        template <class U>
-        static typename std::enable_if<Ostreamable<U>::value>::type print_impl(std::ostream& os, const U& value) {
-            os << value;
-        }
-
-        template <class U>
-        static typename std::enable_if<!Ostreamable<U>::value>::type print_impl(std::ostream&, const U&) {}
-
         void print(std::ostream& os) const override {
             print_impl(os, value);
-        }
-
-        template <class U>
-        static typename std::enable_if<Istreamable<U>::value>::type read_impl(std::istream& is, U& value) {
-            is >> value;
-        }
-
-        template <class U>
-        static typename std::enable_if<!Istreamable<U>::value>::type read_impl(std::istream&, U&) {
-            throw ov::Exception{"Could print type without std::istream& operator>>(std::istream&, T) defined"};
         }
 
         void read(std::istream& is) override {
@@ -376,7 +382,9 @@ class OPENVINO_API Any {
 
     void impl_check() const;
 
-    mutable Base::Ptr _runtime_attribute_impl;
+    mutable Base::Ptr _temp_impl;
+
+    mutable std::string _str;
 
     Base::Ptr _impl;
 
@@ -486,8 +494,8 @@ public:
     template <typename T>
     typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type&& as() && {
         if (_impl == nullptr) {
-            _runtime_attribute_impl = std::make_shared<Impl<decay_t<T>>>(T{});
-            return _runtime_attribute_impl->as<T>();
+            _temp_impl = std::make_shared<Impl<decay_t<T>>>(T{});
+            return _temp_impl->as<T>();
         } else {
             if (_impl->type_info() == typeid(decay_t<T>)) {
                 return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
@@ -507,8 +515,8 @@ public:
                                         static_cast<std::string>(T::element_type::get_type_info_static())};
                 }
                 vptr = std::static_pointer_cast<typename T::element_type>(runtime_attribute);
-                _runtime_attribute_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
-                return _runtime_attribute_impl->as<T>();
+                _temp_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
+                return _temp_impl->as<T>();
             }
         }
     }
@@ -521,8 +529,8 @@ public:
     template <class T>
     typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type& as() & {
         if (_impl == nullptr) {
-            _runtime_attribute_impl = std::make_shared<Impl<decay_t<T>>>(T{});
-            return _runtime_attribute_impl->as<T>();
+            _temp_impl = std::make_shared<Impl<decay_t<T>>>(T{});
+            return _temp_impl->as<T>();
         } else {
             if (_impl->type_info() == typeid(decay_t<T>)) {
                 return *static_cast<decay_t<T>*>(_impl->addressof());
@@ -542,8 +550,8 @@ public:
                                         static_cast<std::string>(T::element_type::get_type_info_static())};
                 }
                 vptr = std::static_pointer_cast<typename T::element_type>(runtime_attribute);
-                _runtime_attribute_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
-                return _runtime_attribute_impl->as<T>();
+                _temp_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
+                return _temp_impl->as<T>();
             }
         }
     }
@@ -557,8 +565,8 @@ public:
     const typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type& as()
         const& {
         if (_impl == nullptr) {
-            _runtime_attribute_impl = std::make_shared<Impl<decay_t<T>>>(T{});
-            return _runtime_attribute_impl->as<T>();
+            _temp_impl = std::make_shared<Impl<decay_t<T>>>(T{});
+            return _temp_impl->as<T>();
         } else {
             if (_impl->type_info() == typeid(decay_t<T>)) {
                 return *static_cast<const decay_t<T>*>(_impl->addressof());
@@ -578,8 +586,8 @@ public:
                                         static_cast<std::string>(T::element_type::get_type_info_static())};
                 }
                 vptr = std::static_pointer_cast<typename T::element_type>(runtime_attribute);
-                _runtime_attribute_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
-                return _runtime_attribute_impl->as<T>();
+                _temp_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
+                return _temp_impl->as<T>();
             }
         }
     }
@@ -590,7 +598,85 @@ public:
      * @return casted object
      */
     template <typename T>
-    typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type&& as() && {
+    typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
+                                !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
+                            T>::type&&
+    as() && {
+        impl_check();
+        if (_impl->type_info() == typeid(std::string)) {
+            _temp_impl = std::make_shared<Impl<decay_t<T>>>();
+            std::stringstream strm{as<std::string>()};
+            _temp_impl->read(strm);
+            return std::move(*static_cast<decay_t<T>*>(_temp_impl->addressof()));
+        }
+        _impl->type_check(typeid(decay_t<T>));
+        return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
+    }
+
+    /**
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
+     */
+    template <class T>
+    typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
+                                !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
+                            T>::type&
+    as() & {
+        impl_check();
+        if (_impl->type_info() == typeid(decay_t<T>)) {
+            return *static_cast<decay_t<T>*>(_impl->addressof());
+        } else if (_impl->type_info() == typeid(std::string)) {
+            _temp_impl = std::make_shared<Impl<decay_t<T>>>();
+            std::stringstream strm{as<std::string>()};
+            _temp_impl->read(strm);
+            return *static_cast<decay_t<T>*>(_temp_impl->addressof());
+        }
+        for (const auto& type_index : _impl->base_type_info()) {
+            if (type_index == typeid(decay_t<T>)) {
+                return *static_cast<decay_t<T>*>(_impl->addressof());
+            }
+        }
+        throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
+    }
+
+    /**
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
+     */
+    template <class T>
+    const typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
+                                      !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
+                                  T>::type&
+    as() const& {
+        impl_check();
+        if (_impl->type_info() == typeid(decay_t<T>)) {
+            return *static_cast<const decay_t<T>*>(_impl->addressof());
+        } else if (_impl->type_info() == typeid(std::string)) {
+            _temp_impl = std::make_shared<Impl<decay_t<T>>>();
+            std::stringstream strm{as<std::string>()};
+            _temp_impl->read(strm);
+            return *static_cast<const decay_t<T>*>(_temp_impl->addressof());
+        }
+        for (const auto& type_index : _impl->base_type_info()) {
+            if (type_index == typeid(decay_t<T>)) {
+                return *static_cast<const decay_t<T>*>(_impl->addressof());
+            }
+        }
+        throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
+    }
+
+    /**
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
+     */
+    template <typename T>
+    typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
+                                !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
+                            T>::type&&
+    as() && {
         impl_check();
         _impl->type_check(typeid(decay_t<T>));
         return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
@@ -602,7 +688,10 @@ public:
      * @return casted object
      */
     template <class T>
-    typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type& as() & {
+    typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
+                                !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
+                            T>::type&
+    as() & {
         impl_check();
         if (_impl->type_info() == typeid(decay_t<T>)) {
             return *static_cast<decay_t<T>*>(_impl->addressof());
@@ -621,8 +710,10 @@ public:
      * @return casted object
      */
     template <class T>
-    const typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type& as()
-        const& {
+    const typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
+                                      !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
+                                  T>::type&
+    as() const& {
         impl_check();
         if (_impl->type_info() == typeid(decay_t<T>)) {
             return *static_cast<const decay_t<T>*>(_impl->addressof());
@@ -633,6 +724,60 @@ public:
             }
         }
         throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
+    }
+
+    /**
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
+     */
+    template <typename T>
+    typename std::enable_if<std::is_same<T, std::string>::value, T>::type&& as() && {
+        impl_check();
+        if (_impl->type_info() == typeid(decay_t<T>)) {
+            return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
+        } else {
+            std::stringstream strm;
+            print(strm);
+            _str = strm.str();
+            return std::move(_str);
+        }
+    }
+
+    /**
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
+     */
+    template <class T>
+    typename std::enable_if<std::is_same<T, std::string>::value, T>::type& as() & {
+        impl_check();
+        if (_impl->type_info() == typeid(decay_t<T>)) {
+            return *static_cast<decay_t<T>*>(_impl->addressof());
+        } else {
+            std::stringstream strm;
+            print(strm);
+            _str = strm.str();
+            return _str;
+        }
+    }
+
+    /**
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
+     */
+    template <class T>
+    const typename std::enable_if<std::is_same<T, std::string>::value, T>::type& as() const& {
+        impl_check();
+        if (_impl->type_info() == typeid(decay_t<T>)) {
+            return *static_cast<const decay_t<T>*>(_impl->addressof());
+        } else {
+            std::stringstream strm;
+            print(strm);
+            _str = strm.str();
+            return _str;
+        }
     }
 
     /**
