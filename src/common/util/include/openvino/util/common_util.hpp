@@ -110,5 +110,12 @@ template <typename T>
 T ceil_div(const T& x, const T& y) {
     return (x == 0 ? 0 : (1 + (x - 1) / y));
 }
+
+template <typename T, typename A, typename V>
+bool contains(const std::vector<T, A>& vec, const V& v) {
+    return std::any_of(vec.begin(), vec.end(), [&](const T& x) {
+        return x == v;
+    });
+}
 }  // namespace util
 }  // namespace ov
