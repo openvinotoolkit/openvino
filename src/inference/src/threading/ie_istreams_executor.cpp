@@ -108,14 +108,16 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             _streams = val_i;
         }
     } else if (key == ov::num_streams) {
-        int32_t streams = std::stoi(value);
-        if (streams == ov::NumStreams::NUMA) {
+        ov::NumStreams streams;
+        std::stringstream strm{value};
+        strm >> streams;
+        if (streams.num == ov::NumStreams::NUMA) {
             _streams = static_cast<int32_t>(getAvailableNUMANodes().size());
-        } else if (streams == ov::NumStreams::AUTO) {
+        } else if (streams.num == ov::NumStreams::AUTO) {
             // bare minimum of streams (that evenly divides available number of cores)
             _streams = GetDefaultNumStreams();
-        } else if (streams >= 0) {
-            _streams = streams;
+        } else if (streams.num >= 0) {
+            _streams = streams.num;
         } else {
             OPENVINO_UNREACHABLE("Wrong value for property key ",
                                  ov::num_streams.name(),

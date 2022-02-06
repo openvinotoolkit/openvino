@@ -160,9 +160,9 @@ Engine::Engine() :
 }
 
 Engine::~Engine() {
-    ExecutorManager::getInstance()->clear("CPU");
-    ExecutorManager::getInstance()->clear("CPUStreamsExecutor");
-    ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
+    executorManager()->clear("CPU");
+    executorManager()->clear("CPUStreamsExecutor");
+    executorManager()->clear("CPUCallbackExecutor");
 }
 
 static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Function>& nGraphFunc, const bool _enableLPT,
@@ -684,7 +684,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
+    return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing, shared_from_this());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -717,10 +717,10 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig._streams;
-        return static_cast<uint32_t>(streams); // ov::optimal_number_of_infer_requests has no negative values
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(streams); // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = engConfig.streamExecutorConfig._streams;
-        return static_cast<int32_t>(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
         switch (affinity) {
@@ -736,19 +736,20 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         return ov::Affinity::NONE;
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = engConfig.streamExecutorConfig._threads;
-        return num_threads;
+        return decltype(ov::inference_num_threads)::value_type(num_threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
-        return perfCount ? "YES" : "NO";
+        return decltype(ov::enable_profiling)::value_type(perfCount);
     } else if (name == ov::hint::inference_precision) {
         const auto enforceBF16 = engConfig.enforceBF16;
-        return enforceBF16 ? ov::element::bf16 : ov::element::f32;
+        return decltype(ov::hint::inference_precision)::value_type(
+            enforceBF16 ? ov::element::bf16 : ov::element::f32);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = engConfig.perfHintsConfig.ovPerfHint;
-        return perfHint;
+        return ov::Any{perfHint}.as<decltype(ov::hint::performance_mode)::value_type>();
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
-        return perfHintNumRequests;
+        return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
@@ -990,7 +991,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
     }
 
-    auto execNetwork = std::make_shared<MKLDNNExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing);
+    auto execNetwork = std::make_shared<MKLDNNExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing, shared_from_this());
 
     execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
     execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());
