@@ -78,7 +78,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     }
 
     std::vector<std::shared_ptr<opset1::Constant>> curr_constants(4);
-    bool multi_chanels = false;
+    bool multi_channels = false;
     const auto concat_node = as_type_ptr<opset1::Concat>(concat);
     if (concat_node == nullptr) {
         return false;
@@ -86,13 +86,14 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     const auto concat_axis = concat_node->get_concatenation_axis();
     for (size_t i = 0; i < 4; i++) {
         curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
-        if (!multi_chanels && curr_constants[i]->get_shape().size() > (concat_axis + 1ul) && curr_constants[i]->get_shape()[concat_axis] != 1) {
-            multi_chanels = true;
+        const auto constantShape = curr_constants[i]->get_shape();
+        if (!multi_channels && (constantShape.size() >= (concat_axis + 1ul)) && (constantShape[concat_axis] != 1ul)) {
+            multi_channels = true;
         }
     }
 
     std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> new_constants;
-    if (multi_chanels) {
+    if (multi_channels) {
         new_constants = NetworkHelper::splitConstantsBeforeConcat(concat, curr_constants);
     }
 
@@ -113,7 +114,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
             parent_output = fq_input->output(0);
         }
 
-        const std::shared_ptr<ngraph::Node> new_fq = multi_chanels ?
+        const std::shared_ptr<ngraph::Node> new_fq = multi_channels ?
             fq->clone_with_new_inputs({parent_output,
                 new_constants[0][new_constants[0].size() == 1 ? 0 : i],
                 new_constants[1][new_constants[1].size() == 1 ? 0 : i],
