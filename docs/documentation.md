@@ -52,8 +52,7 @@
    :hidden:
    :caption: Media Processing
 
-   DL Streamer API Reference <https://openvinotoolkit.github.io/dlstreamer_gst/>
-   gst_samples_README
+   Intel® Deep Learning Streamer (Intel® DL Streamer) <openvino_docs_dlstreamer>
    openvino_docs_gapi_gapi_intro
    OpenVX Developer Guide <https://software.intel.com/en-us/openvino-ovx-guide>
    OpenVX API Reference <https://khronos.org/openvx>
@@ -104,4 +103,4 @@ The toolkit provides a [Performance Optimization Guide](optimization_guide/dldt_
 You can choose to use the [OpenVINO™ Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), a web-based tool that guides you through the process of converting, measuring, optimizing, and deploying models. This tool also serves as a low-effort introduction to the toolkit and provides a variety of useful interactive charts for understanding performance.
 
 ## Media Processing
-The OpenVINO™ toolkit comes with several sets of libraries and tools that add capability and flexibility to the toolkit. These include [DL Streamer](@ref gst_samples_README), a utility that eases creation of pipelines via command line or API, and optimized versions of OpenCV and OpenCL.
+You can also add media processing capabilities to your application using third-party additional tools and libraries, which include [Intel® Deep Learning Streamer (Intel® DL Streamer)](https://dlstreamer.github.io), a utility that eases creation of pipelines via command line or API, and optimized versions of [OpenCV](https://opencv.org/).
