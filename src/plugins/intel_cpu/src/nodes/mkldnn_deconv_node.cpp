@@ -229,6 +229,9 @@ std::pair<VectorDims, VectorDims> MKLDNNDeconvolutionNode::makeDummyInOutShape()
     auto outShape = getOutputShapeAtPort(0);
 
     if (isDynamicNode()) {
+        auto inputDims = inShape.getStaticDims();
+        inputDims[1] = IC;
+
         if (externOutShape) {
             if (lastOutputSpatialDims.empty()) {
                 const auto& shape = getOutputShapeAtPort(0);
@@ -245,17 +248,18 @@ std::pair<VectorDims, VectorDims> MKLDNNDeconvolutionNode::makeDummyInOutShape()
             ov::CoordinateDiff pb = autoPad ? ov::CoordinateDiff(paddingL.size(), 0) : paddingL;
             ov::CoordinateDiff pe = autoPad ? ov::CoordinateDiff(paddingR.size(), 0) : paddingR;
 
-            auto inputDims = inShape.getStaticDims();
+            const auto& origInDims = getInputShapeAtPort(0).getDims();
             const auto& weightDims = getWeightDims();
             const size_t wghOffset = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
             for (size_t i = 0; i < inputDims.size() - 2; i++) {
-                inputDims[2 + i] = ((lastOutputSpatialDims[i] - (dilation[i] + 1) *
-                                    (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
-                                    stride[i] + 1;
+                if (origInDims[2 + i] == Shape::UNDEFINED_DIM) {
+                    inputDims[2 + i] = ((lastOutputSpatialDims[i] - (dilation[i] + 1) *
+                                        (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
+                                        stride[i] + 1;
+                }
             }
-
-            inShape = Shape(inputDims);
         }
+        inShape = Shape(inputDims);
         outShape = Shape(shapeInferInternal(inShape.getStaticDims(), lastOutputSpatialDims));
         paddingL = shapeInference->get_pads_begin();
         paddingR = shapeInference->get_pads_end();
