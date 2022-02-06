@@ -7,7 +7,6 @@
 #    include <cxxabi.h>
 #endif
 
-#include "atomic_guard.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "openvino/pass/manager.hpp"
 

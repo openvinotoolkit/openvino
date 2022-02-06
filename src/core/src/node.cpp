@@ -10,7 +10,6 @@
 #include <typeindex>
 #include <typeinfo>
 
-#include "atomic_guard.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
@@ -260,9 +259,9 @@ const std::string& ov::Node::get_friendly_name() const {
 }
 
 const std::string& ov::Node::get_name() const {
-    AtomicGuard lock(m_name_changing);
-    if (m_unique_name.empty())
+    std::call_once(m_name_changing, [&] {
         m_unique_name = description() + "_" + to_string(m_instance_id);
+    });
     return m_unique_name;
 }
 
