@@ -279,7 +279,7 @@ struct format {
                 fmt == bfzyx || fmt == bfwzyx);
     }
 
-    static format get_default_format(size_t rank, bool is_weights, bool is_grouped) {
+    static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false) {
         auto default_fmt = cldnn::format::bfyx;
         if (is_weights) {
             if (is_grouped) {
