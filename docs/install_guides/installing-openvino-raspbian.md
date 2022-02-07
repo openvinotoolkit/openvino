@@ -32,7 +32,7 @@
 
 ## Overview
 
-This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit for Raspbian* OS. The following steps will be covered:
+This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit for Raspbian OS. The following steps will be covered:
 
 1. <a href="#install-openvino">Install the Intel® Distribution of OpenVINO™ Toolkit</a>
 2. <a href="#install-external-dependencies">Install External Software Dependencies</a>
