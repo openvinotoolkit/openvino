@@ -2578,6 +2578,69 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
     }
 }
 
+TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
+{
+    auto& engine = get_test_engine();
+    bool f16_supported = engine.get_device_info().supports_fp16;
+    if (!f16_supported) {
+        std::cout << "[ SKIPPED ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        return;
+    }
+
+    size_t input_b = 2;
+    size_t input_f = 72;
+    size_t input1_y = 10, input1_x = 10;
+
+    tensor input1_tensor(input_b, input_f, input1_x, input1_y);
+    tensor input2_tensor(1, input_f, 1, 1);
+
+    VVVVF<FLOAT16> input1_rnd = generate_random_4d<FLOAT16>(input_b, input_f, input1_y, input1_x, 1, 3);
+    VVVVF<FLOAT16> input2_rnd = generate_random_4d<FLOAT16>(1, input_f, 1, 1, 1, 3);
+
+    VF<FLOAT16> input1_flatten = flatten_4d<FLOAT16>(format::bfyx, input1_rnd);
+    VF<FLOAT16> input2_flatten = flatten_4d<FLOAT16>(format::bfyx, input2_rnd);
+
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, input1_tensor });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, input2_tensor });
+
+    set_values(input1, input1_flatten);
+    set_values(input2, input2_flatten);
+
+    topology ref_topology;
+    ref_topology.add(input_layout("input1", input1->get_layout()));
+    ref_topology.add(input_layout("input2", input2->get_layout()));
+    ref_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::prod));
+
+    network ref_network(engine, ref_topology);
+    ref_network.set_input_data("input1", input1);
+    ref_network.set_input_data("input2", input2);
+
+    auto ref_outputs = ref_network.execute();
+    auto ref_output = ref_outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<FLOAT16> ref_ptr(ref_output, get_test_stream());
+
+    topology fsv32_topology;
+    fsv32_topology.add(input_layout("input1", input1->get_layout()));
+    fsv32_topology.add(input_layout("input2", input2->get_layout()));
+    fsv32_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::fs_b_yx_fsv32, input1_tensor)));
+    fsv32_topology.add(eltwise("eltwise", "reorder1", "input2", eltwise_mode::prod));
+    fsv32_topology.add(reorder("reorder_bfyx", "eltwise", layout(data_types::f16, format::bfyx, input1_tensor)));
+
+    network fsv32_network(engine, fsv32_topology);
+    fsv32_network.set_input_data("input1", input1);
+    fsv32_network.set_input_data("input2", input2);
+
+    auto fsv32_outputs = fsv32_network.execute();
+    auto fsv32_output = fsv32_outputs.at("reorder_bfyx").get_memory();
+    cldnn::mem_lock<FLOAT16> fsv32_ptr(fsv32_output, get_test_stream());
+
+    ASSERT_EQ(ref_ptr.size(), fsv32_ptr.size());
+
+    for (size_t i = 0; i < ref_ptr.size(); i++) {
+        ASSERT_EQ(float(ref_ptr[i]), float(fsv32_ptr[i]));
+    }
+}
+
 TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2x2) {
     //  Input  : 2x2x2x2x1
     //  Input2 : 2x2x1x1x2
