@@ -53,6 +53,7 @@
 #include <transformations/common_optimizations/swish_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
+#include <transformations/common_optimizations/prelu_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/op_conversions/batch_norm_decomposition.hpp>
@@ -153,6 +154,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->add_matcher<ngraph::pass::ReshapeSequenceFusion>(m_use_shapes);
     common_fusions->add_matcher<ngraph::pass::MatMulConstTransposesExtraction>();
+    common_fusions->add_matcher<ngraph::pass::PReluFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
