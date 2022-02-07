@@ -869,6 +869,6 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 
 For more samples and demos, you can visit the samples and demos pages below. You can review samples and demos by complexity or by usage, run the relevant application, and adapt the code for your use.
 
-[Samples](../IE_DG/Samples_Overview.md)
+[Samples](../OV_Runtime_UG/Samples_Overview.md)
 
 [Demos](@ref omz_demos)

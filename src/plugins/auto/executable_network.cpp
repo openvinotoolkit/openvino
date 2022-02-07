@@ -253,7 +253,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // will not wait for loading accelerator network,
         // so the executor can't be destroyed before finished the task,
         // so use executor as a member of MultiDeviceExecutableNetwork.
-        _executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+        _executor = _multiPlugin->executorManager()->getIdleCPUStreamsExecutor(
                 IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                 0 /*default threads per stream, workaround for ticket 62376*/,
@@ -506,7 +506,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
             _loadContext[CPU].future.wait();
             WaitActualNetworkReady();
             // it's necessary to wait the loading network threads to stop here.
-            InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
+            _multiPlugin->executorManager()->clear("AutoDeviceAsyncLoad");
             _executor.reset();
         }
         _multiPlugin->UnregisterPriority(_context.modelPriority,

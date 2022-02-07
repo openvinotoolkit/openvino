@@ -28,6 +28,8 @@
 
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
+#include "openvino/pass/serialize.hpp"
+
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include <performance_heuristics.hpp>
@@ -103,7 +105,8 @@ InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngi
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        clonedNetwork.serialize(debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func.xml");
+        auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
+        ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(clonedNetwork.getFunction());
     }
     return clonedNetwork;
 }
@@ -458,8 +461,8 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
         }
     }
 
-    for (auto&& layerName : supported) {
-        if (InferenceEngine::details::contains(unsupported, layerName)) {
+    for (auto&& layerName : unsupported) {
+        if (InferenceEngine::details::contains(supported, layerName)) {
             supported.erase(layerName);
         }
     }
