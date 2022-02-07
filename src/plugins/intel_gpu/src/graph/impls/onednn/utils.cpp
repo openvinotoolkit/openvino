@@ -47,6 +47,28 @@ dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped)
     return res;
 }
 
+dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
+    auto sizes = t.sizes(default_fmt_for_dims(dims, false));
+    dnnl::memory::dims res(sizes.begin(), sizes.end());
+    if (dims > 3) {
+        for (size_t i = 0; i < dims - 3; i++) {
+            res[i + 1] *= res[i];
+        }
+        res.erase(res.begin(), res.begin() + dims - 3);
+    }
+    if (res.size() == 3 && batched_dims_can_be_removed) {
+        res.erase(res.begin());
+    }
+    return res;
+}
+
+dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims) {
+    if (dims.size() > 3)
+        throw std::runtime_error("[clDNN] Unsupported dims size for onednn gemm: should be <= 3");
+    return dims.size() == 3 ? dnnl::memory::format_tag::abc : dnnl::memory::format_tag::ab;
+}
+
+
 dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims) {
     auto spatials = t.spatial;
     dnnl::memory::dims res(dims);
@@ -75,7 +97,7 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         case cldnn::data_types::i8: return dnnl::memory::data_type::s8;
         case cldnn::data_types::u8: return dnnl::memory::data_type::u8;
         case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
-        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to ondnn type");
+        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
     }
 }
 
@@ -95,7 +117,7 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case cldnn::format::bs_fs_yx_bsv4_fsv2: return dnnl::memory::format_tag::ABcd4a2b;
         case cldnn::format::bs_fs_yx_bsv32_fsv16: return dnnl::memory::format_tag::NChw32n16c;
         case cldnn::format::bs_fs_zyx_bsv16_fsv16: return dnnl::memory::format_tag::NCdhw16n16c;
-        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to ondnn layout " + fmt_to_str(fmt));
+        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout " + fmt_to_str(fmt));
     }
 }
 
