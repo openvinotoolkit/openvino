@@ -5,7 +5,7 @@ import os
 import numpy as np
 from openvino.offline_transformations import apply_moc_transformations, apply_pot_transformations, \
     apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation, \
-    compress_model_transformation, serialize
+    apply_smart_reshape_transformations, compress_model_transformation, serialize
 
 from openvino.runtime import Model, PartialShape, Core
 import openvino.runtime as ov
@@ -49,6 +49,15 @@ def test_pruning_transformation():
     function = get_test_function()
 
     apply_pruning_transformation(function)
+
+    assert function is not None
+    assert len(function.get_ops()) == 3
+
+
+def test_smart_reshape_transformations():
+    function = get_test_function()
+
+    apply_smart_reshape_transformations(function)
 
     assert function is not None
     assert len(function.get_ops()) == 3

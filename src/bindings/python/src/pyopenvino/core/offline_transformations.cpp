@@ -16,6 +16,7 @@
 #include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/smart_reshape/smart_reshape.hpp>
 #include <transformations/serialize.hpp>
 
 #include "openvino/pass/low_latency.hpp"
@@ -129,6 +130,15 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("function"));
 
+    m_offline_transformations.def(
+        "apply_smart_reshape_transformations",
+        [](std::shared_ptr<ov::Model> function) {
+            ov::pass::Manager manager;
+            manager.register_pass<ngraph::pass::SmartReshape>();
+            manager.run_passes(function);
+        },
+        py::arg("function"));
+
     // todo: remove as serialize as part of passManager api will be merged
     m_offline_transformations.def(
         "serialize",
@@ -171,7 +181,7 @@ void regmodule_offline_transformations(py::module m) {
         parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
         model = (parameter_a + parameter_b) * parameter_c
         func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
-        # IR generated with default version 
+        # IR generated with default version
         serialize(func, model_path="./serialized.xml", weights_path="./serialized.bin")
 
     2. IR version 11:
@@ -181,7 +191,7 @@ void regmodule_offline_transformations(py::module m) {
         parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
         model = (parameter_a + parameter_b) * parameter_c
         func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
-        # IR generated with default version 
-        serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")    
+        # IR generated with default version
+        serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")
     // )");
 }
