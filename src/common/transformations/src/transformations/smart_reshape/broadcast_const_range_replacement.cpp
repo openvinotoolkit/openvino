@@ -26,6 +26,12 @@ ngraph::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto broadcast = m.get_match_root();
+        // The transformation was requested only for models with BroadcastType::BIDIRECTIONAL
+        // Further analysis is needed for other broadcast modes enablement
+        const auto broadcast_ptr = std::dynamic_pointer_cast<ngraph::opset8::Broadcast>(broadcast);
+        if (!broadcast_ptr || broadcast_ptr->get_broadcast_spec().m_type != ngraph::op::BroadcastType::BIDIRECTIONAL)
+            return false;
+
         const auto data_const_out = broadcast->get_input_source_output(0);
         const auto target_shape_out = broadcast->get_input_source_output(1);
 
