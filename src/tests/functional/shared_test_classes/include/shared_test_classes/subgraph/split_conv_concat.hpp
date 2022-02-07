@@ -24,4 +24,13 @@ protected:
     void SetUp() override;
 };
 
+class ConvConcatD : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
+                        virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::basicParams>& obj);
+
+protected:
+    void SetUp() override;
+};
+
 }  // namespace SubgraphTestsDefinitions
