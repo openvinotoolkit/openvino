@@ -47,7 +47,7 @@ There are two specificities with the supported part of the model.
 
 The first is that the model contains an input with sequence length. So the model can be converted with 
 a fixed input length shape, thus the model is not reshapeable. 
-Refer to the [Using Shape Inference](../../../../IE_DG/ShapeInference.md).
+Refer to the [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md).
 
 The second is that the frozen model still has two variables: `previous_state_c` and `previous_state_h`, figure 
 with the frozen *.pb model is below. It means that the model keeps training these variables at each inference. 

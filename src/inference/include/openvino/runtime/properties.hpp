@@ -18,6 +18,7 @@
 
 #include "ie_precision.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 
 namespace ov {
@@ -156,7 +157,7 @@ struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, Proper
 };
 
 /**
- * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properies.
+ * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properties.
  *
  * This can be used as a compiled model property as well.
  *
