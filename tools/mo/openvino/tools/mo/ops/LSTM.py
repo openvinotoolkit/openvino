@@ -54,9 +54,11 @@ class LSTM(Op):
             'direction',  # one of 'forward', 'reverse', or 'bidirectional'
             'axis',
 
-            'activation_alpha',
-            'activation_beta',
-            ('activations', lambda node: ','.join(node.activations) if node.activations is not None else None),
+            ('activations', lambda node: ','.join(node['activations']) if node['activations'] is not None else None),
+            ('activations_alpha', lambda node: ','.join(map(str, node['activations_alpha']))
+                if node['activations_alpha'] is not None else None),
+            ('activations_beta', lambda node: ','.join(map(str, node['activations_beta']))
+                if node['activations_beta'] is not None else None),
             'clip',
             # 'input_forget',  # Not supported yet
         ]
