@@ -35,7 +35,6 @@ class IEEngine(Engine):
         self._per_sample_metrics = []
         self._tmp_dir = create_tmp_dir()
         self._device = self.config.device
-        self.calculate_metrics = False
 
     def set_model(self, model):
         """ Loads NetworkX model into InferenceEngine and stores it in Engine class
