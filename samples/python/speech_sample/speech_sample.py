@@ -5,6 +5,7 @@
 
 import re
 import sys
+from io import BytesIO
 from timeit import default_timer
 from typing import Dict
 
@@ -148,12 +149,16 @@ def main():
     if args.model:
         compiled_model = core.compile_model(model, device_str, plugin_config)
     else:
-        compiled_model = core.import_model(args.import_gna_model, device_str, plugin_config)
+        with open(args.import_gna_model, 'rb') as f:
+            buf = BytesIO(f.read())
+            compiled_model = core.import_model(buf, device_str, plugin_config)
 
 # --------------------------- Exporting GNA model using InferenceEngine AOT API ---------------------------------------
     if args.export_gna_model:
         log.info(f'Writing GNA Model to {args.export_gna_model}')
-        compiled_model.export_model(args.export_gna_model)
+        user_stream = compiled_model.export_model()
+        with open(args.export_gna_model, 'wb') as f:
+            f.write(user_stream)
         return 0
 
     if args.export_embedded_gna_model:
