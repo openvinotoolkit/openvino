@@ -64,8 +64,8 @@ The following command-line options are available to run the tool:
 | `-m`, `--model`                                   | Path to the optimizing model file (.xml). Applicable only when `-q` option is used. |
 | `-w`, `--weights`                                 | Path to the weights file of the optimizing model (.bin). Applicable only when `-q` option is used. |
 | `-n`, `--name`                                    | Optional. Model name. Applicable only when `-q` option is used. |
-| `--engine`                                        | Engine type used to specify CLI mode from the following options: [`'accuracy_checker'`, `'simplified'`]. Default: `'accuracy_checker'`. |
-| `--data-source DATA_DIR`                         | Optional. Valid and required for Simplified mode only. Specifies the path to calibration data. |
+| `--engine {accuracy_checker, simplified}`         | Engine type used to specify CLI mode. Default: `accuracy_checker`. |
+| `--data-source DATA_DIR`                          | Optional. Valid and required for Simplified mode only. Specifies the path to calibration data. |
 | `--ac-config`                                     | Path to the Accuracy Checker configuration file. Applicable only when `-q` option is used. |
 | `--max-drop`                                      | Optional. Maximum accuracy drop. Valid only for accuracy-aware quantization. Applicable only when `-q` option is used and `accuracy_aware` method is selected. |
 | `-c CONFIG`, `--config CONFIG`                    | Path to a config file with task- or model-specific parameters.         |

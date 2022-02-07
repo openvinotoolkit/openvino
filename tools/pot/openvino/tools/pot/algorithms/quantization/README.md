@@ -8,6 +8,7 @@
    
    DefaultQuantization Algorithm <pot_compression_algorithms_quantization_default_README>
    AccuracyAwareQuantization Algorithm <pot_compression_algorithms_quantization_accuracy_aware_README>
+   TunableQuantization algorithm <pot_compression_algorithms_quantization_tunable_quantization_README>
    Saturation issue workaround <pot_saturation_issue>
    Low-precision model representation <pot_docs_model_representation>
 
