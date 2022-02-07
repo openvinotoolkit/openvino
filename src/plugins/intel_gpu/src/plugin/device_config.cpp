@@ -124,7 +124,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 queuePriority = cldnn::priority_mode_types::med;
             else
                 queuePriority = cldnn::priority_mode_types::low;
-        } else if (key.compare(PluginConfigParams::KEY_MODEL_PRIORITY) == 0 ||
+        } else if (key.compare(PluginConfigParams::KEY_IE_MODEL_PRIORITY) == 0 ||
                    key == ov::hint::model_priority) {
             if (key == ov::hint::model_priority) {
                 std::stringstream ss(val);
@@ -155,7 +155,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                     queuePriority = cldnn::priority_mode_types::med;
                     task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
                 } else {
-                    IE_THROW() << "Not found appropriate value for config key " << PluginConfigParams::KEY_MODEL_PRIORITY << ".\n";
+                    IE_THROW() << "Not found appropriate value for config key " << PluginConfigParams::KEY_IE_MODEL_PRIORITY << ".\n";
                 }
             }
             if (getAvailableCoresTypes().size() > 1) {
@@ -346,7 +346,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
             else
                 IE_THROW(NotFound) << "Unsupported host task priority by plugin: " << val;
-        } else if (key.compare(GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_IE_GPU_HOST_TASK_PRIORITY) == 0) {
             if (val.compare(GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH) == 0)
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
             else if (val.compare(GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM) == 0)
@@ -408,15 +408,17 @@ void Config::adjustKeyMapValues() {
 
     {
         std::stringstream s;
-        if (queuePriority == cldnn::priority_mode_types::high && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
+        if (queuePriority == cldnn::priority_mode_types::high &&
+            (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG || getAvailableCoresTypes().size() == 1)) {
             key_config_map[ov::hint::model_priority.name()] = ov::util::property_to_string(ov::hint::Priority::HIGH);
-            key_config_map[PluginConfigParams::KEY_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_HIGH;
-        } else if (queuePriority == cldnn::priority_mode_types::low && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
+            key_config_map[PluginConfigParams::KEY_IE_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_HIGH;
+        } else if (queuePriority == cldnn::priority_mode_types::low &&
+                   (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE || getAvailableCoresTypes().size() == 1)) {
             key_config_map[ov::hint::model_priority.name()] = ov::util::property_to_string(ov::hint::Priority::LOW);
-            key_config_map[PluginConfigParams::KEY_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_LOW;
+            key_config_map[PluginConfigParams::KEY_IE_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_LOW;
         } else if (queuePriority == cldnn::priority_mode_types::med && task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::ANY) {
             key_config_map[ov::hint::model_priority.name()] = ov::util::property_to_string(ov::hint::Priority::MEDIUM);
-            key_config_map[PluginConfigParams::KEY_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_MED;
+            key_config_map[PluginConfigParams::KEY_IE_MODEL_PRIORITY] = PluginConfigParams::MODEL_PRIORITY_MED;
         }
     }
     {
@@ -465,13 +467,13 @@ void Config::adjustKeyMapValues() {
         std::stringstream s;
         if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE) {
             key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = ov::util::property_to_string(ov::hint::Priority::LOW);
-            key_config_map[GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW;
+            key_config_map[GPUConfigParams::KEY_IE_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW;
         } else if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG) {
             key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = ov::util::property_to_string(ov::hint::Priority::HIGH);
-            key_config_map[GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH;
+            key_config_map[GPUConfigParams::KEY_IE_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH;
         } else {
             key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = ov::util::property_to_string(ov::hint::Priority::MEDIUM);
-            key_config_map[GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM;
+            key_config_map[GPUConfigParams::KEY_IE_GPU_HOST_TASK_PRIORITY] = GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM;
         }
     }
     {

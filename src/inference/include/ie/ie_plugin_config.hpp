@@ -255,7 +255,7 @@ namespace PluginConfigParams {
  * @brief (Optional) config key that defines what model should be provided with more performant bounded resource first
  * It provides 3 types of levels: High, Medium and Low. The default value is Medium
  */
-DECLARE_CONFIG_KEY(MODEL_PRIORITY);
+DECLARE_CONFIG_KEY(IE_MODEL_PRIORITY);
 DECLARE_CONFIG_VALUE(MODEL_PRIORITY_HIGH);
 DECLARE_CONFIG_VALUE(MODEL_PRIORITY_MED);
 DECLARE_CONFIG_VALUE(MODEL_PRIORITY_LOW);

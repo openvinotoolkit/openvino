@@ -248,7 +248,7 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
  * @brief High-level OpenVINO model priority hint
  * Defines what model should be provided with more performant bounded resource first
  */
-static constexpr Property<Priority> model_priority{"OV_MODEL_PRIORITY"};
+static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
 
 /**
  * @brief Enum to define possible performance mode hints
