@@ -19,15 +19,12 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BroadcastConstRangeReplacement, "BroadcastConstRangeReplacement", 0);
 
 ngraph::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
-    // MATCHER_SCOPE(BroadcastConstRangeReplacement);
+    MATCHER_SCOPE(BroadcastConstRangeReplacement);
     auto data_input = pattern::wrap_type<ngraph::opset8::Constant>();
     auto target_shape = pattern::any_input();
     auto broadcast_pattern_node = pattern::wrap_type<ngraph::opset8::Broadcast>({data_input, target_shape});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        // const auto& pattern_map = m.get_pattern_value_map();
-        // auto data_const_out = pattern_map.at(data_input);
-        // auto target_shape_out = pattern_map.at(target_shape);
         const auto broadcast = m.get_match_root();
         const auto data_const_out = broadcast->get_input_source_output(0);
         const auto target_shape_out = broadcast->get_input_source_output(1);
@@ -84,7 +81,6 @@ ngraph::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         return false;
     };
 
-    // auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast_pattern_node, matcher_name);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast_pattern_node, "BroadcastConstRangeReplacement");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast_pattern_node, matcher_name);
     this->register_matcher(m, callback);
 }
