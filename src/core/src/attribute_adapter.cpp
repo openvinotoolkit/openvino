@@ -14,6 +14,7 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/core/any.hpp"
 
 using namespace std;
 using namespace ngraph;
