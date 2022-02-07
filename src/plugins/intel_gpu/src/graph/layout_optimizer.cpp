@@ -309,6 +309,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
             return true;
 
+        // Mingyu) Do we have such case that is using bfyx input in onednn convolution?
         // Fuse reorder if the following onednn convolution supports bfyx input
         if (next.is_type<convolution>() && fmt_prev == format::bfyx && prev_dt == next_dt &&
             needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>())) {
@@ -1412,6 +1413,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             bool is_depthwise = conv.get_primitive()->groups == input_layout.size.feature[0];
             bool first_conv = input_layout.size.feature[0] <= 4;
             if (((has_groups && !is_depthwise) || first_conv) &&
+            // Mingyu) isn't it necessary to change `output_layout.format --> preferred_format`?
+            // Mingyu) Do we still need `first_conv` here?
                 output_layout.format == format::b_fs_yx_fsv16 &&
                 !needs_onednn_small_ic_to_blocked(preferred_format, input_layout, conv))
                 impl_candidate = impl_types::ocl;
