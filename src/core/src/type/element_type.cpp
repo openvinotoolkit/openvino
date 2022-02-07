@@ -243,7 +243,7 @@ std::ostream& ov::element::operator<<(std::ostream& out, const ov::element::Type
 std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) {
     std::string str;
     in >> str;
-    for (auto&& type :Type::get_known_types()) {
+    for (auto&& type : Type::get_known_types()) {
         if (type->get_type_name() == str) {
             obj = *type;
         }

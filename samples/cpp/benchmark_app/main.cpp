@@ -243,7 +243,7 @@ int main(int argc, char* argv[]) {
         bool perf_counts = false;
         // Update config per device according to command line parameters
         for (auto& device : devices) {
-            auto& device_config = config[device] ;
+            auto& device_config = config[device];
 
             // high-level performance modes
             if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
@@ -318,7 +318,7 @@ int main(int argc, char* argv[]) {
             auto supported_properties = core.get_property(device, ov::supported_properties);
             auto supported = [&](const std::string& key) {
                 return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
-                        std::end(supported_properties);
+                       std::end(supported_properties);
             };
             if (supported(ov::inference_num_threads.name()) && isFlagSetInCommandLine("nthreads")) {
                 device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
