@@ -9,6 +9,12 @@
 namespace ov {
 Input<Node>::Input(Node* node, size_t index) : m_node(node), m_index(index) {}
 
+Input<Node>::Input(const std::shared_ptr<Node>& node, size_t index) : m_node(node.get()), m_index(index) {}
+
+Input<Node> Input<Node>::for_node(const std::shared_ptr<Node>& node) {
+    return Input(node, m_index);
+}
+
 Node* Input<Node>::get_node() const {
     return m_node;
 }
