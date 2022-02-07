@@ -11,7 +11,7 @@ namespace ov {
 
 bool Any::equal(std::type_index lhs, std::type_index rhs) {
     auto result = lhs == rhs;
-#ifdef __ANDROID__
+#ifdef (__ANDROID__ || __APPLE__) && defined(__clang__)
     if (!result) {
         result = std::strcmp(lhs.name(), rhs.name()) == 0;
     }
