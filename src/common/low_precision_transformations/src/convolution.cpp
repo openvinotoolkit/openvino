@@ -85,6 +85,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     }
 
     convolution = NetworkHelper::separateInStandaloneBranch(convolution);
+
+    const bool fqOnWeightsWasDecomposed = decomposeFakeQuantizeForWeightsPath(convolution);
+    if (updatePrecisions && !fqOnWeightsWasDecomposed) {
+        return false;
+    }
+
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
 
     std::shared_ptr<Node> newMultiplyAfter;
@@ -199,9 +205,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     }
 
     {
-        const bool decomposed = decomposeFakeQuantizeForWeightsPath(convolution);
-        assert((updatePrecisions && decomposed) || (!updatePrecisions));
-        if (!updatePrecisions && !decomposed) {
+        if (!updatePrecisions && !fqOnWeightsWasDecomposed) {
             // TODO: LPT: issue #58685
             return false;
         }

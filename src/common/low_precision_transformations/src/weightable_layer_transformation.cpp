@@ -304,6 +304,9 @@ bool WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const st
         precisionsAttribute.as<PrecisionsAttribute>().value();
 
     const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
+    if (dataPrecision.empty()) {
+        return false;
+    }
 
     auto tuple = NetworkHelper::decomposeFakeQuantize(
         fq,
