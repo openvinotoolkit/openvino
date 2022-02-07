@@ -243,10 +243,10 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
     char buffer[255];
     std::string compatibleString;
 
-    try{
+    try {
         checkFormat(fmt);
         compatibleString =  "%s" + std::string(fmt);
-    }catch(std::runtime_error &err){
+    } catch (std::runtime_error &err) {
         compatibleString =  "%s" + std::string(err.what());
     }
 
