@@ -289,11 +289,11 @@ public:
         return Comparator(m_comparison_flags);
     }
 
-    Result compare_inputs(ngraph::Node* node1, ngraph::Node* node2);
+    void compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
 
-    Result compare_outputs(ngraph::Node* node1, ngraph::Node* node2);
+    void compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
 
-    Result compare_nodes(ngraph::Node* node1, ngraph::Node* node2);
+    void compare_nodes(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
 
 private:
     bool should_compare(CmpValues f) const noexcept {
