@@ -42,9 +42,9 @@ public:
     PartialShape& get_partial_shape() {
         return m_partial_shape;
     }
-    void set_partial_shape(const PartialShape& partial_shape) {
-        m_partial_shape = partial_shape;
-    }
+
+    void set_partial_shape(const PartialShape& partial_shape);
+
     const element::Type& get_element_type() const {
         return m_element_type;
     }
