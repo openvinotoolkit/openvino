@@ -1134,7 +1134,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                                input_layout.size.feature[0] >= 16 &&
                                prim->groups == 1 &&
                                get_post_ops_count(node) <= 32 &&
-                               input_layout.size.batch[0] < 16;  // oneDNNs optimized kernel doesn't support big batches yet
+                               input_layout.data_type == current_layout.data_type;
 
     if (use_onednn_impls && onednn_valid_params && spatial_dims_num <= 3) {
         if (input_layout.data_type == data_types::f16) {
@@ -1424,8 +1424,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             bool valid_ic = input_layout.size.feature[0] >= 16;
             bool valid_groups = deconv.get_primitive()->groups == 1;
             bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
-            bool valid_batch = input_layout.size.batch[0] < 16;  // oneDNN's optimized kernel doesn't support big batches yet
-            bool valid_params = valid_ic && valid_groups && onednn_valid_post_ops && valid_batch;
+            bool valid_params = valid_ic && valid_groups && onednn_valid_post_ops;
             if (!valid_params)
                 impl_candidate = impl_types::ocl;
             if (input_layout.data_type != deconv.get_output_layout().data_type)
