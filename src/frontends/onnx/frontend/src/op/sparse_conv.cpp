@@ -3,8 +3,8 @@
 //
 
 #include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
 #include "ngraph/opsets/opset1.hpp"
+#include "onnx_import/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
