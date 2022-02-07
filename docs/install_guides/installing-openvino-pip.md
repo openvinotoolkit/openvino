@@ -61,5 +61,5 @@ If installation was successful, you will not see any error messages (no console 
 
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-- [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
-- [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
+- [Inference Engine Developer Guide](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
+- [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md)

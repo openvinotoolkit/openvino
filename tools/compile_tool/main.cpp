@@ -16,7 +16,6 @@
 
 #include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
-#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/string.hpp>
 
@@ -781,7 +780,9 @@ int main(int argc, char* argv[]) {
         } else {
             ov::Core core;
             if (!FLAGS_log_level.empty()) {
-                core.set_property(FLAGS_d, {{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}});
+                ov::log::Level level;
+                std::stringstream{FLAGS_log_level} >> level;
+                core.set_property(FLAGS_d, ov::log::level(level));
             }
 
             auto model = core.read_model(FLAGS_m);

@@ -3,6 +3,10 @@
         <value>CPU</value>
         <value>GPU</value>
     </devices>
+    <api_versions>
+        <value>1</value>
+        <value>2</value>
+    </api_versions>
     <models>
         <!--Models with FP32 precision-->
         <model name="vgg16" precision="FP32" source="omz" />
@@ -18,6 +22,6 @@
         <model name="vehicle-attributes-recognition-barrier-0039" precision="FP16-INT8" source="omz" />
         <model name="person-detection-action-recognition-0006" precision="FP16-INT8" source="omz" />
         <model name="face-detection-adas-0001" precision="FP16-INT8" source="omz" />
-        <model name="single-image-super-resolution-1032" precision="FP16-INT8" source="omz" />
+        <!--CVS-78070: <model name="single-image-super-resolution-1032" precision="FP16-INT8" source="omz" />-->
     </models>
 </attributes>
