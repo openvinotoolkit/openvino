@@ -230,15 +230,15 @@ openvino.tools.pot.graph.model_utils.load_model(model_config)
   
   Example of `model_config` for a single model:
   ```
-  model_config = Dict({
+  model_config = {
       'model_name': 'mobilenet_v2',
       'model': '<PATH_TO_MODEL>/mobilenet_v2.xml',
       'weights': '<PATH_TO_WEIGHTS>/mobilenet_v2.bin'
-  })
+  }
   ```
   Example of `model_config` for a cascaded model:
   ```
-  model_config = Dict({
+  model_config = {
       'model_name': 'mtcnn',
       'cascade': [
           {
@@ -257,7 +257,7 @@ openvino.tools.pot.graph.model_utils.load_model(model_config)
               'weights': '<PATH_TO_WEIGHTS>/onet.bin'
           }
       ]
-  })
+  }
   ```
 
 *Returns*

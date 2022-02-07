@@ -1,6 +1,7 @@
 # Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from addict import Dict
 from abc import ABC, abstractmethod
 
 
@@ -16,7 +17,7 @@ class DataLoader(ABC):
         """ Constructor
         :param config: data loader specific config
         """
-        self.config = config
+        self.config = config if isinstance(config, Dict) else Dict(config)
 
     @abstractmethod
     def __getitem__(self, index):

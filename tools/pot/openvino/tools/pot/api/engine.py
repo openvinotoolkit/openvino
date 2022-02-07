@@ -1,6 +1,7 @@
 # Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from addict import Dict
 from abc import ABC, abstractmethod
 
 from ..statistics.statistic_graph_builder import StatisticGraphBuilder
@@ -17,12 +18,12 @@ class Engine(ABC):
          :param data_loader: entity responsible for communication with dataset
          :param metric: entity for metric calculation
         """
-        self.config = config
+        self.config = config if isinstance(config, Dict) else Dict(config)
         self._data_loader = data_loader
         self._metric = metric
         self._statistic_graph_builder = StatisticGraphBuilder()
-        self._stat_requests_number = config.get('stat_requests_number', None)
-        self._eval_requests_number = config.get('eval_requests_number', None)
+        self._stat_requests_number = self.config.get('stat_requests_number', None)
+        self._eval_requests_number = self.config.get('eval_requests_number', None)
 
     def set_model(self, model):
         """ Set/reset model to instance of engine class
