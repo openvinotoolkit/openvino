@@ -16,6 +16,7 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
+#include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -58,9 +59,9 @@ namespace {
                     auto res = PerfHintsConfig::SupportedKeys();
                     res.push_back(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
                     res.push_back(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
-                    res.push_back(PluginConfigParams::KEY_PERF_COUNT);
+                    res.push_back(ov::enable_profiling.name());
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-                    res.push_back(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY);
+                    res.push_back(ov::hint::model_priority.name());
                     res.push_back(PluginConfigParams::KEY_ALLOW_AUTO_BATCHING);
                     return res;
                 }();
@@ -139,7 +140,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         std::string fullDeviceName = "";
         std::string uniqueName = "";
         if (parsed.getDeviceName() == "GPU") {
-            std::vector<std::string> supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+            auto supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
             if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
                 fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
             }
@@ -321,7 +322,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
         });
     }
-    auto executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+    auto executor = executorManager()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
                                      static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                                      1 /*single thread per stream*/,
@@ -450,7 +451,7 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     if (metaDevices.size() > 1) {
         auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
             for (auto iter = devices.begin(); iter != devices.end();) {
-                std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                auto capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)).as<std::vector<std::string>>();
                 auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
                 if (supportNetwork != capability.end()) {
                     validDevices.push_back(std::move(*iter));
@@ -580,9 +581,18 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                    IE_THROW() << "Unsupported config value: " << kvp.second
                               << " for key: " << kvp.first;
                }
-        } else if (kvp.first == MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY) {
+        } else if (kvp.first == ov::hint::model_priority.name()) {
             try {
-                int priority = std::stoi(kvp.second);
+                int priority = -1;
+                if (kvp.second == "LOW") {
+                    priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::LOW);
+                }
+                if (kvp.second == "MEDIUM") {
+                    priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::MEDIUM);
+                }
+                if (kvp.second == "HIGH") {
+                    priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::HIGH);
+                }
                 if (priority < 0) {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                         << " for key: " << kvp.first;

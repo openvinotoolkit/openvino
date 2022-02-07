@@ -168,7 +168,19 @@ endif()
 
 _ov_find_dependency(Threads)
 
-if(NOT TARGET ov_runtime)
+set(ENABLE_INTEL_GNA "@ENABLE_INTEL_GNA@")
+set(ENABLE_INTEL_GNA_SHARED "@BUILD_SHARED_LIBS@")
+if(ENABLE_INTEL_GNA AND NOT ENABLE_INTEL_GNA_SHARED AND NOT libGNA_FOUND)
+    set_and_check(GNA_PATH "@PACKAGE_GNA_PATH@")
+    _ov_find_dependency(libGNA
+                        COMPONENTS KERNEL
+                        CONFIG
+                        PATHS ${CMAKE_CURRENT_LIST_DIR}
+                        NO_CMAKE_FIND_ROOT_PATH
+                        NO_DEFAULT_PATH)
+endif()
+
+if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
 

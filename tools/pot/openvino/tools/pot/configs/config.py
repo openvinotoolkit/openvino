@@ -63,6 +63,19 @@ class Config(Dict):
         self.model['output_dir'] = args.output_dir
         self.model['direct_dump'] = args.direct_dump
         self.engine['evaluate'] = args.evaluate
+        if self.engine.type == 'data_free':
+            if 'data_type' not in self.engine:
+                self.engine['data_type'] = args.data_type
+            if 'generate_data' not in self.engine:
+                self.engine['generate_data'] = args.generate_data
+            if 'shape' not in self.engine:
+                self.engine['shape'] = args.shape
+            if self.engine['generate_data']:
+                subset_size = 0
+                for algo in self.compression['algorithms']:
+                    subset_size = max(subset_size, algo.get('stat_subset_size', 300))
+                self.engine['subset_size'] = subset_size
+
         self.model['keep_uncompressed_weights'] = args.keep_uncompressed_weights
         if 'optimizer' in self:
             self.optimizer.params['keep_uncompressed_weights'] = args.keep_uncompressed_weights
@@ -185,6 +198,7 @@ class Config(Dict):
                 'range_estimator': range_estimator_parameters,
                 'weights': weights_params,
                 'activations': activations_params,
+                'saturation_fix': None
             },
             'FastBiasCorrection': bias_correction_params,
             'BiasCorrection': bias_correction_params,
@@ -295,9 +309,9 @@ class Config(Dict):
         if 'type' not in engine or engine.type == 'accuracy_checker':
             self._configure_ac_params()
             self.engine.type = 'accuracy_checker'
-        elif engine.type == 'simplified':
-            if 'data_source' not in engine:
-                raise KeyError('Missed data dir for sample engine')
+        elif engine.type == 'simplified' or engine.type == 'data_free':
+            if engine.data_source is None:
+                raise KeyError(f'Missed data dir for {engine.type} engine')
             self.engine.device = engine.device if engine.device else 'CPU'
             engine.data_source = Path(engine.data_source)
         else:

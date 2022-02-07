@@ -373,7 +373,7 @@ std::shared_ptr<opset1::Constant> NetworkHelper::toScalar(std::shared_ptr<opset1
     return std::make_shared<opset1::Constant>(constant->get_element_type(), Shape{}, constant->get_data_ptr());
 }
 
-std::shared_ptr<Node> NetworkHelper::getConstantInput(const std::shared_ptr<Node>& node, const bool convertIsExpected) {
+std::shared_ptr<Node> NetworkHelper::getConstantInput(const std::shared_ptr<const Node>& node, const bool convertIsExpected) {
     std::shared_ptr<Node> parent = ov::as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr());
     if (parent != nullptr) {
         return parent;
@@ -746,7 +746,7 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         assert(constPShape.is_static());
         const Shape constShape = constPShape.to_shape();
 
-        if (constShape.empty() || constShape.size() > 5lu) {
+        if (constShape.size() > 5lu) {
             THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected dimensions count " << constShape.size();
         }
         if (outChannelsShapeIndex != 0 && outChannelsShapeIndex != 1) {
@@ -756,8 +756,8 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         size_t OC;
         size_t IC;
         // OIDHW or IODHW
-        if (constShape.size() == 1) {
-            OC = constShape[0];
+        if (constShape.size() <= 1) {
+            OC = constShape.empty() ? 1ul : constShape[0];
             IC = 1;
         } else {
             OC = constShape[outChannelsShapeIndex];
