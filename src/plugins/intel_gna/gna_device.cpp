@@ -188,7 +188,7 @@ std::string toHexString(T t) {
     o << std::hex << t;
     return o.str();
 }
-
+#define MODEL_DUMP
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t modelId;
