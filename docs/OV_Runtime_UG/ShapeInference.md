@@ -43,8 +43,8 @@ If a model has a hard-coded batch dimension, use `InferenceEngine::CNNNetwork::s
 
 Inference Engine takes three kinds of a model description as an input, which are converted into an `InferenceEngine::CNNNetwork` object:
 1. [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md) through `InferenceEngine::Core::ReadNetwork`
-2. [ONNX model](../IE_DG/ONNX_Support.md) through `InferenceEngine::Core::ReadNetwork`
-3. [nGraph function](../nGraph_DG/nGraph_dg.md) through the constructor of `InferenceEngine::CNNNetwork`
+2. [ONNX model](../OV_Runtime_UG/ONNX_Support.md) through `InferenceEngine::Core::ReadNetwork`
+3. [OpenVINO Model](../OV_Runtime_UG/model_representation.md) through the constructor of `InferenceEngine::CNNNetwork`
 
 `InferenceEngine::CNNNetwork` keeps an `ngraph::Function` object with the model description internally.
 The object should have fully-defined input shapes to be successfully loaded to Inference Engine plugins.
@@ -66,7 +66,7 @@ To feed input data of a shape that is different from the model input shape, resh
 
 Once the input shape of `InferenceEngine::CNNNetwork` is set, call the `InferenceEngine::Core::LoadNetwork` method to get an `InferenceEngine::ExecutableNetwork` object for inference with updated shapes.
 
-There are other approaches to reshape the model during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](../nGraph_DG/build_function.md).
+There are other approaches to reshape the model during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model.html#when_to_specify_input_shapes">IR generation</a> or [ov::Model creation](../OV_Runtime_UG/model_representation.md).
 
 Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `InferenceEngine::CNNNetwork::reshape` method.
 
@@ -223,4 +223,4 @@ The Inference Engine provides a special mechanism that allows adding support of 
 
 ### See Also:
 
-[Hello Reshape Python Sample](../../inference_engine/ie_bridges/python/sample/hello_reshape_ssd/README.html)
+[Hello Reshape Python Sample](../../samples/python/hello_reshape_ssd/README.html)
