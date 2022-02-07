@@ -10,7 +10,6 @@
 #include "openvino/core/layout.hpp"
 
 namespace i420_op {
-static const size_t N_DIM = 0;
 static const size_t H_DIM = 1;
 static const size_t W_DIM = 2;
 static const size_t C_DIM = 3;
