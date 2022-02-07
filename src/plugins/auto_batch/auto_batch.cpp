@@ -760,8 +760,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         auto stats =
             pCore->GetMetric(device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
         for (auto s : stats)
-            if (s.first.find("_current") != std::string::npos)
-                footprint += s.second;
+            footprint += s.second;
         return footprint;
     };
 
