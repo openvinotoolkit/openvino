@@ -20,8 +20,7 @@ except Exception as e:
 from openvino.tools.cross_check_tool.utils import get_config_dictionary, get_layers_list, print_output_layers, \
     input_processing, accuracy_metrics, validate_args, build_parser, set_logger, find_out_cct_mode, \
     print_all_over_the_net_metrics, update_global_accuracy_matrics, blob_counters, performance_metrics, \
-    manage_user_outputs_with_mapping, dump_output_file, load_dump, error_handling, print_input_layers, \
-    set_verbosity, perf_counts_to_dump, load_profiling_info
+    dump_output_file, load_dump, error_handling, print_input_layers, set_verbosity, perf_counts_to_dump, load_profiling_info
 
 
 ###
@@ -208,8 +207,6 @@ def two_ir_mode(args):
     out_layers = get_layers_list(get_layers_intersection(model_layers, ref_model_layers), model_inputs, model_outputs, args.layers)
     print_input_layers(model_inputs)
     print_output_layers(out_layers)
-    # TODO: check if it's the same mapping that MO provides and if it's still available
-    #layers_map = manage_user_outputs_with_mapping(mapping=args.mapping, reference_mapping=args.reference_mapping, user_layers=out_layers)
     inputs = input_processing(model_path=args.model, model_inputs=model_inputs, input_file=args.input)
     global_accuracy = []
     global_times, ref_global_times = overall_accuracy_check(model=args.model, ref_model=args.reference_model,
@@ -265,8 +262,6 @@ def load_mode(args):
     out_layers = get_layers_list(model_layers, model_inputs, model_outputs, args.layers)
     print_input_layers(model_inputs)
     print_output_layers(out_layers)
-    #layers_map = manage_user_outputs_with_mapping(mapping=args.mapping, reference_mapping=args.reference_mapping,
-                                                  #user_layers=out_layers)
     inputs = input_processing(args.model, model_inputs, args.input)
     global_accuracy = []
     loaded = load_dump(args.load)

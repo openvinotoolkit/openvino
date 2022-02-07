@@ -505,51 +505,6 @@ def print_all_over_the_net_metrics(global_accuracy: list, global_times: list = N
 ###
 
 
-def read_mapping(file_name: str):
-    # TODO check twice
-    mapping_dict = {}
-    xml_tree = xml.etree.ElementTree.parse(file_name)
-    xml_root = xml_tree.getroot()
-    for child in xml_root:
-        fw_info = child.find('.//framework')
-        ir_info = child.find('.//IR')
-        if fw_info is None:
-            continue
-        if ir_info is None:
-            continue
-        framework_name = fw_info.attrib['name'] + ':' + fw_info.attrib['out_port_id']
-        ir_name = ir_info.attrib['name'] if ir_info is not None else None
-        ir_layer_id = int(ir_info.attrib['id']) if ir_info is not None else None
-        mapping_dict[framework_name] = (ir_name, ir_layer_id)
-    return mapping_dict
-
-
-def map_layers(mapping_file: str = None, ref_mapping_file: str = None):
-    if mapping_file is not None and ref_mapping_file is not None:
-        mapping = read_mapping(mapping_file)
-        ref_mapping = read_mapping(ref_mapping_file)
-        mapping = {layer: ref_layer for layer in mapping for ref_layer in ref_mapping if layer == ref_layer}
-        return mapping
-
-
-def manage_user_outputs_with_mapping(mapping, reference_mapping, user_layers):
-    if mapping is not None and reference_mapping is not None:
-        layers_map = map_layers(mapping, reference_mapping)
-    else:
-        layers_map = {layer: layer for layer in user_layers}
-    for layer in user_layers:
-        if layer not in layers_map:
-            if mapping is not None and reference_mapping is not None:
-                log.warning(
-                    f'Can not map layer {layer} from --model/-m to any layer from --reference_model/-ref_m')
-            else:
-                log.warning(f'Can not find layer {layer} in --reference_model/-ref_m model')
-    for layer in layers_map:
-        if layer not in user_layers:
-            del layers_map[layer]
-    return layers_map
-
-
 def get_layers_list(all_layers: list, inputs: list, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
