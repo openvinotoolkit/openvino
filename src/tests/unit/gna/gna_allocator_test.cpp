@@ -8,7 +8,8 @@
 #include <memory>
 
 #include <gtest/gtest.h>
-#include <memory/gna_allocator.hpp>
+#include "memory/gna_allocator.hpp"
+#include "memory/gna_memory.hpp"
 #include "gna_device.hpp"
 
 // dummy definitions to work around issue with Linux userspace library

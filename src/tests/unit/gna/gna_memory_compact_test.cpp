@@ -12,12 +12,14 @@ using namespace GNAPluginNS::memory;
 
 class GNAMemoryCompactTest : public ::testing::Test {
  protected:
-    GNAMemory<std::allocator<uint8_t>> mem;
+    GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> mem;
     bool isCompact = true;
 
     void SetUp() override  {
     }
 };
+
+/* Enable compact mode tests
 
 TEST_F(GNAMemoryCompactTest, canOptimizeReservePtr) {
     IE_SUPPRESS_DEPRECATED_START
@@ -248,3 +250,5 @@ TEST_F(GNAMemoryCompactTest, canOptimizeReservePtrWithOffset) {
     ASSERT_EQ(mem.getRWBytes(), 4 * sizeof(float));
     ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
 }
+
+*/ // Enable compact mode tests
