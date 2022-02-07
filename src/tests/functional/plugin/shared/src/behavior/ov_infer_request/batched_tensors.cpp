@@ -317,19 +317,6 @@ TEST_P(OVInferRequestBatchedTests, SetTensors_Batch1) {
     }
 }
 
-TEST_P(OVInferRequestBatchedTests, SetInputTensors_Batch_Incorrect) {
-    size_t batch = 3;
-    auto one_shape = Shape{1, 3, 3, 3};
-    auto batch_shape = Shape{batch, 3, 3, 3};
-    auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "DCHWN");
-    const std::string tensor_name = "tensor_input0";
-    auto execNet = ie->compile_model(model, targetDevice);
-    ov::InferRequest req;
-    req = execNet.create_infer_request();
-    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
-    ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
-}
-
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Get_Tensor_Not_Allowed) {
     size_t batch = 3;
     auto one_shape = Shape{1, 3, 3, 3};

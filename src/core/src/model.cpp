@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "itt.hpp"
+#include "layout_utils.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
@@ -253,6 +254,15 @@ void ov::Model::validate_nodes_and_infer_types() const {
     if (!only_pairs)
         throw ov::Exception("Model is incorrect. Assign and ReadValue operations must be in pairs on the "
                             "network.");
+    for (const auto& output : outputs()) {
+        OPENVINO_ASSERT(ov::layout::utils::is_compatible(ov::layout::get_layout(output), output.get_partial_shape()),
+                        "Result '",
+                        output,
+                        "' with shape ",
+                        output.get_partial_shape(),
+                        " is incompatible with layout ",
+                        ov::layout::get_layout(output).to_string());
+    }
 }
 
 std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
