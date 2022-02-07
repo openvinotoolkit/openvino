@@ -146,7 +146,8 @@ TEST(type_prop, dynamic_value_propagation) {
 
     auto range = std::make_shared<op::v4::Range>(op::Constant::create(element::i32, {}, {0}),
                                                  add,
-                                                 op::Constant::create(element::i32, {}, {1}), element::i64);
+                                                 op::Constant::create(element::i32, {}, {1}),
+                                                 element::i64);
 
     auto RIC = std::make_shared<op::v1::Gather>(param, range, op::Constant::create(element::i32, {}, {1}));
 

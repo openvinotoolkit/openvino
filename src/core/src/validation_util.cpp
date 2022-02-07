@@ -1257,7 +1257,8 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper, bool inv
                         node->get_output_tensor(i).set_upper_value(outputs[i]);
                     if ((same_inputs || !is_upper) && node->get_output_tensor(i).get_lower_value() == nullptr)
                         node->get_output_tensor(i).set_lower_value(outputs[i]);
-                    if (are_equal(node->get_output_tensor(i).get_lower_value(), node->get_output_tensor(i).get_upper_value()))
+                    if (are_equal(node->get_output_tensor(i).get_lower_value(),
+                                  node->get_output_tensor(i).get_upper_value()))
                         node->get_output_tensor(i).set_lower_value(node->get_output_tensor(i).get_upper_value());
                 }
                 if (node->evaluate_label(output_labels))
