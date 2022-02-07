@@ -1,6 +1,6 @@
 # Hello Query Device Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README}
 
-This sample demonstrates how to show Inference Engine devices and prints their metrics and default configuration values using [Query Device API feature](../../../docs/IE_DG/InferenceEngine_QueryAPI.md).
+This sample demonstrates how to show Inference Engine devices and prints their metrics and default configuration values using [Query Device API feature](../../../docs/OV_Runtime_UG/InferenceEngine_QueryAPI.md).
 
 The following Inference Engine Python API is used in the application:
 
@@ -85,7 +85,7 @@ For example:
 
 ## See Also
 
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 
 <!-- [openvino.runtime.Core]:
 [openvino.runtime.Core.available_devices]:

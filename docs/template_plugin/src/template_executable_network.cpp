@@ -138,10 +138,10 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
-    _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+    _taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of
     // inference request pipeline _callbackExecutor =
-    // InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
+    // _plugin->executorManager()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
 }
 // ! [executable_network:init_executor]
 
@@ -166,8 +166,11 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
 // ! [executable_network:create_infer_request]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
-    if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
-        internalRequest = CreateInferRequestImpl(_parameters, _results);
+    if (this->_plugin) {
+        const auto& core = _plugin->GetCore();
+        if (core && core->isNewAPI())
+            internalRequest = CreateInferRequestImpl(_parameters, _results);
+    }
     if (!internalRequest)
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),

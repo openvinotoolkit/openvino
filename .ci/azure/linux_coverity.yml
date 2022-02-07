@@ -79,11 +79,12 @@ jobs:
 
   - task: CMake@1
     inputs:
+      # Coverity has too many PARSE_ERROR errors with ENABLE_FASTER_BUILD=ON. Disabling FASTER_BUILD.
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_FASTER_BUILD=ON
+        -DENABLE_FASTER_BUILD=OFF
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules

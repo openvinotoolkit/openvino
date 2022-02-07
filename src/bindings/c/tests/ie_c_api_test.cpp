@@ -157,7 +157,7 @@ TEST(ie_core_register_plugin, registerPlugin) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *plugin_name = "ov_intel_cpu_plugin";
+    const char *plugin_name = "openvino_intel_cpu_plugin";
     const char *device_name = "BLA";
     IE_EXPECT_OK(ie_core_register_plugin(core, plugin_name, device_name));
 

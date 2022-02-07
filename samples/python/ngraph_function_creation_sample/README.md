@@ -28,7 +28,7 @@ At startup, the sample application does the following:
 
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
@@ -127,8 +127,8 @@ The sample application logs each step in a standard output stream and outputs 10
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 

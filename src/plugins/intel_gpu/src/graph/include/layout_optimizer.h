@@ -180,6 +180,7 @@ public:
     explicit layout_optimizer(bool output_size_handling_enabled = true);
 
     format get_preferred_format(program_node& node);
+    bool all_users_simple_format_until_output(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth);
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     bool are_data_types_suitable_for_onednn(program_node& node);
