@@ -135,7 +135,7 @@ public:
         else if (approximationMode == ngraph::op::GeluApproximationMode::TANH)
             kind = dnnl_eltwise_gelu_tanh;
         else
-            IE_THROW(NotImplemented) << "Subgraph node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
+            SNIPPETS_THROW(NotImplemented) << "Subgraph node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
 
         set_injector();
     }

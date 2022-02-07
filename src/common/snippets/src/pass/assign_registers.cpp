@@ -3,8 +3,8 @@
 //
 
 // #include <openvino/cc/selective_build.h>
+#include <snippets/common.hpp>
 #include <snippets/itt.hpp>
-#include "remarks.hpp"
 
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -126,7 +126,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         }
         // allocate
         if (active.size() == 16) {
-            throw ngraph_error("caanot allocate registers for a snippet ");
+            SNIPPETS_THROW() << "cannot allocate registers for a snippet";
         } else {
             register_map[interval.first] = bank.top();
             bank.pop();
@@ -167,7 +167,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
                 rt["effectiveAddress"] = ea;
                 constantID++;
             } else {
-                throw ngraph_error("load/broadcast should follow only Parameter or non-Scalar constant");
+                SNIPPETS_THROW() << "load/broadcast should follow only Parameter or non-Scalar constant";
             }
         }
 

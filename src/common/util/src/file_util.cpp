@@ -229,6 +229,21 @@ void ov::util::convert_path_win_style(std::string& path) {
     std::replace(path.begin(), path.end(), '/', '\\');
 }
 
+void ov::util::node_name_to_file_name(std::string& nodeName) {
+    for (auto& c : nodeName) {
+        switch (c) {
+            case '\\':
+            case '/':
+            case ' ':
+                c = '_';
+                break;
+            case ':':
+                c = '-';
+                break;
+        }
+    }
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
 #    ifdef _WIN32

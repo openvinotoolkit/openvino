@@ -15,6 +15,8 @@ namespace MKLDNNPlugin {
 #define SNIPPETS_MAX_HARNESS_DIMS 5
 #define SNIPPETS_MAX_TILE_RANK 2
 #define GET_OFF(field) offsetof(jit_snippets_call_args, field)
+#define SNIPPETS_UNSUPPORTED_ISA_THROW(isa) SNIPPETS_THROW() << "unsupported isa: " << isa
+
 struct jit_snippets_call_args {
     const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
@@ -58,9 +60,9 @@ public:
     : jit_emitter(h, isa, n) {
         const auto kernel = ov::as_type_ptr<ngraph::snippets::op::Kernel>(n);
         if (!kernel)
-            IE_THROW() << "KernelEmitter invoked with invalid op argument";
+            SNIPPETS_THROW() << "KernelEmitter invoked with invalid op argument";
         if (!kernel->compile_params)
-            IE_THROW() << "KernelEmitter invoked without compile_params";
+            SNIPPETS_THROW() << "KernelEmitter invoked without compile_params";
         code = kernel->region;
         jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     }
@@ -77,17 +79,17 @@ private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
                             const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         if (in.size() != 2)
-            IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 2, got " << in.size();
+            SNIPPETS_THROW() << "KernelEmitter got invalid number of inputs. Expected 2, got " << in.size();
         if (out.size() != 0)
-            IE_THROW() << "KernelEmitter got unexpected output arguments.";
+            SNIPPETS_THROW() << "KernelEmitter got unexpected output arguments.";
         const size_t num_params = in[0] + in[1];
         if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
-            IE_THROW() << "KernelEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
-                       " parameters, got " << num_params;
+            SNIPPETS_THROW() << "KernelEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
+                             " parameters, got " << num_params;
         const int64_t harness_num_dims = jcp.output_dims.size() - 1;
         if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS)
-            IE_THROW() << "KernelEmitter supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
-                       " dims, got " << harness_num_dims;
+            SNIPPETS_THROW() << "KernelEmitter supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
+                             " dims, got " << harness_num_dims;
     }
 
     void emit_impl(const std::vector<size_t>& in,
@@ -159,9 +161,9 @@ public:
     : jit_emitter(h, isa, n) {
         const auto tile = ov::as_type_ptr<ngraph::snippets::op::Tile>(n);
         if (!tile)
-            IE_THROW() << "TileEmitter invoked with invalid op argument";
+            SNIPPETS_THROW() << "TileEmitter invoked with invalid op argument";
         if (!tile->compile_params)
-            IE_THROW() << "TileEmitter invoked without compile_params";
+            SNIPPETS_THROW() << "TileEmitter invoked without compile_params";
         code = tile->region;
         jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile->compile_params);
     }
@@ -178,17 +180,17 @@ private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
                             const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         if (in.size() != 4)
-            IE_THROW() << "TileEmitter got invalid number of inputs. Expected 4, got " << in.size();
+            SNIPPETS_THROW() << "TileEmitter got invalid number of inputs. Expected 4, got " << in.size();
         if (out.size() != 0)
-            IE_THROW() << "TileEmitter got unexpected output arguments.";
+            SNIPPETS_THROW() << "TileEmitter got unexpected output arguments.";
         const size_t num_params = in[2];
         if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
-            IE_THROW() << "TileEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
-                       " parameters, got " << num_params;
+            SNIPPETS_THROW() << "TileEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
+                             " parameters, got " << num_params;
         const size_t dim = in[3];
         if (dim >= SNIPPETS_MAX_TILE_RANK)
-            IE_THROW() << "TileEmitter supports tile ranks up to " << SNIPPETS_MAX_TILE_RANK <<
-                       " got " << dim;
+            SNIPPETS_THROW() << "TileEmitter supports tile ranks up to " << SNIPPETS_MAX_TILE_RANK <<
+                             " got " << dim;
     }
 
     void emit_impl(const std::vector<size_t>& in,
@@ -334,8 +336,7 @@ private:
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
             emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
         } else {
-            IE_THROW() << host_isa_;
-            assert(!"unsupported isa");
+            SNIPPETS_UNSUPPORTED_ISA_THROW(host_isa_);
         }
     }
 
@@ -363,9 +364,9 @@ public:
     : jit_emitter(h, isa, n) {
         auto out_pshape = n->output(0).get_tensor().get_partial_shape();
         if (out_pshape.is_dynamic())
-            IE_THROW() << "ScalarEmitter supports only static input shapes";
+            SNIPPETS_THROW() << "ScalarEmitter supports only static input shapes";
         if ( out_pshape.get_shape() != ov::Shape() && ov::shape_size(out_pshape.get_shape()) != 1)
-            IE_THROW() << "ScalarEmitter got invalid shape";
+            SNIPPETS_THROW() << "ScalarEmitter got invalid shape";
         value = mkldnn::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
 
         push_arg_entry_of("scalar", value, true);
@@ -390,8 +391,7 @@ private:
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
             emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
         } else {
-            IE_THROW() << host_isa_;
-            assert(!"unsupported isa");
+            SNIPPETS_UNSUPPORTED_ISA_THROW(host_isa_);
         }
     }
 
@@ -432,7 +432,7 @@ protected:
         if (it != rt.end()) {
             ea = it->second.as<int64_t>();
         } else {
-            throw ov::Exception("effective address for Load generation cannot be determined");
+            SNIPPETS_THROW() << "effective address for Load generation cannot be determined";
         }
         return ea;
     }
@@ -461,8 +461,7 @@ private:
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
             emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
         } else {
-            IE_THROW() << host_isa_;
-            assert(!"unsupported isa");
+            SNIPPETS_UNSUPPORTED_ISA_THROW(host_isa_);
         }
     }
 
@@ -498,8 +497,7 @@ private:
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
             emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
         } else {
-            IE_THROW() << host_isa_;
-            assert(!"unsupported isa");
+            SNIPPETS_UNSUPPORTED_ISA_THROW(host_isa_);
         }
     }
 
@@ -535,8 +533,7 @@ private:
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
             emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
         } else {
-            IE_THROW() << host_isa_;
-            assert(!"unsupported isa");
+            SNIPPETS_UNSUPPORTED_ISA_THROW(host_isa_);
         }
     }
 
@@ -577,8 +574,7 @@ private:
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
             emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
         } else {
-            IE_THROW() << host_isa_;
-            assert(!"unsupported isa");
+            SNIPPETS_UNSUPPORTED_ISA_THROW(host_isa_);
         }
     }
 
@@ -615,8 +611,7 @@ private:
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
             emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
         } else {
-            IE_THROW() << host_isa_;
-            assert(!"unsupported isa");
+            SNIPPETS_UNSUPPORTED_ISA_THROW(host_isa_);
         }
     }
 

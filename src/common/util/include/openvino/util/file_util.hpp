@@ -180,6 +180,8 @@ void iterate_files(const std::string& path,
 
 void convert_path_win_style(std::string& path);
 
+void node_name_to_file_name(std::string& nodeName);
+
 std::string get_ov_lib_path();
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

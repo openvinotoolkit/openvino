@@ -6,7 +6,6 @@
 #include "node_dumper.h"
 
 #include "mkldnn_node.h"
-#include "ie_common.h"
 #include "utils/blob_dump.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
@@ -14,16 +13,12 @@
 #include <sstream>
 #include <string>
 
+#include <ie/ie_common.h>
+#include <openvino/util/file_util.hpp>
+
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
-
-static void formatNodeName(std::string& name) {
-    std::replace(name.begin(), name.end(), '\\', '_');
-    std::replace(name.begin(), name.end(), '/', '_');
-    std::replace(name.begin(), name.end(), ' ', '_');
-    std::replace(name.begin(), name.end(), ':', '-');
-}
 
 static bool shouldBeDumped(const MKLDNNNodePtr& node, const Config& config, const std::string& portsKind) {
     const auto& dumpFilters = config.blobDumpFilters;
@@ -95,7 +90,7 @@ static void dump(const BlobDumper& bd, const std::string& file, const Config& co
 
 static void dumpInternalBlobs(const MKLDNNNodePtr& node, const Config& config) {
     std::string nodeName = node->getName();
-    formatNodeName(nodeName);
+    ov::util::node_name_to_file_name(nodeName);
 
     const auto& internalBlobs = node->getInternalBlobs();
 
@@ -121,7 +116,7 @@ void dumpInputBlobs(const MKLDNNNodePtr& node, const Config& config, int count) 
 
     auto exec_order = std::to_string(node->getExecIndex());
     std::string nodeName = node->getName();
-    formatNodeName(nodeName);
+    ov::util::node_name_to_file_name(nodeName);
 
     auto num_ports = node->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size();
     for (size_t i = 0; i < num_ports; i++) {
@@ -155,7 +150,7 @@ void dumpOutputBlobs(const MKLDNNNodePtr& node, const Config& config, int count)
 
     auto exec_order = std::to_string(node->getExecIndex());
     std::string nodeName = node->getName();
-    formatNodeName(nodeName);
+    ov::util::node_name_to_file_name(nodeName);
 
     auto num_ports = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size();
     for (size_t i = 0; i < num_ports; i++) {

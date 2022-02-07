@@ -7,6 +7,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/matcher.hpp>
+#include <openvino/util/pp.hpp>
 
 
 namespace ngraph {
@@ -61,6 +62,7 @@ class TokenizeSnippets: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     explicit TokenizeSnippets();
+    OV_PP_IF_DEBUG_CAPS(void set_pass_config(const std::shared_ptr<ov::pass::PassConfig>& pass_config) override);
 };
 
 }  // namespace pass

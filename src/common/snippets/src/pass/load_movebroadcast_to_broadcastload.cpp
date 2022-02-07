@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include <snippets/common.hpp>
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
@@ -33,7 +33,7 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
             }
 
             if (root->inputs().size() != 1 || input->inputs().size() != 1) {
-                throw ngraph_error("cannot rewrite Broadcast load with more than one input");
+                SNIPPETS_THROW() << "cannot rewrite Broadcast load with more than one input";
             }
 
             auto inshape = root->input(0).get_shape();

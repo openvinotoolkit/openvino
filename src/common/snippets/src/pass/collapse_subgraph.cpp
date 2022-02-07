@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include <snippets/common.hpp>
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/collapse_subgraph.hpp"
@@ -11,11 +11,11 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
-#include "transformations/utils/utils.hpp"
+#include <transformations/utils/utils.hpp>
+#include <openvino/util/env_util.hpp>
 
 #include <memory>
 #include <vector>
-#include <cassert>
 #include <queue>
 #include <string>
 #include <numeric>
@@ -191,7 +191,7 @@ int64_t GetTopologicalOrder(const std::shared_ptr<const Node> &node) {
     auto &rt = node->get_rt_info();
     const auto rinfo = rt.find("TopologicalOrder");
     if (rinfo == rt.end())
-        throw ngraph_error("Topological order is required, but not set.");
+        SNIPPETS_THROW() << "Topological order is required, but not set.";
     return rinfo->second.as<int64_t>();
 }
 
@@ -210,7 +210,6 @@ TokenizeSnippets::TokenizeSnippets() {
         reset,
         abort
     };
-
     continuation_strategy strategy = continuation_strategy::reset;
     auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](const std::shared_ptr<const Node> &n) {
@@ -223,7 +222,7 @@ TokenizeSnippets::TokenizeSnippets() {
             return false;
         }
 
-        remark(1) << "Match root: " << node->get_friendly_name() << " " << node << std::endl;
+        SNIPPETS_DEBUG << "Match root: " << node->get_friendly_name() << " " << node;
 
         const auto getFusedNames = [](const std::shared_ptr<Node>& n) -> std::string {
             auto rt_info = n->get_rt_info();
@@ -242,13 +241,13 @@ TokenizeSnippets::TokenizeSnippets() {
         };
 
         auto abort_with_strategy = [&](const std::string& message_reset,
-                                                     const std::string& message_abort = "", int priority = 3) {
+                                       const std::string& message_abort = "") {
             if (strategy == continuation_strategy::reset) {
                 create_single_node_subgraph(node);
                 return true;
             } else if (strategy == continuation_strategy::abort) {
                 if (!message_abort.empty()) {
-                    remark(priority) << message_abort << std::endl;
+                    SNIPPETS_DEBUG << message_abort;
                 }
             }
             return false;
@@ -265,8 +264,8 @@ TokenizeSnippets::TokenizeSnippets() {
         OutputVector internal_inputs;
 
         auto input_values = node->input_values();
-        /* 
-        * Called with subgraph->input_value(i) arg and used to 
+        /*
+        * Called with subgraph->input_value(i) arg and used to
         * Check that the attached node input subgraph has the same input as the node itself.
         * If true, then ternary merge is initiated.
         *        input
@@ -282,7 +281,8 @@ TokenizeSnippets::TokenizeSnippets() {
          * The bounds are presumed to be without dependency. The bounds are updated if no dependency is introduced by the node.
         */
         const auto cyclicDependencyIsIntoduced = [&node](const std::shared_ptr<Node>& nodeToExamine, std::pair<int64_t, int64_t>& currentBounds) -> bool {
-            assert(currentBounds.first < currentBounds.second && "Invalid currentBounds passed");
+            if (currentBounds.first >= currentBounds.second)
+                SNIPPETS_THROW() << "Invalid currentBounds passed";
             const auto &parentNodes = ngraph::as_node_vector(nodeToExamine->input_values());
             const int64_t maxParentOrder = std::accumulate(parentNodes.begin(), parentNodes.end(), currentBounds.first,
                                                             [](int64_t maxOrder, std::shared_ptr<Node> n){
@@ -317,9 +317,9 @@ TokenizeSnippets::TokenizeSnippets() {
         //  If there are no input subgraphs no need to go further, just create a new one.
         if (clones.empty()) {
             create_single_node_subgraph(node);
-            remark(1) << "Starting subgraph at: "  << node->get_friendly_name()
-                      << " with " << node->inputs().size() << " inputs and " << node->outputs().size()
-                      << " outputs" << std::endl;
+            SNIPPETS_DEBUG << "Starting subgraph at: "  << node->get_friendly_name()
+                           << " with " << node->inputs().size() << " inputs and " << node->outputs().size()
+                           << " outputs";
             return true;
         }
         std::string newSubgraphName{};
@@ -327,7 +327,8 @@ TokenizeSnippets::TokenizeSnippets() {
         size_t num_result_children = 0;
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
         cyclicDependencyIsIntoduced(node, currentTopoBounds);
-        assert(!cyclicDependencyIsIntoduced(node, currentTopoBounds) && "Cyclic dependency is introduced by the node itself");
+        if (cyclicDependencyIsIntoduced(node, currentTopoBounds))
+            SNIPPETS_THROW() << "Cyclic dependency is introduced by the node itself";
         for (const auto& input_value : input_values) {
             auto input_node = input_value.get_node_shared_ptr();
             if (ov::is_type<op::Subgraph>(input_node) &&
@@ -360,15 +361,15 @@ TokenizeSnippets::TokenizeSnippets() {
                             }
 
                             if (current_input_index < body_parameters.size()) {
-                                remark(13) << "replacing " << *found << " " << current_input_index << " with "
-                                          << body_parameters[current_input_index] << std::endl;
+                                SNIPPETS_DEBUG << "replacing " << *found << " " << current_input_index << " with "
+                                               << body_parameters[current_input_index];
                                 f->replace_parameter(i, body_parameters[current_input_index]);
                             } else {
                                 external_inputs.push_back(subgraph->input_value(i));
                                 body_parameters.push_back(input_body_parameters[i]);
                             }
                         } else if (is_recurrent(subgraph->input_value(i))) {
-                            remark(13) << "ternary merge is conducted " << subgraph->input_value(i).get_node_shared_ptr() << std::endl;
+                            SNIPPETS_DEBUG << "ternary merge is conducted " << subgraph->input_value(i).get_node_shared_ptr();
 
                             auto internal = input_body_parameters[i];
                             auto internal_consumers = internal->outputs();
@@ -423,11 +424,11 @@ TokenizeSnippets::TokenizeSnippets() {
         auto body_node = node->copy_with_new_inputs(internal_inputs);
         body_node->set_friendly_name(node->get_friendly_name());
 
-        remark(1) << "Original node outputs = " << node->get_output_size()
-                    << " body node outputs = " << body_node->get_output_size() << std::endl;
+        SNIPPETS_DEBUG << "Original node outputs = " << node->get_output_size()
+                       << " body node outputs = " << body_node->get_output_size();
 
         if (node->get_output_size() != body_node->get_output_size()) {
-            throw ngraph_error("original node outputs size and extracted node outputs size doesn't much");
+            SNIPPETS_THROW() << "original node outputs size and extracted node outputs size doesn't match";
         }
 
         ResultVector body_results;
@@ -441,7 +442,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     auto target_node = target_input.get_node()->shared_from_this();
 
                     if (input_subgraphs.count(target_node)) {
-                        remark(13) << "ternary merge is conducted " << subgraph << " -> " << target_node << std::endl;
+                        SNIPPETS_DEBUG << "ternary merge is conducted " << subgraph << " -> " << target_node;
                     }
 
                     if (!input_subgraphs.count(target_node) && target_node != node) {
@@ -454,7 +455,7 @@ TokenizeSnippets::TokenizeSnippets() {
                         }
 
                         if (!!subgraph_result_inputs.back().count(target_input)) {
-                            throw ngraph_error("target input added twice!!!");
+                            SNIPPETS_THROW() << "target input added twice!!!";
                         }
                         // save target input port outside the body
                         subgraph_result_inputs.back().insert(target_input);
@@ -469,7 +470,7 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         if (body_results.size() != subgraph_result_inputs.size()) {
-            throw ngraph_error("body results and node results size mismatch during subgraph collaps");
+            SNIPPETS_THROW() << "body results and node results size mismatch during subgraph collaps";
         }
         // todo: move this plugin-specific constraint to the plugin callback
         if (body_parameters.size() + body_results.size() > 7) {
@@ -491,7 +492,7 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         if (subgraph->get_output_size() != subgraph_result_inputs.size()) {
-            throw ngraph_error("newly create subgraph doesn't much number of results");
+            SNIPPETS_THROW() << "newly created subgraph doesn't match number of results";
         }
 
         if (outputs_are_not_broadcastable(subgraph))
@@ -512,17 +513,24 @@ TokenizeSnippets::TokenizeSnippets() {
         }
         subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
 
-        remark(1) << "Replacement (merge) done for: "
-                    << subgraph->get_friendly_name()
-                    << " with " << subgraph->inputs().size()
-                    << " inputs and " << subgraph->outputs().size()
-                    << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
-
+        SNIPPETS_DEBUG << "Replacement (merge) done for: "
+                       << subgraph->get_friendly_name()
+                       << " with " << subgraph->inputs().size()
+                       << " inputs and " << subgraph->outputs().size()
+                       << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total";
         return true;
     };
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);
     register_matcher(matcher, callback);
 }
+
+#ifdef DEBUG_CAPS
+void TokenizeSnippets::set_pass_config(const std::shared_ptr<ov::pass::PassConfig>& pass_config) {
+    MatcherPass::set_pass_config(pass_config);
+    if (!ov::util::getenv_ov_enable_bool("snippets"))
+        get_pass_config()->disable<TokenizeSnippets>();
+}
+#endif // DEBUG_CAPS
 } // namespace pass
 } // namespace snippets
 } // namespace ngraph

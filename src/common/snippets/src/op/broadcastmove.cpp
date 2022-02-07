@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <snippets/common.hpp>
 #include <snippets/itt.hpp>
 
 #include "snippets/op/broadcastmove.hpp"
@@ -48,7 +49,7 @@ bool snippets::op::BroadcastMove::evaluate(const HostTensorVector& output_values
     for (size_t k = 0; k < ishape.size(); k++) {
         if (!((ishape[k] == oshape[k])
            || (ishape[k] != oshape[k] && ((ishape[k] == 1) != (oshape[k] == 1) ) ))) {
-            throw ngraph_error("FakeBroadcast::evaluate incompatible shapes");
+            SNIPPETS_THROW() << "FakeBroadcast::evaluate incompatible shapes";
         }
 
         if (ishape[k] != oshape[k]) {

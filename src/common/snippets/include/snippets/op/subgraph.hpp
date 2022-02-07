@@ -101,10 +101,13 @@ public:
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ngraph::snippets::Generator> generator);
 
-    void print() const;
-    void print_statistics(bool verbose);
-
-    void serialize() const;
+#ifdef DEBUG_CAPS
+#ifdef ENABLE_OPENVINO_DEBUG
+    void debug_verbose(const std::string& annotation) const;
+    void debug_statistics(const std::string& annotation, bool verbose = false) const;
+#endif // ENABLE_OPENVINO_DEBUG
+    void serialize(const std::string& fileNameEnding) const;
+#endif // DEBUG_CAPS
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include <snippets/common.hpp>
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/insert_movebroadcast.hpp"
@@ -41,24 +41,22 @@ std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<ngraph::
         }
     }
 
-    remark(2) << "Insert explicit broadcast " << value.get_node()->get_type_name()
-    << " " << broadcasted_node->get_shape() << " -> " << output_shape << std::endl;
+    SNIPPETS_DEBUG << "Insert explicit broadcast " << value.get_node()->get_type_name()
+                   << " " << broadcasted_node->get_shape() << " -> " << output_shape;
 
     // it shouldn't be a probrem for now since we don't consider StridedSlice and Broadcast here
     if (auto constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(broadcasted_node)) {
         if (constant->get_shape() == ngraph::Shape() || ngraph::shape_size(constant->get_shape()) == 1) {
-            remark(2) << "Insert explicit broadcast " << value.get_node()->get_type_name()
-                       << " to scalar constant " << constant->get_shape() << " -- aborting!" << std::endl;
-
+            SNIPPETS_DEBUG << "Insert explicit broadcast " << value.get_node()->get_type_name()
+                           << " to scalar constant " << constant->get_shape() << " -- aborting!";
             return broadcasted_node;
         }
     }
 
     if (auto constant = ngraph::as_type_ptr<ngraph::snippets::op::Scalar>(broadcasted_node)) {
         if (constant->get_shape() == ngraph::Shape() || ngraph::shape_size(constant->get_shape()) == 1) {
-            remark(2) << "Insert explicit broadcast " << value.get_node()->get_type_name()
-                       << " to scalar constant " << constant->get_shape() << " -- aborting!" << std::endl;
-
+            SNIPPETS_DEBUG << "Insert explicit broadcast " << value.get_node()->get_type_name()
+                           << " to scalar constant " << constant->get_shape() << " -- aborting!";
             return broadcasted_node;
         }
     }
@@ -87,7 +85,7 @@ ngraph::Shape calculate_broadcast_shape(ngraph::Shape lhs_shape, ngraph::Shape r
         size_t rhs_dim = rhs_shape.at(index);
 
         if (lhs_dim != rhs_dim && lhs_dim != 1 && rhs_dim != 1) {
-            throw ngraph::ngraph_error("incompatible shapes");
+            SNIPPETS_THROW() << "incompatible shapes";
         }
 
         result.push_back(std::max(lhs_dim, rhs_dim));

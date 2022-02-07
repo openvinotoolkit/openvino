@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <snippets/common.hpp>
 #include <snippets/itt.hpp>
-#include "remarks.hpp"
 
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/insert_load_store.hpp"
@@ -13,6 +13,8 @@
 
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
+#include <openvino/util/env_util.hpp>
+#include <openvino/util/file_util.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -91,7 +93,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     body_node->set_friendly_name(node->get_friendly_name());
 
     if (node->get_output_size() != body_node->get_output_size()) {
-        throw ngraph::ngraph_error("original node outputs size and extracted subgraph node outputs size doesn't much");
+        SNIPPETS_THROW() << "original node outputs size and extracted subgraph node outputs size doesn't match";
     }
 
     // Clear the node dependencies so graph::topological_sort will not find any extra ops in get_ordered_ops()
@@ -110,7 +112,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     }
 
     if (subgraph->get_output_size() != body->get_results().size()) {
-        throw ngraph::ngraph_error("newly create subgraph doesn't much number of original node results");
+        SNIPPETS_THROW() << "newly created subgraph doesn't match number of original node results";
     }
 
     return subgraph;
@@ -166,7 +168,7 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
             m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(param->get_element_type(), ngraph::Shape(shape)));
         } else if (param->get_shape().size() >= 4) {
             if (param->get_element_type() != std::get<2>(input_shapes[i])) {
-                throw ngraph::ngraph_error("changes in presision. Is it legal??");
+                SNIPPETS_THROW() << "changes in presision. Is it legal??";
             }
             m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(std::get<2>(input_shapes[i]), std::get<0>(input_shapes[i])));
         }
@@ -208,6 +210,8 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
+
+    OV_PP_IF_DEBUG_CAPS(serialize("before_lowering"));
 
     canonicalize(output_shapes, input_shapes);
 
@@ -259,7 +263,7 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
         auto shape = m_body->output(k).get_shape();
 
         if (work_size.size() != shape.size()) {
-            throw ngraph_error("rank for all outputs of a snippet should match");
+            SNIPPETS_THROW() << "rank for all outputs of a snippet should match";
         }
 
         for (size_t i = 0; i < work_size.size(); i++) {
@@ -267,42 +271,44 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
                 if (work_size[i] == 1 || shape[i] == 1) {
                     work_size[i] = max(work_size[i], shape[i]);
                 } else {
-                    throw ngraph_error("incompatible shapes for output graphs");
+                    SNIPPETS_THROW() << "incompatible shapes for output graphs";
                 }
             }
         }
     }
 
+    OV_PP_IF_DEBUG_CAPS(serialize("after_lowering"));
     return {work_size, false /*canBeLinearized*/, ptr};
 }
 
-void snippets::op::Subgraph::print() const {
+#ifdef DEBUG_CAPS
+#ifdef ENABLE_OPENVINO_DEBUG
+void snippets::op::Subgraph::debug_verbose(const std::string& annotation) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    remark(13) << "subgraph " << this->get_friendly_name() << " "
-        << this->get_type_name()
-        << " which contains " << this->get_body()->get_ops().size() << " nodes" << std::endl;
+    SNIPPETS_DEBUG << (annotation.empty() ? "" : annotation + ": ")
+                   << this->get_type_name() << " " << this->get_friendly_name()
+                   << " contains " << this->get_body()->get_ops().size() << " nodes";
 
     int qqq = 0;
     for (auto op : this->get_body()->get_ordered_ops()) {
-        remark(13) << "op " << qqq++ << " " << op->get_friendly_name() << " (" << op->get_type_name() << ") " << op << std::endl;
+        SNIPPETS_DEBUG << " op " << qqq++ << " " << op->get_friendly_name() << " (" << op->get_type_name() << ") " << op;
     }
 
     for (auto& in : this->inputs()) {
-        remark(13) << "  -> " << in.get_source_output().get_node_shared_ptr()->get_friendly_name() << " "
-            << in.get_source_output().get_node_shared_ptr() << std::endl;
+        SNIPPETS_DEBUG << "  -> " << in.get_source_output().get_node_shared_ptr()->get_friendly_name() << " "
+                       << in.get_source_output().get_node_shared_ptr();
     }
 
     for (auto& out : this->outputs()) {
         for (auto& user : out.get_target_inputs()) {
-            remark(13) << " <- " << user.get_node()->get_friendly_name() << " "  << user.get_node() << std::endl;
+            SNIPPETS_DEBUG << " <- " << user.get_node()->get_friendly_name() << " "  << user.get_node();
         }
-        remark(13) << std::endl;
     }
 }
 
-void snippets::op::Subgraph::print_statistics(bool verbose) {
+void snippets::op::Subgraph::debug_statistics(const std::string& annotation, bool verbose) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    auto getNodeInventory = [](std::shared_ptr<ov::Node> n) -> size_t {
+    auto getNodeInventory = [](std::shared_ptr<const ov::Node> n) -> size_t {
         size_t total = 0;
 
         for (auto input : n->inputs()) {
@@ -313,7 +319,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
             total += output.get_tensor().size();
         }
 
-        if (auto subgraph = ngraph::as_type_ptr<op::Subgraph>(n)) {
+        if (auto subgraph = ngraph::as_type_ptr<const op::Subgraph>(n)) {
             for (auto op : subgraph->get_body()->get_ordered_ops()) {
                 if (ngraph::as_type_ptr<ngraph::opset1::Constant>(op)) {
                     total += op->output(0).get_tensor().size();
@@ -333,7 +339,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
             if (!ngraph::as_type_ptr<ngraph::opset1::Parameter>(op)
              && !ngraph::as_type_ptr<ngraph::opset1::Result>(op)
              && !ngraph::as_type_ptr<ngraph::opset1::Constant>(op)) {
-                total += getNodeInventory(op);
+                total += getNodeInventory(static_pointer_cast<const ov::Node>(op));
             }
         }
         return total;
@@ -349,25 +355,38 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
 
     auto body = this->get_body();
 
-    std::cout << this->get_friendly_name()
-                << ";" << this
-                << ";" << body->get_ops().size()
-                << ";" << body->get_parameters().size()
-                << ";" << body->get_results().size()
-                << ";" << countConstants(body)
-                << ";" << getModelInventory(body)
-                << ";" << getNodeInventory(this->shared_from_this()) << std::endl;
+    SNIPPETS_DEBUG << (annotation.empty() ? "" : annotation + ": ")
+                   << this->get_friendly_name()
+                   << ";" << this
+                   << ";" << body->get_ops().size()
+                   << ";" << body->get_parameters().size()
+                   << ";" << body->get_results().size()
+                   << ";" << countConstants(body)
+                   << ";" << getModelInventory(body)
+                   << ";" << getNodeInventory(this->shared_from_this());
 
     if (verbose) {
-        this->print();
+        this->debug_verbose("");
     }
 }
+#endif // ENABLE_OPENVINO_DEBUG
 
-void snippets::op::Subgraph::serialize() const {
-    std::stringstream xmlFile, binFile;
-    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
-    serializer.run_on_model(get_body());
-    auto m_constants = binFile.str();
-    auto m_model = xmlFile.str();
-    std::cout << m_model << std::endl;
+void snippets::op::Subgraph::serialize(const std::string& fileNameEnding) const {
+ #ifdef ENABLE_OPENVINO_DEBUG
+    debug_statistics(fileNameEnding, true);
+ #endif // ENABLE_OPENVINO_DEBUG
+    if (ov::util::getenv_ov_dump_ir_bool("snippets")) {
+        std::string path = ov::util::getenv_string("OV_DUMP_IR_DIR");
+        if (!path.empty()) {
+            std::string name = get_friendly_name();
+            ov::util::node_name_to_file_name(name);
+            path.append("/snippet_" + name);
+            if (!fileNameEnding.empty())
+                path.append('_' + fileNameEnding);
+            path.append(".xml");
+            ov::pass::Serialize serializer(path, "", ov::pass::Serialize::Version::IR_V10);
+            serializer.run_on_model(get_body());
+        }
+    }
 }
+#endif // DEBUG_CAPS
