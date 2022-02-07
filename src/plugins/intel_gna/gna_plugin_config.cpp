@@ -8,6 +8,7 @@
 #include <gna/gna_config.hpp>
 #include "gna_plugin.hpp"
 #include "gna_plugin_config.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_common.h"
 #include <caseless.hpp>
 #include <unordered_map>
@@ -108,7 +109,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
         };
 
         if (key ==  ov::intel_gna::scale_factors_per_input) {
-            inputScaleFactorsPerInput = ov::util::string_to_property(value, ov::intel_gna::scale_factors_per_input);
+            inputScaleFactorsPerInput = InferenceEngine::util::string_to_property(value, ov::intel_gna::scale_factors_per_input);
             for (auto&& sf : inputScaleFactorsPerInput) {
                 check_scale_factor(sf.second);
             }
@@ -161,7 +162,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
             }
 OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::intel_gna::execution_target || key == ov::intel_gna::compile_target) {
-            auto target = ov::util::string_to_property(value, ov::intel_gna::execution_target);
+            auto target = InferenceEngine::util::string_to_property(value, ov::intel_gna::execution_target);
             std::string target_str = "";
             if (ov::intel_gna::HWGeneration::GNA_2_0 == target) {
                 target_str = GNAConfigParams::GNA_TARGET_2_0;
@@ -194,7 +195,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
                 THROW_GNA_EXCEPTION << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
             }
         } else if (key == ov::hint::performance_mode) {
-            performance_mode = ov::util::string_to_property(value, ov::hint::performance_mode);
+            performance_mode = InferenceEngine::util::string_to_property(value, ov::hint::performance_mode);
         } else if (key ==  ov::hint::inference_precision) {
             std::stringstream ss(value);
             ss >> inference_precision;
@@ -213,7 +214,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             }
             gnaPrecision = precision;
         } else if (key ==  ov::intel_gna::pwl_design_algorithm) {
-            gnaFlags.pwl_design_algorithm = ov::util::string_to_property(value, ov::intel_gna::pwl_design_algorithm);
+            gnaFlags.pwl_design_algorithm = InferenceEngine::util::string_to_property(value, ov::intel_gna::pwl_design_algorithm);
             gnaFlags.uniformPwlDesign = (gnaFlags.pwl_design_algorithm == ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION) ? true : false;
 OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (key == GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)) {
@@ -288,7 +289,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(LOG_LEVEL) || key == ov::log::level) {
             if (value == PluginConfigParams::LOG_WARNING || value == PluginConfigParams::LOG_NONE) {
-                gnaFlags.log_level = ov::util::string_to_property(value, ov::log::level);
+                gnaFlags.log_level = InferenceEngine::util::string_to_property(value, ov::log::level);
             } else {
                 log << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
                 THROW_GNA_EXCEPTION << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
@@ -316,7 +317,8 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap.clear();
 
     if (!inputScaleFactorsPerInput.empty()) {
-        keyConfigMap[ov::intel_gna::scale_factors_per_input.name()] = ov::util::property_to_string(inputScaleFactorsPerInput);
+        keyConfigMap[ov::intel_gna::scale_factors_per_input.name()] =
+            InferenceEngine::util::property_to_string(inputScaleFactorsPerInput);
     } else {
         if (inputScaleFactors.empty()) {
             inputScaleFactors.push_back(1.0);
@@ -333,12 +335,12 @@ void Config::AdjustKeyMapValues() {
     IE_SUPPRESS_DEPRECATED_END
     std::string device_mode;
     if (gnaFlags.sw_fp32) {
-        device_mode = ov::util::property_to_string(ov::intel_gna::ExecutionMode::SW_FP32);
+        device_mode = InferenceEngine::util::property_to_string(ov::intel_gna::ExecutionMode::SW_FP32);
     } else {
         for (auto&& value : supported_values) {
             if (value.second.first == pluginGna2AccMode &&
                 value.second.second == swExactMode) {
-                device_mode = ov::util::property_to_string(value.first);
+                device_mode = InferenceEngine::util::property_to_string(value.first);
                 break;
             }
         }
@@ -351,15 +353,16 @@ void Config::AdjustKeyMapValues() {
             gnaFlags.compact_mode ? PluginConfigParams::YES : PluginConfigParams::NO;
     keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
             gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
-    keyConfigMap[ov::hint::performance_mode.name()] = ov::util::property_to_string(performance_mode);
+    keyConfigMap[ov::hint::performance_mode.name()] = InferenceEngine::util::property_to_string(performance_mode);
     if (inference_precision != ov::element::undefined) {
-        keyConfigMap[ov::hint::inference_precision.name()] = ov::util::property_to_string(inference_precision);
+        keyConfigMap[ov::hint::inference_precision.name()] = InferenceEngine::util::property_to_string(inference_precision);
     } else {
         keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
     }
 OPENVINO_SUPPRESS_DEPRECATED_START
     if (gnaFlags.pwl_design_algorithm != ov::intel_gna::PWLDesignAlgorithm::UNDEFINED) {
-        keyConfigMap[ov::intel_gna::pwl_design_algorithm.name()] = ov::util::property_to_string(gnaFlags.pwl_design_algorithm);
+        keyConfigMap[ov::intel_gna::pwl_design_algorithm.name()] =
+                InferenceEngine::util::property_to_string(gnaFlags.pwl_design_algorithm);
     } else {
         keyConfigMap[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
                 gnaFlags.uniformPwlDesign ? PluginConfigParams::YES: PluginConfigParams::NO;
@@ -372,7 +375,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 OPENVINO_SUPPRESS_DEPRECATED_END
     keyConfigMap[ov::enable_profiling.name()] =
             gnaFlags.performance_counting ? PluginConfigParams::YES: PluginConfigParams::NO;
-    keyConfigMap[ov::log::level.name()] = ov::util::property_to_string(gnaFlags.log_level);
+    keyConfigMap[ov::log::level.name()] = InferenceEngine::util::property_to_string(gnaFlags.log_level);
 }
 
 Parameter Config::GetParameter(const std::string& name) const {

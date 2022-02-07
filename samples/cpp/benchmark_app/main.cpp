@@ -653,10 +653,12 @@ int main(int argc, char* argv[]) {
             slog::info << "Device: " << device << slog::endl;
             for (const auto& cfg : supported_properties) {
                 try {
-                    std::stringstream ss;
-                    compiledModel.get_property(cfg).print(ss);
-                    slog::info << "  { " << cfg << " , " << ss.str() << " }" << slog::endl;
-                } catch (...) {
+                    if (cfg == ov::supported_properties)
+                        continue;
+
+                    auto prop = compiledModel.get_property(cfg);
+                    slog::info << "  { " << cfg << " , " << prop.as<std::string>() << " }" << slog::endl;
+                } catch (const ov::Exception&) {
                 }
             }
         }
@@ -666,8 +668,8 @@ int main(int argc, char* argv[]) {
             try {
                 const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
                 device_nstreams[ds.first] = core.get_property(ds.first, key).as<std::string>();
-            } catch (...) {
-                device_nstreams[ds.first] = std::to_string(core.get_property(ds.first, ov::streams::num));
+            } catch (const ov::Exception&) {
+                device_nstreams[ds.first] = core.get_property(ds.first, ov::streams::num.name()).as<std::string>();
             }
         }
 

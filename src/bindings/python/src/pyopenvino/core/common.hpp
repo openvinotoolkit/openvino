@@ -8,8 +8,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <ie_parameter.hpp>
-#include <ie_plugin_config.hpp>
 #include <openvino/core/type/element_type.hpp>
 #include <string>
 

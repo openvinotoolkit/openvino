@@ -126,21 +126,6 @@ template <typename T, PropertyMutability M>
 inline std::ostream& operator<<(std::ostream& os, const BaseProperty<T, M>& property) {
     return os << property.name();
 }
-
-template <typename T, PropertyMutability M>
-inline T string_to_property(const std::string& val, const BaseProperty<T, M>& property) {
-    std::stringstream ss(val);
-    T value;
-    ss >> value;
-    return value;
-}
-
-template <typename T>
-inline std::string property_to_string(const T& property) {
-    std::stringstream ss;
-    ss << property;
-    return ss.str();
-}
 }  // namespace util
 /** @endcond */
 

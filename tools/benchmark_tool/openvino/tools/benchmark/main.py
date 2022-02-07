@@ -82,8 +82,8 @@ def run(args):
 
         if not args.perf_hint:
             for device in devices:
-                supported_config_keys = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
-                if 'PERFORMANCE_HINT' in supported_config_keys:
+                supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
+                if 'PERFORMANCE_HINT' in supported_properties:
                     logger.warning(f"-hint default value is determined as 'THROUGHPUT' automatically for {device} device" +
                                     "For more detailed information look at README.")
                     args.perf_hint = "throughput"
@@ -142,10 +142,10 @@ def run(args):
                     config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
             ## the rest are individual per-device settings (overriding the values the device will deduce from perf hint)
             def set_throughput_streams():
+                supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
                 key = get_device_type_from_name(device) + "_THROUGHPUT_STREAMS"
                 if device in device_number_streams.keys():
                     ## set to user defined value
-                    supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
                     if key in supported_properties:
                         config[device][key] = device_number_streams[device]
                     elif "NUM_STREAMS" in supported_properties:
@@ -160,8 +160,7 @@ def run(args):
                                    "Although the automatic selection usually provides a reasonable performance, "
                                    "but it still may be non-optimal for some cases, for more information look at README.")
                     if device != MYRIAD_DEVICE_NAME:  ## MYRIAD sets the default number of streams implicitly
-                        supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
-                        if key in supported_config_keys:
+                        if key in supported_properties:
                             config[device][key] = get_device_type_from_name(device) + "_THROUGHPUT_AUTO"
                         elif "NUM_STREAMS" in supported_properties:
                             key = "NUM_STREAMS"
@@ -341,7 +340,8 @@ def run(args):
                 key = get_device_type_from_name(device) + '_THROUGHPUT_STREAMS'
                 device_number_streams[device] = benchmark.core.get_property(device, key)
             except:
-                device_number_streams[device] = benchmark.core.get_property(device, "NUM_STREAMS")
+                key = 'NUM_STREAMS'
+                device_number_streams[device] = benchmark.core.get_property(device, key)
 
         # ------------------------------------ 9. Creating infer requests and preparing input data ----------------------
         next_step()

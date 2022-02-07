@@ -12,7 +12,6 @@
 
 // clang-format off
 #include "openvino/openvino.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "samples/common.hpp"
 #include "samples/slog.hpp"
 // clang-format on
@@ -72,9 +71,6 @@ void print_any_value(const ov::Any& value) {
         slog::info << std::get<1>(values);
         slog::info << " }";
         slog::info << slog::endl;
-    } else if (value.is<ov::hint::PerformanceMode>()) {
-        auto mode = ov::util::property_to_string(value.as<ov::hint::PerformanceMode>());
-        slog::info << (mode.empty() ? "\"\"" : mode) << slog::endl;
     } else if (value.is<std::map<ov::element::Type, float>>()) {
         auto values = value.as<std::map<ov::element::Type, float>>();
         slog::info << "{ ";
@@ -91,6 +87,9 @@ void print_any_value(const ov::Any& value) {
         }
         slog::info << " }";
         slog::info << slog::endl;
+    } else if (value.is<ov::hint::PerformanceMode>()) {
+        auto values = value.as<std::string>();
+        slog::info << (values.empty() ? "\"\"" : values) << slog::endl;
     } else {
         std::stringstream strm;
         value.print(strm);

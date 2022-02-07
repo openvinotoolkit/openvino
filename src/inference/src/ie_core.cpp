@@ -572,11 +572,8 @@ public:
             if (metrics.end() == it)
                 return;
             // if applicable, the Auto-Batching is implicitly enabled via the performance hints
-            auto perfMode = GetConfig(d, ov::hint::performance_mode.name());
-            bool bTputInPlg = perfMode.is<std::string>()
-                                  ? perfMode.as<std::string>() == CONFIG_VALUE(THROUGHPUT)
-                                  : perfMode.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT;
-            const auto& mode = config.find(ov::hint::performance_mode.name());
+            bool bTputInPlg = GetConfig(d, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+            const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
             bool bTputInLoadCfg = (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT));
             const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
             bool bExclReqsEnabled = (excl != config.end() && excl->second == CONFIG_VALUE(YES));

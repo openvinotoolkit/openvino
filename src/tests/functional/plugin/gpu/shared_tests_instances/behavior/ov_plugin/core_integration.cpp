@@ -51,6 +51,10 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("GPU"));
 
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassGetMetricTest_MAX_BATCH_SIZE,
+        ::testing::Values("GPU"));
+
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest, OVClassGetMetricTest_DEVICE_GOPS, ::testing::Values("GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest, OVClassGetMetricTest_DEVICE_TYPE, ::testing::Values("GPU"));
@@ -275,17 +279,6 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricMemoryStatisticsAndPrintNoThrow) {
     OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::memory_statistics);
 }
 
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricMaxBatchSizeAndPrintNoThrow) {
-    ov::Core ie;
-
-    uint32_t property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::max_batch_size));
-
-    std::cout << "GPU_MAX_BATCH_SIZE: " << property << std::endl;
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::max_batch_size);
-}
-
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetPerformanceModeNoThrow) {
     ov::Core ie;
 
@@ -382,37 +375,18 @@ TEST_P(OVClassGetPropertyTest_GPU, CanSetDefaultValueBackToPluginNewAPI) {
     std::vector<ov::PropertyName> properties;
     ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
 
-    auto get_property_type = [](const ov::Any& prop) -> std::string {
-        if (prop.is<std::string>())
-            return std::string("<string>");
-        else if (prop.is<ov::hint::Priority>())
-            return std::string("<Priority>");
-        else if (prop.is<int>())
-            return std::string("<int>");
-        else if (prop.is<unsigned int>())
-            return std::string("<uint>");
-        else if (prop.is<ov::hint::PerformanceMode>())
-            return std::string("<PerformanceMode>");
-        else if (prop.is<bool>())
-            return std::string("<bool>");
-        else
-            return std::string("<other>");
-    };
-
     std::cout << "SUPPORTED_PROPERTIES:" << std::endl;
     for (const auto& property : properties) {
         ov::Any prop;
         if (property.is_mutable()) {
             std::cout << "RW: " << property << " ";
             ASSERT_NO_THROW(prop = ie.get_property(deviceName, property));
-            std::cout << get_property_type(prop) << " ";
             prop.print(std::cout);
             std::cout << std::endl;
             ASSERT_NO_THROW(ie.set_property(deviceName, {{property, prop}}));
         } else {
             std::cout << "RO: " << property << " ";
             ASSERT_NO_THROW(prop = ie.get_property(deviceName, property));
-            std::cout << get_property_type(prop) << " ";
             prop.print(std::cout);
             std::cout << std::endl;
         }

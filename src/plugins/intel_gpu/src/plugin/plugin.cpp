@@ -543,32 +543,37 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
             if (name == ov::enable_profiling) {
                 return val == PluginConfigParams::YES ? true : false;
             } else if (name == ov::hint::model_priority) {
-                return ov::util::string_to_property(val, ov::hint::model_priority);
+                return InferenceEngine::util::string_to_property(val, ov::hint::model_priority);
             } else if (name == ov::intel_gpu::hint::host_task_priority) {
-                return ov::util::string_to_property(val, ov::intel_gpu::hint::host_task_priority);
+                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::host_task_priority);
             } else if (name == ov::intel_gpu::hint::queue_priority) {
-                return ov::util::string_to_property(val, ov::intel_gpu::hint::queue_priority);
+                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::queue_priority);
             } else if (name == ov::intel_gpu::hint::queue_throttle) {
-                return ov::util::string_to_property(val, ov::intel_gpu::hint::queue_throttle);
+                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::queue_throttle);
             } else if (name == ov::intel_gpu::enable_loop_unrolling) {
                 return val == PluginConfigParams::YES ? true : false;
             } else if (name == ov::cache_dir) {
-                return ov::util::string_to_property(val, ov::cache_dir);
+                return InferenceEngine::util::string_to_property(val, ov::cache_dir);
             } else if (name == ov::hint::performance_mode) {
-                return ov::util::string_to_property(val, ov::hint::performance_mode);
+                return InferenceEngine::util::string_to_property(val, ov::hint::performance_mode);
             } else if (name == ov::compilation_num_threads) {
-                return ov::util::string_to_property(val, ov::compilation_num_threads);
+                return InferenceEngine::util::string_to_property(val, ov::compilation_num_threads);
             } else if (name == ov::streams::num) {
-                return ov::util::string_to_property(val, ov::streams::num);
+                return InferenceEngine::util::string_to_property(val, ov::streams::num);
             } else if (name == ov::hint::num_requests) {
-                return ov::util::string_to_property(val, ov::hint::num_requests);
+                auto temp = InferenceEngine::util::string_to_property(val, ov::hint::num_requests);;
+                return temp;
             } else if (name == ov::device::id) {
-                return ov::util::string_to_property(val, ov::device::id);
+                return InferenceEngine::util::string_to_property(val, ov::device::id);
             } else {
-                IE_THROW() << "Unsupported GPU Plugin Property : " << name;
+                return val;
             }
         } else {
-            return val;
+            if (name == PluginConfigParams::KEY_MODEL_PRIORITY ||
+                name == GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY)
+                return Config::ConvertPropertyToLegacy(name, val);
+            else
+                return val;
         }
     } else {
         IE_THROW() << "Unsupported config key : " << name;
