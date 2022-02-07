@@ -95,7 +95,7 @@ class MTCNNEngine(IEEngine):
 
     def set_model(self, model):
         """ Loads NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         # save graph to IR and use it to initialize IE Network
         self._model = self._set_model(model)

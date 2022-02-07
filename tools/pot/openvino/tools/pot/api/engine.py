@@ -26,7 +26,7 @@ class Engine(ABC):
 
     def set_model(self, model):
         """ Set/reset model to instance of engine class
-         :param model: NXModel instance for inference
+         :param model: CompressedModel instance for inference
         """
 
     @property

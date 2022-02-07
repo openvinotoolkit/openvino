@@ -15,7 +15,7 @@ from openvino.tools.pot.utils.logger import get_logger, stdout_redirect
 logger = get_logger(__name__)
 
 
-class NXModel:
+class CompressedModel:
     """
     Class encapsulating the logic of graph operations handling
     for multiple NetworkX models (Model Optimizer representation).
