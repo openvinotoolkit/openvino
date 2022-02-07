@@ -16,8 +16,8 @@
 #include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
-#include <transformations/smart_reshape/smart_reshape.hpp>
 #include <transformations/serialize.hpp>
+#include <transformations/smart_reshape/smart_reshape.hpp>
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
