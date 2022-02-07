@@ -116,4 +116,4 @@ Run the Model Optimizer with the following command line parameters to generate r
 ```
 For other applicable parameters, refer to [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md).
 
-For more information about reshape abilities, refer to [Using Shape Inference](../../../../IE_DG/ShapeInference.md).
+For more information about reshape abilities, refer to [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md).

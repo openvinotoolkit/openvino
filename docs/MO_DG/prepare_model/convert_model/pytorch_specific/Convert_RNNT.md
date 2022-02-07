@@ -104,5 +104,5 @@ mo --input_model rnnt_prediction.onnx --input "symbol[1 1],hidden_in_1[2 1 320],
 mo --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
 ```
 Please note that hardcoded value for sequence length = 157 was taken from the MLCommons but conversion to IR preserves 
-network [reshapeability](../../../../IE_DG/ShapeInference.md), this means you can change input shapes manually to any value either during conversion or 
+network [reshapeability](../../../../OV_Runtime_UG/ShapeInference.md), this means you can change input shapes manually to any value either during conversion or 
 inference.

@@ -47,7 +47,7 @@ Notice that the benchmark_app usually produces optimal performance for any devic
 $benchmark_app -m <model> -i <input> -d CPU
 ```
 
-But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../../../docs/IE_DG/Intro_to_Performance.md).
+But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../../../docs/OV_Runtime_UG/Intro_to_Performance.md).
 
 Running the application with the `-h` or `--help`' option yields the following usage message:
 
@@ -188,6 +188,6 @@ Throughput: 73.28 FPS
 ```
 
 ## See Also
-* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+* [Using Inference Engine Samples](../../../../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](https://github.com/openvinotoolkit/open_model_zoo/tree/2018/model_downloader)

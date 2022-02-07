@@ -157,7 +157,7 @@ the following (for the case when `axis` is not equal to 0 and 1):
 4. Use the concatenated value as the second input to the `Reshape` operation.
 
 It is highly recommended that you write shape-agnostic transformations to avoid model reshape-ability issues. Refer to
-[Using Shape Inference](../../../IE_DG/ShapeInference.md) for more information related to the reshaping of a model.
+[Using Shape Inference](../../../OV_Runtime_UG/ShapeInference.md) for more information related to the reshaping of a model.
 
 More information on how to develop front phase transformations and dedicated API description is provided in the
 [Front Phase Transformations](#front-phase-transformations).
@@ -171,7 +171,7 @@ defined as a mathematical expression using the [ShapeOf](../../../ops/shape/Shap
 
 > **NOTE**: Model Optimizer does not fold sub-graphs starting from the [ShapeOf](../../../ops/shape/ShapeOf_3.md)
 > operation by default because this leads to a model non-reshape-ability (the command line parameter `--static_shape`
-> can override this behavior). Refer to [Using Shape Inference](../../../IE_DG/ShapeInference.md) for more information
+> can override this behavior). Refer to [Using Shape Inference](../../../OV_Runtime_UG/ShapeInference.md) for more information
 > related to reshaping of a model.
 
 Model Optimizer calculates output shapes for all operations in a model to write them to Intermediate Representation
@@ -507,7 +507,7 @@ There are a number of common attributes used in the operations. Here is the list
 Model Optimizer operations this attribute should be set to `None`. The model conversion fails if an operation with
 `type` equal to `None` comes to the IR emitting phase. **Mandatory**.
 * `version` — the operation set (opset) name the operation belongs to. If not specified, the Model Optimizer sets it
-equal to `experimental`. Refer to [nGraph Basic Concepts](@ref openvino_docs_nGraph_DG_basic_concepts) for more
+equal to `experimental`. Refer to [OpenVINO Model Representation](@ref openvino_docs_OV_Runtime_UG_Model_Representation) for more
 information about operation sets. **Mandatory**.
 * `op` — Model Optimizer type of the operation. In many cases, the value of `type` is equal to the value of `op`. But
 when the Model Optimizer cannot instantiate the opset operation during model loading, it creates an instance of an internal
@@ -1259,6 +1259,6 @@ Refer to the `extensions/back/GatherNormalizer.py` for the example of a such typ
 ## See Also <a name="see-also"></a>
 * [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md)
 * [Converting a Model to Intermediate Representation (IR)](../convert_model/Converting_Model.md)
-* [nGraph Basic Concepts](../../../nGraph_DG/nGraph_basic_concepts.md)
-* [Inference Engine Extensibility Mechanism](../../../IE_DG/Extensibility_DG/Intro.md)
+* [OpenVINO Model Representation](../../../OV_Runtime_UG/model_representation.md)
+* [Inference Engine Extensibility Mechanism](../../../OV_Runtime_UG/Extensibility_DG/Intro.md)
 * [Extending the Model Optimizer with Caffe* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md)

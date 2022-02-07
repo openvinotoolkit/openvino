@@ -18,7 +18,6 @@
    :hidden:
 
    openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide
-   openvino_docs_nGraph_DG_DevGuide
    openvino_docs_install_guides_deployment_manager_tool
    openvino_inference_engine_tools_compile_tool_README
 
@@ -95,7 +94,7 @@ This section provides reference documents that guide you through developing your
 With the [Model Downloader](@ref omz_tools_downloader) and [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) guides, you will learn to download pre-trained models and convert them for use with the OpenVINO™ toolkit. You can provide your own model or choose a public or Intel model from a broad selection provided in the [Open Model Zoo](model_zoo.md).
 
 ## Deploying Inference
-The [Inference Engine Developer Guide](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) explains the process of creating your own application that runs inference with the OpenVINO™ toolkit. The [API Reference](./api_references.html) defines the Inference Engine API for Python, C++, and C and the nGraph API for Python and C++. The Inference Engine API is what you'll use to create an OpenVINO™ application, while the nGraph API is available for using enhanced operations sets and other features. After writing your application, you can use the [Deployment Manager](install_guides/deployment-manager-tool.md) for deploying to target devices.
+The [OpenVINO™ Runtime User Guide](OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) explains the process of creating your own application that runs inference with the OpenVINO™ toolkit. The [API Reference](./api_references.html) defines the Inference Engine API for Python, C++, and C and the nGraph API for Python and C++. The Inference Engine API is what you'll use to create an OpenVINO™ application, while the nGraph API is available for using enhanced operations sets and other features. After writing your application, you can use the [Deployment Manager](install_guides/deployment-manager-tool.md) for deploying to target devices.
 
 ## Tuning for Performance
 The toolkit provides a [Performance Optimization Guide](optimization_guide/dldt_optimization_guide.md) and utilities for squeezing the best performance out of your application, including [Accuracy Checker](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool](@ref pot_README), and other tools for measuring accuracy, benchmarking performance, and tuning your application.

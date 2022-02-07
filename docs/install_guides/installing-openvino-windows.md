@@ -137,8 +137,8 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 @endsphinxdirective
 
 - Convert models for use with OpenVINO™: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-- Write your own OpenVINO™ applications: [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
-- Information on sample applications: [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
+- Write your own OpenVINO™ applications: [Inference Engine Developer Guide](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
+- Information on sample applications: [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md)
 - Information on a supplied set of models: [Overview of OpenVINO™ Toolkit Pre-Trained Models](../model_zoo.md)
 - IoT libraries and code samples: [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit)
 

@@ -1,6 +1,6 @@
 # Hello Reshape SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
 
-This sample demonstrates how to do synchronous inference of object detection networks using [Shape Inference feature](../../../docs/IE_DG/ShapeInference.md).  
+This sample demonstrates how to do synchronous inference of object detection networks using [Shape Inference feature](../../../docs/OV_Runtime_UG/ShapeInference.md).  
 Models with only 1 input and output are supported.
 
 The following Inference Engine Python API is used in the application:
@@ -16,7 +16,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | :------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
 | Validated Models           | [mobilenet-ssd](@ref omz_models_model_mobilenet_ssd) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx) |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/hello_reshape_ssd/README.md) |
 
 ## How It Works
@@ -25,7 +25,7 @@ At startup, the sample application reads command-line parameters, prepares input
 As a result, the program creates an output image, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
@@ -114,8 +114,8 @@ The sample application logs each step in a standard output stream and creates an
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 

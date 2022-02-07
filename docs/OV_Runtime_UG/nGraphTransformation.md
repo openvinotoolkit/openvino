@@ -42,7 +42,7 @@ nGraph function is a very simple thing: it stores shared pointers to `ngraph::op
 Sinks of the graph have no consumers and not included into results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result or Sink operation
 (shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
 
-For examples of how to build an nGraph function, see the [Build nGraph Function](./build_function.md) page.
+For examples of how to build an nGraph function, see the [Build nGraph Function](./model_representation.md) page.
 
 ## Transformations types <a name="transformations_types"></a>
 
@@ -267,7 +267,7 @@ When developing a transformation, you need to follow these transformation rules:
 
 Use the latest version of OpSet in your transformation. An exception is op_conversion transformations, where different opsets can be used.
 
-@snippet example_ngraph_utils.cpp ngraph:include
+@snippet example_ngraph_utils.cpp ov:include
 
 ###2. Dynamic Shape and Rank
 
@@ -387,7 +387,7 @@ The most popular tool for transformations debugging is the `ngraph::pass::Visual
 
 Usage example:
 
-@snippet example_ngraph_utils.cpp ngraph:visualize
+@snippet example_ngraph_utils.cpp ov:visualize
 
 `ngraph::pass::VisualizeTree` can be parametrized via environment variables:
 

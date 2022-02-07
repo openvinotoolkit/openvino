@@ -3,7 +3,7 @@
 ## Introduction
 
 Inference Engine CPU and GPU plugin can infer models in the low precision. 
-For details, refer to [Low Precision Inference on the CPU](../../../IE_DG/Int8Inference.md).
+For details, refer to [Low Precision Inference on the CPU](../../../OV_Runtime_UG/Int8Inference.md).
 
 Intermediate Representation (IR) should be specifically formed to be suitable for low precision inference. 
 Such an IR is called a Low Precision IR and you can generate it in two ways:
