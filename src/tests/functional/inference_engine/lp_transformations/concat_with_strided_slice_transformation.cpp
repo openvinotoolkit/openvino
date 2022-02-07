@@ -145,7 +145,7 @@ public:
 
 TEST_P(ConcatWithStridedSliceTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
