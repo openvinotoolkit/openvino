@@ -300,14 +300,12 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     const InferenceEngine::SoExecutableNetworkInternal& networkWithoutBatch,
     const DeviceInformation& networkDevice,
     const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
-    std::shared_ptr<InferenceEngine::ICore> pCore,
     const bool needPerfCounters)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       _network{networkWithBatch},
       _networkWithoutBatch{networkWithoutBatch},
       _config{config},
-      _pCore{pCore},
       _needPerfCounters{needPerfCounters} {
     // WA for gcc 4.8 ( fails compilation with member init-list)
     _device = networkDevice;
@@ -823,7 +821,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                                                         executableNetworkWithoutBatch,
                                                         metaDevice,
                                                         networkConfig,
-                                                        core,  // keep the shared_ptr so the core is not released
                                                         enablePerfCounters);
 }
 
