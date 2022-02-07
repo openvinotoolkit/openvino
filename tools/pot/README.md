@@ -13,6 +13,7 @@
    Command-line Interface <pot_compression_cli_README>
    pot_compression_api_README
    pot_configs_README
+   Deep neural network protection <pot_ranger_README>
    pot_docs_FrequentlyAskedQuestions
 
 @endsphinxdirective
