@@ -1525,6 +1525,12 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                         impl_candidate = impl_types::ocl;
                         break;
                     }
+
+                    if (fo.node->as<eltwise>().get_primitive()->mode == eltwise_mode::sum &&
+                        program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
+                        impl_candidate = impl_types::ocl;
+                        break;
+                    }
                 // Gemm checkings
                 // TODO: investigate why currently onednn gemm has some "sum" post-op restrictions
                 // which don't correlate with fc checkings in the code above
