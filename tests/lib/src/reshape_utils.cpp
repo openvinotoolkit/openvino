@@ -139,6 +139,20 @@ ov::Shape getTensorStaticShape(ov::Output<const ov::Node> &input,
 
 
 /**
+ * @brief Return copy of inputs object before reshape
+ */
+std::vector<ov::Output<ov::Node>> getCopyOfDefaultInputs(std::vector<ov::Output<ov::Node>> defaultInputs) {
+    std::vector<ov::Output<ov::Node>> inputsCopy;
+    for (size_t i = 0; i < defaultInputs.size(); i++) {
+        auto nodeCopy = defaultInputs[i].get_node()->clone_with_new_inputs({});
+        auto inputNode = ov::Output<ov::Node>(nodeCopy);
+        inputsCopy.push_back(inputNode);
+    }
+    return inputsCopy;
+}
+
+
+/**
  * @brief Fill infer_request tensors with random values. The model shape is set separately. (OV API 2)
  */
 void fillTensorsWithSpecifiedShape(ov::InferRequest& infer_request, std::vector<ov::Output<const ov::Node>> &inputs,

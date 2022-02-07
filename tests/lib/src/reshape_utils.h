@@ -45,6 +45,12 @@ std::map<std::string, std::vector<size_t>> parseDataShapes(const std::string &sh
 
 
 /**
+ * @brief Return copy of inputs object before reshape
+ */
+std::vector<ov::Output<ov::Node>> getCopyOfDefaultInputs(std::vector<ov::Output<ov::Node>> defaultInputs);
+
+
+/**
  * @brief  Getting tensor shapes. If tensor is dynamic, static shape from data info will be returned.
  */
 ov::Shape getTensorStaticShape(ov::Output<const ov::Node> &input,
