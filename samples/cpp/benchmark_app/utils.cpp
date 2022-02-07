@@ -28,7 +28,7 @@ namespace benchmark_app {
 bool InputInfo::is_image() const {
     if ((layout != "NCHW") && (layout != "NHWC") && (layout != "CHW") && (layout != "HWC"))
         return false;
-    // If tensor_shape is still empty, assume this is still an Image and tensor shape will be filled later
+    // If data_shape is still empty, assume this is still an Image and tensor shape will be filled later
     return (dataShape.empty() || channels() == 3);
 }
 bool InputInfo::is_image_info() const {
@@ -406,7 +406,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             throw std::logic_error(
                 "Shapes number for every input should be either 1 or should be equal to shapes number of other inputs");
         }
-        slog::info << "Number of test configurations is calculated basing on -tensor_shape parameter" << slog::endl;
+        slog::info << "Number of test configurations is calculated basing on -data_shape parameter" << slog::endl;
     } else if (fileNames.size() > 0) {
         slog::info << "Number of test configurations is calculated basing on number of input images" << slog::endl;
         min_size = std::min_element(fileNames.begin(),
@@ -511,7 +511,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 if (contains_binaries(namesVector)) {
                     throw std::logic_error("Input files list for input " + item.get_any_name() +
                                            " contains binary file(s) and input shape is dynamic. Tensor shape should "
-                                           "be defined explicitly (using -tensor_shape).");
+                                           "be defined explicitly (using -data_shape).");
                 }
 
                 info.dataShape = ov::Shape(info.partialShape.size(), 0);
@@ -538,12 +538,12 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     if (fileIdx >= namesVector.size()) {
                         throw std::logic_error(
                             "Not enough files to fill in full batch (number of files should be a multiple of batch "
-                            "size if -tensor_shape parameter is omitted and shape is dynamic)");
+                            "size if -data_shape parameter is omitted and shape is dynamic)");
                     }
                     FormatReader::ReaderPtr reader(namesVector[fileIdx].c_str());
                     if ((w && w != reader->width()) || (h && h != reader->height())) {
                         throw std::logic_error("Image sizes putting into one batch should be of the same size if input "
-                                               "shape is dynamic and -tensor_shape is omitted. Problem file: " +
+                                               "shape is dynamic and -data_shape is omitted. Problem file: " +
                                                namesVector[fileIdx]);
                     }
                     w = reader->width();
