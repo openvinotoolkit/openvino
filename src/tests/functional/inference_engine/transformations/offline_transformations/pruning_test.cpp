@@ -189,10 +189,10 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     auto add_const = create_constant_with_zeros(Shape{1, 6, 1, 1}, {{}, {1, 2, 3, 4, 5}, {}, {}});
     auto add = std::make_shared<opset5::Add>(relu, add_const);
 
-    auto sub_const = create_constant_with_zeros(Shape{6, 1, 1}, {{1, 2, 3}, {}, {}});
+    auto sub_const = create_constant_with_zeros(Shape{6, 1, 1}, {{1, 2}, {}, {}});
     auto sub = std::make_shared<opset5::Subtract>(add, sub_const);
 
-    auto mul_const = create_constant_with_zeros(Shape{1, 6, 1, 1}, {{}, {4}, {}, {}});
+    auto mul_const = create_constant_with_zeros(Shape{1, 6, 1, 1}, {{}, {3}, {}, {}});
     auto mul = std::make_shared<ov::op::v1::Multiply>(sub, mul_const);
 
     auto weights2 = create_constant_with_zeros(weights_shape2, {{1, 2}, {1, 2, 3}, {}, {}});
