@@ -30,6 +30,7 @@ std::mutex LayerTransformation::defaultPrecisionsMutex;
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
     deqPrecision(params.deqPrecision),
+    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {

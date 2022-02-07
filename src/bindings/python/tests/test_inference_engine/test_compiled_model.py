@@ -14,22 +14,22 @@ is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
 
 
-def test_get_metric(device):
+def test_get_property_model_name(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    network_name = exec_net.get_metric("NETWORK_NAME")
+    network_name = exec_net.get_property("NETWORK_NAME")
     assert network_name == "test_model"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
-def test_get_config(device):
+def test_get_property(device):
     core = Core()
-    if core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+    if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
         pytest.skip("Can't run on ARM plugin due-to CPU dependent test")
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    config = exec_net.get_config("PERF_COUNT")
+    config = exec_net.get_property("PERF_COUNT")
     assert config == "NO"
 
 
@@ -41,21 +41,38 @@ def test_get_runtime_model(device):
     assert isinstance(runtime_func, Model)
 
 
-@pytest.mark.skip(reason="After infer will be implemented")
 def test_export_import():
     core = Core()
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(func, "CPU")
-    exported_net_file = "exported_model.bin"
-    exec_net.export_model(network_model=exported_net_file)
-    assert os.path.exists(exported_net_file)
-    exec_net = core.import_network(exported_net_file, "CPU")
-    os.remove(exported_net_file)
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    compiled = core.compile_model(model, "CPU")
+
+    user_stream = compiled.export_model()
+
+    new_compiled = core.import_model(user_stream, "CPU")
+
     img = read_image()
-    res = exec_net.infer({"data": img})
-    assert np.argmax(res["fc_out"][0]) == 3
-    del exec_net
-    del core
+    res = new_compiled.infer_new_request({"data": img})
+
+    assert np.argmax(res[new_compiled.outputs[0]]) == 2
+
+
+def test_export_import_advanced():
+    import io
+
+    core = Core()
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    compiled = core.compile_model(model, "CPU")
+
+    user_stream = io.BytesIO()
+
+    compiled.export_model(user_stream)
+
+    new_compiled = core.import_model(user_stream, "CPU")
+
+    img = read_image()
+    res = new_compiled.infer_new_request({"data": img})
+
+    assert np.argmax(res[new_compiled.outputs[0]]) == 2
 
 
 def test_get_input_i(device):

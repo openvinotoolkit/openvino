@@ -15,6 +15,7 @@
 #include "ie_plugin_config.hpp"
 #include "executable_network.hpp"
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include <openvino/runtime/properties.hpp>
 // clang-format on
 
 using namespace InferenceEngine;
@@ -40,6 +41,7 @@ Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs& loca
 const std::vector<std::string>& getSupportedConfigKeys() {
     static const std::vector<std::string> supported_configKeys = {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
                                                                   "TARGET_FALLBACK",
+                                                                  ov::device::priorities.name(),
                                                                   CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)};
 
     return supported_configKeys;
@@ -55,7 +57,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
     auto tconfig = mergeConfigs(_config, config);
     auto it = tconfig.find("TARGET_FALLBACK");
     if (it == tconfig.end()) {
-        IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous device";
+        it = tconfig.find(ov::device::priorities.name());
+    }
+    if (it == tconfig.end()) {
+        IE_THROW() << "The '" << ov::device::priorities.name() << "' option was not defined for heterogeneous plugin";
     }
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(it->second, tconfig);
 
@@ -121,7 +126,10 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
     auto tconfig = mergeConfigs(_config, config);
     auto it = tconfig.find("TARGET_FALLBACK");
     if (it == tconfig.end()) {
-        IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous device";
+        it = tconfig.find(ov::device::priorities.name());
+    }
+    if (it == tconfig.end()) {
+        IE_THROW() << "The '" << ov::device::priorities.name() << "' option was not defined for heterogeneous plugin";
     }
 
     std::string fallbackDevicesStr = it->second;
@@ -173,7 +181,12 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         if (deviceIt != options.end()) {
             targetFallback = deviceIt->second.as<std::string>();
         } else {
-            targetFallback = GetConfig("TARGET_FALLBACK", {}).as<std::string>();
+            deviceIt = options.find(ov::device::priorities.name());
+            if (deviceIt != options.end()) {
+                targetFallback = deviceIt->second.as<std::string>();
+            } else {
+                targetFallback = GetConfig(ov::device::priorities.name(), {}).as<std::string>();
+            }
         }
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, DeviceArchitecture(targetFallback));
     } else {
@@ -186,8 +199,8 @@ std::string Engine::DeviceArchitecture(const std::string& targetFallback) const 
     for (const auto& device : fallbackDevices) {
         InferenceEngine::DeviceIDParser parser(device);
 
-        std::vector<std::string> supportedMetricKeys =
-            GetCore()->GetMetric(parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS));
+        auto supportedMetricKeys =
+            GetCore()->GetMetric(parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
         auto arch = (it != supportedMetricKeys.end())
                         ? GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>()
@@ -203,10 +216,13 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         IE_ASSERT(it != _config.end());
         bool dump = it->second == YES;
         return {dump};
-    } else if (name == "TARGET_FALLBACK") {
+    } else if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
         auto it = _config.find("TARGET_FALLBACK");
         if (it == _config.end()) {
-            IE_THROW() << "Value for TARGET_FALLBACK is not set";
+            it = _config.find(ov::device::priorities.name());
+        }
+        if (it == _config.end()) {
+            IE_THROW() << "Value for" << name << " is not set";
         } else {
             return {it->second};
         }

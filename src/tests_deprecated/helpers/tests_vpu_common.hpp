@@ -12,7 +12,6 @@
 #include <ie_precision.hpp>
 
 #include "single_layer_common.hpp"
-#include "vpu/vpu_plugin_config.hpp"
 #include <vpu/private_plugin_config.hpp>
 
 
