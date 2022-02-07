@@ -57,8 +57,8 @@
   Alternatively, follow the steps:
   
   1. Go to installation directory.
-  2. In `OpenVINO` directory find `Installer` folder and open it.
-  3. Double-click on `installer.exe` and you will be presented with dialog box shown below.
+  2. In ``OpenVINO`` directory find ``Installer`` folder and open it.
+  3. Double-click on ``installer.exe`` and you will be presented with dialog box shown below.
 
 .. tab:: Linux
 
