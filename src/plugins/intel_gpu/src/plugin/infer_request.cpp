@@ -1054,15 +1054,25 @@ void InferRequest::allocate_outputs() {
         }
 
         outputsMap[no.first] = outputID;
-        if (m_graph->GetEngine()->use_unified_shared_memory()) {
-            // For USM case we create host blob using custom USM host allocator
-            // and then create shared device blob on top of this buffer
-            auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->GetContext().get()));
+        if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
+            TensorDesc device_blob_desc = desc;
+            device_blob_desc.setPrecision(Precision::FP32);
+
+            auto host_blob = create_host_blob(desc);
             _outputs[no.first] = host_blob;
-            _deviceOutputs[no.first] = create_shared_device_blob(desc, output_layout, host_blob->buffer().as<void*>());
+            auto device_blob = create_device_blob(device_blob_desc, output_layout);
+            _deviceOutputs[no.first] = device_blob;
         } else {
-            _outputs[no.first] = create_host_blob(desc);
-            _deviceOutputs[no.first] = create_device_blob(desc, output_layout);
+            if (m_graph->GetEngine()->use_unified_shared_memory()) {
+                // For USM case we create host blob using custom USM host allocator
+                // and then create shared device blob on top of this buffer
+                auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->GetContext().get()));
+                _outputs[no.first] = host_blob;
+                _deviceOutputs[no.first] = create_shared_device_blob(desc, output_layout, host_blob->buffer().as<void*>());
+            } else {
+                _outputs[no.first] = create_host_blob(desc);
+                _deviceOutputs[no.first] = create_device_blob(desc, output_layout);
+            }
         }
     }
 }
