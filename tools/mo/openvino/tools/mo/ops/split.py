@@ -296,7 +296,7 @@ def split_reverse_infer(node: Node, num_splits: int, axis: int):
     aggregated_size_along_axis = 0
     shapes = []
     for i in range(num_splits):
-        shape = node.out_port(i).data.get_shape()
+        shape = node.out_port(i).data.get_shape() if not node.out_port(i).disconnected() else None
         if shape is not None:
             # if out_shape_1 = [dyn, 4, 3], out_shape_2 = [7, dyn, 3], axis = 2
             # to get the original source shape [7, 4, 6]
