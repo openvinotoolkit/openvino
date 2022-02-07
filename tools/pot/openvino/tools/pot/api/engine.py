@@ -1,8 +1,8 @@
 # Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from addict import Dict
 from abc import ABC, abstractmethod
+from addict import Dict
 
 from ..statistics.statistic_graph_builder import StatisticGraphBuilder
 
