@@ -130,6 +130,7 @@ Options:
                                 enabling threads->cores pinning ("YES", which is already default for a conventional CPU),
                                 letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
                                 threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU inference threads pinning.
+    -infer_precision "i8"/"i16"/"f32"/"bf16" Optional. Hint to specifies inference precision
     -ip "U8"/"FP16"/"FP32"      Optional. Specifies precision for all input layers of the network.
     -op "U8"/"FP16"/"FP32"      Optional. Specifies precision for all output layers of the network.
     -iop                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required.

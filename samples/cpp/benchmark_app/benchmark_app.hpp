@@ -191,8 +191,8 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadNetwork."
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
-// @brief message for quantization bits
-static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
+// @brief message for inference_precision
+static const char inference_precision_message[] = "Optional. Inference precission";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 
@@ -329,8 +329,8 @@ DEFINE_string(data_shape, "", data_shape_message);
 /// @brief Define flag for layout shape <br>
 DEFINE_string(layout, "", layout_message);
 
-/// @brief Define flag for quantization bits (default 16)
-DEFINE_int32(qb, 16, gna_qb_message);
+/// @brief Define flag for inference precision
+DEFINE_string(infer_precision, "f32", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
@@ -405,7 +405,7 @@ static void show_usage() {
     std::cout << "    -pcseq                    " << pcseq_message << std::endl;
     std::cout << "    -dump_config              " << dump_config_message << std::endl;
     std::cout << "    -load_config              " << load_config_message << std::endl;
-    std::cout << "    -qb                       " << gna_qb_message << std::endl;
+    std::cout << "    -infer_precision \"<element type>\"" << inference_precision_message << std::endl;
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;

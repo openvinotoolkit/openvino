@@ -243,9 +243,7 @@ int main(int argc, char* argv[]) {
         bool perf_counts = false;
         // Update config per device according to command line parameters
         for (auto& device : devices) {
-            if (!config.count(device))
-                config[device] = {};
-            auto& device_config = config.at(device);
+            auto& device_config = config[device] ;
 
             // high-level performance modes
             if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
@@ -277,7 +275,7 @@ int main(int argc, char* argv[]) {
             perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
             // the rest are individual per-device settings (overriding the values set with perf modes)
-            auto setThroughputStreams = [&]() {
+            auto setThroughputStreams = [&] {
                 if (device_nstreams.count(device)) {
                     // set to user defined value
                     auto supported_properties = core.get_property(device, ov::supported_properties);
@@ -317,18 +315,28 @@ int main(int argc, char* argv[]) {
                     return str;
             };
 
+            auto supported_properties = core.get_property(device, ov::supported_properties);
+            auto supported = [&](const std::string& key) {
+                return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                        std::end(supported_properties);
+            };
+            if (supported(ov::inference_num_threads.name()) && isFlagSetInCommandLine("nthreads")) {
+                device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
+            }
+            if (supported(ov::num_streams.name()) && isFlagSetInCommandLine("nstreams")) {
+                device_config.emplace(ov::num_streams(FLAGS_nstreams));
+            }
+            if (supported(ov::affinity.name()) && isFlagSetInCommandLine("pin")) {
+                device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
+            }
+
+            if (supported(ov::hint::inference_precision.name()) && isFlagSetInCommandLine("infer_precision")) {
+                device_config.emplace(ov::hint::inference_precision(FLAGS_infer_precision));
+            }
+
             if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
-                if (isFlagSetInCommandLine("nthreads"))
-                    device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
-
-                if (isFlagSetInCommandLine("enforcebf16"))
-                    device_config[CONFIG_KEY(ENFORCE_BF16)] = FLAGS_enforcebf16 ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
-
-                if (isFlagSetInCommandLine("pin")) {
-                    // set to user defined value
-                    device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
-                } else {
+                if (!isFlagSetInCommandLine("pin")) {
                     auto it_affinity = device_config.find(ov::affinity.name());
                     if (it_affinity != device_config.end() && (device_name.find("MULTI") != std::string::npos) &&
                         (device_name.find("GPU") != std::string::npos)) {
@@ -356,26 +364,6 @@ int main(int argc, char* argv[]) {
             } else if (device.find("MYRIAD") != std::string::npos) {
                 device_config.emplace(ov::log::level(ov::log::Level::WARNING));
                 setThroughputStreams();
-            } else if (device.find("GNA") != std::string::npos) {
-                if (FLAGS_qb == 8)
-                    device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
-                else
-                    device_config[GNA_CONFIG_KEY(PRECISION)] = "I16";
-            } else {
-                auto supported_properties = core.get_property(device, ov::supported_properties);
-                auto supported = [&](const std::string& key) {
-                    return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
-                           std::end(supported_properties);
-                };
-                if (supported(ov::inference_num_threads.name()) && isFlagSetInCommandLine("nthreads")) {
-                    device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
-                }
-                if (supported(ov::num_streams.name()) && isFlagSetInCommandLine("nstreams")) {
-                    device_config.emplace(ov::num_streams(FLAGS_nstreams));
-                }
-                if (supported(ov::affinity.name()) && isFlagSetInCommandLine("pin")) {
-                    device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
-                }
             }
         }
 
