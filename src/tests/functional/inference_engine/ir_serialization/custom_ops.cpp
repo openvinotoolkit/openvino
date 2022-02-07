@@ -28,7 +28,7 @@ static std::string get_extension_path() {
 }
 
 static std::string get_ov_extension_path() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("ov_template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
 class CustomOpsSerializationTest : public ::testing::Test {
@@ -87,7 +87,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
 
 #endif  // OPENVINO_STATIC_LIBRARY
 
-#endif  // NGRAPH_ONNX_FRONTEND_ENABLE
+#endif  // ENABLE_OV_ONNX_FRONTEND
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.xml");

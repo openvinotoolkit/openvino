@@ -17,7 +17,6 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
-#include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 

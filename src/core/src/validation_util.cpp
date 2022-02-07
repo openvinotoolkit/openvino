@@ -1204,25 +1204,7 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
                 if (stop_nodes.count(in.get_node()))
                     continue;
                 auto consumer = in.get_node()->shared_from_this();
-                // FIXME: Here we have a WA in order to save some original fields
-                // if we have conflicts because Variant merge doesn't work.
-                // We can restore original fields because we don't change the operation
-                auto orig_rt_info = consumer->get_rt_info();
-
                 copy_runtime_info({curr_node, consumer}, consumer);
-
-                auto& rt_info = consumer->get_rt_info();
-                for (const auto& it : orig_rt_info) {
-                    if (rt_info.find(it.first) == rt_info.end()) {
-                        bool copy = true;
-                        if (it.second.is<ov::RuntimeAttribute>()) {
-                            copy = it.second.as<ov::RuntimeAttribute>().is_copyable();
-                        }
-                        if (copy) {
-                            rt_info[it.first] = it.second;
-                        }
-                    }
-                }
             }
         }
     }
@@ -1596,9 +1578,8 @@ bool ngraph::host_tensor_is_positive(const HostTensorPtr& bound) {
     OutputVector all(1);
     folded = std::make_shared<op::v1::ReduceLogicalAnd>(greater[0], axes)->constant_fold(all, {greater[0], axes});
     NGRAPH_CHECK(folded && ov::is_type<op::Constant>(all[0].get_node_shared_ptr()));
-    const auto result = std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>();
     NGRAPH_CHECK(all[0].get_shape() == Shape{});
-    return result[0];
+    return std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {

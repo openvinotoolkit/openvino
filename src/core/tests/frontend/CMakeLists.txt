@@ -16,12 +16,12 @@ if (ENABLE_OV_TF_FRONTEND)
 endif()
 
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
-set(MOCK1_FE_NAME ov_mock1_frontend)
+set(MOCK1_FE_NAME openvino_mock1_frontend)
 add_library(${MOCK1_FE_NAME} SHARED EXCLUDE_FROM_ALL ${SRC})
 
 target_compile_definitions(${MOCK1_FE_NAME} PRIVATE "-DMOCK_VARIANT=\"1\"")
 
-target_include_directories(${MOCK1_FE_NAME} PRIVATE ".")
+target_include_directories(${MOCK1_FE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(${MOCK1_FE_NAME} PRIVATE frontend_common)
 add_dependencies(ov_core_unit_tests ${MOCK1_FE_NAME})

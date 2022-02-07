@@ -1,6 +1,6 @@
 # Hello Query Device C++ Sample {#openvino_inference_engine_samples_hello_query_device_README}
 
-This sample demonstrates how to execute an query Inference Engine devices, prints their metrics and default configuration values, using [Query Device API feature](../../../docs/IE_DG/InferenceEngine_QueryAPI.md).
+This sample demonstrates how to execute an query Inference Engine devices, prints their metrics and default configuration values, using [Query Device API feature](../../../docs/OV_Runtime_UG/InferenceEngine_QueryAPI.md).
 
 The following Inference Engine C++ API is used in the application:
 
@@ -21,7 +21,7 @@ The sample queries all available Inference Engine devices, prints their supporte
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 ## Running
 
@@ -90,5 +90,5 @@ The application prints all available devices with their supported metrics and de
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)

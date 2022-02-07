@@ -28,7 +28,8 @@ from openvino.tools.mo.front.TransposeOrderNormalizer import TransposeOrderNorma
 from openvino.tools.mo.front.split_normalizer import SqueezeAxis
 from openvino.tools.mo.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from openvino.tools.mo.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
-from openvino.tools.mo.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation
+from openvino.tools.mo.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation,\
+    TensorListOutputConcatenation
 from openvino.tools.mo.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from openvino.tools.mo.front.tf.pad_tf_to_pad import PadTFToPad
 from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
@@ -594,7 +595,7 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
 
     def run_before(self):
         return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, TFSliceToSliceReplacer, MapFNInputSlicing,
-                MapFNOutputConcatenation, CropAndResizeReplacement]
+                MapFNOutputConcatenation, TensorListOutputConcatenation, CropAndResizeReplacement]
 
     def find_and_replace_pattern(self, graph: Graph):
         pass
@@ -1205,6 +1206,12 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
             if last_node.name.startswith(masks_node_prefix_name):
                 sigmoid_node = Sigmoid(graph, dict(name='masks')).create_node()
                 op_output.in_port(0).get_connection().insert_node(sigmoid_node)
+
+                # the line below is needed to keep layout as is, istead of default NCHW->NHWC changing
+                sigmoid_node['nchw_layout'] = True
+
+                # adding op name to tensor names list is needed for compatiblity with old api configs
+                op_output.in_port(0).get_connection().get_source().add_tensor_names([sigmoid_node['name']])
 
         log.error('The predicted masks are produced by the "masks" layer for each bounding box generated with a '
                   '"detection_output" operation.\n Refer to operation specification in the documentation for the '
