@@ -28,8 +28,8 @@ public:
     }
 
     bool is_equal(const AllocatorImpl& other) const override {
-        auto other_blob_allocator = dynamic_cast<const SharedTensorAllocator*>(&other);
-        return other_blob_allocator != nullptr && other_blob_allocator == this;
+        auto other_tensor_allocator = dynamic_cast<const SharedTensorAllocator*>(&other);
+        return other_tensor_allocator != nullptr && other_tensor_allocator == this;
     }
 
     char* get_buffer() {

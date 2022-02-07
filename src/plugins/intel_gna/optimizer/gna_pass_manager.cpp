@@ -879,6 +879,7 @@ void InsertCopyLayerPass::run() {
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
     // and copies before concat layers (one less copy than outputs)
     // Concat has multiple connections to the same input
+    // Subgraph has only non-functional layers
     for (auto & l : *pLayers) {
         if (!LayerInfo(l).isConcat()) continue;
 
@@ -975,6 +976,31 @@ void InsertCopyLayerPass::run() {
                     InsertCopyLayer(l, concatLayer, inputIdx, this->getPassManager(), CopyLayerName);
                 }
                 currentCopyIdx++;
+            }
+        }
+    }
+
+    for (auto & l : *pLayers) {
+        if (!l->outData.size() == 0 &&
+            !getInputTo(l->outData[0]).size() == 0) continue;
+
+        bool bNeedInsertCopyLayer = true;
+        CNNNetDFS(l, [&l, &bNeedInsertCopyLayer](CNNLayerPtr layer) {
+            if (!(LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isSplit() || LayerInfo(layer).isCrop() || LayerInfo(layer).isInput())) {
+                bNeedInsertCopyLayer = false;
+            }
+            }, true, [&bNeedInsertCopyLayer](InferenceEngine::CNNLayer* from) {
+                    // aborting UFS if we found functional layer (excluding Splits and Crops)
+                    return make_upstream_order(bNeedInsertCopyLayer ? from : nullptr);
+            });
+
+        if (bNeedInsertCopyLayer) {
+            for (size_t inputIdx = 0; inputIdx < l->insData.size(); ++inputIdx) {
+                IE_ASSERT(l->insData[inputIdx].lock() != nullptr);
+                auto inputData = l->insData[inputIdx].lock();
+                auto parentLayer = getCreatorLayer(inputData);
+                IE_ASSERT(parentLayer.lock() != nullptr);
+                InsertCopyLayer(parentLayer.lock(), l, inputIdx, this->getPassManager(), CopyLayerName);
             }
         }
     }
@@ -1451,10 +1477,21 @@ void EltwiseSplitOverChannelsPass::run() {
         IE_ASSERT(firstValuableDim != std::end(oDims));
         auto splittedElementsSize = *firstValuableDim;
         auto splittedDimIx = std::distance(std::begin(oDims), firstValuableDim);
+        auto alignment = GNALimitations::inputByteAlignment;
 
-        // Split output size should be multiple by 64 to avoid align filters insertion
+        // Split output size should be multiple by 64 to avoid align filters insertion,
+        // but we need to check if our input size to split exceeds 64; if not we can always
+        // split if the remaining size is aligned
+        if (splittedElementsSize <= 64) {
+            if ((totalElementsSize / splittedElementsSize) % alignment == 0) {
+                alignment = 1;
+            } else {
+                THROW_GNA_LAYER_EXCEPTION(l) << "splitting didn't succeed\n";
+            }
+        }
+
         auto splitSizes = GetAlignedSplitSizes(splittedElementsSize,
-            GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize);
+            GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize, alignment);
 
         pass_trace() << "transforming " << LAYER_NAME(l) << " by splitting it to multiple eltwise operations\n";
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);

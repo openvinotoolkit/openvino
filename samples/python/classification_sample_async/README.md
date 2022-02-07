@@ -16,7 +16,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | :------------------------- | :-------------------------------------------------------------------------------------------------------- |
 | Validated Models           | [alexnet](@ref omz_models_model_alexnet) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx) |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/classification_sample_async/README.md) |
 
 ## How It Works
@@ -24,7 +24,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image(s) to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
@@ -73,7 +73,7 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -146,22 +146,22 @@ The sample application logs each step in a standard output stream and outputs to
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-[IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
-[IECore.add_extension]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a8a4b671a9928c7c059bd1e76d2333967
-[IECore.set_config]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a2c738cee90fca27146e629825c039a05
-[IECore.read_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a0d69c298618fab3a08b855442dca430f
-[IENetwork.input_info]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
-[IENetwork.outputs]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
-[InputInfoPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
-[DataPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1DataPtr.html#data_fields
-[IECore.load_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc
-[InputInfoPtr.input_data.shape]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
-[InferRequest.async_infer]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InferRequest.html#a95ebe0368cdf4d5d64f9fddc8ee1cd0e
-[InferRequest.wait]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InferRequest.html#a936fa50a7531e2f9a9e9c3d45afc9b43
+[IECore]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html
+[IECore.add_extension]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#a8a4b671a9928c7c059bd1e76d2333967
+[IECore.set_config]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#a2c738cee90fca27146e629825c039a05
+[IECore.read_network]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#a0d69c298618fab3a08b855442dca430f
+[IENetwork.input_info]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
+[IENetwork.outputs]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
+[InputInfoPtr.precision]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
+[DataPtr.precision]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1DataPtr.html#data_fields
+[IECore.load_network]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc
+[InputInfoPtr.input_data.shape]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
+[InferRequest.async_infer]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1InferRequest.html#a95ebe0368cdf4d5d64f9fddc8ee1cd0e
+[InferRequest.wait]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1InferRequest.html#a936fa50a7531e2f9a9e9c3d45afc9b43
 <!-- TODO replace by python API link -->
-[Blob.buffer]:https://docs.openvinotoolkit.org/latest/classInferenceEngine_1_1Blob.html#a0cad47b43204b115b4017b6b2564fa7e
+[Blob.buffer]:https://docs.openvino.ai/latest/classInferenceEngine_1_1Blob.html#a0cad47b43204b115b4017b6b2564fa7e

@@ -28,7 +28,7 @@ namespace benchmark_app {
 bool InputInfo::is_image() const {
     if ((layout != "NCHW") && (layout != "NHWC") && (layout != "CHW") && (layout != "HWC"))
         return false;
-    // If tensor_shape is still empty, assume this is still an Image and tensor shape will be filled later
+    // If data_shape is still empty, assume this is still an Image and tensor shape will be filled later
     return (dataShape.empty() || channels() == 3);
 }
 bool InputInfo::is_image_info() const {
@@ -353,7 +353,7 @@ std::map<std::string, std::vector<std::string>> parse_input_parameters(
             input_name = search_string.substr(0, start_pos);
         auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
         if (!input_name.empty()) {
-            return_value[input_name].push_back(input_value);
+            return_value[parameter_name_to_tensor_name(input_name, input_info)].push_back(input_value);
         } else {
             for (auto& item : input_info) {
                 return_value[item.get_any_name()].push_back(input_value);
@@ -406,7 +406,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             throw std::logic_error(
                 "Shapes number for every input should be either 1 or should be equal to shapes number of other inputs");
         }
-        slog::info << "Number of test configurations is calculated basing on -tensor_shape parameter" << slog::endl;
+        slog::info << "Number of test configurations is calculated basing on -data_shape parameter" << slog::endl;
     } else if (fileNames.size() > 0) {
         slog::info << "Number of test configurations is calculated basing on number of input images" << slog::endl;
         min_size = std::min_element(fileNames.begin(),
@@ -511,7 +511,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 if (contains_binaries(namesVector)) {
                     throw std::logic_error("Input files list for input " + item.get_any_name() +
                                            " contains binary file(s) and input shape is dynamic. Tensor shape should "
-                                           "be defined explicitly (using -tensor_shape).");
+                                           "be defined explicitly (using -data_shape).");
                 }
 
                 info.dataShape = ov::Shape(info.partialShape.size(), 0);
@@ -538,12 +538,12 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     if (fileIdx >= namesVector.size()) {
                         throw std::logic_error(
                             "Not enough files to fill in full batch (number of files should be a multiple of batch "
-                            "size if -tensor_shape parameter is omitted and shape is dynamic)");
+                            "size if -data_shape parameter is omitted and shape is dynamic)");
                     }
                     FormatReader::ReaderPtr reader(namesVector[fileIdx].c_str());
                     if ((w && w != reader->width()) || (h && h != reader->height())) {
                         throw std::logic_error("Image sizes putting into one batch should be of the same size if input "
-                                               "shape is dynamic and -tensor_shape is omitted. Problem file: " +
+                                               "shape is dynamic and -data_shape is omitted. Problem file: " +
                                                namesVector[fileIdx]);
                     }
                     w = reader->width();
@@ -796,4 +796,39 @@ std::vector<std::string> filter_files_by_extensions(const std::vector<std::strin
         }
     }
     return filtered;
+}
+
+std::string parameter_name_to_tensor_name(const std::string& name,
+                                          const std::vector<ov::Output<const ov::Node>>& inputs_info,
+                                          const std::vector<ov::Output<const ov::Node>>& outputs_info) {
+    if (std::any_of(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
+            try {
+                return name == port.get_any_name();
+            } catch (const ov::Exception&) {
+                return false;  // Some ports might have no names - so this is workaround
+            }
+        })) {
+        return name;
+    } else if (std::any_of(outputs_info.begin(), outputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
+                   try {
+                       return name == port.get_any_name();
+                   } catch (const ov::Exception&) {
+                       return false;  // Some ports might have no names - so this is workaround
+                   }
+               })) {
+        return name;
+    } else {
+        for (const auto& port : inputs_info) {
+            if (name == port.get_node()->get_friendly_name()) {
+                return port.get_any_name();
+            }
+        }
+        for (const auto& port : outputs_info) {
+            if (name == port.get_node()->get_input_node_ptr(0)->get_friendly_name()) {
+                return port.get_any_name();
+            }
+        }
+    }
+    throw std::runtime_error("Provided I/O name \"" + name +
+                             "\" is not found neither in tensor names nor in nodes names.");
 }

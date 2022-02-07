@@ -1,6 +1,6 @@
 # Hello Query Device Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README}
 
-This sample demonstrates how to show Inference Engine devices and prints their metrics and default configuration values using [Query Device API feature](../../../docs/IE_DG/InferenceEngine_QueryAPI.md).
+This sample demonstrates how to show Inference Engine devices and prints their metrics and default configuration values using [Query Device API feature](../../../docs/OV_Runtime_UG/InferenceEngine_QueryAPI.md).
 
 The following Inference Engine Python API is used in the application:
 
@@ -11,7 +11,7 @@ The following Inference Engine Python API is used in the application:
 
 | Options                    | Values                                                                  |
 | :------------------------- | :---------------------------------------------------------------------- |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/hello_query_device/README.md) |
 
 ## How It Works
@@ -103,8 +103,8 @@ The application prints all available devices with their supported metrics and de
 ```
 ## See Also
 
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 
-[IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
-[IECore.get_metric]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#af1cdf2ecbea6399c556957c2c2fdf8eb
-[IECore.get_config]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a48764dec7c235d2374af8b8ef53c6363
+[IECore]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html
+[IECore.get_metric]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#af1cdf2ecbea6399c556957c2c2fdf8eb
+[IECore.get_config]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#a48764dec7c235d2374af8b8ef53c6363
