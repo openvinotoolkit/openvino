@@ -136,7 +136,7 @@ TEST(opset, check_opset1) {
     CHECK_OPSET(op::v0::Sinh, opset1::Sinh)
     CHECK_OPSET(op::v1::Softmax, opset1::Softmax)
     CHECK_OPSET(op::v0::SpaceToDepth, opset1::SpaceToDepth)
-    // CHECK_OPSET(op::v1::SparseConv, opset1::SparseConv)
+    CHECK_OPSET(op::v1::SparseConv, opset1::SparseConv)
     CHECK_OPSET(op::v1::Split, opset1::Split)
     CHECK_OPSET(op::v0::Sqrt, opset1::Sqrt)
     CHECK_OPSET(op::v0::SquaredDifference, opset1::SquaredDifference)

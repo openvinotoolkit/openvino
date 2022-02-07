@@ -156,6 +156,7 @@
 #include "ngraph/op/softplus.hpp"
 #include "ngraph/op/space_to_batch.hpp"
 #include "ngraph/op/space_to_depth.hpp"
+#include "ngraph/op/sparse_conv.hpp"
 #include "ngraph/op/split.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/squared_difference.hpp"

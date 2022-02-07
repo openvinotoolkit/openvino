@@ -13,7 +13,5 @@ namespace op {
 namespace v1 {
 using ov::op::v1::SparseConv;
 }  // namespace v1
-
-using v1::SparseConv;
 }  // namespace op
 }  // namespace ngraph
