@@ -21,7 +21,7 @@ TEST(op_eval, softsign) {
     auto fun = std::make_shared<ngraph::Function>(ngraph::OutputVector{softsign}, ngraph::ParameterVector{p});
 
     float inputs[] = {-1.0, 0.0, 1.0, 20.0};
-    std::vector<float> expected_result{0.5, 1.0, 0.5, 0.047619};
+    std::vector<float> expected_result{-0.5, 0.0, 0.5, 0.952381};
 
     ov::TensorVector result(1);
     ov::Tensor input{ov::element::f32, ov::Shape{4}, inputs};
