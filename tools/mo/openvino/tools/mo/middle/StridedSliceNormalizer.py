@@ -204,6 +204,10 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             if node.in_port(i).get_source().node.soft_get('type') == 'Concat':
                 # concat already exists
                 concat = node.in_port(i).get_source().node
+                # because output data node shape will be changed
+                # while shapes will be reinferred no need to check consistency
+                concat['override_output_shape'] = True
+
                 last_in_port = max(concat.in_ports().keys())
                 assert not concat.in_port(last_in_port).disconnected(), 'The last in_port of Concat node {} ' \
                                                                         'should be connected'. \
