@@ -229,6 +229,8 @@ enum Algorithm {
     // Color conversions
     ColorConvertNV12toRGB,
     ColorConvertNV12toBGR,
+    ColorConvertI420toRGB,
+    ColorConvertI420toBGR,
 };
 
 extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;

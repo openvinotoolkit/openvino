@@ -8,6 +8,9 @@ import sys
 from distutils.version import LooseVersion
 from pathlib import Path
 
+# do not print INFO and WARNING messages from TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 modules = {
     "protobuf": "google.protobuf",
     "test-generator": "generator",

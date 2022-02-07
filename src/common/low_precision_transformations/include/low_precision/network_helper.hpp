@@ -87,7 +87,7 @@ public:
 
     static std::shared_ptr<opset1::Constant> toScalar(std::shared_ptr<opset1::Constant> constant);
 
-    static std::shared_ptr<Node> getConstantInput(const std::shared_ptr<Node>& node, const bool convertIsExpected = false);
+    static std::shared_ptr<Node> getConstantInput(const std::shared_ptr<const Node>& node, const bool convertIsExpected = false);
 
     static std::vector<size_t> updateReshapeValues(
         const Shape& elementwiseConstantShape,
