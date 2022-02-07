@@ -111,6 +111,13 @@ def get_layers_intersection(layers, ref_layers):
     return [layers_map[intersection_name] for intersection_name in intersection_names]
 
 
+def get_layers_union(layers, ref_layers):
+    layers_map = {}
+    for layer, ref_layer in zip(layers, ref_layers):
+        layers_map.update({layer.friendly_name: layer})
+        layers_map.update({ref_layer.friendly_name: ref_layer})
+    return layers_map.values()
+
 ###
 #   INFER
 ###
@@ -165,7 +172,7 @@ def one_ir_mode(args):
     model_layers, model_inputs, model_outputs, precision = get_model_info(model)
     log.info(f'{args.device} : {precision} vs {args.reference_device} : {precision}')
     log.info(f'The same IR on both devices: {args.model}')
-    out_layers = get_layers_list(model_layers, model_inputs, model_outputs, args.layers)
+    out_layers = get_layers_list(model_layers, model_outputs, args.layers)
     print_input_layers(model_inputs)
     print_output_layers(out_layers)
     ref_core = get_plugin(args.reference_device, args.l, args.reference_config)
@@ -204,9 +211,15 @@ def two_ir_mode(args):
     log.info(f'{args.device} : {precision} vs {args.reference_device} : {ref_precision}')
     log.info(f'IR for {args.device} : {args.model}')
     log.info(f'IR for {args.reference_device} : {args.reference_model}')
-    out_layers = get_layers_list(get_layers_intersection(model_layers, ref_model_layers), model_inputs, model_outputs, args.layers)
+    if args.reference_layers:
+        out_layers = get_layers_list(model_layers, model_outputs, args.layers)
+        ref_out_layers = get_layers_list(ref_model_layers, model_outputs, args.reference_layers)
+        if len(out_layers) != len(ref_out_layers):
+            raise Exception("Number of layers to compare against should be equal!")
+    else:
+        ref_out_layers = out_layers = get_layers_list(get_layers_intersection(model_layers, ref_model_layers), model_outputs, args.layers)
     print_input_layers(model_inputs)
-    print_output_layers(out_layers)
+    print_output_layers(get_layers_union(out_layers, ref_out_layers))
     inputs = input_processing(model_path=args.model, model_inputs=model_inputs, input_file=args.input)
     global_accuracy = []
     global_times, ref_global_times = overall_accuracy_check(model=args.model, ref_model=args.reference_model,
@@ -215,13 +228,19 @@ def two_ir_mode(args):
                                                             device=args.device, ref_core=ref_core,
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
-    for out_layer in out_layers:
-        log.info(f'Layer {out_layer.friendly_name} statistics')
+    for out_layer, ref_out_layer in zip(out_layers, ref_out_layers):
+        if out_layer.friendly_name == ref_out_layer.friendly_name:
+            log.info(f'Layer {out_layer.friendly_name} statistics')
+        else:
+            if out_layer.get_output_size() != ref_out_layer.get_output_size():
+                log.warning(f"Skipping {out_layer.friendly_name} vs {ref_out_layer.frinedly_name} comparison due to different number of outputs!")
+                continue
+            log.info(f'Layer {out_layer.friendly_name} vs {ref_out_layer.friendly_name} statistics')
         for i in range(out_layer.get_output_size()):
             if out_layer.get_output_size() > 1:
                 log.info(f'Port {i}: ')
             model_copy, new_output = get_model_copy_with_output(model=args.model, output=(out_layer.friendly_name, i), core=core)
-            ref_model_copy, ref_new_output = get_model_copy_with_output(model=args.reference_model, output=(out_layer.friendly_name, i), core=ref_core)
+            ref_model_copy, ref_new_output = get_model_copy_with_output(model=args.reference_model, output=(ref_out_layer.friendly_name, i), core=ref_core)
             out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
             ref_out_blob, ref_pc = infer(model=ref_model_copy, core=ref_core, device=args.reference_device,
                                                                     inputs=inputs, output=ref_new_output)
@@ -237,7 +256,7 @@ def dump_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     model = get_model(model_path=args.model, core=core)
     model_layers, model_inputs, model_outputs, _ = get_model_info(model)
-    out_layers = get_layers_list(model_layers, model_inputs, model_outputs, args.layers)
+    out_layers = get_layers_list(model_layers, model_outputs, args.layers)
     inputs = input_processing(args.model, model_inputs, args.input)
     dump_dict = defaultdict(list)
     for out_layer in out_layers:
@@ -259,7 +278,7 @@ def load_mode(args):
     log.info(f'Loading blob from {args.load}')
     model = get_model(model_path=args.model, core=core)
     model_layers, model_inputs, model_outputs, _ = get_model_info(model)
-    out_layers = get_layers_list(model_layers, model_inputs, model_outputs, args.layers)
+    out_layers = get_layers_list(model_layers, model_outputs, args.layers)
     print_input_layers(model_inputs)
     print_output_layers(out_layers)
     inputs = input_processing(args.model, model_inputs, args.input)

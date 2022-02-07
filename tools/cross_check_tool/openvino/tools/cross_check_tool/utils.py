@@ -179,6 +179,9 @@ def build_parser():
     model.add_argument('--layers', '-layers', type=str, default=None,
                        help='Defines layers to check. Options: all, None - for output layers check, list of '
                             'comma-separated layer names to check. Default value is None.')
+    model.add_argument('-ref_layers', '--reference_layers', type=str, default=None,
+                       help='Defines layers to check. Options: all, None - for output layers check, list of '
+                            'comma-separated layer names to check. Default value is None.')
     model.add_argument('--mapping', '-map', type=str, action=ExistingFileAction,
                        help='Model Optimizer provided mapping for --model/-m')
     model.add_argument('--reference_mapping', '-ref_map', type=str, action=ExistingFileAction,
@@ -345,6 +348,23 @@ def is_chw_input(input):
     return False
 
 
+def get_input_sizes(input):
+    if is_chw_input(input):
+        shape = input.shape
+        if len(shape) == 3:
+            return shape[1], shape[2]
+        else:
+            return shape[2], shape[3]
+    else:
+        shape = input.shape
+        if len(shape) < 3 or len(shape) > 4:
+            raise Exception('Can not interpret input shape as image')
+        if len(shape) == 3:
+            return shape[0], shape[1]
+        else:
+            return shape[1], shape[2]
+
+
 @error_handling('reading --input/-i by OpenCV python module. OpenCV version: {}. '
                 'It may happen due to wrong input image format'.format(cv2.__version__))
 def read_image_file(image_file: str, model_input: Output):
@@ -353,14 +373,11 @@ def read_image_file(image_file: str, model_input: Output):
     image = cv2.imread(image_file)
     if image is None:
         raise Exception('Can not read input image ' + image_file)
-    shape = model_input.shape
-    if len(shape) != 4:
-        raise Exception('Can not interpret input shape as image')
-    n, c, h, w = shape
+    h, w = get_input_sizes(model_input)
     image = cv2.resize(image, (w, h))
     if is_chw_input(model_input):
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-    if len(shape) == 4:
+    if len(model_input.shape) == 4:
         image = np.expand_dims(image, 0) # Add batch dimension
     return image
 
@@ -422,6 +439,7 @@ def accuracy_metrics(out_blob, ref_out_blob):
     if out_blob.size != ref_out_blob.size:
         raise Exception(f'Different number of elements in blobs {out_blob.size} and {ref_out_blob.size}. Can not compare')
     abs_diff = np.absolute(out_blob - ref_out_blob)
+    np.seterr(divide='ignore', invalid='ignore')
     rel_diff = np.divide(abs_diff, np.min(abs_diff) if np.min(abs_diff) != 0 else 1e-20)
 
     metrics = [
@@ -505,7 +523,7 @@ def print_all_over_the_net_metrics(global_accuracy: list, global_times: list = N
 ###
 
 
-def get_layers_list(all_layers: list, inputs: list, outputs: list, layers: str):
+def get_layers_list(all_layers: list, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
             return [layer for layer in all_layers if layer.get_type_name() not in ['Constant', 'Result']]
