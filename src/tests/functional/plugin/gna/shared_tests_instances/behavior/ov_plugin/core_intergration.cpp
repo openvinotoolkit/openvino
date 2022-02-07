@@ -102,6 +102,9 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPrecisionHint) {
     ov::Core core;
     ov::element::Type precision;
 
+    ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
+    ASSERT_EQ(ov::element::undefined, precision);
+
     ASSERT_NO_THROW(core.set_property("GNA", ov::hint::inference_precision(ov::element::i8)));
     ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::i8, precision);
@@ -128,6 +131,9 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPrecisionHint) {
 TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPerformanceHint) {
     ov::Core core;
     ov::hint::PerformanceMode mode;
+
+    ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
+    ASSERT_EQ(ov::hint::PerformanceMode::UNDEFINED, mode);
 
     ASSERT_NO_THROW(core.set_property("GNA", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
     ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));

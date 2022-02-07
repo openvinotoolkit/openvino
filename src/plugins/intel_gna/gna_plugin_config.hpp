@@ -51,7 +51,7 @@ struct Config {
     std::vector<std::string> GetSupportedKeys() const;
     static const InferenceEngine::Parameter GetSupportedProperties(bool compiled = false);
 
-    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
+    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
 
     // default precision of GNA hardware model (see QuantI16 quantizer struct)
     ov::element::Type inference_precision = ov::element::undefined;
