@@ -102,8 +102,4 @@ The toolkit provides a [Performance Optimization Guide](optimization_guide/dldt_
 You can choose to use the [OpenVINO™ Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), a web-based tool that guides you through the process of converting, measuring, optimizing, and deploying models. This tool also serves as a low-effort introduction to the toolkit and provides a variety of useful interactive charts for understanding performance.
 
 ## Media Processing
-<<<<<<< HEAD
 You can also add media processing capabilities to your application using third-party additional tools and libraries which include [Intel® Deep Learning Streamer (Intel® DL Streamer)](@ref openvino_docs_dlstreamer), a utility that eases creation of media analytics pipelines via command line or API, and optimized versions of [OpenCV](https://opencv.org/).
-=======
-The OpenVINO™ toolkit comes with several sets of libraries and tools that add capability and flexibility to the toolkit. These include [DL Streamer](@ref gst_samples_README), a utility that eases creation of pipelines via command line or API, and optimized versions of OpenCV and OpenCL.
->>>>>>> upstream/master
