@@ -104,7 +104,7 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
-  - script: ls -alR $(REPO_DIR)/temp/
+  - script: ls -alR $(REPO_DIR)/inference-engine/temp/
     displayName: 'List temp SDKs'
 
   - script: ninja
