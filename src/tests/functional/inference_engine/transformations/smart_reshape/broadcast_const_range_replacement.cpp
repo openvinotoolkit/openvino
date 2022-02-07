@@ -10,8 +10,8 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <transformations/smart_reshape/broadcast_const_range_replacement.hpp>
 
-#include "broadcast_const_range_replacement.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 

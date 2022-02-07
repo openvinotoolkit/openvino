@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "broadcast_const_range_replacement.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
@@ -12,7 +11,9 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/validation_util.hpp>
-// #include "itt.hpp"
+#include <transformations/smart_reshape/broadcast_const_range_replacement.hpp>
+
+#include "itt.hpp"
 
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BroadcastConstRangeReplacement, "BroadcastConstRangeReplacement", 0);
