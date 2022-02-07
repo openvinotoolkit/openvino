@@ -4,9 +4,9 @@
 
 #include "ngraph/op/matmul.hpp"
 
+#include <dimension_tracker.hpp>
 #include <memory>
 #include <numeric>
-#include <dimension_tracker.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"

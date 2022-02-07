@@ -5,8 +5,8 @@
 #include "ngraph/op/reshape.hpp"
 
 #include <algorithm>
-#include <ngraph/validation_util.hpp>
 #include <dimension_tracker.hpp>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
@@ -239,139 +239,138 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
 }
 
 namespace {
-bool fully_eq(const Dimension &rhs, const Dimension &lhs) {
+bool fully_eq(const Dimension& rhs, const Dimension& lhs) {
     return rhs == lhs && ov::DimensionTracker::get_label(rhs) == ov::DimensionTracker::get_label(lhs);
 }
 
-Dimension resolve_minus_one(const Node *reshape_node,
-                            vector<Dimension> &input_product,
-                            vector<Dimension> &output_product) {
-        std::vector<Dimension> to_delete_from_output, to_delete_from_input;
-        Dimension input_const_part(1), output_const_part(1);
+Dimension resolve_minus_one(const Node* reshape_node,
+                            vector<Dimension>& input_product,
+                            vector<Dimension>& output_product) {
+    std::vector<Dimension> to_delete_from_output, to_delete_from_input;
+    Dimension input_const_part(1), output_const_part(1);
 
-        for (const auto &dim : output_product)
-            if (!ov::DimensionTracker::get_label(dim)) {
-                output_const_part *= dim;
-                to_delete_from_output.push_back(dim);
-            }
-
-        for (const auto &dim : input_product)
-            if (!ov::DimensionTracker::get_label(dim)) {
-                input_const_part *= dim;
-                to_delete_from_input.push_back(dim);
-            }
-
-        for (const auto &dim : to_delete_from_input) {
-            input_product.erase(
-                    std::remove_if(input_product.begin(),
-                                   input_product.end(),
-                                   [=](const Dimension &d) { return fully_eq(dim, d); }),
-                    input_product.end());
-        }
-        for (const auto &dim : to_delete_from_output) {
-            output_product.erase(
-                    std::remove_if(output_product.begin(),
-                                   output_product.end(),
-                                   [=](const Dimension &d) { return fully_eq(dim, d); }),
-                    output_product.end());
+    for (const auto& dim : output_product)
+        if (!ov::DimensionTracker::get_label(dim)) {
+            output_const_part *= dim;
+            to_delete_from_output.push_back(dim);
         }
 
-        to_delete_from_input.clear();
-        to_delete_from_output.clear();
-
-        if (input_const_part != output_const_part) {
-            input_product.push_back(input_const_part);
-            output_product.push_back(output_const_part);
+    for (const auto& dim : input_product)
+        if (!ov::DimensionTracker::get_label(dim)) {
+            input_const_part *= dim;
+            to_delete_from_input.push_back(dim);
         }
 
-        for (const auto &out_dim : output_product) {
-            const auto &it = std::find_if(
-                    input_product.begin(), input_product.end(), [out_dim](const Dimension &in_dim) {
-                        return fully_eq(out_dim, in_dim);
-                    });
-            if (it != input_product.end()) {
-                to_delete_from_output.push_back(out_dim);
-                to_delete_from_input.push_back(out_dim);
-            }
-        }
-        for (const auto &dim : to_delete_from_input) {
-            input_product.erase(
-                    std::remove_if(input_product.begin(),
-                                   input_product.end(),
-                                   [=](const Dimension &d) { return fully_eq(dim, d); }),
-                    input_product.end());
-        }
-        for (const auto &dim : to_delete_from_output) {
-            output_product.erase(
-                    std::remove_if(output_product.begin(),
-                                   output_product.end(),
-                                   [=](const Dimension &d) { return fully_eq(dim, d); }),
-                    output_product.end());
-        }
+    for (const auto& dim : to_delete_from_input) {
+        input_product.erase(std::remove_if(input_product.begin(),
+                                           input_product.end(),
+                                           [=](const Dimension& d) {
+                                               return fully_eq(dim, d);
+                                           }),
+                            input_product.end());
+    }
+    for (const auto& dim : to_delete_from_output) {
+        output_product.erase(std::remove_if(output_product.begin(),
+                                            output_product.end(),
+                                            [=](const Dimension& d) {
+                                                return fully_eq(dim, d);
+                                            }),
+                             output_product.end());
+    }
 
-        if (output_product.empty() && input_product.size() == 1)
-            return input_product[0];
+    to_delete_from_input.clear();
+    to_delete_from_output.clear();
 
-        Dimension input_dim(1), output_dim(1);
-        for (const auto &i : input_product) {
-            input_dim *= i;
-        }
-        for (const auto &i : output_product) {
-            output_dim *= i;
-        }
+    if (input_const_part != output_const_part) {
+        input_product.push_back(input_const_part);
+        output_product.push_back(output_const_part);
+    }
 
-        if (output_dim == 0) {
-            NODE_VALIDATION_CHECK(reshape_node,
-                                  input_dim == 0,
-                                  "Cannot infer '-1' dimension with zero-size output "
-                                  "dimension unless at least one input dimension is "
-                                  "also zero-size");
-            return Dimension(0);
-        } else {
-            if (input_dim.is_static() && output_dim.is_static()) {
-                NODE_VALIDATION_CHECK(
-                        reshape_node,
-                        input_dim.get_length() % output_dim.get_length() == 0,
-                        "Non-'-1' output dimensions do not evenly divide the input dimensions");
-            }
-            if (output_dim.get_min_length() == 0 || output_dim == Dimension() ||
-                input_dim == Dimension()) {
-                return Dimension::dynamic();
-            } else {
-                Dimension::value_type lower;
-                if (input_dim.get_min_length() == 0)
-                    lower = 0;
-                else if (input_dim.get_min_length() == -1 || output_dim.get_max_length() == 0 ||
-                         output_dim.get_max_length() == -1)
-                    lower = -1; // dynamic
-                else
-                    lower = static_cast<Dimension::value_type>(
-                            ceil(static_cast<double>(input_dim.get_min_length()) /
-                                 output_dim.get_max_length()));
-
-                Dimension::value_type upper;
-                if (input_dim.get_max_length() == 0)
-                    upper = 0;
-                else if (input_dim.get_max_length() == -1 || output_dim.get_min_length() == 0 ||
-                         output_dim.get_min_length() == -1)
-                    upper = -1; // dynamic
-                else
-                    upper = static_cast<Dimension::value_type>(
-                            floor(static_cast<double>(input_dim.get_max_length()) /
-                                  output_dim.get_min_length()));
-
-                if (lower == -1)
-                    return Dimension::dynamic();
-                else if (upper == -1)
-                    return Dimension(lower, upper);
-                else if (lower > upper) // empty intersection
-                    return Dimension::dynamic();
-                else
-                    return Dimension(lower, upper);
-            }
+    for (const auto& out_dim : output_product) {
+        const auto& it = std::find_if(input_product.begin(), input_product.end(), [out_dim](const Dimension& in_dim) {
+            return fully_eq(out_dim, in_dim);
+        });
+        if (it != input_product.end()) {
+            to_delete_from_output.push_back(out_dim);
+            to_delete_from_input.push_back(out_dim);
         }
     }
-} // namespace
+    for (const auto& dim : to_delete_from_input) {
+        input_product.erase(std::remove_if(input_product.begin(),
+                                           input_product.end(),
+                                           [=](const Dimension& d) {
+                                               return fully_eq(dim, d);
+                                           }),
+                            input_product.end());
+    }
+    for (const auto& dim : to_delete_from_output) {
+        output_product.erase(std::remove_if(output_product.begin(),
+                                            output_product.end(),
+                                            [=](const Dimension& d) {
+                                                return fully_eq(dim, d);
+                                            }),
+                             output_product.end());
+    }
+
+    if (output_product.empty() && input_product.size() == 1)
+        return input_product[0];
+
+    Dimension input_dim(1), output_dim(1);
+    for (const auto& i : input_product) {
+        input_dim *= i;
+    }
+    for (const auto& i : output_product) {
+        output_dim *= i;
+    }
+
+    if (output_dim == 0) {
+        NODE_VALIDATION_CHECK(reshape_node,
+                              input_dim == 0,
+                              "Cannot infer '-1' dimension with zero-size output "
+                              "dimension unless at least one input dimension is "
+                              "also zero-size");
+        return Dimension(0);
+    } else {
+        if (input_dim.is_static() && output_dim.is_static()) {
+            NODE_VALIDATION_CHECK(reshape_node,
+                                  input_dim.get_length() % output_dim.get_length() == 0,
+                                  "Non-'-1' output dimensions do not evenly divide the input dimensions");
+        }
+        if (output_dim.get_min_length() == 0 || output_dim == Dimension() || input_dim == Dimension()) {
+            return Dimension::dynamic();
+        } else {
+            Dimension::value_type lower;
+            if (input_dim.get_min_length() == 0)
+                lower = 0;
+            else if (input_dim.get_min_length() == -1 || output_dim.get_max_length() == 0 ||
+                     output_dim.get_max_length() == -1)
+                lower = -1;  // dynamic
+            else
+                lower = static_cast<Dimension::value_type>(
+                    ceil(static_cast<double>(input_dim.get_min_length()) / output_dim.get_max_length()));
+
+            Dimension::value_type upper;
+            if (input_dim.get_max_length() == 0)
+                upper = 0;
+            else if (input_dim.get_max_length() == -1 || output_dim.get_min_length() == 0 ||
+                     output_dim.get_min_length() == -1)
+                upper = -1;  // dynamic
+            else
+                upper = static_cast<Dimension::value_type>(
+                    floor(static_cast<double>(input_dim.get_max_length()) / output_dim.get_min_length()));
+
+            if (lower == -1)
+                return Dimension::dynamic();
+            else if (upper == -1)
+                return Dimension(lower, upper);
+            else if (lower > upper)  // empty intersection
+                return Dimension::dynamic();
+            else
+                return Dimension(lower, upper);
+        }
+    }
+}
+}  // namespace
 
 void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
                                              const int64_t& minus_one_idx,
