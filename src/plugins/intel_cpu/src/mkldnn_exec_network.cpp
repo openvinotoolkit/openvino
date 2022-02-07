@@ -11,6 +11,7 @@
 #include "mkldnn_memory_state.h"
 #include "mkldnn_itt.h"
 #include "mkldnn_serialize.h"
+#include "ngraph/type/element_type.hpp"
 #include "nodes/mkldnn_memory_node.hpp"
 #include <threading/ie_executor_manager.hpp>
 #define FIX_62820 0
@@ -19,14 +20,16 @@
 #endif
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <ie_system_conf.h>
-#include <algorithm>
-#include <unordered_set>
-#include <utility>
-#include <cstring>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
+#include "openvino/runtime/properties.hpp"
+
+#include <algorithm>
+#include <unordered_set>
+#include <utility>
+#include <cstring>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -60,13 +63,15 @@ struct ImmediateSerialExecutor : public ITaskExecutor {
 MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                                      const Config &cfg,
                                      const MKLDNNExtensionManager::Ptr& extMgr,
-                                     NumaNodesWeights &numaNodesWeights) :
+                                     NumaNodesWeights &numaNodesWeights,
+                                     const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()},
     _numaNodesWeights(numaNodesWeights),
-        _network(network) {
+    _network(network) {
+    SetPointerToPlugin(plugin);
     auto function = network.getFunction();
     if (function == nullptr) {
         IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
@@ -82,14 +87,14 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
-        _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getExecutor("CPU");
+        _taskExecutor = _plugin->executorManager()->getExecutor("CPU");
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
-        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+        _taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
 #endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
@@ -97,7 +102,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
         _callbackExecutor = std::make_shared<ImmediateSerialExecutor>();
 #else
-        _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+        _callbackExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(
                                 IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
 #endif
     } else {
@@ -194,14 +199,25 @@ InferenceEngine::IInferRequestInternal::Ptr MKLDNNExecNetwork::CreateInferReques
 }
 
 std::shared_ptr<ngraph::Function> MKLDNNExecNetwork::GetExecGraphInfo() {
-    if (_graphs.size() == 0)
+    if (_graphs.empty())
         IE_THROW() << "No graph was found";
 
     return GetGraph()._graph.dump();
 }
 
-Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
-    if (_graphs.size() == 0) IE_THROW() << "No graph was found";
+bool MKLDNNExecNetwork::isLegacyAPI() const {
+    const auto& core = _plugin->GetCore();
+    if (!core)
+        IE_THROW() << "Unable to get API version. Core is unavailable";
+
+    return !core->isNewAPI();
+}
+
+Parameter MKLDNNExecNetwork::GetConfigLegacy(const std::string &name) const {
+    if (_graphs.empty())
+        IE_THROW() << "No graph was found";
+    /* legacy implementation return all the parameters which is actually not correct
+     * since they are not reconfigurable. Fixed for new API */
     Config engConfig = GetGraph()._graph.getProperty();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
@@ -211,12 +227,21 @@ Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
     }
 }
 
-InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name) const {
-    if (_graphs.size() == 0)
-        IE_THROW() << "No graph was found";
+/**
+ * Only legacy parameters are supported.
+ * No RW peroperties supported for new API.
+ * All the RO properties are covered with GetMetric() method and
+ * GetConfig() is not expected to be called by new API with params from new configuration API.
+ */
+Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
+    /* Internally legacy parameters are used with new API as part of migration procedure.
+     * This fallback can be removed as soon as migration completed */
+    return GetConfigLegacy(name);
+}
 
+InferenceEngine::Parameter MKLDNNExecNetwork::GetMetricLegacy(const std::string &name, const Graph& graph) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, GetGraph()._graph.dump()->get_friendly_name());
+        IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
@@ -226,12 +251,12 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : GetGraph()._graph.getProperty()._config) {
+        for (auto && key : graph.getProperty()._config) {
             configKeys.push_back(key.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = GetGraph()._graph.getProperty();
+        Config engConfig = graph.getProperty();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
@@ -240,6 +265,80 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
+}
+
+InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name) const {
+    if (_graphs.empty())
+        IE_THROW() << "No graph was found";
+    // @todo Can't we just use local copy (_cfg) instead?
+    auto graphLock = GetGraph();
+    const auto& graph = graphLock._graph;
+    const auto& config = graph.getProperty();
+
+    if (isLegacyAPI()) {
+        return GetMetricLegacy(name, graph);
+    }
+
+    auto RO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+    };
+
+    if (name == ov::supported_properties) {
+        return std::vector<ov::PropertyName> {
+            RO_property(ov::supported_properties.name()),
+            RO_property(ov::model_name.name()),
+            RO_property(ov::optimal_number_of_infer_requests.name()),
+            RO_property(ov::streams::num.name()),
+            RO_property(ov::affinity.name()),
+            RO_property(ov::inference_num_threads.name()),
+            RO_property(ov::enable_profiling.name()),
+            RO_property(ov::hint::inference_precision.name()),
+            RO_property(ov::hint::performance_mode.name()),
+            RO_property(ov::hint::num_requests.name()),
+        };
+    }
+
+    if (name == ov::model_name) {
+        // @todo Does not seem ok to 'dump()' the whole graph everytime in order to get a name
+        return graph.dump()->get_friendly_name();
+    } else if (name == ov::optimal_number_of_infer_requests) {
+        const auto streams = config.streamExecutorConfig._streams;
+        return static_cast<uint32_t>(streams); // ov::optimal_number_of_infer_requests has no negative values
+    } else if (name == ov::streams::num) {
+        const auto streams = config.streamExecutorConfig._streams;
+        return static_cast<int32_t>(streams); // ov::streams::num has special negative values (AUTO = -1, NUMA = -2)
+    } else if (name == ov::affinity) {
+        const auto affinity = config.streamExecutorConfig._threadBindingType;
+        switch (affinity) {
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::NONE:
+            return ov::Affinity::NONE;
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::CORES:
+            return ov::Affinity::CORE;
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::NUMA:
+            return ov::Affinity::NUMA;
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+            return ov::Affinity::HYBRID_AWARE;
+        }
+        return ov::Affinity::NONE;
+    } else if (name == ov::inference_num_threads) {
+        const auto num_threads = config.streamExecutorConfig._threads;
+        return num_threads;
+    } else if (name == ov::enable_profiling.name()) {
+        const bool perfCount = config.collectPerfCounters;
+        return perfCount ? "YES" : "NO";
+    } else if (name == ov::hint::inference_precision) {
+        const auto enforceBF16 = config.enforceBF16;
+        return enforceBF16 ? ov::element::bf16 : ov::element::f32;
+    } else if (name == ov::hint::performance_mode) {
+        const auto perfHint = config.perfHintsConfig.ovPerfHint;
+        return perfHint;
+    } else if (name == ov::hint::num_requests) {
+        const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
+        return perfHintNumRequests;
+    }
+    /* Internally legacy parameters are used with new API as part of migration procedure.
+     * This fallback can be removed as soon as migration completed */
+    return GetMetricLegacy(name, graph);
 }
 
 bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {
@@ -254,7 +353,7 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
     }
 
     auto ops = function->get_ordered_ops();
-    for (auto op : ops) {
+    for (const auto& op : ops) {
         auto type = TypeFromName(op->get_type_name());
         if (type == Tile) {
             const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
