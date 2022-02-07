@@ -25,8 +25,8 @@
    :hidden:
    :caption: Configure Intel® Distribution of OpenVINO™ Toolkit
    
-   Configure Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux*<openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
-   Configure Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Windows*<openvino_docs_install_guides_installing_openvino_windows_ivad_vpu>
+   Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux Setup Guide <openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
+   Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Windows Setup Guide <openvino_docs_install_guides_installing_openvino_windows_ivad_vpu>
    Intel® Movidius™ VPUs Setup Guide <openvino_docs_install_guides_movidius_setup_guide>
    Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
    Intel® Movidius™ VPUs Demos <openvino_docs_install_guides_movidius_demos>
