@@ -19,6 +19,8 @@ std::vector<std::vector<size_t>> inputShapes = {
     {1, 32, 1, 1026}
 };
 
+std::vector<std::vector<size_t>> inputShapes2 = {{1, 64, 30, 40}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_SplitConvConcat, SplitConvConcat,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
@@ -26,3 +28,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_SplitConvConcat, SplitConvConcat,
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         SplitConvConcat::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_ConvConcatD,
+                         ConvConcatD,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(inputShapes2),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         ConvConcatD::getTestCaseName);
