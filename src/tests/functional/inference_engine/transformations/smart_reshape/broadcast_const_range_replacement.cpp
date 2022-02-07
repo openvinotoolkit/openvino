@@ -185,14 +185,7 @@ TEST(TransformationTests, BroadcastConstRangeReplacement_reshape) {
 
         auto function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{data_param});
 
-        // Before transformation - non-reshapeable model, Broadcast error.
-        EXPECT_THROW(function->reshape(PartialShape{1, 189}), ov::Exception);
-
-        pass::Manager manager;
-        manager.register_pass<pass::BroadcastConstRangeReplacement>();
-        manager.run_passes(function);
-
-        // After transformation - the model is reshapeable.
+        // BroadcastConstRangeReplacement is called as a part of SmartReshape
         EXPECT_NO_THROW(function->reshape(PartialShape{1, 189}));
     }
 }
