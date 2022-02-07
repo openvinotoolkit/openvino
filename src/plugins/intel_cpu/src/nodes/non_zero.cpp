@@ -239,8 +239,27 @@ void NonZero::executeSpecified() {
         break;
     }
     default:
-        assert(false);
+    {
+        size_t inSize = inShape.getElementsCount();
+        auto srcStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+
+        parallel_for(inSize,
+                     [&](size_t ithr, size_t i) {
+                         size_t& colIndex = destIndices[ithr];
+
+                         if (src[i] != zero) {
+                             size_t outIndex = 0;
+                             size_t temp = i;
+                             for (size_t j = 0; j < inRank; j++) {
+                                 outIndex = j * totalNonZeroCount + colIndex;
+                                 dst[outIndex] = static_cast<int>(temp / srcStrides[j]);
+                                 temp = temp % srcStrides[j];
+                             }
+                             colIndex++;
+                         }
+                     });
         break;
+    }
     }
 }
 
