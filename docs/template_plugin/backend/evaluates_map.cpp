@@ -3356,6 +3356,26 @@ inline bool evaluate(const shared_ptr<op::v8::NV12toBGR>& op,
                                                       ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR);
 }
 
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::I420toRGB>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_i420<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_RGB);
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::I420toBGR>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_i420<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_BGR);
+}
+
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
               const HostTensorVector& outputs,
