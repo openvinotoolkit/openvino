@@ -20,12 +20,8 @@ Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow
    ```
 3. You may need to reboot your machine for this to take effect.
 
-@sphinxdirective
-
 You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
-Proceed to the [Get Started Guide](../get_started.md) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
-
-@endsphinxdirective
+Proceed to the [Get Started Guide](@ref get_started) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 @sphinxdirective
 

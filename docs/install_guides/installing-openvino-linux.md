@@ -164,12 +164,6 @@ The environment variables are set. Next, you can download some additional tools.
 
 @endsphinxdirective
 
-@sphinxdirective
-
-.. _linux get started:
-
-@endsphinxdirective
-
 ## <a name="get-started"></a>Step 6: What's next?
 
 Now you are ready to try out the toolkit.
