@@ -422,7 +422,7 @@ void regclass_Core(py::module m) {
 
             Parameters
             ----------
-            model_stream : bytes
+            model_stream : io.BytesIO
                 Input stream containing a model previously exported using export_model method.
 
             device_name : str

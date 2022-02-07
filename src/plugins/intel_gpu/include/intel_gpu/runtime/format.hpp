@@ -278,6 +278,33 @@ struct format {
                 fmt == bfyx || fmt == fyxb ||
                 fmt == bfzyx || fmt == bfwzyx);
     }
+
+    static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false) {
+        auto default_fmt = cldnn::format::bfyx;
+        if (is_weights) {
+            if (is_grouped) {
+                if (rank == 5) {
+                    default_fmt = cldnn::format::goiyx;
+                } else if (rank == 6) {
+                    default_fmt = cldnn::format::goizyx;
+                }
+            } else {
+                if (rank == 4) {
+                    default_fmt = cldnn::format::oiyx;
+                } else if (rank == 5) {
+                    default_fmt = cldnn::format::oizyx;
+                }
+            }
+        } else {
+            if (rank == 5) {
+                default_fmt = cldnn::format::bfzyx;
+            } else if (rank == 6) {
+                default_fmt = cldnn::format::bfwzyx;
+            }
+        }
+       return default_fmt;
+    }
+
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
     /// @brief Checks if @p format is of image type

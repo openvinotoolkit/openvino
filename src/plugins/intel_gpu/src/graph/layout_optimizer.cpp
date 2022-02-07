@@ -6,7 +6,6 @@
 #include "primitive_inst.h"
 #include "program_helpers.h"
 #include "intel_gpu/runtime/error_handler.hpp"
-
 #include "data_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
@@ -14,6 +13,7 @@
 #include "generic_layer.hpp"
 #include <sstream>
 
+#include "gemm_inst.h"
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
 #include "one_hot_inst.h"
@@ -1213,9 +1213,10 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
             (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
             return true;
-    } else if (node.is_type<fully_connected>()) {
-        auto& fc_node = node.as<fully_connected>();
-        auto wei_dt = fc_node.weights().get_output_layout().data_type;
+    } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
+        bool is_fc = node.is_type<fully_connected>();
+        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout().data_type :
+                              node.as<gemm>().get_dependency(1).get_output_layout().data_type;
 
         if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
             (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
@@ -1487,7 +1488,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 break;
             }
         }
-    } else if (node.is_type<fully_connected>()) {
+    // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
+    } else if (node.is_type<fully_connected>()/* || node.is_type<gemm>()*/) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
@@ -1499,29 +1501,75 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         for (auto& fo : node.get_fused_primitives()) {
             if (fo.node->is_type<eltwise>()) {
-                auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
-                auto out_layout = node.get_output_layout();
-                auto in_dt = in_layout.data_type;
-                auto out_dt = out_layout.data_type;
-                if ((out_layout.count() == in_layout.count()) &&
-                    (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
-                    fo.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(in_layout)) {
-                    impl_candidate = impl_types::ocl;
-                    break;
+                // FC checkings
+                if (node.is_type<fully_connected>()) {
+                    auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
+                    auto out_layout = node.get_output_layout();
+                    auto in_dt = in_layout.data_type;
+                    auto out_dt = out_layout.data_type;
+                    if ((out_layout.count() == in_layout.count()) &&
+                        (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
+                        fo.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(in_layout)) {
+                        impl_candidate = impl_types::ocl;
+                        break;
+                    }
+                // Gemm checkings
+                // TODO: investigate why currently onednn gemm has some "sum" post-op restrictions
+                // which don't correlate with fc checkings in the code above
+                // Temprorary WA: disable onednn gemm with sum post-op inside
+                } else {
+                    auto& e_node = fo.node->as<eltwise>();
+                    if (e_node.get_primitive()->mode == eltwise_mode::sum) {
+                        impl_candidate = impl_types::ocl;
+                        break;
+                    }
                 }
             }
         }
 
-        // OneDnn doesn't support spatial dimensions for output
-        auto fc_prim = node.as<fully_connected>().get_primitive();
-        auto out_layout = node.get_output_layout();
-        size_t rank = cldnn::format::dimension(out_layout.format);
-        auto size = out_layout.size;
-        for (int i = 0; i < rank - 2 - (fc_prim->input_size == 3 ? 1 : 0); i++) {
-            if (size.spatial[i] != 1) {
-                impl_candidate = impl_types::ocl;
-                break;
+        if (node.is_type<fully_connected>()) {
+            auto fc_prim = node.as<fully_connected>().get_primitive();
+            auto out_layout = node.get_output_layout();
+            size_t rank = cldnn::format::dimension(out_layout.format);
+            auto size = out_layout.size;
+            // OneDnn doesn't support spatial dimensions for output
+            for (int i = 0; i < rank - 2 - (fc_prim->input_size == 3 ? 1 : 0); i++) {
+                if (size.spatial[i] != 1) {
+                    impl_candidate = impl_types::ocl;
+                    break;
+                }
             }
+        } else {
+            impl_candidate = impl_types::ocl;
+            auto gemm_prim = node.as<gemm>().get_primitive();
+            auto in0_l = node.get_dependency(0).get_output_layout();
+            auto in1_l = node.get_dependency(1).get_output_layout();
+            auto out_l = node.get_output_layout();
+            auto has_input2 = gemm_prim->dependencies().size() == 3;
+            size_t in2_batched_size;
+            if (has_input2) {
+                auto in2_l = node.get_dependency(2).get_output_layout();
+                in2_batched_size = in2_l.count() / (in2_l.size.spatial[0] * in2_l.size.spatial[1]);
+            }
+            size_t size_k = gemm_prim->transpose_input0 ? in0_l.size.spatial[1] : in0_l.size.spatial[0];
+
+            size_t in0_batched_size = in0_l.count() / (in0_l.size.spatial[0] * in0_l.size.spatial[1]);
+            size_t in1_batched_size = in1_l.count() / (in1_l.size.spatial[0] * in1_l.size.spatial[1]);
+            size_t out_batched_size = out_l.count() / (out_l.size.spatial[0] * out_l.size.spatial[1]);
+
+            auto valid_input_batch = in0_batched_size != 1 && (in1_batched_size == in0_batched_size || in1_batched_size == 1);
+            auto valid_output_batch = in0_batched_size > in1_batched_size ? out_batched_size == in0_batched_size :
+                                                                        out_batched_size == in1_batched_size;
+            auto valid_extra_input_batch = has_input2 ? in2_batched_size == 1 || in2_batched_size == out_batched_size : true;
+            auto valid_scale_factor = gemm_prim->alpha == 1.f && (has_input2 ? gemm_prim->beta == 1.f : true);
+            auto unsupported_onednn_gemm = !valid_input_batch ||
+                                           !valid_output_batch ||
+                                           !valid_extra_input_batch ||
+                                           !valid_scale_factor;
+
+            // Gemm with k < 64 is calculated via ref kernel in onednn so cldnn way is more preferable for such cases
+            if (size_k < 64 || unsupported_onednn_gemm)
+                impl_candidate = impl_types::ocl;
         }
 
         preferred_impl = impl_candidate;
@@ -1650,9 +1698,54 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (input_layout.format.dimension() == 5 &&
             (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16))
             expected = format::bfzyx;
+    } else if (node.is_type<resample>()) {
+        // if the resample is in the last part of the network and there are no users using blocked format,
+        // it is better to reorder to bfyx before resample is done.
+        if (all_users_simple_format_until_output(node, node, 0, 10)) {
+            const auto& dim = format::dimension(node.get_output_layout().format);
+            expected = format::get_default_format(dim, false, false);
+        } else {
+            expected = format::any;
+        }
     }
 
     return expected;
+}
+
+bool layout_optimizer::all_users_simple_format_until_output(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth) {
+    if (cur_node.is_output()) return true;
+    if (cur_depth > max_depth) return false;
+
+    auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
+        // Target transform: Rotate feature dim to back to be taken as inner-most axis
+        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+        // ex) 0(b), 3(f), 1(y), 2(x)
+        if ((int32_t) order[1] != order.size() - 1) return false;
+        if ((int32_t) order[0] != 0) return false;
+        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
+            if ((int32_t)order[i] !=  (i - 1)) return false;
+        }
+        return true;
+    };
+
+    if (cur_node.is_type<permute>()) {
+        auto& permute_order = cur_node.as<permute>().get_primitive()->permute_order;
+        if (!is_rotating_except_batch(permute_order))
+            return false;
+    }
+
+    if (cur_node.is_in_data_flow() && (cur_node.type() != origin_node.type())) {
+        const auto& fmt = get_preferred_format(cur_node);
+        if (fmt != format::any && !format::is_simple_data_format(fmt)) {
+            return false;
+        }
+    }
+
+    bool res = true;
+    for (const auto& usr : cur_node.get_users()) {
+        res &= all_users_simple_format_until_output(origin_node, *usr, cur_depth + 1, max_depth);
+    }
+    return res;
 }
 
 void layout_optimizer::set_optimization_attribute(optimization_attributes_type attribute, int32_t val) {

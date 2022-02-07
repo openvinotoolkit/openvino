@@ -4,12 +4,12 @@
 
 set(TARGET_NAME cpuFuncTests)
 
-add_library(cpuSpecificRtInfo STATIC $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.hpp
-                                     $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp)
+add_library(cpuSpecificRtInfo STATIC $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.hpp
+                                     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp)
 target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
 
-set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src)
-set(DEPENDENCIES ov_intel_cpu_plugin)
+set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
+set(DEPENDENCIES openvino_intel_cpu_plugin)
 set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo)
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND INCLUDES "${OpenVINO_SOURCE_DIR}/docs/onnx_custom_op")
