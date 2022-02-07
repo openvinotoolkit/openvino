@@ -1489,7 +1489,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     // layer without biases might be connected to functional layer without activations
     auto prevLayer = CNNNetPrevLayer(layer);
     bool useBiasConnection = false;
-    if (LayerInfo(prevLayer).has32BOutput()) {
+    if (LayerInfo(prevLayer).has32BOutput() && !(LayerInfo(prevLayer).isPooling() && LayerInfo(CNNNetPrevLayer(prevLayer)).isActivation())) {
         if (weightable._biases) {
             THROW_GNA_EXCEPTION << "Layer: "
                 << layer->name << ", cannot be connected to its parent: " << prevLayer->name
