@@ -220,11 +220,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
-        try {
-            return util::contains(plugin.get_property(ov::supported_properties), key);
-        } catch (...) {
-            return false;
-        }
+        return util::contains(plugin.get_property(ov::supported_properties), key);
     }
 
     bool DeviceSupportsImportExport(const ov::InferencePlugin& plugin) const {
@@ -242,11 +238,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     bool DeviceSupportsCacheDir(const ov::InferencePlugin& plugin) const {
-        try {
-            return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
-        } catch (...) {
-            return false;
-        }
+        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     }
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
@@ -1131,6 +1123,11 @@ public:
         std::lock_guard<std::mutex> lock(pluginsMutex);
         for (const auto& ext : extensions) {
             ov_extensions.emplace_back(ext);
+            if (auto op_base_ext = std::dynamic_pointer_cast<BaseOpExtension>(ext)) {
+                for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+                    ov_extensions.emplace_back(attached_ext);
+                }
+            }
         }
     }
 
