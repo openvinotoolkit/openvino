@@ -66,9 +66,11 @@ public:
     InferenceEngine::LockedMemory<const void> cbuffer() const noexcept;
     InferenceEngine::LockedMemory<void> rwmap()noexcept;
     InferenceEngine::LockedMemory<const void> rmap() const noexcept;
-    InferenceEngine::LockedMemory<void> wmap()noexcept;
+    InferenceEngine::LockedMemory<void> wmap() noexcept;
     const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept;
     void *getHandle() const noexcept { return _handle; }
+
+    void reinterpret(cldnn::layout new_layout);
 
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;

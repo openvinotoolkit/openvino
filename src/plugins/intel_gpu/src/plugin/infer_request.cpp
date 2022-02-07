@@ -256,45 +256,57 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
                       "Current: " << dataBinSize << " Required: " << netReqBinSize;
     }
 
+    if (is_input) {
+        set_input(name, data);
+    } else {
+        set_output(name, data);
+    }
+}
+
+void InferRequest::set_input(const std::string& name, const Blob::Ptr& data) {
     auto remote_ptr = data->as<gpu::ClBlob>();
     bool is_remote = remote_ptr != nullptr;
-    if (is_remote) {
-        auto impl = getBlobImpl(remote_ptr);
-        if (!impl->is_allocated()) {
-            impl->allocate();
-        }
-    }
-    if (is_input) {
-        if (is_remote) {
-            _deviceInputs[name] = data;
-            _inputs[name] = data;
-        } else {
-            if (data->buffer() == nullptr)
-                IE_THROW(NotAllocated) << str_input_not_allocated << " Input name: \'" << name << "\'";
-            _inputs[name] = data;
-            if (isDynamic) {
-                _deviceInputs[name] = create_device_blob(data->getTensorDesc());
-            }
 
-        }
+    auto node = findInputByNodeName(name);
+    bool isDynamic = node && node->get_output_partial_shape(0).is_dynamic();
+
+    if (is_remote) {
+        _deviceInputs[name] = data;
+        _inputs[name] = data;
     } else {
-        if (is_remote) {
-            _deviceOutputs[name] = data;
-        } else {
-            if (!isDynamic) {
-                size_t outputSize = desc.getLayout() != SCALAR
-                    ? details::product(desc.getDims())
-                    : 1;
-                if (dataSize != outputSize) {
-                    IE_THROW() << "Output blob size is not equal to network output size (" << dataSize
-                        << "!=" << outputSize << ").";
-                }
-                if (data->buffer() == nullptr)
-                    IE_THROW(NotAllocated) << str_output_not_allocated << " Output name: \'" << name << "\'";
+        if (data->buffer() == nullptr)
+            IE_THROW(NotAllocated) << str_input_not_allocated << " Input name: \'" << name << "\'";
+        _inputs[name] = data;
+        if (isDynamic) {
+            // We must create new input data if it has never been allocated or previously allocated
+            // device blob is smaller than currently assigned user blob
+            bool needs_realloc = _deviceInputs.find(name) == _deviceInputs.end() || _deviceInputs.at(name)->byteSize() < data->byteSize();
+            if (needs_realloc) {
+                _deviceInputs[name] = create_device_blob(data->getTensorDesc());
+            } else {
+                if (_deviceInputs.at(name)->getTensorDesc() != data->getTensorDesc())
+                    _deviceInputs[name] = reinterpret_device_blob(_deviceInputs[name], data->getTensorDesc());
             }
         }
-        _outputs[name] = data;
     }
+}
+
+void InferRequest::set_output(const std::string& name, const Blob::Ptr& data) {
+    auto remote_ptr = data->as<gpu::ClBlob>();
+    bool is_remote = remote_ptr != nullptr;
+
+    auto node = findOutputByNodeName(name);
+    bool isDynamic = node && node->get_output_partial_shape(0).is_dynamic();
+
+    if (is_remote) {
+        _deviceOutputs[name] = data;
+    } else {
+        if (!isDynamic) {
+            if (data->buffer() == nullptr)
+                IE_THROW(NotAllocated) << str_output_not_allocated << " Output name: \'" << name << "\'";
+        }
+    }
+    _outputs[name] = data;
 }
 
 void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
@@ -363,14 +375,6 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
         _inputs.erase(name);
     }
 
-    if (is_remote) {
-        for (auto& blob : blobs) {
-            auto impl = getBlobImpl(blob->as<gpu::ClBlob>());
-            if (!impl->is_allocated()) {
-                impl->allocate();
-            }
-        }
-    }
     inputTensorsMap[name] = blobs;
 }
 
@@ -578,11 +582,34 @@ void InferRequest::wait() {
         std::string outputID = m_graph->MapOutputName(no.first);
         auto outputMemory = internal_outputs.at(outputID).get_memory();
 
+        auto node = findOutputByNodeName(no.first);
+
+        auto out_partial_shape = node->get_output_partial_shape(0);
+        auto out_rank = out_partial_shape.rank().get_length();
+
         if (_outputs.find(no.first) == _outputs.end()) {
             auto mem_dims = outputMemory->get_layout().size.to_shape();
             auto precision = InferenceEngine::Precision::FP32;
             auto dims = SizeVector(mem_dims.begin(), mem_dims.end());
-            auto layout = InferenceEngine::Layout::NCHW;
+            if (out_rank < dims.size()) {
+                for (size_t i = out_rank; i < dims.size(); i++) {
+                    if (dims[i] != 1)
+                        IE_THROW() << "[GPU] Unexpected out shape";
+                }
+                dims.resize(out_rank);
+            }
+            auto layout_by_rank = [](size_t rank) {
+                switch (rank) {
+                    case 6: return InferenceEngine::Layout::BLOCKED;
+                    case 5: return InferenceEngine::Layout::NCDHW;
+                    case 4: return InferenceEngine::Layout::NCHW;
+                    case 3: return InferenceEngine::Layout::BLOCKED;
+                    case 2: return InferenceEngine::Layout::NC;
+                    case 1: return InferenceEngine::Layout::BLOCKED;
+                    default: IE_THROW() << "[GPU] Unsupported out rank";
+                }
+            };
+            auto layout = layout_by_rank(out_rank);
             auto tensorDesc = InferenceEngine::TensorDesc(precision, dims, layout);
             _outputs[no.first] = create_host_blob(tensorDesc);
         }
@@ -931,6 +958,23 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
         getBlobImpl(blobPtr.get())->allocate();
         return blobPtr;
     }
+}
+
+Blob::Ptr InferRequest::reinterpret_device_blob(Blob::Ptr data, const TensorDesc& new_desc) {
+    auto format = FormatFromLayout(new_desc.getLayout());
+    auto dt = DataTypeFromPrecision(new_desc.getPrecision());
+    auto shape = tensor_from_dims(new_desc.getDims());
+
+    auto l = cldnn::layout(dt, format, shape);
+
+    auto remote_blob = data->as<gpu::ClBlob>();
+    if (!remote_blob)
+        IE_THROW() << "Invalid blob used for reinterpretation";
+
+    auto impl = getBlobImpl(remote_blob);
+    impl->reinterpret(l);
+
+    return data;
 }
 
 }  // namespace intel_gpu

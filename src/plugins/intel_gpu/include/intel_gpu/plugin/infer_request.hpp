@@ -55,6 +55,7 @@ public:
     void enqueue();
     void wait();
 
+
     bool use_external_queue() const { return m_useExternalQueue; }
     void enable_external_queue() { m_useExternalQueue = true; }
 
@@ -89,6 +90,10 @@ private:
     InferenceEngine::Blob::Ptr create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem);
     void allocate_inputs();
     void allocate_outputs();
+
+    void set_input(const std::string& name, const InferenceEngine::Blob::Ptr& data);
+    void set_output(const std::string& name, const InferenceEngine::Blob::Ptr& data);
+    InferenceEngine::Blob::Ptr reinterpret_device_blob(InferenceEngine::Blob::Ptr data, const InferenceEngine::TensorDesc& new_desc);
 
     std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
 };

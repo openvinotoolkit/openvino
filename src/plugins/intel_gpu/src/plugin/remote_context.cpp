@@ -185,6 +185,14 @@ std::shared_ptr<InferenceEngine::RemoteContext> RemoteBlobImpl::getContext() con
     return m_context.lock();
 }
 
+void RemoteBlobImpl::reinterpret(cldnn::layout new_layout) {
+    if (m_layout.bytes_count() < new_layout.bytes_count())
+        IE_THROW() << "Can't reinterpret blob to the size bigger than allocated memory buffer";
+    m_layout = new_layout;
+    auto engine = m_memObject->get_engine();
+    m_memObject = engine->reinterpret_buffer(*m_memObject, new_layout);
+}
+
 void RemoteBlobImpl::lock() const {
     if (!is_allocated()) {
         IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";

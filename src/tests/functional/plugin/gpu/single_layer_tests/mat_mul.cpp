@@ -129,12 +129,12 @@ protected:
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
             params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
         } else {
-            auto constOp = std::dynamic_pointer_cast<ov::opset8::Constant>(matrixB);
-            std::cerr << "Constant: " <<  constOp->get_friendly_name() << std::endl;
-            auto data = static_cast<const float*>(constOp->get_data_ptr());
-            for (size_t i = 0; i < constOp->get_byte_size() / 4; i++) {
-                std::cerr << data[i] << " i=" << i << std::endl;
-            }
+            // auto constOp = std::dynamic_pointer_cast<ov::opset8::Constant>(matrixB);
+            // std::cerr << "Constant: " <<  constOp->get_friendly_name() << std::endl;
+            // auto data = static_cast<const float*>(constOp->get_data_ptr());
+            // for (size_t i = 0; i < constOp->get_byte_size() / 4; i++) {
+            //     std::cerr << data[i] << " i=" << i << std::endl;
+            // }
         }
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         auto matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);

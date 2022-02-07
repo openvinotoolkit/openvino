@@ -107,7 +107,7 @@ void compare(const ov::runtime::Tensor& expected,
              const double rel_threshold_ = std::numeric_limits<double>::max()) {
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
-    // ASSERT_EQ(expected_shape, actual_shape);
+    ASSERT_EQ(expected_shape, actual_shape);
 
     if (shape_size(actual_shape) == 0) {
         return;
