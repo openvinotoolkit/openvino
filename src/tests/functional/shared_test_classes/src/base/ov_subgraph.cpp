@@ -188,7 +188,6 @@ void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, co
 }
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    std::cout << "SubgraphBaseTest::generate_inputs() called" << std::endl;
     inputs.clear();
     auto inputMap = utils::getInputMap();
     auto itTargetShape = targetInputStaticShapes.begin();
@@ -282,58 +281,6 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 void SubgraphBaseTest::validate() {
     auto expectedOutputs = calculate_refs();
     const auto& actualOutputs = get_plugin_outputs();
-    auto maxValues = 100;
-    {
-        const auto & outputs = expectedOutputs;
-        std::cout << "expectedOutputs:" << std::endl << std::endl;
-        for (auto i = 0; i < outputs.size(); ++i) {
-            unsigned int realShape = 1;
-            const auto & shapes = outputs[i].get_shape();
-            for (const auto & shape : shapes) {
-                realShape *= shape;
-                std::cout << shape << " * ";
-            }
-            std::cout << std::endl;
-            if (i == 0 || i == 2) {
-                auto expectedLine = outputs[i].data<int>();
-                for (auto j = 0; j < fmin(realShape, maxValues); ++j) {
-                    std::cout << expectedLine[j] << " ";
-                }
-            } else if (i == 1) {
-                auto expectedLine = outputs[i].data<float>();
-                for (auto j = 0; j < fmin(realShape, maxValues); ++j) {
-                    std::cout << expectedLine[j] << " ";
-                }
-            }
-            std::cout << std::endl << std::endl;
-        }
-    }
-
-    {
-        const auto & outputs = actualOutputs;
-        std::cout << "actualOutputs:" << std::endl << std::endl;
-        for (auto i = 0; i < outputs.size(); ++i) {
-            unsigned int realShape = 1;
-            const auto & shapes = outputs[i].get_shape();
-            for (const auto & shape : shapes) {
-                realShape *= shape;
-                std::cout << shape << " * ";
-            }
-            std::cout << std::endl;
-            if (i == 0 || i == 2) {
-                auto expectedLine = outputs[i].data<int>();
-                for (auto j = 0; j < fmin(realShape, maxValues); ++j) {
-                    std::cout << expectedLine[j] << " ";
-                }
-            } else if (i == 1) {
-                auto expectedLine = outputs[i].data<float>();
-                for (auto j = 0; j < fmin(realShape, maxValues); ++j) {
-                    std::cout << expectedLine[j] << " ";
-                }
-            }
-            std::cout << std::endl << std::endl;
-        }
-    }
 
     if (expectedOutputs.empty()) {
         return;

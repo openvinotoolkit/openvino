@@ -116,72 +116,6 @@ void non_max_suppression(const float* boxes_data,
                          const Shape& selected_scores_shape,
                          int64_t* valid_outputs,
                          const bool sort_result_descending) {
-
-    {
-        const Shape& shape = boxes_data_shape;
-        const auto* data = boxes_data;
-        std::cout << "reference boxes_data_shape" << std::endl;
-        std::size_t boxes_amount = 1;
-        for (auto i = 0; i < shape.size(); ++i) {
-            std::cout << shape[i] << ((i < shape.size() - 1) ? " * " : "");
-            boxes_amount *= shape[i];
-        }
-        std::cout << std::endl;
-        for (std::size_t i = 0; i < boxes_amount; ++i) {
-            std::cout << data[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-    {
-        const Shape& shape = scores_data_shape;
-        const auto* data = scores_data;
-        std::cout << "reference scores_data_shape" << std::endl;
-        std::size_t boxes_amount = 1;
-        for (auto i = 0; i < shape.size(); ++i) {
-            std::cout << shape[i] << ((i < shape.size() - 1) ? " * " : "");
-            boxes_amount *= shape[i];
-        }
-        std::cout << std::endl;
-        for (std::size_t i = 0; i < boxes_amount; ++i) {
-            std::cout << data[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-    {
-        const Shape& shape = selected_indices_shape;
-        const auto* data = selected_indices;
-        std::cout << "reference selected_indices_shape" << std::endl;
-        std::size_t boxes_amount = 1;
-        for (auto i = 0; i < shape.size(); ++i) {
-            std::cout << shape[i] << ((i < shape.size() - 1) ? " * " : "");
-            boxes_amount *= shape[i];
-        }
-        std::cout << std::endl;
-        for (std::size_t i = 0; i < boxes_amount; ++i) {
-            std::cout << data[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-    {
-        const Shape& shape = selected_scores_shape;
-        const auto* data = selected_scores;
-        std::cout << "reference selected_scores_shape" << std::endl;
-        std::size_t boxes_amount = 1;
-        for (auto i = 0; i < shape.size(); ++i) {
-            std::cout << shape[i] << ((i < shape.size() - 1) ? " * " : "");
-            boxes_amount *= shape[i];
-        }
-        std::cout << std::endl;
-        for (std::size_t i = 0; i < boxes_amount; ++i) {
-            std::cout << data[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << "reference: " << "max_output_boxes_per_class = " << max_output_boxes_per_class << std::endl;
-    std::cout << "reference: " << "iou_threshold = " << iou_threshold << std::endl;
-    std::cout << "reference: " << "score_threshold = " << score_threshold << std::endl;
-    std::cout << "reference: " << "soft_nms_sigma = " << soft_nms_sigma << std::endl;
     float scale = 0.0f;
     if (soft_nms_sigma > 0.0f) {
         scale = -0.5f / soft_nms_sigma;
@@ -280,7 +214,6 @@ void non_max_suppression(const float* boxes_data,
 
     size_t max_num_of_selected_indices = selected_indices_shape[0];
     size_t output_size = std::min(filteredBoxes.size(), max_num_of_selected_indices);
-    std::cout << "reference: " << "output_size = " << output_size << std::endl << std::endl;
 
     *valid_outputs = output_size;
 
@@ -310,7 +243,6 @@ void nms5_postprocessing(const HostTensorVector& outputs,
                          const std::vector<float>& selected_scores,
                          int64_t valid_outputs,
                          const ngraph::element::Type selected_scores_type) {
-    std::cout << selected_scores_type << std::endl;
     outputs[0]->set_element_type(output_type);
     outputs[0]->set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
 
