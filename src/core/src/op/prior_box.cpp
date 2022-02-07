@@ -135,7 +135,7 @@ template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
-              op::v0::PriorBox::Attributes attrs) {
+              const op::v0::PriorBox::Attributes& attrs) {
     op::v8::PriorBox::Attributes attrs_v8;
     attrs_v8.min_size = attrs.min_size;
     attrs_v8.max_size = attrs.max_size;
@@ -326,7 +326,7 @@ template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
-              op::v8::PriorBox::Attributes attrs) {
+              const op::v8::PriorBox::Attributes& attrs) {
     runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
                                   arg1->get_data_ptr<ET>(),
                                   out->get_data_ptr<float>(),

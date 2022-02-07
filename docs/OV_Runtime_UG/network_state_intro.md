@@ -32,7 +32,7 @@ You can find more details on these operations in [ReadValue specification](../op
 
 ## Examples of Representation of a Network with States
 
-To get a model with states ready for inference, you can convert a model from another framework to IR with Model Optimizer or create an nGraph function (details can be found in [Build nGraph Function section](../nGraph_DG/build_function.md)). Let's represent the following graph in both forms:
+To get a model with states ready for inference, you can convert a model from another framework to IR with Model Optimizer or create an nGraph function (details can be found in [Build OpenVINO Model section](../OV_Runtime_UG/model_representation.md)). Let's represent the following graph in both forms:
 
 ![state_network_example]
 
@@ -246,7 +246,7 @@ After applying the transformation, ReadValue operations can receive other operat
 1. Get CNNNetwork. Either way is acceptable:
 
 	* [from IR or ONNX model](./Integrate_with_customer_application_new_API.md)
-	* [from nGraph Function](../nGraph_DG/build_function.md)
+	* [from ov::Model](../OV_Runtime_UG/model_representation.md)
 
 2. Change the number of iterations inside TensorIterator/Loop nodes in the network using the [Reshape](ShapeInference.md) feature. 
 
@@ -350,7 +350,7 @@ After applying the transformation, ReadValue operations can receive other operat
 1. Get CNNNetwork. Either way is acceptable:
 
 	* [from IR or ONNX model](./Integrate_with_customer_application_new_API.md)
-	* [from nGraph Function](../nGraph_DG/build_function.md)
+	* [from ov::Model](../OV_Runtime_UG/model_representation.md)
 
 2. [Reshape](ShapeInference.md) the CNNNetwork network if necessary. **Necessary case:** where the sequence_lengths dimension of input > 1, it means TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension to exactly 1.
 

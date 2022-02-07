@@ -28,6 +28,7 @@ class Function;
 namespace InferenceEngine {
 
 class ICore;
+class ExecutorManager;
 class IExecutableNetworkInternal;
 class RemoteContext;
 class IExtension;
@@ -264,6 +265,12 @@ public:
     virtual std::shared_ptr<ICore> GetCore() const noexcept;
 
     /**
+     * @brief Gets reference to tasks execution manager
+     * @return Reference to ExecutorManager interface
+     */
+    const std::shared_ptr<ExecutorManager>& executorManager() const;
+
+    /**
      * @brief      Queries a plugin about supported layers in network
      * @param[in]  network  The network object to query
      * @param[in]  config   The map of configuration parameters
@@ -273,6 +280,7 @@ public:
                                             const std::map<std::string, std::string>& config) const;
 
 protected:
+    IInferencePlugin();
     ~IInferencePlugin() = default;
 
     /**
@@ -327,9 +335,10 @@ protected:
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const std::shared_ptr<const ov::Model>& function);
 
-    std::string _pluginName;                     //!< A device name that plugins enables
-    std::map<std::string, std::string> _config;  //!< A map config keys -> values
-    std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
+    std::string _pluginName;                            //!< A device name that plugins enables
+    std::map<std::string, std::string> _config;         //!< A map config keys -> values
+    std::weak_ptr<ICore> _core;                         //!< A pointer to ICore interface
+    std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
 };
 
 /**
