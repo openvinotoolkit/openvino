@@ -10,7 +10,7 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
 endif()
 
-if(IE_BUILD_POSTFIX)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
     message(FATAL_ERROR "Building python bindings in debug configuration is not supported on your platform.")
 endif()
 
