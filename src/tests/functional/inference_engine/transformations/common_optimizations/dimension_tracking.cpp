@@ -76,6 +76,12 @@ TEST(TransformationTests, AutoBatch_FindBatch_Transpose_and_Convolution) {
     ASSERT_TRUE(ov::DimensionTracker::get_label(shape[1])) << shape;
     ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[2])) << shape;
     ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[3])) << shape;
+
+    const auto& out_shape = f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(ov::DimensionTracker::get_label(out_shape[0])) << out_shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[1])) << out_shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[2])) << out_shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[3])) << out_shape;
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_SingleMultiply) {
@@ -202,6 +208,34 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoConvNetwork) {
     ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[1])) << shape;
     ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[2])) << shape;
     ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[3])) << shape;
+}
+
+TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
+    const auto& data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 4, 10, 10});
+
+    const auto& filters = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4, 3, 3});
+    const auto& conv_0 = std::make_shared<ov::opset1::Convolution>(
+            data, filters, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    const auto& pattern = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{-1});
+    const auto& reshape = std::make_shared<ov::opset1::Reshape>(
+            conv_0, pattern, false);
+
+    const auto& f = std::make_shared<ov::Model>(ov::NodeVector{reshape}, ov::ParameterVector{data});
+
+    ov::pass::Manager m;
+    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::FindBatchDontTrack>();
+    m.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+
+    const auto& shape = data->get_partial_shape();
+    ASSERT_TRUE(ov::DimensionTracker::get_label(shape[0])) << shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[1])) << shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[2])) << shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[3])) << shape;
+
+    const auto& out_shape = f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[0])) << out_shape;
 }
 
 TEST(partial_shape, cout_with_label) {

@@ -96,7 +96,7 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
                 auto constant_one = opset1::Constant::create(input_element_type, {1}, {1});
                 auto broadcast_ones = std::make_shared<opset1::Broadcast>(constant_one, target_shape_input);
                 if (input_element_type == element::boolean) {
-                    input = std::make_shared<ngraph::opset1::LogicalOr>(input, broadcast_ones);
+                    input = std::make_shared<ngraph::opset1::LogicalAnd>(input, broadcast_ones);
                 } else {
                     input = std::make_shared<ngraph::opset1::Multiply>(input, broadcast_ones);
                 }

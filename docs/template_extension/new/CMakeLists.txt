@@ -5,7 +5,7 @@
 # [cmake:extension]
 set(CMAKE_CXX_STANDARD 11)
 
-set(TARGET_NAME "ov_template_extension")
+set(TARGET_NAME "openvino_template_extension")
 
 find_package(OpenVINO)
 
