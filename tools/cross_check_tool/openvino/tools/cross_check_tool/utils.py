@@ -383,7 +383,6 @@ def read_image_file(image_file: str, model_input: Output):
 
 
 def get_random_inputs(model_inputs, model_path):
-    # TODO: should we always dump it or add another command line parameter to do this?
     inputs = [np.clip(np.random.normal(0.5, 0.1, size=list(input.shape)), 0, 1) for input in model_inputs]
     dump_output_file(model_path + '_random_input_dump.npz', {model_inputs[i].any_name: {'blob': inputs[i]} for i in range(len(model_inputs))})
     return inputs
