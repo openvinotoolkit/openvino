@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,4 +12,5 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(py_onnx_frontend, m) {
     regclass_frontend_onnx_ConversionExtension(m);
+    regclass_frontend_onnx_OpExtension(m);
 }
