@@ -34,15 +34,13 @@ Read the sections below to learn about each item.
    ```
 
 2. **Include Inference Engine, nGraph and OpenCV libraries** in `project/CMakeLists.txt`  
-[OpenCV](https://docs.opencv.org/master/db/df5/tutorial_linux_gcc_cmake.html) integration is needed mostly for pre-processing input data and nGraph for more complex applications using [nGraph API](../nGraph_DG/nGraph_dg.md).
+[OpenCV](https://docs.opencv.org/master/db/df5/tutorial_linux_gcc_cmake.html) integration is needed mostly for pre-processing input data and model representation in OpenVINO™ Runtime for more complex applications using [OpenVINO Model API](../OV_Runtime_UG/model_representation.md).
    ``` cmake
    cmake_minimum_required(VERSION 3.0.0)
    project(project_name)
-   find_package(ngraph REQUIRED)
-   find_package(InferenceEngine REQUIRED)
-   find_package(OpenCV REQUIRED)
+   find_package(OpenVINO REQUIRED)
    add_executable(${PROJECT_NAME} src/main.cpp)
-   target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${OpenCV_LIBS}    ${NGRAPH_LIBRARIES})
+   target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
    ```
 
 ### Use Inference Engine API to Implement Inference Pipeline
@@ -457,7 +455,7 @@ Load the model to the device using `load_network()`:
 
 @endsphinxdirective
 
-This example is designed for CPU device, refer to the [Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md) page to read about more devices. 
+This example is designed for CPU device, refer to the [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) page to read about more devices. 
 
 #### Step 4. Prepare input 
 ```py
