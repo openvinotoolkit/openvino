@@ -22,8 +22,8 @@ class Engine(ABC):
         self._data_loader = data_loader
         self._metric = metric
         self._statistic_graph_builder = StatisticGraphBuilder()
-        self._stat_requests_number = config.get('stat_requests_number', None)
-        self._eval_requests_number = config.get('eval_requests_number', None)
+        self._stat_requests_number = self.config.get('stat_requests_number', None)
+        self._eval_requests_number = self.config.get('eval_requests_number', None)
         self.calculate_metrics = True
 
     def set_model(self, model):
