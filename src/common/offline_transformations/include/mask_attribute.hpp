@@ -16,6 +16,7 @@
 #include <set>
 
 #include <ngraph/node.hpp>
+#include <ngraph/log.hpp>
 
 namespace ngraph {
 
@@ -47,6 +48,10 @@ public:
     explicit Mask(const size_t & size, const bool adjust_value)
             : std::vector<value_type>(size),
               m_adjust_value(adjust_value) {
+    }
+
+    explicit Mask(const std::vector<value_type> val)
+            : std::vector<value_type>(val) {
     }
 
     Mask(std::initializer_list<std::initializer_list<uint64_t>> list)
@@ -122,7 +127,7 @@ public:
         return result_mask;
     }
 
-    Mask::Ptr union_masks_reversed(Mask *const mask) {
+    Mask::Ptr union_masks_reversed(Mask *const mask) const {
         auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
         auto result_iter = result_mask->rbegin();
         auto mask_1_iter = rbegin();
@@ -149,9 +154,22 @@ public:
         return result_mask;
     }
 
-    void add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+    bool add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+        if (m_callbacks.find(mask.get()) != m_callbacks.end())
+            throw std::runtime_error("Attempt to rewrite callback, leads to unexpected behaviour");
+
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());
+        return true;
+    }
+
+    //void add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+    //    m_callbacks[mask.get()] = receive_callback;
+    //    m_dependencies.push_back(mask.get());
+    //}
+
+    std::function<bool(Mask::Ptr)> get_callback(Mask::Ptr mask) {
+        return m_callbacks[mask.get()];
     }
 
     /* Modify state of this mask by corresponding callback,
@@ -173,11 +191,14 @@ public:
         m_need_initialization = false;
         // recursively apply callbacks for each dependent mask
         for (const auto & m_dependency : m_dependencies) {
+            if (m_dependency == mask.get())
+                continue;
             if (!m_dependency->apply_callback(shared_from_this())) {
                 return false;
             }
         }
-        return true;
+
+        return mask->apply_callback(shared_from_this());
     }
 
     void invalidate() {
@@ -205,15 +226,18 @@ public:
         return m_adjust_value;
     }
 
+    std::vector<Mask*> dependencies() const {
+        auto res = std::vector<Mask*>();
+        std::copy(m_dependencies.begin(), m_dependencies.end(), std::back_inserter(res));
+        return res;
+    }
+
 private:
     bool m_is_shape_like{false};
-    // Flag is true if this mask should be interpretated in special way:
-    // Each value of the constant at index i decreasing by a number
-    // of elements in i'th mask dimension during weights shrinking pass.
-    // Only a 1D constants could be pruned in this way and
-    // the number of mask dimensions should be equal to the number of elements
-    // in the constant. The constant is typically interpetated as a shape
-    // of some operation.
+    // Flag - if constant this mask is related to should be pruned
+    // by value. Means shape of the constant remains the same
+    // but correspondent dimensions values decreased by
+    // count of channels which should be pruned.
     bool m_adjust_value{false};
 
     // Masks dependent on this mask vs methods, specifying how
