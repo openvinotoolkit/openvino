@@ -636,7 +636,8 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 auto& prev_node = conv_node.get_dependency(dep_id);
                 auto old_layout = prev_node.get_output_layout();
                 auto expected_format = format::any;
-                if (conv_layout.data_type == data_types::f16 && data_type_traits::is_i8_u8(old_layout.data_type)) {
+                if ((conv_layout.data_type == data_types::f16 || conv_layout.data_type == data_types::f32)
+                    && data_type_traits::is_i8_u8(old_layout.data_type)) {
                     if (conv_layout.format == format::b_fs_yx_fsv16)
                         expected_format = format::b_fs_yx_fsv32;
                     if (conv_layout.format == format::bs_fs_yx_bsv32_fsv16)
