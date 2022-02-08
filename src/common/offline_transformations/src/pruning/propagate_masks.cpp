@@ -651,7 +651,7 @@ public:
     Reshape() {
         auto inputs = pattern::any_input(pattern::has_static_shape());
         auto weights = pattern::any_input();
-        auto reshape = pattern::wrap_type<opset6::Reshape>({inputs, weights});
+        auto reshape = pattern::wrap_type<opset6::Reshape>({inputs, weights}, pattern::has_static_shape());
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
@@ -666,8 +666,7 @@ public:
                     return true;
 
             // Can't process non constant node in the shape input by now.
-            const auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
-            if (!constant) {
+            if (!std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr())) {
                 NGRAPH_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
                              <<" with no constant node " << m_weights.get_node()->get_friendly_name()
                              << " as shape input.";
@@ -680,7 +679,7 @@ public:
                 auto weights_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length(), true);
 
                 const auto input_shape = m_input.get_shape();
-                const auto output_shape = constant->cast_vector<int64_t>();
+                const auto output_shape = m_output.get_node()->output(0).get_shape();
 
                 // Check dimensions equality from the begining and allow
                 // to propagate masks only for dimensions which equal from the begining
