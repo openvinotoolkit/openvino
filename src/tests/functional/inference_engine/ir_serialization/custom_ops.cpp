@@ -170,3 +170,19 @@ TEST_F(CustomOpsSerializationTest, CustomOpOVExtensions) {
 
     ASSERT_TRUE(success) << message;
 }
+
+TEST_F(CustomOpsSerializationTest, CloneFrameworkNode) {
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
+    InferenceEngine::Core ie;
+    auto extension = std::make_shared<FrameworkNodeExtension>();
+    ie.AddExtension(extension);
+    auto expected = ie.ReadNetwork(model);
+    auto clone = ov::clone_model(*expected.getFunction());
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default()
+            .enable(FunctionsComparator::ATTRIBUTES)
+            .enable(FunctionsComparator::CONST_VALUES)
+            .enable(FunctionsComparator::PRECISIONS);
+    const FunctionsComparator::Result result = func_comparator.compare(clone, expected.getFunction());
+    ASSERT_TRUE(result.valid) << result.message;
+}
