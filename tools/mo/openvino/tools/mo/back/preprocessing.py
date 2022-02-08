@@ -310,9 +310,15 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
             if layout and check_suitable_for_reverse(Layout(layout), ov_input):
                 suitable_params.append(param_info)
 
-    if len(suitable_params) < len(all_params):
+    if not len(suitable_params):
+        raise Error('Network has {} inputs overall, but none of them are suitable for input channels reversing.\n'
+                    'Suitable for input channel reversing inputs are 4-dimensional with 3 channels (in case of dynamic '
+                    'dimensions C channel must be provided in a layout for this input)\nAll inputs: {}'.format(
+            len(all_params), all_params))
+    elif len(suitable_params) < len(all_params):
         log.error('Network has {} inputs overall, but only {} of them are suitable for input channels reversing.\n'
-                  'Suitable for input channel reversing inputs are 4-dimensional with 3 channels\nAll inputs: {}\n'
+                  'Suitable for input channel reversing inputs are 4-dimensional with 3 channels (in case of dynamic '
+                  'dimensions C channel must be provided in a layout for this input)\nAll inputs: {}\n'
                   'Suitable inputs {}'.format(len(all_params), len(suitable_params), all_params, suitable_params),
                   extra={'is_warning': True})
     return suitable_params
