@@ -207,10 +207,10 @@ bool MKLDNNGatherNode::needPrepareParams() const {
 
 void MKLDNNGatherNode::prepareParams() {
     auto& dataMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-    if (!dataMemPtr || !dataMemPtr->GetPrimitivePtr())
+    if (!dataMemPtr || !dataMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input data memory.";
     auto& idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
-    if (!idxMemPtr || !idxMemPtr->GetPrimitivePtr())
+    if (!idxMemPtr || !idxMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input indices memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << " has unidentified preferable primitive descriptor.";
