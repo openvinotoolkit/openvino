@@ -8,7 +8,7 @@ import numpy as np
 from collections import defaultdict
 from pathlib import Path
 
-from openvino.runtime import Tensor, PartialShape
+from openvino.runtime import Tensor, PartialShape, Type
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
@@ -138,7 +138,7 @@ def get_image_tensors(image_paths, info, batch_sizes):
     niter = max(num_shapes, num_images)
     for i in range(niter):
         shape = list(info.shapes[i % num_shapes]) if num_shapes else []
-        dtype = get_dtype(info.element_type.get_type_name())[0]
+        dtype = get_dtype(info.element_type)[0]
         images = np.ndarray(shape=shape, dtype=dtype)
         image_index = processed_frames
         current_batch_size = 1 if process_with_original_shapes else batch_sizes[i % num_shapes]
@@ -201,15 +201,15 @@ def get_image_tensors(image_paths, info, batch_sizes):
 
 def get_dtype(precision):
     format_map = {
-      'f32' : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
-      'i32'  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
-      'i64'  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
-      'f16' : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
-      'i16'  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
-      'u16'  : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
-      'i8'   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),
-      'u8'   : (np.uint8, np.iinfo(np.uint8).min, np.iinfo(np.uint8).max),
-      'boolean' : (np.uint8, 0, 1),
+      Type.f32 : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
+      Type.i32  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
+      Type.i64  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
+      Type.f16 : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
+      Type.i16  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
+      Type.u16  : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
+      Type.i8   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),
+      Type.u8   : (np.uint8, np.iinfo(np.uint8).min, np.iinfo(np.uint8).max),
+      Type.boolean : (np.uint8, 0, 1),
     }
     if precision in format_map.keys():
         return format_map[precision]
@@ -224,7 +224,7 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
     tensors = []
     for i in range(niter):
         shape_id = i % num_shapes
-        dtype = get_dtype(info.element_type.get_type_name())[0]
+        dtype = get_dtype(info.element_type)[0]
         shape = list(info.shapes[shape_id])
         binaries = np.ndarray(shape=shape, dtype=dtype)
         if info.layout.has_name('N'):
@@ -266,7 +266,7 @@ def get_image_sizes(app_input_info):
 def get_image_info_tensors(image_sizes, layer):
     im_infos = []
     for shape, image_size in zip(layer.shapes, image_sizes):
-        im_info = np.ndarray(shape, dtype=get_dtype(layer.element_type.get_type_name())[0])
+        im_info = np.ndarray(shape, dtype=get_dtype(layer.element_type)[0])
         for b in range(shape[0]):
             for i in range(shape[1]):
                 im_info[b][i] = image_size if i in [0, 1] else 1
@@ -275,7 +275,7 @@ def get_image_info_tensors(image_sizes, layer):
 
 
 def fill_tensors_with_random(layer):
-    dtype, rand_min, rand_max = get_dtype(layer.element_type.get_type_name())
+    dtype, rand_min, rand_max = get_dtype(layer.element_type)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
