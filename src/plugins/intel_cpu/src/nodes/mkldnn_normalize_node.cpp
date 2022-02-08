@@ -815,16 +815,16 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
-    config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
+    config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
         auto a = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA));
-        config.inConfs[0].desc = std::move(a);
+        config.inConfs[0].setMemDesc(std::move(a));
         a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(AXES));
-        config.inConfs[1].desc = std::move(a);
+        config.inConfs[1].setMemDesc(std::move(a));
         a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
-        config.outConfs[0].desc = std::move(a);
+        config.outConfs[0].setMemDesc(std::move(a));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -842,7 +842,7 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
         }
     }
     if (canBeInplace)
-        config.inConfs[0].inPlace = 0;
+        config.inConfs[0].inPlace(0);
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
@@ -875,9 +875,9 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, con
 void MKLDNNNormalizeL2Node::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "can't get destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         THROW_ERROR << "can't get input memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has nullable preferable primitive descriptor";
