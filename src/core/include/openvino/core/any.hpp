@@ -27,6 +27,7 @@ class ExecutableNetwork;
 
 namespace ov {
 /** @cond INTERNAL */
+class Any;
 namespace util {
 template <class T>
 struct Istreamable {
@@ -41,12 +42,18 @@ struct Istreamable {
     constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
 };
 
-template <class U>
-static typename std::enable_if<Istreamable<U>::value && !std::is_same<bool, U>::value>::type read(
-    std::istream& is,
-    U& value) {
-    is >> value;
-}
+template <class T>
+struct Readable {
+    template <class U>
+    static auto test(U*) -> decltype(read(std::declval<std::istream&>(), std::declval<U&>()), std::true_type()) {
+        return {};
+    }
+    template <typename>
+    static auto test(...) -> std::false_type {
+        return {};
+    }
+    constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
+};
 
 OPENVINO_API void read(std::istream& is, bool& value);
 OPENVINO_API void read(std::istream& is, int& value);
@@ -58,11 +65,41 @@ OPENVINO_API void read(std::istream& is, unsigned long long& value);
 OPENVINO_API void read(std::istream& is, float& value);
 OPENVINO_API void read(std::istream& is, double& value);
 OPENVINO_API void read(std::istream& is, long double& value);
+OPENVINO_API void read(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple);
+OPENVINO_API void read(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple);
+OPENVINO_API void read(std::istream& is, Any& any);
 
-template <class U>
-static typename std::enable_if<!Istreamable<U>::value>::type read(std::istream&, U&) {
-    throw ov::Exception{"Could read type without std::istream& operator>>(std::istream&, T) defined"};
+template <typename T>
+typename std::enable_if<Istreamable<T>::value && !Readable<T>::value>::type read(std::istream& is, T& value) {
+    is >> value;
 }
+
+template <typename T>
+typename std::enable_if<!Istreamable<T>::value && !Readable<T>::value>::type read(std::istream& is, T& value) {
+    throw ov::Exception{std::string{"Could read type without std::istream& operator>>(std::istream&, T) defined, T: "} +
+                        typeid(T).name()};
+}
+
+template <typename T, typename A>
+void read(std::istream& is, std::vector<T, A>& vec) {
+    while (is.good()) {
+        T v;
+        read(is, v);
+        vec.emplace_back(std::move(v));
+    }
+}
+
+template <typename K, typename T, typename C, typename A>
+void read(std::istream& is, std::map<K, T, C, A>& map) {
+    while (is.good()) {
+        K k;
+        T v;
+        read(is, k);
+        read(is, v);
+        map.emplace(std::move(k), std::move(v));
+    }
+}
+
 template <class T>
 struct Ostreamable {
     template <class U>
@@ -76,64 +113,60 @@ struct Ostreamable {
     constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
 };
 
-template <class U>
-static typename std::enable_if<Ostreamable<U>::value && !std::is_same<bool, U>::value>::type write(
-    std::ostream& os,
-    const U& value) {
+template <class T>
+struct Writable {
+    template <class U>
+    static auto test(U*) -> decltype(write(std::declval<std::ostream&>(), std::declval<const U&>()), std::true_type()) {
+        return {};
+    }
+    template <typename>
+    static auto test(...) -> std::false_type {
+        return {};
+    }
+    constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
+};
+
+template <class T>
+typename std::enable_if<Ostreamable<T>::value && !Writable<T>::value>::type write(std::ostream& os, const T& value) {
     os << value;
 }
 
-OPENVINO_API
-void write(std::ostream& os, const bool& b);
+template <class T>
+typename std::enable_if<!Ostreamable<T>::value && !Writable<T>::value>::type write(std::ostream& os, const T&) {}
 
-template <class U>
-static typename std::enable_if<!Ostreamable<U>::value>::type write(std::ostream&, const U&) {}
+OPENVINO_API void write(std::ostream& os, const bool& b);
+OPENVINO_API void write(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple);
+OPENVINO_API void write(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple);
+OPENVINO_API void write(std::ostream& os, const Any& any);
 
 template <typename T, typename A>
-static void write(std::ostream& os, const std::vector<T, A>& vec) {
+typename std::enable_if<Ostreamable<T>::value>::type write(std::ostream& os, const std::vector<T, A>& vec) {
     if (!vec.empty()) {
         std::size_t i = 0;
         for (auto&& v : vec) {
             write(os, v);
-            if (i < (vec.size() - 1)) os << ' ';
+            if (i < (vec.size() - 1))
+                os << ' ';
             ++i;
         }
     }
 }
 
 template <typename K, typename T, typename C, typename A>
-static void write(std::ostream& os, const std::map<K, T, C, A>& map) {
+typename std::enable_if<Ostreamable<K>::value && Ostreamable<T>::value>::type write(std::ostream& os,
+                                                                                    const std::map<K, T, C, A>& map) {
     if (!map.empty()) {
         std::size_t i = 0;
         for (auto&& v : map) {
             write(os, v.first);
             os << ' ';
             write(os, v.second);
-            if (i < (map.size() - 1)) os << ' ';
+            if (i < (map.size() - 1))
+                os << ' ';
             ++i;
         }
     }
 }
-template <typename K, typename T, typename C, typename A>
-static void read(std::istream& is, const std::map<K, T, C, A>& map) {
-    K k;
-    T v;
-    while(is >> k >> v) {
-        map.emplace(k, v);
-    }
-}
-
-OPENVINO_API
-void read(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple);
-
-OPENVINO_API
-void write(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple);
-
-OPENVINO_API
-void read(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple);
-OPENVINO_API
-void write(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple);
-
 }  // namespace util
 /** @endcond */
 
@@ -951,6 +984,7 @@ public:
     }
 };
 
+/** @cond INTERNAL */
 namespace util {
 template <>
 struct AsTypePtr<Any> {
@@ -965,6 +999,7 @@ struct AsTypePtr<Any> {
     }
 };
 }  // namespace util
+/** @endcond */
 
 using AnyMap = std::map<std::string, Any>;
 

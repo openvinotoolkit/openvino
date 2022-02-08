@@ -137,7 +137,7 @@ void read(std::istream& is, bool& value) {
 template <typename F>
 static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const std::string&>())) {
     std::string str;
-    is >> str;
+    std::getline(is, str, ' ');
     try {
         return f(str);
     } catch (std::exception& e) {
@@ -204,19 +204,30 @@ void write(std::ostream& os, const bool& b) {
 }
 
 void read(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple) {
-    is >> std::get<0>(tuple) >> std::get<1>(tuple) >> std::get<2>(tuple);
+    read(is, std::get<0>(tuple));
+    read(is, std::get<1>(tuple));
+    read(is, std::get<2>(tuple));
 }
 
 void write(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple) {
-    os << std::get<0>(tuple) << " " << std::get<1>(tuple) << " " <<  std::get<2>(tuple);
+    os << std::get<0>(tuple) << " " << std::get<1>(tuple) << " " << std::get<2>(tuple);
 }
 
 void read(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) {
-    is >> std::get<0>(tuple) >> std::get<1>(tuple);
+    read(is, std::get<0>(tuple));
+    read(is, std::get<1>(tuple));
 }
 
 void write(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple) {
     os << std::get<0>(tuple) << " " << std::get<1>(tuple);
+}
+
+void write(std::ostream& os, const Any& any) {
+    any.print(os);
+}
+
+void read(std::istream& is, Any& any) {
+    any.read(is);
 }
 }  // namespace util
 }  // namespace ov
