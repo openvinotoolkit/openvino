@@ -893,6 +893,15 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
+#ifdef DEBUG_USE_NEW_PASS
+    uint32_t w_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::W);
+    uint32_t h_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::H);
+    const uint32_t c_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::C);
+
+    uint32_t w_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::W);
+    uint32_t h_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::H);
+    const uint32_t c_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::C);
+#else
     uint32_t w_dim_in = GetDataDimSize(inputs, InferenceEngine::DataDimName::W);
     uint32_t h_dim_in = GetDataDimSize(inputs, InferenceEngine::DataDimName::H);
     const uint32_t c_dim_in = GetDataDimSize(inputs, InferenceEngine::DataDimName::C);
@@ -900,6 +909,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t w_dim_out = GetDataDimSize(outputs, InferenceEngine::DataDimName::W);
     uint32_t h_dim_out = GetDataDimSize(outputs, InferenceEngine::DataDimName::H);
     const uint32_t c_dim_out = GetDataDimSize(outputs, InferenceEngine::DataDimName::C);
+#endif
 
     if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
         swap(h_dim_in, w_dim_in);
