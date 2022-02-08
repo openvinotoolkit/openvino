@@ -441,8 +441,10 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
         stringstream label;
         label << "label=\"" << get_node_name(node);
 
-        static const bool nvtos = getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
-        static const bool nvtot = getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
+        static const bool nvtos =
+            getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES") || getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
+        static const bool nvtot =
+            getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES") || getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
         static const bool nvtio = getenv_bool("OV_VISUALIZE_TREE_IO");
         static const bool nvtrti = getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
 

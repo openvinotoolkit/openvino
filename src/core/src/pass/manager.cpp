@@ -38,7 +38,8 @@ PerfCounters& perf_counters() {
 
 ov::pass::Manager::Manager()
     : m_pass_config(std::make_shared<PassConfig>()),
-      m_visualize(ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING")) {}
+      m_visualize(ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING") ||
+                  ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING")) {}
 
 ov::pass::Manager::~Manager() = default;
 
@@ -52,7 +53,8 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");
 
-    static bool profile_enabled = ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
+    static bool profile_enabled =
+        ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE") || ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
 
     size_t index = 0;
     ngraph::stopwatch pass_timer;
