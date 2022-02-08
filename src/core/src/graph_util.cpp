@@ -247,7 +247,7 @@ std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector
 
             for (auto input : node->inputs()) {
                 const auto& output_rt_info = input.get_rt_info();
-                auto new_input = input.for_node(cloned_node);
+                auto new_input = cloned_node->input(input.get_index());
                 new_input.get_rt_info() = output_rt_info;
             }
 

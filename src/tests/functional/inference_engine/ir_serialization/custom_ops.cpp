@@ -91,6 +91,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
+
     InferenceEngine::Core ie;
     auto extension = std::make_shared<InferenceEngine::Extension>(get_extension_path());
     ie.AddExtension(extension);
@@ -131,6 +132,7 @@ public:
 
 TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
+
     InferenceEngine::Core ie;
     auto extension = std::make_shared<FrameworkNodeExtension>();
     ie.AddExtension(extension);

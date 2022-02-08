@@ -31,12 +31,7 @@ public:
     /// \param node Pointer to the node for the input handle.
     /// \param index The index of the input.
     Input(Node* node, size_t index);
-    /// \brief Constructs a Input.
-    /// \param node A `shared_ptr` to the node for the input handle.
-    /// \param index The index of the input.
-    Input(const std::shared_ptr<Node>& node, size_t index);
-    /// This output position for a different node
-    Input<Node> for_node(const std::shared_ptr<Node>& node);
+
     /// \return A pointer to the node referenced by this input handle.
     Node* get_node() const;
     /// \return The index of the input referred to by this input handle.
