@@ -635,7 +635,11 @@ int main(int argc, char* argv[]) {
             for (const auto& cfg : supported_properties) {
                 slog::info << "  {" << cfg << " , ";
                 std::stringstream strm;
-                compiledModel.get_property(cfg).print(strm);
+                // Auto-Device plugin compiledModel doesn't support GetConfig currently
+                try {
+                    compiledModel.get_property(cfg).print(strm);
+                } catch(...) {
+                }
                 strm << "";
                 slog::info << strm.str();
                 slog::info << " }" << slog::endl;
