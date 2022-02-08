@@ -180,13 +180,8 @@ def build_parser():
                        help='Defines layers to check. Options: all, None - for output layers check, list of '
                             'comma-separated layer names to check. Default value is None.')
     model.add_argument('-ref_layers', '--reference_layers', type=str, default=None,
-                       help='Defines layers to check. Options: all, None - for output layers check, list of '
-                            'comma-separated layer names to check. Default value is None.')
-    model.add_argument('--mapping', '-map', type=str, action=ExistingFileAction,
-                       help='Model Optimizer provided mapping for --model/-m')
-    model.add_argument('--reference_mapping', '-ref_map', type=str, action=ExistingFileAction,
-                       help='Model Optimizer provided mapping for --reference_model/-ref_model')
-
+                       help='Defines layers to check in referece model. Options: all, None - for output layers check, list of '
+                            'comma-separated layer names to check. If not specified the same layers will be processed as in --layers parameter.')
     plugin = parser.add_argument_group('Plugin specific arguments')
     plugin.add_argument('--plugin_path', '-pp', type=str, action=ExistingDirAction, help='Path to a plugin folder.')
     plugin.add_argument('--device', '-d', type=str, required=True,
@@ -227,10 +222,10 @@ def validate_args(args):
         args.model = args.reference_model
     if args.model == args.reference_model:
         args.reference_model = None
-    if args.model != args.reference_model and args.reference_model is not None and args.mapping is None and \
-            args.reference_mapping is None:
+    if args.model != args.reference_model and args.reference_model is not None and (args.layers is None or \
+            args.reference_layers is None):
         log.warning('Check over two different IRs was enabled. In case if layer names in this two IRs differ, '
-                    'please provide mapping files with --mapping/-map and --reference_mapping/-ref_map')
+                    'please provide both -layers and --reference_layers to compare against.')
     # device check
     if args.device is None and args.reference_device is None:
         raise Exception("Parameters -device/-d and -reference_device/-ref_d are not set. Can not proceed."

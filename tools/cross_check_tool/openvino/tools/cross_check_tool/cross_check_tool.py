@@ -123,7 +123,6 @@ def get_layers_union(layers, ref_layers):
 ###
 
 
-# TODO: replace ports by names in error_handing
 @error_handling('getting inference results for output: \'{output.any_name}\'')
 def get_infer_results(infer_request: InferRequest, output: Output):
     return infer_request.get_tensor(output).data
