@@ -240,20 +240,24 @@ public:
                 try {
                     return {_ptr->GetMetric(name, arguments), _so};
                 } catch (ie::Exception&) {
-                    auto ro_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_METRICS), arguments)
-                                            .as<std::vector<std::string>>();
-                    auto rw_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
-                                            .as<std::vector<std::string>>();
                     std::vector<ov::PropertyName> supported_properties;
-                    for (auto&& ro_property : ro_properties) {
-                        if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
-                            ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                            supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    try {
+                        auto ro_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_METRICS), arguments)
+                                                .as<std::vector<std::string>>();
+                        for (auto&& ro_property : ro_properties) {
+                            if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                                ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                                supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                            }
                         }
-                    }
-                    for (auto&& rw_property : rw_properties) {
-                        supported_properties.emplace_back(rw_property, PropertyMutability::RW);
-                    }
+                    } catch (ie::Exception&) {}
+                    try {
+                        auto rw_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
+                                                .as<std::vector<std::string>>();
+                        for (auto&& rw_property : rw_properties) {
+                            supported_properties.emplace_back(rw_property, PropertyMutability::RW);
+                        }
+                    } catch (ie::Exception&) {}
                     supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
                     return supported_properties;
                 }
