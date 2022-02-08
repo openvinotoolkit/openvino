@@ -74,7 +74,7 @@ OpenVINO™ Documentation
 	 </a>
 	 <a href="openvino_docs_OV_Runtime_User_Guide.html" >
 	    <h3>OpenVINO™ Runtime </h3>
-	    <p> Learn about OpenVINO's inference mechanism which executes the IR and ONNX models on target devices. </p>  
+	    <p> Learn about OpenVINO's inference mechanism which executes the IR, ONNX, Paddle models on target devices. </p>  
 	 </a>
 	 <a href="openvino_docs_optimization_guide_dldt_optimization_guide.html" >
 	    <h3>Tune & Optimize </h3>
