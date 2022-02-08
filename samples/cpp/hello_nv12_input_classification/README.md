@@ -26,7 +26,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 Upon the start-up, the sample application reads command-line parameters, loads specified network and an
 image in the NV12 color format to an Inference Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream. You can place labels in .labels file near the model to get pretty output.
 
-You can see the explicit description of each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+You can see the explicit description of each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Building
 
@@ -113,7 +113,7 @@ This sample is an API example, for any performance measurements please use the d
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate the OpenVINO™ into Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md)
+- [Using OpenVINO™ Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

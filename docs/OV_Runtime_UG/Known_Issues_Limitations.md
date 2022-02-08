@@ -47,7 +47,7 @@ Refer to the **Limitations** section of the [Static Shape Infer page](ShapeInfer
 
 ## Image Pre-Processing Performance Optimization Issue
 
-As described in [documentation for the new API](Integrate_with_customer_application_new_API.md), you can set an image blob of any size to an
+As described in [documentation for the new API](Integrate_with_customer_application.md), you can set an image blob of any size to an
 infer request using resizable input. Resize is executed during inference using the configured resize algorithm.
 
 But currently, resize algorithms are not completely optimized. So expect performance degradation if resizable input is

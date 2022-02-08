@@ -5,24 +5,21 @@
 ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/13?label=Public%20CI)
 [![PyPI Downloads](https://pepy.tech/badge/openvino)](https://pepy.tech/project/openvino)
 
-This toolkit allows developers to deploy pre-trained deep learning models
-through a high-level C++ Inference Engine API integrated with application logic.
+This toolkit allows developers to deploy pre-trained deep learning models through a high-level C++ OpenVINO™ Runtime API integrated with application logic.
 
-This open source version includes several components: namely [Model Optimizer], [nGraph] and
-[Inference Engine], as well as CPU, GPU, MYRIAD, multi device and heterogeneous plugins to accelerate deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
-It supports pre-trained models from the [Open Model Zoo], along with 100+ open
-source and public models in popular formats such as Caffe\*, TensorFlow\*,
-MXNet\* and ONNX\*.
+This open source version includes several components: namely [Model Optimizer], [POT],
+[OpenVINO™ Runtime], [Samples], frontends, as well as CPU, GPU, Myriad, auto and heterogeneous plugins to accelerate deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
+It supports pre-trained models from the [Open Model Zoo], along with 100+ open source and public models in popular formats such as Caffe\*, TensorFlow\*, MXNet\* and ONNX\*.
 
 ## Repository components:
-* [Inference Engine]
-* [nGraph]
+* [OpenVINO™ Runtime]
 * [Model Optimizer]
+* [POT]
+* [Samples]
 
 ## License
-Deep Learning Deployment Toolkit is licensed under [Apache License Version 2.0](LICENSE).
-By contributing to the project, you agree to the license and copyright terms therein
-and release your contribution under these terms.
+OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
+By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
 ## Resources:
 * Docs: https://docs.openvino.ai/
@@ -44,7 +41,9 @@ Please report questions, issues and suggestions using:
 \* Other names and brands may be claimed as the property of others.
 
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
-[OpenVINO Runtime™]:https://docs.openvino.ai/latest/openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html
-[Model Optimizer]:https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
+[OpenVINO Runtime™]:https://docs.openvino.ai/nightly/openvino_docs_OV_Runtime_User_Guide.html
+[Model Optimizer]:https://docs.openvino.ai/nightly/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
+[POT]:https://docs.openvino.ai/nightly/pot_README.html
+[Samples]:https://github.com/openvinotoolkit/openvino/tree/master/samples
 [tag on StackOverflow]:https://stackoverflow.com/search?q=%23openvino
 

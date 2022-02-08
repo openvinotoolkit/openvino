@@ -32,7 +32,7 @@ frames according to the `-bs` parameter.  Batching across utterances is not supp
 statistics are provided for each speech utterance as shown above.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ### GNA-specific details
 
@@ -241,7 +241,7 @@ All of mentioned files can be downloaded from [https://storage.openvinotoolkit.o
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate the OpenVINO™ into Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md)
+- [Using OpenVINO™ Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

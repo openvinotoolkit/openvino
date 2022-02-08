@@ -1,4 +1,4 @@
-# OpenVINO™ Runtime User Guide {#openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide}
+# OpenVINO™ Runtime User Guide {#openvino_docs_OV_Runtime_User_Guide}
 
 @sphinxdirective
 
@@ -6,8 +6,8 @@
    :maxdepth: 1
    :hidden:
    
+   openvino_docs_Integrate_OV_into_customer_application
    openvino_2_0_transition_guide
-   openvino_docs_IE_DG_Integrate_with_customer_application_new_API
    openvino_docs_OV_Runtime_UG_Model_Representation
    ngraph_transformation
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
