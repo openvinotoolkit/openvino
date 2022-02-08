@@ -18,6 +18,7 @@
 
 #include "ie_precision.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 
 namespace ov {
@@ -156,7 +157,7 @@ struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, Proper
 };
 
 /**
- * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properies.
+ * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properties.
  *
  * This can be used as a compiled model property as well.
  *
@@ -188,37 +189,38 @@ namespace hint {
 static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
 
 /**
- * @brief Enum to define possible model priorities hints
+ * @brief Enum to define possible priorities hints
  */
-enum class ModelPriority {
+enum class Priority {
     LOW = 0,
     MEDIUM = 1,
     HIGH = 2,
+    DEFAULT = MEDIUM,
 };
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const ModelPriority& model_priority) {
-    switch (model_priority) {
-    case ModelPriority::LOW:
+inline std::ostream& operator<<(std::ostream& os, const Priority& priority) {
+    switch (priority) {
+    case Priority::LOW:
         return os << "LOW";
-    case ModelPriority::MEDIUM:
+    case Priority::MEDIUM:
         return os << "MEDIUM";
-    case ModelPriority::HIGH:
+    case Priority::HIGH:
         return os << "HIGH";
     default:
         throw ov::Exception{"Unsupported performance measure hint"};
     }
 }
 
-inline std::istream& operator>>(std::istream& is, ModelPriority& model_priority) {
+inline std::istream& operator>>(std::istream& is, Priority& priority) {
     std::string str;
     is >> str;
     if (str == "LOW") {
-        model_priority = ModelPriority::LOW;
+        priority = Priority::LOW;
     } else if (str == "MEDIUM") {
-        model_priority = ModelPriority::MEDIUM;
+        priority = Priority::MEDIUM;
     } else if (str == "HIGH") {
-        model_priority = ModelPriority::HIGH;
+        priority = Priority::HIGH;
     } else {
         throw ov::Exception{"Unsupported model priority: " + str};
     }
@@ -230,19 +232,22 @@ inline std::istream& operator>>(std::istream& is, ModelPriority& model_priority)
  * @brief High-level OpenVINO model priority hint
  * Defines what model should be provided with more performant bounded resource first
  */
-static constexpr Property<ModelPriority> model_priority{"MODEL_PRIORITY"};
+static constexpr Property<Priority> model_priority{"OV_MODEL_PRIORITY"};
 
 /**
  * @brief Enum to define possible performance mode hints
  */
 enum class PerformanceMode {
-    LATENCY = 0,
-    THROUGHPUT = 1,
+    UNDEFINED = -1,
+    LATENCY = 1,
+    THROUGHPUT = 2,
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
+    case PerformanceMode::UNDEFINED:
+        return os << "";
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -259,6 +264,8 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::LATENCY;
     } else if (str == "THROUGHPUT") {
         performance_mode = PerformanceMode::THROUGHPUT;
+    } else if (str == "") {
+        performance_mode = PerformanceMode::UNDEFINED;
     } else {
         throw ov::Exception{"Unsupported performance mode: " + str};
     }
@@ -279,6 +286,12 @@ static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
  */
 static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"};
+
+/**
+ * @brief This key identifies shared pointer to the ov::Model, required for some properties (ov::max_batch_size and
+ * ov::optimal_batch_size)
+ */
+static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
 }  // namespace hint
 
 /**
@@ -385,13 +398,19 @@ static constexpr Property<std::tuple<unsigned int, unsigned int>, PropertyMutabi
  *
  * Property returns a value of unsigned int type,
  * Returns optimal batch size for a given network on the given device. The returned value is aligned to power of 2.
- * Also, MODEL_PTR is the required option for this metric since the optimal batch size depends on the model,
- * so if the MODEL_PTR is not given, the result of the metric is always 1.
+ * Also, ov::hint::model is the required option for this metric since the optimal batch size depends on the model,
+ * so if the ov::hint::model is not given, the result of the metric is always 1.
  * For the GPU the metric is queried automatically whenever the OpenVINO performance hint for the throughput is used,
  * so that the result (>1) governs the automatic batching (transparently to the application).
  * The automatic batching can be disabled with ALLOW_AUTO_BATCHING set to NO
  */
 static constexpr Property<unsigned int, PropertyMutability::RO> optimal_batch_size{"OPTIMAL_BATCH_SIZE"};
+
+/**
+ * @brief Read-only property to get maximum batch size which does not cause performance degradation due to memory swap
+ * impact.
+ */
+static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"MAX_BATCH_SIZE"};
 
 /**
  * @brief Read-only property to provide a hint for a range for number of async infer requests. If device supports

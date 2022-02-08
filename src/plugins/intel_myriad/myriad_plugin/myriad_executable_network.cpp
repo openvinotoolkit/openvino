@@ -20,6 +20,7 @@
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
 #include <vpu/configuration/options/performance_hint.hpp>
 #include "vpu/configuration/options/performance_hint_num_requests.hpp"
+#include <vpu/configuration/options/ov_throughput_streams.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -64,6 +65,8 @@ void ExecutableNetwork::openDevice(std::vector<DevicePtr>& devicePool) {
     int executors = 0;
     if (_config.get<ThroughputStreamsOption>().hasValue()) {
         executors = _config.get<ThroughputStreamsOption>().get();
+    } else if (_config.get<OvThroughputStreamsOption>().hasValue()) {
+        executors = _config.get<OvThroughputStreamsOption>().get();
     } else if (!_config.get<PerformanceHintOption>().empty()) {
         executors = _config.get<PerformanceHintOption>() == CONFIG_VALUE(LATENCY) ? 1 : 2;
     }
@@ -130,8 +133,7 @@ ExecutableNetwork::ExecutableNetwork(
 
     const auto& networkName = network.getName();
     if (_config.get<ExclusiveAsyncRequestsOption>()) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor("MYRIAD");
+        _taskExecutor = executorManager()->getExecutor("MYRIAD");
     }
 
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
@@ -195,8 +197,7 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
     }
 
     if (_config.get<ExclusiveAsyncRequestsOption>()) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor("MYRIAD");
+        _taskExecutor = executorManager()->getExecutor("MYRIAD");
     }
 
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
@@ -242,7 +243,7 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
             optimalNumOfInferRequests =
                     _config.get<PerformanceHintOption>() == CONFIG_VALUE(THROUGHPUT) ? optimalNumOfInferRequests : 1;
         }
-        if (_config.get<PerformanceHintNumRequestsOption>() != -1) {
+        if (_config.get<PerformanceHintNumRequestsOption>() != 0) {
             optimalNumOfInferRequests =
                     std::min(optimalNumOfInferRequests,
                              static_cast<unsigned int>(_config.get<PerformanceHintNumRequestsOption>()));
