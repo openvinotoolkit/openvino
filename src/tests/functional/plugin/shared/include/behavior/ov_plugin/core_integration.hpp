@@ -342,6 +342,32 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::device::priorities(deviceName)));
     OV_ASSERT_NO_THROW(devicePriority = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::device::priorities));
     ASSERT_EQ(deviceName, devicePriority);
+
+    // log level
+    ov::log::Level logValue;
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::log::level(ov::log::Level::NO)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::NO);
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::log::level(ov::log::Level::ERR)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::ERR);
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::log::level(ov::log::Level::WARNING)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::WARNING);
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::log::level(ov::log::Level::INFO)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::INFO);
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::log::level(ov::log::Level::DEBUG)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::DEBUG);
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::log::level(ov::log::Level::TRACE)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::TRACE);
+
+    // full name
+    std::string fullNameValue;
+    OV_ASSERT_NO_THROW(fullNameValue = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::device::full_name));
+    EXPECT_EQ(fullNameValue, CommonTestUtils::DEVICE_AUTO);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
