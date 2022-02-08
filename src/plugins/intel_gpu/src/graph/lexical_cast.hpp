@@ -8,7 +8,7 @@
 
 namespace cldnn {
 inline std::string lexical_cast(const json_base& j, int offset = 1) {
-    std::stringstream os;
+    std::ostringstream os;
     j.dump(os, offset);
     return os.str();
 }
