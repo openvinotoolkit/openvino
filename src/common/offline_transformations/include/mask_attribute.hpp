@@ -156,20 +156,11 @@ public:
 
     bool add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
         if (m_callbacks.find(mask.get()) != m_callbacks.end())
-            throw std::runtime_error("Attempt to rewrite callback, leads to unexpected behaviour");
+            NGRAPH_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
 
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());
         return true;
-    }
-
-    //void add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
-    //    m_callbacks[mask.get()] = receive_callback;
-    //    m_dependencies.push_back(mask.get());
-    //}
-
-    std::function<bool(Mask::Ptr)> get_callback(Mask::Ptr mask) {
-        return m_callbacks[mask.get()];
     }
 
     /* Modify state of this mask by corresponding callback,
@@ -224,12 +215,6 @@ public:
 
     bool adjust_value() const {
         return m_adjust_value;
-    }
-
-    std::vector<Mask*> dependencies() const {
-        auto res = std::vector<Mask*>();
-        std::copy(m_dependencies.begin(), m_dependencies.end(), std::back_inserter(res));
-        return res;
     }
 
 private:

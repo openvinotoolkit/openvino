@@ -481,13 +481,8 @@ public:
                 return true;
             };
 
-            //bool status = true;
             output_mask->add_callback(output_mask_callback, input_mask);
             input_mask->add_callback(input_mask_callback, output_mask);
-            //if (not status) {
-            //    NGRAPH_DEBUG << "Attempt to rewrite callbacks while processing node"
-            //                 << m_output.get_node()->get_friendly_name();
-            //}
 
             // Calculate output mask
             output_mask->apply_callback(input_mask);
@@ -793,7 +788,7 @@ public:
                 auto weights_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length(), true);
 
                 const auto input_shape = m_input.get_shape();
-                const auto output_shape = constant->cast_vector<int64_t>();
+                const auto output_shape = m_output.get_node()->output(0).get_shape();
 
                 // Check dimensions equality from the begining and allow
                 // to propagate masks only for dimensions which equal from the begining
