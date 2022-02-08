@@ -172,6 +172,8 @@ def test_batched_tensors(device):
 
     core = Core()
 
+    core.register_plugin("openvino_template_plugin", "TEMPLATE")
+
     data1 = ops.parameter(batch_shape, np.float32)
     data1.set_friendly_name("input0")
     data1.get_output_tensor(0).set_names({"tensor_input0"})
