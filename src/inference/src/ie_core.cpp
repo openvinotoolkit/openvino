@@ -220,11 +220,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
-        try {
-            return util::contains(plugin.get_property(ov::supported_properties), key);
-        } catch (...) {
-            return false;
-        }
+        return util::contains(plugin.get_property(ov::supported_properties), key);
     }
 
     bool DeviceSupportsImportExport(const ov::InferencePlugin& plugin) const {
@@ -242,11 +238,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     bool DeviceSupportsCacheDir(const ov::InferencePlugin& plugin) const {
-        try {
-            return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
-        } catch (...) {
-            return false;
-        }
+        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     }
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
