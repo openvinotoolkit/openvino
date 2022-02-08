@@ -26,7 +26,7 @@ Upon the start-up, the sample application reads command line parameters, loads s
 Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 

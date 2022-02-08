@@ -24,7 +24,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image(s) to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Running
 
