@@ -412,18 +412,18 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = -1;
-                portConfig.constant = false;
-                portConfig.desc = getSrcMemDesc(itpd, i);
+                portConfig.inPlace(-1);
+                portConfig.constant(false);
+                portConfig.setMemDesc(getSrcMemDesc(itpd, i));
 
                 config.inConfs.push_back(portConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = canBeInPlace() ? 0 : -1;
-                portConfig.constant = false;
-                portConfig.desc = getDstMemDesc(itpd, i);
+                portConfig.inPlace(canBeInPlace() ? 0 : -1);
+                portConfig.constant(false);
+                portConfig.setMemDesc(getDstMemDesc(itpd, i));
 
                 config.outConfs.push_back(portConfig);
             }
@@ -466,9 +466,9 @@ void MKLDNNMatMulNode::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto& src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW()  << errorPrefix << " did not allocate destination memory";
-    if (!src0MemPtr || !src0MemPtr->GetPrimitivePtr() || !src1MemPtr || !src1MemPtr->GetPrimitivePtr())
+    if (!src0MemPtr || !src0MemPtr->isAllocated() || !src1MemPtr || !src1MemPtr->isAllocated())
         IE_THROW()  << errorPrefix << " did not allocate input memory";
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -504,7 +504,7 @@ void MKLDNNMatMulNode::prepareParams() {
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
         auto& biasMemory = getParentEdgeAt(2)->getMemoryPtr();
-        if (!biasMemory || !biasMemory->GetPrimitivePtr())
+        if (!biasMemory || !biasMemory->isAllocated())
             IE_THROW()  << errorPrefix << " did not allocate bias memory";
         dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();
     }

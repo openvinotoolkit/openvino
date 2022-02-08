@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from abc import ABC, abstractmethod
+from addict import Dict
 
 from ..statistics.statistic_graph_builder import StatisticGraphBuilder
 
@@ -17,7 +18,7 @@ class Engine(ABC):
          :param data_loader: entity responsible for communication with dataset
          :param metric: entity for metric calculation
         """
-        self.config = config
+        self.config = config if isinstance(config, Dict) else Dict(config)
         self._data_loader = data_loader
         self._metric = metric
         self._statistic_graph_builder = StatisticGraphBuilder()
@@ -27,7 +28,7 @@ class Engine(ABC):
 
     def set_model(self, model):
         """ Set/reset model to instance of engine class
-         :param model: NXModel instance for inference
+         :param model: CompressedModel instance for inference
         """
 
     @property

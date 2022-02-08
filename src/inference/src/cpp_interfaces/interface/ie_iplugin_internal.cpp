@@ -30,6 +30,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -74,6 +75,8 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     }
     return _networkOutputs;
 }
+
+IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     _dsc = v.description;
@@ -143,7 +146,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                                                orig_function->get_friendly_name());
         function->get_rt_info() = orig_function->get_rt_info();
     }
-    if (function && GetCore() && !GetCore()->isNewAPI()) {
+    const auto& core = GetCore();
+    if (function && core && !core->isNewAPI()) {
         auto& rt_info = function->get_rt_info();
         if (rt_info.find("version") == rt_info.end()) {
             rt_info["version"] = int64_t(10);
@@ -254,6 +258,10 @@ std::shared_ptr<ICore> IInferencePlugin::GetCore() const noexcept {
     return _core.lock();
 }
 
+const std::shared_ptr<ExecutorManager>& IInferencePlugin::executorManager() const {
+    return _executorManager;
+}
+
 QueryNetworkResult IInferencePlugin::QueryNetwork(const CNNNetwork& network,
                                                   const std::map<std::string, std::string>& config) const {
     IE_THROW(NotImplemented);
@@ -286,7 +294,8 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const std::shared_ptr<const ov::Model>& function) {
-    bool newAPI = this->GetCore() && this->GetCore()->isNewAPI();
+    const auto& core = GetCore();
+    bool newAPI = core && core->isNewAPI();
     InferenceEngine::SetExeNetworkInfo(exeNetwork, function, newAPI);
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
