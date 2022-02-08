@@ -36,7 +36,7 @@ Model specific arguments:
                         Defines layers to check. Options: all, None - for
                         output layers check, list of comma-separated layer
                         names to check. Default value is None.
-  --ref_layers LAYERS, -reference_layers LAYERS
+  --ref_layers REFERENCE_LAYERS, -reference_layers REFERENCE_LAYERS
                         Defines layers to check in reference model. Options: all, None - for
                         output layers check, list of comma-separated layer
                         names to check. If not specified the same layers will
