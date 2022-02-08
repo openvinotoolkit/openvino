@@ -12,7 +12,7 @@ Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow
 
 1. Go to the install_dependencies directory:
    ```sh
-   cd <INSTALL_DIR>/intel/openvino_2022/install_dependencies/
+   cd <INSTALL_DIR>/install_dependencies/
    ```
 2. Run the `install_NCS_udev_rules.sh` script:
    ```
@@ -72,3 +72,23 @@ Proceed to the [Get Started Guide](@ref get_started) section to learn the basic 
    ./armv7l/Release/hello_classification <path_to_model>/squeezenet1.1.xml <path_to_image> MYRIAD
    ```
    The application outputs to console window top 10 classification results.
+
+@sphinxdirective
+
+.. _ncs guide macos:
+
+@endsphinxdirective
+
+## macOS
+
+These steps are required only if you want to perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU.
+
+To perform inference on Intel® Neural Compute Stick 2, the `libusb` library is required. You can build it from the [source code](https://github.com/libusb/libusb) or install using the macOS package manager you prefer: [Homebrew*](https://brew.sh/), [MacPorts*](https://www.macports.org/) or other.
+
+For example, to install the `libusb` library using Homebrew\*, use the following command:
+```sh
+brew install libusb
+```
+
+You've completed all required configuration steps to perform inference on your Intel® Neural Compute Stick 2.
+Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.

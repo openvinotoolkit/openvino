@@ -99,11 +99,11 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    ![](../img/openvino-install-linux-run-boostrapper-script.gif)
    Click on the image to see the details.
    <br>
-   <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory:
+   <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
    * For root or administrator: `/opt/intel/openvino_<version>/`
    * For regular users: `/home/<USER>/intel/openvino_<version>/`
 
-   <br>For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/` or `/home/<USER>/intel/openvino_2022/`
+   <br>For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/` or `/home/<USER>/intel/openvino_2022/`.
 
 To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
 
@@ -115,7 +115,7 @@ This script allows to install Linux platform development tools and components to
 
 1. Go to the `install_dependencies` directory:
    ```sh
-   cd <INSTALL_DIR>/intel/openvino_2022/install_dependencies
+   cd <INSTALL_DIR>/install_dependencies
    ```
 2. Run a script to download and install the external software dependencies:
    ```sh
@@ -129,12 +129,12 @@ This script allows to install Linux platform development tools and components to
 You must update several environment variables before you can compile and run OpenVINO™ applications. Set environment variables as follows:
 
 ```sh
-source <INSTALL_DIR>/intel/openvino_2022/bin/setupvars.sh
+source <INSTALL_DIR>/setupvars.sh
 ```  
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/intel/openvino_2022/bin/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
+> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
 
 The environment variables are set. Next, you can download some additional tools.
 
@@ -200,7 +200,7 @@ Use the `--trusted-host` parameter if the URL above is `http` instead of `https`
 * If you run into incompatibility issues between components after installing new Intel® Distribution of OpenVINO™ version, try running `requirements.txt` with the following command:
 
    ```
-   pip install -r <INSTALL_DIR>/intel/openvino_2022/tools/requirements.txt
+   pip install -r <INSTALL_DIR>/tools/requirements.txt
    ```
 
 @sphinxdirective
