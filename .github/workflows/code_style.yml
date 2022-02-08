@@ -19,9 +19,9 @@ jobs:
           sudo apt update
           sudo apt --assume-yes install libusb-1.0-0-dev
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+          python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements.txt
           # Add for -DENABLE_PYTHON=ON, no cython
-          python3 -m pip install -r ./inference-engine/ie_bridges/python/src/requirements-dev.txt
+          python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
       # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
       - name: CMake
@@ -60,13 +60,13 @@ jobs:
           sudo apt --assume-yes install shellcheck
 
       - name: Install dependencies
-        run: python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+        run: python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements.txt
 
       - name: CMake
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_INTEL_VPU=OFF ..
+          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF ..
 
       - name: ShellCheck
         run: cmake --build . --target ie_shellcheck -j8
@@ -82,7 +82,8 @@ jobs:
       - name: Install Clang dependency
         run: |
           sudo apt update
-          sudo apt --assume-yes install libclang-11-dev
+          sudo apt --assume-yes remove clang-7 clang-8 clang-9 clang-10 clang-11
+          sudo apt --assume-yes install libclang-12-dev
 
       - name: Install Python-based dependencies
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
@@ -91,7 +92,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_INTEL_VPU=OFF ..
+          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF ..
 
       - name: Naming convention check
         run: cmake --build . --target ncc_all -j8

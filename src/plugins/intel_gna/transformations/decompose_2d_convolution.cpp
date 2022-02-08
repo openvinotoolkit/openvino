@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,7 +128,9 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvData& conv_data) {
     // GNA supported features or handled otherwise - there is no need to decompose such convolution
     if (graph_data.conv_count == 1 && (((conv_data.input_height == 1 || conv_data.input_width == 1) &&
         conv_data.filter_dilation_width == 1 && conv_data.filter_dilation_height == 1) ||
-        GNAConvolutionLayer::isMappableFrom2DTo1D(conv_data.input_height, conv_data.input_width, conv_data.filter_width, conv_data.filter_stride_width)))
+        GNAConvolutionLayer::isMappableFrom2DTo1D(conv_data.input_height, conv_data.input_width, conv_data.input_channel_count,
+                                                  conv_data.filter_height, conv_data.filter_width,
+                                                  conv_data.filter_stride_height, conv_data.filter_stride_width)))
         return false;
 
     return true;

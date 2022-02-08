@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,12 @@ TEST(op_eval, softsign) {
     auto fun = std::make_shared<ngraph::Function>(ngraph::OutputVector{softsign}, ngraph::ParameterVector{p});
 
     float inputs[] = {-1.0, 0.0, 1.0, 20.0};
-    std::vector<float> expected_result{0.5, 1.0, 0.5, 0.047619};
+    std::vector<float> expected_result{-0.5, 0.0, 0.5, 0.952381};
 
-    ov::runtime::TensorVector result(1);
-    ov::runtime::Tensor input{ov::element::f32, ov::Shape{4}, inputs};
+    ov::TensorVector result(1);
+    ov::Tensor input{ov::element::f32, ov::Shape{4}, inputs};
 
-    ASSERT_TRUE(fun->evaluate(result, ov::runtime::TensorVector{input}));
+    ASSERT_TRUE(fun->evaluate(result, ov::TensorVector{input}));
 
     EXPECT_EQ(result.size(), 1);
     EXPECT_EQ(result[0].get_element_type(), ngraph::element::f32);

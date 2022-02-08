@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,7 +79,7 @@ static UNUSED InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat& mat) {
     return InferenceEngine::make_shared_blob<uint8_t>(tDesc, mat.data);
 }
 
-static UNUSED ov::runtime::Tensor wrapMat2Tensor(const cv::Mat& mat) {
+static UNUSED ov::Tensor wrapMat2Tensor(const cv::Mat& mat) {
     const size_t channels = mat.channels();
     const size_t height = mat.size().height;
     const size_t width = mat.size().width;
@@ -90,5 +90,5 @@ static UNUSED ov::runtime::Tensor wrapMat2Tensor(const cv::Mat& mat) {
     const bool is_dense = strideW == channels && strideH == channels * width;
     OPENVINO_ASSERT(is_dense, "Doesn't support conversion from not dense cv::Mat");
 
-    return ov::runtime::Tensor(ov::element::u8, ov::Shape{1, height, width, channels}, mat.data);
+    return ov::Tensor(ov::element::u8, ov::Shape{1, height, width, channels}, mat.data);
 }

@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
 from openvino.tools.mo.utils.error import Error
@@ -16,6 +17,7 @@ class ReorgYoloOp(Op):
             'type': self.op,
             'op': self.op,
             'version': 'opset2',
+            'reverse_infer': self.reverse_infer,
             'infer': ReorgYoloOp.reorgyolo_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -41,3 +43,8 @@ class ReorgYoloOp(Op):
 
         node.out_port(0).data.set_shape(output_shape)
         PermuteAttrs.create_permute_attrs(node, attrs=[('channel_dims', 'input:0'), ('spatial_dims', 'input:0')])
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))

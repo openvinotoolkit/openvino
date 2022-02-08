@@ -1,9 +1,9 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "paddle_utils.hpp"
 
@@ -93,8 +93,8 @@ struct LSTMNgInputMap {
         auto batch_size_node =
             std::make_shared<opset6::Gather>(shape_of_x, opset6::Constant::create(element::i64, Shape{1}, {0}), axes);
 
-        if (node.has_ng_input("SequenceLength")) {
-            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = node.get_ng_input("SequenceLength");
+        if (node.has_input("SequenceLength")) {
+            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = node.get_input("SequenceLength");
         } else {
             auto seq_length_node =
                 std::make_shared<opset6::Gather>(shape_of_x,

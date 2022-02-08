@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
@@ -32,10 +32,11 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
-#include "pyopenvino/frontend/extensions.hpp"
+#include "pyopenvino/frontend/extension.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
-#include "pyopenvino/frontend/inputmodel.hpp"
+#include "pyopenvino/frontend/input_model.hpp"
 #include "pyopenvino/frontend/manager.hpp"
+#include "pyopenvino/frontend/node_context.hpp"
 #include "pyopenvino/frontend/place.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
@@ -133,6 +134,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_ProfilingInfo(m);
     regclass_Extension(m);
 
+    // frontend
     regclass_frontend_Place(m);
     regclass_frontend_InitializationFailureFrontEnd(m);
     regclass_frontend_GeneralFailureFrontEnd(m);
@@ -142,10 +144,17 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_FrontEndManager(m);
     regclass_frontend_FrontEnd(m);
     regclass_frontend_InputModel(m);
+    regclass_frontend_NodeContext(m);
+
+    // frontend extensions
     regclass_frontend_TelemetryExtension(m);
     regclass_frontend_DecoderTransformationExtension(m);
     regclass_frontend_JsonConfigExtension(m);
+    regclass_frontend_ConversionExtensionBase(m);
+    regclass_frontend_ConversionExtension(m);
     regclass_frontend_ProgressReporterExtension(m);
+    regclass_frontend_OpExtension(m);
 
+    // transformations
     regmodule_offline_transformations(m);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,10 +33,6 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph:
 bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
     const auto dequantization = NetworkHelper::getDequantization(reduce);
     if (dequantization.empty()) {
-        return false;
-    }
-
-    if (NetworkHelper::isDQByDynamicDimension(reduce)) {
         return false;
     }
 

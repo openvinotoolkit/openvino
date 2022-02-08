@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,23 +33,41 @@ struct GnaDesc {
     // gna specific properties
     double scale_factor = GNAPluginNS::kScaleFactorDefault;
     intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
-    uint32_t num_bytes_per_element = 0;
     uint32_t num_elements = 0;
     uint32_t allocated_size = 0;
     std::vector<void *> ptrs = {};  // ptr per each infer request
 
     // help methods
     uint32_t get_required_size() {
-        return num_elements * num_bytes_per_element;
+        return num_elements * tensor_precision.size();
     }
 
     uint32_t get_allocated_size() {
         return allocated_size;
     }
 
-    void set_precision(InferenceEngine::Precision precision) {
+    void set_precision(InferenceEngine::Precision::ePrecision precision) {
         this->tensor_precision = precision;
-        this->num_bytes_per_element = precision.size();
+    }
+
+    // helps to get the precision for gna layers, because they use num_bytes instead of precision values
+    void set_precision(uint32_t num_bytes) {
+        switch (num_bytes) {
+            case sizeof(int8_t) : {
+                set_precision(InferenceEngine::Precision::I8);
+                break;
+            }
+            case sizeof(int16_t) : {
+                set_precision(InferenceEngine::Precision::I16);
+                break;
+            }
+            case sizeof(int32_t) : {
+                set_precision(InferenceEngine::Precision::I32);
+                break;
+            }
+            default :
+                set_precision(InferenceEngine::Precision::UNSPECIFIED);
+        }
     }
 
     InferenceEngine::DataPtr to_ie_data() {
@@ -69,7 +87,6 @@ struct InputDesc : GnaDesc {
         this->model_layout = inputInfo->getLayout();
         this->dims = inputInfo->getTensorDesc().getDims();
         this->name = inputInfo->name();
-        this->num_bytes_per_element = tensor_precision.size();
         this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
     }
 
@@ -92,7 +109,6 @@ struct OutputDesc : GnaDesc {
         this->model_layout = outputData->getLayout();
         this->dims = outputData->getTensorDesc().getDims();
         this->name = outputData->getName();
-        this->num_bytes_per_element = tensor_precision.size();
         this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
     }
 };

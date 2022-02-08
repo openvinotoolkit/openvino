@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -255,7 +255,8 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                     input.add_fused_activation(node.get_fused_activations_funcs()[i],
                                                node.get_fused_activations_params()[i]);
                 }
-                input.set_output_padding(node.get_output_layout().data_padding);
+                auto outputPadding = node.get_output_layout().data_padding;
+                input.set_output_padding(outputPadding);
                 p.extract_and_remove(node);
             } else {
                 // If node already has any fused node using new mechanism,

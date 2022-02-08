@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,10 @@
  */
 #pragma once
 
-#include <chrono>
 #include <map>
 #include <string>
 
+#include "openvino/core/any.hpp"
 #include "openvino/core/visibility.hpp"
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE)
@@ -43,11 +43,6 @@ namespace InferenceEngine {}
 
 namespace ov {
 namespace ie = InferenceEngine;
-namespace runtime {
-/**
- * @brief This type of map is commonly used to pass set of device configuration parameters
- */
-using ConfigMap = std::map<std::string, std::string>;
 
 /**
  * @brief This type of map is used for result of Core::query_model
@@ -56,5 +51,27 @@ using ConfigMap = std::map<std::string, std::string>;
  */
 using SupportedOpsMap = std::map<std::string, std::string>;
 
+namespace runtime {
+using ov::SupportedOpsMap;
 }  // namespace runtime
+
 }  // namespace ov
+
+namespace std {
+inline ostream& operator<<(ostream& os, const map<string, float>& m) {
+    for (auto&& it : m) {
+        os << it.first << " " << it.second << " ";
+    }
+    return os;
+}
+
+inline istream& operator>>(istream& is, map<string, float>& m) {
+    m.clear();
+    string key;
+    float value;
+    while (is >> key >> value) {
+        m.emplace(key, value);
+    }
+    return is;
+}
+}  // namespace std

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,6 +72,7 @@ private:
     bool isReported = false;
     static size_t saveReportTimeout;
     static bool extendReport;
+    static bool extractBody;
     static bool saveReportWithUniqueName;
     static const char *outputFolder;
     std::vector<ngraph::OpSet> opsets;
@@ -114,16 +115,16 @@ public:
 
     void saveReport();
 
-    static void setExtendReport(bool val) { extendReport = val; }
+    static void setExtractBody(bool val) { extractBody = val; }
+    static bool getExtractBody() { return extractBody; }
 
+    static void setExtendReport(bool val) { extendReport = val; }
     static bool getExtendReport() { return extendReport; }
 
     static void setSaveReportWithUniqueName(bool val) { saveReportWithUniqueName = val; }
-
     static bool getSaveReportWithUniqueName() { return saveReportWithUniqueName; }
 
     static void setSaveReportTimeout(size_t val) { saveReportTimeout = val; }
-
     static size_t getSaveReportTimeout() { return saveReportTimeout; }
 
     static void setOutputFolder(const std::string &val) { outputFolder = val.c_str(); }

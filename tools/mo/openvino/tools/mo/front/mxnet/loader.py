@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -93,6 +93,8 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
     else:
         input_names = input_names.split(',')
 
+    graph.inputs_order = input_names
+
     rnn_states = init_rnn_states(model_nodes)
     names_rnn_states = list(rnn_states.keys())
 
@@ -124,6 +126,8 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
         used_indices_set = used_indices_set.union(used_indices)
 
     output_ids = [index_node_keys[node_id] for node_id in set(range(len(model_nodes))) - used_indices_set]
+
+    graph.outputs_order = output_ids
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code

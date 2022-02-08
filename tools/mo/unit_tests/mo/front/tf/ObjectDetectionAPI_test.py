@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -112,7 +112,7 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
         self.sub_const = float32_array([2.0, 3.0, 4.0])
 
         self.nodes = {
-            **regular_op('input', {'type': 'Parameter'}),
+            **regular_op('input', {'op': 'Parameter', 'type': 'Parameter'}),
 
             **regular_op('mul', {'op': 'Mul', 'type': 'Multiply', 'name': 'my_mul'}),
             **regular_op('sub', {'op': 'Sub', 'type': 'Subtract', 'name': 'my_sub'}),
@@ -238,7 +238,7 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
     def build_main_graph(self, pre_processing: str):
         def build_body_graph(pre_processing: str):
             nodes = {
-                **regular_op('input', {'type': 'Parameter'}),
+                **regular_op('input', {'type': 'Parameter', 'op': 'Parameter'}),
 
                 **regular_op('mul', {'op': 'Mul', 'type': 'Multiply', 'name': 'my_body_mul'}),
                 **regular_op('sub', {'op': 'Sub', 'type': 'Subtract', 'name': 'my_body_sub'}),

@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -11,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs pad3d(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto mode = node.get_attribute<std::string>("mode");
     auto value = node.get_attribute<float>("value", 0.0);
     auto data_format = node.get_attribute<std::string>("data_format");
@@ -20,11 +19,11 @@ NamedOutputs pad3d(const NodeContext& node) {
 
     // padding of type int feature only supported by paddle 'develop'
     // version(>=2.1.0)
-    if (node.has_attribute<std::vector<int32_t>>("paddings")) {
+    if (node.has_attribute("paddings")) {
         auto paddings_vector = node.get_attribute<std::vector<int32_t>>("paddings");
         PADDLE_OP_CHECK(node, paddings_vector.size() == 6, "paddings Params size should be 6 in pad3d!");
         paddings = paddings_vector;
-    } else if (node.has_attribute<int32_t>("paddings")) {
+    } else if (node.has_attribute("paddings")) {
         auto padding_int = node.get_attribute<int32_t>("paddings");
         for (int i = 0; i < 6; i++)
             paddings[i] = padding_int;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,8 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
-                      const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
+                      const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing,
+                      const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
 
     void setProperty(const std::map<std::string, std::string> &properties);
 
@@ -47,7 +48,7 @@ public:
     void Export(std::ostream& modelStream) override;
 
 protected:
-    friend class MKLDNNInferRequest;
+    friend class MKLDNNInferRequestBase;
     MKLDNNExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     const InferenceEngine::CNNNetwork           _network;
@@ -73,8 +74,13 @@ protected:
      */
     Graph::Lock GetGraph() const;
 
-
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
+
+    bool isLegacyAPI() const;
+
+    InferenceEngine::Parameter GetConfigLegacy(const std::string &name) const;
+
+    InferenceEngine::Parameter GetMetricLegacy(const std::string &name, const Graph& graph) const;
 };
 
 }  // namespace MKLDNNPlugin

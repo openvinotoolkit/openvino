@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -224,31 +224,14 @@ bool MKLDNNDeconvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
     return (fusedWith.empty() && node->canBePerformedAsScaleShift(this));
 }
 
-void MKLDNNDeconvolutionNode::initPadding(std::shared_ptr<ngraph::Node> op, const Shape &inDims, const std::vector<int32_t>& outSpDims) {
-    std::vector<ov::StaticShape> input_shapes{inDims.getStaticDims(), getWeightDims()};
-    ov::StaticShape output_shape_input;
-    if (externOutShape) {
-        IE_ASSERT(outSpDims.size() == getInputShapeAtPort(2).getStaticDims()[0]);
-        input_shapes.push_back({outSpDims.size()});
-        for (size_t i = 0; i < outSpDims.size(); i++) {
-            output_shape_input.push_back(outSpDims[i]);
-        }
-    }
-
-    if (getAlgorithm() == DeconvolutionCommon) {
-        auto deconv = ngraph::as_type_ptr<ngraph::op::v1::ConvolutionBackpropData>(op);
-        IE_ASSERT(ov::op::v1::resolve_auto_pad_for_shape_back_prop(deconv.get(), paddingL, paddingR, input_shapes, output_shape_input, 2, 2));
-    } else if (getAlgorithm() == DeconvolutionGrouped) {
-        auto deconv = ngraph::as_type_ptr<ngraph::op::v1::GroupConvolutionBackpropData>(op);
-        IE_ASSERT(ov::op::v1::resolve_auto_pad_for_shape_back_prop(deconv.get(), paddingL, paddingR, input_shapes, output_shape_input, 2, 3));
-    }
-}
-
 std::pair<VectorDims, VectorDims> MKLDNNDeconvolutionNode::makeDummyInOutShape() {
     auto inShape = MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0));
     auto outShape = getOutputShapeAtPort(0);
 
     if (isDynamicNode()) {
+        auto inputDims = inShape.getStaticDims();
+        inputDims[1] = IC;
+
         if (externOutShape) {
             if (lastOutputSpatialDims.empty()) {
                 const auto& shape = getOutputShapeAtPort(0);
@@ -265,19 +248,21 @@ std::pair<VectorDims, VectorDims> MKLDNNDeconvolutionNode::makeDummyInOutShape()
             ov::CoordinateDiff pb = autoPad ? ov::CoordinateDiff(paddingL.size(), 0) : paddingL;
             ov::CoordinateDiff pe = autoPad ? ov::CoordinateDiff(paddingR.size(), 0) : paddingR;
 
-            auto inputDims = inShape.getStaticDims();
+            const auto& origInDims = getInputShapeAtPort(0).getDims();
             const auto& weightDims = getWeightDims();
             const size_t wghOffset = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
             for (size_t i = 0; i < inputDims.size() - 2; i++) {
-                inputDims[2 + i] = ((lastOutputSpatialDims[i] - (dilation[i] + 1) *
-                                    (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
-                                    stride[i] + 1;
+                if (origInDims[2 + i] == Shape::UNDEFINED_DIM) {
+                    inputDims[2 + i] = ((lastOutputSpatialDims[i] - (dilation[i] + 1) *
+                                        (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
+                                        stride[i] + 1;
+                }
             }
-
-            inShape = Shape(inputDims);
         }
-        initPadding(opToShapeInfer, inShape, lastOutputSpatialDims);
+        inShape = Shape(inputDims);
         outShape = Shape(shapeInferInternal(inShape.getStaticDims(), lastOutputSpatialDims));
+        paddingL = shapeInference->get_pads_begin();
+        paddingR = shapeInference->get_pads_end();
     }
     return {inShape.getStaticDims(), outShape.getStaticDims()};
 }
@@ -464,8 +449,7 @@ VectorDims MKLDNNDeconvolutionNode::shapeInferInternal(const VectorDims &inDims,
                                                                               outSpDims.data())});
     }
 
-    std::vector<ov::StaticShape> outputShapes(1);
-    shape_inference(opToShapeInfer.get(), inputShapes, outputShapes, inputValues);
+    std::vector<ov::StaticShape> outputShapes = shapeInference->infer(inputShapes, inputValues);
 
     return outputShapes.back().to_shape();
 }
@@ -592,7 +576,8 @@ void MKLDNNDeconvolutionNode::prepareParams() {
         }
         pAttrLocal = pAttr;
         if (autoPad || externOutShape) {
-            initPadding(opToShapeInfer, inMemoryDesc->getShape(), externOutShape ? readOutputSpatialDims() : std::vector<int32_t>{});
+            paddingL = shapeInference->get_pads_begin();
+            paddingR = shapeInference->get_pads_end();
         }
         initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());
     } else {

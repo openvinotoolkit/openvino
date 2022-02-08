@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,7 +142,8 @@ TEST_P(FrontEndJsonConfigTest, testAddJsonConfigExtension) {
         auto loaded_ext = json_config_ext->get_loaded_extensions();
         auto target_ext = json_config_ext->get_target_extensions();
 
-        EXPECT_EQ(loaded_ext.size(), 3);
+        // the number of Loaded extensions can be more than the number of actually used ones.
+        EXPECT_EQ(loaded_ext.size(), 8);
         EXPECT_EQ(target_ext.size(), 3);
 
         for (const auto& target : target_ext) {

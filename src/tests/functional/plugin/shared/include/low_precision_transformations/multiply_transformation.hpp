@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
     ngraph::element::Type expectedPrecisions;
+    bool secondInputIsConstant;
 };
 
 typedef std::tuple<

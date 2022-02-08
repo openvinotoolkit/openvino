@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,6 +188,17 @@ std::vector<std::map<std::string, std::string>> additionalConfig {
     {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
 };
 
+std::vector<std::map<std::string, std::string>> filterAdditionalConfig_Brgemm() {
+    std::vector<std::map<std::string, std::string>> additionalConfig = {
+            std::map<std::string, std::string>{/* empty config */}
+    };
+    if (with_cpu_x86_bfloat16()) {
+        additionalConfig.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
+    }
+
+    return additionalConfig;
+}
+
 const std::vector<ElementType> netPRCs {
     ElementType::f32,
     ElementType::bf16
@@ -196,6 +207,15 @@ const std::vector<ElementType> netPRCs {
 std::vector<CPUSpecificParams> filterSpecificParams() {
     std::vector<CPUSpecificParams> specificParams;
     specificParams.push_back(CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"});
+
+    return specificParams;
+}
+
+std::vector<CPUSpecificParams> filterSpecificParams_Brgemm() {
+    std::vector<CPUSpecificParams> specificParams;
+    if (with_cpu_x86_avx512_core()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
+    }
 
     return specificParams;
 }
@@ -484,17 +504,6 @@ const auto testParams3DBF16_nightly = ::testing::Combine(fullyConnectedParams3DB
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D, MatMulLayerCPUTest, testParams3D_nightly, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D_BF16, MatMulLayerCPUTest, testParams3DBF16_nightly, MatMulLayerCPUTest::getTestCaseName);
 
-std::vector<std::map<std::string, std::string>> filterAdditionalConfig_Brgemm() {
-    std::vector<std::map<std::string, std::string>> additionalConfig = {
-        std::map<std::string, std::string>{/* empty config */}
-    };
-    if (with_cpu_x86_bfloat16()) {
-        additionalConfig.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
-    }
-
-    return additionalConfig;
-}
-
 const std::vector<ShapeRelatedParams> IS2D_Brgemm_smoke = {
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, false}},
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, true}},
@@ -540,15 +549,6 @@ const std::vector<ShapeRelatedParams> IS2D_Brgemm_nightly = {
         {false, true}
     },
 };
-
-std::vector<CPUSpecificParams> filterSpecificParams_Brgemm() {
-    std::vector<CPUSpecificParams> specificParams;
-    if (with_cpu_x86_avx512_core()) {
-        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
-    }
-
-    return specificParams;
-}
 
 const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_smoke),
                                                        ::testing::Values(ElementType::f32),
@@ -748,10 +748,115 @@ const std::vector<ShapeRelatedParams> IS_Dynamic = {
     },
     {
         { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}} // input 1
+            {{ -1, 16 }, {{ 4, 16 }, { 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
         },
         {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+};
+
+const std::vector<ShapeRelatedParams> IS_Dynamic_nightly = {
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{{5, 15}, {1, 12}, {4, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{{1, 13}, {3, 15}, {1, 10}}, {{10, 10, 10}, {5, 5, 5}}} // input 1
+        },
+        {true, true}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ {2, 10}, {3, 15}, -1, 16 }, {{ 2, 12, 4, 16 }, { 3, 12, 2, 16 }}}, // input 0
+            {{ 1, 1, -1, 4 }, {{ 1, 1, 16, 4 }, { 1, 1, 16, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ 1, 1, -1, 16 }, {{ 1, 1, 4, 16 }, { 1, 1, 2, 16 }}}, // input 0
+            {{ {2, 5}, {3, 15}, -1, 4 }, {{ 2, 12, 16, 4 }, { 2, 12, 16, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 16 }, {{ 4, 16 }, { 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, {2, 15}, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ -1, 4 }, {{ 16, 4 }, { 16, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, {1, 15}, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ -1, 4 }, {{ 16, 4 }, { 16, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ {1, 3}, {1, 9}, {1, 5}, {1, 10} }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
+            {{ {1, 5}, {1, 7}, {1, 8}, {1, 5} }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ {1, 3}, {1, 9}, {1, 5}, {1, 10} }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
+            {{ {1, 5}, {1, 7}, {1, 8}, {1, 5} }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ 1, 7, 4, -1 }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
+            {{ 1, 7, -1, 4 }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ 1, 7, 4, -1 }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
+            {{ 1, 7, -1, 4 }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {true, false}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {false, true}
     },
 };
 
@@ -801,6 +906,20 @@ const auto testParamsDynamic = ::testing::Combine(matMulParamsDynamic,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic, MatMulLayerCPUTest, testParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
 
+const auto matMulParamsDynamic_nightly = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_nightly),
+                                             ::testing::ValuesIn(netPRCs),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                             ::testing::ValuesIn(additionalConfig));
+
+const auto testParamsDynamic_nightly = ::testing::Combine(matMulParamsDynamic_nightly,
+                                           ::testing::Values(MatMulNodeType::MatMul),
+                                           ::testing::Values(emptyFusingSpec),
+                                           ::testing::ValuesIn(filterSpecificParams()));
+
+INSTANTIATE_TEST_SUITE_P(nightly_MM_Dynamic, MatMulLayerCPUTest, testParamsDynamic_nightly, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing = {
     {
@@ -847,6 +966,147 @@ const auto testParamsDynamicFusing = ::testing::Combine(matMulParamsDynamicFusin
                                                   ::testing::ValuesIn(filterSpecificParams()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic_Fusing, MatMulLayerCPUTest, testParamsDynamicFusing, MatMulLayerCPUTest::getTestCaseName);
+
+const std::vector<ShapeRelatedParams> IS_brgemm_smoke = {
+        {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
+        {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, false}},
+
+        {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, true}},
+        {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, true}},
+
+        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
+        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
+
+        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
+        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
+};
+
+const std::vector<ShapeRelatedParams> IS_brgemm_nightly = {
+        {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, true}},
+        {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, true}},
+
+        {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, false}},
+        {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, false}},
+
+        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, true}},
+        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, true}},
+
+        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, false}},
+        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, false}},
+};
+
+const auto matMulBrgemmParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_brgemm_smoke),
+                                                         ::testing::Values(ElementType::f32),
+                                                         ::testing::Values(ElementType::undefined),
+                                                         ::testing::Values(ElementType::undefined),
+                                                         ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                         ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
+
+const auto testBrgemmParams_smoke = ::testing::Combine(matMulBrgemmParams_smoke,
+                                                       ::testing::Values(MatMulNodeType::MatMul),
+                                                       ::testing::ValuesIn(matmulFusingParams),
+                                                       ::testing::ValuesIn(filterSpecificParams_Brgemm()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Static, MatMulLayerCPUTest, testBrgemmParams_smoke, MatMulLayerCPUTest::getTestCaseName);
+
+const auto matMulBrgemmParams_nightly = ::testing::Combine(::testing::ValuesIn(IS_brgemm_nightly),
+                                                         ::testing::Values(ElementType::f32),
+                                                         ::testing::Values(ElementType::undefined),
+                                                         ::testing::Values(ElementType::undefined),
+                                                         ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                         ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
+
+const auto testBrgemmParams_nightly = ::testing::Combine(matMulBrgemmParams_nightly,
+                                                       ::testing::Values(MatMulNodeType::MatMul),
+                                                       ::testing::ValuesIn(matmulFusingParams),
+                                                       ::testing::ValuesIn(filterSpecificParams_Brgemm()));
+
+INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Static, MatMulLayerCPUTest, testBrgemmParams_nightly, MatMulLayerCPUTest::getTestCaseName);
+
+const std::vector<ShapeRelatedParams> IS_Brgemm_Dynamic = {
+        {
+                {
+                        {{-1, -1}, {{55, 12}, {33, 7}}},
+                        {{-1, -1}, {{12, 55}, {7, 33}}}
+                },
+                {false, false}
+        },
+        {
+                {
+                        {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}},
+                        {{-1, -1}, {{60, 5}, {30, 5}}}
+                },
+                {true, false}
+        },
+        {
+                {
+                        {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}},
+                        {{-1, -1, -1, -1}, {{3, 7, 60, 25}, {3, 7, 30, 25}}}
+                },
+                {false, true}
+        },
+        {
+                {
+                        {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}},
+                        {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}
+                },
+                {false, false}
+        },
+        {
+                {
+                        {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}},
+                        {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}
+                },
+                {true, true}
+        },
+        {
+                {
+                        {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}},
+                        {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}
+                },
+                {true, false}
+        },
+        {
+                {
+                        {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}},
+                        {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}
+                },
+                {false, true}
+        },
+};
+
+const auto matMulBrgemmParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Brgemm_Dynamic),
+                                                          ::testing::Values(ElementType::f32),
+                                                          ::testing::Values(ElementType::undefined),
+                                                          ::testing::Values(ElementType::undefined),
+                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                          ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                          ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
+
+const auto testBrgemmParamsDynamic = ::testing::Combine(matMulBrgemmParamsDynamic,
+                                                        ::testing::Values(MatMulNodeType::MatMul),
+                                                        ::testing::Values(emptyFusingSpec),
+                                                        ::testing::ValuesIn(filterSpecificParams_Brgemm()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Dynamic, MatMulLayerCPUTest, testBrgemmParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
+
+
+const auto matMulParamsBrgemmDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
+                                                                ::testing::Values(ElementType::f32),
+                                                                ::testing::Values(ElementType::undefined),
+                                                                ::testing::Values(ElementType::undefined),
+                                                                ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                                ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
+
+const auto testParamsBrgemmDynamicFusing = ::testing::Combine(matMulParamsBrgemmDynamicFusing,
+                                                              ::testing::Values(MatMulNodeType::MatMul),
+                                                              ::testing::ValuesIn(matmulFusingParams),
+                                                              ::testing::ValuesIn(filterSpecificParams_Brgemm()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Dynamic_Fusing, MatMulLayerCPUTest, testParamsBrgemmDynamicFusing, MatMulLayerCPUTest::getTestCaseName);
 
 } // namespace matmul
 

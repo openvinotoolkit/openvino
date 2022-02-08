@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2018-2022 Intel Corporation SPDX-License-Identifier: Apache-2.0
 
 """ Use this script to create a openvino-dev wheel package:
     $ python3 setup.py bdist_wheel
@@ -81,6 +81,7 @@ class CustomBuild(build):
 
         # pylint: disable-msg=too-many-locals
         self.announce('Installing packages', level=log.INFO)
+        BUILD_BASE = Path.cwd() / self.build_base
         for cmp, cmp_data in PKG_INSTALL_CFG.items():
             self.announce(f'Processing package: {cmp}', level=log.INFO)
             if not cmp_data['src_dir'].is_dir():
@@ -88,13 +89,13 @@ class CustomBuild(build):
                     f'The source directory was not found: {cmp_data["src_dir"]}'
                 )
             subprocess.call([sys.executable, 'setup.py', 'install',
-                            '--root', str(SCRIPT_DIR),
-                             '--prefix', str(cmp_data.get("prefix"))],
+                            '--root', str(BUILD_BASE),
+                            '--prefix', str(cmp_data.get("prefix"))],
                             cwd=str(cmp_data.get('src_dir')))
 
             # grab installed modules
             lib_dir = 'lib/site-packages' if platform.system() == 'Windows' else f'lib/{PYTHON_VERSION}/site-packages'
-            src = SCRIPT_DIR / cmp_data.get('prefix') / lib_dir
+            src = BUILD_BASE / cmp_data.get('prefix') / lib_dir
 
             egg_info = list(src.glob('**/*.egg-info'))
             if egg_info:
@@ -200,7 +201,7 @@ setup(
     author='Intel® Corporation',
     license='OSI Approved :: Apache Software License',
     author_email='openvino_pushbot@intel.com',
-    url='https://docs.openvinotoolkit.org/latest/index.html',
+    url='https://docs.openvino.ai/latest/index.html',
     download_url='https://github.com/openvinotoolkit/openvino/tags',
     description='OpenVINO(TM) Development Tools',
     long_description=get_description(SCRIPT_DIR.parents[1] / 'docs/install_guides/pypi-openvino-dev.md'),
