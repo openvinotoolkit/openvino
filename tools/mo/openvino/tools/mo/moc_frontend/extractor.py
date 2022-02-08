@@ -21,55 +21,85 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
     """
 
     def try_get_nodes(input_model, node_name):
+        # Passed node_name can be in several forms:
+        # 1) name
+        # 2) port:name
+        # 3) name:port
         found_nodes = []
         found_node_names = []
+        # if we find tensor, there is no need
+        # to continue searching
+        search_tensor = True
+        # check if there is a tensor with
+        # given node_name
+        tensor = input_model.get_place_by_tensor_name(node_name)
+        if tensor:
+            found_node_names.append('Tensor:' + tensor.get_names()[0])
+            found_nodes.append(tensor)
+            search_tensor = False
+
+        # first we check for port:name combination
         regexp_pre = r'(\d+):(.+)'
         match_pre = re.search(regexp_pre, node_name)
+        # check if there is a match
         if match_pre:
+            # split node_name into port and name
             port, name = match_pre.group(1), match_pre.group(2)
+            # check if there is an operation with name
             node = input_model.get_place_by_operation_name(name)
-            if not node:
+            # if there is no operation with provided name and we
+            # did not find tensor before we check if there is a
+            # tensor with name
+            if not node and search_tensor:
                 tensor = input_model.get_place_by_tensor_name(name)
                 if tensor:
-                    if len(tensor.get_consuming_operations()) > 0:
-                        node = tensor.get_consuming_operations()[0]
-                        if node and node.get_names()[0] != "":
-                            found_node_names.append('Tensor:' + node.get_names()[0])
-                            found_nodes.append(node)
+                    found_node_names.append('Tensor:' + tensor.get_names()[0])
+                    found_nodes.append(tensor)
+                    search_tensor = False
             if node:
+                # if there is an operation with given name, we
+                # add input port
                 node_pre = node.get_input_port(input_port_index=int(port))
                 if node_pre:
                     found_node_names.append(name)
                     found_nodes.append(node_pre)
-
-                tensor = node.get_source_tensor(input_port_index=int(port))
-                if tensor:
-                    found_node_names.append('Tensor:' + tensor.get_names()[0])
-                    found_nodes.append(tensor)
+                # if we are still looking for the tensor
+                # we add one with given port
+                if search_tensor:
+                    tensor = node.get_source_tensor(input_port_index=int(port))
+                    if tensor:
+                        found_node_names.append('Tensor:' + tensor.get_names()[0])
+                        found_nodes.append(tensor)
+                        search_tensor = False
+        # we check for name:port combination
         regexp_post = r'(.+):(\d+)'
         match_post = re.search(regexp_post, node_name)
         if match_post:
+            # split node_name into name and port
             name, port = match_post.group(1), match_post.group(2)
+            # check if there is an operation with name
             node = input_model.get_place_by_operation_name(name)
-            if not node:
+            if not node and search_tensor:
                 tensor = input_model.get_place_by_tensor_name(name)
                 if tensor:
-                    node = tensor.get_producing_operation()
+                    # node = tensor.get_producing_operation()
+                    found_node_names.append('Tensor:' + tensor.get_names()[0])
+                    found_nodes.append(tensor)
+                    search_tensor = False
             if node:
                 node_post = node.get_output_port(output_port_index=int(port))
                 if node_post:
                     found_node_names.append(name)
                     found_nodes.append(node_post)
-
-                tensor = node.get_target_tensor(output_port_index=int(port))
-                if tensor:
-                    found_node_names.append('Tensor:' + tensor.get_names()[0])
-                    found_nodes.append(tensor)
-        tensor = input_model.get_place_by_tensor_name(node_name)
-        if tensor:
-            found_node_names.append('Tensor:' + tensor.get_names()[0])
-            found_nodes.append(tensor)
-        if not found_nodes:
+                # if tensor was no found yet
+                if search_tensor:
+                    tensor = node.get_target_tensor(output_port_index=int(port))
+                    if tensor:
+                        found_node_names.append('Tensor:' + tensor.get_names()[0])
+                        found_nodes.append(tensor)
+                        search_tensor = False
+        # if node and tensor were not found yet
+        if not found_nodes and search_tensor:
             node = input_model.get_place_by_operation_name(node_name)
             if node:
                 tensor = node.get_target_tensor(output_port_index=0)

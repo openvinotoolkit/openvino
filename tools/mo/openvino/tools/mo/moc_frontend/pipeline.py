@@ -98,6 +98,8 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         # invalidation of existing Place objects could have happened in the operation above
         names = [place.get_names()[0] for place in new_input_places]
         shapes = [shape for shape in argv.placeholder_shapes.values()]
+        # we have to update names used to find nodes, since the original
+        # ones where cut off the graph
         placeholder_shapes = dict(zip(names, shapes))
         if user_shapes:
             user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
