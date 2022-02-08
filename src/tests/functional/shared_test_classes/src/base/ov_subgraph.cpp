@@ -228,7 +228,10 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
+    std::cout << "I wanna a green CI";
     static const precisions_array precisions = {
+            { ngraph::element::bf16, ngraph::element::f32 },
+            { ngraph::element::f16, ngraph::element::f32}
     };
 
     pass::Manager manager;
