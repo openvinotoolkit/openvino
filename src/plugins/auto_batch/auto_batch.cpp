@@ -330,7 +330,7 @@ unsigned int AutoBatchExecutableNetwork::ParseTimeoutValue(const std::string& s)
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> AutoBatchExecutableNetwork::GetContext() const {
-    return _network->GetContext();
+    return _networkWithoutBatch->GetContext();
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequestImpl(
@@ -441,6 +441,11 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {
+    if (!_network) {
+        auto res = _networkWithoutBatch->CreateInferRequest();
+        res->setPointerToExecutableNetworkInternal(shared_from_this());
+        return res;
+    }
     // trying to create the new API request first
     IInferRequestInternal::Ptr syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
     if (!syncRequestImpl)
@@ -456,7 +461,8 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
 }
 
 std::shared_ptr<ngraph::Function> AutoBatchExecutableNetwork::GetExecGraphInfo() {
-    return _network->GetExecGraphInfo() ? _network->GetExecGraphInfo() : _networkWithoutBatch->GetExecGraphInfo();
+    return _network && _network->GetExecGraphInfo() ? _network->GetExecGraphInfo()
+                                                    : _networkWithoutBatch->GetExecGraphInfo();
 }
 
 void AutoBatchExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) {
@@ -475,10 +481,10 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetConfig(const std::stri
         return it->second;
     } else {
         // find config key among networks config keys
-        auto param = _network->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        auto param = _networkWithoutBatch->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         for (auto&& configKey : param.as<std::vector<std::string>>()) {
             if (configKey == name) {
-                return _network->GetConfig(configKey);
+                return _networkWithoutBatch->GetConfig(configKey);
             }
         }
         IE_THROW(NotFound) << name << " not found in the ExecutableNetwork config";
@@ -489,18 +495,18 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         auto reqs = 0;
         try {
-            auto hint = _network->GetConfig(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+            auto hint = _networkWithoutBatch->GetConfig(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
             reqs = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(hint);
             if (!reqs)  // no limitations from user, let's deduce the full blown #requests
                 // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
                 reqs = _device.batchForDevice *
-                       _network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+                       _networkWithoutBatch->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
         } catch (const InferenceEngine::Exception& iie) {
         }
         reqs = std::max(reqs, _device.batchForDevice);  // round up to the possible  user's value
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, reqs);
     } else if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, _network->GetMetric(METRIC_KEY(NETWORK_NAME)).as<std::string>());
+        IE_SET_METRIC_RETURN(NETWORK_NAME, _networkWithoutBatch->GetMetric(METRIC_KEY(NETWORK_NAME)).as<std::string>());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
                              {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
@@ -734,10 +740,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (!batched_inputs.size())
             IE_THROW(NotImplemented) << "Auto-batching supports only networks with inputs featuring batched dim!";
     } catch (...) {
-        // fallback to loading as if no Auto-Batching was involved
-        auto res = core->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
-        _additionalSOPtrs.push_back(res._so);
-        return res._ptr;
+        metaDevice.batchForDevice = 1;
     }
 
     if (!metaDevice.batchForDevice) {
@@ -808,13 +811,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             executableNetworkWithBatch = ctx ? core->LoadNetwork(reshaped, ctx, deviceConfigNoAutoBatch)
                                              : core->LoadNetwork(reshaped, deviceName, deviceConfigNoAutoBatch);
         } catch (...) {
-            executableNetworkWithBatch = {nullptr, nullptr};
+            metaDevice.batchForDevice = 1;
         }
-    }
-
-    if (!executableNetworkWithBatch) {
-        executableNetworkWithBatch = executableNetworkWithoutBatch;
-        metaDevice.batchForDevice = 1;
     }
 
     return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkWithBatch,
