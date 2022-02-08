@@ -549,13 +549,13 @@ void MKLDNNDeconvolutionNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
+        IE_THROW() << "Destination memory has not been allocated.";
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
+        IE_THROW() << "Input memory has not been allocated.";
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
-    if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Weight memory didn't allocate.";
+    if (!wghMemPtr || !wghMemPtr->isAllocated())
+        IE_THROW() << "Weight memory has not been allocated.";
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
@@ -790,7 +790,7 @@ std::vector<int32_t> MKLDNNDeconvolutionNode::readOutputSpatialDims() const {
         IE_THROW() << "Can't get output spatial dims. Inputs number = " << getParentEdges().size();
     }
     const auto &shapeMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
-    if (!shapeMemPtr || !shapeMemPtr->GetPrimitivePtr()) {
+    if (!shapeMemPtr || !shapeMemPtr->isAllocated()) {
         IE_THROW() << "'output_shape' input memory is not allocated.";
     }
     const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
