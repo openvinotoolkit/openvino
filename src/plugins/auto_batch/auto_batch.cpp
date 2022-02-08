@@ -271,7 +271,10 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
                       auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
                       if (batchReq._exceptionPtr)  // when the batchN execution failed
                           std::rethrow_exception(batchReq._exceptionPtr);
-                      this->_inferRequest->CopyOutputsIfNeeded();
+                      // in the case of non-batched execution the blobs were set explicitly
+                      if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
+                          this->_inferRequest->_wasBatchedRequestUsed)
+                          this->_inferRequest->CopyOutputsIfNeeded();
                       if (needPerfCounters) {
                           try {
                               this->_inferRequest->_perfMap = batchReq._inferRequestBatched->GetPerformanceCounts();
@@ -399,6 +402,8 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completionTasks[n] = std::move(t.second);
                             t.first->_inferRequest->CopyInputsIfNeeded();
+                            t.first->_inferRequest->_wasBatchedRequestUsed =
+                                AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
                     } else if ((status == std::cv_status::timeout) && sz) {
@@ -418,6 +423,8 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                                     if (sz == ++arrived)
                                         all_completed.set_value();
                                 });
+                            t.first->_inferRequest->_wasBatchedRequestUsed =
+                                AutoBatchInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
                             t.first->_inferRequest->SetBlobsToAnotherRequest(t.first->_inferRequestWithoutBatch);
                             t.first->_inferRequestWithoutBatch->StartAsync();
                         }
@@ -579,7 +586,7 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
     if (it == cfg.end())
         IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
 
-    auto val = it->second;
+    auto val = it->second.as<std::string>();
     auto metaDevice = ParseMetaDevice(val, std::map<std::string, std::string>());
     cfg.erase(it);
     return GetCore()->CreateContext(metaDevice.deviceName, cfg);
@@ -753,8 +760,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         auto stats =
             pCore->GetMetric(device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
         for (auto s : stats)
-            if (s.first.find("_current") != std::string::npos)
-                footprint += s.second;
+            footprint += s.second;
         return footprint;
     };
 
@@ -766,7 +772,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     if (deviceName.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(GetCore(), deviceName) - batch1_footprint;
         if (batch1_footprint) {
-            const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+            const auto total_mem =
+                GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)).as<uint64_t>();
             const int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
             int closest = pow(2, floor(log(estimated_batch) / log(2)));
             closest = std::max(1, closest);

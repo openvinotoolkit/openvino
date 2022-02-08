@@ -225,8 +225,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                           auto& deviceName = contextPtr->deviceInfo.deviceName;
                           LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished",
                                   deviceName.c_str());
-                          std::vector<std::string> supported_config_keys =
-                              _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                          auto supported_config_keys =
+                              _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                           // there is log mutex in LOG_DEBUG, add _configMutex just want to print them all together
                           // toDo maybe neet to implement LOG_RUN(task, LOG_LEVEL) to run some debug code.
                           std::lock_guard<std::mutex> lock(_confMutex);
@@ -253,7 +253,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // will not wait for loading accelerator network,
         // so the executor can't be destroyed before finished the task,
         // so use executor as a member of MultiDeviceExecutableNetwork.
-        _executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+        _executor = _multiPlugin->executorManager()->getIdleCPUStreamsExecutor(
                 IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                 0 /*default threads per stream, workaround for ticket 62376*/,
@@ -506,7 +506,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
             _loadContext[CPU].future.wait();
             WaitActualNetworkReady();
             // it's necessary to wait the loading network threads to stop here.
-            InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
+            _multiPlugin->executorManager()->clear("AutoDeviceAsyncLoad");
             _executor.reset();
         }
         _multiPlugin->UnregisterPriority(_context.modelPriority,
@@ -671,7 +671,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
     } else {
         auto multiPlugin = std::dynamic_pointer_cast<MultiDeviceInferencePlugin>(this->_plugin);
         assert(multiPlugin != nullptr);
-        auto metaDevices = multiPlugin->ParseMetaDevices(priorities->second, {});
+        auto metaDevices = multiPlugin->ParseMetaDevices(priorities->second.as<std::string>(), {});
 
         if (std::any_of(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& kvp) {
                 return kvp.numRequestsPerDevices != -1;

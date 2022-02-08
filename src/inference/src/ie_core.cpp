@@ -37,6 +37,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
@@ -218,32 +219,26 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return DeviceSupportsImportExport(plugin);
     }
 
+    bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
+        return util::contains(plugin.get_property(ov::supported_properties), key);
+    }
+
     bool DeviceSupportsImportExport(const ov::InferencePlugin& plugin) const {
         auto supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         auto supported =
             (it != supportedMetricKeys.end()) && plugin.get_metric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
+        if (!supported) {
+            if (DeviceSupportsConfigKey(plugin, ov::device::capabilities.name())) {
+                supported = util::contains(plugin.get_property(ov::device::capabilities),
+                                           ov::device::capability::EXPORT_IMPORT);
+            }
+        }
         return supported;
     }
 
     bool DeviceSupportsCacheDir(const ov::InferencePlugin& plugin) const {
-        return DeviceSupportsConfigKey(plugin, CONFIG_KEY(CACHE_DIR));
-    }
-
-    bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
-        bool supported = false;
-        std::vector<std::string> supportedMetricKeys;
-        try {
-            // If plugin doesn't support 'SUPPORTED_METRICS' - treat it as config is not supported as well
-            supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
-        } catch (...) {
-        }
-        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        if (it != supportedMetricKeys.end()) {
-            auto configKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {})->as<std::vector<std::string>>();
-            supported = std::find(configKeys.begin(), configKeys.end(), key) != configKeys.end();
-        }
-        return supported;
+        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     }
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
@@ -328,34 +323,33 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     std::map<std::string, std::string> CreateCompileConfig(const ov::InferencePlugin& plugin,
                                                            const std::string& deviceFamily,
                                                            const std::map<std::string, std::string>& origConfig) const {
-        std::map<std::string, ie::Parameter> getMetricConfig;
+        std::map<std::string, Any> getMetricConfig;
         auto compileConfig = origConfig;
 
         // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
         auto targetFallbackIt = compileConfig.find("TARGET_FALLBACK");
+        if (targetFallbackIt == compileConfig.end()) {
+            targetFallbackIt = compileConfig.find(ov::device::priorities.name());
+        }
         if (targetFallbackIt != compileConfig.end()) {
             getMetricConfig[targetFallbackIt->first] = targetFallbackIt->second;
             compileConfig.erase(targetFallbackIt);
         }
 
         // 1. remove DEVICE_ID key
-        auto deviceIt = compileConfig.find(CONFIG_KEY(DEVICE_ID));
+        auto deviceIt = compileConfig.find(ov::device::id.name());
         if (deviceIt != compileConfig.end()) {
             getMetricConfig[deviceIt->first] = deviceIt->second;
             compileConfig.erase(deviceIt);
         }
 
         // 2. replace it with DEVICE_ARCHITECTURE value
-        auto supportedMetricKeys =
-            plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), getMetricConfig)->as<std::vector<std::string>>();
-        auto archIt =
-            std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
-        if (archIt != supportedMetricKeys.end()) {
-            auto value = plugin.get_metric(METRIC_KEY(DEVICE_ARCHITECTURE), getMetricConfig);
-            compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = value->as<std::string>();
+        if (DeviceSupportsConfigKey(plugin, ov::device::architecture.name())) {
+            compileConfig[ov::device::architecture.name()] =
+                plugin.get_property(ov::device::architecture, getMetricConfig);
         } else {
             // Take device name if device does not support DEVICE_ARCHITECTURE metric
-            compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = deviceFamily;
+            compileConfig[ov::device::architecture.name()] = deviceFamily;
         }
         return compileConfig;
     }
@@ -679,52 +673,6 @@ public:
                                                   const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto exec = GetCPPPluginByName(parsed._deviceName).import_model(networkModel, parsed._config);
-
-        if (isNewAPI()) {
-            // create getInputs() based on GetInputsInfo()
-            using namespace InferenceEngine::details;
-
-            if (exec->getInputs().empty() && !exec->GetInputsInfo().empty()) {
-                const auto& inputsInfo = exec->GetInputsInfo();
-
-                std::vector<std::shared_ptr<const ov::Node>> params;
-                params.reserve(inputsInfo.size());
-                for (auto&& input : inputsInfo) {
-                    auto param = std::make_shared<ov::op::v0::Parameter>(
-                        convertPrecision(input.second->getPrecision()),
-                        ov::PartialShape(input.second->getTensorDesc().getDims()));
-                    param->set_friendly_name(input.first);
-                    param->get_output_tensor(0).add_names({input.first});
-                    params.emplace_back(std::move(param));
-                }
-
-                exec->setInputs(params);
-            }
-
-            if (exec->getOutputs().empty()) {
-                const auto& outputsInfo = exec->GetOutputsInfo();
-                OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
-
-                std::vector<std::shared_ptr<const ov::Node>> results;
-                results.reserve(outputsInfo.size());
-                for (auto&& output : outputsInfo) {
-                    auto fake_param = std::make_shared<ov::op::v0::Parameter>(
-                        convertPrecision(output.second->getPrecision()),
-                        ov::PartialShape(output.second->getTensorDesc().getDims()));
-                    fake_param->set_friendly_name(output.first);
-                    auto result = std::make_shared<ov::op::v0::Result>(fake_param);
-                    result->get_output_tensor(0).add_names({output.first});
-                    results.emplace_back(std::move(result));
-                }
-                exec->setOutputs(results);
-            }
-
-            // but for true support plugins need:
-            // 1. ensure order or parameters and results as in ov::Model
-            // 2. provide tensor names for inputs and outputs
-            // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
-            //    not from ngraph. Plugins should use SetExeNetworkInfo
-        }
 
         return {exec._ptr, exec._so};
     }
@@ -1175,6 +1123,11 @@ public:
         std::lock_guard<std::mutex> lock(pluginsMutex);
         for (const auto& ext : extensions) {
             ov_extensions.emplace_back(ext);
+            if (auto op_base_ext = std::dynamic_pointer_cast<BaseOpExtension>(ext)) {
+                for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+                    ov_extensions.emplace_back(attached_ext);
+                }
+            }
         }
     }
 
@@ -1800,35 +1753,7 @@ Any Core::get_property(const std::string& deviceName, const std::string& name, c
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
-        if (ov::supported_properties == name) {
-            try {
-                return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
-            } catch (ie::Exception&) {
-                auto ro_properties = _impl->GetCPPPluginByName(parsed._deviceName)
-                                         .get_metric(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
-                                         .as<std::vector<std::string>>();
-                auto rw_properties = _impl->GetCPPPluginByName(parsed._deviceName)
-                                         .get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), parsed._config)
-                                         .as<std::vector<std::string>>();
-                std::vector<ov::PropertyName> supported_properties;
-                for (auto&& ro_property : ro_properties) {
-                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
-                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                        supported_properties.emplace_back(ro_property, PropertyMutability::RO);
-                    }
-                }
-                for (auto&& rw_property : rw_properties) {
-                    supported_properties.emplace_back(rw_property, PropertyMutability::RW);
-                }
-                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
-                return supported_properties;
-            }
-        }
-        try {
-            return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
-        } catch (ie::Exception&) {
-            return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
-        }
+        return _impl->GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     });
 }
 

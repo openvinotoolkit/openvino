@@ -18,6 +18,7 @@
 
 #include "ie_precision.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 
 namespace ov {
@@ -156,7 +157,7 @@ struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, Proper
 };
 
 /**
- * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properies.
+ * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properties.
  *
  * This can be used as a compiled model property as well.
  *
@@ -237,13 +238,16 @@ static constexpr Property<Priority> model_priority{"OV_MODEL_PRIORITY"};
  * @brief Enum to define possible performance mode hints
  */
 enum class PerformanceMode {
-    LATENCY = 0,
-    THROUGHPUT = 1,
+    UNDEFINED = -1,
+    LATENCY = 1,
+    THROUGHPUT = 2,
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
+    case PerformanceMode::UNDEFINED:
+        return os << "";
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -260,6 +264,8 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::LATENCY;
     } else if (str == "THROUGHPUT") {
         performance_mode = PerformanceMode::THROUGHPUT;
+    } else if (str == "") {
+        performance_mode = PerformanceMode::UNDEFINED;
     } else {
         throw ov::Exception{"Unsupported performance mode: " + str};
     }
