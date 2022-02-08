@@ -2832,6 +2832,7 @@ def sparse_conv(
     out_pos: NodeInput,
     kernel: NodeInput,
     offset: NodeInput,
+    voxel_size: NodeInput,
 ) -> Node:
     """Create a node which performs convolution with dense filter to a sparse tensor.
 
@@ -2840,7 +2841,8 @@ def sparse_conv(
     @param out_pos: Output positions in which convolution is calculated.
     @param kernel: Dense convolutional filters.
     @param offset: Voxels offset.
+    @param voxel_size: A scalar float that defines the edge length of a voxel.
     @return Output features with number of points from <out_pos>.
     """
-    inputs = as_nodes(features, inp_pos, out_pos, kernel, offset)
+    inputs = as_nodes(features, inp_pos, out_pos, kernel, offset, voxel_size)
     return _get_node_factory_opset1().create("SparseConv", inputs)

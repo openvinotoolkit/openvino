@@ -18,8 +18,9 @@ ov::op::v1::SparseConv::SparseConv(const Output<Node>& features,
                                    const Output<Node>& inp_pos,
                                    const Output<Node>& out_pos,
                                    const Output<Node>& kernel,
-                                   const Output<Node>& offset)
-    : Op({features, inp_pos, out_pos, kernel, offset}) {
+                                   const Output<Node>& offset,
+                                   const Output<Node>& voxel_size)
+    : Op({features, inp_pos, out_pos, kernel, offset, voxel_size}) {
     constructor_validate_and_infer_types();
 }
 
@@ -35,7 +36,8 @@ shared_ptr<Node> op::v1::SparseConv::clone_with_new_inputs(const OutputVector& n
                                            new_args.at(1),
                                            new_args.at(2),
                                            new_args.at(3),
-                                           new_args.at(4));
+                                           new_args.at(4),
+                                           new_args.at(5));
 }
 
 void op::v1::SparseConv::validate_and_infer_types() {
@@ -54,7 +56,10 @@ bool op::v1::SparseConv::evaluate(const HostTensorVector& outputs, const HostTen
     const float* outPos = inputs[2]->get_data_ptr<float>();
     const float* kernel = inputs[3]->get_data_ptr<float>();
     const float* offset = inputs[4]->get_data_ptr<float>();
+    const float* voxel_size = inputs[5]->get_data_ptr<float>();
     float* out = outputs[0]->get_data_ptr<float>();
+
+    OPENVINO_ASSERT(voxel_size[0] == 1.0f, "Only voxel_size=1 is supported");
 
     const Shape outDims = get_default_output().get_shape();
     memset(out, 0, sizeof(float) * outDims[0] * outDims[1]);

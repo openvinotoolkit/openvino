@@ -22,6 +22,8 @@
 
 *   **5**: `offset` Vector of `Z` offset values. Usually, filled by zeros for odd kernel size and by `-0.5` for even kernel size.  **Required.**
 
+*   **6**: `voxel_size` A scalar float that defines the edge length of a voxel. **Required.**
+
 **Outputs**:
 
 *   **1**: Tensor of shape `MxOC` where `M` is a number of output positions and `OC` is a number of output channels.

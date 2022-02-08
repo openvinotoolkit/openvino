@@ -13,7 +13,8 @@ def test_sparse_conv():
     out_pos = inp_pos
     kernel = np.arange(1, 3 * 3 * 3 + 1).reshape(1, 1, 3, 3, 3).astype(np.float32)
     offset = np.array([0, 0, 0]).astype(np.float32)
-    result = run_op_node([features, inp_pos, out_pos, kernel, offset], ov.sparse_conv)[0]
+    voxel_size = np.array([1.0])
+    result = run_op_node([features, inp_pos, out_pos, kernel, offset, voxel_size], ov.sparse_conv)[0]
     assert np.allclose(
         result,
         np.array([ [34.0], [22.0] ], dtype=np.float32),

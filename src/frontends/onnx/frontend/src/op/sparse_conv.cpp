@@ -15,7 +15,8 @@ OutputVector sparse_conv(const Node& node) {
                                                          node.get_ng_inputs().at(1),
                                                          node.get_ng_inputs().at(2),
                                                          node.get_ng_inputs().at(3),
-                                                         node.get_ng_inputs().at(4))};
+                                                         node.get_ng_inputs().at(4),
+                                                         node.get_ng_inputs().at(5))};
 }
 }  // namespace set_1
 

@@ -21,7 +21,8 @@ public:
                const Output<ngraph::Node>& inp_pos,
                const Output<ngraph::Node>& out_pos,
                const Output<ngraph::Node>& kernel,
-               const Output<ngraph::Node>& offset);
+               const Output<ngraph::Node>& offset,
+               const Output<ngraph::Node>& voxel_size);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
