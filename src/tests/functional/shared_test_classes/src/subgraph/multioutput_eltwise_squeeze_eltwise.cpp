@@ -25,6 +25,8 @@ namespace SubgraphTestsDefinitions {
         std::map<std::string, std::string> additional_config;
         std::tie(inputs, netPrecision, targetDevice, additional_config) = this->GetParam();
         configuration.insert(additional_config.begin(), additional_config.end());
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {inputs});
 

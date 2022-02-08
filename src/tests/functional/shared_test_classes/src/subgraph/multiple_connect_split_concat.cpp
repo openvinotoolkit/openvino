@@ -23,6 +23,8 @@ std::string MultipleConnectSplitConcatTest::getTestCaseName(const testing::TestP
 void MultipleConnectSplitConcatTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+    outPrc.front() = netPrecision;
+    outPrc.push_back(netPrecision);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {{1, 256}});

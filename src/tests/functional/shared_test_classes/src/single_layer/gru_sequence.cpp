@@ -65,6 +65,8 @@ namespace LayerTestsDefinitions {
                  {num_directions, (linear_before_reset ? 4 : 3) * hidden_size}},
         };
         m_max_seq_len = seq_lengths;
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
         if (m_mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||

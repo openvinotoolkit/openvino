@@ -31,6 +31,8 @@ namespace SubgraphTestsDefinitions {
         std::map<std::string, std::string> config;
         std::tie(netPrecision, targetDevice, inputSize, hiddenSize, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         memory_1_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);

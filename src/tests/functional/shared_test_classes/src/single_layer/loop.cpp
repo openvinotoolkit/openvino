@@ -46,6 +46,9 @@ namespace LayerTestsDefinitions {
         int64_t trip_count;
         std::vector<std::pair<std::vector<size_t>, LOOP_IN_TYPE>> inputs;
         InferenceEngine::Precision netPrecision;
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
+        outPrc.push_back(netPrecision);
         std::tie(execute_first_iteration, is_body_condition_const, body_condition, trip_count, inputs, netPrecision,
                  targetDevice) = this->GetParam();
 

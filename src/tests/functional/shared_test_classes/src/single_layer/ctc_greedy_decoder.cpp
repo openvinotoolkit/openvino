@@ -37,11 +37,11 @@ std::string CTCGreedyDecoderLayerTest::getTestCaseName(
 
 void CTCGreedyDecoderLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc;
+    InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
     bool mergeRepeated;
-    std::tie(netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShapes, mergeRepeated, targetDevice) = GetParam();
+    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, mergeRepeated, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShapes });

@@ -43,7 +43,7 @@ void SplitLayerTest::SetUp() {
         }
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    for (int k = 1; k < outIndices.size(); k++) {
+    for (int k = 1; k < numSplits; k++) {
         outPrc.push_back(outPrc.front());
     }
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

@@ -30,6 +30,8 @@ void InputSplitConcatTest::SetUp() {
     std::vector<size_t> inputShape;
     std::tie(netPrecision, targetDevice, tempConfig, inputShape) = this->GetParam();
     configuration.insert(tempConfig.begin(), tempConfig.end());
+    outPrc.front() = netPrecision;
+    outPrc.push_back(netPrecision);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 

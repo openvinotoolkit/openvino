@@ -48,6 +48,10 @@ void AdaPoolLayerTest::SetUp() {
     auto adapoolMax = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);
     auto adapoolAvg = std::make_shared<ngraph::opset8::AdaptiveAvgPool>(params[0], pooledParam);
 
+    outPrc.front() = netPrecision;
+    for (int i=1; i< adapoolMax->outputs().size(); i++) {
+        outPrc.push_back(netPrecision);
+    }
     function = (poolingMode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
                 std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
 }

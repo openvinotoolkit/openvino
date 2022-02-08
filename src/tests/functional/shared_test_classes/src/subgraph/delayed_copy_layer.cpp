@@ -63,6 +63,7 @@ namespace SubgraphTestsDefinitions {
         std::map<std::string, std::string> additional_config;
         size_t memory_size;
         std::tie(netPrecision, targetDevice, additional_config, memory_size) = this->GetParam();
+        outPrc.front() = netPrecision;
         configuration.insert(additional_config.begin(), additional_config.end());
 
         ASSERT_EQ(memory_size % 2, 0);

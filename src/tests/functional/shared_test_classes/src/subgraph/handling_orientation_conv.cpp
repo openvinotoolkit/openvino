@@ -20,6 +20,8 @@ namespace SubgraphTestsDefinitions {
     void HandlingOrientationClass::SetUp() {
         InferenceEngine::Precision netPrecision;
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, { {1, 336} , {1, 336}});

@@ -26,6 +26,8 @@ namespace SubgraphTestsDefinitions {
         size_t hiddenSize;
         std::map<std::string, std::string> config;
         std::tie(netPrecision, targetDevice, inputSize, hiddenSize, config) = this->GetParam();
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
         configuration.insert(config.begin(), config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 

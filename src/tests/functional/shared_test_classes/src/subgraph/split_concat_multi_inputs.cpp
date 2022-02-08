@@ -41,6 +41,10 @@ void SplitConcatMultiInputsTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, 1);
+    outPrc.front() = netPrecision;
+    for (int i = 1; i< split->outputs().size(); i++) {
+        outPrc.push_back(netPrecision);
+    }
     ngraph::OutputVector concatInputs = split->outputs();
 
     auto concat = std::make_shared<ngraph::opset7::Concat>(concatInputs, 1);

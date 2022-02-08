@@ -31,6 +31,10 @@ void CascadeConcat::SetUp() {
     bool multioutput;
     std::tie(input1, input2, input3, netPrecision, multioutput, targetDevice, additional_config) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
+    outPrc.front() = netPrecision;
+    if (multioutput) {
+        outPrc.push_back(netPrecision);
+    }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto input = ngraph::builder::makeParams(ngPrc, {input1[0], input2[0], input3[0]});
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(input[0]);

@@ -40,6 +40,8 @@ void MultipleLSTMCellTest::SetUp() {
     size_t inputSize;
     std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
+    outPrc.front() = netPrecision;
+    outPrc.push_back(netPrecision);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     std::vector<size_t> input_dims { 1, inputSize };

@@ -32,6 +32,8 @@ void ActivationConcatsEltwise::SetUp() {
     size_t concatSize;
     std::map<std::string, std::string> config;
     std::tie(inputSize, concatSize, netPrecision, targetDevice, config) = this->GetParam();
+    outPrc.front() = netPrecision;
+    outPrc.push_back(netPrecision);
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
