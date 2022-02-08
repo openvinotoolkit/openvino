@@ -232,14 +232,14 @@ void ov::util::convert_path_win_style(std::string& path) {
 void ov::util::node_name_to_file_name(std::string& nodeName) {
     for (auto& c : nodeName) {
         switch (c) {
-            case '\\':
-            case '/':
-            case ' ':
-                c = '_';
-                break;
-            case ':':
-                c = '-';
-                break;
+        case '\\':
+        case '/':
+        case ' ':
+            c = '_';
+            break;
+        case ':':
+            c = '-';
+            break;
         }
     }
 }

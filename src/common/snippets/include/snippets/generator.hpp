@@ -43,16 +43,10 @@ public:
     virtual size_t get_lanes() const = 0;
 
     /**
-     * @brief called by generator to all the emittor for a target machine
+     * @brief called by generator to call the emittor for a target machine
      * @return a map by node's type info with callbacks to create an instance of emmitter for corresponding operation type
      */
-    std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)> get(const ngraph::DiscreteTypeInfo type) const {
-        auto jitter = jitters.find(type);
-        if (jitter == jitters.end()) {
-            SNIPPETS_THROW() << "Target code emitter is not available for " << type.name << " operation.";
-        }
-        return jitter->second;
-    }
+    std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)> get(const ngraph::DiscreteTypeInfo type) const;
 
     /**
      * @brief checks if emitter for a specific operation is supported

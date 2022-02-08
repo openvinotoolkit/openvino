@@ -51,7 +51,7 @@
 
 #ifdef DEBUG_CAPS
 // Do something if only DEBUG_CAPS is defined
-#define OV_PP_IF_DEBUG_CAPS(...) __VA_ARGS__
-#else // !CPU_DEBUG_CAPS
-#define OV_PP_IF_DEBUG_CAPS(...)
-#endif // DEBUG_CAPS
+#    define OV_PP_IF_DEBUG_CAPS(...) __VA_ARGS__
+#else  // !CPU_DEBUG_CAPS
+#    define OV_PP_IF_DEBUG_CAPS(...)
+#endif  // DEBUG_CAPS

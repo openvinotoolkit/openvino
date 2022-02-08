@@ -4,8 +4,8 @@
 
 #include "openvino/util/env_util.hpp"
 
-#include <set>
 #include <map>
+#include <set>
 #include <sstream>
 
 #include "openvino/util/common_util.hpp"
@@ -75,8 +75,7 @@ bool ov::util::getenv_tokens_bool(const char* env_var,
 
     const auto& tokens = ov::util::split(ov::util::to_lower(env_str), ',', true);
     bool disabled = true;
-    for (const auto& token : tokens)
-    {
+    for (const auto& token : tokens) {
         if (disablingTokens.find(token) != disablingTokens.end())
             return false;
 
@@ -88,13 +87,11 @@ bool ov::util::getenv_tokens_bool(const char* env_var,
 
 bool ov::util::getenv_ov_enable_bool(const std::string& token) {
     const std::map<std::string, std::pair<std::set<std::string>, std::set<std::string>>> map = {
-        { "all", { { "all" }, { "-all" } } },
-        { "snippets", { { "all", "snippets" }, { "-all", "-snippets" } } }
-    };
+        {"all", {{"all"}, {"-all"}}},
+        {"snippets", {{"all", "snippets"}, {"-all", "-snippets"}}}};
 
     const auto& search = map.find(token);
-    if (search != map.end())
-    {
+    if (search != map.end()) {
         return getenv_tokens_bool("OV_ENABLE", search->second.first, search->second.second, true);
     } else {
         std::stringstream ss;
@@ -106,13 +103,11 @@ bool ov::util::getenv_ov_enable_bool(const std::string& token) {
 
 bool ov::util::getenv_ov_dump_ir_bool(const std::string& token) {
     const std::map<std::string, std::pair<std::set<std::string>, std::set<std::string>>> map = {
-        { "all", { { "all" }, { "-all" } } },
-        { "snippets", { { "all", "snippets" }, { "-all", "-snippets" } } }
-    };
+        {"all", {{"all"}, {"-all"}}},
+        {"snippets", {{"all", "snippets"}, {"-all", "-snippets"}}}};
 
     const auto& search = map.find(token);
-    if (search != map.end())
-    {
+    if (search != map.end()) {
         return getenv_tokens_bool("OV_DUMP_IR", search->second.first, search->second.second);
     } else {
         std::stringstream ss;

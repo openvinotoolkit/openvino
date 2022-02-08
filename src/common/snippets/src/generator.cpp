@@ -39,6 +39,15 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
     return std::make_pair(rin, rout);
 }
 
+std::function<std::shared_ptr<ngraph::snippets::Emitter>(std::shared_ptr<ngraph::Node>)>
+    ngraph::snippets::TargetMachine::get(const ngraph::DiscreteTypeInfo type) const {
+    auto jitter = jitters.find(type);
+    if (jitter == jitters.end()) {
+        SNIPPETS_THROW() << "Target code emitter is not available for " << type.name << " operation.";
+    }
+    return jitter->second;
+}
+
 ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov::Model>& m,
                                                              const void* compile_params) const {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
