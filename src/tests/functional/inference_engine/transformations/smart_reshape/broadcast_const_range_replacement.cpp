@@ -58,7 +58,8 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_dim_match) {
 
         const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
         const auto range = std::make_shared<ngraph::opset8::Range>(start, select_end, default_range_step, data_elem_type);
-        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axis_node);
+        const auto axes_to_unsqueeze = ngraph::opset8::Constant::create(ngraph::element::i64, Shape{1}, {0});
+        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axes_to_unsqueeze);
 
         const auto broadcast_node = std::make_shared<ngraph::opset8::Broadcast>(unsqueeze_range, target_shape, ngraph::op::BroadcastType::BIDIRECTIONAL);
 
@@ -107,7 +108,8 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_dim_one) {
 
         const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
         const auto range = std::make_shared<ngraph::opset8::Range>(start, select_end, default_range_step, data_elem_type);
-        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axis_node);
+        const auto axes_to_unsqueeze = ngraph::opset8::Constant::create(ngraph::element::i64, Shape{1}, {0});
+        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axes_to_unsqueeze);
 
         const auto broadcast_node = std::make_shared<ngraph::opset8::Broadcast>(unsqueeze_range, target_shape, ngraph::op::BroadcastType::BIDIRECTIONAL);
 
@@ -160,7 +162,63 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof) {
 
         const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
         const auto range = std::make_shared<ngraph::opset8::Range>(start, select_end, default_range_step, data_elem_type);
-        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axis_node);
+        const auto axes_to_unsqueeze = ngraph::opset8::Constant::create(ngraph::element::i64, Shape{1}, {0});
+        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axes_to_unsqueeze);
+
+        const auto broadcast_node = std::make_shared<ngraph::opset8::Broadcast>(unsqueeze_range, target_shape, ngraph::op::BroadcastType::BIDIRECTIONAL);
+
+        function_ref = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{data_param});
+    }
+}
+
+TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof_mixed_dims) {
+    {
+        constexpr auto elem_count = 236;
+        constexpr auto data_elem_type = element::i32;
+        constexpr auto target_shape_elem_type = element::i64;
+
+        std::vector<int32_t> sequence_pattern(elem_count);
+        std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);
+
+        auto data_param = std::make_shared<ngraph::opset8::Parameter>(data_elem_type, Shape{2, 3, elem_count, 4});
+        auto target_shape = std::make_shared<ngraph::opset8::ShapeOf>(data_param);
+
+        auto data_to_broadcast = ngraph::opset8::Constant::create(data_elem_type, {1, 1, elem_count, 1}, sequence_pattern);
+        auto broadcast_node = std::make_shared<ngraph::opset8::Broadcast>(data_to_broadcast, target_shape, ngraph::op::BroadcastType::BIDIRECTIONAL);
+
+        function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{data_param});
+
+        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+    }
+    {
+        constexpr auto elem_count = 236;
+        constexpr auto data_elem_type = element::i32;
+        constexpr auto target_shape_elem_type = element::i64;
+
+        auto data_param = std::make_shared<ngraph::opset8::Parameter>(data_elem_type, Shape{2, 3, elem_count, 4});
+        auto target_shape = std::make_shared<ngraph::opset8::ShapeOf>(data_param);
+
+        const auto target_dim_neg_index = -2;
+        const auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i32, Shape{}, {0});
+        const auto target_dim_index_node = ngraph::opset8::Constant::create(ngraph::element::i64, Shape{}, {target_dim_neg_index});
+        const auto gather_dim = std::make_shared<ngraph::opset8::Gather>(target_shape, target_dim_index_node, axis_node);
+        const auto scalar_gather_dim = std::make_shared<ngraph::opset8::Squeeze>(gather_dim);
+
+        const auto one_dim_const = ngraph::opset8::Constant::create(target_shape_elem_type, {}, {1});
+        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(scalar_gather_dim, one_dim_const);
+
+        const auto start = ngraph::opset8::Constant::create(data_elem_type, {}, {0});
+        const auto original_end = ngraph::opset8::Constant::create(data_elem_type, {}, {elem_count});
+
+        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(scalar_gather_dim, data_elem_type);
+        const auto select_end = std::make_shared<ngraph::opset8::Select>(dim_check_one, original_end, cast_gather_dim);
+
+        const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
+        const auto range = std::make_shared<ngraph::opset8::Range>(start, select_end, default_range_step, data_elem_type);
+
+        // Axes to unsqueeze without target dim index
+        const auto axes_to_unsqueeze = ngraph::opset8::Constant::create(ngraph::element::i64, Shape{3}, {0, 1, 3});
+        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axes_to_unsqueeze);
 
         const auto broadcast_node = std::make_shared<ngraph::opset8::Broadcast>(unsqueeze_range, target_shape, ngraph::op::BroadcastType::BIDIRECTIONAL);
 

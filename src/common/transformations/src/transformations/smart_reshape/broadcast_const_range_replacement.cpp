@@ -79,10 +79,16 @@ ngraph::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
 
         const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
         const auto range = std::make_shared<ngraph::opset8::Range>(start, select_end, default_range_step, data_elem_type);
-        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axis_node);  // TODO: Reshape to the original shape?
+
+        // Unsqueeze the output of the Range op to the original shape of data input
+        std::vector<int64_t> final_shape_axes(const_node_shape.size());
+        std::iota(final_shape_axes.begin(), final_shape_axes.end(), 0);
+        final_shape_axes.erase(final_shape_axes.begin() + target_dim_index);
+        const auto axes_to_unsqueeze = ngraph::opset8::Constant::create(ngraph::element::i64, {final_shape_axes.size()}, final_shape_axes);
+        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axes_to_unsqueeze);
 
         copy_runtime_info(const_node, {axis_node, target_dim_index_node, gather_dim, cast_gather_dim, scalar_gather_dim, one_dim_const,
-                                       dim_check_one, start, original_end, select_end, default_range_step, range, unsqueeze_range});
+                                       dim_check_one, start, original_end, select_end, default_range_step, range, axes_to_unsqueeze, unsqueeze_range});
         broadcast->input(0).replace_source_output(unsqueeze_range);
         return false;
     };
