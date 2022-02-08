@@ -109,7 +109,7 @@ def compute_stats_layouts(config, model, qscheme=None):
     """
     Compute stats layouts and hardware configuration
     :param config: dictionary with params algo section from toolkit config
-    :param model: NXModel instance
+    :param model: CompressedModel instance
     :return: configuration dictionary
     """
     hardware_config = load_hardware_config(config)
@@ -168,7 +168,7 @@ def compute_levels(fq_config, is_weights):
 def insert_fake_quantize_nodes(config, model, qscheme=None):
     """ Inserts fake quantize nodes, fill them according config
     :param config: dictionary with params algo section from toolkit config
-    :param model: NXModel instance
+    :param model: CompressedModel instance
     :param qscheme: The quantization scheme generated from the space
     :return None
     """
@@ -301,7 +301,7 @@ def get_quantized_model(model, create_stats_collector, activations_statistics,
     2. Calculate quantization config for FQ nodes
     3. Collect the weight stats based on config
     4. Calibrate [min, max] for inserted fq nodes
-    :param model: original model (NXModel instance)
+    :param model: original model (CompressedModel instance)
     :param create_stats_collector: functor to create function for stats collector callback
     :param activations_statistics: precomputed statistics for activations layers
     :param fill_fq_range: functor to generate min and max range for fake quantize node
@@ -327,7 +327,7 @@ def get_quantized_model(model, create_stats_collector, activations_statistics,
 
 def compute_weights_stats(model, stats_layout):
     """ Computes weights statistic from provided statistics layout
-    :param model: NXModel instance
+    :param model: CompressedModel instance
     :param stats_layout: dictionary with layer names as keys and
      functions list with rules how to compute statistics as values
     :return dictionary with layers names as keys and list of evaluated statistics as values"""
@@ -392,7 +392,7 @@ def set_rescaling_factors(config, model, scaling_factor=2.0):
         for further rescaling of weights/FQs.
         Skip if target device is not CPU.
         :param config: algo config
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         :param scaling_factor: rescaling factor for first convolution nodes
     """
 

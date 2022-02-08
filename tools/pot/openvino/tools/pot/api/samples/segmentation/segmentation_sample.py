@@ -6,7 +6,6 @@ import math
 
 import cv2
 import numpy as np
-from addict import Dict
 
 from openvino.tools.pot import Metric, DataLoader, IEEngine, \
     load_model, save_model, compress_model_weights, create_pipeline
@@ -33,8 +32,6 @@ class VOCSegmentationLoader(DataLoader):
 
     # Required methods:
     def __init__(self, config):
-        if not isinstance(config, Dict):
-            config = Dict(config)
         super().__init__(config)
         self._image_size = config.image_size
         self._img_ids = self._read_img_ids(config)
@@ -187,24 +184,24 @@ def main():
     if not args.weights:
         args.weights = '{}.bin'.format(os.path.splitext(args.model)[0])
 
-    model_config = Dict({
+    model_config = {
         'model_name': 'deeplabv3',
         'model': os.path.expanduser(args.model),
         'weights': os.path.expanduser(args.weights)
-    })
+    }
 
-    engine_config = Dict({
+    engine_config = {
         'device': 'CPU',
         'stat_requests_number': 4,
         'eval_requests_number': 4
-    })
+    }
 
-    dataset_config = Dict({
+    dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
         'mask_dir': os.path.expanduser(args.mask_dir),
         'imageset_file': os.path.expanduser(args.imageset_file),
         'image_size': 513
-    })
+    }
 
     algorithms = [
         {

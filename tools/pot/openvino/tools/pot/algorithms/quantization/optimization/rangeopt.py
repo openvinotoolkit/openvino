@@ -55,7 +55,7 @@ class RangeOptimization(OptimizationAlgorithm):
 
     def _get_parameter_values(self, model):
         """ returns activation ranges from FakeQuantize nodes
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         :return dictionary with FQ names as keys and ranges as values
         """
         out = OrderedDict()
