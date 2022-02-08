@@ -89,13 +89,7 @@ OutputVector prior_box_clustered(const Node& node) {
     attrs.variances = node.get_attribute_value<std::vector<float>>("variance", {0.1f});
     attrs.step_heights = node.get_attribute_value<float>("step_h", 0.0f);
     attrs.step_widths = node.get_attribute_value<float>("step_w", 0.0f);
-    if (attrs.step_heights == 0.0f && attrs.step_widths == 0.0f) {
-        // According to spec, if both 'step_heights' and 'step_widths' are 0, they're updated with value of 'step'
-        // TODO: consider to move this logic to core's PriorBoxClustered::visit_attributes
-        attrs.step = node.get_attribute_value<float>("step", 0.0f);
-        attrs.step_heights = attrs.step;
-        attrs.step_widths = attrs.step;
-    }
+    attrs.step = node.get_attribute_value<float>("step", 0.0f);
     attrs.offset = node.get_attribute_value<float>("offset", 0.0f);
 
     auto axes = default_opset::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0});
