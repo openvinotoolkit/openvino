@@ -957,6 +957,9 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             transformations.apply(nGraphFunc);
             program = std::make_shared<Program>(cloned_network, engine, config, false, true);
             std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
+            if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
+                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+            }
             int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
                     static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
             int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
