@@ -15,13 +15,13 @@ Automatic Speech Recognition Python sample application demonstrates how to use t
 | InferRequest Operations | [openvino.runtime.InferRequest.query_state], [openvino.runtime.VariableState.reset]                                                                                                            | Gets and resets CompiledModel state control                           |
 | Profiling               | [openvino.runtime.InferRequest.profiling_info], [openvino.runtime.ProfilingInfo.real_time]                                                                                                     | Get infer request profiling info                                      |
 
-Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
 | Options                    | Values                                                                                                                                         |
 | :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
 | Validated Models           | Acoustic model based on Kaldi* neural models (see [Model Preparation](#model-preparation) section)                                           |
-| Model Format               | Inference Engine Intermediate Representation (.xml + .bin)                                                                                     |
-| Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin)                                                                                     |
+| Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/speech_sample/README.md)                                                                                            |
 
 ## How It Works
@@ -151,7 +151,7 @@ Options:
 
 ## Model Preparation
 
-You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to Inference Engine Intermediate Representation format:
+You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
 
 ```sh
 mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
@@ -329,7 +329,7 @@ The sample application logs each step in a standard output stream.
 ## See Also
 
 - [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 

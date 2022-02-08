@@ -9,13 +9,13 @@ The following Inference Engine Python API is used in the application:
 | Model Operations | [openvino.runtime.Model], [openvino.runtime.set_batch], [openvino.runtime.Model.input]                                                                                                                                                                                                                            | Managing of model                                       |
 | nGraph Functions | [openvino.runtime.op.Parameter], [openvino.runtime.op.Constant], [openvino.runtime.opset8.convolution], [openvino.runtime.opset8.add], [openvino.runtime.opset1.max_pool], [openvino.runtime.opset8.reshape], [openvino.runtime.opset8.matmul], [openvino.runtime.opset8.relu], [openvino.runtime.opset8.softmax] | Description of a model topology using nGraph Python API |
 
-Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
 | Options                    | Values                                                                |
 | :------------------------- | :-------------------------------------------------------------------- |
 | Validated Models           | LeNet                                                                 |
 | Model Format               | Model weights file (\*.bin)                                         |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md)     |
+| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md)     |
 | Other language realization | [C++](../../../samples/cpp/ngraph_function_creation_sample/README.md) |
 
 ## How It Works
@@ -128,7 +128,7 @@ The sample application logs each step in a standard output stream and outputs 10
 ## See Also
 
 - [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 

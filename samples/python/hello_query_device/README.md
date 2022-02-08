@@ -11,7 +11,7 @@ The following Inference Engine Python API is used in the application:
 
 | Options                    | Values                                                            |
 | :------------------------- | :---------------------------------------------------------------- |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/hello_query_device/README.md)          |
 
 ## How It Works
@@ -85,7 +85,7 @@ For example:
 
 ## See Also
 
-- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 
 <!-- [openvino.runtime.Core]:
 [openvino.runtime.Core.available_devices]:
