@@ -15,14 +15,14 @@ The following Inference Engine C++ API is used in the application:
 | Infer Request Operations | `ov::InferRequest::get_input_tensor` | Get a input tensor |
 | nGraph Functions | `ov::opset8::Parameter`, `ov::Node::output`, `ov::opset8::Constant`, `ov::opset8::Convolution`, `ov::opset8::Add`, `ov::opset1::MaxPool`, `ov::opset8::Reshape`, `ov::opset8::MatMul`, `ov::opset8::Relu`, `ov::opset8::Softmax`, `ov::descriptor::Tensor::set_names`, `ov::opset8::Result`, `ov::Model`, `ov::ParameterVector::vector` | Used to construct an nGraph function |
 
-Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
 | Options | Values |
 | :--- | :--- |
 | Validated Models | LeNet |
 | Model Format | model weights file (\*.bin) |
 | Validated images | single-channel `MNIST ubyte` images |
-| Supported devices | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [Python](../../../samples/python/ngraph_function_creation_sample/README.md) |
 
 ## How It Works
@@ -33,7 +33,7 @@ You can see the explicit description of each sample step at [Integration Steps](
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
 
 ## Running
 
@@ -179,5 +179,5 @@ classid probability label
 ## See Also
 
 - [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

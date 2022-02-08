@@ -17,13 +17,13 @@ The following Inference Engine C++ API is used in the application:
 | Tensor Operations | `ov::Tensor::get_size`, `ov::Tensor::data`, `ov::InferRequest::get_tensor` | Get a tensor, its size and data |
 | Profiling | `ov::InferRequest::get_profiling_info` | Get infer request profiling info |
 
-Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
 | Options | Values |
 | :--- | :--- |
 | Validated Models | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation) section) |
-| Model Format | Inference Engine Intermediate Representation (\*.xml + \*.bin) |
-| Supported devices | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin) |
+| Supported devices | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 
 ## How It Works
 
@@ -77,7 +77,7 @@ In addition to performing inference directly from a GNA model file, these combin
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
 
 ## Running
 
@@ -125,7 +125,7 @@ Available target devices:  CPU  GNA  GPU
 
 ### Model Preparation
 
-You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to Inference Engine Intermediate Representation format:
+You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
 
 ```
 mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
@@ -218,7 +218,7 @@ nnet-forward --use-gpu=no final.feature_transform "ark,s,cs:copy-feats scp:feats
 ```sh
 ./speech_sample -d GNA_AUTO -bs 8 -i feat.ark -m wsj_dnn5b.xml -o scores.ark
 ```
-Inference Engine Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
+OpenVINO™ toolkit Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
 
 3. Run the Kaldi decoder to produce n-best text hypotheses and select most likely text given the WFST (`HCLG.fst`), vocabulary (`words.txt`), and TID/PID mapping (`final.mdl`):
 
@@ -237,6 +237,6 @@ All of mentioned files can be downloaded from [https://storage.openvinotoolkit.o
 ## See Also
 
 - [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
