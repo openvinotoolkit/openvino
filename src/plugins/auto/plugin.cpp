@@ -63,6 +63,7 @@ namespace {
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
                     res.push_back(ov::hint::model_priority.name());
                     res.push_back(ov::allow_auto_batching.name());
+                    res.push_back(ov::log::level.name());
                     return res;
                 }();
 }  // namespace
@@ -201,9 +202,12 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
             ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO},
 
             // Configs
-            ov::PropertyName{ov::enable_profiling.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::hint::model_priority.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::log::level.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::enable_profiling.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::hint::performance_mode.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::hint::num_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::allow_auto_batching.name(), ov::PropertyMutability::RW}
         };
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -212,7 +216,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
-    } else if (name == METRIC_KEY(FULL_DEVICE_NAME) || name == ov::device::full_name) {
+    } else if (name == ov::device::full_name) {
         std::string device_name = { GetName() };
         return decltype(ov::device::full_name)::value_type {device_name};
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
@@ -587,7 +591,7 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                 IE_THROW() << "Unsupported config value: " << kvp.second
                            << " for key: " << kvp.first;
             }
-        } else if (kvp.first == PluginConfigParams::KEY_LOG_LEVEL) {
+        } else if (kvp.first == ov::log::level.name()) {
                auto success = MultiDevicePlugin::setLogLevel(kvp.second);
                if (!success) {
                    IE_THROW() << "Unsupported config value: " << kvp.second
