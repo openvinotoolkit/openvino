@@ -363,6 +363,12 @@ MKLDNNInputNode::MKLDNNInputNode(const Shape& shape, const InferenceEngine::Prec
     }
 }
 
+MKLDNNInputNode::MKLDNNInputNode(MemoryDescPtr memDesc, const std::string &name, const std::string &type,
+                                 const mkldnn::engine &eng, MKLDNNWeightsSharing::Ptr &cache) :
+    MKLDNNInputNode(memDesc->getShape(), memDesc->getPrecision(), name, type, eng, cache) {
+    extMemDesc = memDesc;
+}
+
 void MKLDNNInputNode::withMeanImage() {
     isMeanImage = true;
 }
@@ -389,6 +395,37 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    if (extMemDesc) {
+        initSupportedPdFromMemDesc();
+    } else {
+        initSupportedPdDefault();
+    }
+}
+
+void MKLDNNInputNode::createPrimitive() {
+    for (size_t i = 0; i < getChildEdges().size(); i++) {
+        auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
+        if (!dstMemPtr || !dstMemPtr->isAllocated())
+            IE_THROW() << "Destination memory didn't allocate for node " << getName()
+                               << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
+    }
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        if (!srcMemPtr || !srcMemPtr->isAllocated())
+            IE_THROW() << "Destination memory didn't allocate for node " << getName()
+                               << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
+    }
+
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+}
+
+bool MKLDNNInputNode::created() const {
+    return getType() == Input || getType() == Output;
+}
+
+void MKLDNNInputNode::initSupportedPdDefault() {
     std::vector<PortConfigurator> inPortConfs;
     std::vector<PortConfigurator> outPortConfs;
 
@@ -414,27 +451,18 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::unknown);
 }
 
-void MKLDNNInputNode::createPrimitive() {
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
-        auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
+void MKLDNNInputNode::initSupportedPdFromMemDesc() {
+    NodeConfig config;
+    PortConfig portConfig;
+    portConfig.inPlace(-1);
+    portConfig.constant(false);
+    portConfig.setMemDesc(extMemDesc);
+    if (getType() == Input || getType() == MemoryInput) {
+        config.outConfs.push_back(portConfig);
+    } else if (getType() == Output) {
+        config.inConfs.push_back(portConfig);
     }
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
-    }
-
-    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
-}
-
-bool MKLDNNInputNode::created() const {
-    return getType() == Input || getType() == Output;
+    supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Input);
