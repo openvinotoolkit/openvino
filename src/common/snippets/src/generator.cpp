@@ -8,7 +8,6 @@
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/op/tile.hpp"
 #include "snippets/op/kernel.hpp"
-#include <snippets/common.hpp>
 #include <snippets/itt.hpp>
 
 #include <ngraph/pass/manager.hpp>
@@ -39,20 +38,11 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
     return std::make_pair(rin, rout);
 }
 
-std::function<std::shared_ptr<ngraph::snippets::Emitter>(std::shared_ptr<ngraph::Node>)>
-    ngraph::snippets::TargetMachine::get(const ngraph::DiscreteTypeInfo type) const {
-    auto jitter = jitters.find(type);
-    if (jitter == jitters.end()) {
-        SNIPPETS_THROW() << "Target code emitter is not available for " << type.name << " operation.";
-    }
-    return jitter->second;
-}
-
 ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov::Model>& m,
                                                              const void* compile_params) const {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
     if (!target->is_supported())
-        SNIPPETS_THROW(NotImplemented) << "unsupported architecture for code generation";
+        throw ngraph_error("[SNIPPETS] unsupported architecture for code genration");
 
     auto params = m->get_parameters();
     auto results = m->get_results();

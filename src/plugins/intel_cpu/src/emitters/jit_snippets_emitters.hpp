@@ -6,6 +6,7 @@
 
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
+#include <snippets/common.hpp>
 
 #include "jit_emitter.hpp"
 using namespace Xbyak;
