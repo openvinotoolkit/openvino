@@ -29,15 +29,15 @@ NodeConfig MKLDNNGenericNode::convertLayerToNodeConfig(const InferenceEngine::La
     config.dynBatchSupport = layerConfig.dynBatchSupport;
     config.inConfs.resize(layerConfig.inConfs.size());
     for (size_t i = 0; i < layerConfig.inConfs.size(); i++) {
-        config.inConfs[i].inPlace = layerConfig.inConfs[i].inPlace;
-        config.inConfs[i].constant = layerConfig.inConfs[i].constant;
-        config.inConfs[i].desc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.inConfs[i].desc).clone();
+        config.inConfs[i].inPlace(layerConfig.inConfs[i].inPlace);
+        config.inConfs[i].constant(layerConfig.inConfs[i].constant);
+        config.inConfs[i].setMemDesc(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.inConfs[i].desc).clone());
     }
     config.outConfs.resize(layerConfig.outConfs.size());
     for (size_t i = 0; i < layerConfig.outConfs.size(); i++) {
-        config.outConfs[i].inPlace = layerConfig.outConfs[i].inPlace;
-        config.outConfs[i].constant = layerConfig.outConfs[i].constant;
-        config.outConfs[i].desc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.outConfs[i].desc).clone();
+        config.outConfs[i].inPlace(layerConfig.outConfs[i].inPlace);
+        config.outConfs[i].constant(layerConfig.outConfs[i].constant);
+        config.outConfs[i].setMemDesc(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.outConfs[i].desc).clone());
     }
     return config;
 }
@@ -47,15 +47,15 @@ InferenceEngine::LayerConfig MKLDNNGenericNode::convertNodeToLayerConfig(const N
     config.dynBatchSupport = nodeConfig.dynBatchSupport;
     config.inConfs.resize(nodeConfig.inConfs.size());
     for (size_t i = 0; i < nodeConfig.inConfs.size(); i++) {
-        config.inConfs[i].inPlace = nodeConfig.inConfs[i].inPlace;
-        config.inConfs[i].constant = nodeConfig.inConfs[i].constant;
-        config.inConfs[i].desc = MemoryDescUtils::convertToTensorDesc(*nodeConfig.inConfs[i].desc);
+        config.inConfs[i].inPlace = nodeConfig.inConfs[i].inPlace();
+        config.inConfs[i].constant = nodeConfig.inConfs[i].constant();
+        config.inConfs[i].desc = MemoryDescUtils::convertToTensorDesc(*nodeConfig.inConfs[i].getMemDesc());
     }
     config.outConfs.resize(nodeConfig.outConfs.size());
     for (size_t i = 0; i < nodeConfig.outConfs.size(); i++) {
-        config.outConfs[i].inPlace = nodeConfig.outConfs[i].inPlace;
-        config.outConfs[i].constant = nodeConfig.outConfs[i].constant;
-        config.outConfs[i].desc = MemoryDescUtils::convertToTensorDesc(*nodeConfig.outConfs[i].desc);
+        config.outConfs[i].inPlace = nodeConfig.outConfs[i].inPlace();
+        config.outConfs[i].constant = nodeConfig.outConfs[i].constant();
+        config.outConfs[i].desc = MemoryDescUtils::convertToTensorDesc(*nodeConfig.outConfs[i].getMemDesc());
     }
     return config;
 }
@@ -198,13 +198,13 @@ void MKLDNNGenericNode::initDescriptor(const NodeConfig &config) {
         // TODO: we need to better recognize cases with possible inplace conficts
         if (getParentEdgeAt(j)->getParent()->getType() != Split &&
             getParentEdgeAt(j)->getParent()->getChildEdges().size() > 1) {
-            rightConfig.inConfs[j].inPlace = -1;
+            rightConfig.inConfs[j].inPlace(-1);
         }
     }
     for (auto &outConf : rightConfig.outConfs) {
-        if (outConf.inPlace < getParentEdges().size() &&
-            getParentEdgeAt(static_cast<size_t>(outConf.inPlace))->getParent()->getChildEdges().size() > 1) {
-            outConf.inPlace = -1;
+        if (outConf.inPlace() < getParentEdges().size() &&
+            getParentEdgeAt(static_cast<size_t>(outConf.inPlace()))->getParent()->getChildEdges().size() > 1) {
+            outConf.inPlace(-1);
         }
     }
 
@@ -223,10 +223,10 @@ void MKLDNNGenericNode::initDescriptor(const NodeConfig &config) {
     }
     bool isConst = !rightConfig.inConfs.empty() || !rightConfig.outConfs.empty();
     for (const auto &inConf : rightConfig.inConfs) {
-        isConst = isConst && inConf.constant;
+        isConst = isConst && inConf.constant();
     }
     for (const auto &outConf : rightConfig.outConfs) {
-        isConst = isConst && outConf.constant;
+        isConst = isConst && outConf.constant();
     }
     if (isConst) {
         constant = ConstantType::Const;

@@ -462,6 +462,34 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
+const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg4D_Large = {
+        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {65, 65}, {65, 65}, {0, 0}, {0, 0},
+                            ngraph::op::RoundingType::FLOOR, ngraph::op::PadType::VALID, true },
+};
+
+const std::vector<InputShape> inputShapes4D_Large = {
+        {
+            // dynamic
+            {-1, -1, -1, -1},
+            // target
+            {
+                {1, 16, 65, 65},
+                {1, 8, 130, 130},
+                {1, 16, 65, 65}
+            }
+        },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(paramsAvg4D_Large),
+                            ::testing::ValuesIn(inputShapes4D_Large),
+                            ::testing::ValuesIn(inpOutPrecision),
+                            ::testing::Values(false),
+                            ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                            ::testing::Values(emptyFusingSpec)),
+                        PoolingLayerCPUTest::getTestCaseName);
+
 /* ============= Pooling (3D) ============= */
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax5D = {
         LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2, 2, 2}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
