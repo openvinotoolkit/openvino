@@ -1202,7 +1202,7 @@ def interpolate(
                         Required: no
 
     Example of attribute dictionary:
-    
+
     .. code-block:: python
 
         # just required ones
@@ -2005,7 +2005,7 @@ def prior_box(
                         Required: no
 
     Example of attribute dictionary:
-    
+
     .. code-block:: python
 
         # just required ones

@@ -4,7 +4,6 @@
 from copy import deepcopy
 import numpy as np
 import os
-from sys import platform
 import pytest
 import datetime
 import time

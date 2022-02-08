@@ -727,7 +727,7 @@ def detection_output(
                             Default value: 0
                             Required: no
     Example of attribute dictionary:
-    
+
     .. code-block:: python
 
         # just required ones

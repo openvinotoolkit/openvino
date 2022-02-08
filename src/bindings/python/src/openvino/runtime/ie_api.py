@@ -173,7 +173,8 @@ class AsyncInferQueue(AsyncInferQueueBase):
     """
 
     def __getitem__(self, i: int) -> InferRequest:
-        """
+        """Gets InferRequest from the pool with given i id.
+
         :param i:  InferRequest id.
         :type i: int
         :return: InferRequests from the pool with given id.
@@ -245,10 +246,11 @@ class ExtendedModel(CompiledModel):
 
 def compile_model(model_path: str) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
+
     :param model_path: Path to file with model.
     :type model_path: str
     :return: Extended version of `CompiledModel` that holds and
-    keeps alive `Core` object. 
+    keeps alive `Core` object.
     """
     core = Core()
     return ExtendedModel(core, core.compile_model(model_path, "AUTO"))
@@ -260,7 +262,7 @@ class OVAny(OVAnyBase):
     Wrapper provides some useful overloads for simple built-in Python types.
 
     Access to the OVAny value is direct if it is a built-in Python data type.
-    
+
     :Example:
     .. code-block:: ipython
 
@@ -268,12 +270,11 @@ class OVAny(OVAnyBase):
         print(any[0])
 
         Output: 2
-    
 
     Otherwise if OVAny value is a custom data type (for example user class),
     access to the value is possible by 'get()' method or property 'value'.
     :Example:
-    
+
     .. code-block:: python
 
         class Test:
