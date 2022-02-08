@@ -22,7 +22,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 At startup, the sample application does the following:
 - Reads command line parameters
-- Creates a model using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) and passed weights file
+- [Build a Model](../../../docs/OV_Runtime_UG/model_representation.md) and passed weights file
 - Loads the model and input data to the Inference Engine plugin
 - Performs synchronous inference and processes output data, logging each step in a standard output stream
 
