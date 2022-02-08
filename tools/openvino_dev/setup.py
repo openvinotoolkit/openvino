@@ -110,7 +110,7 @@ class CustomBuild(build):
                         install_requires = sorted(map(str, dmap.get(None, [])))
                         self.announce(f'Install requires: {install_requires}', level=log.INFO)
                         self.distribution.install_requires.extend(install_requires)
-                        # conditionals requirementes {':<condition>': [requirements]}
+                        # conditional requirements {':<condition>': [requirements]}
                         conditionals_req = dict(filter(lambda x: x[0] is not None and x[0].split(':')[0] == '', dmap.items()))
                         self.announce(f'Install requires with marker: {conditionals_req}', level=log.INFO)
                         for extra, req in conditionals_req.items():
@@ -119,7 +119,7 @@ class CustomBuild(build):
                             self.distribution.extras_require[extra].extend(sorted(map(str, req)))
 
                     if cmp_data.get("extract_extras"):
-                        # extra requirementes {'marker:<condition>': [requirements]}
+                        # extra requirements {'marker:<condition>': [requirements]}
                         extras = dict(filter(lambda x: x[0] is not None and x[0].split(':')[0] != '', dmap.items()))
                         for extra, req in extras.items():
                             self.announce(f'Extras: {extra}:{req}', level=log.INFO)
