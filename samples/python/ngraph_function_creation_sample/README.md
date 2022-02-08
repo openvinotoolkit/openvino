@@ -1,6 +1,6 @@
 # nGraph Function Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to run inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a model that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.  
+This sample demonstrates how to run inference using a [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.  
 
 The following Inference Engine Python API is used in the application:
 
