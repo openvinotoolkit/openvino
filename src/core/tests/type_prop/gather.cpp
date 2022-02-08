@@ -134,6 +134,27 @@ TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }
 
+TEST(type_prop, dynamic_value_propagation) {
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{-1, 3, -1, -1});
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(param, element::i32);
+
+    auto indices = op::Constant::create(element::i32, {}, {1});
+    auto axis = op::Constant::create(element::i32, {}, {0});
+    auto gather = std::make_shared<op::v1::Gather>(shape_of, indices, axis);
+
+    auto add = std::make_shared<op::v1::Add>(gather, op::Constant::create(element::i32, {}, {0}));
+
+    auto range = std::make_shared<op::v4::Range>(op::Constant::create(element::i32, {}, {0}),
+                                                 add,
+                                                 op::Constant::create(element::i32, {}, {1}),
+                                                 element::i64);
+
+    auto RIC = std::make_shared<op::v1::Gather>(param, range, op::Constant::create(element::i32, {}, {1}));
+
+    ASSERT_EQ(RIC->get_element_type(), element::f32);
+    ASSERT_EQ(RIC->get_output_partial_shape(0), (PartialShape{-1, 3, -1, -1}));
+}
+
 // ------------------------------ V7 ------------------------------
 
 TEST(type_prop, gather_7_axis_0) {
