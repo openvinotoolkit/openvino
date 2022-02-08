@@ -22,8 +22,9 @@ public:
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override;
-    bool isCompatible(const DnnlBlockedMemoryDesc& rhs) const;
-    bool isCompatible(const CpuBlockedMemoryDesc& rhs) const;
+    bool isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const override;
+    bool isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
+    bool isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
 
     const VectorDims& getBlockDims() const override {
         return blockedDims;
@@ -56,10 +57,6 @@ public:
     bool blocksExtended() const override;
 
     size_t getPaddedElementsCount() const override;
-
-    MemoryDescPtr cloneWithUndefStridesAndOffset() const override;
-
-    MemoryDescPtr cloneWithDefaultStridesAndOffset() const override;
 
     MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
 

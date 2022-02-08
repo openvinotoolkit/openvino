@@ -1749,7 +1749,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         };
 
         // TODO [DS]: inplace
-        size_t offset = isDynamicNode() ? 0 : std::numeric_limits<size_t>::max();
+        size_t offset = 0;
         NodeConfig config;
         if (!isDynamicNode()) {
             config.dynBatchSupport = getOutputShapeAtPort(0).getRank() > 1 && getOutputShapeAtPort(0) ==
@@ -1757,48 +1757,32 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         }
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
+            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
             // TODO [DS]: inplace
             if (!isDynamicNode())
-                portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
-            portConfig.constant = false;
+                portConfig.inPlace((!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1);
+            portConfig.constant(false);
 
             const auto &srcShape = getInputShapeAtPort(i);
-            portConfig.desc = createMemoryDesc(srcShape, inputPrecisions[i], offset);
             if (!isDynamicNode() && srcShape.getDims()[0] == 1) {
-                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
-                auto strides = denseDesc->getStrides();
-                strides[0] = Shape::UNDEFINED_DIM;
-                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                         denseDesc->getShape(),
-                                                                         denseDesc->getBlockDims(),
-                                                                         denseDesc->getOrder(),
-                                                                         denseDesc->getOffsetPadding(),
-                                                                         denseDesc->getOffsetPaddingToData(),
-                                                                         strides);
+                inputMask.reset(0); // accepts any stride on the batch axis
             }
+            portConfig.setMemDesc(createMemoryDesc(srcShape, inputPrecisions[i], offset), inputMask);
 
             config.inConfs.push_back(portConfig);
         }
 
         PortConfig portConfig;
-        portConfig.inPlace = -1;
-        portConfig.constant = false;
+        portConfig.inPlace(-1);
+        portConfig.constant(false);
 
         const auto &dstShape = getOutputShapeAtPort(0);
-        portConfig.desc = createMemoryDesc(dstShape, outputPrecision, offset);
+        BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
         if (!isDynamicNode() && dstShape.getDims()[0] == 1) {
-            const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
-            auto strides = denseDesc->getStrides();
-            strides[0] = Shape::UNDEFINED_DIM;
-            portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                     denseDesc->getShape(),
-                                                                     denseDesc->getBlockDims(),
-                                                                     denseDesc->getOrder(),
-                                                                     denseDesc->getOffsetPadding(),
-                                                                     denseDesc->getOffsetPaddingToData(),
-                                                                     strides);
+            outputMask.reset(0); // accepts any stride on the batch axis
         }
+        portConfig.setMemDesc(createMemoryDesc(dstShape, outputPrecision, offset), outputMask);
 
         config.outConfs.push_back(portConfig);
 
@@ -1957,26 +1941,6 @@ bool MKLDNNEltwiseNode::needPrepareParams() const {
 
 void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
-}
-
-void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
-    auto config = selected_pd->getConfig();
-    if (!isConfigDefined(config)) {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].desc = getDefinedInputDesc(config, i);
-        }
-
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].desc = getDefinedOutputDesc(config, i);
-        }
-
-        initDescriptor(config);
-    } else {
-        initDescriptor(config);
-    }
 }
 
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {

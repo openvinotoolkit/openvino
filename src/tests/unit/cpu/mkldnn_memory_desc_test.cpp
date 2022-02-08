@@ -87,39 +87,6 @@ TEST(MemDescTest, UndefinedStateConversion) {
     }
 }
 
-TEST(MemDescTest, TurnToUninit) {
-    Shape cpuShape(SizeVector{7, 19, 43, 20});
-
-    auto& blokcedDescCreators = BlockedDescCreator::getCommonCreators();
-
-    for (auto item : blokcedDescCreators) {
-        auto creator = item.second;
-
-        const MemoryDescPtr blockedDesc = creator->createSharedDesc(Precision::FP32, cpuShape);
-        auto mkldnnDesc = MemoryDescUtils::convertToDnnlMemoryDesc(blockedDesc);
-
-        auto uninitMkldnnDesc = mkldnnDesc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
-
-        ASSERT_TRUE(uninitMkldnnDesc->isCompatible(*mkldnnDesc));
-
-        const auto cpuBlockedDesc = std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(blockedDesc);
-        auto strides = cpuBlockedDesc->getStrides();
-        std::transform(strides.begin(), strides.begin() + cpuShape.getRank(), strides.begin(), [](size_t x) { return x * 3; });
-
-        auto stridedBlockedDesc = CpuBlockedMemoryDesc(cpuBlockedDesc->getPrecision(), cpuBlockedDesc->getShape(), cpuBlockedDesc->getBlockDims(),
-                                                       cpuBlockedDesc->getOrder(),
-                                                    100500, cpuBlockedDesc->getOffsetPaddingToData(), strides);
-
-        ASSERT_FALSE(blockedDesc->isCompatible(stridedBlockedDesc));
-        ASSERT_TRUE(uninitMkldnnDesc->isCompatible(stridedBlockedDesc));
-
-        auto initMkldnnDesc = uninitMkldnnDesc->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
-
-        ASSERT_TRUE(initMkldnnDesc->isCompatible(*blockedDesc));
-        ASSERT_FALSE(initMkldnnDesc->isCompatible(stridedBlockedDesc));
-    }
-}
-
 TEST(MemDescTest, CompareWithTensorDescRecomputedStrides) {
     auto converted_correctly = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc orig_tdesc {dims, dnnl::memory::data_type::u8, fmt};
@@ -463,82 +430,6 @@ TEST(isSameMethodTest, CheckTensorWithSameStrides) {
 
     for (const auto &tc : testCases)
         ASSERT_TRUE(isSameDataFormat(tc.first, tc.second));
-}
-
-TEST(cloneWithParamsChange, UndefinedAndDefaultParams) {
-    dnnl::memory::format_tag testCases[] {
-        dnnl::memory::format_tag::nchw,
-        dnnl::memory::format_tag::nhwc,
-        dnnl::memory::format_tag::nChw8c,
-        dnnl::memory::format_tag::nChw16c
-    };
-
-    // DnnlBlockedMemoryDesc with extra
-    auto cloneWithParamsChangeDnnl = [](dnnl::memory::format_tag fmt) {
-        dnnl::memory::desc refOneDnnDesc(dnnl::memory::dims{2, 3, 4, 5}, mkldnn::memory::data_type::u8, fmt);
-        refOneDnnDesc.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-        refOneDnnDesc.data.extra.compensation_mask = 1;
-        refOneDnnDesc.data.extra.scale_adjust = 2.0f;
-        auto refDesc = MKLDNNExtensionUtils::makeDescriptor(refOneDnnDesc);
-        auto refDnnlBlkDesc = refDesc->as<DnnlBlockedMemoryDesc>();
-
-        auto undefDesc = refDnnlBlkDesc->cloneWithUndefStridesAndOffset();
-        auto undefDnnlBlkDesc = undefDesc->as<DnnlBlockedMemoryDesc>();
-        ASSERT_EQ(refDnnlBlkDesc->getBlockDims(), undefDnnlBlkDesc->getBlockDims());
-        ASSERT_EQ(refDnnlBlkDesc->getOrder(), undefDnnlBlkDesc->getOrder());
-        ASSERT_EQ(refDnnlBlkDesc->getOffsetPaddingToData(), undefDnnlBlkDesc->getOffsetPaddingToData());
-        // undef
-        ASSERT_EQ(Shape::UNDEFINED_DIM, undefDnnlBlkDesc->getOffsetPadding());
-        auto undefStrides = refDnnlBlkDesc->getStrides();
-        std::fill(undefStrides.begin(), undefStrides.begin() + refDnnlBlkDesc->getShape().getRank(), Shape::UNDEFINED_DIM);
-        ASSERT_EQ(undefStrides, undefDnnlBlkDesc->getStrides());
-        ASSERT_FALSE(undefDnnlBlkDesc->isDefined());
-
-        auto definedDesc = undefDnnlBlkDesc->cloneWithDefaultStridesAndOffset();
-        auto definedDnnlBlkDesc = definedDesc->as<DnnlBlockedMemoryDesc>();
-        ASSERT_TRUE(refOneDnnDesc == definedDnnlBlkDesc->as<DnnlMemoryDesc>()->getDnnlDesc());
-        ASSERT_EQ(refDnnlBlkDesc->getBlockDims(), definedDnnlBlkDesc->getBlockDims());
-        ASSERT_EQ(refDnnlBlkDesc->getOrder(), definedDnnlBlkDesc->getOrder());
-        ASSERT_EQ(refDnnlBlkDesc->getOffsetPaddingToData(), definedDnnlBlkDesc->getOffsetPaddingToData());
-        ASSERT_EQ(refDnnlBlkDesc->getOffsetPadding(), definedDnnlBlkDesc->getOffsetPadding());
-        ASSERT_EQ(refDnnlBlkDesc->getStrides(), definedDnnlBlkDesc->getStrides());
-        ASSERT_TRUE(refDnnlBlkDesc->isDefined());
-    };
-
-    for (const auto &tc : testCases) {
-        cloneWithParamsChangeDnnl(tc);
-    }
-
-    // CpuBlockedMemoryDesc
-    auto cloneWithParamsChangeCpu = [](dnnl::memory::format_tag fmt) {
-        dnnl::memory::desc refOneDnnDesc(dnnl::memory::dims{2, 3, 4, 5}, mkldnn::memory::data_type::u8, fmt);
-        auto refDesc = MemoryDescUtils::convertToBlockedMemoryDesc(MKLDNNExtensionUtils::makeDescriptor(refOneDnnDesc));
-
-        auto undefDesc = refDesc->cloneWithUndefStridesAndOffset();
-        auto undefCpuBlkDesc = undefDesc->as<BlockedMemoryDesc>();
-        ASSERT_EQ(refDesc->getBlockDims(), undefCpuBlkDesc->getBlockDims());
-        ASSERT_EQ(refDesc->getOrder(), undefCpuBlkDesc->getOrder());
-        ASSERT_EQ(refDesc->getOffsetPaddingToData(), undefCpuBlkDesc->getOffsetPaddingToData());
-        // undef
-        ASSERT_EQ(Shape::UNDEFINED_DIM, undefCpuBlkDesc->getOffsetPadding());
-        auto undefStrides = refDesc->getStrides();
-        std::fill(undefStrides.begin(), undefStrides.begin() + refDesc->getShape().getRank(), Shape::UNDEFINED_DIM);
-        ASSERT_EQ(undefStrides, undefCpuBlkDesc->getStrides());
-        ASSERT_FALSE(undefCpuBlkDesc->isDefined());
-
-        auto definedDesc = undefCpuBlkDesc->cloneWithDefaultStridesAndOffset();
-        auto definedDnnlBlkDesc = definedDesc->as<BlockedMemoryDesc>();
-        ASSERT_EQ(refDesc->getBlockDims(), definedDnnlBlkDesc->getBlockDims());
-        ASSERT_EQ(refDesc->getOrder(), definedDnnlBlkDesc->getOrder());
-        ASSERT_EQ(refDesc->getOffsetPaddingToData(), definedDnnlBlkDesc->getOffsetPaddingToData());
-        ASSERT_EQ(refDesc->getOffsetPadding(), definedDnnlBlkDesc->getOffsetPadding());
-        ASSERT_EQ(refDesc->getStrides(), definedDnnlBlkDesc->getStrides());
-        ASSERT_TRUE(definedDnnlBlkDesc->isDefined());
-    };
-
-    for (const auto &tc : testCases) {
-        cloneWithParamsChangeCpu(tc);
-    }
 }
 
 TEST(makeDummyDesc, LowerBoundMoreThanDummyValue) {

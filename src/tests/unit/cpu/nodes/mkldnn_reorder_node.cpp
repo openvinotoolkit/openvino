@@ -108,7 +108,7 @@ protected:
         }
         auto config = outputNode->getSelectedPrimitiveDescriptor()->getConfig();
         config.inConfs.resize(1);
-        config.inConfs[0].inPlace = forceInplace ? 0 : -1;
+        config.inConfs[0].inPlace(forceInplace ? 0 : -1);
         outputNode->getSelectedPrimitiveDescriptor()->setConfig(config);
         reorderNode->createPrimitive();
 

@@ -28,7 +28,7 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
-#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
 #include <utils/shape_inference/static_shape.hpp>
@@ -64,41 +64,6 @@ private:
         }
         return creators.at(blockedDescType);
     }
-};
-
-struct PortConfig {
-    PortConfig() = default;
-
-    PortConfig(const PortConfig& rhs) {
-        this->constant = rhs.constant;
-        this->inPlace = rhs.inPlace;
-        if (rhs.desc) {
-            this->desc = rhs.desc;
-        }
-    }
-
-    PortConfig& operator=(const PortConfig& rhs) {
-        this->constant = rhs.constant;
-        this->inPlace = rhs.inPlace;
-        if (rhs.desc) {
-            this->desc = rhs.desc;
-        }
-        return *this;
-    }
-
-    PortConfig(PortConfig&& rhs) = default;
-    PortConfig& operator=(PortConfig&& rhs) = default;
-
-    // TODO [DS]: better to make private and const
-    bool constant = false;
-    int inPlace = -1;
-    MemoryDescPtr desc;
-};
-
-struct NodeConfig {
-    bool dynBatchSupport = false;
-    std::vector<PortConfig> inConfs;
-    std::vector<PortConfig> outConfs;
 };
 
 class NodeDesc {
@@ -407,7 +372,7 @@ public:
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                if (!srcDescs[i]->isCompatible(*selectedDescs[i].desc))
+                if (!srcDescs[i]->isCompatible(*selectedDescs[i].getMemDesc()))
                     return false;
             }
             return true;
@@ -616,8 +581,8 @@ protected:
     virtual size_t getMaxBatch() const;
 
 
-    virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
+    virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
+    virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
     virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
     virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
@@ -711,9 +676,9 @@ protected:
                 return false;
 
             PortConfig portConfig;
-            portConfig.inPlace = portConfigurator.inPlace;
-            portConfig.constant = portConfigurator.constant;
-            portConfig.desc = portConfigurator.blockedDescCreator->createSharedDesc(prc, shape);
+            portConfig.inPlace(portConfigurator.inPlace);
+            portConfig.constant(portConfigurator.constant);
+            portConfig.setMemDesc(portConfigurator.blockedDescCreator->createSharedDesc(prc, shape));
 
             port.push_back(std::move(portConfig));
 

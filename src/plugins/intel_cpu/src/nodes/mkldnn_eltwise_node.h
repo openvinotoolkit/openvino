@@ -93,7 +93,6 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void initOptimalPrimitiveDescriptor() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;

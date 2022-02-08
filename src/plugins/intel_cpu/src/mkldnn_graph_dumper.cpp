@@ -76,11 +76,11 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
 
     if (!outDescs.empty()) {
-        outputLayoutsStr = outDescs[0].desc->serializeFormat();
+        outputLayoutsStr = outDescs[0].getMemDesc()->serializeFormat();
 
         bool isAllEqual = true;
         for (size_t i = 1; i < outDescs.size(); i++) {
-            if (outDescs[i - 1].desc->serializeFormat() != outDescs[i].desc->serializeFormat()) {
+            if (outDescs[i - 1].getMemDesc()->serializeFormat() != outDescs[i].getMemDesc()->serializeFormat()) {
                 isAllEqual = false;
                 break;
             }
@@ -89,7 +89,7 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
         // If all output layouts are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < outDescs.size(); i++) {
-                outputLayoutsStr += "," + outDescs[i].desc->serializeFormat();
+                outputLayoutsStr += "," + outDescs[i].getMemDesc()->serializeFormat();
             }
         }
     } else {
@@ -241,14 +241,14 @@ void serializeToCout(const MKLDNNGraph &graph) {
         if (nodeDesc) {
             auto& inConfs = nodeDesc->getConfig().inConfs;
             if (!inConfs.empty()) {
-                std::cout << "in: " << inConfs.front().desc->getPrecision().name()
-                          << "/l=" << inConfs.front().desc->serializeFormat()
+                std::cout << "in: " << inConfs.front().getMemDesc()->getPrecision().name()
+                          << "/l=" << inConfs.front().getMemDesc()->serializeFormat()
                           << "; ";
             }
             auto& outConfs = nodeDesc->getConfig().outConfs;
             if (!outConfs.empty()) {
-                std::cout << "out: " << outConfs.front().desc->getPrecision().name()
-                          << "/l=" << outConfs.front().desc->serializeFormat();
+                std::cout << "out: " << outConfs.front().getMemDesc()->getPrecision().name()
+                          << "/l=" << outConfs.front().getMemDesc()->serializeFormat();
             }
         }
         std::cout << " ]"  << std::endl;

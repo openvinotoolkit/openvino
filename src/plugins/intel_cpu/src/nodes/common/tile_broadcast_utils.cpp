@@ -103,25 +103,25 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const MKLDNNNode 
 
     config.dynBatchSupport = false;
     config.inConfs.resize(node->getParentEdges().size());
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = constMap[0];
-    config.inConfs[1].inPlace = -1;
-    config.inConfs[1].constant = constMap[1];
-    config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::I32, node->getInputShapeAtPort(1));
+    config.inConfs[0].inPlace(-1);
+    config.inConfs[0].constant(constMap[0]);
+    config.inConfs[1].inPlace(-1);
+    config.inConfs[1].constant(constMap[1]);
+    config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(Precision::I32, node->getInputShapeAtPort(1)));
     if (config.inConfs.size() == 3) {
-        config.inConfs[2].inPlace = -1;
-        config.inConfs[2].constant = constMap[2];
-        config.inConfs[2].desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::I32, node->getInputShapeAtPort(2));
+        config.inConfs[2].inPlace(-1);
+        config.inConfs[2].constant(constMap[2]);
+        config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(Precision::I32, node->getInputShapeAtPort(2)));
     }
 
     config.outConfs.resize(node->getChildEdges().size());
 
     auto pushDesc = [&](mkldnn::memory::format_tag inFormat, mkldnn::memory::format_tag outFormat) {
-        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(node->getInputShapeAtPort(0), dataType, inFormat);
+        config.inConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(node->getInputShapeAtPort(0), dataType, inFormat));
         for (int i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].inPlace = -1;
-            config.outConfs[i].constant = false;
-            config.outConfs[i].desc = std::make_shared<DnnlBlockedMemoryDesc>(node->getOutputShapeAtPort(0), dataType, outFormat);
+            config.outConfs[i].inPlace(-1);
+            config.outConfs[i].constant(false);
+            config.outConfs[i].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(node->getOutputShapeAtPort(0), dataType, outFormat));
         }
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
@@ -153,11 +153,11 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const MKLDNNNode 
     auto inFmt = MKLDNNExtensionUtils::GetPlainFormatByRank(inDataShape.getRank());
     auto outFmt = MKLDNNExtensionUtils::GetPlainFormatByRank(outDataShapeRank);
     if (inFmt == mkldnn::memory::format_tag::undef || outFmt == mkldnn::memory::format_tag::undef) {
-        config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(precision, node->getInputShapeAtPort(0));
+        config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getInputShapeAtPort(0)));
         for (int i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].inPlace = -1;
-            config.outConfs[i].constant = false;
-            config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(precision, node->getOutputShapeAtPort(i));
+            config.outConfs[i].inPlace(-1);
+            config.outConfs[i].constant(false);
+            config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getOutputShapeAtPort(i)));
         }
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     } else {
@@ -197,7 +197,7 @@ bool TileBroadcastCommon::prepareOptimizedParams(const MKLDNNNode *node, VectorD
 
     VectorDims optimizedDstStrides = calculateDenseStrides(optimizedDims);
 
-    size_t dataSize = node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
+    size_t dataSize = node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
     for (int i = 0; i < optimizedDims.size(); i++) {
         optimizedSrcStrides[i] *= dataSize;
         optimizedDstStrides[i] *= dataSize;

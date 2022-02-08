@@ -231,11 +231,21 @@ bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     }
 }
 
-bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs) const {
-    return this->desc.data.extra.flags == dnnl_memory_extra_flag_none && BlockedMemoryDesc::isCompatible(rhs);
+bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
+    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc, cmpMask);
+    } else if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc, cmpMask);
+    } else {
+        return false;
+    }
 }
 
-bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const {
+bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
+    return this->desc.data.extra.flags == dnnl_memory_extra_flag_none && BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
+}
+
+bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     using namespace dnnl;
     using namespace impl;
     using namespace impl::utils;
@@ -243,6 +253,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
         return false;
     }
 
+    // TODO: do we really need this check, seems the code below does the same thing
     if (this->desc == rhs.desc) {
         return true;
     }
@@ -251,12 +262,13 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
     if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any))
         return false;
 
-    int stride_start = 0;
+    const uint64_t stride_mask = (0xffffffffffffffff << cmpMask.size()) | cmpMask.to_ullong();
+    const bool checkOffset = cmpMask.test(BLOCKED_DESC_OFFSET_MASK_POS);
 
     const auto thisExtra = this->desc.data.extra;
     const auto rhsExtra = rhs.desc.data.extra;
     return this->getOrder() == rhs.getOrder() && (thisExtra.flags == rhsExtra.flags && thisExtra.compensation_mask == rhsExtra.compensation_mask &&
-           thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, stride_start, true, true);
+           thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, true, checkOffset, stride_mask);
 }
 
 static VectorDims extractOrder(const mkldnn::memory::desc& desc) {
@@ -597,24 +609,6 @@ void DnnlBlockedMemoryDesc::initStrides() {
 
 void DnnlBlockedMemoryDesc::initOffsetPadding() {
     offsetPaddingToData = VectorDims(std::begin(desc.data.padded_offsets), std::begin(desc.data.padded_offsets) + getOrder().size());
-}
-
-MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
-    DnnlBlockedMemoryDescPtr newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
-    auto &dnnlBlkDesc = newDesc->desc.data.format_desc.blocking;
-    std::fill(std::begin(dnnlBlkDesc.strides), std::begin(dnnlBlkDesc.strides) + getShape().getRank(), DNNL_RUNTIME_DIM_VAL);
-    newDesc->initStrides();
-    newDesc->desc.data.offset0 = DNNL_RUNTIME_DIM_VAL;
-    newDesc->status = descStatus::Undefined;
-    return newDesc;
-}
-
-MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
-    DnnlBlockedMemoryDescPtr newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
-    newDesc->recomputeDefaultStrides();
-    newDesc->desc.data.offset0 = 0;
-    newDesc->status = descStatus::Unknown;
-    return newDesc;
 }
 
 MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {

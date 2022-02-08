@@ -137,47 +137,31 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             }
         };
 
-        size_t offset = std::numeric_limits<size_t>::max();
+        size_t offset = 0;
         NodeConfig config;
         config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
+            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
-            portConfig.inPlace = (!i && canBeInPlace()) ? 0 : -1;
-            portConfig.constant = false;
-            portConfig.desc = createMemoryDesc(inputShapes[i], supportedPrecision, offset);
+            portConfig.inPlace((!i && canBeInPlace()) ? 0 : -1);
+            portConfig.constant(false);
             if (inputShapes[i].getDims()[0] == 1) {
-                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
-                auto strides = denseDesc->getStrides();
-                strides[0] = Shape::UNDEFINED_DIM;
-                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                         denseDesc->getShape(),
-                                                                         denseDesc->getBlockDims(),
-                                                                         denseDesc->getOrder(),
-                                                                         denseDesc->getOffsetPadding(),
-                                                                         denseDesc->getOffsetPaddingToData(),
-                                                                         strides);
+                inputMask.reset(0); // accepts any stride on batch axis
             }
+            portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset), inputMask);
             config.inConfs[i] = portConfig;
         }
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
+            BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
-            portConfig.inPlace = -1;
-            portConfig.constant = false;
-            portConfig.desc = createMemoryDesc(outputShapes[i], supportedPrecision, offset);
+            portConfig.inPlace(-1);
+            portConfig.constant(false);
             if (outputShapes[i].getDims()[0] == 1) {
-                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
-                auto strides = denseDesc->getStrides();
-                strides[0] = Shape::UNDEFINED_DIM;
-                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                         denseDesc->getShape(),
-                                                                         denseDesc->getBlockDims(),
-                                                                         denseDesc->getOrder(),
-                                                                         denseDesc->getOffsetPadding(),
-                                                                         denseDesc->getOffsetPaddingToData(),
-                                                                         strides);
+                outputMask.reset(0); // accepts any stride on batch axis
             }
+            portConfig.setMemDesc(createMemoryDesc(outputShapes[i], supportedPrecision, offset), outputMask);
             config.outConfs[i] = portConfig;
         }
 
@@ -295,7 +279,7 @@ static auto collapseLastDims(std::vector<int64_t>& dims, int dimsToCollapse) -> 
 
 void MKLDNNSnippetNode::define_schedule() {
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    const auto dataSize = config.inConfs[0].desc->getPrecision().size();
+    const auto dataSize = config.inConfs[0].getMemDesc()->getPrecision().size();
     // store to use as an execution domain
     max_rank_out_desc_idx = argmax_rank(getChildEdges());
     const auto outBlockingDesc_maxRank = getChildEdgeAt(max_rank_out_desc_idx)->getMemory().GetDescWithType<BlockedMemoryDesc>();
