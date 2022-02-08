@@ -25,6 +25,8 @@ NGRAPH_RTTI_DEFINITION(GNAPluginNS::SubstituteGNAMaxPool, "SubstituteGNAMaxPool"
 
 using Node = std::shared_ptr<ngraph::Node>;
 
+#define EMUTEX_DEBUG_CHECKPOINT std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+
 namespace
 {
 ngraph::Shape MakeTransposeOrderNCHW2NHWC(size_t shape_size);
@@ -150,7 +152,6 @@ bool DoTransformation(Node max_pool)
 {
     auto max_pool_node = std::dynamic_pointer_cast<ov::op::v1::MaxPool>(max_pool);
     auto max_pool_input_data_node = max_pool_node->input_value(0);
-    auto max_pool_input_const_node = max_pool_node->input_value(1);
     const ngraph::Shape max_pool_input_shape = max_pool_node->get_input_shape(0);
 
     const ngraph::Shape transpose_before_order = MakeTransposeOrderNCHW2NHWC(max_pool_input_shape.size());
@@ -162,7 +163,7 @@ bool DoTransformation(Node max_pool)
     auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(max_pool_input_data_node,
                                                                         transpose_const);
 
-    auto max_pool_new = std::make_shared<GNAPluginNS::Op::v1::GNAMaxPool>(transpose_before,
+    auto max_pool_new = std::make_shared<GNAPluginNS::Op::GNAMaxPool>(transpose_before,
                                                                             max_pool_node->get_strides(),
                                                                             max_pool_node->get_pads_begin(),
                                                                             max_pool_node->get_pads_end(),
@@ -170,7 +171,11 @@ bool DoTransformation(Node max_pool)
                                                                             max_pool_node->get_rounding_type(),
                                                                             max_pool_node->get_auto_pad());
 
+    EMUTEX_DEBUG_CHECKPOINT;
+
     const ngraph::Shape transpose_after_order = MakeTransposeOrderNHWC2NCHW(max_pool_new->get_output_shape(0).size());
+
+    EMUTEX_DEBUG_CHECKPOINT;
 
     auto transpose_after = std::make_shared<ngraph::opset8::Transpose>(max_pool_new,
                                                                        ngraph::opset8::Constant::create(ngraph::element::i64,

@@ -6,14 +6,15 @@
 
 #include <limits>
 
+#include "openvino/op/op.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "ngraph/node.hpp"
 #include "openvino/op/util/max_pool_base.hpp"
 
 namespace GNAPluginNS {
 namespace Op {
-namespace v1 {
 /// \brief Batched max pooling operation.
-class GNAMaxPool : public ov::op::util::MaxPoolBase {
+class GNAMaxPool : public ov::op::Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -38,24 +39,67 @@ public:
             const ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR,
             const ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT);
 
-    bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
+
+    /// \return The kernel shape.
+    const ngraph::Shape& get_kernel() const {
+        return m_kernel;
+    }
+    void set_kernel(const ngraph::Shape& kernel) {
+        m_kernel = kernel;
+    }
+    /// \return The strides.
+    const ngraph::Strides& get_strides() const {
+        return m_strides;
+    }
+    void set_strides(const ngraph::Strides& strides) {
+        m_strides = strides;
+    }
+    /// \return The beginning of padding shape.
+    const ngraph::Shape& get_pads_begin() const {
+        return m_pads_begin;
+    }
+    void set_pads_begin(const ngraph::Shape& pads_begin) {
+        m_pads_begin = pads_begin;
+    }
+    /// \return The end of padding shape.
+    const ngraph::Shape& get_pads_end() const {
+        return m_pads_end;
+    }
+    void set_adding_above(const ngraph::Shape& pads_end) {
+        m_pads_end = pads_end;
+    }
+    /// \return The pad type for pooling.
+    ov::op::PadType get_auto_pad() const {
+        return m_auto_pad;
+    }
+    void set_auto_pad(const ov::op::PadType auto_pad) {
+        m_auto_pad = auto_pad;
+    }
+    /// \return The ceiling mode being used for output shape computations
+    ov::op::RoundingType get_rounding_type() const {
+        return m_rounding_type;
+    }
+    void set_rounding_type(ov::op::RoundingType rounding_type) {
+        m_rounding_type = rounding_type;
+    }
 
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    /// \return The default value for MaxPool.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+protected:
+    bool update_auto_padding(const ov::PartialShape& in_shape,
+                             const ngraph::Strides& filter_dilations,
+                             ngraph::Shape& new_pads_end,
+                             ngraph::Shape& new_pads_begin) const;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    bool has_evaluate() const override;
+    ov::PartialShape infer_output_shape(const ngraph::Strides& dilations);
 
-private:
-    bool evaluate_maxpool(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const;
+    ngraph::Shape m_kernel;
+    ngraph::Strides m_strides;
+    ngraph::Shape m_pads_begin;
+    ngraph::Shape m_pads_end;
+    ov::op::PadType m_auto_pad;
+    ov::op::RoundingType m_rounding_type;
 };
-}  // namespace v1
 } // namespace Op
 } // namespace GNAPluginNS
