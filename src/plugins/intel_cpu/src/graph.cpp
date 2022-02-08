@@ -1382,6 +1382,74 @@ void Graph::EnforceBF16() {
             }
         }
     }
+
+    // in case of dynamism we need execute all shape_of path in FP32 to avoid possible accuracy loss
+    std::unordered_set<NodePtr> visitedNodes;
+    std::function<void(const NodePtr&)> markPathAsFloat = [&](const NodePtr& node) -> void {
+        if (node->getType() == Type::ShapeOf || visitedNodes.count(node)) {
+            return;
+        }
+
+        for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+            if (node->getOriginalInputPrecisionAtPort(i) == Precision::BF16)
+                node->setOriginalInputPrecisionAtPort(i, Precision::FP32);
+        }
+        for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+            if (node->getOriginalOutputPrecisionAtPort(i) == Precision::BF16)
+                node->setOriginalOutputPrecisionAtPort(i, Precision::FP32);
+        }
+        visitedNodes.insert(node);
+
+        for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+            markPathAsFloat(node->getParentEdgesAtPort(i)[0]->getParent());
+        }
+    };
+
+    for (const auto& node : graphNodes) {
+        if (!one_of(node->getType(),
+                   Type::AdaptivePooling,
+                   Type::Broadcast,
+                   Type::Deconvolution,
+                   Type::Interpolate,
+                   Type::OneHot,
+                   Type::Reshape)) {
+            continue;
+        }
+
+        switch (node->getType()) {
+            case Type::AdaptivePooling: {
+                markPathAsFloat(node->getParentEdgesAtPort(1)[0]->getParent());
+                break;
+            }
+            case Type::Broadcast: {
+                markPathAsFloat(node->getParentEdgesAtPort(1)[0]->getParent());
+                break;
+            }
+            case Type::Deconvolution: {
+                if (node->getParentEdges().size() > 2) {
+                    markPathAsFloat(node->getParentEdgesAtPort(2)[0]->getParent());
+                }
+                break;
+            }
+            case Type::Interpolate: {
+                markPathAsFloat(node->getParentEdgesAtPort(1)[0]->getParent());
+                markPathAsFloat(node->getParentEdgesAtPort(2)[0]->getParent());
+                break;
+            }
+            case Type::OneHot: {
+                markPathAsFloat(node->getParentEdgesAtPort(1)[0]->getParent());
+                break;
+            }
+            case Type::Reshape: {
+                markPathAsFloat(node->getParentEdgesAtPort(1)[0]->getParent());
+                break;
+            }
+            default: {
+                IE_THROW() << "Can't mark shape_of path for node with type: " << NameFromType(node->getType()) << " and name: " << node->getName()
+                           << " as FP32";
+            }
+        }
+    }
 }
 
 std::shared_ptr<ngraph::Function> Graph::dump() const {

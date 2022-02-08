@@ -358,6 +358,26 @@ void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, std
     CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);
 }
 
+void CheckNodeRuntimePrecision(ov::CompiledModel &execNet, std::string nodeType, InferenceEngine::Precision prec) {
+    std::shared_ptr<const ov::Model> function = execNet.get_runtime_model();
+    ASSERT_NE(nullptr, function);
+    size_t foundNodesNum = 0;
+    for (const auto &node : function->get_ops()) {
+        const auto & rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            IE_ASSERT(rtInfo.end() != it);
+            return it->second.as<std::string>();
+        };
+        if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
+            foundNodesNum++;
+            ASSERT_EQ(std::string(InferenceEngine::Precision(prec).name()),
+                      getExecValue(ExecGraphInfoSerialization::RUNTIME_PRECISION));
+        }
+    }
+    ASSERT_NE(0, foundNodesNum);
+}
+
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
     std::vector<CPUSpecificParams> resCPUParams;
     const int selectedTypeIndex = 3;

@@ -171,4 +171,5 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificPa
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams);
 void CheckNumberOfNodesWithType(ov::CompiledModel &compiledModel, std::string nodeType, size_t expectedCount);
 void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount);
+void CheckNodeRuntimePrecision(ov::CompiledModel &execNet, std::string nodeType, InferenceEngine::Precision prec);
 } // namespace CPUTestUtils
