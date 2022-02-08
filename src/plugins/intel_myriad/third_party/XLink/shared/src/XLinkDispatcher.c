@@ -645,10 +645,19 @@ static void* eventReader(void* ctx)
 
         DispatcherAddEvent(EVENT_REMOTE, &event);
 
-        if (event.header.type == XLINK_RESET_REQ) {
+#ifdef __PC__
+        // Stop receiving events when receive confirmation that the device acknowledged the reset request
+        if (event.header.type == XLINK_RESET_RESP) {
             curr->resetXLink = 1;
-            mvLog(MVLOG_DEBUG,"Read XLINK_RESET_REQ, stopping eventReader thread.");
+            mvLog(MVLOG_DEBUG,"Read XLINK_RESET_RESP, stopping eventReader thread.");
         }
+#else
+        // Stop receiving events from remote when receive a XLINK_RESET_REQ
+        if (event.header.type == XLINK_RESET_REQ) {
+            mvLog(MVLOG_DEBUG,"Read XLINK_RESET_REQ, stopping eventReader thread.");
+            break;
+        }
+#endif
     }
 
     return 0;
@@ -1127,7 +1136,6 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
             if (res == 0 && event->packet.header.flags.bitField.localServe == 0) {
 #ifdef __PC__
                 if (toSend->header.type == XLINK_RESET_REQ) {
-                    curr->resetXLink = 1;
                     mvLog(MVLOG_DEBUG,"Send XLINK_RESET_REQ, stopping sendEvents thread.");
                     if(toSend->deviceHandle.protocol == X_LINK_PCIE) {
                         toSend->header.type = XLINK_PING_REQ;
@@ -1149,6 +1157,13 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
                     XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, X_LINK_ERROR);
                     mvLog(MVLOG_ERROR, "Event sending failed");
                 }
+#ifndef __PC__
+                // Stop scheduler thread after XLINK_RESET_RESP was successfully sent to host
+                if (toSend->header.type == XLINK_RESET_RESP) {
+                    curr->resetXLink = 1;
+                    mvLog(MVLOG_DEBUG, "Stop scheduler thread.");
+                }
+#endif
             } else {
                 XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, X_LINK_ERROR);
             }
