@@ -16,6 +16,8 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace GNAPluginNS {
+const uint8_t Config::max_num_requests;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 static const caseless_unordered_map<std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
     {GNAConfigParams::GNA_AUTO,                 {Gna2AccelerationModeAuto,                          false}},

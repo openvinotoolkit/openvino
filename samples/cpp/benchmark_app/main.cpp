@@ -16,7 +16,6 @@
 
 #include "gna/gna_config.hpp"
 #include "gpu/gpu_config.hpp"
-#include "vpu/vpu_plugin_config.hpp"
 
 #include "samples/args_helper.hpp"
 #include "samples/common.hpp"
@@ -133,19 +132,22 @@ int main(int argc, char* argv[]) {
         gflags::GetAllFlags(&flags);
         for (auto& flag : flags) {
             if (!flag.is_default) {
-                command_line_arguments.push_back({flag.name, flag.current_value});
+                command_line_arguments.emplace_back(flag.name, flag.name, flag.current_value);
             }
         }
         if (!FLAGS_report_type.empty()) {
-            statistics =
-                std::make_shared<StatisticsReport>(StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder});
+            statistics = FLAGS_json_stats ? std::make_shared<StatisticsReportJSON>(
+                                                StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder})
+                                          : std::make_shared<StatisticsReport>(
+                                                StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder});
+
             statistics->add_parameters(StatisticsReport::Category::COMMAND_LINE_PARAMETERS, command_line_arguments);
         }
         auto isFlagSetInCommandLine = [&command_line_arguments](const std::string& name) {
             return (std::find_if(command_line_arguments.begin(),
                                  command_line_arguments.end(),
-                                 [name](const std::pair<std::string, std::string>& p) {
-                                     return p.first == name;
+                                 [name](const StatisticsVariant& p) {
+                                     return p.json_name == name;
                                  }) != command_line_arguments.end());
         };
 
@@ -193,15 +195,15 @@ int main(int argc, char* argv[]) {
 
         if (FLAGS_hint.empty()) {
             for (auto& device : devices) {
-                std::vector<std::string> supported_config_keys =
-                    core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                if (std::find(supported_config_keys.begin(),
-                              supported_config_keys.end(),
-                              CONFIG_KEY(PERFORMANCE_HINT)) != supported_config_keys.end()) {
-                    slog::warn << "-hint default value is determined as " << CONFIG_VALUE(THROUGHPUT)
+                auto supported_properties = core.get_property(device, ov::supported_properties);
+                if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
+                    supported_properties.end()) {
+                    slog::warn << "-hint default value is determined as " << ov::hint::PerformanceMode::THROUGHPUT
                                << " automatically for " << device
                                << " device. For more detailed information look at README." << slog::endl;
-                    FLAGS_hint = CONFIG_VALUE(THROUGHPUT);
+                    std::stringstream strm;
+                    strm << ov::hint::PerformanceMode::THROUGHPUT;
+                    FLAGS_hint = strm.str();
                 }
             }
         }
@@ -213,11 +215,11 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
-        std::string ov_perf_hint;
+        ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
         if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
-            ov_perf_hint = CONFIG_VALUE(THROUGHPUT);
+            ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
         else if (FLAGS_hint == "latency")
-            ov_perf_hint = CONFIG_VALUE(LATENCY);
+            ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
 
         auto getDeviceTypeFromName = [](std::string device) -> std::string {
             return device.substr(0, device.find_first_of(".("));
@@ -246,51 +248,50 @@ int main(int argc, char* argv[]) {
             auto& device_config = config.at(device);
 
             // high-level performance modes
-            if (!ov_perf_hint.empty()) {
-                device_config[CONFIG_KEY(PERFORMANCE_HINT)] = ov_perf_hint;
+            if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
+                device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
                 if (FLAGS_nireq != 0)
-                    device_config[CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)] = std::to_string(FLAGS_nireq);
+                    device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
             }
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
                 // set to user defined value
-                device_config[CONFIG_KEY(PERF_COUNT)] = FLAGS_pc ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
-            } else if (device_config.count(CONFIG_KEY(PERF_COUNT)) &&
-                       (device_config.at(CONFIG_KEY(PERF_COUNT)).as<std::string>() == "YES")) {
+                device_config.emplace(ov::enable_profiling(FLAGS_pc));
+            } else if (device_config.count(ov::enable_profiling.name()) &&
+                       (device_config.at(ov::enable_profiling.name()).as<bool>())) {
                 slog::warn << "Performance counters for " << device
                            << " device is turned on. To print results use -pc option." << slog::endl;
             } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport) {
                 slog::warn << "Turn on performance counters for " << device << " device since report type is "
                            << FLAGS_report_type << "." << slog::endl;
-                device_config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
+                device_config.emplace(ov::enable_profiling(true));
             } else if (!FLAGS_exec_graph_path.empty()) {
                 slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
                            << slog::endl;
-                device_config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
+                device_config.emplace(ov::enable_profiling(true));
             } else {
                 // set to default value
-                device_config[CONFIG_KEY(PERF_COUNT)] = FLAGS_pc ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+                device_config.emplace(ov::enable_profiling(FLAGS_pc));
             }
-            perf_counts =
-                (device_config.at(CONFIG_KEY(PERF_COUNT)).as<std::string>() == CONFIG_VALUE(YES)) ? true : perf_counts;
+            perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
             // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
                 const std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
                     // set to user defined value
-                    std::vector<std::string> supported_config_keys =
-                        core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                    if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) ==
-                        supported_config_keys.end()) {
+                    auto supported_properties = core.get_property(device, ov::supported_properties);
+                    if (std::find(supported_properties.begin(), supported_properties.end(), key) ==
+                        supported_properties.end()) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
                                                "Please specify -nstreams for correct devices in format  "
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
                     }
                     device_config[key] = device_nstreams.at(device);
-                } else if (ov_perf_hint.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
+                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) &&
+                           (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
@@ -342,7 +343,7 @@ int main(int argc, char* argv[]) {
                     device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
             } else if (device.find("MYRIAD") != std::string::npos) {
-                device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
+                device_config.emplace(ov::log::level(ov::log::Level::WARNING));
                 setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 if (FLAGS_qb == 8)
@@ -350,11 +351,10 @@ int main(int argc, char* argv[]) {
                 else
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I16";
             } else {
-                std::vector<std::string> supported_config_keys =
-                    core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto supported_properties = core.get_property(device, ov::supported_properties);
                 auto supported = [&](const std::string& key) {
-                    return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) !=
-                           std::end(supported_config_keys);
+                    return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                           std::end(supported_properties);
                 };
                 if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
                     device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
@@ -380,7 +380,7 @@ int main(int argc, char* argv[]) {
 
         // Takes priority over config from file
         if (!FLAGS_cache_dir.empty()) {
-            core.set_property({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
+            core.set_property(ov::cache_dir(FLAGS_cache_dir));
         }
 
         bool isDynamicNetwork = false;
@@ -394,11 +394,14 @@ int main(int argc, char* argv[]) {
             slog::info << "Skipping the step for loading network from file" << slog::endl;
             auto startTime = Time::now();
             compiledModel = core.compile_model(FLAGS_m, device_name);
-            auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
-            slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
+            auto duration_ms = get_duration_ms_till_now(startTime);
+            slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                           {{"load network time (ms)", duration_ms}});
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
+
+            convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
                                               batchSize,
@@ -420,11 +423,12 @@ int main(int argc, char* argv[]) {
 
             auto startTime = Time::now();
             auto model = core.read_model(FLAGS_m);
-            auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
-            slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
+            auto duration_ms = get_duration_ms_till_now(startTime);
+            slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                           {{"read network time (ms)", duration_ms}});
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("read network time (ms)", "read_network_time", duration_ms)});
 
             const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
             if (inputInfo.empty()) {
@@ -434,6 +438,7 @@ int main(int argc, char* argv[]) {
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
             next_step();
+            convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
             // Parse input shapes if specified
             bool reshape = false;
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -452,11 +457,12 @@ int main(int argc, char* argv[]) {
                 slog::info << "Reshaping network: " << get_shapes_string(shapes) << slog::endl;
                 startTime = Time::now();
                 model->reshape(shapes);
-                duration_ms = double_to_string(get_duration_ms_till_now(startTime));
-                slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
+                duration_ms = get_duration_ms_till_now(startTime);
+                slog::info << "Reshape network took " << double_to_string(duration_ms) << " ms" << slog::endl;
                 if (statistics)
-                    statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                               {{"reshape network time (ms)", duration_ms}});
+                    statistics->add_parameters(
+                        StatisticsReport::Category::EXECUTION_RESULTS,
+                        {StatisticsVariant("reshape network time (ms)", "reshape_network_time", duration_ms)});
             }
 
             // ----------------- 6. Configuring inputs and outputs
@@ -467,6 +473,9 @@ int main(int argc, char* argv[]) {
             std::map<std::string, std::string> user_precisions_map;
             if (!FLAGS_iop.empty()) {
                 user_precisions_map = parseArgMap(FLAGS_iop);
+                convert_io_names_in_map(user_precisions_map,
+                                        std::const_pointer_cast<const ov::Model>(model)->inputs(),
+                                        std::const_pointer_cast<const ov::Model>(model)->outputs());
             }
 
             const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
@@ -554,11 +563,12 @@ int main(int argc, char* argv[]) {
             next_step();
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name);
-            duration_ms = double_to_string(get_duration_ms_till_now(startTime));
-            slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
+            duration_ms = get_duration_ms_till_now(startTime);
+            slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                           {{"load network time (ms)", duration_ms}});
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
         } else {
             next_step();
             slog::info << "Skipping the step for compiled network" << slog::endl;
@@ -578,12 +588,14 @@ int main(int argc, char* argv[]) {
             compiledModel = core.import_model(modelStream, device_name, {});
             modelStream.close();
 
-            auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
-            slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
+            auto duration_ms = get_duration_ms_till_now(startTime);
+            slog::info << "Import network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                           {{"import network time (ms)", duration_ms}});
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("import network time (ms)", "import_network_time", duration_ms)});
 
+            convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
                                               FLAGS_b,
@@ -618,15 +630,15 @@ int main(int argc, char* argv[]) {
         next_step();
         // output of the actual settings that the device selected
         for (const auto& device : devices) {
-            std::vector<std::string> supported_config_keys =
-                core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            auto supported_properties = compiledModel.get_property(ov::supported_properties);
             slog::info << "Device: " << device << slog::endl;
-            for (const auto& cfg : supported_config_keys) {
-                try {
-                    slog::info << "  {" << cfg << " , " << compiledModel.get_property(cfg).as<std::string>();
-                    slog::info << " }" << slog::endl;
-                } catch (...) {
-                };
+            for (const auto& cfg : supported_properties) {
+                slog::info << "  {" << cfg << " , ";
+                std::stringstream strm;
+                compiledModel.get_property(cfg).print(strm);
+                strm << "";
+                slog::info << strm.str();
+                slog::info << " }" << slog::endl;
             }
         }
 
@@ -642,13 +654,12 @@ int main(int argc, char* argv[]) {
             if (FLAGS_api == "sync") {
                 nireq = 1;
             } else {
-                std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
-                    nireq = compiledModel.get_property(key).as<unsigned int>();
+                    nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
                 } catch (const std::exception& ex) {
                     IE_THROW() << "Every device used with the benchmark_app should "
-                               << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS metric. "
-                               << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
+                               << "support " << ov::optimal_number_of_infer_requests.name()
+                               << " Failed to query the metric for the " << device_name << " with error:" << ex.what();
                 }
             }
         }
@@ -687,24 +698,27 @@ int main(int argc, char* argv[]) {
         if (statistics) {
             statistics->add_parameters(
                 StatisticsReport::Category::RUNTIME_CONFIG,
-                {
-                    {"benchmark mode", inferenceOnly ? "inference only" : "full"},
-                    {"topology", topology_name},
-                    {"target device", device_name},
-                    {"API", FLAGS_api},
-                    {"precision", std::string(type.get_type_name())},
-                    {"batch size", std::to_string(batchSize)},
-                    {"number of iterations", std::to_string(niter)},
-                    {"number of parallel infer requests", std::to_string(nireq)},
-                    {"duration (ms)", std::to_string(get_duration_in_milliseconds(duration_seconds))},
-                });
+                StatisticsReport::Parameters(
+                    {StatisticsVariant("benchmark mode", "benchmark_mode", inferenceOnly ? "inference only" : "full"),
+                     StatisticsVariant("topology", "topology", topology_name),
+                     StatisticsVariant("target device", "target_device", device_name),
+                     StatisticsVariant("API", "api", FLAGS_api),
+                     StatisticsVariant("precision", "precision", type.get_type_name()),
+                     StatisticsVariant("batch size", "batch_size", batchSize),
+                     StatisticsVariant("number of iterations", "iterations_num", niter),
+                     StatisticsVariant("number of parallel infer requests", "nireq", nireq),
+                     StatisticsVariant("duration (ms)", "duration", get_duration_in_milliseconds(duration_seconds))}));
             for (auto& nstreams : device_nstreams) {
                 std::stringstream ss;
                 ss << "number of " << nstreams.first << " streams";
+
+                std::string dev_name = nstreams.first;
+                std::transform(dev_name.begin(), dev_name.end(), dev_name.begin(), [](unsigned char c) {
+                    return c == ' ' ? '_' : std::tolower(c);
+                });
+
                 statistics->add_parameters(StatisticsReport::Category::RUNTIME_CONFIG,
-                                           {
-                                               {ss.str(), nstreams.second},
-                                           });
+                                           {StatisticsVariant(ss.str(), dev_name + "_streams_num", nstreams.second)});
             }
         }
 
@@ -867,12 +881,13 @@ int main(int argc, char* argv[]) {
 
         inferRequestsQueue.wait_all();
 
-        auto duration_ms = double_to_string(inferRequestsQueue.get_latencies()[0]);
-        slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
+        auto duration_ms = inferRequestsQueue.get_latencies()[0];
+        slog::info << "First inference took " << double_to_string(duration_ms) << " ms" << slog::endl;
 
         if (statistics) {
-            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                       {{"first inference time (ms)", duration_ms}});
+            statistics->add_parameters(
+                StatisticsReport::Category::EXECUTION_RESULTS,
+                {StatisticsVariant("first inference time (ms)", "first_inference_time", duration_ms)});
         }
         inferRequestsQueue.reset_times();
 
@@ -962,24 +977,32 @@ int main(int argc, char* argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.wait_all();
 
-        LatencyMetrics generalLatency(inferRequestsQueue.get_latencies());
+        LatencyMetrics generalLatency(inferRequestsQueue.get_latencies(), "", FLAGS_latency_percentile);
         std::vector<LatencyMetrics> groupLatencies = {};
         if (FLAGS_pcseq && app_inputs_info.size() > 1) {
-            for (auto lats : inferRequestsQueue.get_latency_groups()) {
-                groupLatencies.push_back(LatencyMetrics(lats));
+            const auto& lat_groups = inferRequestsQueue.get_latency_groups();
+            for (int i = 0; i < lat_groups.size(); i++) {
+                const auto& lats = lat_groups[i];
+
+                std::string data_shapes_string = "";
+                for (auto& item : app_inputs_info[i]) {
+                    data_shapes_string += item.first + get_shape_string(item.second.dataShape) + ",";
+                }
+                data_shapes_string =
+                    data_shapes_string == "" ? "" : data_shapes_string.substr(0, data_shapes_string.size() - 1);
+
+                groupLatencies.emplace_back(lats, data_shapes_string, FLAGS_latency_percentile);
             }
         }
 
         double totalDuration = inferRequestsQueue.get_duration_in_milliseconds();
-        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / generalLatency.percentile(FLAGS_latency_percentile)
+        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / generalLatency.median_or_percentile
                                            : 1000.0 * processedFramesN / totalDuration;
 
         if (statistics) {
             statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                       {
-                                           {"total execution time (ms)", double_to_string(totalDuration)},
-                                           {"total number of iterations", std::to_string(iteration)},
-                                       });
+                                       {StatisticsVariant("total execution time (ms)", "execution_time", totalDuration),
+                                        StatisticsVariant("total number of iterations", "iterations_num", iteration)});
             if (device_name.find("MULTI") == std::string::npos) {
                 std::string latency_label;
                 if (FLAGS_latency_percentile == 50) {
@@ -989,60 +1012,21 @@ int main(int argc, char* argv[]) {
                 }
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {
-                        {latency_label, double_to_string(generalLatency.percentile(FLAGS_latency_percentile))},
-                    });
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                           {
-                                               {"Average latency (ms)", double_to_string(generalLatency.average())},
-                                           });
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                           {
-                                               {"Min latency (ms)", double_to_string(generalLatency.min())},
-                                           });
-                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                           {
-                                               {"Max latency (ms)", double_to_string(generalLatency.max())},
-                                           });
+                    {StatisticsVariant(latency_label, "latency_median", generalLatency.median_or_percentile),
+                     StatisticsVariant("Percentile boundary", "percentile_boundary", FLAGS_latency_percentile),
+                     StatisticsVariant("Average latency (ms)", "latency_avg", generalLatency.avg),
+                     StatisticsVariant("Min latency (ms)", "latency_min", generalLatency.min),
+                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max),
+                     StatisticsVariant("throughput", "throughput", fps)});
 
                 if (FLAGS_pcseq && app_inputs_info.size() > 1) {
-                    statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                               {
-                                                   {"Latency for each data shape group:", ""},
-                                               });
-                    for (size_t i = 0; i < app_inputs_info.size(); ++i) {
-                        std::string data_shapes_string = "";
-                        data_shapes_string += std::to_string(i + 1) + ". ";
-                        for (auto& item : app_inputs_info[i]) {
-                            data_shapes_string += item.first + " : " + get_shape_string(item.second.dataShape) + " ";
-                        }
-                        statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                                   {
-                                                       {data_shapes_string, ""},
-                                                   });
+                    for (size_t i = 0; i < groupLatencies.size(); ++i) {
                         statistics->add_parameters(
-                            StatisticsReport::Category::EXECUTION_RESULTS,
-                            {
-                                {latency_label,
-                                 double_to_string(groupLatencies[i].percentile(FLAGS_latency_percentile))},
-                            });
-                        statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                                   {
-                                                       {"Average (ms)", double_to_string(groupLatencies[i].average())},
-                                                   });
-                        statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                                   {
-                                                       {"Min (ms)", double_to_string(groupLatencies[i].min())},
-                                                   });
-                        statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                                   {
-                                                       {"Max (ms)", double_to_string(groupLatencies[i].max())},
-                                                   });
+                            StatisticsReport::Category::EXECUTION_RESULTS_GROUPPED,
+                            {StatisticsVariant("Group Latencies", "group_latencies", groupLatencies[i])});
                     }
                 }
             }
-            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                       {{"throughput", double_to_string(fps)}});
         }
         progressBar.finish();
 
@@ -1089,7 +1073,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Duration:   " << double_to_string(totalDuration) << " ms" << slog::endl;
         if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency: " << slog::endl;
-            generalLatency.log_total(FLAGS_latency_percentile);
+            generalLatency.write_to_slog();
 
             if (FLAGS_pcseq && app_inputs_info.size() > 1) {
                 slog::info << "Latency for each data shape group:" << slog::endl;
@@ -1104,7 +1088,7 @@ int main(int argc, char* argv[]) {
                     }
                     slog::info << slog::endl;
 
-                    groupLatencies[i].log_total(FLAGS_latency_percentile);
+                    groupLatencies[i].write_to_slog();
                 }
             }
         }
@@ -1115,9 +1099,7 @@ int main(int argc, char* argv[]) {
 
         if (statistics) {
             statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                       {
-                                           {"error", ex.what()},
-                                       });
+                                       {StatisticsVariant("error", "error", ex.what())});
             statistics->dump();
         }
 

@@ -160,6 +160,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _context(context)
                                                            , _workModeIsAUTO(true)
                                                            , _network(network) {
+    LOG_INFO("[AUTOPLUGIN]ExecutableNetwork start");
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
@@ -224,8 +225,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                           auto& deviceName = contextPtr->deviceInfo.deviceName;
                           LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished",
                                   deviceName.c_str());
-                          std::vector<std::string> supported_config_keys =
-                              _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                          auto supported_config_keys =
+                              _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                           // there is log mutex in LOG_DEBUG, add _configMutex just want to print them all together
                           // toDo maybe neet to implement LOG_RUN(task, LOG_LEVEL) to run some debug code.
                           std::lock_guard<std::mutex> lock(_confMutex);
@@ -252,7 +253,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // will not wait for loading accelerator network,
         // so the executor can't be destroyed before finished the task,
         // so use executor as a member of MultiDeviceExecutableNetwork.
-        _executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+        _executor = _multiPlugin->executorManager()->getIdleCPUStreamsExecutor(
                 IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                 0 /*default threads per stream, workaround for ticket 62376*/,
@@ -282,8 +283,10 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 // second, check the idle queue if all requests are in place
                 size_t destroynum = 0;
                 std::pair<int, WorkerInferRequest*> worker;
-                while (_idleWorkerRequests["CPU_HELP"].try_pop(worker))
+                while (_idleWorkerRequests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
+                    _cpuHelpInferCount += worker.second->_inferCount;
+                }
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(_confMutex);
                     _workerRequests["CPU_HELP"].clear();
@@ -503,7 +506,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
             _loadContext[CPU].future.wait();
             WaitActualNetworkReady();
             // it's necessary to wait the loading network threads to stop here.
-            InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
+            _multiPlugin->executorManager()->clear("AutoDeviceAsyncLoad");
             _executor.reset();
         }
         _multiPlugin->UnregisterPriority(_context.modelPriority,
@@ -520,10 +523,22 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
+    for (auto&& _workerRequest : _workerRequests) {
+         unsigned int count = 0;
+         for (auto& request : _workerRequest.second) {
+             count += request._inferCount;
+         }
+         if (_workerRequest.first == "CPU_HELP") {
+             LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
+         } else {
+             LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
+         }
+    }
     {
         std::lock_guard<std::mutex> lock(_confMutex);
         _workerRequests.clear();
     }
+    LOG_INFO("[AUTOPLUGIN]ExecutableNetwork end");
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
@@ -630,8 +645,11 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 
 IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
     IInferRequestInternal::Ptr syncRequestImpl;
-    if (this->_plugin && this->_plugin->GetCore() && GetCore()->isNewAPI())
-        syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
+    if (this->_plugin) {
+        const auto& core = _plugin->GetCore();
+        if (core && core->isNewAPI())
+            syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
+    }
 
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
@@ -653,7 +671,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
     } else {
         auto multiPlugin = std::dynamic_pointer_cast<MultiDeviceInferencePlugin>(this->_plugin);
         assert(multiPlugin != nullptr);
-        auto metaDevices = multiPlugin->ParseMetaDevices(priorities->second, {});
+        auto metaDevices = multiPlugin->ParseMetaDevices(priorities->second.as<std::string>(), {});
 
         if (std::any_of(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& kvp) {
                 return kvp.numRequestsPerDevices != -1;

@@ -1,6 +1,6 @@
 # nGraph Function Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a network that uses weights from LeNet classification network, which is known to work well on digit classification tasks. So you don't need an XML file, the model will be created from the source code on the fly.  
+This sample demonstrates how to execute an inference using [OpenVINO Model feature](../../../docs/OV_Runtime_UG/model_representation.md) to create a network that uses weights from LeNet classification network, which is known to work well on digit classification tasks. So you don't need an XML file, the model will be created from the source code on the fly.  
 
 In addition to regular grayscale images with a digit, the sample also supports single-channel `ubyte` images as an input.
 
@@ -18,15 +18,15 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Validated Models           | LeNet |
 | Model Format               | Network weights file (\*.bin) |
 | Validated images           | The sample uses OpenCV\* to [read input grayscale image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png) or single-channel `ubyte` image |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/ngraph_function_creation_sample/README.md) |
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, creates a network using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) and passed weights file, loads the network and image(s) to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, creates a network using [OpenVINO Model feature](../../../docs/OV_Runtime_UG/model_representation.md) and passed weights file, loads the network and image(s) to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
@@ -109,8 +109,8 @@ The sample application logs each step in a standard output stream and outputs to
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
