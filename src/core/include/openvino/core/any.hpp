@@ -85,7 +85,7 @@ void read(std::istream& is, std::vector<T, A>& vec) {
     while (is.good()) {
         T v;
         read(is, v);
-        vec.emplace_back(std::move(v));
+        vec.push_back(std::move(v));
     }
 }
 
@@ -140,7 +140,7 @@ OPENVINO_API void write(std::ostream& os, const std::tuple<unsigned int, unsigne
 OPENVINO_API void write(std::ostream& os, const Any& any);
 
 template <typename T, typename A>
-typename std::enable_if<Ostreamable<T>::value>::type write(std::ostream& os, const std::vector<T, A>& vec) {
+void write(std::ostream& os, const std::vector<T, A>& vec) {
     if (!vec.empty()) {
         std::size_t i = 0;
         for (auto&& v : vec) {
@@ -153,8 +153,7 @@ typename std::enable_if<Ostreamable<T>::value>::type write(std::ostream& os, con
 }
 
 template <typename K, typename T, typename C, typename A>
-typename std::enable_if<Ostreamable<K>::value && Ostreamable<T>::value>::type write(std::ostream& os,
-                                                                                    const std::map<K, T, C, A>& map) {
+void write(std::ostream& os, const std::map<K, T, C, A>& map) {
     if (!map.empty()) {
         std::size_t i = 0;
         for (auto&& v : map) {

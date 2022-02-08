@@ -275,9 +275,6 @@ DEFINE_string(nstreams, "", infer_num_streams_message);
 /// @brief The percentile which will be reported in latency metric
 DEFINE_uint32(latency_percentile, 50, infer_latency_percentile_message);
 
-/// @brief Enforces bf16 execution with bfloat16 precision on systems having this capability
-DEFINE_bool(enforcebf16, false, enforce_bf16_message);
-
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
 DEFINE_uint32(b, 0, batch_size_message);
@@ -391,7 +388,6 @@ static void show_usage() {
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -enforcebf16=<true/false>     " << enforce_bf16_message << std::endl;
     std::cout << "    -pin \"YES\"/\"HYBRID_AWARE\"/\"NO\"/\"NUMA\"   " << infer_threads_pinning_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;

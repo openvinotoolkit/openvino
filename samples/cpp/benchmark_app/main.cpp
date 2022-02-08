@@ -157,7 +157,9 @@ int main(int argc, char* argv[]) {
         auto devices = parse_devices(device_name);
 
         // Parse nstreams per device
-        std::map<std::string, std::string> device_nstreams = parse_nstreams_value_per_device(devices, FLAGS_nstreams);
+        std::map<std::string, std::string> device_nstreams = parse_value_per_device(devices, FLAGS_nstreams);
+        std::map<std::string, std::string> device_infer_precision =
+            parse_value_per_device(devices, FLAGS_infer_precision);
 
         // Load device config file if specified
         std::map<std::string, ov::AnyMap> config;
@@ -306,6 +308,26 @@ int main(int argc, char* argv[]) {
                     device_nstreams[device] = it_streams->second.as<std::string>();
             };
 
+            auto set_infer_precision = [&] {
+                if (device_infer_precision.count(device)) {
+                    // set to user defined value
+                    auto supported_properties = core.get_property(device, ov::supported_properties);
+                    if (std::find(supported_properties.begin(),
+                                  supported_properties.end(),
+                                  ov::hint::inference_precision) == supported_properties.end()) {
+                        throw std::logic_error("Device " + device + " doesn't support config key '" +
+                                               ov::hint::inference_precision.name() + "'! " +
+                                               "Please specify -infer_precision for correct devices in format  "
+                                               "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
+                                               " or via configuration file.");
+                    }
+                    device_config.emplace(ov::hint::inference_precision(device_infer_precision.at(device)));
+                }
+                auto it_infer_precision = device_config.find(ov::hint::inference_precision.name());
+                if (it_infer_precision != device_config.end())
+                    device_infer_precision[device] = it_infer_precision->second.as<std::string>();
+            };
+
             auto fix_pin_option = [](const std::string& str) -> std::string {
                 if (str == "NO")
                     return "NONE";
@@ -314,25 +336,6 @@ int main(int argc, char* argv[]) {
                 else
                     return str;
             };
-
-            auto supported_properties = core.get_property(device, ov::supported_properties);
-            auto supported = [&](const std::string& key) {
-                return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
-                       std::end(supported_properties);
-            };
-            if (supported(ov::inference_num_threads.name()) && isFlagSetInCommandLine("nthreads")) {
-                device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
-            }
-            if (supported(ov::num_streams.name()) && isFlagSetInCommandLine("nstreams")) {
-                device_config.emplace(ov::num_streams(FLAGS_nstreams));
-            }
-            if (supported(ov::affinity.name()) && isFlagSetInCommandLine("pin")) {
-                device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
-            }
-
-            if (supported(ov::hint::inference_precision.name()) && isFlagSetInCommandLine("infer_precision")) {
-                device_config.emplace(ov::hint::inference_precision(FLAGS_infer_precision));
-            }
 
             if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
@@ -348,6 +351,7 @@ int main(int argc, char* argv[]) {
 
                 // for CPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
+                set_infer_precision();
             } else if (device.find("GPU") != std::string::npos) {
                 // for GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
@@ -364,6 +368,8 @@ int main(int argc, char* argv[]) {
             } else if (device.find("MYRIAD") != std::string::npos) {
                 device_config.emplace(ov::log::level(ov::log::Level::WARNING));
                 setThroughputStreams();
+            } else if (device.find("GNA") != std::string::npos) {
+                set_infer_precision();
             }
         }
 

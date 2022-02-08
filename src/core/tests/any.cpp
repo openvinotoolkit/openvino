@@ -399,10 +399,6 @@ TEST_F(AnyTests, PrintToMapOfAnys) {
         ASSERT_NO_THROW(p.print(stream));
         ASSERT_EQ(stream.str(), std::string{"testParamInt 4 testParamString test"});
     }
-    {
-        Any p = stream.str();
-        ASSERT_EQ((p.as<std::map<std::string, Any>>()), refMap);
-    }
 }
 
 TEST_F(AnyTests, constructFromVariantImpl) {
