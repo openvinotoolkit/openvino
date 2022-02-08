@@ -59,14 +59,14 @@ template <typename T>
 T property_from_string(const std::string& string_value) {
     std::stringstream ss(string_value);
     T value;
-    ss >> value;
+    ov::util::read(ss, value);
     return value;
 }
 
 template <typename T>
 std::string property_to_string(const T& property) {
     std::stringstream ss;
-    ss << property;
+    ov::util::write(ss, property);
     return ss.str();
 }
 

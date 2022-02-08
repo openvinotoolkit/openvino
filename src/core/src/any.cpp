@@ -121,7 +121,8 @@ const Any::Base* Any::operator->() const {
     return _impl.get();
 }
 
-void Any::read_impl(std::istream& is, bool& value) {
+namespace util {
+void read(std::istream& is, bool& value) {
     std::string str;
     is >> str;
     if (str == "YES") {
@@ -146,23 +147,23 @@ static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const 
     }
 }
 
-void Any::read_impl(std::istream& is, int& value) {
+void read(std::istream& is, int& value) {
     value = stream_to(is, [](const std::string& str) {
         return std::stoi(str);
     });
 }
-void Any::read_impl(std::istream& is, long& value) {
+void read(std::istream& is, long& value) {
     value = stream_to(is, [](const std::string& str) {
         return std::stol(str);
     });
 }
-void Any::read_impl(std::istream& is, long long& value) {
+void read(std::istream& is, long long& value) {
     value = stream_to(is, [](const std::string& str) {
         return std::stoll(str);
     });
 }
 
-void Any::read_impl(std::istream& is, unsigned& value) {
+void read(std::istream& is, unsigned& value) {
     value = stream_to(is, [](const std::string& str) {
         auto ul = std::stoul(str);
         if (ul > std::numeric_limits<unsigned>::max()) {
@@ -171,34 +172,51 @@ void Any::read_impl(std::istream& is, unsigned& value) {
         return static_cast<unsigned>(ul);
     });
 }
-void Any::read_impl(std::istream& is, unsigned long& value) {
+void read(std::istream& is, unsigned long& value) {
     value = stream_to(is, [](const std::string& str) {
         return std::stoul(str);
     });
 }
-void Any::read_impl(std::istream& is, unsigned long long& value) {
+void read(std::istream& is, unsigned long long& value) {
     value = stream_to(is, [](const std::string& str) {
         return std::stoull(str);
     });
 }
 
-void Any::read_impl(std::istream& is, float& value) {
+void read(std::istream& is, float& value) {
     value = stream_to(is, [](const std::string& str) {
         return std::stof(str);
     });
 }
-void Any::read_impl(std::istream& is, double& value) {
+void read(std::istream& is, double& value) {
     value = stream_to(is, [](const std::string& str) {
         return std::stod(str);
     });
 }
-void Any::read_impl(std::istream& is, long double& value) {
+void read(std::istream& is, long double& value) {
     value = stream_to(is, [](const std::string& str) {
         return std::stold(str);
     });
 }
 
-void Any::print_impl(std::ostream& os, const bool& b) {
+void write(std::ostream& os, const bool& b) {
     os << (b ? "YES" : "NO");
 }
+
+void read(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple) {
+    is >> std::get<0>(tuple) >> std::get<1>(tuple) >> std::get<2>(tuple);
+}
+
+void write(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple) {
+    os << std::get<0>(tuple) << " " << std::get<1>(tuple) << " " <<  std::get<2>(tuple);
+}
+
+void read(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) {
+    is >> std::get<0>(tuple) >> std::get<1>(tuple);
+}
+
+void write(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple) {
+    os << std::get<0>(tuple) << " " << std::get<1>(tuple);
+}
+}  // namespace util
 }  // namespace ov

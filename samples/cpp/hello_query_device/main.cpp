@@ -24,29 +24,6 @@
 void print_any_value(const ov::Any& value) {
     if (value.empty()) {
         slog::info << "EMPTY VALUE" << slog::endl;
-    } if (value.is<std::vector<std::string>>()) {
-        slog::info << value.as<std::vector<std::string>>() << slog::endl;
-    } else if (value.is<std::vector<int>>()) {
-        slog::info << value.as<std::vector<int>>() << slog::endl;
-    } else if (value.is<std::vector<float>>()) {
-        slog::info << value.as<std::vector<float>>() << slog::endl;
-    } else if (value.is<std::vector<unsigned int>>()) {
-        slog::info << value.as<std::vector<unsigned int>>() << slog::endl;
-    } else if (value.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
-        auto values = value.as<std::tuple<unsigned int, unsigned int, unsigned int>>();
-        slog::info << "{ ";
-        slog::info << std::get<0>(values) << ", ";
-        slog::info << std::get<1>(values) << ", ";
-        slog::info << std::get<2>(values);
-        slog::info << " }";
-        slog::info << slog::endl;
-    } else if (value.is<std::tuple<unsigned int, unsigned int>>()) {
-        auto values = value.as<std::tuple<unsigned int, unsigned int>>();
-        slog::info << "{ ";
-        slog::info << std::get<0>(values) << ", ";
-        slog::info << std::get<1>(values);
-        slog::info << " }";
-        slog::info << slog::endl;
     } else {
         std::string stringValue = value.as<std::string>();
         slog::info << (stringValue.empty() ? "\"\"" : stringValue) << slog::endl;
