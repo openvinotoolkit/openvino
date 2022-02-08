@@ -202,7 +202,7 @@ void ROIAlignForward(const int64_t nthreads,
 
     int64_t n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
-    const auto computation = [&](int64_t n){
+    const auto computation = [&](int64_t n) {
         int64_t index_n = n * channels * pooled_width * pooled_height;
 
         // roi could have 4 or 5 columns
