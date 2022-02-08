@@ -42,7 +42,7 @@ template .+
 openvino_suppress_deprecated_start template class openvino_api ngraph::variantimpl
 @copybrief or @copydoc target
 while setting up extension conf.py: csv directory not found
-autosummary: failed to import openvino.inference_engine
+autosummary: failed to import
 unknown target name:
 undefined substitution referenced
 detailed documentation
