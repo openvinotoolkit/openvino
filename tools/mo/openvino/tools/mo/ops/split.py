@@ -98,7 +98,7 @@ class VariadicSplitBase(Op):
         # value propagation
         input_value = node.in_port(0).data.get_value()
         if input_value is not None:
-            split = np.split(input_value, mo_array(idxs[:-1], dtype=np.int), axis)
+            split = np.split(input_value, mo_array(idxs[:-1], dtype=np.int64), axis)
             for i, port in node.out_ports().items():
                 if not port.disconnected():
                     port.data.set_value(split[i])
@@ -213,7 +213,7 @@ class SplitBase(Op):
         out_shape[axis] = input_shape[axis] // num_splits
 
         input_value = node.in_port(0).data.get_value()
-        output_value = np.split(input_value.copy(), axis=axis, indices_or_sections=mo_array(num_splits, dtype=np.int)) \
+        output_value = np.split(input_value.copy(), axis=axis, indices_or_sections=mo_array(num_splits, dtype=np.int64)) \
             if input_value is not None else None
 
         for idx, port in node.out_ports().items():
