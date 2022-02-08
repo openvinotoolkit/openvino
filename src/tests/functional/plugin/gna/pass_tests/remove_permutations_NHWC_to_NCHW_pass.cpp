@@ -282,7 +282,7 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
 
             auto permute1 = CreateTranspose(reshape1, shape_size, true);
-            auto conv = CreateConvolution(permute1, ngPrc, inputShape, false, true, true);
+            auto conv = CreateConvolution(permute1, ngPrc, inputShape, false, true, withActivation);
             auto permute2 = CreateTranspose(conv, shape_size, false);
 
             auto conv_out_size = std::accumulate(std::begin(conv->get_output_shape(0)), std::end(conv->get_output_shape(0)),
