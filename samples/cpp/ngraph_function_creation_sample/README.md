@@ -1,6 +1,6 @@
 # nGraph Function Creation C++ Sample {#openvino_inference_engine_samples_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an synchronous inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a model, which uses weights from LeNet classification model, which is known to work well on digit classification tasks.
+This sample demonstrates how to execute an synchronous inference using [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly which uses weights from LeNet classification model, which is known to work well on digit classification tasks.
 
 You do not need an XML file to create a model. The API of ngraph::Function allows creating a model on the fly from the source code.
 
@@ -27,7 +27,11 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, creates a model using the [nGraph function feature](../../../docs/nGraph_DG/build_function.md) and passed weights file, loads the model and digit images to the Inference Engine plugin, performs synchronous inference and processes output data to standard output stream.
+At startup, the sample application does the following:
+- Reads command line parameters
+- [Build a Model](../../../docs/OV_Runtime_UG/model_representation.md) and passed weights file
+- Loads the model and input data to the Inference Engine plugin
+- Performs synchronous inference and processes output data, logging each step in a standard output stream
 
 You can see the explicit description of each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
