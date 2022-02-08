@@ -664,4 +664,9 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * environment variable is set (as affinity is configured explicitly)
  */
 static constexpr Property<Affinity> affinity{"AFFINITY"};
+
+/**
+ * @brief The name for setting auto-batching option.
+ */
+static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
 }  // namespace ov

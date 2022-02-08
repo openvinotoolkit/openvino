@@ -665,7 +665,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
         IE_THROW(NotImplemented);
     }
 
-    auto priorities = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    auto priorities = config.find(ov::device::priorities.name());
     if (priorities == config.end() || config.size() > 1) {
         IE_THROW() << "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
     } else {
@@ -723,7 +723,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
-        if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+        if (name == ov::optimal_number_of_infer_requests) {
             const unsigned int defaultNumForTPUT = 4u;
             const unsigned int defaultNumForLatency = 1u;
             unsigned int real = 0;
@@ -797,7 +797,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                     real = defaultNumForLatency;
                 }
             }
-            IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, real);
+            return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
         }
 
         if (_loadContext[ACTUALDEVICE].isAlready) {
@@ -805,8 +805,17 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         }
         return _loadContext[CPU].executableNetwork->GetMetric(name);
     }
+    if (name == ov::supported_properties) {
+        return decltype(ov::supported_properties)::value_type {
+            // Metrics
+            ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
 
-    if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+            // Configs
+            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW}
+        };
+    } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int res = 0u;
         for (auto n : _networksPerDevice) {
             try {
@@ -818,12 +827,11 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                         << "Failed to query the metric for the " << n.first << " with error:" << iie.what();
            }
         }
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
-    } else if (name == METRIC_KEY(NETWORK_NAME)) {
+        return decltype(ov::optimal_number_of_infer_requests)::value_type {res};
+    } else if (name == ov::model_name) {
         auto it = _networksPerDevice.begin();
         IE_ASSERT(it != _networksPerDevice.end());
-        IE_SET_METRIC_RETURN(NETWORK_NAME, it->second->GetMetric(
-            METRIC_KEY(NETWORK_NAME)).as<std::string>());
+        return decltype(ov::model_name)::value_type {it->second->GetMetric(METRIC_KEY(NETWORK_NAME)).as<std::string>()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, {
             METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
