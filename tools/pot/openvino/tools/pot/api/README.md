@@ -123,7 +123,7 @@ The engine provides model inference, statistics collection for activations and c
 All subclasses should override the following methods:
 - `set_model(model)` - sets/resets a model.<br><br>
   *Parameters*
-  - `model` - `NXModel` instance for inference.
+  - `model` - `CompressedModel` instance for inference.
 
 - `predict(stats_layout=None, sampler=None, metric_per_sample=False, print_progress=False)` - performs model inference 
 on the specified subset of data.<br><br>
@@ -251,6 +251,21 @@ Metric values returned by a `Metric` instance are expected to be in the format:
 ```
 
 In order to implement a custom `Engine` class you may need to get familiar with the following interfaces:
+
+### CompressedModel
+
+The Python* POT API provides the `CompressedModel` class as one interface for working with single and cascaded DL model. 
+It is used to load, save and access the model, in case of the cascaded model, access each model of the cascaded model.
+
+```
+class openvino.tools.pot.graph.nx_model.CompressedModel(**kwargs)
+```
+The CompressedModel class provides a representation of the DL model. A single model and cascaded model can be 
+represented as an instance of this class. The cascaded model is stored as a list of models.
+
+*Properties*
+- `models` - list of models of the cascaded model.
+- `is_cascade` - returns True if the loaded model is cascaded model.
   
 ### Read model from OpenVINO IR
 
@@ -266,15 +281,15 @@ openvino.tools.pot.load_model(model_config)
   
   Example of `model_config` for a single model:
   ```
-  model_config = Dict({
+  model_config = {
       'model_name': 'mobilenet_v2',
       'model': '<PATH_TO_MODEL>/mobilenet_v2.xml',
       'weights': '<PATH_TO_WEIGHTS>/mobilenet_v2.bin'
-  })
+  }
   ```
   Example of `model_config` for a cascaded model:
   ```
-  model_config = Dict({
+  model_config = {
       'model_name': 'mtcnn',
       'cascade': [
           {
@@ -293,19 +308,11 @@ openvino.tools.pot.load_model(model_config)
               'weights': '<PATH_TO_WEIGHTS>/onet.bin'
           }
       ]
-  })
+  }
   ```
 
 *Returns*
-- Model
-
-### Compress model weights
-This API rovides ability to compress model parameters after optimization before saving the model to OpenVINO&trade; Intermediate Representation (IR):
-```
-openvino.tools.pot.compress_model_weights(model)
-```
-*Parameters*
-- `model` - `NXModel` instance.
+- `CompressedModel` instance
 
 #### Save model to IR
 The Python* POT API provides the utility function to save model in the OpenVINO&trade; Intermediate Representation (IR):
@@ -313,7 +320,7 @@ The Python* POT API provides the utility function to save model in the OpenVINO&
 openvino.tools.pot.save_model(model, save_path, model_name=None, for_stat_collection=False)
 ```
 *Parameters*
-- `model` - `NXModel` instance.
+- `model` - `CompressedModel` instance.
 - `save_path` - path to save the model.
 - `model_name` - name under which the model will be saved.
 - `for_stat_collection` - whether model is saved to be used for statistic collection or for normal inference
