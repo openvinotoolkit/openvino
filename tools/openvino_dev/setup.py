@@ -106,24 +106,26 @@ class CustomBuild(build):
 
                     # load install_requires list
                     if cmp_data.get("extract_requirements"):
-                        install_requires = list(sorted(map(str, dmap.get(None, []))))
+                        # install requires {None: [requirements]}
+                        install_requires = sorted(map(str, dmap.get(None, [])))
                         self.announce(f'Install requires: {install_requires}', level=log.INFO)
                         self.distribution.install_requires.extend(install_requires)
-                        #conditionals
+                        # conditionals requirementes {':<condition>': [requirements]}
                         conditionals_req = dict(filter(lambda x: x[0] is not None and x[0].split(':')[0] == '', dmap.items()))
                         self.announce(f'Install requires with marker: {conditionals_req}', level=log.INFO)
                         for extra, req in conditionals_req.items():
                             if extra not in self.distribution.extras_require:
                                 self.distribution.extras_require[extra] = []
-                            self.distribution.extras_require[extra].extend(list(sorted(map(str, req))))
+                            self.distribution.extras_require[extra].extend(sorted(map(str, req)))
 
                     if cmp_data.get("extract_extras"):
+                        # extra requirementes {'marker:<condition>': [requirements]}
                         extras = dict(filter(lambda x: x[0] is not None and x[0].split(':')[0] != '', dmap.items()))
                         for extra, req in extras.items():
                             self.announce(f'Extras: {extra}:{req}', level=log.INFO)
                             if extra not in self.distribution.extras_require:
                                 self.distribution.extras_require[extra] = []
-                            self.distribution.extras_require[extra].extend(list(sorted(map(str, req))))
+                            self.distribution.extras_require[extra].extend(sorted(map(str, req)))
 
                     # extract console scripts
                     if cmp_data.get("extract_entry_points"):
@@ -143,11 +145,11 @@ class CustomBuild(build):
                 (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
                 shutil.copyfile(path, dst / path_rel)
 
-        #remove duplications in requirements
-        reqs_set = set(map(lambda x: x.lower(),self.distribution.install_requires))
-        self.distribution.install_requires = sorted(list(reqs_set))
+        # remove duplications in requirements
+        reqs_set = set(map(lambda x: x.lower(), self.distribution.install_requires))
+        self.distribution.install_requires = sorted(reqs_set)
         for extra, req in self.distribution.extras_require.items():
-            unique_req = list(dict.fromkeys(list(map(lambda x: x.lower(),req))))
+            unique_req = list(set(map(lambda x: x.lower(), req)))
             self.distribution.extras_require[extra] = unique_req
 
         # add dependecy on runtime package
