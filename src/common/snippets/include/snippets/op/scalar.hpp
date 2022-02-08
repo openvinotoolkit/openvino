@@ -21,9 +21,15 @@ public:
     OPENVINO_OP("Scalar", "SnippetsOpset", ov::op::v0::Constant);
 
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-    Scalar(const element::Type& type, Shape shape, T value) : Constant(type, shape, value) {}
-    explicit Scalar(const Constant& other) : Constant(other) {}
-    Scalar(const Scalar& other) : Constant(other) {}
+    Scalar(const element::Type& type, Shape shape, T value) : Constant(type, shape, value) {
+        constructor_validate_and_infer_types();
+    }
+    explicit Scalar(const Constant& other) : Constant(other) {
+        constructor_validate_and_infer_types();
+    }
+    Scalar(const Scalar& other) : Constant(other) {
+        constructor_validate_and_infer_types();
+    }
     Scalar& operator=(const Scalar&) = delete;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
