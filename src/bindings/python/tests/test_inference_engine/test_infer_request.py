@@ -162,6 +162,7 @@ def test_set_tensors(device):
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
 
 
+@pytest.mark.dynamic_library
 @pytest.mark.template_extension
 def test_batched_tensors(device):
     batch = 4
@@ -170,11 +171,6 @@ def test_batched_tensors(device):
     one_shape_size = np.prod(one_shape)
 
     core = Core()
-
-    if platform == "win32":
-        core.add_extension(library_path="openvino_template_extension.dll")
-    else:
-        core.add_extension(library_path="libopenvino_template_extension.so")
 
     data1 = ops.parameter(batch_shape, np.float32)
     data1.set_friendly_name("input0")
@@ -192,7 +188,7 @@ def test_batched_tensors(device):
 
     model = Model([res1], [data1])
 
-    compiled = core.compile_model(model)
+    compiled = core.compile_model(model, "TEMPLATE")
 
     buffer = np.zeros([one_shape_size * batch * 2], dtype=np.float32)
 
@@ -214,13 +210,15 @@ def test_batched_tensors(device):
     actual = actual_tensor.data
     for test_num in range(0, 5):
         for i in range(0, batch):
-            for j in range(0, one_shape_size):
-                tensors[i].data[j] = test_num + 10
+            tensors[i].data[:] = test_num + 10
 
         req.infer()  # Adds '1' to each element
 
-        for j in range(0, one_shape_size * batch):
-            assert np.array_equal(actual[j], test_num + 11)
+        # Reference values for each batch:
+        _tmp = np.array([test_num + 11] * one_shape_size, dtype=np.float32).reshape([2, 2, 2])
+
+        for j in range(0, batch):
+            assert np.array_equal(actual[j], _tmp)
 
 
 def test_inputs_outputs_property(device):
