@@ -205,16 +205,16 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory hasn't been allocated.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory hasn't been allocated.";
-    if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
+    if (!wghMemPtr || !wghMemPtr->isAllocated())
         IE_THROW() << "Weight memory hasn't been allocated.";
     MKLDNNMemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
-        if (!biasMemPtr || !biasMemPtr->GetPrimitivePtr())
+        if (!biasMemPtr || !biasMemPtr->isAllocated())
             IE_THROW() << "Input memory hasn't been allocated.";
     }
 
@@ -532,26 +532,26 @@ void MKLDNNFullyConnectedNode::initSupportedPrimitiveDescriptors() {
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = -1;
-                portConfig.constant = false;
+                portConfig.inPlace(-1);
+                portConfig.constant(false);
                 auto desc = getSrcMemDesc(itpd, i);
                 if (supportsUndefStridesAndOffset()) {
-                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                 } else {
-                    portConfig.desc = std::move(desc);
+                    portConfig.setMemDesc(desc);
                 }
                 config.inConfs.push_back(portConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = canBeInPlace() ? 0 : -1;
-                portConfig.constant = false;
+                portConfig.inPlace(canBeInPlace() ? 0 : -1);
+                portConfig.constant(false);
                 auto desc = getDstMemDesc(itpd, i);
                 if (supportsUndefStridesAndOffset()) {
-                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                 } else {
-                    portConfig.desc = std::move(desc);
+                    portConfig.setMemDesc(desc);
                 }
                 config.outConfs.push_back(portConfig);
             }
