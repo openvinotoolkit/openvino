@@ -15,7 +15,7 @@ from openvino.tools.pot.utils.logger import get_logger, stdout_redirect
 logger = get_logger(__name__)
 
 
-class NXModel:
+class CompressedModel:
     """
     Class encapsulating the logic of graph operations handling
     for multiple NetworkX models (Model Optimizer representation).
@@ -47,8 +47,7 @@ class NXModel:
             ge.add_fullname_for_nodes(model['model'])
 
     def _from_config(self, model_config, target_device='ANY'):
-        if not isinstance(model_config, Dict):
-            model_config = Dict(model_config)
+        model_config = model_config if isinstance(model_config, Dict) else Dict(model_config)
         if model_config.cascade:
             for model_dict in model_config.cascade:
                 model_config_ = model_config.deepcopy()
