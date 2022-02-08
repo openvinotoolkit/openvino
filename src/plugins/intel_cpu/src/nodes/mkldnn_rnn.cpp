@@ -764,17 +764,17 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     config.dynBatchSupport = false;
     for (size_t i = 0; i < inputDesc.size(); i++) {
         PortConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
-        dataConfig.desc = inputDesc[i];
+        dataConfig.inPlace(-1);
+        dataConfig.constant(false);
+        dataConfig.setMemDesc(inputDesc[i]);
         config.inConfs.push_back(dataConfig);
     }
 
     for (size_t i = 0; i < outputDesc.size(); i++) {
         PortConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
-        dataConfig.desc = outputDesc[i];
+        dataConfig.inPlace(-1);
+        dataConfig.constant(false);
+        dataConfig.setMemDesc(outputDesc[i]);
         config.outConfs.push_back(dataConfig);
     }
 
@@ -784,7 +784,7 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 void MKLDNNRNN::prepareParams() {
     for (size_t i = 0; i < wIdx; i++) {
         auto memPtr = getParentEdgesAtPort(i).front()->getMemoryPtr();
-        if (!memPtr || !memPtr->GetPrimitivePtr())
+        if (!memPtr || !memPtr->isAllocated())
             THROW_ERROR << "has uninitialized memory at port " << i;
     }
 
@@ -866,13 +866,11 @@ void MKLDNNRNN::prepareParams() {
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNRNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
-    auto desc = supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].desc;
-    return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+    return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNRNN::getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
-    auto desc = supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].desc;
-    return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+    return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 
 void MKLDNNRNN::execute(mkldnn::stream strm) {
