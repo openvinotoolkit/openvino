@@ -14,11 +14,11 @@ The following diagram illustrates the typical OpenVINO™ Runtime С++ API workf
 
 Read the sections below to learn about each item.
 
-> **NOTE**: Before start using Inference Engine, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
+> **NOTE**: Before start using OpenVINO™ Runtime, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
 > * [For Windows* 10](../install_guides/installing-openvino-windows.md)
 > * [For Linux*](../install_guides/installing-openvino-linux.md)
 > * [For macOS*](../install_guides/installing-openvino-macos.md)
-> * To build an open source version, use the [Inference Engine Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> * To build an open source version, use the [OpenVINO™ Runtime Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 ### Link with Inference Library
 
@@ -37,15 +37,15 @@ Read the sections below to learn about each item.
 
    @snippet snippets/CMakeLists.txt cmake:integration_example
 
-### Use Inference Engine API to Implement Inference Pipeline
+### Use OpenVINO™ Runtime API to Implement Inference Pipeline
 
-This section provides step-by-step instructions to implement a typical inference pipeline with the Inference Engine C++ API:   
+This section provides step-by-step instructions to implement a typical inference pipeline with the OpenVINO™ Runtime C++ API:
 
 ![ie_api_use_cpp]
 
-#### Step 1. Create Inference Engine Core 
+#### Step 1. Create OpenVINO™ Runtime Core 
 
-Use the following code to create Inference Engine Core to manage available devices and read network objects:
+Use the following code to create OpenVINO™ Core to manage available devices and read network objects:
 
 @snippet snippets/src/main.cpp part0
 
