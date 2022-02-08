@@ -113,13 +113,13 @@ void NonZero::execute(dnnl::stream strm) {
 }
 template <typename T>
 void NonZero::executeSpecified() {
-    T zero = 0;
-    T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const T zero = 0;
+    const T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     Shape inShape = getParentEdgeAt(0)->getMemory().GetShape();
     size_t inRank = inShape.getRank();
     std::vector<size_t> nonZeroCounts = getNonZeroElementsCount(src, inShape);
-    std::vector<size_t> destIndices(nonZeroCounts);
+    std::vector<size_t> destIndices(nonZeroCounts.size());
     size_t totalNonZeroCount = 0;
 
     for (size_t i = 0; i < nonZeroCounts.size(); ++i) {
@@ -132,9 +132,13 @@ void NonZero::executeSpecified() {
         redefineOutputMemory({newDims});
     }
     int *dst = reinterpret_cast<int *>(dstMemPtr->GetPtr());
-    auto srcDims = inShape.getDims();
     if (totalNonZeroCount == 0)
         return;
+
+    std::vector<int> srcDims(inShape.getDims().size());
+    std::transform(inShape.getDims().begin(), inShape.getDims().end(), srcDims.begin(), [](size_t x) {
+            return static_cast<int>(x);
+        });
 
     switch (inRank) {
     case 0:
@@ -142,28 +146,28 @@ void NonZero::executeSpecified() {
         break;
     case 1:
         parallel_for(srcDims[0],
-                     [&](size_t ithr, size_t i0) {
-                         size_t inputIndex = i0;
+                     [&](size_t ithr, int i0) {
+                         int inputIndex = i0;
                          size_t& outputIndex = destIndices[ithr];
 
                          if (src[inputIndex] != zero) {
-                             dst[outputIndex] = static_cast<int>(i0);
+                             dst[outputIndex] = i0;
                              outputIndex++;
                          }
                      });
         break;
     case 2:
     {
-        size_t i0Stride = srcDims[1];
+        int i0Stride = srcDims[1];
 
         parallel_for2d(srcDims[0], srcDims[1],
-                       [&](size_t ithr, size_t i0, size_t i1) {
-                           size_t inputIndex = i0 * i0Stride + i1;
+                       [&](size_t ithr, int i0, int i1) {
+                           int inputIndex = i0 * i0Stride + i1;
                            size_t& outputIndex = destIndices[ithr];
 
                            if (src[inputIndex] != zero) {
-                               dst[outputIndex] = static_cast<int>(i0);
-                               dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
+                               dst[outputIndex] = i0;
+                               dst[outputIndex + totalNonZeroCount] = i1;
                                outputIndex++;
                            }
                        });
@@ -171,19 +175,19 @@ void NonZero::executeSpecified() {
     }
     case 3:
     {
-        size_t i1Stride = srcDims[2];
-        size_t i0Stride = srcDims[1] * i1Stride;
+        int i1Stride = srcDims[2];
+        int i0Stride = srcDims[1] * i1Stride;
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
 
         parallel_for3d(srcDims[0], srcDims[1], srcDims[2],
-                       [&](size_t ithr, size_t i0, size_t i1, size_t i2) {
-                           size_t inputIndex = i0 * i0Stride + i1 * i1Stride + i2;
+                       [&](size_t ithr, int i0, int i1, int i2) {
+                           int inputIndex = i0 * i0Stride + i1 * i1Stride + i2;
                            size_t& outputIndex = destIndices[ithr];
 
                            if (src[inputIndex] != zero) {
-                               dst[outputIndex] = static_cast<int>(i0);
-                               dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
-                               dst[outputIndex + x2totalNonZeroCount] = static_cast<int>(i2);
+                               dst[outputIndex] = i0;
+                               dst[outputIndex + totalNonZeroCount] = i1;
+                               dst[outputIndex + x2totalNonZeroCount] = i2;
                                outputIndex++;
                            }
                        });
@@ -191,22 +195,22 @@ void NonZero::executeSpecified() {
     }
     case 4:
     {
-        size_t i2Stride = srcDims[3];
-        size_t i1Stride = srcDims[2] * i2Stride;
-        size_t i0Stride = srcDims[1] * i1Stride;
+        int i2Stride = srcDims[3];
+        int i1Stride = srcDims[2] * i2Stride;
+        int i0Stride = srcDims[1] * i1Stride;
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
         size_t x3totalNonZeroCount = totalNonZeroCount * 3;
 
         parallel_for4d(srcDims[0], srcDims[1], srcDims[2], srcDims[3],
-                       [&](size_t ithr, size_t i0, size_t i1, size_t i2, size_t i3) {
-                           size_t inputIndex = i0 * i0Stride + i1 * i1Stride + i2 * i2Stride + i3;
+                       [&](size_t ithr, int i0, int i1, int i2, int i3) {
+                           int inputIndex = i0 * i0Stride + i1 * i1Stride + i2 * i2Stride + i3;
                            size_t& outputIndex = destIndices[ithr];
 
                            if (src[inputIndex] != zero) {
-                               dst[outputIndex] = static_cast<int>(i0);
-                               dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
-                               dst[outputIndex + x2totalNonZeroCount] = static_cast<int>(i2);
-                               dst[outputIndex + x3totalNonZeroCount] = static_cast<int>(i3);
+                               dst[outputIndex] = i0;
+                               dst[outputIndex + totalNonZeroCount] = i1;
+                               dst[outputIndex + x2totalNonZeroCount] = i2;
+                               dst[outputIndex + x3totalNonZeroCount] = i3;
                                outputIndex++;
                            }
                        });
@@ -214,25 +218,25 @@ void NonZero::executeSpecified() {
     }
     case 5:
     {
-        size_t i3Stride = srcDims[4];
-        size_t i2Stride = srcDims[3] * i3Stride;
-        size_t i1Stride = srcDims[2] * i2Stride;
-        size_t i0Stride = srcDims[1] * i1Stride;
+        int i3Stride = srcDims[4];
+        int i2Stride = srcDims[3] * i3Stride;
+        int i1Stride = srcDims[2] * i2Stride;
+        int i0Stride = srcDims[1] * i1Stride;
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
         size_t x3totalNonZeroCount = totalNonZeroCount * 3;
         size_t x4totalNonZeroCount = totalNonZeroCount * 4;
 
         parallel_for5d(srcDims[0], srcDims[1], srcDims[2], srcDims[3], srcDims[4],
-                       [&](size_t ithr, size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                           size_t inputIndex = i0 * i0Stride + i1 * i1Stride + i2 * i2Stride + i3 * i3Stride + i4;
+                       [&](size_t ithr, int i0, int i1, int i2, int i3, int i4) {
+                           int inputIndex = i0 * i0Stride + i1 * i1Stride + i2 * i2Stride + i3 * i3Stride + i4;
                            size_t& outputIndex = destIndices[ithr];
 
                            if (src[inputIndex] != zero) {
-                               dst[outputIndex] = static_cast<int>(i0);
-                               dst[outputIndex + totalNonZeroCount] = static_cast<int>(i1);
-                               dst[outputIndex + x2totalNonZeroCount] = static_cast<int>(i2);
-                               dst[outputIndex + x3totalNonZeroCount] = static_cast<int>(i3);
-                               dst[outputIndex + x4totalNonZeroCount] = static_cast<int>(i4);
+                               dst[outputIndex] = i0;
+                               dst[outputIndex + totalNonZeroCount] = i1;
+                               dst[outputIndex + x2totalNonZeroCount] = i2;
+                               dst[outputIndex + x3totalNonZeroCount] = i3;
+                               dst[outputIndex + x4totalNonZeroCount] = i4;
                                outputIndex++;
                            }
                        });
