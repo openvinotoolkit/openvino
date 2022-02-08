@@ -202,20 +202,13 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
             ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO},
 
             // Configs
-            ov::PropertyName{ov::enable_profiling.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::hint::model_priority.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::allow_auto_batching.name(), ov::PropertyMutability::RW}
-
-            // Configs
-            ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::log::level::model_priority.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::log::level.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::enable_profiling.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::hint::performance_mode.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::hint::num_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::allow_auto_batching.name(), ov::PropertyMutability::RW}
-            ov::PropertyName{ov::optimal_number_of_infer_requests.name(), PropertyMutability::RW}
         };
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
@@ -223,7 +216,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
-    } else if (name == ov::full_name) {
+    } else if (name == ov::device::full_name) {
         std::string device_name = { GetName() };
         return decltype(ov::device::full_name)::value_type {device_name};
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
