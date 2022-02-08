@@ -246,11 +246,12 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
     try {
         checkFormat(fmt);
         compatibleString =  "%s" + std::string(fmt);
+        std::snprintf(&buffer[0], sizeof(buffer), compatibleString.c_str(), "", args...);
     } catch (std::runtime_error &err) {
         compatibleString =  "%s" + std::string(err.what());
+        std::snprintf(&buffer[0], sizeof(buffer), compatibleString.c_str(), "");
     }
-
-    std::snprintf(&buffer[0], sizeof(buffer), compatibleString.c_str(), "", args...);
+    
     stream << ' ' << buffer << suffix << colorEnd(level);
     std::lock_guard<std::mutex> autoLock(mutex);
     print(stream);

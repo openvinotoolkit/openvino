@@ -18,16 +18,7 @@ public:
     void TearDown() override {
         MockLog::Release();
     }
-
-    void traceCallStacksTest(){
-        TraceCallStacks("test");
-    }
 };
-
-TEST_F(LogUtilsFormatTest, callStacksTest) {
-    EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(traceCallStacksTest());
-}
 
 TEST_F(LogUtilsFormatTest, format_s) {
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
