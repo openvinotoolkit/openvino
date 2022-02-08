@@ -81,7 +81,7 @@ typename std::enable_if<!Istreamable<T>::value && !Readable<T>::value>::type rea
 }
 
 template <typename T, typename A>
-void read(std::istream& is, std::vector<T, A>& vec) {
+typename std::enable_if<std::is_default_constructible<T>::value>::type read(std::istream& is, std::vector<T, A>& vec) {
     while (is.good()) {
         T v;
         read(is, v);
@@ -90,7 +90,10 @@ void read(std::istream& is, std::vector<T, A>& vec) {
 }
 
 template <typename K, typename T, typename C, typename A>
-void read(std::istream& is, std::map<K, T, C, A>& map) {
+typename std::enable_if<
+    std::is_default_constructible<K>::value &&
+    std::is_default_constructible<T>::value
+>::type read(std::istream& is, std::map<K, T, C, A>& map) {
     while (is.good()) {
         K k;
         T v;
