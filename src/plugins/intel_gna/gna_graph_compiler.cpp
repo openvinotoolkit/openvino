@@ -282,6 +282,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
 
     if (inputs->getLayout() == Layout::CHW)
     {
+        // convolution is ngraph-3D here. Make some fixes to work with it as it's ngraph-4D
         convolution._kernel_y = 1;
         convolution._dilation_y = 1;
         convolution._stride_y = 1;
@@ -901,6 +902,13 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t w_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::W);
     uint32_t h_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::H);
     const uint32_t c_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::C);
+
+    if (inputs->getLayout() == Layout::CHW)
+    {
+        // Pooling is ngraph-3D here. Make some fixes to work with it as it's ngraph-4D
+        pooling._kernel = PropertyVectorAppend<unsigned int>(pooling._kernel, 1);
+        pooling._stride = PropertyVectorAppend<unsigned int>(pooling._stride, 1);
+    }
 #else
     uint32_t w_dim_in = GetDataDimSize(inputs, InferenceEngine::DataDimName::W);
     uint32_t h_dim_in = GetDataDimSize(inputs, InferenceEngine::DataDimName::H);

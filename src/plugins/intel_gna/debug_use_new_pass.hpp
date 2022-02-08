@@ -12,3 +12,6 @@
 #else
 #define EMUTEX_DEBUG_SAVE_NGRAPH(manager, name)
 #endif
+
+#define EMUTEX_DEBUG_VALUE(x) std::cout << __FILE__ << ":" << __LINE__ << " " << #x << " " << x << std::endl;
+#define EMUTEX_DEBUG_CHECKPOINT std::cout << __FILE__ << ":" << __LINE__ << std::endl;
