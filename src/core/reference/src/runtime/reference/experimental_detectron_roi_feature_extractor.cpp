@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 #include <numeric>
+#include <thread>
 
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "ngraph/shape.hpp"
@@ -201,7 +202,7 @@ void ROIAlignForward(const int64_t nthreads,
 
     int64_t n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
-    for (int64_t n = 0; n < n_rois; ++n) {
+    const auto computation = [&](int64_t n){
         int64_t index_n = n * channels * pooled_width * pooled_height;
 
         // roi could have 4 or 5 columns
@@ -276,7 +277,91 @@ void ROIAlignForward(const int64_t nthreads,
                 }  // for pw
             }      // for ph
         }          // for c
+    };
+
+    std::vector<std::thread> threads(n_rois);
+    for (int64_t n = 0; n < n_rois; ++n) {
+        threads[n] = std::thread(computation, n);
     }
+    for (auto& t : threads) {
+        t.join();
+    }
+//    for (int64_t n = 0; n < n_rois; ++n) {
+//        int64_t index_n = n * channels * pooled_width * pooled_height;
+//
+//        // roi could have 4 or 5 columns
+//        const T* offset_bottom_rois = bottom_rois + n * roi_cols;
+//        int64_t roi_batch_ind = 0;
+//        if (roi_cols == 5) {
+//            roi_batch_ind = static_cast<int64_t>(offset_bottom_rois[0]);
+//            offset_bottom_rois++;
+//        }
+//
+//        T offset = aligned ? static_cast<T>(0.5) : static_cast<T>(0.0);
+//        // Do not use rounding; this implementation detail is critical
+//        T roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
+//        T roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
+//        T roi_end_w = offset_bottom_rois[2] * spatial_scale - offset;
+//        T roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
+//
+//        // Force malformed ROIs to be 1x1
+//        T roi_width = std::max(roi_end_w - roi_start_w, static_cast<T>(1.0));
+//        T roi_height = std::max(roi_end_h - roi_start_h, static_cast<T>(1.0));
+//        T bin_size_h = static_cast<T>(roi_height) / static_cast<T>(pooled_height);
+//        T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
+//
+//        // We use roi_bin_grid to sample the grid and mimic integral
+//        int64_t roi_bin_grid_h =
+//            (sampling_ratio > 0) ? sampling_ratio : static_cast<int64_t>(std::ceil(roi_height / pooled_height));
+//        int64_t roi_bin_grid_w =
+//            (sampling_ratio > 0) ? sampling_ratio : static_cast<int64_t>(std::ceil(roi_width / pooled_width));
+//
+//        // We do average (integral) pooling inside a bin
+//        const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);
+//
+//        // we want to precalculate indices and weights shared by all channels,
+//        // this is the key point of optimization
+//        std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+//
+//        pre_calc_for_bilinear_interpolate<T>(height,
+//                                             width,
+//                                             pooled_height,
+//                                             pooled_width,
+//                                             roi_bin_grid_h,
+//                                             roi_bin_grid_w,
+//                                             roi_start_h,
+//                                             roi_start_w,
+//                                             bin_size_h,
+//                                             bin_size_w,
+//                                             roi_bin_grid_h,
+//                                             roi_bin_grid_w,
+//                                             pre_calc);
+//
+//        for (int64_t c = 0; c < channels; c++) {
+//            int64_t index_n_c = index_n + c * pooled_width * pooled_height;
+//            const T* offset_bottom_data = bottom_data + (roi_batch_ind * channels + c) * height * width;
+//            int64_t pre_calc_index = 0;
+//
+//            for (int64_t ph = 0; ph < pooled_height; ph++) {
+//                for (int64_t pw = 0; pw < pooled_width; pw++) {
+//                    int64_t index = index_n_c + ph * pooled_width + pw;
+//                    T output_val = 0.;
+//                    for (int64_t iy = 0; iy < roi_bin_grid_h; iy++) {
+//                        for (int64_t ix = 0; ix < roi_bin_grid_w; ix++) {
+//                            PreCalc<T> pc = pre_calc[pre_calc_index];
+//                            output_val += pc.w1 * offset_bottom_data[pc.pos1] + pc.w2 * offset_bottom_data[pc.pos2] +
+//                                          pc.w3 * offset_bottom_data[pc.pos3] + pc.w4 * offset_bottom_data[pc.pos4];
+//
+//                            pre_calc_index += 1;
+//                        }
+//                    }
+//                    output_val /= count;
+//
+//                    top_data[index] = output_val;
+//                }  // for pw
+//            }      // for ph
+//        }          // for c
+//    }
 }
 }  // namespace
 
