@@ -34,8 +34,6 @@ class SkipPropagation;
 class FakeQuantize;
 class Concat;
 
-std::pair<std::set<size_t>, bool> squeeze_mask(const std::set<size_t> mask_dim, const size_t elems_per_ch, const bool squeeze);
-
 } // namespace mask_propagation
 } // namespace pass
 } // namespace ngraph
@@ -726,7 +724,7 @@ public:
 };
 
 
-std::pair<std::set<size_t>, bool> ngraph::pass::mask_propagation::squeeze_mask(
+static std::pair<std::set<size_t>, bool> squeeze_mask(
     const std::set<size_t> mask_dim, const size_t elems_per_ch, const bool squeeze) {
     bool should_init_dep = false;
     auto ret_set = std::set<size_t>();

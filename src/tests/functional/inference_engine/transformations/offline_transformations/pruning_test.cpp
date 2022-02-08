@@ -17,11 +17,10 @@
 #include <ngraph/coordinate_transform.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <inference_engine.hpp>
-#include <openvino/util/env_util.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#define VISUALIZE_TESTS_TREE true
+#define VISUALIZE_TESTS_TREE false
 #define VISUALIZE_TREE_ROOT "/tmp/"
 
 using namespace testing;
@@ -55,52 +54,52 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
 
 // Uncomment, specify PRUNING_TARGET_IR_PATH var and
 // include <openvino/util/env_util.hpp> to check pruning on given IR
-TEST(TransformationTests, PruneIRTest) {
-    InferenceEngine::Core core;
-
-    const std::string input_model = ov::util::getenv_string("PRUNING_TARGET_IR_PATH");
-    if (input_model == "")
-        return;
-
-    auto function = core.ReadNetwork(input_model).getFunction();
-
-    pass::Manager m;
-    m.register_pass<pass::InitMasks>();
-    m.register_pass<pass::PropagateMasks>();
-
-    // VisualizeTree modifier helps to print Masks and mark nodes with masks
-    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
-        std::stringstream ss;
-        size_t index{0};
-        for (const auto & output : node.outputs()) {
-            if (const auto & mask = getMask(output)) {
-                if (!mask->all_dims_are_empty()) {
-                    attributes.emplace_back("color=green");
-                    attributes.emplace_back("penwidth=2");
-                }
-                ss << "Mask(" << index << ") : " << *mask << "\\n";
-            }
-            index++;
-        }
-        if (!ss.str().empty()) {
-            auto label = std::find_if(attributes.begin(), attributes.end(),
-                                   [](const std::string & value) { return value.find("label=") != std::string::npos; });
-            if (label != attributes.end()) {
-                label->pop_back();
-                *label += "\n" + ss.str() + "\"";
-            } else {
-                attributes.push_back("label=\"" + ss.str() + "\"");
-            }
-        }
-    };
-
-    m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg", modifier);
-    m.register_pass<pass::ShrinkWeights>();
-
-    if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(function);
-    m.run_passes(function);
-}
+//TEST(TransformationTests, PruneIRTest) {
+//    InferenceEngine::Core core;
+//
+//    const std::string input_model = ov::util::getenv_string("PRUNING_TARGET_IR_PATH");
+//    if (input_model == "")
+//        return;
+//
+//    auto function = core.ReadNetwork(input_model).getFunction();
+//
+//    pass::Manager m;
+//    m.register_pass<pass::InitMasks>();
+//    m.register_pass<pass::PropagateMasks>();
+//
+//    // VisualizeTree modifier helps to print Masks and mark nodes with masks
+//    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
+//        std::stringstream ss;
+//        size_t index{0};
+//        for (const auto & output : node.outputs()) {
+//            if (const auto & mask = getMask(output)) {
+//                if (!mask->all_dims_are_empty()) {
+//                    attributes.emplace_back("color=green");
+//                    attributes.emplace_back("penwidth=2");
+//                }
+//                ss << "Mask(" << index << ") : " << *mask << "\\n";
+//            }
+//            index++;
+//        }
+//        if (!ss.str().empty()) {
+//            auto label = std::find_if(attributes.begin(), attributes.end(),
+//                                   [](const std::string & value) { return value.find("label=") != std::string::npos; });
+//            if (label != attributes.end()) {
+//                label->pop_back();
+//                *label += "\n" + ss.str() + "\"";
+//            } else {
+//                attributes.push_back("label=\"" + ss.str() + "\"");
+//            }
+//        }
+//    };
+//
+//    m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg", modifier);
+//    m.register_pass<pass::ShrinkWeights>();
+//
+//    if (VISUALIZE_TESTS_TREE)
+//        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(function);
+//    m.run_passes(function);
+//}
 
 
 TEST(TransformationTests, InitMasksOI) {
