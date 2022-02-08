@@ -90,10 +90,9 @@ typename std::enable_if<std::is_default_constructible<T>::value>::type read(std:
 }
 
 template <typename K, typename T, typename C, typename A>
-typename std::enable_if<
-    std::is_default_constructible<K>::value &&
-    std::is_default_constructible<T>::value
->::type read(std::istream& is, std::map<K, T, C, A>& map) {
+typename std::enable_if<std::is_default_constructible<K>::value && std::is_default_constructible<T>::value>::type read(
+    std::istream& is,
+    std::map<K, T, C, A>& map) {
     while (is.good()) {
         K k;
         T v;
