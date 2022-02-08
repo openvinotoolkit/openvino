@@ -99,9 +99,11 @@ TEST_P(ConcatConvSumInPlaceTest, CompareWithRefs) {
 
 namespace {
 const std::vector<fusingSpecificParams> fusingParamsSet{
+        emptyFusingSpec,
         fusingSigmoid,
-        //fusingFakeQuantizePerTensorRelu,
-        //fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu,
+        fusingFakeQuantizePerChannelRelu,
+        fusingReluScaleShift
 };
 
 InputShape convInpShape = {
@@ -109,8 +111,9 @@ InputShape convInpShape = {
         {-1, 32, -1, -1},
         { //target static shapes
             {1, 32, 10, 10},
-            //{1, 32, 10, 10},
-            //{1, 32, 3, 3}
+            {1, 32, 10, 10},
+            {1, 32, 10, 10},
+            {1, 32, 3, 3}
         }
 };
 
@@ -119,8 +122,9 @@ InputShape secondInp = {
         {-1, -1, -1, -1},
         { //target static shapes
             {1, 64, 1, 8},
-            //{1, 64, 8, 8},
-            //{1, 64, 8, 8}
+            {1, 64, 1, 8},
+            {1, 64, 8, 8},
+            {1, 64, 8, 8}
         }
 };
 

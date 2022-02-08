@@ -332,7 +332,7 @@ public:
 
     virtual void execute(mkldnn::stream strm);
     void executeDynamic(mkldnn::stream strm);
-    void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
 
     virtual void initSupportedPrimitiveDescriptors();
 

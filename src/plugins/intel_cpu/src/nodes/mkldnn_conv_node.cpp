@@ -9,6 +9,7 @@
 #include "mkldnn_fake_quantize_node.h"
 #include "mkldnn_pooling_node.h"
 #include "mkldnn_concat_node.h"
+#include "mkldnn_graph.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <string>
 #include <vector>
@@ -94,6 +95,81 @@ bool ConvKey::operator==(const ConvKey &rhs) const {
 }
 
 } // namespace
+
+class MKLDNNConvolutionNode::FusedSubgraph {
+public:
+    FusedSubgraph(const std::vector<MKLDNNNodePtr> &opList, const MKLDNNConvolutionNode &conv, MKLDNNWeightsSharing::Ptr weightCache) {
+        _graph = std::unique_ptr<MKLDNNGraph>(new MKLDNNGraph());
+
+        std::vector<MKLDNNNodePtr> nodes;
+        std::vector<MKLDNNEdgePtr> edges;
+        const auto &inpMemDesc1 = conv.getBaseMemDescAtOutputPort(0);
+        auto inp0 = std::make_shared<MKLDNNInputNode>(inpMemDesc1, "inp0", "Parameter", conv.getEngine(), weightCache);
+        nodes.push_back(inp0);
+        inputs.push_back(inp0);
+        const size_t sumPortNum = conv.getParentEdges().size() - 1;
+        const auto &inpMemDesc2 = conv.getBaseMemDescAtInputPort(sumPortNum);
+        auto inp1 = std::make_shared<MKLDNNInputNode>(inpMemDesc2, "inp1", "Parameter", conv.getEngine(), weightCache);
+        nodes.push_back(inp1);
+        inputs.push_back(inp1);
+        auto itr = std::find_if(opList.begin(), opList.end(), [](const MKLDNNNodePtr &node) {
+            if (auto eltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(node)) {
+                return eltwise->isSpecialConvolutionAddFusing();
+            }
+            return false;
+        });
+        auto sumNode = *itr;
+        MKLDNNEdgePtr edge1 = std::make_shared<MKLDNNEdge>(inp0, *itr, 0, 0);
+        sumNode->addEdge(edge1);
+        edges.push_back(edge1);
+        MKLDNNEdgePtr edge2 = std::make_shared<MKLDNNEdge>(inp1, *itr, 0, 1);
+        sumNode->addEdge(edge2);
+        edges.push_back(edge2);
+        nodes.push_back(sumNode);
+
+        sumNode->clearFusedWith();
+        while (++itr != opList.end()) {
+            sumNode->addFusedNode(*itr);
+        }
+
+        const auto &outMemDesc = conv.getBaseMemDescAtOutputPort(0);
+        auto out = std::make_shared<MKLDNNInputNode>(outMemDesc, "out", "Result", conv.getEngine(), weightCache);
+        MKLDNNEdgePtr edge3 = std::make_shared<MKLDNNEdge>(sumNode, out, 0, 0);
+        sumNode->addEdge(edge3);
+        edges.push_back(edge3);
+        nodes.push_back(out);
+        outputs.push_back(out);
+        _graph->CreateGraph(nodes, edges, weightCache, "fused_subgraph");
+    }
+
+    std::shared_ptr<MKLDNNInputNode> getInput(size_t idx) const {
+        if (idx < inputs.size()) {
+            return inputs[idx];
+        } else {
+            IE_THROW(OutOfBounds) << "Unexpected input index in MKLDNNConvolutionNode::fusedSubgraph::getInput idx=" << idx
+                                  << " inputs.size()=" << inputs.size();
+        }
+    }
+
+    std::shared_ptr<MKLDNNInputNode> getOutput(size_t idx) const {
+        if (idx < outputs.size()) {
+            return outputs[idx];
+        } else {
+            IE_THROW(OutOfBounds) << "Unexpected output index in MKLDNNConvolutionNode::fusedSubgraph::getInput idx=" << idx
+                                  << " inputs.size()=" << outputs.size();
+        }
+    }
+
+    void infer() {
+        _graph->ResetInferCount();
+        _graph->Infer();
+    }
+
+private:
+    std::unique_ptr<MKLDNNGraph> _graph;
+    std::vector<std::shared_ptr<MKLDNNInputNode>> inputs;
+    std::vector<std::shared_ptr<MKLDNNInputNode>> outputs;
+};
 
 bool MKLDNNConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -418,6 +494,9 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const Vecto
 
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
+                if (withSumBroadcast) {
+                    break;
+                }
                 ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps || eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
@@ -536,7 +615,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
 
                     if (withSum) {
                         dataConfig.inPlace(-1);
-                        dataConfig.setMemDesc(dataConfig.getMemDesc()->cloneWithNewPrecision(dataConfig.getMemDesc()->getPrecision()));
+                        dataConfig.setMemDesc(getSumMemDesc(itpd)->cloneWithNewPrecision(dataConfig.getMemDesc()->getPrecision()));
                         config.inConfs.push_back(dataConfig);
                     }
                 }
@@ -993,7 +1072,7 @@ InferenceEngine::Blob::Ptr MKLDNNConvolutionNode::createInternalBlob(InferenceEn
 void MKLDNNConvolutionNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
-    auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    auto dstMemPtr = getOutputMemory();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory was not allocated.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -1030,7 +1109,7 @@ void MKLDNNConvolutionNode::prepareParams() {
     AttrPtr pAttrLocal;
 
     if (isDynamicNode()) {
-        if (!pAttr) {
+        if (!pAttr || withSum) {
             pAttr = initPrimitiveAttr();
         }
         pAttrLocal = pAttr;
@@ -1197,6 +1276,23 @@ void MKLDNNConvolutionNode::execute(mkldnn::stream strm) {
 
 void MKLDNNConvolutionNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
+    if (withSumBroadcast) {
+        if (!subgraph) {
+            IE_THROW(Unexpected) << "Fused ops subgraph has not been created in " << getTypeStr() << " with name " << getName();
+        }
+        const size_t sumPortNum = getParentEdges().size() - 1;
+        const auto& sumInpMem = getParentEdgesAtPort(sumPortNum).front()->getMemory();
+        auto inp1 = subgraph->getInput(1);
+        inp1->getChildEdgesAtPort(0).front()->getMemoryPtr()->setDataHandle(sumInpMem.GetData());
+
+        subgraph->infer();
+
+        auto out = subgraph->getOutput(0);
+        const auto& outMem = out->getParentEdgesAtPort(0).front()->getMemory();
+        auto convOutMem = getChildEdgesAtPort(0).front()->getMemoryPtr();
+        convOutMem->redefineDesc(getBaseMemDescAtOutputPort(0)->cloneWithNewDims(outMem.getStaticDims()));
+        convOutMem->SetData(outMem);
+    }
 }
 
 void MKLDNNConvolutionNode::updatePadding() {
@@ -1204,6 +1300,48 @@ void MKLDNNConvolutionNode::updatePadding() {
     if (isDynamicNode() && autoPadding) {
         paddingL = shapeInference->get_pads_begin();
         paddingR = shapeInference->get_pads_end();
+    }
+}
+
+void MKLDNNConvolutionNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
+    if (withSum) {
+        const size_t sumPortNum = getParentEdges().size() - 1;
+        const auto& sumInpMem = getParentEdgesAtPort(sumPortNum).front()->getMemory();
+        if (newOutputShapes.front() != sumInpMem.getStaticDims()) {
+            withSumBroadcast = true;
+            if (!subgraph) {
+                subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, weightCache);
+            }
+            auto inp0 = subgraph->getInput(0);
+            inp0->redefineOutputMemory(newOutputShapes);
+
+            auto inp1 = subgraph->getInput(1);
+            inp1->redefineOutputMemory({sumInpMem.getStaticDims()});
+            // here we postpone output memory reallocation due to the fact that it is the same memory with the sum second input
+            return;
+        } else {
+            withSumBroadcast = false;
+        }
+    }
+    MKLDNNNode::redefineOutputMemory(newOutputShapes);
+}
+
+MemoryDescPtr MKLDNNConvolutionNode::getSumMemDesc(primitive_desc_iterator &primitive_desc_it) {
+    if (getOutputShapeAtPort(0).isDynamic()) {
+        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), getInputShapeAtPort(getParentEdges().size() - 1));
+    }
+    return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(0));
+}
+
+MKLDNNMemoryPtr MKLDNNConvolutionNode::getOutputMemory() const {
+    if (withSumBroadcast) {
+        if (!subgraph) {
+            IE_THROW(Unexpected) << "Fused ops subgraph has not been created in " << getTypeStr() << " with name " << getName();
+        }
+        auto inp0 = subgraph->getInput(0);
+        return inp0->getChildEdgesAtPort(0).front()->getMemoryPtr();
+    } else {
+        return getChildEdgesAtPort(0).front()->getMemoryPtr();
     }
 }
 
@@ -1218,5 +1356,4 @@ void MKLDNNConvolutionNode::appendZeroPointsArgs() {
         primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_DST] = outputCompensationMemPtr->GetPrimitive();
     }
 }
-
 REG_MKLDNN_PRIM_FOR(MKLDNNConvolutionNode, Convolution);
