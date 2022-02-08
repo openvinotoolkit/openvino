@@ -226,7 +226,80 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof_mixed
     }
 }
 
-TEST(TransformationTests, BroadcastConstRangeReplacement_reshape) {
+TEST_F(TransformationTestsF, BroadcastConstRangeReplacementNeg_other_mode) {
+    {
+        constexpr auto elem_count = 236;
+        constexpr auto data_elem_type = element::i32;
+        constexpr auto target_shape_elem_type = element::i64;
+
+        std::vector<int32_t> sequence_pattern(elem_count);
+        std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);
+        auto data_to_broadcast = ngraph::opset8::Constant::create(data_elem_type, {1, elem_count}, sequence_pattern);
+        auto target_shape = ngraph::opset8::Constant::create(target_shape_elem_type, {4}, {2, 3, 4, elem_count});
+        auto broadcast_node = std::make_shared<ngraph::opset8::Broadcast>(data_to_broadcast, target_shape, ngraph::op::BroadcastType::NUMPY);
+
+        function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
+
+        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+    }
+}
+
+TEST_F(TransformationTestsF, BroadcastConstRangeReplacementNeg_reversed_sequence) {
+    {
+        constexpr auto elem_count = 236;
+        constexpr auto data_elem_type = element::i32;
+        constexpr auto target_shape_elem_type = element::i64;
+
+        std::vector<int32_t> sequence_pattern(elem_count);
+        std::iota(sequence_pattern.rbegin(), sequence_pattern.rend(), 0);
+        auto data_to_broadcast = ngraph::opset8::Constant::create(data_elem_type, {1, elem_count}, sequence_pattern);
+        auto target_shape = ngraph::opset8::Constant::create(target_shape_elem_type, {4}, {2, 3, 4, elem_count});
+        auto broadcast_node = std::make_shared<ngraph::opset8::Broadcast>(data_to_broadcast, target_shape, ngraph::op::BroadcastType::BIDIRECTIONAL);
+
+        function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
+
+        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+    }
+}
+
+TEST_F(TransformationTestsF, BroadcastConstRangeReplacementNeg_too_small) {
+    {
+        constexpr auto elem_count = 4;
+        constexpr auto data_elem_type = element::i32;
+        constexpr auto target_shape_elem_type = element::i64;
+
+        std::vector<int32_t> sequence_pattern(elem_count);
+        std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);
+        auto data_to_broadcast = ngraph::opset8::Constant::create(data_elem_type, {1, elem_count}, sequence_pattern);
+        auto target_shape = ngraph::opset8::Constant::create(target_shape_elem_type, {4}, {2, 3, 4, elem_count});
+        auto broadcast_node = std::make_shared<ngraph::opset8::Broadcast>(data_to_broadcast, target_shape, ngraph::op::BroadcastType::NUMPY);
+
+        function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
+
+        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+    }
+}
+
+TEST_F(TransformationTestsF, BroadcastConstRangeReplacementNeg_too_big) {
+    {
+        constexpr auto elem_count = 1024;
+        constexpr auto data_elem_type = element::i32;
+        constexpr auto target_shape_elem_type = element::i64;
+
+        std::vector<int32_t> sequence_pattern(elem_count);
+        std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);
+        auto data_to_broadcast = ngraph::opset8::Constant::create(data_elem_type, {1, elem_count}, sequence_pattern);
+        auto target_shape = ngraph::opset8::Constant::create(target_shape_elem_type, {4}, {2, 3, 4, elem_count});
+        auto broadcast_node = std::make_shared<ngraph::opset8::Broadcast>(data_to_broadcast, target_shape, ngraph::op::BroadcastType::NUMPY);
+
+        function = std::make_shared<Function>(OutputVector{broadcast_node}, ParameterVector{});
+
+        manager.register_pass<pass::BroadcastConstRangeReplacement>();
+    }
+}
+
+// Model reshape call test
+TEST(SmartReshapeTests, BroadcastConstRangeReplacement_reshape) {
     {
         constexpr auto elem_count = 236;
         constexpr auto data_elem_type = element::i32;
