@@ -300,6 +300,8 @@ TEST_P(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
 
 TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     ov::Core ie = createCoreWithTemplate();
+
+    // priority config test
     ov::hint::Priority value;
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
@@ -310,6 +312,36 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
+
+    // profiling test
+    bool flag;
+    const bool enableFlag = true;
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::enable_profiling(enableFlag)));
+    OV_ASSERT_NO_THROW(flag = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::enable_profiling));
+    ASSERT_EQ(enableFlag, flag);
+
+    // batching test
+    bool batching;
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::allow_auto_batching(enableFlag)));
+    OV_ASSERT_NO_THROW(batching = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::allow_auto_batching));
+    ASSERT_EQ(enableFlag, batching);
+
+    // perf hint test
+    ov::hint::PerformanceMode mode;
+    uint32_t num_requests;
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
+    OV_ASSERT_NO_THROW(mode = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode));
+    ASSERT_EQ(ov::hint::PerformanceMode::THROUGHPUT, mode);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, {{ov::hint::performance_mode.name(), "ABC"}}), ov::Exception);
+    ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::num_requests(8)));
+    ASSERT_NO_THROW(num_requests = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::num_requests));
+    ASSERT_EQ(8, num_requests);
+
+    std::string deviceName = CommonTestUtils::DEVICE_CPU;
+    std::string devicePriority;
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::device::priorities(deviceName)));
+    OV_ASSERT_NO_THROW(devicePriority = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::device::priorities));
+    ASSERT_EQ(deviceName, devicePriority);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
