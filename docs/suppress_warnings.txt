@@ -93,3 +93,7 @@ unexpected html tag
 field list ends without a blank line
 bullet list ends without a blank line
 Error parsing content block for the \"list-table\" directive
+more than one target found for cross-reference
+unexpected indentation
+definition list ends without
+duplicate object description of
