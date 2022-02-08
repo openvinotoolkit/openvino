@@ -37,14 +37,8 @@ void regclass_CompiledModel(py::module m) {
             Creates an inference request object used to infer the compiled model.
             The created request has allocated input and output tensors.
 
-            Parameters
-            ----------
-            None
-
-            Returns
-            ----------
-            create_infer_request : openvino.runtime.InferRequest
-                New InferRequest object.
+            :return: New InferRequest object.
+            :rtype: openvino.runtime.InferRequest
         )");
 
     cls.def(
@@ -65,15 +59,10 @@ void regclass_CompiledModel(py::module m) {
             It is advised to use dedicated InferRequest class for performance,
             optimizing workflows and creating advanced pipelines.
 
-            Parameters
-            ----------
-            inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
-                Data to set on input tensors.
-
-            Returns
-            ----------
-            infer_new_request : dict[openvino.runtime.ConstOutput : numpy.array]
-                Dictionary of results from output tensors with ports as keys.
+            :param inputs: Data to set on input tensors.
+            :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :return: Dictionary of results from output tensors with ports as keys.
+            :rtype: dict[openvino.runtime.ConstOutput : numpy.array]
         )");
 
     cls.def(
@@ -86,25 +75,19 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Exports the compiled model to bytes/output stream.
 
-            Parameters
-            ----------
-            None
+            :return: Bytes object that contains this compiled model.
+            :rtype: bytes
 
-            Returns
-            ----------
-            export_model : bytes
-                Bytes object that contains this compiled model.
+            .. code-block:: python
+                
+                user_stream = compiled.export_model()
 
-            Examples
-            ----------
-            user_stream = compiled.export_model()
+                with open('./my_model', 'wb') as f:
+                    f.write(user_stream)
 
-            with open('./my_model', 'wb') as f:
-                f.write(user_stream)
+                # ...
 
-            # ...
-
-            new_compiled = core.import_model(user_stream, "CPU")
+                new_compiled = core.import_model(user_stream, "CPU")
         )");
 
     cls.def(
@@ -131,26 +114,21 @@ void regclass_CompiledModel(py::module m) {
             Function performs flushing of the stream, writes to it and then rewinds
             the stream to the beginning (using seek(0)).
 
-            Parameters
-            ----------
-            model_stream : io.BytesIO
-                A stream object to which the model will be serialized.
+            :param model_stream: A stream object to which the model will be serialized.
+            :type model_stream: io.BytesIO
+            :rtype: None
 
-            Returns
-            ----------
-            export_model : None
+            .. code-block: python
+            
+                user_stream = io.BytesIO()
+                compiled.export_model(user_stream)
 
-            Examples
-            ----------
-            user_stream = io.BytesIO()
-            compiled.export_model(user_stream)
+                with open('./my_model', 'wb') as f:
+                    f.write(user_stream.getvalue()) # or read() if seek(0) was applied before
 
-            with open('./my_model', 'wb') as f:
-                f.write(user_stream.getvalue()) # or read() if seek(0) was applied before
+                # ...
 
-            # ...
-
-            new_compiled = core.import_model(user_stream, "CPU")
+                new_compiled = core.import_model(user_stream, "CPU")
         )");
 
     cls.def(
@@ -166,14 +144,9 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Sets properties for current compiled model.
 
-            Parameters
-            ----------
-            properties : dict
-                Dict of pairs: (property name, property value)
-
-            Returns
-            ----------
-            set_property : None
+            :param properties: Dict of pairs: (property name, property value)
+            :type properties: dict
+            :rtype: None
         )");
 
     // todo: remove after Accuracy Checker migration to set/get_property API
@@ -194,14 +167,9 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Gets properties for current compiled model.
 
-            Parameters
-            ----------
-            name : str
-                Property name.
-
-            Returns
-            ----------
-            get_property : Any
+            :param name: Property name.
+            :type name: str
+            :rtype: Any
         )");
 
     // todo: remove after Accuracy Checker migration to set/get_property API
@@ -223,14 +191,8 @@ void regclass_CompiledModel(py::module m) {
                 runtime information and can be used only to understand how the source model
                 is optimized and which kernels, element types and layouts are selected.
 
-                Parameters
-                ----------
-                None
-
-                Returns
-                ----------
-                get_runtime_model : openvino.runtime.Model
-                    Model containing Executable Graph information.
+                :return: Model containing Executable Graph information.
+                :rtype: openvino.runtime.Model
             )");
 
     cls.def_property_readonly("inputs",
@@ -249,14 +211,8 @@ void regclass_CompiledModel(py::module m) {
                 Gets a single input of a compiled model.
                 If a model has more than one input, this method throws an exception.
 
-                Parameters
-                ----------
-                None
-
-                Returns
-                ----------
-                input : openvino.runtime.ConstOutput
-                    A compiled model input.
+                :return: A compiled model input.
+                :rtype: openvino.runtime.ConstOutput
             )");
 
     cls.def("input",
@@ -266,15 +222,10 @@ void regclass_CompiledModel(py::module m) {
                 Gets input of a compiled model identified by an index.
                 If an input with given index is not found, this method throws an exception.
 
-                Parameters
-                ----------
-                index : int
-                    An input index.
-
-                Returns
-                ----------
-                input : openvino.runtime.ConstOutput
-                    A compiled model input.
+                :param index: An input index.
+                :type index: int
+                :return: A compiled model input.
+                :rtype: openvino.runtime.ConstOutput
             )");
 
     cls.def("input",
@@ -284,15 +235,10 @@ void regclass_CompiledModel(py::module m) {
                 Gets input of a compiled model identified by a tensor_name.
                 If an input with given tensor name is not found, this method throws an exception.
 
-                Parameters
-                ----------
-                tensor_name : str
-                    An input tensor's name.
-
-                Returns
-                ----------
-                input : openvino.runtime.ConstOutput
-                    A compiled model input.
+                :param tensor_name: An input tensor's name.
+                :type tensor_name: str
+                :return: A compiled model input.
+                :rtype: openvino.runtime.ConstOutput
             )");
 
     cls.def_property_readonly("outputs",
@@ -311,14 +257,8 @@ void regclass_CompiledModel(py::module m) {
                 Gets a single output of a compiled model.
                 If a model has more than one output, this method throws an exception.
 
-                Parameters
-                ----------
-                None
-
-                Returns
-                ----------
-                output : openvino.runtime.ConstOutput
-                    A compiled model output.
+                :return: A compiled model output.
+                :rtype: openvino.runtime.ConstOutput
             )");
 
     cls.def("output",
@@ -328,15 +268,10 @@ void regclass_CompiledModel(py::module m) {
                 Gets output of a compiled model identified by an index.
                 If an output with given index is not found, this method throws an exception.
 
-                Parameters
-                ----------
-                index : int
-                    An output index.
-
-                Returns
-                ----------
-                output : openvino.runtime.ConstOutput
-                    A compiled model output.
+                :param index: An output index.
+                :type index: int
+                :return: A compiled model output.
+                :rtype: openvino.runtime.ConstOutput
             )");
 
     cls.def("output",
@@ -351,9 +286,9 @@ void regclass_CompiledModel(py::module m) {
                 tensor_name : str
                     An output tensor's name.
 
-                Returns
-                ----------
-                output : openvino.runtime.ConstOutput
-                    A compiled model output.
+                :param tensor_name: An output tensor's name.
+                :type tensor_name: str
+                :return: A compiled model output.
+                :rtype: openvino.runtime.ConstOutput
             )");
 }

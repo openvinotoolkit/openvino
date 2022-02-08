@@ -169,19 +169,12 @@ void regclass_AsyncInferQueue(py::module m) {
             R"(
                 Creates AsyncInferQueue.
 
-                Parameters
-                ----------
-                model : openvino.runtime.CompiledModel
-                    Model to be used to create InferRequests in a pool.
-
-                jobs : int
-                    Number of InferRequests objects in a pool. If 0, jobs number
-                    will be set automatically to the optimal number.
-                    Default: 0
-
-                Returns
-                ----------
-                __init__ : openvino.runtime.AsyncInferQueue
+                :param model: Model to be used to create InferRequests in a pool.
+                :type model: openvino.runtime.CompiledModel
+                :param jobs: Number of InferRequests objects in a pool. If 0, jobs number
+                will be set automatically to the optimal number. Default: 0
+                :type jobs: int
+                :rtype: openvino.runtime.AsyncInferQueue
             )");
 
     cls.def(
@@ -211,18 +204,11 @@ void regclass_AsyncInferQueue(py::module m) {
             This function releases the GIL, so another Python thread can
             work while this function runs in the background.
 
-            Parameters
-            ----------
-            inputs : dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
-                Data to set on input tensors of next available InferRequest from
-                AsyncInferQueue's pool.
-
-            userdata : Any
-                Any data that will be passed to a callback.
-
-            Returns
-            ----------
-            start_async : None
+            :param inputs: Data to set on input tensors of next available InferRequest from
+            AsyncInferQueue's pool.
+            :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :param userdata: Any data that will be passed to a callback
+            :rtype: None
         )");
 
     cls.def(
@@ -236,14 +222,8 @@ void regclass_AsyncInferQueue(py::module m) {
 
             Function releases GIL, other threads can work while this function waits.
 
-            Parameters
-            ----------
-            None
-
-            Returns
-            ----------
-            is_ready : bool
-                If there is at least one free InferRequest in a pool, returns True.
+            :return: If there is at least one free InferRequest in a pool, returns True.
+            :rtype: bool
     )");
 
     cls.def(
@@ -257,13 +237,7 @@ void regclass_AsyncInferQueue(py::module m) {
 
         Function releases GIL, other threads can work while this function waits.
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        ----------
-        wait_all : None
+        :rtype: None
     )");
 
     cls.def(
@@ -272,18 +246,12 @@ void regclass_AsyncInferQueue(py::module m) {
             return self.get_idle_request_id();
         },
         R"(
-        Returns next free id of InferRequest from queue's pool. Blocking call.
+        Returns next free id of InferRequest from queue's pool.
         Function waits for any request to complete and then returns this request's id.
 
         Function releases GIL, other threads can work while this function waits.
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        ----------
-        get_idle_request_id : int
+        :rtype: int
     )");
 
     cls.def(
@@ -297,7 +265,7 @@ void regclass_AsyncInferQueue(py::module m) {
         first one is InferRequest object and second one is userdata
         connected to InferRequest from the AsyncInferQueue's pool.
 
-        Example:
+        .. code-block:: python
 
             def f(request, userdata):
                 result = request.output_tensors[0]
@@ -305,14 +273,9 @@ void regclass_AsyncInferQueue(py::module m) {
 
             async_infer_queue.set_callback(f)
 
-        Parameters
-        ----------
-        callback : function
-            Any Python defined function that matches callback's requirements.
-
-        Returns
-        ----------
-        set_callback : None
+        :param callback: Any Python defined function that matches callback's requirements.
+        :type callback: function
+        :rtype: None
     )");
 
     cls.def(
@@ -321,10 +284,9 @@ void regclass_AsyncInferQueue(py::module m) {
             return self._requests.size();
         },
         R"(
-        Returns
-        ----------
-        __len__ : int
-            Number of InferRequests in the pool.
+        Number of InferRequests in the pool.
+        
+        :rtype: int
     )");
 
     cls.def(
@@ -340,15 +302,10 @@ void regclass_AsyncInferQueue(py::module m) {
             return self._requests[i];
         },
         R"(
-        Parameters
-        ----------
-        i : int
-            InferRequest id. 
-
-        Returns
-        ----------
-        __getitem__ : openvino.runtime.InferRequest
-            InferRequests from the pool with given id.
+        :param i: InferRequest id
+        :type i: int
+        :return: InferRequests from the pool with given id.
+        :rtype: openvino.runtime.InferRequest
     )");
 
     cls.def_property_readonly(
@@ -357,9 +314,7 @@ void regclass_AsyncInferQueue(py::module m) {
             return self._user_ids;
         },
         R"(
-        Returns
-        ----------
-        userdata : list[Any]
-            List of all passed userdata. None if the data wasn't passed yet.
+        :return: List of all passed userdata. None if the data wasn't passed yet.
+        :rtype: list[Any]
     )");
 }

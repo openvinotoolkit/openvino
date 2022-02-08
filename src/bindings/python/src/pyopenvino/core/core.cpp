@@ -585,14 +585,8 @@ void regclass_Core(py::module m) {
             R"(
                 Registers an extension to a Core object.
 
-                Parameters
-                ----------
-                library_path : str
-                    Path to library with ov::Extension
-
-                Returns
-                ----------
-                add_extension : None
+                :param library_path: Path to library with ov::Extension
+                :type library_path: str
             )");
 
     cls.def("add_extension",
@@ -600,15 +594,9 @@ void regclass_Core(py::module m) {
             py::arg("extension"),
             R"(
                 Registers an extension to a Core object.
-
-                Parameters
-                ----------
-                extension : openvino.runtime.Extension
-                    Extension object.
-
-                Returns
-                ----------
-                add_extension : None
+                
+                :param extension: Extension object.
+                :type extension: openvino.runtime.Extension
             )");
 
     cls.def(
@@ -618,14 +606,8 @@ void regclass_Core(py::module m) {
         R"(
             Registers extensions to a Core object.
 
-            Parameters
-            ----------
-            extensions : list[openvino.runtime.Extension]
-                List of Extension objects.
-
-            Returns
-            ----------
-            add_extension : None
+            :param extensions: List of Extension objects.
+            :type extensions: list[openvino.runtime.Extension]
         )");
 
     cls.def_property_readonly("available_devices",
@@ -633,12 +615,10 @@ void regclass_Core(py::module m) {
                               R"(
                                     Returns devices available for inference Core objects goes over all registered plugins.
 
-                                    Returns
-                                    ----------
-                                    available_devices : list
-                                        A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, MYRIAD...
+                                    :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, MYRIAD...
                                         If there more than one device of specific type, they are enumerated with .# suffix.
                                         Such enumerated device can later be used as a device name in all Core methods like:
                                         compile_model, query_model, set_property and so on.
+                                    :rtype: list
                                 )");
 }

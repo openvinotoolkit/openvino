@@ -148,24 +148,25 @@ void regmodule_offline_transformations(py::module m) {
         R"(
             Serialize given model into IR. The generated .xml and .bin files will be save
             into provided paths.
-            Parameters
-            ----------
-            model : openvino.runtime.Model
-                model which will be converted to IR representation
-            xml_path : str
-                path where .xml file will be saved
-            bin_path : str
-                path where .bin file will be saved
-            version : str
-                sets the version of the IR which will be generated.
-                Supported versions are:
-                                - "UNSPECIFIED" (default) : Use the latest or model version
-                                - "IR_V10" : v10 IR
-                                - "IR_V11" : v11 IR
 
-            Examples:
-            ----------
+            :param model: model which will be converted to IR representation
+            :type model: openvino.runtime.Model
+            :param xml_path: path where .xml file will be saved
+            :type xml_path: str
+            :param bin_path: path where .bin file will be saved
+            :type bin_path: str
+            :param version: sets the version of the IR which will be generated.
+            Supported versions are:
+            - "UNSPECIFIED" (default) : Use the latest or model version
+            - "IR_V10" : v10 IR
+            - "IR_V11" : v11 IR
+    
+            :Examples:
+            
             1. Default IR version:
+            
+            .. code-block:: python
+                
                 shape = [2, 2]
                 parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
                 parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -176,13 +177,15 @@ void regmodule_offline_transformations(py::module m) {
                 serialize(func, model_path="./serialized.xml", weights_path="./serialized.bin")
 
             2. IR version 11:
-                shape = [2, 2]
+            
+            .. code-block:: python
+
                 parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
                 parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
                 parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
                 model = (parameter_a + parameter_b) * parameter_c
                 func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
                 # IR generated with default version 
-                serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")    
+                serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")
         )");
 }

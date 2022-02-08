@@ -1,5 +1,5 @@
-Inference Engine Python API
-===========================
+OpenVINO Python API
+===================
 
 .. autosummary::
    :toctree: _autosummary
@@ -13,6 +13,73 @@ Inference Engine Python API
 
    openvino.runtime
 
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.op
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.opset1
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.opset2
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.opset3
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.opset4
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.opset5
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.opset6
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.opset7
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.opset8
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.passes
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.runtime.utils
+
 .. autosummary::
    :toctree: _autosummary
    :template: custom-module-template.rst
@@ -24,6 +91,12 @@ Inference Engine Python API
    :template: custom-module-template.rst
 
    openvino.frontend
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.offline_transformations
 
 .. autosummary::
    :toctree: _autosummary
