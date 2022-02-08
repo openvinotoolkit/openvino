@@ -207,12 +207,12 @@ public:
 
 private:
     bool m_is_shape_like{false};
-    // Flag - if a constant this mask is related to should be pruned
-    // by value. Only 1D constants could be pruned by value and
-    // number of mask dimensions should be equal to number of elements
-    // in the constant. Each value of the constant at index i
-    // decreasing by number of elements in i'th mask dimension.
-    // The constant is typically interpetated as a shape
+    // Flag is true if this mask should be interpretated in special way:
+    // Each value of the constant at index i decreasing by a number
+    // of elements in i'th mask dimension during weights shrinking pass.
+    // Only a 1D constants could be pruned in this way and
+    // the number of mask dimensions should be equal to the number of elements
+    // in the constant. The constant is typically interpetated as a shape
     // of some operation.
     bool m_adjust_value{false};
 
