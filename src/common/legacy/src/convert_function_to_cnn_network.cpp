@@ -542,6 +542,26 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
         }
         return res;
     });
+    addSpecificCreator({"GNAMaxPool"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        std::cout << __FILE__ << ":" << __LINE__ << " addSpecificCreator GNAMaxPool" << std::endl;
+        LayerParams attrs = {node->get_friendly_name(), "Pooling",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<PoolingLayer>(attrs);
+        res->params = params;
+        if (res->params.find("auto_pad") != res->params.end() &&
+            details::CaselessEq<std::string>()(res->params["auto_pad"], "EXPLICIT"))
+            res->params.erase("auto_pad");
+
+        if (res->params.find("exclude_pad") != res->params.end()) {
+            res->params["exclude-pad"] = res->params["exclude_pad"];
+            res->params.erase("exclude_pad");
+        }
+
+        res->params["pool-method"] = "max";
+
+        return res;
+    });
     addSpecificCreator({"Select"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
@@ -1779,9 +1799,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         const auto isGNAConvolution = [](const std::shared_ptr<::ngraph::Node> &node) -> bool {
             return (node->get_friendly_name().find("gna_convolution") != std::string::npos);
         };
+        const auto isGNAMaxPool = [](const std::shared_ptr<::ngraph::Node> &node) -> bool {
+            return (node->get_friendly_name().find("gna_max_pool") != std::string::npos);
+        };
 
         if (((::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
             isGNAConvolution(consumerLayer) ||
+            isGNAMaxPool(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer)) && !keep_constants) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||

@@ -40,6 +40,7 @@ public:
             const ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT);
 
     void validate_and_infer_types() override;
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     /// \return The kernel shape.
     const ngraph::Shape& get_kernel() const {

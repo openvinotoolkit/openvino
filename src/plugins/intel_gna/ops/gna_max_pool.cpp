@@ -140,6 +140,16 @@ GNAMaxPool::GNAMaxPool(const ngraph::Output<ngraph::Node>& arg,
     constructor_validate_and_infer_types();
 }
 
+bool GNAMaxPool::visit_attributes(ov::AttributeVisitor& visitor) {
+    visitor.on_attribute("strides", m_strides);
+    visitor.on_attribute("pads_begin", m_pads_begin);
+    visitor.on_attribute("pads_end", m_pads_end);
+    visitor.on_attribute("kernel", m_kernel);
+    visitor.on_attribute("rounding_type", m_rounding_type);
+    visitor.on_attribute("auto_pad", m_auto_pad);
+    return true;
+}
+
 void GNAMaxPool::validate_and_infer_types() {
 
     if (0 == m_strides.size()) {
