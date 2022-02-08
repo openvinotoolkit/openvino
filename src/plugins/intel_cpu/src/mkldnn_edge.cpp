@@ -219,7 +219,9 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
 MKLDNNEdge::ReorderStatus MKLDNNEdge::needReorder() {
     bool optimized = false;
     if (!getInputDesc().isCompatible(getOutputDesc())) {
-        if (isPhycicalMemCompatible(getInputDesc(), getOutputDesc()) && !getParent()->isConstant()) {
+        // In case the reorder is connected with output layer, Op->Reorder->Output
+        // the optimized reorder will cause the single-threded copy that drops the performance.
+        if (isPhycicalMemCompatible(getInputDesc(), getOutputDesc()) && !getParent()->isConstant() && getChild()->getType() != Output) {
             optimized = true;
         } else {
             return ReorderStatus::Regular;
