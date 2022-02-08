@@ -172,9 +172,9 @@ def test_batched_tensors(device):
     core = Core()
 
     if platform == "win32":
-        core.add_extension(library_path="ov_template_extension.dll")
+        core.add_extension(library_path="openvino_template_extension.dll")
     else:
-        core.add_extension(library_path="libov_template_extension.so")
+        core.add_extension(library_path="libopenvino_template_extension.so")
 
     data1 = ops.parameter(batch_shape, np.float32)
     data1.set_friendly_name("input0")

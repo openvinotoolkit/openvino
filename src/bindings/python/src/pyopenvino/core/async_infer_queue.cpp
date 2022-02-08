@@ -232,8 +232,9 @@ void regclass_AsyncInferQueue(py::module m) {
         },
         R"(
             One of 'flow control' functions.
-            Blocks while waiting for any free request in the pool and after that it
-            either returns True or throws exception catched inside callbacks.
+            Returns True if any free request in the pool, otherwise False.
+
+            Function releases GIL, other threads can work while this function waits.
 
             Parameters
             ----------
@@ -254,6 +255,8 @@ void regclass_AsyncInferQueue(py::module m) {
         One of 'flow control' functions. Blocking call.
         Waits for all InferRequests in a pool to finish scheduled work. 
 
+        Function releases GIL, other threads can work while this function waits.
+
         Parameters
         ----------
         None
@@ -271,6 +274,8 @@ void regclass_AsyncInferQueue(py::module m) {
         R"(
         Returns next free id of InferRequest from queue's pool. Blocking call.
         Function waits for any request to complete and then returns this request's id.
+
+        Function releases GIL, other threads can work while this function waits.
 
         Parameters
         ----------
