@@ -154,18 +154,19 @@ public:
         return result_mask;
     }
 
-    //bool add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
-    //    if (m_callbacks.find(mask.get()) != m_callbacks.end()) return false;
+    bool add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+        if (m_callbacks.find(mask.get()) != m_callbacks.end())
+            throw std::runtime_error("Attempt to rewrite callback, leads to unexpected behaviour");
 
-    //    m_callbacks[mask.get()] = receive_callback;
-    //    m_dependencies.push_back(mask.get());
-    //    return true;
-    //}
-
-    void add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());
+        return true;
     }
+
+    //void add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+    //    m_callbacks[mask.get()] = receive_callback;
+    //    m_dependencies.push_back(mask.get());
+    //}
 
     std::function<bool(Mask::Ptr)> get_callback(Mask::Ptr mask) {
         return m_callbacks[mask.get()];
