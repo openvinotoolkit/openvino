@@ -77,24 +77,6 @@ protected:
 
         ASSERT_TRUE(descDnnl.isCompatible(descCpu));
         ASSERT_TRUE(descCpu.isCompatible(descDnnl));
-
-        // undefined
-        VectorDims undefDnnlStrides(descDnnl.getBlockDims().size(), Shape::UNDEFINED_DIM);
-        std::fill(undefDnnlStrides.begin() + descDnnl.getShape().getRank(), undefDnnlStrides.end(), 0);
-        const auto undefDnnl = descDnnl.cloneWithUndefStridesAndOffset();
-        validate(*undefDnnl->as<BlockedMemoryDesc>(), undefDnnlStrides, Shape::UNDEFINED_DIM, offsetPadding, Shape::UNDEFINED_DIM);
-
-        VectorDims undefCpuStrides(descCpu.getBlockDims().size(), Shape::UNDEFINED_DIM);
-        const auto undefCpu = descCpu.cloneWithUndefStridesAndOffset();
-        validate(*undefCpu->as<BlockedMemoryDesc>(), undefCpuStrides, Shape::UNDEFINED_DIM, offsetPadding,
-                  Shape::UNDEFINED_DIM);
-
-        // defined
-        const auto definedDnnl = descDnnl.cloneWithDefaultStridesAndOffset();
-        validate(*definedDnnl->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0);
-
-        const auto definedCpu = descCpu.cloneWithDefaultStridesAndOffset();
-        validate(*definedCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0);
     }
 };
 
