@@ -263,7 +263,21 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     if ((inputRank < 3) || (inputRank > 5))
         IE_THROW() << "Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.";
 
-    initEffectiveAttributes(MemoryDescUtils::makeDummyShape(parentShape),
+    inShape = MemoryDescUtils::makeDummyShape(parentShape);
+    if (isDynamicNode()) {
+        const auto& origDims = parentShape.getDims();
+        const auto& origMaxDims = parentShape.getMaxDims();
+
+        auto inDims = inShape.getStaticDims();
+        for (size_t i = 0; i < inDims.size() - 2; i++) {
+            if (origDims[i + 2] == Shape::UNDEFINED_DIM) {
+                inDims[i + 2] = std::min<Dim>(origMaxDims[i + 2], std::max<Dim>(inDims[i + 2], kernel[i]));
+            }
+        }
+        inShape = Shape(inDims);
+    }
+
+    initEffectiveAttributes(inShape,
                             MemoryDescUtils::makeDummyShape(childShape));
 
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
@@ -428,7 +442,7 @@ std::shared_ptr<pooling_v2_forward::desc> MKLDNNPoolingNode::createDescriptorInt
 
 void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                          const std::vector<MemoryDescPtr> &outputDesc) {
-    auto inDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
+    auto inDesc = inputDesc[0]->isDefined() ? inputDesc[0] : inputDesc[0]->cloneWithNewDims(inShape.getStaticDims());
     auto dnnlInDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inDesc);
     auto in_candidate = dnnlInDesc->getDnnlDesc();
 

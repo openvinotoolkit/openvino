@@ -46,6 +46,8 @@ private:
 
     AttrPtr pAttr;
 
+    Shape inShape;
+
     bool isMaxPool8 = false;
     bool auto_pad = false;
     bool exclude_pad = false;
