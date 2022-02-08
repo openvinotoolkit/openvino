@@ -80,6 +80,38 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
+void MKLDNNGraph::CreateGraph(const std::vector<MKLDNNNodePtr> &graphNodes,
+                              const std::vector<MKLDNNEdgePtr> &graphEdges,
+                              MKLDNNWeightsSharing::Ptr &w_cache,
+                              std::string name) {
+    if (IsReady())
+        ForgetGraphData();
+    // disable weights caching if graph was created only once
+    weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
+
+    rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
+
+    this->_name = std::move(name);
+    this->reuse_io_tensors = false;
+
+    this->graphNodes = graphNodes;
+    this->graphEdges = graphEdges;
+
+    for (auto node : graphNodes) {
+        if (Type::Input == node->getType()) {
+            inputNodesMap[node->getName()] = node;
+        } else if (Type::Output == node->getType()) {
+            outputNodesMap[node->getName()] = node;
+        }
+    }
+
+    InitGraph();
+
+    status = Ready;
+
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
+}
+
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
         const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 template void MKLDNNGraph::CreateGraph(const CNNNetwork&,
