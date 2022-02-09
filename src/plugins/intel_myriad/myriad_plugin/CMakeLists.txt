@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ov_intel_myriad_plugin")
+set(TARGET_NAME "openvino_intel_myriad_plugin")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 

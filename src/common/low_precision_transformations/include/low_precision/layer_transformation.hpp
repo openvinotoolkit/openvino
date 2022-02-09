@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <limits>
 #include <list>
 #include <memory>
@@ -76,6 +77,9 @@ public:
             hasZeroPoint(hasZeroPoint) {}
 
     bool empty() const noexcept {
+        assert(
+            ((precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
+            ((precision != element::undefined) && (max != 0.f)));
         return (precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
     }
 
@@ -310,7 +314,7 @@ public:
     static DataPrecision getDataPrecision(
             const std::shared_ptr<Node>& layer,
             const QuantizationDetails& quantizationDetails,
-            const std::vector<element::Type>& precisions);
+            const std::vector<element::Type>& requiredPrecisions);
 
     static void setDefaultPrecisions(const std::vector<ngraph::element::Type>& precisions);
     static std::vector<ngraph::element::Type> getDefaultPrecisions();

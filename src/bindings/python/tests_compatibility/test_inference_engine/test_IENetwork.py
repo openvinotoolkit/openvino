@@ -284,7 +284,7 @@ def test_create_two_exec_net():
     function = create_relu([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)
     ie_core = IECore()
-    ie_core.register_plugin("ov_template_plugin", "TEMPLATE")
+    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
     exec_net1 = ie_core.load_network(net, "TEMPLATE", num_requests=2)
     assert ng.function_from_cnn(net) != None
     exec_net2 = ie_core.load_network(net, "TEMPLATE", num_requests=2)

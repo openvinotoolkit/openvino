@@ -746,7 +746,7 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         assert(constPShape.is_static());
         const Shape constShape = constPShape.to_shape();
 
-        if (constShape.empty() || constShape.size() > 5lu) {
+        if (constShape.size() > 5lu) {
             THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected dimensions count " << constShape.size();
         }
         if (outChannelsShapeIndex != 0 && outChannelsShapeIndex != 1) {
@@ -756,8 +756,8 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         size_t OC;
         size_t IC;
         // OIDHW or IODHW
-        if (constShape.size() == 1) {
-            OC = constShape[0];
+        if (constShape.size() <= 1) {
+            OC = constShape.empty() ? 1ul : constShape[0];
             IC = 1;
         } else {
             OC = constShape[outChannelsShapeIndex];
@@ -1771,8 +1771,8 @@ std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelpe
     const auto concat_axis = concatNode->get_concatenation_axis();
     std::vector<unsigned int> shape_axis(number_of_concat_inputs);
     for (size_t i{ 0 }; i < number_of_concat_inputs; ++i) {
-        auto shape = concat->get_input_shape(i);
-        shape_axis[i] = shape[concat_axis];
+        auto shape = concat->get_input_partial_shape(i);
+        shape_axis[i] = shape[concat_axis].get_length();
     }
     for (size_t i = 0; i < currConstants.size(); ++i) {
         std::vector<std::shared_ptr<ngraph::opset1::Constant>> newConstant;

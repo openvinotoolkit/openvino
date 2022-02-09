@@ -30,8 +30,8 @@ def test_ngraph_function_api():
 
     assert parameter_a.element_type == Type.f32
     assert parameter_a.partial_shape == PartialShape([2, 2])
-    parameter_a.layout = ov.Layout("NCWH")
-    assert parameter_a.layout == ov.Layout("NCWH")
+    parameter_a.layout = ov.Layout("NC")
+    assert parameter_a.layout == ov.Layout("NC")
     function = Model(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
