@@ -25,23 +25,34 @@ add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
-ie_faster_build(${TARGET_NAME}
-    UNITY
-)
+add_library(${TARGET_NAME}_static_ie STATIC EXCLUDE_FROM_ALL
+            ${LIBRARY_SRC}
+            ${PUBLIC_HEADERS})
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
-                                     PRIVATE ngraph_reference openvino::runtime::dev)
+target_compile_definitions(${TARGET_NAME}_static_ie PRIVATE USE_STATIC_IE)
 
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+macro(finalize_libs)
+    foreach(target IN ITEMS ${ARGN})
+        ie_faster_build(${target}
+            UNITY
+        )
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+        target_link_libraries(${target} PUBLIC openvino::runtime
+                                        PRIVATE ngraph_reference openvino::runtime::dev)
 
-ie_mark_target_as_cc(${TARGET_NAME})
+        target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+                                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# LTO
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+        add_cpplint_target(${target}_cpplint FOR_TARGETS ${target})
 
+        ie_mark_target_as_cc(${target})
 
-# install
-ov_install_static_lib(${TARGET_NAME} core)
+        # LTO
+        set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+        # install
+        ov_install_static_lib(${target} core)
+    endforeach()
+endmacro()
+
+finalize_libs(${TARGET_NAME} ${TARGET_NAME}_static_ie)

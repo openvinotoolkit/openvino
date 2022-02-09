@@ -27,7 +27,7 @@ addIeTargetTest(
             ov_shape_inference
             inference_engine_s
             unitTestUtils
-            inference_engine_snippets
+            inference_engine_snippets_static_ie
             ngraphFunctions
         ADD_CPPLINT
         LABELS
