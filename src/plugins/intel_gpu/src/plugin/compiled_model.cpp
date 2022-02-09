@@ -13,6 +13,7 @@
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "threading/ie_cpu_streams_executor.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "ie_icore.hpp"
 
@@ -137,9 +138,45 @@ std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
 }
 
 InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) const {
+    const bool is_new_api = _plugin->GetCore()->isNewAPI();
     auto it = m_config.key_config_map.find(name);
     if (it != m_config.key_config_map.end()) {
-        return it->second;
+        std::string val = it->second;
+        if (is_new_api) {
+            if (name == ov::enable_profiling) {
+                return val == PluginConfigParams::YES ? true : false;
+            } else if (name == ov::hint::model_priority) {
+                return InferenceEngine::util::string_to_property(val, ov::hint::model_priority);
+            } else if (name == ov::intel_gpu::hint::host_task_priority) {
+                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::host_task_priority);
+            } else if (name == ov::intel_gpu::hint::queue_priority) {
+                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::queue_priority);
+            } else if (name == ov::intel_gpu::hint::queue_throttle) {
+                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::queue_throttle);
+            } else if (name == ov::intel_gpu::enable_loop_unrolling) {
+                return val == PluginConfigParams::YES ? true : false;
+            } else if (name == ov::cache_dir) {
+                return InferenceEngine::util::string_to_property(val, ov::cache_dir);
+            } else if (name == ov::hint::performance_mode) {
+                return InferenceEngine::util::string_to_property(val, ov::hint::performance_mode);
+            } else if (name == ov::compilation_num_threads) {
+                return InferenceEngine::util::string_to_property(val, ov::compilation_num_threads);
+            } else if (name == ov::streams::num) {
+                return InferenceEngine::util::string_to_property(val, ov::streams::num);
+            } else if (name == ov::hint::num_requests) {
+                return InferenceEngine::util::string_to_property(val, ov::hint::num_requests);
+            } else if (name == ov::device::id) {
+                return InferenceEngine::util::string_to_property(val, ov::device::id);
+            } else {
+                return val;
+            }
+        } else {
+            if (name == PluginConfigParams::KEY_MODEL_PRIORITY ||
+                name == GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY)
+                return Config::ConvertPropertyToLegacy(name, val);
+            else
+                return val;
+        }
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
@@ -154,15 +191,18 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::optimal_number_of_infer_requests.name(), PropertyMutability::RO},
 
             // Configs
-            PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
-            PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
-            PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
-            PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
-            PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
-            PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
-            PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
-            PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
-            PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW}
+            ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::streams::num.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::id.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {
         IE_ASSERT(!m_graphs.empty());
