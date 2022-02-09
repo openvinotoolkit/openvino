@@ -74,11 +74,7 @@ INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly,
                          ::testing::ValuesIn(devices));
 
 INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly,
-                         OVClassGetMetricTest_SUPPORTED_METRICS,
-                         ::testing::ValuesIn(devices));
-
-INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly,
-                         OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
+                         OVClassGetMetricTest_SUPPORTED_PROPERTIES,
                          ::testing::ValuesIn(devices));
 
 INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly,

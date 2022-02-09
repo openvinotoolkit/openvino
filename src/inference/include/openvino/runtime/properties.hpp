@@ -158,10 +158,9 @@ struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, Proper
 };
 
 /**
- * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properties.
+ * @brief Read-only property to get a std::vector<PropertyName> of supported properties.
  *
  * This can be used as a compiled model property as well.
- *
  */
 static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> supported_properties{
     "SUPPORTED_PROPERTIES"};

@@ -27,11 +27,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassNetworkTestP, OVClassNetworkTestP
 //
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("GNA", "MULTI", "HETERO"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_SUPPORTED_METRICS,
+        OVClassGetMetricTest_SUPPORTED_PROPERTIES,
         ::testing::Values("GNA", "MULTI", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,

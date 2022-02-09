@@ -32,11 +32,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassNetworkTestP, OVClassNetworkTestP, ::tes
 //
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_SUPPORTED_METRICS,
+        OVClassGetMetricTest_SUPPORTED_PROPERTIES,
         ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,

@@ -29,9 +29,9 @@ namespace behavior {
 
 
 using OVClassImportExportTestP = OVClassBaseTestP;
-using OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
+using OVClassExecutableNetworkGetMetricTest_SUPPORTED_PROPERTIES = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVClassBaseTestP;
-using OVClassExecutableNetworkGetMetricTest_NETWORK_NAME = OVClassBaseTestP;
+using OVClassExecutableNetworkGetMetricTest_MODEL_NAME = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported = OVClassBaseTestP;
 using OVClassExecutableNetworkGetConfigTest = OVClassBaseTestP;
@@ -99,7 +99,7 @@ TEST_P(OVClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
 //
 // ExecutableNetwork GetMetric / GetConfig
 //
-TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
+TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_PROPERTIES, GetMetricNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     auto compiled_model = ie.compile_model(simpleNetwork, deviceName);
@@ -116,24 +116,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoT
     ASSERT_EXEC_METRIC_SUPPORTED(ov::supported_properties);
 }
 
-TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-
-    auto compiled_model = ie.compile_model(simpleNetwork, deviceName);
-
-    std::vector<ov::PropertyName> supported_properties;
-    OV_ASSERT_NO_THROW(supported_properties = compiled_model.get_property(ov::supported_properties));
-
-    std::cout << "Supported RO keys: " << std::endl;
-    for (auto&& conf : supported_properties) if (!conf.is_mutable()) {
-        std::cout << conf << std::endl;
-        ASSERT_LT(0, conf.size());
-    }
-    ASSERT_LE(0, supported_properties.size());
-    ASSERT_EXEC_METRIC_SUPPORTED(ov::supported_properties);
-}
-
-TEST_P(OVClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
+TEST_P(OVClassExecutableNetworkGetMetricTest_MODEL_NAME, GetMetricNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     auto compiled_model = ie.compile_model(simpleNetwork, deviceName);

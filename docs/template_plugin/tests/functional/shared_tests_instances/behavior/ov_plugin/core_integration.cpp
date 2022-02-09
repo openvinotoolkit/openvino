@@ -29,11 +29,7 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_METRICS,
+        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_PROPERTIES,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(

@@ -57,8 +57,7 @@ public:
 using OVClassNetworkTestP = OVClassBaseTestP;
 using OVClassQueryNetworkTest = OVClassBaseTestP;
 using OVClassImportExportTestP = OVClassBaseTestP;
-using OVClassGetMetricTest_SUPPORTED_METRICS = OVClassBaseTestP;
-using OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
+using OVClassGetMetricTest_SUPPORTED_PROPERTIES = OVClassBaseTestP;
 using OVClassGetMetricTest_AVAILABLE_DEVICES = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID = OVClassBaseTestP;
@@ -476,8 +475,12 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 
 TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI), ov::Exception);
+    ASSERT_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI, ov::device::priorities(deviceName)), ov::Exception);
 }
+
+//
+// Properties tests
+//
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     ov::Core ie = createCoreWithTemplate();
@@ -496,26 +499,12 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
     ov::Core ie = createCoreWithTemplate();
-    // TODO: check
-    std::string targetDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + CommonTestUtils::DEVICE_CPU;
+    // complex device name is not supported
+    std::string targetDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + "ANY_DEVICE";
     ASSERT_THROW(ie.get_property(targetDevice, ov::supported_properties), ov::Exception);
 }
 
-TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    std::vector<ov::PropertyName> t;
-
-    OV_ASSERT_NO_THROW(t = ie.get_property(deviceName, ov::supported_properties));
-
-    std::cout << "Supported properties: " << std::endl;
-    for (auto&& str : t) {
-        std::cout << str << " is_mutable: " << str.is_mutable() << std::endl;
-    }
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::supported_properties);
-}
-
-TEST_P(OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
+TEST_P(OVClassGetMetricTest_SUPPORTED_PROPERTIES, GetMetricAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     std::vector<ov::PropertyName> t;
 
@@ -738,6 +727,7 @@ TEST_P(OVClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
 //
 // QueryNetwork with HETERO on particular device
 //
+
 TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
