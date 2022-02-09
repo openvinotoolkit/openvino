@@ -90,7 +90,7 @@ std::shared_ptr<SharedRTInfo> ModelAccessor::get_shared_info() const {
     if (auto f = m_function.lock()) {
         return f->m_shared_rt_info;
     }
-    throw ngraph::ngraph_error("Original function is not available");
+    throw ngraph::ngraph_error("Original model is not available");
 }
 
 std::set<std::shared_ptr<SharedRTInfo>> NodeAccessor::get_shared_info() const {
