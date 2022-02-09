@@ -68,19 +68,18 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
         output_feature = output.Y().v;
     }
 
-    tuning_data.sub_group_size = IsSIMDSizeSupported(params.engineInfo, 8) ? 8 : 16;
-    if (tuning_data.sub_group_size == 8 && input.X().v == 1 && input.Z().v == 1 && input.Batch().v == 1 &&
-        ((input.Y().v == 1 && output.GetLayout() != DataLayout::bfyx) || (input.Feature().v == 1 && output.GetLayout() == DataLayout::bfyx)) ) {
-        // Known cases for TGL where simd16 works better than simd8
-        bool simd16_exception_1 = input.Feature().v == 25088 && output.Feature().v == 512;
-        bool simd16_exception_2 = input.Feature().v == 21504 && output.Feature().v == 512;
+    // In most cases SIMD8 works faster than SIMD16
+    tuning_data.sub_group_size = 8;
 
-        if (simd16_exception_1 || simd16_exception_2)
-            tuning_data.sub_group_size = 16;
-    }
-    if (output_feature == 1024 & output_batch == 128 && input_feature % 1024 == 0 && input_batch == 128) {
+    // Known cases for TGL where simd16 works better than simd8
+    bool simd16_is_faster = output_feature == 1024 & output_batch == 128 && input_feature % 1024 == 0 && input_batch == 128;
+    simd16_is_faster |= (input_feature == 25088 || input_feature == 21504) && output_feature == 512 &&
+                        input_batch == 1 && output_batch == 1 && input.X().v == 1 && input.Y().v == 1 && input.Z().v == 1;
+
+    // Some specific HW doesn't support SIMD8, force SIMD16 to respect this HW
+    // Also chose SIMD16 for the exception cases
+    if (!IsSIMDSizeSupported(params.engineInfo, 8) || simd16_is_faster)
         tuning_data.sub_group_size = 16;
-    }
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
 

@@ -41,9 +41,9 @@ FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const 
                                                                           int) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    std::vector<size_t> global = {params.output.Feature().v, params.output.Batch().v, 1};
+    std::vector<size_t> global = { params.output.Feature().v, params.output.Batch().v, 1 };
     if (params.output.GetLayout() == DataLayout::bfyx) {
-        global = {params.output.Feature().v * params.output.Y().v, params.output.Batch().v, 1};
+        global = { params.output.Feature().v * params.output.Y().v, params.output.Batch().v, 1 };
     }
 
     dispatchData.gws = global;

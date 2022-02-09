@@ -145,16 +145,20 @@ FullyConnectedKernelIMAD::FullyConnectedTuningData FullyConnectedKernelIMAD::Get
         if_num = params.inputs[0].Y().v;
     }
 
+    // In most cases SIMD8 works faster than SIMD16
     tuning_data.sub_group_size = 8;
 
     auto mk_size = if_num * ib_num;
     auto mn_size = of_num * ob_num;
 
-    bool simd16_is_faster = false;
-    simd16_is_faster = mk_size >= 1000 * 1024 && mn_size >= 1000 * 1024;
+    // Known cases where simd16 works better than simd8
+    bool simd16_is_faster = mk_size >= 1000 * 1024 && mn_size >= 1000 * 1024;
     simd16_is_faster |= mk_size == 128 * 768 && mn_size == 128 * 3072;
 
-    if (simd16_is_faster && if_num % 64 == 0) {
+    // Some specific HW doesn't support SIMD8, force SIMD16 to respect this HW
+    // For other SIMD16 exceptions check that if_num is divided by 64 (SIMD16 * ISV4) because
+    // if there are leftovers then SIMD8 is more preferrable
+    if (!IsSIMDSizeSupported(params.engineInfo, 8) || (simd16_is_faster && if_num % 64 == 0)) {
         tuning_data.sub_group_size = 16;
     }
 
