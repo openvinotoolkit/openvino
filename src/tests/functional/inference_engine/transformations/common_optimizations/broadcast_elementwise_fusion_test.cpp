@@ -286,3 +286,15 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOf) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input});
     }
 }
+
+TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOfNeg) {
+    {
+        auto input =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, Shape{1, 3});
+        auto shape_of = std::make_shared<ngraph::opset5::ShapeOf>(input);
+        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input, shape_of);
+        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input, broadcast);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise, broadcast}, ngraph::ParameterVector{input});
+
+        manager.register_pass<pass::BroadcastElementwiseFusion>();
+    }
+}

@@ -72,7 +72,7 @@ bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
 ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = pattern::any_input();
-    auto broadcast = pattern::wrap_type<ngraph::opset5::Broadcast>({broadcast_input, pattern::any_input()});
+    auto broadcast = pattern::wrap_type<ngraph::opset5::Broadcast>({broadcast_input, pattern::any_input()}, pattern::consumers_count(1));
     auto eltwise_input = pattern::any_input();
     auto eltwise = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 
