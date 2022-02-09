@@ -113,28 +113,19 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(getParentEdges().size());
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        config.inConfs[i].inPlace = -1;
-        config.inConfs[i].constant = false;
-        config.inConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i));
+        config.inConfs[i].inPlace(-1);
+        config.inConfs[i].constant(false);
+        config.inConfs[i].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
     }
     config.outConfs.resize(1);
-    // TODO [DS]: inplace
-    config.outConfs[0].inPlace = isDynamicNode() ? -1 : 0;
-    config.outConfs[0].constant = false;
-    config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0));
+    config.outConfs[0].inPlace(0);
+    config.outConfs[0].constant(false);
+    config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0)));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MKLDNNReshapeNode::executeDynamicImpl(mkldnn::stream strm) {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    const auto count = srcMemPtr->GetShape().getElementsCount();
-    if (count == 0) {
-        return;
-    }
-    if (count != dstMemPtr->GetShape().getElementsCount())
-        IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
-    cpu_memcpy(dstMemPtr->GetPtr(), srcMemPtr->GetPtr(), count * MKLDNNExtensionUtils::sizeOfDataType(srcMemPtr->GetDataType()));
+    execute(strm);
 }
 
 bool MKLDNNReshapeNode::created() const {

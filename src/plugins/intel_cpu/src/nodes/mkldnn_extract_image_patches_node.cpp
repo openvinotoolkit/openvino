@@ -365,10 +365,10 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
 void MKLDNNExtractImagePatchesNode::prepareParams() {
     const auto& srcMemPtr0 = getParentEdgeAt(0)->getMemoryPtr();
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    if (!srcMemPtr0 || !srcMemPtr0->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
+    if (!srcMemPtr0 || !srcMemPtr0->isAllocated())
+        IE_THROW() << "Input memory has not been allocated.";
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
+        IE_THROW() << "Destination memory has not been allocated.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
