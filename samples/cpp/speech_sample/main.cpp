@@ -85,11 +85,35 @@ int main(int argc, char* argv[]) {
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
+        std::vector<std::string> outputs;
+        std::vector<size_t> ports;
+        // --------------------------- Processing custom outputs ---------------------------------------------
+        if (!FLAGS_oname.empty()) {
+            std::vector<std::string> output_names = convert_str_to_vector(FLAGS_oname);
+            for (const auto& output_name : output_names) {
+                auto pos_layer = output_name.rfind(":");
+                if (pos_layer == std::string::npos) {
+                    throw std::logic_error("Output " + output_name + " doesn't have a port");
+                }
+                outputs.push_back(output_name.substr(0, pos_layer));
+                try {
+                    ports.push_back(std::stoi(output_name.substr(pos_layer + 1)));
+                } catch (const std::exception&) {
+                    throw std::logic_error("Ports should have integer type");
+                }
+            }
+        }
         // ------------------------------ Preprocessing ------------------------------------------------------
         // the preprocessing steps can be done only for loaded network and are not applicable for the imported network
         // (already compiled)
         if (!FLAGS_m.empty()) {
             model = core.read_model(FLAGS_m);
+            if (!outputs.empty()) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    auto output = model->add_output(outputs[i], ports[i]);
+                    output.set_names({outputs[i] + ":" + std::to_string(ports[i])});
+                }
+            }
             check_number_of_inputs(model->inputs().size(), numInputFiles);
             const ov::Layout tensor_layout{"NC"};
             ov::preprocess::PrePostProcessor proc(model);
@@ -121,8 +145,7 @@ int main(int argc, char* argv[]) {
                 gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
         }
         if (FLAGS_pc) {
-            genericPluginConfig[InferenceEngine::PluginConfigParams::KEY_PERF_COUNT] =
-                InferenceEngine::PluginConfigParams::YES;
+            genericPluginConfig.emplace(ov::enable_profiling(true));
         }
         if (FLAGS_q.compare("user") == 0) {
             if (!FLAGS_rg.empty()) {
@@ -195,29 +218,6 @@ int main(int argc, char* argv[]) {
             genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
         }
         auto t0 = Time::now();
-        std::vector<std::string> outputs;
-        if (!FLAGS_oname.empty()) {
-            std::vector<std::string> output_names = convert_str_to_vector(FLAGS_oname);
-            std::vector<size_t> ports;
-            for (const auto& outBlobName : output_names) {
-                int pos_layer = outBlobName.rfind(":");
-                if (pos_layer == -1) {
-                    throw std::logic_error(std::string("Output ") + std::string(outBlobName) +
-                                           std::string(" doesn't have a port"));
-                }
-                outputs.push_back(outBlobName.substr(0, pos_layer));
-                try {
-                    ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1)));
-                } catch (const std::exception&) {
-                    throw std::logic_error("Ports should have integer type");
-                }
-            }
-            if (!FLAGS_m.empty()) {
-                for (size_t i = 0; i < outputs.size(); i++) {
-                    model->add_output(outputs[i], ports[i]);
-                }
-            }
-        }
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
@@ -426,9 +426,10 @@ int main(int argc, char* argv[]) {
 
                                     ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
-                                    if (!FLAGS_oname.empty())
+                                    if (!outputs.empty()) {
                                         outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
+                                            inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
+                                    }
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
@@ -439,7 +440,7 @@ int main(int argc, char* argv[]) {
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
                                     if (!FLAGS_oname.empty())
                                         outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
+                                            inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
                                     compare_scores(
                                         outputBlob.data<float>(),
                                         &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
@@ -467,7 +468,7 @@ int main(int argc, char* argv[]) {
                         for (int i = 0; i < executableNet.inputs().size(); i++) {
                             inferRequest.inferRequest.set_input_tensor(
                                 i,
-                                ov::Tensor(ov::element::f32, executableNet.inputs()[i].get_shape(), inputFrame[0]));
+                                ov::Tensor(ov::element::f32, executableNet.inputs()[i].get_shape(), inputFrame[i]));
                         }
                         /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.start_async();

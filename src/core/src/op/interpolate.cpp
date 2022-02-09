@@ -454,6 +454,7 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
                                                         outputs[0]->get_data_ptr<int8_t>(),
                                                         out_shape,
                                                         m_attrs);
+        break;
     case element::Type_t::u8:
         ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
                                                          padded_input_shape,

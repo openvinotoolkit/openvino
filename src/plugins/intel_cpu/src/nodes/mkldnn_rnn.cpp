@@ -479,7 +479,8 @@ void MKLDNNRNN::fillSequenceDesc() {
     outCandidate.reserve(3);
 
     if (nativeOrder) {
-        outCandidate.emplace_back(outDataDescs[RNNInOutKind::Layer]);
+        outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape{{T.minVal, N.minVal, SC}, {T.maxVal, N.maxVal, SC}},
+                                                                          dataType, memory::format_tag::tnc));
     } else if (N.isStatic() && N.maxVal == 1) {
         // WA to avoid reorder after sequence for some models
         outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeNTSC, dataType, memory::format_tag::tnc));
@@ -763,17 +764,17 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     config.dynBatchSupport = false;
     for (size_t i = 0; i < inputDesc.size(); i++) {
         PortConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
-        dataConfig.desc = inputDesc[i];
+        dataConfig.inPlace(-1);
+        dataConfig.constant(false);
+        dataConfig.setMemDesc(inputDesc[i]);
         config.inConfs.push_back(dataConfig);
     }
 
     for (size_t i = 0; i < outputDesc.size(); i++) {
         PortConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
-        dataConfig.desc = outputDesc[i];
+        dataConfig.inPlace(-1);
+        dataConfig.constant(false);
+        dataConfig.setMemDesc(outputDesc[i]);
         config.outConfs.push_back(dataConfig);
     }
 
@@ -783,7 +784,7 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 void MKLDNNRNN::prepareParams() {
     for (size_t i = 0; i < wIdx; i++) {
         auto memPtr = getParentEdgesAtPort(i).front()->getMemoryPtr();
-        if (!memPtr || !memPtr->GetPrimitivePtr())
+        if (!memPtr || !memPtr->isAllocated())
             THROW_ERROR << "has uninitialized memory at port " << i;
     }
 
@@ -865,13 +866,11 @@ void MKLDNNRNN::prepareParams() {
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNRNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
-    auto desc = supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].desc;
-    return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+    return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNRNN::getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
-    auto desc = supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].desc;
-    return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+    return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 
 void MKLDNNRNN::execute(mkldnn::stream strm) {
@@ -927,7 +926,7 @@ std::vector<VectorDims> MKLDNNRNN::shapeInfer() const {
     auto originOutputShapes = MKLDNNNode::shapeInfer();
 
     // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
-    if (!hasNativeOrder() && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
+    if (getType() == RNNSeq && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
         originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
     }
     return originOutputShapes;

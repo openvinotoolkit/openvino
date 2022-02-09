@@ -30,6 +30,7 @@ std::mutex LayerTransformation::defaultPrecisionsMutex;
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
     deqPrecision(params.deqPrecision),
+    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
@@ -263,6 +264,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     }
 
     element::Type resultPrecision = element::undefined;
+    // if zero point exists then result precision has to be defined by client code
     if (!hasZeroPoint) {
         if (signedPrecision && (!unsignedPrecision)) {
             switch (quantizationLevels) {
@@ -322,49 +324,47 @@ bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) 
 DataPrecision LayerTransformation::getDataPrecision(
         const std::shared_ptr<Node>& layer,
         const QuantizationDetails& quantizationDetails,
-        const std::vector<element::Type>& precisions) {
+        const std::vector<element::Type>& requiredPrecisions) {
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(layer);
 #endif
-    std::vector<element::Type> resultPrecisions = precisions;
-    std::vector<element::Type> FQPrecisions;
-    switch (quantizationDetails.levels) {
-        case levels::int8:
-        case levels::int8_narrow_range:
-            FQPrecisions = {element::u8, element::i8};
-            break;
-        case levels::int16:
-        case levels::int16_narrow_range:
-            FQPrecisions = {element::u16, element::i16};
-            break;
-        case levels::int32:
-        case levels::int32_narrow_range:
-            FQPrecisions = {element::u32, element::i32};
-    }
-    resultPrecisions = NetworkHelper::precisionIntersection(precisions, FQPrecisions);
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
 
     if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
-        // if supportedPrecisions is empty then use the first available, not supported layer will be in original precision
-        if (!precisions.empty()) {
-            const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
-            const element::Type resultPrecision = foundIt != precisions.end() ?
+        // FakeQuantize optimal precision not deined
+        if (!requiredPrecisions.empty()) {
+            const auto foundIt = std::find(requiredPrecisions.begin(), requiredPrecisions.end(), precisionDetailsAtOutputIntervals.precision);
+            const element::Type resultPrecision = foundIt != requiredPrecisions.end() ?
                 precisionDetailsAtOutputIntervals.precision :
-                *precisions.begin();
+                *requiredPrecisions.begin();
 
-            const DataPrecision dataPrecision(
+            return DataPrecision(
                 resultPrecision,
                 DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
                 DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
-                foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
-
-            return dataPrecision;
+                foundIt != requiredPrecisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+        }
+    } else {
+        // FakeQuantize optimal precision is not deined
+        if (!requiredPrecisions.empty()) {
+            const element::Type resultPrecision = *requiredPrecisions.begin();
+            return DataPrecision(
+                resultPrecision,
+                DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
+                DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
+                true);
+        } else {
+            // required precisions are not defined, not possible to get precision from FakeQuantize: something wrong
+            // return not valid value
+            return DataPrecision();
         }
     }
+
+    // if required precisions is empty then use FakeQuantize optimal precision
     return DataPrecision(
         precisionDetailsAtOutputIntervals.precision,
-        0.f,
-        0.f,
+        DataPrecision::getMinValue(precisionDetailsAtOutputIntervals.precision, quantizationDetails.levels),
+        DataPrecision::getMaxValue(precisionDetailsAtOutputIntervals.precision, quantizationDetails.levels),
         precisionDetailsAtOutputIntervals.hasZeroPoint);
 }
 

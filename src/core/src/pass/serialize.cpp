@@ -1012,7 +1012,8 @@ void serializeFunc(std::ostream& xml_file,
 }  // namespace
 
 namespace ov {
-bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_orig) {
+    auto f = ov::clone_model(*f_orig);
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
@@ -1061,6 +1062,7 @@ pass::Serialize::Serialize(const std::string& xmlPath,
                            std::map<std::string, ngraph::OpSet> custom_opsets,
                            pass::Serialize::Version version)
     : m_xmlFile{nullptr},
+      m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
       m_version{version},

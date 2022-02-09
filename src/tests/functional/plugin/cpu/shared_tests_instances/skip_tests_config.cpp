@@ -42,8 +42,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse|ref).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
         R"(.*BinaryConvolutionLayerTest.*)",
-        R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
-        R"(.*ClampLayerTest.*netPrc=U64.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
         R"(.*_GroupConv.*_inFmts=nc.*_primitive=jit_gemm.*ENFORCE_BF16=YES.*)",
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
@@ -69,10 +67,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
-        // TODO: 69084 Not constant Axis input produces dynamic output shape.
-        R"(.*GatherLayerTestCPU.*constAx=False.*)",
-        // TODO: 74601. RNN, GRU, LSTM Sequences batch 1 tests failure.
-        R"(.*smoke_dynamic_BatchSizeOne.*Sequence.*)",
         // TODO: 74961.  Enforce precision via inType and outType does not work properly.
         R"(.*(RNN|GRU|LSTM).*ENFORCE_BF16=YES.*)",
         // Not expected behavior
@@ -106,6 +100,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
 
+        // CVS-74306
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i8|u8).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i16|u16).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i64|u64).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=u32.*)",
+
+        // CVS-74307
+        R"(.*ConstantResultOnly.*elementType=(i8|u8).*)",
+        R"(.*ConstantResultOnly.*elementType=(i16|u16).*)",
+        R"(.*ConstantResultOnly.*elementType=(i64|u64).*)",
+        R"(.*ConstantResultOnly.*elementType=(u32|f16).*)",
+
         // CPU plugin does not support some precisions
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
 
@@ -125,8 +131,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
-        // Issue 67910
-        R"(.*smoke_PrePostProcess.*two_inputs_trivial.*)",
         // TODO: CVS-67255
         R"(smoke_If.*SimpleIf2OutTest.*)",
 
@@ -175,6 +179,11 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 75022
         R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
         R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
+        // Issue: 77390
+        R"(.*LoopLayerCPUTest.*exec_cond=0.*)",
+        R"(.*LoopLayerCPUTest.*trip_count=0.*)",
+        R"(.*LoopForDiffShapesLayerCPUTest.*exec_cond=0.*)",
+        R"(.*LoopForDiffShapesLayerCPUTest.*trip_count=0.*)",
     };
 
 #define FIX_62820 0

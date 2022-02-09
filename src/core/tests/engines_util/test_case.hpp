@@ -34,7 +34,7 @@ public:
     TestCase(const std::shared_ptr<Function>& function, const std::string& dev = "TEMPLATE") : m_function{function} {
         try {
             // Register template plugin
-            m_core.register_plugin(std::string("ov_template_plugin") + IE_BUILD_POSTFIX, "TEMPLATE");
+            m_core.register_plugin(std::string("openvino_template_plugin") + IE_BUILD_POSTFIX, "TEMPLATE");
         } catch (...) {
         }
         m_request = m_core.compile_model(function, dev).create_infer_request();
@@ -148,6 +148,8 @@ public:
 
         ov::Tensor tensor(results[m_output_index]->get_output_element_type(0), expected_shape);
         std::copy(values.begin(), values.end(), tensor.data<T>());
+
+        m_expected_outputs.push_back(std::move(tensor));
 
         ++m_output_index;
     }

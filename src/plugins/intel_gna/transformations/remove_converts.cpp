@@ -13,6 +13,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/rt_info.hpp>
 
 namespace GNAPluginNS {
     NGRAPH_RTTI_DEFINITION(RemoveInputConvert, "RemoveInputConvert", 0);
@@ -72,7 +73,7 @@ namespace GNAPluginNS {
                 return false;
             }
 
-            // the result presicion will be changed automaically
+            // the result precision will be changed automatically
             ngraph::replace_output_update_name(convert_node->output(0), convert_node->input_value(0));
             return true;
         };

@@ -77,7 +77,7 @@ public:
     /// \param c tensor element coordinate
     /// \deprecated
     NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
-    size_t index(const Coordinate& c) const noexcept;
+    size_t index(const Coordinate& c) const;
 
     /// \brief Returns an iterator to the first coordinate of the tensor.
     CoordinateIterator begin() const noexcept;

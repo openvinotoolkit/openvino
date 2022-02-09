@@ -11,6 +11,8 @@ from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.versions_checker import get_environment_setup
 
+# do not print INFO and WARNING messages from TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
     # disable eager execution of TensorFlow 2 environment immediately
@@ -19,6 +21,9 @@ try:
     from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 except ImportError:
     import tensorflow as tf_v1
+
+#in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+tf_v1.get_logger().setLevel("ERROR")
 
 from google.protobuf import text_format
 from openvino.tools.mo.graph.graph import fill_graph_with_nodes, Graph
@@ -220,10 +225,13 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 # enable eager execution temporarily while TensorFlow 2 model is being loaded
                 tf_v1.enable_eager_execution()
 
-                # Code to extract Keras model.
-                # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
-                # for TF 1.x SavedModel format in case TF 1.x installed
-                imported = tf.keras.models.load_model(model_dir, compile=False)
+                try:
+                    # Code to extract Keras model.
+                    # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
+                    # for TF 1.x SavedModel format in case TF 1.x installed
+                    imported = tf.keras.models.load_model(model_dir, compile=False)
+                except:
+                    imported = tf.saved_model.load(model_dir, saved_model_tags)  # pylint: disable=E1120
 
                 # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
                 concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]

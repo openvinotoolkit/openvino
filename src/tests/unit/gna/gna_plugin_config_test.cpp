@@ -28,7 +28,9 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
-    {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE}
+    {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE},
+    {CONFIG_KEY(PERFORMANCE_HINT), ""},
+    {CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"}
 };
 IE_SUPPRESS_DEPRECATED_END
 
@@ -37,7 +39,7 @@ protected:
     Config config;
     void SetAndCompare(const std::string& key, const std::string& val) {
         config.UpdateFromMap({{key, val}});
-        EXPECT_EQ(config.GetParameter(key), val);
+        EXPECT_EQ(config.GetParameter(key).as<std::string>(), val);
     }
     void ExpectThrow(const std::string& key, const std::string& val) {
         EXPECT_THROW(config.UpdateFromMap({{key, val}}),
@@ -172,9 +174,9 @@ IE_SUPPRESS_DEPRECATED_START
 
 TEST_F(GNAPluginConfigTest, GnaConfigLibNThreadsTest) {
     SetAndCompare(GNA_CONFIG_KEY(LIB_N_THREADS), "2");
-    EXPECT_EQ(config.gnaFlags.gna_lib_async_threads_num, 2);
+    EXPECT_EQ(config.gnaFlags.num_requests, 2);
     SetAndCompare(GNA_CONFIG_KEY(LIB_N_THREADS), "25");
-    EXPECT_EQ(config.gnaFlags.gna_lib_async_threads_num, 25);
+    EXPECT_EQ(config.gnaFlags.num_requests, 25);
     ExpectThrow(GNA_CONFIG_KEY(LIB_N_THREADS), "");
     ExpectThrow(GNA_CONFIG_KEY(LIB_N_THREADS), "0");
     ExpectThrow(GNA_CONFIG_KEY(LIB_N_THREADS), "128");
@@ -213,9 +215,9 @@ TEST_F(GNAPluginConfigTest, GnaConfigGnaCompileTargetTest) {
 
 TEST_F(GNAPluginConfigTest, GnaConfigLogLevel) {
     SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_WARNING);
-    EXPECT_EQ(config.gnaFlags.log_level, PluginConfigParams::LOG_WARNING);
+    EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::WARNING);
     SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE);
-    EXPECT_EQ(config.gnaFlags.log_level, PluginConfigParams::LOG_NONE);
+    EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::NO);
     ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_ERROR);
     ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_INFO);
     ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_DEBUG);
