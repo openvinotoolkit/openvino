@@ -24,6 +24,10 @@ Any RuntimeAttribute::merge(const ngraph::NodeVector& nodes) const {
     return {};
 }
 
+Any RuntimeAttribute::merge(const ngraph::OutputVector& outputs) const {
+    return {};
+}
+
 bool RuntimeAttribute::is_copyable() const {
     return true;
 }

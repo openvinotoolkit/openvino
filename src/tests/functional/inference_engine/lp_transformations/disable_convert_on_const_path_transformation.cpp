@@ -97,7 +97,7 @@ public:
 
 TEST_P(DisableConvertOnConstPathTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -146,13 +146,13 @@ const std::vector<DisableConvertOnConstPathTransformationValues> testValues = {
             {
                 {ngraph::element::f32},
                 { {128.f}, element::f32, {}, false, 1ul, element::u8, true, {},
-                  {ov::pass::DisableConstantFolding::get_type_info_static() } },
+                  {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 { {0.02f}, element::f32, {}, false }
             },
             {
                 { ngraph::element::f32, false },
                 { {128.f}, element::f32, {}, false, 1ul, element::i8, true, {},
-                  {ov::pass::DisableConstantFolding::get_type_info_static() } },
+                  {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 { {0.03f}, element::f32, {}, false }
             },
             { std::vector<float>{ 1.f }, ngraph::element::f32},

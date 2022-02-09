@@ -49,17 +49,20 @@ public:
         fc.enable(TENSOR_NAMES);
         return fc;
     }
+
     FunctionsComparator& enable(CmpValues f) noexcept {
         m_comparison_flags = static_cast<CmpValues>(m_comparison_flags | f);
         return *this;
     }
+
     bool should_compare(CmpValues f) const noexcept {
         return m_comparison_flags & f;
     }
-    Result compare(const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2) const;
+    Result compare(const std::shared_ptr<ngraph::Function>& f, const std::shared_ptr<ngraph::Function>& f_ref) const;
 
-    Result operator()(const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2) const {
-        return compare(f1, f2);
+    Result operator()(const std::shared_ptr<ngraph::Function>& f,
+                      const std::shared_ptr<ngraph::Function>& f_ref) const {
+        return compare(f, f_ref);
     }
 
 private:
@@ -71,8 +74,8 @@ private:
 /// \deprecated
 /// \brief compare_functions is obsolete function use FunctionsComparator instead.
 ///
-inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Function>& f1,
-                                                      const std::shared_ptr<ngraph::Function>& f2,
+inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Function>& f,
+                                                      const std::shared_ptr<ngraph::Function>& f_ref,
                                                       const bool compareConstValues = false,
                                                       const bool compareNames = false,
                                                       const bool compareRuntimeKeys = false,
@@ -95,7 +98,7 @@ inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngra
     if (compareTensorNames)
         fc.enable(Cmp::TENSOR_NAMES);
 
-    const auto r = fc(f1, f2);
+    const auto r = fc(f, f_ref);
     return {r.valid, r.message};
 }
 
@@ -270,7 +273,7 @@ public:
 
     explicit Comparator(CmpValues f) : m_comparison_flags(f) {}
 
-    Result compare(const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2);
+    Result compare(const std::shared_ptr<ngraph::Function>& f, const std::shared_ptr<ngraph::Function>& f_ref);
 
     Result compare(ngraph::Node* node1, ngraph::Node* node2) {
         std::stringstream errors;
@@ -289,6 +292,8 @@ public:
     void compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
 
     void compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
+
+    void compare_nodes(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
 
 private:
     bool should_compare(CmpValues f) const noexcept {

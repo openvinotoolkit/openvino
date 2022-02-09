@@ -297,7 +297,7 @@ TEST_P(ExecutableNetworkBaseTest, canExport) {
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
-    compare_functions(referenceNetwork, cnnNet.getFunction());
+    compare_functions(cnnNet.getFunction(), referenceNetwork);
 }
 
 using ExecNetSetPrecision = BehaviorTestsUtils::BehaviorTestsBasic;

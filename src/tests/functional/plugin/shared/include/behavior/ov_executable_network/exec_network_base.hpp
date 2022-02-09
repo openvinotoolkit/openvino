@@ -331,7 +331,7 @@ TEST_P(OVExecutableNetworkBaseTest, canExport) {
 TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
-    compare_functions(referenceNetwork, function);
+    compare_functions(function, referenceNetwork);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
