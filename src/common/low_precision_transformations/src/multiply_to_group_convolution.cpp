@@ -201,11 +201,11 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     return true;
 }
 
-bool MultiplyToGroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+bool MultiplyToGroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
     return MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(layer);
 }
 
-bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(const std::shared_ptr<const Node>& layer) noexcept {
+bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(const std::shared_ptr<const Node>& layer) {
     const auto parent0 = layer->get_input_node_shared_ptr(0);
     const auto parent1 = layer->get_input_node_shared_ptr(1);
 
@@ -219,7 +219,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolutio
         return false;
     }
 
-    return (pShape.rank().get_length() == 4ul) || (pShape.rank().get_length() == 5ul);
+    return (pShape.size() == 4ul) || (pShape.size() == 5ul);
 }
 
 bool MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(const std::shared_ptr<const Node>& node) {
