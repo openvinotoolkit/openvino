@@ -532,7 +532,9 @@ int main(int argc, char* argv[]) {
                             info.at(name).type = type_to_set;
                         }
                     }
-                    // Explicitly set inputs layout.
+                }
+                // Explicitly set inputs layout.
+                if (!app_inputs_info[0].at(name).layout.empty()) {
                     in.model().set_layout(app_inputs_info[0].at(name).layout);
                 }
             }
