@@ -29,6 +29,9 @@ namespace ov {
 /** @cond INTERNAL */
 class Any;
 namespace util {
+template<typename T>
+struct Read;
+
 template <class T>
 struct Istreamable {
     template <class U>
@@ -55,68 +58,114 @@ struct Readable {
     constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
 };
 
-template <typename T>
-inline typename std::enable_if<std::is_same<T, bool>::value>::type read(std::istream& is, T& value) {
-    std::string str;
-    is >> str;
-    if (str == "YES") {
-        value = true;
-    } else if (str == "NO") {
-        value = false;
-    } else {
-        OPENVINO_UNREACHABLE("Could not convert to bool from string " + str);
+template<typename T>
+struct Read {
+    template<typename U>
+    auto operator()(std::istream&, U&) const
+        -> typename std::enable_if<std::is_same<T, U>::value && !Istreamable<U>::value && !Readable<U>::value>::type {
+        throw std::runtime_error(
+            std::string{"Could read type without std::istream& operator>>(std::istream&, T)"
+                        " defined or ov::util::Read<T> class specialization, T: " } +
+            typeid(T).name());
     }
-}
+    template<typename U>
+    auto operator()(std::istream& is, U& value) const
+        -> typename std::enable_if<std::is_same<T, U>::value && Istreamable<U>::value && !Readable<U>::value>::type {
+        is >> value;
+    }
+};
 
-OPENVINO_API void read(std::istream& is, int& value);
-OPENVINO_API void read(std::istream& is, long& value);
-OPENVINO_API void read(std::istream& is, long long& value);
-OPENVINO_API void read(std::istream& is, unsigned& value);
-OPENVINO_API void read(std::istream& is, unsigned long& value);
-OPENVINO_API void read(std::istream& is, unsigned long long& value);
-OPENVINO_API void read(std::istream& is, float& value);
-OPENVINO_API void read(std::istream& is, double& value);
-OPENVINO_API void read(std::istream& is, long double& value);
-OPENVINO_API void read(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple);
-OPENVINO_API void read(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple);
-OPENVINO_API void read(std::istream& is, Any& any);
+template<>
+struct OPENVINO_API Read<bool> {
+    void operator()(std::istream& is, bool& value) const;
+};
 
-template <typename T>
-typename std::enable_if<Istreamable<T>::value && !Readable<T>::value && !std::is_same<T, bool>::value>::type read(
-    std::istream& is,
-    T& value) {
-    is >> value;
-}
+template<>
+struct OPENVINO_API Read<Any> {
+    void operator()(std::istream& is, Any& any) const;
+};
 
-template <typename T>
-typename std::enable_if<!Istreamable<T>::value && !Readable<T>::value && !std::is_same<T, bool>::value>::type read(
-    std::istream& is,
-    T& value) {
-    throw ov::Exception{std::string{"Could read type without std::istream& operator>>(std::istream&, T) defined, T: "} +
-                        typeid(T).name()};
-}
+template<>
+struct OPENVINO_API Read<int> {
+    void operator()(std::istream& is, int& value) const;
+};
+
+template<>
+struct OPENVINO_API Read<long> {
+    void operator()(std::istream& is, long& value) const;
+};
+
+template<>
+struct OPENVINO_API Read<long long> {
+    void operator()(std::istream& is, long long& value) const;
+};
+
+template<>
+struct OPENVINO_API Read<unsigned> {
+    void operator()(std::istream& is, unsigned& value) const;
+};
+
+template<>
+struct OPENVINO_API Read<unsigned long> {
+    void operator()(std::istream& is, unsigned long& value) const;
+};
+
+template<>
+struct OPENVINO_API Read<unsigned long long> {
+    void operator()(std::istream& is, unsigned long long& value) const;
+};
+
+template<>
+struct OPENVINO_API Read<float> {
+    void operator()(std::istream& is, float& value) const;
+};
+
+template<>
+struct OPENVINO_API Read<double> {
+    void operator()(std::istream& is, double& value) const;
+};
+
+template<>
+struct OPENVINO_API Read<long double> {
+    void operator()(std::istream& is, long double& value) const;
+};
+
+template<>
+struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int, unsigned int>> {
+    void operator()(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple) const;
+};
+
+template<>
+struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
+    void operator()(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) const;
+};
 
 template <typename T, typename A>
-typename std::enable_if<std::is_default_constructible<T>::value>::type read(std::istream& is, std::vector<T, A>& vec) {
-    while (is.good()) {
-        T v;
-        read(is, v);
-        vec.push_back(std::move(v));
+struct Read<std::vector<T, A>> {
+    void operator()(std::istream& is, std::vector<T, A>& vec) const {
+        while (is.good()) {
+            T v;
+            Read<T>{}(is, v);
+            vec.emplace_back(std::move(v));
+        }
     }
-}
+};
 
 template <typename K, typename T, typename C, typename A>
-typename std::enable_if<std::is_default_constructible<K>::value && std::is_default_constructible<T>::value>::type read(
-    std::istream& is,
-    std::map<K, T, C, A>& map) {
-    while (is.good()) {
-        K k;
-        T v;
-        read(is, k);
-        read(is, v);
-        map.emplace(std::move(k), std::move(v));
+struct Read<std::map<K, T, C, A>> {
+    void operator()(std::istream& is, std::map<K, T, C, A>& map) const {
+        while (is.good()) {
+            K k;
+            T v;
+            Read<K>{}(is, k);
+            Read<T>{}(is, v);
+            map.emplace(std::move(k), std::move(v));
+        }
     }
-}
+};
+
+template<typename T>
+struct Write;
 
 template <class T>
 struct Ostreamable {
@@ -144,53 +193,67 @@ struct Writable {
     constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
 };
 
-template <class T>
-typename std::enable_if<Ostreamable<T>::value && !Writable<T>::value && !std::is_same<T, bool>::value>::type write(
-    std::ostream& os,
-    const T& value) {
-    os << value;
-}
+template<typename T>
+struct Write {
+    template<typename U>
+    auto operator()(std::ostream& os, const U&) const
+        -> typename std::enable_if<std::is_same<T, U>::value && !Ostreamable<U>::value && !Writable<U>::value>::type {}
+    template<typename U>
+    auto operator()(std::ostream& os, const U& value) const
+        -> typename std::enable_if<std::is_same<T, U>::value && Ostreamable<U>::value && !Writable<U>::value>::type {
+        os << value;
+    }
+};
 
-template <class T>
-typename std::enable_if<!Ostreamable<T>::value && !Writable<T>::value && !std::is_same<T, bool>::value>::type write(
-    std::ostream& os,
-    const T&) {}
+template <>
+struct OPENVINO_API Write<bool> {
+    void operator()(std::ostream& is, const bool& b) const;
+};
 
-template <typename T>
-inline typename std::enable_if<std::is_same<T, bool>::value>::type write(std::ostream& os, const T& b) {
-    os << (b ? "YES" : "NO");
-}
-OPENVINO_API void write(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple);
-OPENVINO_API void write(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple);
-OPENVINO_API void write(std::ostream& os, const Any& any);
+template <>
+struct OPENVINO_API Write<Any> {
+    void operator()(std::ostream& is,const Any& any) const;
+};
+
+template <>
+struct OPENVINO_API Write<std::tuple<unsigned int, unsigned int, unsigned int>> {
+    void operator()(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple) const;
+};
+
+template <>
+struct OPENVINO_API Write<std::tuple<unsigned int, unsigned int>> {
+    void operator()(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple) const;
+};
 
 template <typename T, typename A>
-void write(std::ostream& os, const std::vector<T, A>& vec) {
-    if (!vec.empty()) {
-        std::size_t i = 0;
-        for (auto&& v : vec) {
-            write(os, v);
-            if (i < (vec.size() - 1))
-                os << ' ';
-            ++i;
+struct Write<std::vector<T, A>> {
+    void operator()(std::ostream& os, const std::vector<T, A>& vec) const {
+        if (!vec.empty()) {
+            std::size_t i = 0;
+            for (auto&& v : vec) {
+                Write<T>{}(os, v);
+                if (i < (vec.size() - 1)) os << ' ';
+                ++i;
+            }
         }
     }
-}
+};
 
 template <typename K, typename T, typename C, typename A>
-void write(std::ostream& os, const std::map<K, T, C, A>& map) {
-    if (!map.empty()) {
-        std::size_t i = 0;
-        for (auto&& v : map) {
-            write(os, v.first);
-            os << ' ';
-            write(os, v.second);
-            if (i < (map.size() - 1))
+struct Write<std::map<K, T, C, A>> {
+    void operator()(std::ostream& os, const std::map<K, T, C, A>& map) const {
+        if (!map.empty()) {
+            std::size_t i = 0;
+            for (auto&& v : map) {
+                Write<K>{}(os, v.first);
                 os << ' ';
-            ++i;
+                Write<T>{}(os, v.second);
+                if (i < (map.size() - 1)) os << ' ';
+                ++i;
+            }
         }
     }
-}
+};
 }  // namespace util
 /** @endcond */
 
@@ -467,11 +530,11 @@ class OPENVINO_API Any {
         }
 
         void print(std::ostream& os) const override {
-            util::write(os, value);
+            util::Write<T>{}(os, value);
         }
 
         void read(std::istream& is) override {
-            util::read(is, value);
+            util::Read<T>{}(is, value);
         }
 
         T value;

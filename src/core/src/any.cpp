@@ -123,36 +123,48 @@ const Any::Base* Any::operator->() const {
 
 namespace util {
 
+void Read<bool>::operator()(std::istream& is, bool& value) const {
+    std::string str;
+    is >> str;
+    if (str == "YES") {
+        value = true;
+    } else if (str == "NO") {
+        value = false;
+    } else {
+        OPENVINO_UNREACHABLE("Could not convert to bool from string " + str);
+    }
+}
+
 template <typename F>
 static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const std::string&>())) {
     std::string str;
-    std::getline(is, str, ' ');
+    Read<std::string>{}(is, str);
     try {
         return f(str);
     } catch (std::exception& e) {
         OPENVINO_UNREACHABLE(std::string{"Could not convert to: "} +
-                             typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string " + str +
-                             ": " + e.what());
+                             typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" + str +
+                             "\": " + e.what());
     }
 }
 
-void read(std::istream& is, int& value) {
+void Read<int>::operator()(std::istream& is, int& value) const {
     value = stream_to(is, [](const std::string& str) {
         return std::stoi(str);
     });
 }
-void read(std::istream& is, long& value) {
+void Read<long>::operator()(std::istream& is, long& value) const {
     value = stream_to(is, [](const std::string& str) {
         return std::stol(str);
     });
 }
-void read(std::istream& is, long long& value) {
+void Read<long long>::operator()(std::istream& is, long long& value) const {
     value = stream_to(is, [](const std::string& str) {
         return std::stoll(str);
     });
 }
 
-void read(std::istream& is, unsigned& value) {
+void Read<unsigned>::operator()(std::istream& is, unsigned& value) const {
     value = stream_to(is, [](const std::string& str) {
         auto ul = std::stoul(str);
         if (ul > std::numeric_limits<unsigned>::max()) {
@@ -161,58 +173,63 @@ void read(std::istream& is, unsigned& value) {
         return static_cast<unsigned>(ul);
     });
 }
-void read(std::istream& is, unsigned long& value) {
+void Read<unsigned long>::operator()(std::istream& is, unsigned long& value) const {
     value = stream_to(is, [](const std::string& str) {
         return std::stoul(str);
     });
 }
-void read(std::istream& is, unsigned long long& value) {
+void Read<unsigned long long>::operator()(std::istream& is, unsigned long long& value) const {
     value = stream_to(is, [](const std::string& str) {
         return std::stoull(str);
     });
 }
 
-void read(std::istream& is, float& value) {
+void Read<float>::operator()(std::istream& is, float& value) const {
     value = stream_to(is, [](const std::string& str) {
         return std::stof(str);
     });
 }
-void read(std::istream& is, double& value) {
+void Read<double>::operator()(std::istream& is, double& value) const {
     value = stream_to(is, [](const std::string& str) {
         return std::stod(str);
     });
 }
-void read(std::istream& is, long double& value) {
+void Read<long double>::operator()(std::istream& is, long double& value) const {
     value = stream_to(is, [](const std::string& str) {
         return std::stold(str);
     });
 }
 
-void read(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple) {
-    read(is, std::get<0>(tuple));
-    read(is, std::get<1>(tuple));
-    read(is, std::get<2>(tuple));
+void Read<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple) const {
+    Read<unsigned int>{}(is, std::get<0>(tuple));
+    Read<unsigned int>{}(is, std::get<1>(tuple));
+    Read<unsigned int>{}(is, std::get<2>(tuple));
 }
 
-void write(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple) {
+void Read<std::tuple<unsigned int, unsigned int>>::operator()(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) const {
+    Read<unsigned int>{}(is, std::get<0>(tuple));
+    Read<unsigned int>{}(is, std::get<1>(tuple));
+}
+
+void Read<Any>::operator()(std::istream& is, Any& any) const {
+    any.read(is);
+}
+
+void Write<bool>::operator()(std::ostream& os, const bool& b) const {
+    os << (b ? "YES" : "NO");
+}
+
+void Write<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple) const {
     os << std::get<0>(tuple) << " " << std::get<1>(tuple) << " " << std::get<2>(tuple);
 }
 
-void read(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) {
-    read(is, std::get<0>(tuple));
-    read(is, std::get<1>(tuple));
-}
-
-void write(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple) {
+void Write<std::tuple<unsigned int, unsigned int>>::operator()(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple) const {
     os << std::get<0>(tuple) << " " << std::get<1>(tuple);
 }
 
-void write(std::ostream& os, const Any& any) {
+void Write<Any>::operator()(std::ostream& os, const Any& any) const {
     any.print(os);
 }
 
-void read(std::istream& is, Any& any) {
-    any.read(is);
-}
 }  // namespace util
 }  // namespace ov
