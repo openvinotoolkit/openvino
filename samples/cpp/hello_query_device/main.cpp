@@ -71,14 +71,33 @@ void print_any_value(const ov::Any& value) {
         slog::info << std::get<1>(values);
         slog::info << " }";
         slog::info << slog::endl;
+    } else if (value.is<std::map<ov::element::Type, float>>()) {
+        auto values = value.as<std::map<ov::element::Type, float>>();
+        slog::info << "{ ";
+        for (auto& kv : values) {
+            slog::info << kv.first << ": " << kv.second << "; ";
+        }
+        slog::info << " }";
+        slog::info << slog::endl;
+    } else if (value.is<std::map<std::string, uint64_t>>()) {
+        auto values = value.as<std::map<std::string, uint64_t>>();
+        slog::info << "{ ";
+        for (auto& kv : values) {
+            slog::info << kv.first << ": " << kv.second << "; ";
+        }
+        slog::info << " }";
+        slog::info << slog::endl;
+    } else if (value.is<ov::hint::PerformanceMode>()) {
+        auto values = value.as<std::string>();
+        slog::info << (values.empty() ? "\"\"" : values) << slog::endl;
     } else {
         std::stringstream strm;
         value.print(strm);
         auto str = strm.str();
         if (str.empty()) {
-            std::cout << "UNSUPPORTED TYPE" << std::endl;
+            slog::info << "UNSUPPORTED TYPE" << slog::endl;
         } else {
-            std::cout << str << std::endl;
+            slog::info << str << slog::endl;
         }
     }
 }
