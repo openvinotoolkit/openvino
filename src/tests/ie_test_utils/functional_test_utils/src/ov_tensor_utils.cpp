@@ -246,7 +246,7 @@ void compare(const ov::Tensor& expected,
             out_stream << "Expected value is NAN on coordinate: " << i;
             throw std::runtime_error(out_stream.str());
         }
-        if (std::isnan(expected_value)) {
+        if (std::isnan(actual_value)) {
             std::ostringstream out_stream;
             out_stream << "Actual value is NAN on coordinate: " << i;
             throw std::runtime_error(out_stream.str());
@@ -258,7 +258,7 @@ void compare(const ov::Tensor& expected,
     }
     abs_error.mean /= shape_size(expected_shape);
     rel_error.mean /= shape_size(expected_shape);
-    if (!((less(abs_error.max, abs_threshold) && less(rel_error.max, rel_threshold)))) {
+    if (!(less(abs_error.max, abs_threshold) && less(rel_error.max, rel_threshold))) {
         std::ostringstream out_stream;
         out_stream << "abs_max < abs_threshold && rel_max < rel_threshold" <<
                    "\n\t abs_max: " << abs_error.max <<
