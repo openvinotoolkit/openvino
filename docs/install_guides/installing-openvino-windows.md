@@ -84,7 +84,7 @@ The core components are now installed. Continue to the next section to configure
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the `setupvars.bat` batch file to temporarily set your environment variables:
 
 ```sh
-"<INSTALL_DIR>\openvino_2022\setupvars.bat"
+"<INSTALL_DIR>\setupvars.bat"
 ```
 
 **Optional**: OpenVINO™ toolkit environment variables are removed when you close the command prompt window. You can permanently set the environment variables manually.
