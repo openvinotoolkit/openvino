@@ -322,8 +322,8 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
 
     // batching test
     bool batching;
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::allow_auto_batching(enableFlag)));
-    OV_ASSERT_NO_THROW(batching = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::allow_auto_batching));
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::allow_auto_batching(enableFlag)));
+    OV_ASSERT_NO_THROW(batching = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::allow_auto_batching));
     ASSERT_EQ(enableFlag, batching);
 
     // perf hint test

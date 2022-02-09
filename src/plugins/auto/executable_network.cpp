@@ -805,15 +805,16 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         }
         return _loadContext[CPU].executableNetwork->GetMetric(name);
     }
-    if (name == ov::supported_properties) {
-        return decltype(ov::supported_properties)::value_type {
-            // Metrics
-            ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
+    auto RO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+    };
 
-            // Configs
-            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW}
+    if (name == ov::supported_properties) {
+        return std::vector<ov::PropertyName> {
+            RO_property(ov::supported_properties.name()),
+            RO_property(ov::model_name.name()),
+            RO_property(ov::optimal_number_of_infer_requests.name()),
+            RO_property(ov::device::priorities.name())
         };
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int res = 0u;

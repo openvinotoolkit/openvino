@@ -292,6 +292,11 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * ov::optimal_batch_size)
  */
 static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
+
+/**
+ * @brief Special key for auto batching feature configuration. Enabled by default
+ */
+static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
 }  // namespace hint
 
 /**
@@ -664,9 +669,4 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * environment variable is set (as affinity is configured explicitly)
  */
 static constexpr Property<Affinity> affinity{"AFFINITY"};
-
-/**
- * @brief The name for setting auto-batching option.
- */
-static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
 }  // namespace ov
