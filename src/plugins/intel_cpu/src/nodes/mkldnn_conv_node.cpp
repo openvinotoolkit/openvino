@@ -103,6 +103,8 @@ public:
 
         std::vector<MKLDNNNodePtr> nodes;
         std::vector<MKLDNNEdgePtr> edges;
+
+        //Make inputs
         const auto &inpMemDesc1 = conv.getBaseMemDescAtOutputPort(0);
         auto inp0 = std::make_shared<MKLDNNInputNode>(inpMemDesc1, "inp0", "Parameter", conv.getEngine(), weightCache);
         nodes.push_back(inp0);
@@ -112,6 +114,7 @@ public:
         auto inp1 = std::make_shared<MKLDNNInputNode>(inpMemDesc2, "inp1", "Parameter", conv.getEngine(), weightCache);
         nodes.push_back(inp1);
         inputs.push_back(inp1);
+
         auto itr = std::find_if(opList.begin(), opList.end(), [](const MKLDNNNodePtr &node) {
             if (auto eltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(node)) {
                 return eltwise->isSpecialConvolutionAddFusing();
@@ -119,23 +122,45 @@ public:
             return false;
         });
         auto sumNode = *itr;
-        MKLDNNEdgePtr edge1 = std::make_shared<MKLDNNEdge>(inp0, *itr, 0, 0);
+        MKLDNNEdgePtr edge1 = std::make_shared<MKLDNNEdge>(inp0, sumNode, 0, 0);
         sumNode->addEdge(edge1);
         edges.push_back(edge1);
-        MKLDNNEdgePtr edge2 = std::make_shared<MKLDNNEdge>(inp1, *itr, 0, 1);
+        MKLDNNEdgePtr edge2 = std::make_shared<MKLDNNEdge>(inp1, sumNode, 0, 1);
         sumNode->addEdge(edge2);
         edges.push_back(edge2);
         nodes.push_back(sumNode);
 
-        sumNode->clearFusedWith();
+        //Replicate the rest of the subgraph
+        auto parentItr = itr;
         while (++itr != opList.end()) {
-            sumNode->addFusedNode(*itr);
+            auto parentNode = *parentItr;
+            auto currentNode = *itr;
+            if (FakeQuantize == currentNode->getType()) {
+                parentNode->addFusedNode(currentNode);
+            } else {
+                auto edge = std::make_shared<MKLDNNEdge>(parentNode, currentNode, 0, 0);
+                currentNode->addEdge(edge);
+                edges.push_back(edge);
+                nodes.push_back(currentNode);
+                auto constantsItr = conv.fusedConstNodes.find(currentNode);
+                if (constantsItr != conv.fusedConstNodes.end()) {
+                    size_t inpPort = 1lu;
+                    for (const auto& item : constantsItr->second) {
+                        auto edge = std::make_shared<MKLDNNEdge>(item, currentNode, 0, inpPort++);
+                        currentNode->addEdge(edge);
+                        edges.push_back(edge);
+                        nodes.push_back(item);
+                    }
+                }
+                parentItr = itr;
+            }
         }
 
+        //Make output
         const auto &outMemDesc = conv.getBaseMemDescAtOutputPort(0);
         auto out = std::make_shared<MKLDNNInputNode>(outMemDesc, "out", "Result", conv.getEngine(), weightCache);
-        MKLDNNEdgePtr edge3 = std::make_shared<MKLDNNEdge>(sumNode, out, 0, 0);
-        sumNode->addEdge(edge3);
+        MKLDNNEdgePtr edge3 = std::make_shared<MKLDNNEdge>(*parentItr, out, 0, 0);
+        out->addEdge(edge3);
         edges.push_back(edge3);
         nodes.push_back(out);
         outputs.push_back(out);
@@ -296,7 +321,6 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Input) : true);
     }
 
-    withSum = false;
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
     for (int i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getType() == Convolution) {
@@ -306,7 +330,6 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         if (fusedWith[i]->getAlgorithm() == EltwiseAdd) {
             auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
             if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
-                withSum = true;
                 expectedInputEdgesNum++;
             }
         }
@@ -1343,6 +1366,28 @@ MKLDNNMemoryPtr MKLDNNConvolutionNode::getOutputMemory() const {
     } else {
         return getChildEdgesAtPort(0).front()->getMemoryPtr();
     }
+}
+
+void MKLDNNPlugin::MKLDNNConvolutionNode::addFusedNode(const MKLDNNNodePtr &fusingNode) {
+    if (Eltwise == fusingNode->getType()) {
+        if (fusingNode->getAlgorithm() == EltwiseAdd) {
+            auto eltwiseNode = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(fusingNode);
+            if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
+                withSum = true;
+            }
+        }
+        if (withSum && isDynamicNode()) {
+            for (auto edge : fusingNode->getParentEdges()) {
+                if (auto edgePtr = edge.lock()) {
+                    auto parent = edgePtr->getParent();
+                    if ("Constant" == parent->getTypeStr()) {
+                        fusedConstNodes[fusingNode].push_back(parent);
+                    }
+                }
+            }
+        }
+    }
+    MKLDNNNode::addFusedNode(fusingNode);
 }
 
 void MKLDNNConvolutionNode::appendZeroPointsArgs() {

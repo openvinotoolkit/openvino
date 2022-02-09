@@ -66,6 +66,7 @@ public:
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
+    void addFusedNode(const MKLDNNNodePtr &fusingNode) override;
 
 private:
     class FusedSubgraph;
@@ -133,6 +134,7 @@ private:
     AttrPtr pAttr;
     bool autoPadding = false;
     FusedSubgraphPtr subgraph;
+    std::unordered_map<MKLDNNNodePtr, std::vector<MKLDNNNodePtr>> fusedConstNodes;
 
     MKLDNNMemoryPtr inputZeroPointsMemPtr;
     MKLDNNMemoryPtr weightsZeroPointsMemPtr;
