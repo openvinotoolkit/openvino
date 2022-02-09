@@ -9,7 +9,7 @@
 #include <string>
 #include "openvino/frontend/manager.hpp"
 
-#include "graph_comparator.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "ie_blob.h"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/type/element_type.hpp"

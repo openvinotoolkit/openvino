@@ -13,7 +13,7 @@
 #include <random>
 #include <vector>
 
-#include "graph_comparator.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"

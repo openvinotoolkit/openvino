@@ -8,8 +8,8 @@
 #include <extension/json_transformation.hpp>
 #include <nlohmann/json-schema.hpp>
 #include <ostream>
-#include <util/graph_comparator.hpp>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
