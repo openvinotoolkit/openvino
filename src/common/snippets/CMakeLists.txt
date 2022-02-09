@@ -29,6 +29,8 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
+target_compile_definitions(${TARGET_NAME} PRIVATE USE_STATIC_IE)
+
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
                                      PRIVATE ngraph_reference openvino::runtime::dev)
 
