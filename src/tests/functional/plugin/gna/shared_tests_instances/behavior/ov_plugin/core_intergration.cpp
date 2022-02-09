@@ -26,27 +26,27 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassNetworkTestP, OVClassNetworkTestP
 // IE Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_SUPPORTED_PROPERTIES,
         ::testing::Values("GNA", "MULTI", "HETERO"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_AVAILABLE_DEVICES,
         ::testing::Values("GNA"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_FULL_DEVICE_NAME,
         ::testing::Values("GNA", "MULTI", "HETERO"));
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetPropertyTest,
         OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("GNA"));
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetPropertyTest,
         OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values("GNA"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_ThrowUnsupported,
         ::testing::Values("GNA", "MULTI", "HETERO"));
 

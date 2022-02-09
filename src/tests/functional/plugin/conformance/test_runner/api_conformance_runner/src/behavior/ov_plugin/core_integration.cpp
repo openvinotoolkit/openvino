@@ -32,31 +32,31 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_SUPPORTED_PROPERTIES,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_SUPPORTED_PROPERTIES,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_AVAILABLE_DEVICES,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_AVAILABLE_DEVICES,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_FULL_DEVICE_NAME,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_FULL_DEVICE_NAME,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_RANGE_FOR_STREAMS,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_RANGE_FOR_STREAMS,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_ThrowUnsupported,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_ThrowUnsupported,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(

@@ -44,10 +44,6 @@ INSTANTIATE_TEST_SUITE_P(OVClassExecutableNetworkGetMetricTest_nightly,
                          ::testing::ValuesIn(devices));
 
 INSTANTIATE_TEST_SUITE_P(OVClassExecutableNetworkGetMetricTest_nightly,
-                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-                         ::testing::ValuesIn(devices));
-
-INSTANTIATE_TEST_SUITE_P(OVClassExecutableNetworkGetMetricTest_nightly,
                          OVClassExecutableNetworkGetMetricTest_MODEL_NAME,
                          ::testing::ValuesIn(devices));
 

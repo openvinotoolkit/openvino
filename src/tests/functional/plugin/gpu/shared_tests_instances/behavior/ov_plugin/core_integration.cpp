@@ -31,59 +31,59 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassNetworkTestP, OVClassNetworkTestP, ::tes
 // IE Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_SUPPORTED_PROPERTIES,
         ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_AVAILABLE_DEVICES,
         ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_FULL_DEVICE_NAME,
         ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_MAX_BATCH_SIZE,
         ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_MODEL_PRIORITY,
         ::testing::Values("GPU", "AUTO"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_PERFORMANCE_MODE,
         ::testing::Values("GPU", "AUTO"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_ENABLE_PROFILING,
         ::testing::Values("GPU", "MULTI", "AUTO", "HETERO"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_DEVICE_GOPS,
         ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_DEVICE_TYPE,
         ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_OPTIMAL_BATCH_SIZE,
         ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_RANGE_FOR_STREAMS,
         ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_ThrowUnsupported,
         ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
@@ -109,7 +109,7 @@ TEST_P(OVClassPropertyTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) 
     OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
 }
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_GPU_DEVICE_TOTAL_MEM_SIZE,
         ::testing::Values("GPU"));
 
@@ -125,7 +125,7 @@ TEST_P(OVClassPropertyTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(UARCH_VERSION));
 }
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_GPU_UARCH_VERSION,
         ::testing::Values("GPU"));
 
@@ -142,7 +142,7 @@ TEST_P(OVClassPropertyTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) 
     OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
 }
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassPropertyTest_GPU_EXECUTION_UNITS_COUNT,
         ::testing::Values("GPU"));
 
@@ -278,7 +278,7 @@ TEST_P(OVClassGetPropertyTest_GPU, CanSetDefaultValueBackToPluginNewAPI) {
     OV_ASSERT_PROPERTY_SUPPORTED(ov::supported_properties);
 }
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
         OVClassGetPropertyTest_GPU,
         ::testing::Values("GPU"));
 
@@ -556,12 +556,12 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestSetConfig,
+        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestSetProperty,
         ::testing::Values("GPU.0")
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestSetConfig,
+        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestSetProperty,
         ::testing::Values("GPU.1")
 );
 

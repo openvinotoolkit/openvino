@@ -69,10 +69,12 @@ using OVClassPropertyTest_OPTIMAL_BATCH_SIZE = OVClassBaseTestP;
 using OVClassPropertyTest_INFERENCE_PRECISION = OVClassBaseTestP;
 using OVClassPropertyTest_DEVICE_THERMAL = OVClassBaseTestP;
 using OVClassPropertyTest_DEVICE_ARCHITECTURE = OVClassBaseTestP;
+using OVClassPropertyTest_INFERENCE_NUM_THREADS = OVClassBaseTestP;
 using OVClassPropertyTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
 using OVClassPropertyTest_MODEL_PRIORITY = OVClassBaseTestP;
-using OVClassPropertyTest_MAX_BATCH_SIZE = OVClassBaseTestP;
+using OVClassPropertyTest_PERFORMANCE_MODE = OVClassBaseTestP;
 using OVClassPropertyTest_ENABLE_PROFILING = OVClassBaseTestP;
+using OVClassPropertyTest_MAX_BATCH_SIZE = OVClassBaseTestP;
 using OVClassPropertyTest_ThrowUnsupported = OVClassBaseTestP;
 using OVClassGetPropertyTest = OVClassBaseTestP;
 using OVClassGetPropertyTest_ThrowUnsupported = OVClassBaseTestP;
@@ -80,7 +82,7 @@ using OVClassGetAvailableDevices = OVClassBaseTestP;
 using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
-using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
+using OVClassSpecificDeviceTestSetProperty = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetProperty = OVClassBaseTestP;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
@@ -304,7 +306,7 @@ TEST_P(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
     ASSERT_EQ(deviceName, value);
 }
 
-TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
+TEST_P(OVClassSpecificDeviceTestSetProperty, SetConfigSpecificDeviceNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     std::string deviceID, clearDeviceName;
@@ -575,7 +577,7 @@ TEST(OVClassPropertyTest_MODEL_PRIORITY, SetGetPropertyAndPrintNoThrow) {
 }
 
 TEST_P(OVClassPropertyTest_PERFORMANCE_MODE, GetAndSetPerformanceModeNoThrow) {
-    ov::Core ie;
+    ov::Core ie = createCoreWithTemplate();
 
     ov::hint::PerformanceMode defaultMode;
     ASSERT_NO_THROW(defaultMode = ie.get_property(deviceName, ov::hint::performance_mode));
@@ -592,8 +594,8 @@ TEST_P(OVClassPropertyTest_PERFORMANCE_MODE, GetAndSetPerformanceModeNoThrow) {
     OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::performance_mode);
 }
 
-TEST(OVClassPropertyTest_ENABLE_PROFILING, smoke_SetGetPropertyEnableProfiling) {
-    ov::Core ie;
+TEST_P(OVClassPropertyTest_ENABLE_PROFILING, smoke_SetGetPropertyEnableProfiling) {
+    ov::Core ie = createCoreWithTemplate();
     bool value;
     const bool enableProfilingDefault = false;
 
@@ -608,7 +610,7 @@ TEST(OVClassPropertyTest_ENABLE_PROFILING, smoke_SetGetPropertyEnableProfiling) 
 }
 
 TEST_P(OVClassPropertyTest_MAX_BATCH_SIZE, GetPropertyAndPrintNoThrow) {
-    ov::Core ie;
+    ov::Core ie = createCoreWithTemplate();
     uint32_t max_batch_size;
 
     ASSERT_NO_THROW(max_batch_size = ie.get_property(deviceName, ov::max_batch_size));
@@ -653,7 +655,7 @@ TEST_P(OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetPropertyAndPrintNo
 }
 
 TEST_P(OVClassPropertyTest_OPTIMAL_BATCH_SIZE, GetPropertyOptimalBatchSizeAndPrintNoThrow) {
-    ov::Core ie;
+    ov::Core ie = createCoreWithTemplate();
 
     unsigned int property;
     ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::optimal_batch_size));
@@ -664,10 +666,10 @@ TEST_P(OVClassPropertyTest_OPTIMAL_BATCH_SIZE, GetPropertyOptimalBatchSizeAndPri
 }
 
 TEST_P(OVClassPropertyTest_INFERENCE_PRECISION, GetPropertyAndPrintNoThrow) {
-    ov::Core ie;
+    ov::Core ie = createCoreWithTemplate();
 
     ov::element::Type property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::hint::inference_precision);
+    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::hint::inference_precision));
 
     std::cout << "INFERENCE_PRECISION: " << property << std::endl;
 
@@ -675,10 +677,10 @@ TEST_P(OVClassPropertyTest_INFERENCE_PRECISION, GetPropertyAndPrintNoThrow) {
 }
 
 TEST_P(OVClassPropertyTest_DEVICE_THERMAL, GetPropertyAndPrintNoThrow) {
-    ov::Core ie;
+    ov::Core ie = createCoreWithTemplate();
 
     float property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::device::thermal);
+    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::device::thermal));
 
     std::cout << "DEVICE_THERMAL: " << property << std::endl;
 
@@ -686,10 +688,10 @@ TEST_P(OVClassPropertyTest_DEVICE_THERMAL, GetPropertyAndPrintNoThrow) {
 }
 
 TEST_P(OVClassPropertyTest_DEVICE_ARCHITECTURE, GetPropertyAndPrintNoThrow) {
-    ov::Core ie;
+    ov::Core ie = createCoreWithTemplate();
 
     std::string property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::device::architecture);
+    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::device::architecture));
 
     std::cout << "DEVICE_ARCHITECTURE: " << property << std::endl;
 
@@ -697,10 +699,10 @@ TEST_P(OVClassPropertyTest_DEVICE_ARCHITECTURE, GetPropertyAndPrintNoThrow) {
 }
 
 TEST_P(OVClassPropertyTest_INFERENCE_NUM_THREADS, GetPropertyAndPrintNoThrow) {
-    ov::Core ie;
+    ov::Core ie = createCoreWithTemplate();
 
     int32_t property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::inference_num_threads);
+    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::inference_num_threads));
 
     std::cout << "INFERENCE_NUM_THREADS: " << property << std::endl;
 

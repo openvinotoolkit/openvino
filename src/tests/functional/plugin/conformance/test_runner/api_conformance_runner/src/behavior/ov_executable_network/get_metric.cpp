@@ -30,10 +30,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
-
-INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_MODEL_NAME,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 

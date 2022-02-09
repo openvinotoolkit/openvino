@@ -30,7 +30,6 @@ namespace behavior {
 
 using OVClassImportExportTestP = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_PROPERTIES = OVClassBaseTestP;
-using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_MODEL_NAME = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported = OVClassBaseTestP;

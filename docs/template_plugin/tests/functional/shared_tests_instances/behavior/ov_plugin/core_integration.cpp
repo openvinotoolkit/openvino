@@ -28,32 +28,28 @@ INSTANTIATE_TEST_SUITE_P(
 // OV Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_PROPERTIES,
+INSTANTIATE_TEST_SUITE_P(             
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_SUPPORTED_PROPERTIES,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_AVAILABLE_DEVICES,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_AVAILABLE_DEVICES,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_FULL_DEVICE_NAME,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_FULL_DEVICE_NAME,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetConfigTest, OVClassGetConfigTest_ThrowUnsupported,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_ThrowUnsupported,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -62,14 +58,14 @@ INSTANTIATE_TEST_SUITE_P(
 
 
 //
-// OV Class GetConfig
+// OV Class GetProperty
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetConfigTest, OVClassGetConfigTest,
+        smoke_OVClassGetPropertyTest, OVClassGetPropertyTest,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
-TEST(OVClassBasicTest, smoke_TEMPLATEGetSetConfigNoThrow) {
+TEST(OVClassBasicTest, smoke_TEMPLATEGetSetPropertyNoThrow) {
     ov::Core core = createCoreWithTemplate();
 
     auto device_name = CommonTestUtils::DEVICE_TEMPLATE;

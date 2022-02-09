@@ -33,47 +33,51 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_SUPPORTED_PROPERTIES,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_SUPPORTED_PROPERTIES,
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_AVAILABLE_DEVICES,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_AVAILABLE_DEVICES,
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_INFERENCE_PRECISION,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_INFERENCE_PRECISION,
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_FULL_DEVICE_NAME,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_FULL_DEVICE_NAME,
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_RANGE_FOR_STREAMS,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_RANGE_FOR_STREAMS,
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_DEVICE_ARCHITECTURE,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_DEVICE_ARCHITECTURE,
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_ENABLE_PROFILING,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_ENABLE_PROFILING,
         ::testing::Values("CPU", "MULTI", "AUTO", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_PERFORMANCE_MODE,
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_PERFORMANCE_MODE,
         ::testing::Values("CPU", "MULTI", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassPropertyTest_ThrowUnsupported,
+        smoke_IEClassGetMetricTest, OVClassPropertyTest_INFERENCE_NUM_THREADS,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassGetPropertyTest, OVClassPropertyTest_ThrowUnsupported,
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(

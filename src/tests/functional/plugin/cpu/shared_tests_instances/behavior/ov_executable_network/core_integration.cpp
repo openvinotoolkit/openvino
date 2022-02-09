@@ -29,10 +29,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_MODEL_NAME,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
