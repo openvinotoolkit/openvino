@@ -50,8 +50,8 @@ public:
      *
      * See Core::register_plugins for more details.
      *
-     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not 
-     * specified, default OpenVINO Runtime plugins are loaded from the default `plugin.xml` file located in the same 
+     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
+     * specified, default OpenVINO Runtime plugins are loaded from the default `plugin.xml` file located in the same
      * folder as OpenVINO runtime shared library.
      */
     explicit Core(const std::string& xml_config_file = {});
@@ -367,7 +367,7 @@ public:
      * @brief Imports a compiled model from the previously exported one.
      * @param model_stream std::istream input stream containing a model previously exported using the
      * ov::CompiledModel::export_model method.
-     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used 
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
      * to compile the original mode, an exception is thrown.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation.
@@ -381,7 +381,7 @@ public:
      * @brief Imports a compiled model from the previously exported one.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
      * @param model_stream Model stream.
-     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used 
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
      * to compile the original mode, an exception is thrown.
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation.

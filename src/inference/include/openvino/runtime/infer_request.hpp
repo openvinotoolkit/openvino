@@ -37,7 +37,7 @@ class OPENVINO_RUNTIME_API InferRequest {
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr.
      * @param impl Initialized shared pointer.
-     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if a plugin object 
+     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if a plugin object
      * is destroyed.
      */
     InferRequest(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl, const std::shared_ptr<void>& so);
@@ -77,7 +77,7 @@ public:
 
     /**
      * @brief Destructor that preserves unloading order of implementation object and reference to the library.
-     * @note To preserve destruction order inside the default generated assignment operator, `_impl` is stored before 
+     * @note To preserve destruction order inside the default generated assignment operator, `_impl` is stored before
      *       `_so`. Use the destructor to remove implementation object before referencing to the library explicitly.
      */
     ~InferRequest();
@@ -150,8 +150,8 @@ public:
     /**
      * @brief Sets an input tensor to infer.
      *
-     * @param idx Index of the input tensor. If @p idx is greater than the number of model inputs, an exception is 
-     * thrown.
+     * @param idx Index of the input tensor. If @p idx is greater than the number of model inputs, an exception
+     * is thrown.
      * @param tensor Reference to the tensor. The element_type and shape of the tensor must match
      * the model's input/output element_type and size.
      */
