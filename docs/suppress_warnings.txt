@@ -69,12 +69,12 @@ example of converting
 step 2: build the software required for all roles
 step 4: receive and load the access controlled model into
 ^undefined label:
-\[autosummary\] failed to import \'openvino.inference_engine\'
+\[autosummary\] failed to import
 inheritance graph for
 ^convert darknet
 anonymous hyperlink mismatch: 4 references but 0 targets
 see "backrefs" attribute for ids
-\[autosummary\] failed to import openvino.inference_engine.
+\[autosummary\] failed to import
 doing serial read
 doing serial write
 possible hints:
@@ -98,3 +98,5 @@ unexpected indentation
 definition list ends without
 duplicate object description of
 explicit markup ends without a blank line
+\* keyerror:
+\* modulenotfounderror
