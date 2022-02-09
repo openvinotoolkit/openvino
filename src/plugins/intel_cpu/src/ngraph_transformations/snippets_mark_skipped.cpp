@@ -339,6 +339,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                     PropagateIfHasOnlyChild(node, updatedChainType);
             } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && snippets::pass::AppropriateForSubgraph(node)) {
                 SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
+            } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs &&
+                       (ov::is_type<ngraph::opset1::Convert>(node) || ov::is_type<ngraph::opset1::Transpose>(node))) {
+                SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
             }
         }
         if (GetNodeFusingType(node) != NodeFusingType::NotSet) {

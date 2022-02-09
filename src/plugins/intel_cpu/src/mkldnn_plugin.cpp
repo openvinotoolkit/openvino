@@ -116,6 +116,7 @@
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
+#include "ngraph_transformations/swap_convert_transpose.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 # ifdef _WIN32
@@ -226,6 +227,7 @@ static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Fun
     manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.register_pass<ngraph::pass::EliminateConvert>();
+    manager.register_pass<SwapConvertTranspose>();
 
     auto pass_config = manager.get_pass_config();
 
