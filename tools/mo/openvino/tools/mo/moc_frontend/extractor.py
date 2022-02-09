@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from difflib import Match
-from nis import match
 import re
 
 from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_collision
