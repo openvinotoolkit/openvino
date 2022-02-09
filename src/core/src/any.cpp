@@ -122,17 +122,6 @@ const Any::Base* Any::operator->() const {
 }
 
 namespace util {
-void read(std::istream& is, bool& value) {
-    std::string str;
-    is >> str;
-    if (str == "YES") {
-        value = true;
-    } else if (str == "NO") {
-        value = false;
-    } else {
-        OPENVINO_UNREACHABLE("Could not convert to bool from string " + str);
-    }
-}
 
 template <typename F>
 static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const std::string&>())) {
@@ -197,10 +186,6 @@ void read(std::istream& is, long double& value) {
     value = stream_to(is, [](const std::string& str) {
         return std::stold(str);
     });
-}
-
-void write(std::ostream& os, const bool& b) {
-    os << (b ? "YES" : "NO");
 }
 
 void read(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple) {

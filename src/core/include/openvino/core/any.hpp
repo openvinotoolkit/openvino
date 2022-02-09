@@ -55,7 +55,19 @@ struct Readable {
     constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
 };
 
-OPENVINO_API void read(std::istream& is, bool& value);
+template <typename T>
+inline typename std::enable_if<std::is_same<T, bool>::value>::type read(std::istream& is, T& value) {
+    std::string str;
+    is >> str;
+    if (str == "YES") {
+        value = true;
+    } else if (str == "NO") {
+        value = false;
+    } else {
+        OPENVINO_UNREACHABLE("Could not convert to bool from string " + str);
+    }
+}
+
 OPENVINO_API void read(std::istream& is, int& value);
 OPENVINO_API void read(std::istream& is, long& value);
 OPENVINO_API void read(std::istream& is, long long& value);
@@ -70,12 +82,16 @@ OPENVINO_API void read(std::istream& is, std::tuple<unsigned int, unsigned int>&
 OPENVINO_API void read(std::istream& is, Any& any);
 
 template <typename T>
-typename std::enable_if<Istreamable<T>::value && !Readable<T>::value>::type read(std::istream& is, T& value) {
+typename std::enable_if<Istreamable<T>::value && !Readable<T>::value && !std::is_same<T, bool>::value>::type read(
+    std::istream& is,
+    T& value) {
     is >> value;
 }
 
 template <typename T>
-typename std::enable_if<!Istreamable<T>::value && !Readable<T>::value>::type read(std::istream& is, T& value) {
+typename std::enable_if<!Istreamable<T>::value && !Readable<T>::value && !std::is_same<T, bool>::value>::type read(
+    std::istream& is,
+    T& value) {
     throw ov::Exception{std::string{"Could read type without std::istream& operator>>(std::istream&, T) defined, T: "} +
                         typeid(T).name()};
 }
@@ -129,14 +145,21 @@ struct Writable {
 };
 
 template <class T>
-typename std::enable_if<Ostreamable<T>::value && !Writable<T>::value>::type write(std::ostream& os, const T& value) {
+typename std::enable_if<Ostreamable<T>::value && !Writable<T>::value && !std::is_same<T, bool>::value>::type write(
+    std::ostream& os,
+    const T& value) {
     os << value;
 }
 
 template <class T>
-typename std::enable_if<!Ostreamable<T>::value && !Writable<T>::value>::type write(std::ostream& os, const T&) {}
+typename std::enable_if<!Ostreamable<T>::value && !Writable<T>::value && !std::is_same<T, bool>::value>::type write(
+    std::ostream& os,
+    const T&) {}
 
-OPENVINO_API void write(std::ostream& os, const bool& b);
+template <typename T>
+inline typename std::enable_if<std::is_same<T, bool>::value>::type write(std::ostream& os, const T& b) {
+    os << (b ? "YES" : "NO");
+}
 OPENVINO_API void write(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple);
 OPENVINO_API void write(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple);
 OPENVINO_API void write(std::ostream& os, const Any& any);
