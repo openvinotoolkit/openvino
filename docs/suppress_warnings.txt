@@ -97,3 +97,4 @@ more than one target found for cross-reference
 unexpected indentation
 definition list ends without
 duplicate object description of
+explicit markup ends without a blank line
