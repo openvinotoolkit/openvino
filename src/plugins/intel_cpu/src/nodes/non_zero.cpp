@@ -135,7 +135,7 @@ void NonZero::executeSpecified() {
     if (totalNonZeroCount == 0)
         return;
 
-    std::vector<int> srcDims(inShape.getDims().size());
+    std::vector<int> srcDims(inRank);
     std::transform(inShape.getDims().begin(), inShape.getDims().end(), srcDims.begin(), [](size_t x) {
             return static_cast<int>(x);
         });
