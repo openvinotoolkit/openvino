@@ -468,7 +468,8 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         append_ir_info(file=orig_model_name,
                        meta_info=get_meta_info(argv),
                        mean_data=mean_data,
-                       input_names=input_names)
+                       input_names=input_names,
+                       legacy_path=True)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))

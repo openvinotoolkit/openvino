@@ -52,7 +52,8 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     append_ir_info(file=orig_model_name,
                    meta_info=get_meta_info(argv),
                    mean_data=None,
-                   input_names=None)
+                   input_names=None,
+                   legacy_path=False)
 
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
