@@ -4,11 +4,21 @@
 
 #pragma once
 
+#include <bitset>
+
 #include "cpu_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
+#define BLOCKED_DESC_FULL_MASK 0xffffffff
+#define BLOCKED_DESC_EMPTY_MASK 0x0
+#define BLOCKED_DESC_SKIP_OFFSET_MASK 0x7fffffff
+#define BLOCKED_DESC_OFFSET_MASK_POS 31
+
 class BlockedMemoryDesc : public virtual MemoryDesc {
+public:
+    using CmpMask = std::bitset<32>;
+
 public:
     BlockedMemoryDesc() {}
 
@@ -62,18 +72,16 @@ public:
     virtual size_t getPaddedElementsCount() const = 0;
 
     /**
-     * @brief Creates MemoryDesc with offsetPadding and strides of UNDEFINED_DIM size
+     * @brief Performs masked compatibility check, where the mask defines which strides to check,
+     * the most significant bit defines whether to check offset compatibility.
+     * @param rhs - desc to compare to
+     * @param cmpMask - a bit mask that defines compatibility check rules
      *
-     * @return pointer to the new MemoryDesc
+     * @return the result of the compatibility check
      */
-    virtual MemoryDescPtr cloneWithUndefStridesAndOffset() const = 0;
+    virtual bool isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const = 0;
 
-    /**
-     * @brief Creates MemoryDesc with offsetPadding of 0 size and default strides
-     *
-     * @return pointer to the new MemoryDesc
-     */
-    virtual MemoryDescPtr cloneWithDefaultStridesAndOffset() const = 0;
+    virtual ~BlockedMemoryDesc() = default;
 
     std::string serializeFormat() const override;
 
@@ -85,7 +93,7 @@ protected:
      * Doesn't perform descs specific attributes check
      * @return true if compatible, otherwise false
      */
-    bool isCompatible(const BlockedMemoryDesc &rhs) const;
+    bool isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
 
     mutable VectorDims blockedDims;
     mutable VectorDims strides;

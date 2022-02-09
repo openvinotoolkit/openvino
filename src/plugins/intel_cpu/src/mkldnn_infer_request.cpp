@@ -189,7 +189,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MKLDNNPlugin:
 }
 
 static inline void changeEdgePtr(const MKLDNNPlugin::MKLDNNEdgePtr &edge, void *newPtr) {
-    edge->getMemory().GetPrimitivePtr()->set_data_handle(newPtr);
+    edge->getMemoryPtr()->setDataHandle(newPtr);
 }
 
 void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
@@ -198,7 +198,7 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
         auto input = inputNodesMap.find(it.first);
         if (input != inputNodesMap.end()) {
             MKLDNNNodePtr inputNodePtr = input->second;
-            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle() == it.second)
+            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetData() == it.second)
                 continue;
             auto& childEdges = inputNodePtr->getChildEdges();
             // Input cannot be in-place with other primitives
@@ -240,7 +240,7 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
                     if (!e)
                         IE_THROW() << "Node " << child->getName() << " contains empty child edge";
 
-                    if (e->getMemory().GetPrimitive().get_data_handle() == ce->getMemory().GetPrimitive().get_data_handle()) {
+                    if (e->getMemory().GetData() == ce->getMemory().GetData()) {
                         canBeInPlace = false;
                         break;
                     }
@@ -266,11 +266,11 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
         auto output = outputNodesMap.find(it.first);
         if (output != outputNodesMap.end()) {
             auto parentEdge = output->second->getParentEdgeAt(0);
-            if (parentEdge->getMemory().GetPrimitive().get_data_handle() == it.second)
+            if (parentEdge->getMemory().GetData() == it.second)
                 continue;
 
             bool canBeInPlace = true;
-            void* defaultPtr = parentEdge->getMemory().GetPrimitivePtr()->get_data_handle();
+            void* defaultPtr = parentEdge->getMemory().GetData();
             // Cannot be in-place after concat because concat is using different ptrs without offsets
             auto parent = parentEdge->getParent();
             MKLDNNNodePtr previousParent;
@@ -287,7 +287,7 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
                     if (!e)
                         IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
 
-                    if (e->getMemory().GetPrimitivePtr()->get_data_handle() == defaultPtr) {
+                    if (e->getMemory().GetData() == defaultPtr) {
                         parent = e->getParent();
                         break;
                     }
