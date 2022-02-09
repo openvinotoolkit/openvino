@@ -18,7 +18,8 @@ typedef std::tuple<
         InputShape, //convShape
         InputShape,  //second term shape
         bool,       // bias flag
-        fusingSpecificParams
+        fusingSpecificParams,
+        std::map<std::string, std::string> // config
 > convSumBroadcastParamSet;
 
 
@@ -30,7 +31,8 @@ public:
         InputShape secondShape;
         bool bias;
         fusingSpecificParams fusingParams;
-        std::tie(convShape, secondShape, bias, fusingParams) = obj.param;
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig) = obj.param;
 
         std::ostringstream result;
         result << "IS=";
@@ -48,6 +50,13 @@ public:
         result << "bias=" << (bias ? "True" : "False");
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                result << "_" << item.first << "=" << item.second;
+            }
+        }
+
         return result.str();
     }
 
@@ -57,9 +66,12 @@ public:
         bool bias;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
-        std::tie(convShape, secondShape, bias, fusingParams) = this->GetParam();
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig) = this->GetParam();
 
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         init_input_shapes({convShape, secondShape});
 
@@ -82,7 +94,15 @@ public:
 
         auto sum = std::make_shared<ngraph::opset3::Add>(conv, inputParams[1]);
 
-        selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
+        fusedOps.insert(fusedOps.begin(), "Add"); // as we always fuse the sum first
+
+        auto runtimeType = netType;
+        if (configuration.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
+            PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16].as<std::string>()) {
+            runtimeType = ngraph::element::Type_t::bf16;
+        }
+
+        selectedType = makeSelectedTypeStr(getPrimitiveType(), runtimeType);
 
         function = makeNgraphFunction(netType, inputParams, sum, "ConvolutionSumBroadcast");
         targetDevice = CommonTestUtils::DEVICE_CPU;
@@ -98,11 +118,93 @@ TEST_P(ConcatConvSumInPlaceTest, CompareWithRefs) {
 }
 
 namespace {
+const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+            ngraph::Shape newShape = generatePerChannelShape(inpNode);
+            auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+        }, "Multiply(PerChannel)"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+            ngraph::Shape newShape = generatePerChannelShape(inpNode);
+            auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+        }, "Add(PerChannel)"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            auto localPrc = inpNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(inpNode);
+            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        }, "FakeQuantize(PerChannel)"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+            ngraph::Shape newShape = generatePerChannelShape(inpNode);
+            auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+        }, "Multiply(PerChannel)"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+            ngraph::Shape newShape = generatePerChannelShape(inpNode);
+            auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+        }, "Add(PerChannel)"}}), {"Add"} };
+
+const auto fusingDivSubFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            ngraph::Shape secondMultInShape = generatePerChannelShape(inpNode);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Divide>(inpNode, secondMultInput);
+        }, "Divide(PerChannel)"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            ngraph::Shape secondMultInShape = generatePerChannelShape(inpNode);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Subtract>(inpNode, secondMultInput);
+        }, "Subtract(PerChannel)"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            auto localPrc = inpNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(inpNode);
+            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"} };
+
+const auto fusingSigmoidFQFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Sigmoid);
+        }, "Sigmoid"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            auto localPrc = inpNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(inpNode);
+            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        }, "FakeQuantize(PerChannel)"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            auto localPrc = inpNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(inpNode);
+            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        }, "FakeQuantize(PerChannel)"}}), {"Sigmoid", "FakeQuantize", "FakeQuantize"} };
+
+const auto fusingClampFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Clamp, {}, {3.0f, 6.0f});
+        }, "Clamp"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            auto localPrc = inpNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(inpNode);
+            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"} };
+
+
+
 const std::vector<fusingSpecificParams> fusingParamsSet{
         emptyFusingSpec,
         fusingSigmoid,
         fusingFakeQuantizePerTensorRelu,
         fusingFakeQuantizePerChannelRelu,
+        fusingFQPerChannelSigmoidFQPerChannel,
+        fusingReluScaleShift,
+        fusingMulAddFQMullAdd,
+        fusingSigmoidFQFQ,
+//        fusingClampFQ // TODO: we need investigation, this particular pattern does not work even in static case
+        fusingDivSubFQ
+};
+
+const std::vector<fusingSpecificParams> fusingParamsSetBF16{
+        emptyFusingSpec,
+        fusingSigmoid,
         fusingReluScaleShift
 };
 
@@ -128,12 +230,22 @@ InputShape secondInp = {
         }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast, ConcatConvSumInPlaceTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConcatConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::Values(secondInp),
                                  ::testing::Values(true, false),
-                                 ::testing::ValuesIn(fusingParamsSet)),
+                                 ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConcatConvSumInPlaceTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConcatConvSumInPlaceTest,
+                         ::testing::Combine(
+                                 ::testing::Values(convInpShape),
+                                 ::testing::Values(secondInp),
+                                 ::testing::Values(true, false),
+                                 ::testing::ValuesIn(fusingParamsSetBF16),
+                                 ::testing::Values(cpuBF16PluginConfig)),
                          ConcatConvSumInPlaceTest::getTestCaseName);
 
 } // namespace
