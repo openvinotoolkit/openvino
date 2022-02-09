@@ -42,8 +42,8 @@ class OPENVINO_RUNTIME_API CompiledModel {
     /**
      * @brief Constructs CompiledModel from the initialized std::shared_ptr.
      * @param impl Initialized shared pointer.
-     * @param so Plugin to use. This parameter is required to ensure that CompiledModel can work properly even if a plugin
-     * object is destroyed.
+     * @param so Plugin to use. This parameter is required to ensure that CompiledModel can work properly even if a
+     * plugin object is destroyed.
      */
     CompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl,
                   const std::shared_ptr<void>& so);
@@ -183,8 +183,8 @@ public:
      * The method is responsible for extracting information
      * that affects compiled model inference. The list of supported configuration values can be extracted via
      * CompiledModel::get_property with the ov::supported_properties key, but some of these keys cannot be changed
-     * dynamically, for example, ov::device::id cannot be changed if a compiled model has already been compiled for a particular
-     * device.
+     * dynamically, for example, ov::device::id cannot be changed if a compiled model has already been compiled for a 
+     * particular device.
      *
      * @param name Property key, can be found in openvino/runtime/properties.hpp.
      * @return Property value.

@@ -36,7 +36,7 @@ class CompiledModel;
 class OPENVINO_RUNTIME_API RemoteContext {
 protected:
     std::shared_ptr<InferenceEngine::RemoteContext> _impl;  //!< Pointer to the remote context implementation.
-    std::shared_ptr<void> _so;                              //!< Reference to the shared object that loaded implementation.
+    std::shared_ptr<void> _so; //!< Reference to the shared object that loaded implementation.
 
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr.

@@ -37,8 +37,8 @@ class OPENVINO_RUNTIME_API InferRequest {
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr.
      * @param impl Initialized shared pointer.
-     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if a plugin object is
-     * destroyed.
+     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if a plugin object 
+     * is destroyed.
      */
     InferRequest(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl, const std::shared_ptr<void>& so);
     friend class ov::CompiledModel;
@@ -77,8 +77,8 @@ public:
 
     /**
      * @brief Destructor that preserves unloading order of implementation object and reference to the library.
-     * @note To preserve destruction order inside the default generated assignment operator, `_impl` is stored before `_so`.
-     *       Use the destructor to remove implementation object before referencing to the library explicitly.
+     * @note To preserve destruction order inside the default generated assignment operator, `_impl` is stored before 
+     *       `_so`. Use the destructor to remove implementation object before referencing to the library explicitly.
      */
     ~InferRequest();
 
@@ -150,7 +150,8 @@ public:
     /**
      * @brief Sets an input tensor to infer.
      *
-     * @param idx Index of the input tensor. If @p idx is greater than the number of model inputs, an exception is thrown.
+     * @param idx Index of the input tensor. If @p idx is greater than the number of model inputs, an exception is 
+     * thrown.
      * @param tensor Reference to the tensor. The element_type and shape of the tensor must match
      * the model's input/output element_type and size.
      */
@@ -225,8 +226,8 @@ public:
      * @brief Gets an input tensor for inference.
      *
      * @param idx Index of the tensor to get.
-     * @return Tensor with the input index @p idx. If the tensor with the specified @p idx is not found, an exception is
-     * thrown.
+     * @return Tensor with the input index @p idx. If the tensor with the specified @p idx is not found, an exception 
+     * is thrown.
      */
     Tensor get_input_tensor(size_t idx);
 

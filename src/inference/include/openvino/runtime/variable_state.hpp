@@ -33,8 +33,8 @@ class OPENVINO_RUNTIME_API VariableState {
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr.
      * @param impl Initialized shared pointer.
-     * @param so Optional: plugin to use. This is required to ensure that VariableState can work properly even if a plugin
-     * object is destroyed.
+     * @param so Optional: plugin to use. This is required to ensure that VariableState can work properly even if a 
+     * plugin object is destroyed.
      */
     VariableState(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& impl,
                   const std::shared_ptr<void>& so);
@@ -59,8 +59,9 @@ public:
     void reset();
 
     /**
-     * @brief Gets the name of the current variable state. If length of an array is not enough, the name is truncated by len, null
-     * terminator is inserted as well. `variable_id` from the corresponding `ReadValue` is used as variable state name.
+     * @brief Gets the name of the current variable state. If length of an array is not enough, the name is truncated by 
+     * len, null terminator is inserted as well. `variable_id` from the corresponding `ReadValue` is used as variable 
+     * state name.
      * @return A string representing state name.
      */
     std::string get_name() const;
