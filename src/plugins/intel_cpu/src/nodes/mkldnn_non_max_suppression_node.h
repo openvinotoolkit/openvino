@@ -14,7 +14,8 @@
 
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 enum class NMSBoxEncodeType {
     CORNER,
@@ -147,4 +148,5 @@ private:
     std::shared_ptr<jit_uni_nms_kernel> nms_kernel;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

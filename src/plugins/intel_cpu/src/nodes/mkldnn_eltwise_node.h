@@ -11,7 +11,8 @@
 #include <memory>
 #include <caseless.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 #define MAX_ELTWISE_INPUTS 7
 #define MAX_ELTWISE_DIM_RANK 12
@@ -176,4 +177,5 @@ private:
     void appendMemory(const std::vector<float> &data, MKLDNNMemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

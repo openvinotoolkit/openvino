@@ -14,7 +14,7 @@
 #include "mkldnn_cum_sum_node.h"
 #include "utils/bfloat16.hpp"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNCumSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -95,7 +95,7 @@ void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
     if (inputShapes.size() == numOfInputs)
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
 
-    OV_SWITCH(MKLDNNPlugin, CumSumExecute, this, dataPrecision,
+    OV_SWITCH(intel_cpu, CumSumExecute, this, dataPrecision,
               OV_CASE(Precision::I8, int8_t),
               OV_CASE(Precision::U8, uint8_t),
               OV_CASE(Precision::I16, int16_t),

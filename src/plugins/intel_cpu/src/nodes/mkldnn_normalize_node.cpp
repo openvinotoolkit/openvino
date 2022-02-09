@@ -26,7 +26,7 @@
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
@@ -1481,7 +1481,7 @@ std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Nod
         const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) {
     NormalizeContext ctx = { nullptr, attrs, kernel_attrs, dims };
 
-    OV_SWITCH(MKLDNNPlugin, NormalizeExecutorCreation, ctx, std::tie(attrs.input_prec, attrs.output_prec),
+    OV_SWITCH(intel_cpu, NormalizeExecutorCreation, ctx, std::tie(attrs.input_prec, attrs.output_prec),
               OV_CASE2(Precision::U8, Precision::U8, uint8_t, uint8_t),
               OV_CASE2(Precision::I8, Precision::U8, int8_t, uint8_t),
               OV_CASE2(Precision::FP32, Precision::U8, float, uint8_t),

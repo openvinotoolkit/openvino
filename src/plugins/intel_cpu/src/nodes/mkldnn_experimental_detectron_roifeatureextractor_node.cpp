@@ -11,7 +11,7 @@
 #include "common/cpu_memcpy.h"
 #include "mkldnn_experimental_detectron_roifeatureextractor_node.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 namespace {

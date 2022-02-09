@@ -11,7 +11,7 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset2.hpp>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNBatchToSpaceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {

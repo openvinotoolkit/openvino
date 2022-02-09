@@ -9,7 +9,8 @@
 #include <string>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_def_conv_params {
     int ndims;
@@ -153,5 +154,6 @@ private:
     std::shared_ptr<DefConvExecutor> execPtr = nullptr;
     bool autoPadding = false;
 };
-}  // namespace MKLDNNPlugin
 
+}   // namespace intel_cpu
+}   // namespace ov

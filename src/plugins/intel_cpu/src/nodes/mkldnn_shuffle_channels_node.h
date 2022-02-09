@@ -11,7 +11,8 @@
 #include <vector>
 #include "common/permute_kernel.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNShuffleChannelsNode : public MKLDNNNode {
 public:
@@ -59,4 +60,5 @@ private:
     bool supportDynamicBatch = false;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

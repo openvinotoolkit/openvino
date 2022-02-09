@@ -11,7 +11,8 @@
 #include <memory>
 #include "mkldnn_input_node.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNReshapeNode : public MKLDNNNode {
 public:
@@ -37,5 +38,5 @@ private:
     std::string errorPrefix;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

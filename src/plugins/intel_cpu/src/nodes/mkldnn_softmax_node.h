@@ -10,7 +10,8 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNSoftMaxNode : public MKLDNNNode {
 public:
@@ -32,5 +33,5 @@ private:
     size_t axis = 0;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

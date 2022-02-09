@@ -26,7 +26,7 @@
 #include "convolution_shape_inference.hpp"
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNDeconvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -620,7 +620,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
         desc = createInt8MkldnnDeconvDesc(in_candidate, wgh_candidate, out_candidate);
     } else {
         desc = createDefaultMkldnnDeconvDesc(in_candidate, wgh_candidate, out_candidate,
-                                             selected_pd->getImplementationType() == MKLDNNPlugin::impl_desc_type::jit_avx512_winograd);
+                                             selected_pd->getImplementationType() == ov::intel_cpu::impl_desc_type::jit_avx512_winograd);
     }
 
     createDeconvPrim(desc, srcMemPtr, wghMemPtr, dstMemPtr, pAttrLocal, selected_pd->getImplementationType());

@@ -10,7 +10,8 @@
 #include <vector>
 #include <memory>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNPrimitive {
 public:
@@ -24,4 +25,5 @@ private:
     std::shared_ptr<mkldnn::primitive> prim;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

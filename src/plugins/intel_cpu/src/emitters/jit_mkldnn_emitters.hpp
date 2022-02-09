@@ -9,9 +9,8 @@
 #include "jit_emitter.hpp"
 #include "mkldnn_node.h"
 
-
-
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class jit_mkldnn_emitter : public jit_emitter {
 public:
@@ -53,4 +52,5 @@ public:
 private:
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

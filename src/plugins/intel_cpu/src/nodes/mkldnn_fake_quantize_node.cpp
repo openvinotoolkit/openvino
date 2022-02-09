@@ -32,7 +32,7 @@
 // #define FQ_DOUBLE_PRECISION
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace details;
 using namespace mkldnn::impl;

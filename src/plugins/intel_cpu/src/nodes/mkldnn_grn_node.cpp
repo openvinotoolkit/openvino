@@ -8,7 +8,7 @@
 #include "ie_parallel.hpp"
 #include "mkldnn_grn_node.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNGRNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {

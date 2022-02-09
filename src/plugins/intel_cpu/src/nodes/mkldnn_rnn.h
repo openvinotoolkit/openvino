@@ -11,7 +11,8 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNRNN : public MKLDNNNode {
 public:
@@ -120,4 +121,5 @@ private:
     bool wasMemoryPrepared = false;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

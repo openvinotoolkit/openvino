@@ -12,7 +12,8 @@
 #include <memory>
 #include <map>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNMemoryNode {
     std::string _id;
@@ -104,5 +105,5 @@ public:
     MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

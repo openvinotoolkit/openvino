@@ -10,7 +10,8 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNPSROIPoolingNode : public MKLDNNNode {
 public:
@@ -79,4 +80,5 @@ private:
     struct PSROIPoolingExecute;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

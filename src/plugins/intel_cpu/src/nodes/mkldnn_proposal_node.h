@@ -10,7 +10,8 @@
 
 using proposal_conf = InferenceEngine::Extensions::Cpu::proposal_conf;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNProposalNode : public MKLDNNNode {
 public:
@@ -39,4 +40,5 @@ private:
     bool store_prob;  // store blob with proposal probabilities
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

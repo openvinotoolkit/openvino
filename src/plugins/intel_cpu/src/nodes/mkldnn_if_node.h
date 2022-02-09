@@ -11,7 +11,8 @@
 #include <string>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNIfNode : public MKLDNNNode {
 public:
@@ -79,4 +80,5 @@ private:
     const std::shared_ptr<ov::Node> ovOp;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

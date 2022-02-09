@@ -31,7 +31,7 @@
 # endif
 #endif
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
@@ -103,13 +103,13 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
             solve_common(1, jcp_.oc_block);
 
             sub(reg_oc_work, jcp_.oc_block);
-            add(reg_kernel_base, jcp_.oc_block * jcp_.nb_ic * jcp_.kh * jcp_.kw * MKLDNNPlugin::div_up(jcp_.ic_block, nbits) * jcp_.typesize_in);
+            add(reg_kernel_base, jcp_.oc_block * jcp_.nb_ic * jcp_.kh * jcp_.kw * ov::intel_cpu::div_up(jcp_.ic_block, nbits) * jcp_.typesize_in);
 
             if (jcp_.with_dw_conv) {
                 add(reg_output_base, jcp_.oc_block * jcp_dw_conv_.kh * jcp_.ow * jcp_.typesize_out);
             } else {
                 if (jcp_.with_binarization)
-                    add(reg_output_base, MKLDNNPlugin::div_up(jcp_.oc_block, nbits) * jcp_.typesize_out);
+                    add(reg_output_base, ov::intel_cpu::div_up(jcp_.oc_block, nbits) * jcp_.typesize_out);
                 else
                     add(reg_output_base, jcp_.oc_block * jcp_.typesize_out);
             }
@@ -315,16 +315,16 @@ private:
         int nbits = 8;
 
         for (int ki = 0; ki < kw; ki++) {
-            int jj_start = nstl::max(0, MKLDNNPlugin::div_up(pad_l - ki * dilate_w, stride_w));
-            int jj_end = ur_w  - nstl::max(0, MKLDNNPlugin::div_up(ki*dilate_w+pad_r-(kw-1)*dilate_w, stride_w));
+            int jj_start = nstl::max(0, ov::intel_cpu::div_up(pad_l - ki * dilate_w, stride_w));
+            int jj_end = ur_w  - nstl::max(0, ov::intel_cpu::div_up(ki*dilate_w+pad_r-(kw-1)*dilate_w, stride_w));
 
             int _start = (!jcp_.exclude_pad) ? 0 : jj_start;
             int _end = (!jcp_.exclude_pad) ? ur_w : jj_end;
 
             for (int ifm2 = 0; ifm2 < ic_blocks; ifm2++) {
                 for (int jj = _start; jj < _end; jj++) {
-                    int inp_off = ((ki*dilate_w + jj*stride_w - pad_l)*MKLDNNPlugin::div_up(jcp_.ic, nbits) +
-                                   ifm2 * MKLDNNPlugin::div_up(ic_blk, nbits)) * jcp_.typesize_in;
+                    int inp_off = ((ki*dilate_w + jj*stride_w - pad_l)*ov::intel_cpu::div_up(jcp_.ic, nbits) +
+                                   ifm2 * ov::intel_cpu::div_up(ic_blk, nbits)) * jcp_.typesize_in;
 
                     if (h_padded || jj < jj_start || jj >= jj_end) {
                         uni_vmovups(vmm_src, ptr[reg_table + 8 * vlen]);
@@ -334,10 +334,10 @@ private:
 
                     for (int r = 0; r < repeats; r++) {
                         for (int ii = 0; ii < oc_blocks; ii++) {
-                            int ker_off = (ifm2 * kh * kw * MKLDNNPlugin::div_up(ic_blk, nbits) * oc_blk
-                                           + ii * jcp_.nb_ic * MKLDNNPlugin::div_up(ic_blk, nbits) * kh * kw * oc_blk
-                                           + ki * MKLDNNPlugin::div_up(ic_blk, nbits) * oc_blk
-                                           + r * MKLDNNPlugin::div_up(ic_blk, nbits) * (oc_blk / 2)) * jcp_.typesize_in;
+                            int ker_off = (ifm2 * kh * kw * ov::intel_cpu::div_up(ic_blk, nbits) * oc_blk
+                                           + ii * jcp_.nb_ic * ov::intel_cpu::div_up(ic_blk, nbits) * kh * kw * oc_blk
+                                           + ki * ov::intel_cpu::div_up(ic_blk, nbits) * oc_blk
+                                           + r * ov::intel_cpu::div_up(ic_blk, nbits) * (oc_blk / 2)) * jcp_.typesize_in;
 
                             uni_vmovups(vmm_tmp, ptr[aux1_reg_kernel + ker_off]);
 
@@ -393,7 +393,7 @@ private:
         int kw = jcp_.kw;
 
         int nbits = 8;
-        int inp_mult = MKLDNNPlugin::div_up(jcp_.ic_block, nbits);
+        int inp_mult = ov::intel_cpu::div_up(jcp_.ic_block, nbits);
         int out_mult = jcp_.oc_block;
 
         Label icb_main_loop;
@@ -427,7 +427,7 @@ private:
         int dilate_h = jcp_.dilate_h + 1;
 
         int nbits = 8;
-        const int inp_mult = dilate_h * MKLDNNPlugin::div_up(jcp_.ic, nbits);
+        const int inp_mult = dilate_h * ov::intel_cpu::div_up(jcp_.ic, nbits);
 
         Label t_overflow_label, no_t_overflow_label,
                 b_overflow_label, no_b_overflow_label;
@@ -447,7 +447,7 @@ private:
             L(t_overflow_label); {
                 oh_step_unroll_kw(ur_w, pad_l, pad_r, oc_blocks, oc_step, true);
 
-                add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * MKLDNNPlugin::div_up(jcp_.ic_block, nbits));
+                add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * ov::intel_cpu::div_up(jcp_.ic_block, nbits));
                 dec(reg_overflow);
                 cmp(reg_overflow, 0);
                 jg(t_overflow_label, T_NEAR);
@@ -468,7 +468,7 @@ private:
         {
             oh_step_unroll_kw(ur_w, pad_l, pad_r, oc_blocks, oc_step, false);
 
-            add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * MKLDNNPlugin::div_up(jcp_.ic_block, nbits));
+            add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * ov::intel_cpu::div_up(jcp_.ic_block, nbits));
             add(aux_reg_input, jcp_.typesize_in * iw * inp_mult);
 
             dec(reg_kh);
@@ -485,7 +485,7 @@ private:
             L(b_overflow_label); {
                 oh_step_unroll_kw(ur_w, pad_l, pad_r, oc_blocks, oc_step, true);
 
-                add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * MKLDNNPlugin::div_up(jcp_.ic_block, nbits));
+                add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * ov::intel_cpu::div_up(jcp_.ic_block, nbits));
                 dec(reg_overflow);
                 cmp(reg_overflow, 0);
                 jg(b_overflow_label, T_NEAR);
@@ -528,8 +528,8 @@ private:
                     kw_padding[jj] = 0;
 
                 for (int ki = 0; ki < jcp_.kw; ki++) {
-                    int jj_start = nstl::max(0, MKLDNNPlugin::div_up(pad_l - ki * (jcp_.dilate_w + 1), jcp_.stride_w));
-                    int jj_end = ur_w - nstl::max(0, MKLDNNPlugin::div_up(ki * (jcp_.dilate_w + 1) + pad_r -
+                    int jj_start = nstl::max(0, ov::intel_cpu::div_up(pad_l - ki * (jcp_.dilate_w + 1), jcp_.stride_w));
+                    int jj_end = ur_w - nstl::max(0, ov::intel_cpu::div_up(ki * (jcp_.dilate_w + 1) + pad_r -
                                                                           (jcp_.kw - 1) * (jcp_.dilate_w + 1), jcp_.stride_w));
                     for (int jj = jj_start; jj < jj_end; jj++) {
                         kw_padding[jj]++;
@@ -677,10 +677,10 @@ private:
 
                         if (r == repeats - 1) {
                             if (isa == x64::avx512_common && oc_step > nbits) {
-                                const size_t o_off = (2 * ii + jj * MKLDNNPlugin::div_up(jcp_.oc, nbits));
+                                const size_t o_off = (2 * ii + jj * ov::intel_cpu::div_up(jcp_.oc, nbits));
                                 mov(ptr[reg_output + o_off * jcp_.typesize_out], reg_tmp_16);
                             } else {
-                                const size_t o_off = (ii + jj * MKLDNNPlugin::div_up(jcp_.oc, nbits));
+                                const size_t o_off = (ii + jj * ov::intel_cpu::div_up(jcp_.oc, nbits));
                                 mov(ptr[reg_output + o_off * jcp_.typesize_out], reg_tmp_8);
                             }
                         }
@@ -754,8 +754,8 @@ private:
         int str_w = jcp_.stride_w;
 
         int nbits = 8;
-        const int inp_mult = MKLDNNPlugin::div_up(jcp_.ic, nbits);
-        const int out_mult = jcp_.with_dw_conv ? jcp_.oc_block : jcp_.with_binarization ? MKLDNNPlugin::div_up(jcp_.oc, nbits) : jcp_.oc;
+        const int inp_mult = ov::intel_cpu::div_up(jcp_.ic, nbits);
+        const int out_mult = jcp_.with_dw_conv ? jcp_.oc_block : jcp_.with_binarization ? ov::intel_cpu::div_up(jcp_.oc, nbits) : jcp_.oc;
 
         int l_pad = jcp_.l_pad;
         int r_pad = nstl::max(0, (jcp_.ow - 1) * str_w + (kw - 1) * dilate_w
@@ -1155,7 +1155,7 @@ void MKLDNNBinaryConvolutionNode::executeOptimized(const uint8_t* src, const uin
 
     const int MB = jcp.mb;
 
-    int ocb_work = MKLDNNPlugin::div_up(jcp.nb_oc, jcp.nb_oc_blocking);
+    int ocb_work = ov::intel_cpu::div_up(jcp.nb_oc, jcp.nb_oc_blocking);
     int nbits = 8;
 
     parallel_for4d(MB, jcp.ngroups, ocb_work, jcp.oh, [&](int n, int g, int ocbb, int oh) {
@@ -1165,8 +1165,8 @@ void MKLDNNBinaryConvolutionNode::executeOptimized(const uint8_t* src, const uin
         auto par_conv = jit_bin_conv_call_args();
 
         const int ij = oh * jcp.stride_h;
-        const int i_t_overflow = nstl::min(jcp.kh, MKLDNNPlugin::div_up(nstl::max(0, jcp.t_pad - ij), (jcp.dilate_h+1)));
-        const int i_b_overflow = nstl::min(jcp.kh, MKLDNNPlugin::div_up(nstl::max(jcp.ih, ij + (jcp.kh-1) * (jcp.dilate_h+1) -
+        const int i_t_overflow = nstl::min(jcp.kh, ov::intel_cpu::div_up(nstl::max(0, jcp.t_pad - ij), (jcp.dilate_h+1)));
+        const int i_b_overflow = nstl::min(jcp.kh, ov::intel_cpu::div_up(nstl::max(jcp.ih, ij + (jcp.kh-1) * (jcp.dilate_h+1) -
                                                                                           jcp.t_pad+1) - jcp.ih, (jcp.dilate_h + 1)));
 
         const size_t _oc = g * jcp.nb_oc + ocb;
@@ -1276,12 +1276,12 @@ void MKLDNNBinaryConvolutionNode::executeReference(const uint8_t* src, const uin
             const int i_left_overflow = nstl::max(0, (padL - ow * KSW));
             const int i_right_overflow = nstl::max(IW, (ow * KSW + (KW - 1) * (KDW + 1) - padL + 1)) - IW;
             const int kw_padding =
-                    KW - MKLDNNPlugin::div_up(i_left_overflow, (KDW + 1)) - MKLDNNPlugin::div_up(i_right_overflow, (KDW + 1));
+                    KW - ov::intel_cpu::div_up(i_left_overflow, (KDW + 1)) - ov::intel_cpu::div_up(i_right_overflow, (KDW + 1));
 
             const int i_top_overflow = nstl::max(0, (padT - oh * KSH));
             const int i_bottom_overflow = nstl::max(IH, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
             const int kh_padding =
-                    KH - MKLDNNPlugin::div_up(i_top_overflow, (KDH + 1)) - MKLDNNPlugin::div_up(i_bottom_overflow, (KDH + 1));
+                    KH - ov::intel_cpu::div_up(i_top_overflow, (KDH + 1)) - ov::intel_cpu::div_up(i_bottom_overflow, (KDH + 1));
 
             base_value = IC * kh_padding * kw_padding;
         } else {

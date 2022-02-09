@@ -11,7 +11,8 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNEmbeddingSegmentsSumNode : public MKLDNNNode, public MKLDNNEmbeddingBagSumNode {
 public:
@@ -46,4 +47,5 @@ private:
     size_t indicesSize_ = 0;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

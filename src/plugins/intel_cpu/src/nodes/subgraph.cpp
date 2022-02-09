@@ -24,7 +24,7 @@
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
 using namespace mkldnn::impl::cpu;

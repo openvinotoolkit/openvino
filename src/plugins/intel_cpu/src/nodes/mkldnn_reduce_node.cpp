@@ -27,7 +27,7 @@
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
@@ -581,7 +581,7 @@ private:
                     break;
                 case memory::data_type::bf16:
                     mov(reg_tmp_64.cvt16(), table_idx);
-                    mov(ptr[rsp + i * sizeof(MKLDNNPlugin::bfloat16_t)], reg_tmp_64.cvt16());
+                    mov(ptr[rsp + i * sizeof(ov::intel_cpu::bfloat16_t)], reg_tmp_64.cvt16());
                     break;
                 case memory::data_type::s8:
                 case memory::data_type::u8:

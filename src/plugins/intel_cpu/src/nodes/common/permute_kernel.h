@@ -8,7 +8,8 @@
 #include <mkldnn_node.h>
 #include <memory>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct PermuteParams {
     InferenceEngine::SizeVector src_block_dims;
@@ -75,4 +76,5 @@ private:
     PermuteParams params;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

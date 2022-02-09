@@ -8,7 +8,8 @@
 #include <mkldnn_node.h>
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNPadNode : public MKLDNNNode {
 public:
@@ -105,4 +106,5 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -13,7 +13,8 @@
 #include "mkldnn.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class DnnlMemoryDesc;
 
@@ -48,4 +49,5 @@ public:
     static size_t getMemSizeForDnnlDesc(const mkldnn::memory::desc& desc);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -11,7 +11,8 @@
 #include <string>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 enum class MatrixNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
@@ -102,4 +103,5 @@ private:
     size_t nmsMatrix(const float* boxesData, const float* scoresData, BoxInfo* filterBoxes, const int64_t batchIdx, const int64_t classIdx);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

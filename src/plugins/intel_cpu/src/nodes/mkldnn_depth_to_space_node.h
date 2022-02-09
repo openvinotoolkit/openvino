@@ -9,7 +9,8 @@
 #include <string>
 #include "common/permute_kernel.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNDepthToSpaceNode : public MKLDNNNode {
 public:
@@ -54,4 +55,5 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

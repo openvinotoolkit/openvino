@@ -51,7 +51,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -63,7 +63,7 @@ mkldnn::engine MKLDNNGraph::eng(mkldnn::engine::kind::cpu, 0);
 template<typename NET>
 void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMgr,
         MKLDNNWeightsSharing::Ptr &w_cache) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, MKLDNNPlugin::itt::domains::MKLDNN_LT, "CreateGraph");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::intel_cpu::itt::domains::MKLDNN_LT, "CreateGraph");
 
     if (IsReady())
         ForgetGraphData();
@@ -173,7 +173,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, co
             graphEdges.push_back(edge);
         }
 
-        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+        if (!ov::intel_cpu::one_of(op->get_type_info(),
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
@@ -292,7 +292,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             graphEdges.push_back(edge);
         }
 
-        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+        if (!ov::intel_cpu::one_of(op->get_type_info(),
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
@@ -412,7 +412,7 @@ void MKLDNNGraph::InitNodes() {
 }
 
 void MKLDNNGraph::InitDescriptors() {
-    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "InitDescriptors", "Prepare");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, ov::intel_cpu::itt::domains::MKLDNN_LT, "InitDescriptors", "Prepare");
 
     for (auto &node : graphNodes) {
         if (node->getType() == Input && _normalizePreprocMap.find(node->getName()) != _normalizePreprocMap.end()) {
@@ -437,7 +437,7 @@ void MKLDNNGraph::InitDescriptors() {
 }
 
 void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
-    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::InitOptimalPrimitiveDescriptors");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "MKLDNNGraph::InitOptimalPrimitiveDescriptors");
     for (auto &node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, node->profiling.initOptimalPrimitiveDescriptor);
         node->initOptimalPrimitiveDescriptor();
@@ -783,7 +783,7 @@ void MKLDNNGraph::Allocate() {
 }
 
 void MKLDNNGraph::CreatePrimitives() {
-    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::CreatePrimitives");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "MKLDNNGraph::CreatePrimitives");
     for (auto& node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, node->profiling.createPrimitive);
         node->createPrimitive();
@@ -874,7 +874,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         if (out[name]->getTensorDesc().getDims() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
-            if (expectedDesc.getLayout() == Layout::BLOCKED) {
+            if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
             if (getProperty().isNewApi && getProperty().batchLimit > 0) {
@@ -942,7 +942,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
 
 inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const {
     DUMP(node, config, infer_count);
-    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
     if (node->isDynamicNode()) {
         node->executeDynamic(stream);

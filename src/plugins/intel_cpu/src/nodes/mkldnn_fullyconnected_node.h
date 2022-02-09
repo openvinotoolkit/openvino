@@ -10,7 +10,8 @@
 #include <string>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNFullyConnectedNode : public MKLDNNNode {
 public:
@@ -74,4 +75,5 @@ private:
     static const size_t BIAS_ID = 2;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

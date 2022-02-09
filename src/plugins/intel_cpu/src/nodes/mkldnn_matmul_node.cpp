@@ -23,7 +23,7 @@
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 namespace {

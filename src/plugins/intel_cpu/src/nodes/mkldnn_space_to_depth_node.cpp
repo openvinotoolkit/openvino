@@ -17,7 +17,7 @@
 
 #define THROW_ERROR IE_THROW() << "SpaceToDepth layer with name '" << getName() << "' "
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
@@ -207,7 +207,7 @@ void MKLDNNSpaceToDepthNode::prepareParams() {
 }
 
 MKLDNNSpaceToDepthNode::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs) {
-    if (!MKLDNNPlugin::one_of(attrs.layoutType,
+    if (!ov::intel_cpu::one_of(attrs.layoutType,
                               LayoutType::nCsp16c,
                               LayoutType::nCsp8c,
                               LayoutType::nspc,
@@ -215,7 +215,7 @@ MKLDNNSpaceToDepthNode::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceTo
         IE_THROW() << "SpaceToDepth executor supports only 'nCsp16c', 'nCsp8c', "
                       "'nspc' or 'ncsp' layouts.";
 
-    const bool isBlocked = MKLDNNPlugin::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
+    const bool isBlocked = ov::intel_cpu::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
     const auto& srcBlockedDims = attrs.srcBlockedDims;
     const auto& dstBlockedDims = attrs.destBlockedDims;

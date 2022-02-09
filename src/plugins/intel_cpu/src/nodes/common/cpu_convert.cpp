@@ -16,7 +16,7 @@
 #include <tuple>
 #include <cmath>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
 using namespace mkldnn::impl::cpu::x64;
@@ -160,7 +160,7 @@ struct PrecisionInfo {
 
 template <>
 struct PrecisionInfo<Precision::BF16> {
-    using value_type = MKLDNNPlugin::bfloat16_t;
+    using value_type = ov::intel_cpu::bfloat16_t;
 };
 
 template <>
@@ -176,7 +176,7 @@ struct PrecisionInfo<Precision::BOOL> {
 template<typename T,
          typename U = typename std::conditional<
                         std::is_same<ov::float16, T>::value
-                        || std::is_same<MKLDNNPlugin::bfloat16_t, T>::value,
+                        || std::is_same<ov::intel_cpu::bfloat16_t, T>::value,
                         float, T>::type>
 struct Range {
     const std::tuple<U, U> & fit(const Precision & prec);
@@ -194,8 +194,8 @@ const std::tuple<U, U> & Range<T, U>::fit(const Precision & prec) {
         double lbound, ubound;
         switch (prec) {
             case Precision::BF16:
-                lbound = static_cast<double>(std::numeric_limits<MKLDNNPlugin::bfloat16_t>::lowest());
-                ubound = static_cast<double>(std::numeric_limits<MKLDNNPlugin::bfloat16_t>::max());
+                lbound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::lowest());
+                ubound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::max());
                 break;
             case Precision::FP16:
                 lbound = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
@@ -310,20 +310,20 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
 };
 
 template<>
-struct ConvertPrecision<std::tuple<float, MKLDNNPlugin::bfloat16_t>> {
+struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
     void operator()(ConvertContext & ctx) {
         auto src = static_cast<const float *>(ctx.srcPtr);
-        auto dst = static_cast<MKLDNNPlugin::bfloat16_t *>(ctx.dstPtr);
+        auto dst = static_cast<ov::intel_cpu::bfloat16_t *>(ctx.dstPtr);
 
         if (ctx.interimPrc.is_float()) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<MKLDNNPlugin::bfloat16_t>(src[i]);
+                dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(src[i]);
             });
         } else {
             float lbound, ubound;
             std::tie(lbound, ubound) = ctx.range<float>();
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<MKLDNNPlugin::bfloat16_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
+                dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
             });
         }
 
@@ -332,9 +332,9 @@ struct ConvertPrecision<std::tuple<float, MKLDNNPlugin::bfloat16_t>> {
 };
 
 template<>
-struct ConvertPrecision<std::tuple<MKLDNNPlugin::bfloat16_t, float>> {
+struct ConvertPrecision<std::tuple<ov::intel_cpu::bfloat16_t, float>> {
     void operator()(ConvertContext & ctx) {
-        auto src = static_cast<const MKLDNNPlugin::bfloat16_t *>(ctx.srcPtr);
+        auto src = static_cast<const ov::intel_cpu::bfloat16_t *>(ctx.srcPtr);
         auto dst = static_cast<float *>(ctx.dstPtr);
 
         if (ctx.interimPrc.is_float()) {
@@ -343,7 +343,7 @@ struct ConvertPrecision<std::tuple<MKLDNNPlugin::bfloat16_t, float>> {
             });
         } else {
             float lbound, ubound;
-            std::tie(lbound, ubound) = ctx.range<MKLDNNPlugin::bfloat16_t>();
+            std::tie(lbound, ubound) = ctx.range<ov::intel_cpu::bfloat16_t>();
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = std::trunc(std::max(std::min(static_cast<float>(src[i]), ubound), lbound));
             });
@@ -360,7 +360,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
         auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
-        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
         src_t lbound, ubound;
@@ -398,7 +398,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
         auto dst = static_cast<dst_t *>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
-        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
         float lbound, ubound;
@@ -436,7 +436,7 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
         auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
-        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
         float lbound, ubound;
@@ -540,7 +540,7 @@ void cpu_convert(const void *srcPtr,
             dstPrc,
             false
         };
-        OV_SWITCH(MKLDNNPlugin, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), MKLDNN_CVT_LIST);
+        OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), MKLDNN_CVT_LIST);
         if (!ctx.converted)
             IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
     }

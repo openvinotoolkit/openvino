@@ -12,7 +12,7 @@
 #include <utils/general_utils.h>
 #include "kernels/gather_uni_kernel.hpp"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn::impl::cpu;
 

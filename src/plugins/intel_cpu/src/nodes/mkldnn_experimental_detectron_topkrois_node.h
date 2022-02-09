@@ -7,7 +7,8 @@
 #include <ie_common.h>
 #include <mkldnn_node.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNExperimentalDetectronTopKROIsNode : public MKLDNNNode {
 public:
@@ -40,4 +41,5 @@ private:
     std::string errorPrefix;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -15,7 +15,8 @@
 #include <vector>
 #include <cfloat>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class Engine : public InferenceEngine::IInferencePlugin {
 public:
@@ -58,4 +59,5 @@ private:
     const std::string deviceFullName;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

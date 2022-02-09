@@ -10,7 +10,8 @@
 #include <vector>
 #include <mkldnn_extension_utils.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNAdaptivePoolingNode : public MKLDNNNode {
 public:
@@ -38,4 +39,5 @@ protected:
     void executeDynamicImpl(mkldnn::stream strm) override;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

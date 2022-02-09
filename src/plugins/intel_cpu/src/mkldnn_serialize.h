@@ -8,7 +8,8 @@
 #include <functional>
 #include <cpp/ie_cnn_network.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class CNNNetworkSerializer {
 public:
@@ -36,4 +37,5 @@ private:
 
 // const std::string& model, const Blob::CPtr& weights
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -15,7 +15,8 @@
 
 #include <mutex>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 void MKLDNNExtension::GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept {
     static const InferenceEngine::Version version = {
@@ -34,10 +35,10 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
-        NGRAPH_OP(FullyConnectedNode, MKLDNNPlugin)
-        NGRAPH_OP(LeakyReluNode, MKLDNNPlugin)
-        NGRAPH_OP(PowerStaticNode, MKLDNNPlugin)
-        NGRAPH_OP(SwishNode, MKLDNNPlugin)
+        NGRAPH_OP(FullyConnectedNode, ov::intel_cpu)
+        NGRAPH_OP(LeakyReluNode, ov::intel_cpu)
+        NGRAPH_OP(PowerStaticNode, ov::intel_cpu)
+        NGRAPH_OP(SwishNode, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;
@@ -126,7 +127,8 @@ InferenceEngine::ILayerImpl::Ptr MKLDNNExtension::getImplementation(const std::s
     return nullptr;
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
 
 // Generate exported function
-IE_DEFINE_EXTENSION_CREATE_FUNCTION(MKLDNNPlugin::MKLDNNExtension)
+IE_DEFINE_EXTENSION_CREATE_FUNCTION(ov::intel_cpu::MKLDNNExtension)

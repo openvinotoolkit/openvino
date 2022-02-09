@@ -10,7 +10,8 @@
 #include <vector>
 #include <tuple>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_mvn_config_params {
     bool planar_layout;
@@ -169,5 +170,5 @@ private:
     };
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

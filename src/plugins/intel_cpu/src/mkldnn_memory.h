@@ -29,7 +29,8 @@
  *
  */
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNMemory;
 
@@ -268,4 +269,5 @@ private:
 using MKLDNNMemoryPtr = std::shared_ptr<MKLDNNMemory>;
 using MKLDNNMemoryCPtr = std::shared_ptr<const MKLDNNMemory>;
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -10,10 +10,13 @@
 
 #include <memory>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 #ifdef CPU_DEBUG_CAPS
 void serialize(const MKLDNNGraph &graph);
 #endif // CPU_DEBUG_CAPS
-}  // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

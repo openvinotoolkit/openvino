@@ -17,8 +17,8 @@ using namespace mkldnn::impl::utils;
 using namespace mkldnn::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace MKLDNNPlugin {
-
+namespace ov {
+namespace intel_cpu {
 namespace {
 
 std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const ngraph::Node>& op) {
@@ -1155,4 +1155,5 @@ void MKLDNNColorConvertNode::executeDynamicImpl(mkldnn::stream strm) {
 
 REG_MKLDNN_PRIM_FOR(MKLDNNColorConvertNode, ColorConvert);
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

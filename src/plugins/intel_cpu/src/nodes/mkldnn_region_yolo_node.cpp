@@ -16,7 +16,7 @@
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::cpu::x64;
@@ -365,7 +365,7 @@ inline void MKLDNNRegionYoloNode::calculate_logistic(size_t start_index, int cou
                 float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
             }
         } else if (Precision::BF16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<MKLDNNPlugin::bfloat16_t*>(dst_data);
+            auto bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
             for (int i = 0; i < count; i++) {
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }

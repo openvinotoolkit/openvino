@@ -11,7 +11,8 @@
 #include <vector>
 #include <common/memory_desc_wrapper.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct PortMap {
     // Data map rule
@@ -165,4 +166,5 @@ private:
     const std::shared_ptr<ov::Node> ngraphOp;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

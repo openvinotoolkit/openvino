@@ -11,7 +11,8 @@
 #include <vector>
 #include <ie_blob.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNOneHotNode : public MKLDNNNode {
 public:
@@ -62,4 +63,5 @@ private:
     void one_hot(size_t prefix_size, size_t suffix_size);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

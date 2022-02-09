@@ -12,7 +12,7 @@
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -74,7 +74,7 @@ void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
         return;
 
     Precision inDataPrecision = getOriginalInputPrecisionAtPort(dataIndex_);
-    if (!MKLDNNPlugin::one_of(inDataPrecision.size(),
+    if (!ov::intel_cpu::one_of(inDataPrecision.size(),
                               sizeof(PrecisionTrait<Precision::I32>::value_type),
                               sizeof(PrecisionTrait<Precision::I16>::value_type),
                               sizeof(PrecisionTrait<Precision::I8>::value_type))) {
@@ -82,7 +82,7 @@ void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
     }
 
     Precision indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
-    if (!MKLDNNPlugin::one_of(indicesPrecision, Precision::I32, Precision::I64)) {
+    if (!ov::intel_cpu::one_of(indicesPrecision, Precision::I32, Precision::I64)) {
         IE_THROW() << errorPrefix_ << " has unsupported 'indices' input precision: " << indicesPrecision;
     }
 

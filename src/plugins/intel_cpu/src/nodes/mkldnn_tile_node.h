@@ -8,7 +8,8 @@
 
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNTileNode : public MKLDNNNode, public TileBroadcastCommon {
 public:
@@ -42,5 +43,5 @@ private:
     std::string errorPrefix;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

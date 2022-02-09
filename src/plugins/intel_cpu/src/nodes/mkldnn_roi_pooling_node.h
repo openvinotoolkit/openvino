@@ -11,7 +11,8 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_roi_pooling_params {
     int mb, c;
@@ -91,9 +92,9 @@ private:
     public:
         ROIPoolingExecutor() = default;
         virtual void exec(
-            const MKLDNNPlugin::MKLDNNMemory& srcData,
-            const MKLDNNPlugin::MKLDNNMemory& srcRoi,
-            const MKLDNNPlugin::MKLDNNMemory& dst) = 0;
+            const ov::intel_cpu::MKLDNNMemory& srcData,
+            const ov::intel_cpu::MKLDNNMemory& srcRoi,
+            const ov::intel_cpu::MKLDNNMemory& dst) = 0;
         virtual ~ROIPoolingExecutor() = default;
 
         static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const jit_roi_pooling_params& jpp);
@@ -129,4 +130,6 @@ private:
     using executorPtr = std::shared_ptr<ROIPoolingExecutor>;
     executorPtr execPtr = nullptr;
 };
-}  // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

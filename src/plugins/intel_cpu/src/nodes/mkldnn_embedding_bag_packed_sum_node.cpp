@@ -8,7 +8,7 @@
 #include "mkldnn_embedding_bag_packed_sum_node.h"
 #include <ngraph/opsets/opset3.hpp>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNEmbeddingBagPackedSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {

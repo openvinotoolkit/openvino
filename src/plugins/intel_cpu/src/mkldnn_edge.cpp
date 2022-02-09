@@ -9,7 +9,8 @@
 #include <nodes/mkldnn_input_node.h>
 
 using namespace mkldnn;
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 MKLDNNEdge::MKLDNNEdge(const MKLDNNNodePtr &parent, const MKLDNNNodePtr &child, int pr_port, int ch_port) :
         parent(parent), child(child), parent_port(pr_port), child_port(ch_port) {}
@@ -552,4 +553,5 @@ bool MKLDNNEdge::inPlace(LOOK look) {
     return false;
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

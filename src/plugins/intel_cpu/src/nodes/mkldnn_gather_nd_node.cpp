@@ -13,14 +13,14 @@
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 #define THROW_ERROR IE_THROW() << "GatherND layer with name '" << getName() << "' "
 
 bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v5::GatherND::get_type_info_static(), ngraph::op::v8::GatherND::get_type_info_static())) {
+        if (!ov::intel_cpu::one_of(op->get_type_info(), ngraph::op::v5::GatherND::get_type_info_static(), ngraph::op::v8::GatherND::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
             return false;
         }
@@ -60,7 +60,7 @@ void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
         return;
 
     Precision inDataPrecision = getOriginalInputPrecisionAtPort(GATHERND_DATA);
-    if (!MKLDNNPlugin::one_of(inDataPrecision.size(),
+    if (!ov::intel_cpu::one_of(inDataPrecision.size(),
                               sizeof(PrecisionTrait<Precision::I32>::value_type),
                               sizeof(PrecisionTrait<Precision::I16>::value_type),
                               sizeof(PrecisionTrait<Precision::I8>::value_type))) {
@@ -69,7 +69,7 @@ void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
     attrs.dataSize = inDataPrecision.size();
 
     Precision indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
-    if (!MKLDNNPlugin::one_of(indicesPrecision,
+    if (!ov::intel_cpu::one_of(indicesPrecision,
                               Precision::I32, Precision::I64, Precision::I16, Precision::U16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported 'indices' input precision: " << indicesPrecision;
     }
@@ -140,7 +140,7 @@ void MKLDNNGatherNDNode::GatherNDExecutor::exec(const MKLDNNMemoryPtr& srcMemPtr
     }
 
     GatherNDContext ctx { this, srcMemPtr, idxMemPtr, dstMemPtr };
-    OV_SWITCH(MKLDNNPlugin, GatherNDEmitter, ctx, dataSize,
+    OV_SWITCH(intel_cpu, GatherNDEmitter, ctx, dataSize,
               OV_CASE(sizeof(PrecisionTrait<Precision::I32>::value_type), PrecisionTrait<Precision::I32>::value_type),
               OV_CASE(sizeof(PrecisionTrait<Precision::I16>::value_type), PrecisionTrait<Precision::I16>::value_type),
               OV_CASE(sizeof(PrecisionTrait<Precision::I8>::value_type), PrecisionTrait<Precision::I8>::value_type));

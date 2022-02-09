@@ -7,7 +7,8 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_primitive.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class DnnlExecutor {
     protected:
@@ -37,4 +38,5 @@ class DnnlExecutor {
         std::unordered_map<int, IntermReorder> outputReorders;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

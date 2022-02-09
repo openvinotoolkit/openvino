@@ -15,11 +15,12 @@
 #include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " layer with name '" << getName() << "' "
 
@@ -334,7 +335,8 @@ uint8_t* DynamicBuffer::get_ptr(mkldnn::memory& prim) {
     return ptr + wrapper.offset0() * wrapper.data_type_size();
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
 
 bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {

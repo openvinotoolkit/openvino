@@ -9,7 +9,8 @@
 
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * Utility class to dump blob contant in plain format.
@@ -50,4 +51,5 @@ public:
     }
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

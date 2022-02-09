@@ -12,7 +12,7 @@
 #include "mkldnn_extension_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace testing;
 
@@ -221,7 +221,7 @@ TEST(MKLDNNMemDescTest, KeepOrder) {
 
 TEST(MemDescTest, UndefinedState) {
     ngraph::PartialShape ngraphShape({{16}, {-1, -1}, {20, 30}, {7}});
-    MKLDNNPlugin::Shape pluginShape(ngraphShape);
+    ov::intel_cpu::Shape pluginShape(ngraphShape);
     DnnlBlockedMemoryDesc memDesc(pluginShape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nChw8c);
 
     ASSERT_FALSE(memDesc.isDefined());
@@ -262,7 +262,7 @@ TEST(MemDescTest, MemSize) {
 
 
     ngraph::PartialShape ngraphShapeUndef({{16}, {-1, -1}, {20, 30}, {7}});
-    MKLDNNPlugin::Shape pluginShapeUndef(ngraphShapeUndef);
+    ov::intel_cpu::Shape pluginShapeUndef(ngraphShapeUndef);
 
     auto creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
     auto blockedDescUndef = creator->createDesc(iePrc, pluginShapeUndef);
@@ -276,7 +276,7 @@ TEST(MemDescTest, MemSize) {
     ASSERT_EQ(memDescUndef.getMaxMemSize(), undefSize);
 
     ngraph::PartialShape ngraphShapeDefUpperBound({{16}, {7, 14}, {20, 30}, {7}});
-    MKLDNNPlugin::Shape pluginShapeDefUpperBound(ngraphShapeDefUpperBound);
+    ov::intel_cpu::Shape pluginShapeDefUpperBound(ngraphShapeDefUpperBound);
 
     auto blockedDescDefUpper = creator->createDesc(iePrc, pluginShapeDefUpperBound);
 
@@ -292,7 +292,7 @@ TEST(MemDescTest, MemSize) {
     ASSERT_EQ(memDescDefUpper.getMaxMemSize(), maxElementsCount * MKLDNNExtensionUtils::sizeOfDataType(dnnlDataType));
 
     ngraph::PartialShape ngraphShapeDefined({{16}, {16}, {10}, {7}});
-    MKLDNNPlugin::Shape pluginShapeDefined(ngraphShapeDefined);
+    ov::intel_cpu::Shape pluginShapeDefined(ngraphShapeDefined);
 
     auto blockedDescDefined = creator->createDesc(iePrc, pluginShapeDefined);
 
@@ -317,10 +317,10 @@ TEST(MakeUndefinedDnnlDesc, checkRank) {
     const memory::data_type dataType = memory::data_type::u8;
     const memory::desc origin({10, 20, 15, 7}, dataType, memory::format_tag::nChw16c);
 
-    MKLDNNPlugin::Shape pluginShapeWrongRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}});
+    ov::intel_cpu::Shape pluginShapeWrongRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}});
     ASSERT_THROW(MKLDNNExtensionUtils::makeUndefinedDesc(origin, pluginShapeWrongRank), InferenceEngine::ParameterMismatch);
 
-    MKLDNNPlugin::Shape pluginShapeRightRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
+    ov::intel_cpu::Shape pluginShapeRightRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
     MemoryDescPtr memDesc;
     ASSERT_NO_THROW(memDesc = MKLDNNExtensionUtils::makeUndefinedDesc(origin, pluginShapeRightRank));
     ASSERT_FALSE(memDesc->isDefined());
@@ -335,13 +335,13 @@ TEST(MakeUndefinedDnnlDesc, checkDims) {
     for (size_t i = 0; i < fullyUndef.size(); ++i) {
         auto partialShape = fullyUndef;
         partialShape[i] = {3}; // just a number which is not equal to any origin dims
-        ASSERT_THROW(MKLDNNExtensionUtils::makeUndefinedDesc(origin, MKLDNNPlugin::Shape(partialShape)), InferenceEngine::ParameterMismatch);
+        ASSERT_THROW(MKLDNNExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(partialShape)), InferenceEngine::ParameterMismatch);
     }
     for (size_t i = 0; i < origin.dims().size(); ++i) {
         auto partialShape = fullyUndef;
         partialShape[i] = {origin.dims()[i]};
         MemoryDescPtr memDesc;
-        ASSERT_NO_THROW(memDesc = MKLDNNExtensionUtils::makeUndefinedDesc(origin, MKLDNNPlugin::Shape(fullyUndef)));
+        ASSERT_NO_THROW(memDesc = MKLDNNExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef)));
         ASSERT_FALSE(memDesc->isDefined());
     }
 }
@@ -369,9 +369,9 @@ TEST(MakeUndefinedDnnlDesc, checkLayout) {
         std::tie(fmt, dims, strFormat) = item;
         const memory::desc origin(dims, dataType, fmt);
 
-        auto undefDesc = MKLDNNExtensionUtils::makeUndefinedDesc(origin, MKLDNNPlugin::Shape(fullyUndef));
+        auto undefDesc = MKLDNNExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef));
         ASSERT_FALSE(undefDesc->isDefined());
-        MKLDNNPlugin::DnnlBlockedMemoryDesc referenceDesc(MKLDNNPlugin::Shape(fullyUndef), dataType, fmt);
+        ov::intel_cpu::DnnlBlockedMemoryDesc referenceDesc(ov::intel_cpu::Shape(fullyUndef), dataType, fmt);
         ASSERT_TRUE(undefDesc->isCompatible(referenceDesc));
         ASSERT_EQ(undefDesc->serializeFormat(), strFormat);
         auto defDesc = undefDesc->cloneWithNewDims(MKLDNNExtensionUtils::convertToVectorDims(dims));
@@ -406,7 +406,7 @@ TEST(MakeUndefinedDnnlDesc, extraData) {
         origin.data.extra.compensation_mask = 1;
         origin.data.extra.scale_adjust = 2.0f;
 
-        auto undefDesc = MKLDNNExtensionUtils::makeUndefinedDesc(origin, MKLDNNPlugin::Shape(fullyUndef));
+        auto undefDesc = MKLDNNExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef));
         ASSERT_FALSE(undefDesc->isDefined());
         auto defDesc = undefDesc->cloneWithNewDims(MKLDNNExtensionUtils::convertToVectorDims(dims));
         ASSERT_TRUE(defDesc->isDefined());

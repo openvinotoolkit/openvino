@@ -6,7 +6,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNNonZeroNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -93,7 +93,7 @@ void MKLDNNNonZeroNode::executeDynamicImpl(mkldnn::stream strm) {
 void MKLDNNNonZeroNode::execute(mkldnn::stream strm) {
     auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this };
-    OV_SWITCH(MKLDNNPlugin, NonZeroExecute, ctx, inputPrec,
+    OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::BF16, bfloat16_t),
               OV_CASE(Precision::I32, int),

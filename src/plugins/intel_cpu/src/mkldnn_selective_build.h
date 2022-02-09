@@ -5,6 +5,8 @@
 #pragma once
 #include <openvino/cc/factory.h>
 
-namespace MKLDNNPlugin {
-    OV_CC_DOMAINS(MKLDNNPlugin)
+namespace ov {
+namespace intel_cpu {
+    OV_CC_DOMAINS(intel_cpu)
+}
 }

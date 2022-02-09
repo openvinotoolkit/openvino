@@ -12,7 +12,7 @@
 #include "mkldnn_detection_output_node.h"
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 namespace {

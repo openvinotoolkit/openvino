@@ -6,7 +6,8 @@
 
 #include <mkldnn_node.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNReferenceNode : public MKLDNNNode {
 public:
@@ -28,5 +29,5 @@ private:
     const std::string additionalErrorMessage;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

@@ -10,7 +10,8 @@
 #include <vector>
 #include <mkldnn_extension_utils.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNShapeOfNode : public MKLDNNNode {
 public:
@@ -34,4 +35,5 @@ private:
     std::string errorPrefix;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

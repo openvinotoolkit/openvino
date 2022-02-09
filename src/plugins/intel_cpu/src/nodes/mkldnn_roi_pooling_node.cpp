@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <cmath>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
@@ -345,7 +345,7 @@ bool RoiPoolingKey::operator==(const RoiPoolingKey &rhs) const {
 }
 } // namespace
 
-bool MKLDNNPlugin::jit_roi_pooling_params::operator==(const MKLDNNPlugin::jit_roi_pooling_params &rhs) const noexcept {
+bool ov::intel_cpu::jit_roi_pooling_params::operator==(const ov::intel_cpu::jit_roi_pooling_params &rhs) const noexcept {
     return mb == rhs.mb &&
            c == rhs.c &&
            ih == rhs.ih &&
@@ -545,9 +545,9 @@ public:
     }
 
     void exec(
-        const MKLDNNPlugin::MKLDNNMemory& srcData,
-        const MKLDNNPlugin::MKLDNNMemory& srcRoi,
-        const MKLDNNPlugin::MKLDNNMemory& dst) override {
+        const ov::intel_cpu::MKLDNNMemory& srcData,
+        const ov::intel_cpu::MKLDNNMemory& srcRoi,
+        const ov::intel_cpu::MKLDNNMemory& dst) override {
         if (!roi_pooling_kernel)
             IE_THROW() << "Could not execute. Kernel for RoiPooling node was not compiled.";
 
@@ -668,9 +668,9 @@ class MKLDNNROIPoolingNode::ROIPoolingRefExecutor : public MKLDNNROIPoolingNode:
 public:
     ROIPoolingRefExecutor(const jit_roi_pooling_params &_jpp) : jpp(_jpp) {}
     void exec(
-        const MKLDNNPlugin::MKLDNNMemory& srcData,
-        const MKLDNNPlugin::MKLDNNMemory& srcRoi,
-        const MKLDNNPlugin::MKLDNNMemory& dst) override {
+        const ov::intel_cpu::MKLDNNMemory& srcData,
+        const ov::intel_cpu::MKLDNNMemory& srcRoi,
+        const ov::intel_cpu::MKLDNNMemory& dst) override {
         auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
         auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -821,7 +821,7 @@ std::shared_ptr<MKLDNNROIPoolingNode::ROIPoolingExecutor> MKLDNNROIPoolingNode::
     const jit_roi_pooling_params& jpp) {
     ROIPoolingContext ctx = { nullptr, jpp };
 
-    OV_SWITCH(MKLDNNPlugin, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
+    OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::BF16, bfloat16_t))
 

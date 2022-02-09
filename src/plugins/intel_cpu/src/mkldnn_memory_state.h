@@ -12,7 +12,8 @@
 
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNVariableState : public InferenceEngine::IVariableStateInternal {
 public:
@@ -26,4 +27,5 @@ public:
     void Reset() override;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

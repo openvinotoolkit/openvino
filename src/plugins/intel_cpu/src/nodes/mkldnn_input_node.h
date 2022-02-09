@@ -9,7 +9,8 @@
 #include <ngraph/op/constant.hpp>
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNInputNode : public MKLDNNNode {
 public:
@@ -47,4 +48,5 @@ private:
     bool isMeanImage = false;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

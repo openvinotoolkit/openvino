@@ -10,7 +10,8 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNGatherElementsNode : public MKLDNNNode {
 public:
@@ -42,4 +43,5 @@ private:
     void directExecution();
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

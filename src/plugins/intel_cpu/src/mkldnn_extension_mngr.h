@@ -10,7 +10,8 @@
 #include <ie_iextension.h>
 #include "nodes/list.hpp"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNExtensionManager {
 public:
@@ -25,4 +26,6 @@ private:
     std::vector<InferenceEngine::IExtensionPtr> _extensions;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

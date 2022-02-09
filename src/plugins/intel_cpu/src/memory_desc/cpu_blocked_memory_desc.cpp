@@ -6,7 +6,7 @@
 #include "mkldnn_memory.h"
 #include "dnnl_blocked_memory_desc.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 static VectorDims makeRange(size_t size) {
     VectorDims retVec(size, 0);

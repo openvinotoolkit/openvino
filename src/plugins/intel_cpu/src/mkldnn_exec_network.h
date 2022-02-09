@@ -17,7 +17,8 @@
 #include <string>
 #include <unordered_map>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
@@ -84,4 +85,6 @@ protected:
     InferenceEngine::Parameter GetMetricLegacy(const std::string &name, const Graph& graph) const;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

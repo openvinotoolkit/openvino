@@ -11,7 +11,8 @@
 #include <utility>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNTransposeNode : public MKLDNNNode {
 public:
@@ -93,4 +94,5 @@ private:
     static constexpr size_t INPUT_ORDER_IDX = 1lu;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -10,7 +10,8 @@
 #include <tuple>
 #include <array>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNColorConvertNode : public MKLDNNNode {
 public:
@@ -77,4 +78,5 @@ protected:
     ColorFormat _colorFormat;   // RGB: {0,1,2}, BGR: {2,1,0}
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

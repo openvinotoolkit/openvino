@@ -8,7 +8,8 @@
 #include <mkldnn_node.h>
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNRollNode : public MKLDNNNode {
 public:
@@ -39,4 +40,5 @@ private:
     const size_t numberOfInputs = 3ul;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

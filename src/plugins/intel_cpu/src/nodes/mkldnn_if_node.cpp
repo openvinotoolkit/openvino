@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const std::deque<MKLDNNMemoryPtr>& to,
                                            const mkldnn::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {

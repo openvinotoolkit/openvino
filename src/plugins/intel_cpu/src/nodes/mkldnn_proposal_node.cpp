@@ -68,7 +68,7 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
     return anchors;
 }
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {

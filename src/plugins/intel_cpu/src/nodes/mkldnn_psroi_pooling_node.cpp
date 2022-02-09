@@ -14,7 +14,7 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <nodes/common/blocked_desc_creator.h>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
@@ -550,7 +550,7 @@ void MKLDNNPSROIPoolingNode::execute(mkldnn::stream strm) {
             *this,
     };
 
-    OV_SWITCH(MKLDNNPlugin, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
+    OV_SWITCH(intel_cpu, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
               OV_CASE2(Precision::FP32, Precision::FP32, float, float),
               OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
 }

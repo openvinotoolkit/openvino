@@ -10,7 +10,8 @@
 #include <map>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNExecNetwork;
 class MKLDNNAsyncInferRequest;
@@ -100,4 +101,5 @@ private:
     std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelOutputsMap;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

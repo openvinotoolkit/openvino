@@ -8,10 +8,13 @@
 
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 void  MKLDNNVariableState::Reset() {
     std::memset(state->buffer(), 0, state->byteSize());
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

@@ -8,7 +8,8 @@
 #include <mkldnn_node.h>
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNSplitNode : public MKLDNNNode {
 public:
@@ -63,5 +64,5 @@ private:
     size_t INPUTS_NUM = 2;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

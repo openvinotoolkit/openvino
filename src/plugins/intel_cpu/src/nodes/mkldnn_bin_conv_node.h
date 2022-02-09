@@ -10,7 +10,8 @@
 #include <string>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_bin_conv_params {
     int mb;
@@ -121,5 +122,5 @@ private:
     std::string errorPrefix;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

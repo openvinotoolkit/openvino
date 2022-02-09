@@ -5,7 +5,7 @@
 #include <mkldnn_types.h>
 #include "mkldnn_primitive.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 MKLDNNPrimitive::MKLDNNPrimitive() {}
 

@@ -10,7 +10,9 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 struct jit_extract_image_patches_params {
     size_t IW;
     size_t OH, OW;
@@ -126,4 +128,5 @@ private:
     };
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

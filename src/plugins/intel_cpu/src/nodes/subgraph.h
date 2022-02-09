@@ -15,7 +15,8 @@
 
 #include <array>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /// MKLDNNSnippetNode represents subgraph node in MKLDNN plugin
 /// potentially, snippet can be placed as a postop to any support operation while it doesn't support postops itself
@@ -89,4 +90,5 @@ private:
     bool canUseOptimizedImpl = true;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -10,7 +10,8 @@
 #include <ie_common.h>
 #include <mkldnn_node.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNPriorBoxClusteredNode : public MKLDNNNode {
 public:
@@ -43,4 +44,5 @@ private:
     int number_of_priors;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

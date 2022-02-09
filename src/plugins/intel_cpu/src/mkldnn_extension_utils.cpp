@@ -8,7 +8,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType) {
     switch (dataType) {

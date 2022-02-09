@@ -22,7 +22,8 @@
 using namespace mkldnn;
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ov::Node>& op) {
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
@@ -945,7 +946,9 @@ void MKLDNNRNN::cleanup() {
         it->cleanup();
     }
 }
-}  // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov
 
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNSeq);

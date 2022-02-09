@@ -8,7 +8,7 @@
 
 #include "mkldnn_extension_mngr.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 void MKLDNNExtensionManager::AddExtension(const IExtensionPtr& extension) {

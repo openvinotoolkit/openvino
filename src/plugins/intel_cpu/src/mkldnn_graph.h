@@ -17,7 +17,9 @@
 #include <memory>
 #include <atomic>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 class MKLDNNInferRequestBase;
 class MKLDNNGraph {
 public:
@@ -259,4 +261,5 @@ private:
     void EnforceBF16();
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

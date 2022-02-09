@@ -5,7 +5,7 @@
 #include "mkldnn_shapeof.h"
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNShapeOfNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {

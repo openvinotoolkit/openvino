@@ -10,7 +10,8 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNSpaceToBatchNode : public MKLDNNNode {
 public:
@@ -37,4 +38,5 @@ private:
     void SpaceToBatchKernel();
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

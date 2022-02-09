@@ -10,7 +10,7 @@
 #include "mkldnn_extension_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace testing;
 

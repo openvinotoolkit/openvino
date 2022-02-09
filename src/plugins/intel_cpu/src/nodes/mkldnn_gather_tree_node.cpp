@@ -11,7 +11,7 @@
 #include "mkldnn_gather_tree_node.h"
 #include <utils/general_utils.h>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNGatherTreeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -59,7 +59,7 @@ void MKLDNNGatherTreeNode::initSupportedPrimitiveDescriptors() {
         return;
 
     precision = getOriginalInputPrecisionAtPort(GATHER_TREE_STEP_IDX);
-    if (!MKLDNNPlugin::one_of(precision, Precision::FP32, Precision::I32))
+    if (!ov::intel_cpu::one_of(precision, Precision::FP32, Precision::I32))
         precision = Precision::FP32;
 
     if (getOriginalInputPrecisionAtPort(GATHER_TREE_PARENT_IDX)  != precision ||

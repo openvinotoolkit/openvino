@@ -20,7 +20,8 @@
 //       When MKLDNNGraph clone function will be ready you may removed this
 //       classes at all.
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class SimpleDataHash {
 public:
@@ -117,4 +118,5 @@ private:
     std::map<int, MKLDNNWeightsSharing::Ptr> _cache_map;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

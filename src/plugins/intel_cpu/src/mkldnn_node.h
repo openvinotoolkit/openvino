@@ -34,7 +34,8 @@
 #include <utils/shape_inference/static_shape.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeConstPtr = std::shared_ptr<const MKLDNNNode>;
@@ -42,23 +43,23 @@ using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
 class PortConfigurator {
 public:
-    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
+    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
                      bool constant = false, int inPlace = -1) :
             blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}
 
-    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
+    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
                      bool constant = false, int inPlace = -1) :
             blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), constant(constant), inPlace(inPlace) {}
 
-    MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr blockedDescCreator;
+    ov::intel_cpu::BlockedDescCreator::CreatorConstPtr blockedDescCreator;
     const InferenceEngine::Precision prc;
     const Shape shape;
     bool constant = false;
     int inPlace = -1;
 
 private:
-    static MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(MKLDNNPlugin::LayoutType blockedDescType) {
-        auto& creators = MKLDNNPlugin::BlockedDescCreator::getCommonCreators();
+    static ov::intel_cpu::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(ov::intel_cpu::LayoutType blockedDescType) {
+        auto& creators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
         if (creators.find(blockedDescType) == creators.end()) {
             IE_THROW() << "Cannot find tensor descriptor creator";
         }
@@ -822,6 +823,7 @@ struct MKLDNNNodeImpl : public MKLDNNNodeType {
     }
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
 
 #define REG_MKLDNN_PRIM_FOR(__prim, __type)

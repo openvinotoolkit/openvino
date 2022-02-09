@@ -10,7 +10,8 @@
 #include <vector>
 #include <mkldnn_extension_utils.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNNonZeroNode : public MKLDNNNode {
 public:
@@ -37,4 +38,5 @@ private:
     size_t getNonZeroElementsCount(const T* arg, const Shape& arg_shape);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

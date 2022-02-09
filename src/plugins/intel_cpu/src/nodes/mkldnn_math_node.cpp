@@ -11,7 +11,7 @@
 #include "mkldnn_math_node.h"
 #include "utils/general_utils.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNMathNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -21,7 +21,7 @@ bool MKLDNNMathNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
             return false;
         }
 
-        if (MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::HardSigmoid::get_type_info_static(), ngraph::op::v0::Selu::get_type_info_static())) {
+        if (ov::intel_cpu::one_of(op->get_type_info(), ngraph::op::v0::HardSigmoid::get_type_info_static(), ngraph::op::v0::Selu::get_type_info_static())) {
             auto firstConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
             auto secondConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (!firstConst || !secondConst) {
@@ -73,84 +73,84 @@ void MKLDNNMathNode::execute(mkldnn::stream strm) {
     float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     switch (getAlgorithm()) {
-        case MKLDNNPlugin::MathAbs:
+        case ov::intel_cpu::MathAbs:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = (std::abs)(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathAcos:
+        case ov::intel_cpu::MathAcos:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = acosf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathAcosh:
+        case ov::intel_cpu::MathAcosh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = acoshf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathAsin:
+        case ov::intel_cpu::MathAsin:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = asinf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathAsinh:
+        case ov::intel_cpu::MathAsinh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = asinhf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathAtan:
+        case ov::intel_cpu::MathAtan:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = atanf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathAtanh:
+        case ov::intel_cpu::MathAtanh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = atanhf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathCeiling:
+        case ov::intel_cpu::MathCeiling:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = ceilf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathCos:
+        case ov::intel_cpu::MathCos:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = cosf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathCosh:
+        case ov::intel_cpu::MathCosh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = coshf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathFloor:
+        case ov::intel_cpu::MathFloor:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = floorf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathHardSigmoid:
+        case ov::intel_cpu::MathHardSigmoid:
             alpha = (alpha == 0.0f) ? 0.2f : alpha;
             beta = (beta == 0.0f) ? 0.5f : beta;
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = (std::max)(0.f, (std::min)(1.f, alpha * src_data[i] + beta));
             });
             break;
-        case MKLDNNPlugin::MathLog:
+        case ov::intel_cpu::MathLog:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = logf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathNegative:
+        case ov::intel_cpu::MathNegative:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = -src_data[i];
             });
             break;
-        case MKLDNNPlugin::MathReciprocal:
+        case ov::intel_cpu::MathReciprocal:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = 1.0f / src_data[i];
             });
             break;
-        case MKLDNNPlugin::MathSelu:
+        case ov::intel_cpu::MathSelu:
             alpha = (alpha == 0.0f) ? 1.67326f : alpha;
             gamma = (gamma == 0.0f) ? 1.0507f : gamma;
             parallel_for(dataSize, [&](size_t i) {
@@ -158,7 +158,7 @@ void MKLDNNMathNode::execute(mkldnn::stream strm) {
                 dst_data[i] = (x > 0.0f) ? (gamma * x) : (gamma * alpha * (exp(x) - 1.0f));
             });
             break;
-        case MKLDNNPlugin::MathSign:
+        case ov::intel_cpu::MathSign:
             parallel_for(dataSize, [&](size_t i) {
                 if (src_data[i] > 0.0f)
                     dst_data[i] = 1.0f;
@@ -168,28 +168,28 @@ void MKLDNNMathNode::execute(mkldnn::stream strm) {
                     dst_data[i] = 0.0f;
             });
             break;
-        case MKLDNNPlugin::MathSin:
+        case ov::intel_cpu::MathSin:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = sinf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathSinh:
+        case ov::intel_cpu::MathSinh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = sinhf(src_data[i]);
             });
             break;
-        case MKLDNNPlugin::MathSoftPlus:
+        case ov::intel_cpu::MathSoftPlus:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = logf(expf(src_data[i]) + 1);
             });
             break;
-        case MKLDNNPlugin::MathSoftsign:
+        case ov::intel_cpu::MathSoftsign:
             parallel_for(dataSize, [&](size_t i) {
                 float x = src_data[i];
                 dst_data[i] = x / (1.f + (std::abs)(x));
             });
             break;
-        case MKLDNNPlugin::MathTan:
+        case ov::intel_cpu::MathTan:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = tanf(src_data[i]);
             });
@@ -205,68 +205,68 @@ bool MKLDNNMathNode::created() const {
 
 std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNMathNode& node)>> MKLDNNMathNode::initializers {
         {ngraph::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathAbs;
+            node.algorithm = ov::intel_cpu::MathAbs;
         }},
         {ngraph::op::v0::Acos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathAcos;
+            node.algorithm = ov::intel_cpu::MathAcos;
         }},
         {ngraph::op::v3::Acosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathAcosh;
+            node.algorithm = ov::intel_cpu::MathAcosh;
         }},
         {ngraph::op::v0::Asin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathAsin;
+            node.algorithm = ov::intel_cpu::MathAsin;
         }},
         {ngraph::op::v3::Asinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathAsinh;
+            node.algorithm = ov::intel_cpu::MathAsinh;
         }},
         {ngraph::op::v0::Atan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathAtan;
+            node.algorithm = ov::intel_cpu::MathAtan;
         }},
         {ngraph::op::v0::Ceiling::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathCeiling;
+            node.algorithm = ov::intel_cpu::MathCeiling;
         }},
         {ngraph::op::v0::Cos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathCos;
+            node.algorithm = ov::intel_cpu::MathCos;
         }},
         {ngraph::op::v0::Cosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathCosh;
+            node.algorithm = ov::intel_cpu::MathCosh;
         }},
         {ngraph::op::v0::Floor::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathFloor;
+            node.algorithm = ov::intel_cpu::MathFloor;
         }},
         {ngraph::op::v0::HardSigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathHardSigmoid;
+            node.algorithm = ov::intel_cpu::MathHardSigmoid;
             node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
             node.beta = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
         }},
         {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathLog;
+            node.algorithm = ov::intel_cpu::MathLog;
         }},
         {ngraph::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathNegative;
+            node.algorithm = ov::intel_cpu::MathNegative;
         }},
         {ngraph::op::v0::Selu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathSelu;
+            node.algorithm = ov::intel_cpu::MathSelu;
             node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
             node.gamma = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
         }},
         {ngraph::op::v0::Sign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathSign;
+            node.algorithm = ov::intel_cpu::MathSign;
         }},
         {ngraph::op::v0::Sin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathSin;
+            node.algorithm = ov::intel_cpu::MathSin;
         }},
         {ngraph::op::v0::Sinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathSinh;
+            node.algorithm = ov::intel_cpu::MathSinh;
         }},
         {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathSoftPlus;
+            node.algorithm = ov::intel_cpu::MathSoftPlus;
         }},
         {ngraph::op::v0::Tan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathTan;
+            node.algorithm = ov::intel_cpu::MathTan;
         }},
         {ngraph::op::v3::Atanh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
-            node.algorithm = MKLDNNPlugin::MathAtanh;
+            node.algorithm = ov::intel_cpu::MathAtanh;
         }}
 };
 

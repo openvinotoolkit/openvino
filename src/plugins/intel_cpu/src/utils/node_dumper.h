@@ -7,7 +7,8 @@
 #include "mkldnn_node.h"
 #include "config.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 void dumpInputBlobs(const MKLDNNNodePtr &node, const Config& config, int count = -1);
 void dumpOutputBlobs(const MKLDNNNodePtr &node, const Config& config, int count = -1);
@@ -28,7 +29,8 @@ public:
 };
 
 #define DUMP(...) DumpHelper __helper##__node (__VA_ARGS__);
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
 #else // CPU_DEBUG_CAPS
 #define DUMP(...)
 #endif // CPU_DEBUG_CAPS

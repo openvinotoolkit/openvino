@@ -34,7 +34,7 @@ struct Indexer {
 };
 
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 static

@@ -11,7 +11,7 @@
 #include "common/cpu_memcpy.h"
 #include "mkldnn_experimental_detectron_topkrois_node.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNExperimentalDetectronTopKROIsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {

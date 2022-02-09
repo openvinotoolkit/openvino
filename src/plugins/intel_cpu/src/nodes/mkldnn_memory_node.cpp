@@ -12,7 +12,7 @@
 #include "utils/ngraph_utils.hpp"
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 std::mutex MKLDNNMemoryNodeVirtualEdge::holderMutex;
@@ -32,7 +32,7 @@ bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ng
             return false;
         }
 
-        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+        if (!ov::intel_cpu::one_of(op->get_type_info(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
@@ -90,7 +90,7 @@ bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngr
             return false;
         }
 
-        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+        if (!ov::intel_cpu::one_of(op->get_type_info(),
                 ngraph::op::v3::ReadValue::get_type_info_static(),
                 ngraph::op::v6::ReadValue::get_type_info_static())) {
             errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";

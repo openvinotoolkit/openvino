@@ -52,7 +52,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 MKLDNNGraphOptimizer::MKLDNNGraphOptimizer() {}

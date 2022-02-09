@@ -14,7 +14,9 @@
 
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 enum InterpolateLayoutType {
     planar,
     block,
@@ -257,4 +259,5 @@ private:
     std::string errorPrefix;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

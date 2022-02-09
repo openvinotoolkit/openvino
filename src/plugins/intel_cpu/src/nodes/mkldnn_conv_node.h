@@ -11,7 +11,8 @@
 #include <vector>
 #include "common/dnnl_executor.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNEltwiseNode;
 
@@ -141,4 +142,5 @@ private:
     MKLDNNMemoryPtr outputCompensationMemPtr;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

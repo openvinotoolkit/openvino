@@ -11,7 +11,7 @@
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -314,7 +314,7 @@ void MKLDNNTransposeNode::TransposeJitExecutor::exec(MKLDNNTransposeNode* node, 
 void MKLDNNTransposeNode::TransposeRefExecutor::exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) {
     const size_t dataSize = srcMemPtr->getDesc().getPrecision().size();
     TransposeContext ctx = {node, srcMemPtr, dstMemPtr, MB};
-    OV_SWITCH(MKLDNNPlugin, TransposeOptimizedEmitter, ctx, dataSize,
+    OV_SWITCH(intel_cpu, TransposeOptimizedEmitter, ctx, dataSize,
               OV_CASE(1, PrecisionTrait<Precision::U8>::value_type),
               OV_CASE(2, PrecisionTrait<Precision::U16>::value_type),
               OV_CASE(4, PrecisionTrait<Precision::I32>::value_type));

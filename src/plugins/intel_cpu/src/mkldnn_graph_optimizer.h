@@ -8,7 +8,8 @@
 #include "nodes/mkldnn_eltwise_node.h"
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNGraphOptimizer {
 public:
@@ -44,4 +45,5 @@ private:
     void reshapeRnnSeq(MKLDNNGraph &graph);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

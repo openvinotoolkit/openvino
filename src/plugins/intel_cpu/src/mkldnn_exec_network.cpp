@@ -32,7 +32,7 @@
 #include <utility>
 #include <cstring>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 

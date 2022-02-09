@@ -11,7 +11,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(

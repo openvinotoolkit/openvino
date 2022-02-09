@@ -11,7 +11,8 @@
 #include <array>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNMatMulNode : public MKLDNNNode {
 public:
@@ -62,5 +63,5 @@ private:
     DnnlBlockedMemoryDescPtr outDataDesc;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

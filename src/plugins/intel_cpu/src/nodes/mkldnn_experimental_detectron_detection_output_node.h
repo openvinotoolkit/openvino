@@ -7,7 +7,8 @@
 #include <ie_common.h>
 #include <mkldnn_node.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNExperimentalDetectronDetectionOutputNode : public MKLDNNNode {
 public:
@@ -43,4 +44,6 @@ private:
     std::vector<float> deltas_weights_;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

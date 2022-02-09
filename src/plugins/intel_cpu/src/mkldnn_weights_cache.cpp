@@ -7,7 +7,8 @@
 #include <ie_system_conf.h>
 #include <memory>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 const SimpleDataHash MKLDNNWeightsSharing::simpleCRC;
 
@@ -89,4 +90,5 @@ const MKLDNNWeightsSharing::Ptr& NumaNodesWeights::operator[](int numa_id) const
     return found->second;
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

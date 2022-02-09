@@ -6,7 +6,8 @@
 
 #include <ie_iextension.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNExtension : public InferenceEngine::IExtension {
 public:
@@ -17,4 +18,5 @@ public:
     InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

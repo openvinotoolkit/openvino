@@ -11,11 +11,13 @@
 
 #include <openvino/itt.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(MKLDNNPlugin);
+    OV_ITT_DOMAIN(intel_cpu);
     OV_ITT_DOMAIN(MKLDNN_LT);
+}
 }
 }
 }

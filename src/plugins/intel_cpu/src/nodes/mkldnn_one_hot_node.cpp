@@ -15,7 +15,7 @@
 #include <utils/shape_inference/shape_inference.hpp>
 #include "common/cpu_memcpy.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -152,7 +152,7 @@ void MKLDNNOneHotNode::execute(mkldnn::stream strm) {
     std::size_t suffix_size = getParentEdgeAt(0)->getMemory().GetShape().getElementsCount() / prefix_size;
 
     OneHotContext ctx = {this, prefix_size, suffix_size};
-    OV_SWITCH(MKLDNNPlugin, OneHotExecute, ctx, output_precision.size(),
+    OV_SWITCH(intel_cpu, OneHotExecute, ctx, output_precision.size(),
               OV_CASE(sizeof(uint32_t), uint32_t),
               OV_CASE(sizeof(uint16_t), uint16_t),
               OV_CASE(sizeof(uint8_t), uint8_t))

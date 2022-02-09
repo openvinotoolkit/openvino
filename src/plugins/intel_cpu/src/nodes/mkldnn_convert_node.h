@@ -9,7 +9,8 @@
 #include <string>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNConvertNode : public MKLDNNNode {
 public:
@@ -52,5 +53,6 @@ private:
 
     std::string errorPrefix;
 };
-}  // namespace MKLDNNPlugin
 
+}   // namespace intel_cpu
+}   // namespace ov

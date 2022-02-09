@@ -9,7 +9,8 @@
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 #include "mkldnn_infer_request.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
@@ -19,4 +20,6 @@ public:
     ~MKLDNNAsyncInferRequest();
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

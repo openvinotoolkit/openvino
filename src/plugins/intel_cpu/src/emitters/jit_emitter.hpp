@@ -13,7 +13,8 @@
 
 #include <set>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -153,4 +154,5 @@ private:
                                     const std::vector<size_t>&, const std::vector<size_t> &) const {}
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -7,7 +7,8 @@
 #include <ie_common.h>
 #include <mkldnn_node.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode : public MKLDNNNode {
 public:
@@ -47,4 +48,5 @@ private:
     std::vector<int> roi_indices_;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

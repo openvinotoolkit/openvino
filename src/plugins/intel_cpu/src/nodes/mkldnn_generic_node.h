@@ -12,7 +12,8 @@
 #include <memory>
 #include <map>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNGenericNode : public MKLDNNNode {
 public:
@@ -44,5 +45,5 @@ protected:
     const std::shared_ptr<ngraph::Node> ngraphOp;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

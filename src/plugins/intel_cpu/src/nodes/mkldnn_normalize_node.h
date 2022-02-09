@@ -16,7 +16,8 @@
 
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_normalize_config_params {
     bool is_nchw;
@@ -174,5 +175,5 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

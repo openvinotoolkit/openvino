@@ -11,7 +11,8 @@
 #include <string>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNGatherNode : public MKLDNNNode {
 public:
@@ -86,4 +87,5 @@ private:
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -10,7 +10,8 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNPoolingNode : public MKLDNNNode {
 public:
@@ -73,5 +74,5 @@ private:
     std::vector<ptrdiff_t> data_pad_end;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

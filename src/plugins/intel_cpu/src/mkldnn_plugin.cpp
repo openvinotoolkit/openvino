@@ -128,7 +128,7 @@
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 #define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
@@ -158,7 +158,7 @@ static std::string getDeviceFullName() {
 Engine::Engine() :
     deviceFullName(getDeviceFullName()) {
     _pluginName = "CPU";
-    extensionManager->AddExtension(std::make_shared<MKLDNNPlugin::MKLDNNExtension>());
+    extensionManager->AddExtension(std::make_shared<ov::intel_cpu::MKLDNNExtension>());
 }
 
 Engine::~Engine() {
@@ -421,7 +421,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
-        OV_ITT_SCOPE(FIRST_INFERENCE, MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::intel_cpu::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
 
         auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
             OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
@@ -627,7 +627,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
-    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
 
     // verification of supported input
     for (const auto &ii : network.getInputsInfo()) {

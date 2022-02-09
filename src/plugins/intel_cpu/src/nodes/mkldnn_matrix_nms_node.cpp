@@ -14,7 +14,7 @@
 #include "ngraph/opsets/opset8.hpp"
 #include "utils/general_utils.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;

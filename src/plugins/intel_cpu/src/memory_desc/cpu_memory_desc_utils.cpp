@@ -15,10 +15,11 @@
 #include <dnnl_types.h>
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
@@ -150,4 +151,5 @@ Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {
     return Shape(dummyDims);
 }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

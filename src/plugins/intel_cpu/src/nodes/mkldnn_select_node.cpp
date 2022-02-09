@@ -12,7 +12,7 @@
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -23,7 +23,7 @@ bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::
             return false;
         }
         const auto broadcast = select->get_auto_broadcast();
-        if (!MKLDNNPlugin::one_of(broadcast.m_type, ngraph::op::AutoBroadcastType::NONE, ngraph::op::AutoBroadcastType::NUMPY)) {
+        if (!ov::intel_cpu::one_of(broadcast.m_type, ngraph::op::AutoBroadcastType::NONE, ngraph::op::AutoBroadcastType::NUMPY)) {
             errorMessage = "Does not support broadcast type: " + ngraph::as_string(broadcast.m_type);
             return false;
         }

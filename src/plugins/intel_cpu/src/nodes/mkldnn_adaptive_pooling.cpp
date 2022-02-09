@@ -16,7 +16,7 @@
 #include <utils/general_utils.h>
 #include <vector>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl::cpu::x64;

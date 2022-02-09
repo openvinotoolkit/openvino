@@ -14,7 +14,8 @@
 #include <memory>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNNode;
 class MKLDNNEdge;
@@ -106,4 +107,6 @@ private:
     friend class MKLDNNGraph;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

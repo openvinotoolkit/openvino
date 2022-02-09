@@ -21,7 +21,8 @@
 
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 void serializeToCout(const MKLDNNGraph &graph);
 void serializeToXML(const MKLDNNGraph &graph, const std::string& path);
@@ -255,4 +256,5 @@ void serializeToCout(const MKLDNNGraph &graph) {
     }
 }
 #endif
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

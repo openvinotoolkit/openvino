@@ -14,7 +14,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 #define THROW_ERROR IE_THROW() << "PriorBox layer with name '" << getName() << "': "

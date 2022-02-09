@@ -9,7 +9,8 @@
 
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 namespace {
     std::string to_string(InferenceEngine::Layout layout) {
         std::stringstream ss;
@@ -173,4 +174,5 @@ void CNNNetworkDeserializer::operator >> (InferenceEngine::CNNNetwork & network)
     setPrecisionsAndLayouts(outputs.children("out"), network.getOutputsInfo());
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

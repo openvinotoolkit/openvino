@@ -8,7 +8,8 @@
 #include <mkldnn_node.h>
 #include "common/permute_kernel.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNDetectionOutputNode : public MKLDNNNode {
 public:
@@ -108,4 +109,5 @@ private:
     std::string errorPrefix;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

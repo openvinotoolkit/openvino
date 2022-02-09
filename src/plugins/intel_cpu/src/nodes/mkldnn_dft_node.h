@@ -8,7 +8,8 @@
 #include <mkldnn_node.h>
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNDFTNode : public MKLDNNNode {
 public:
@@ -42,4 +43,5 @@ private:
     bool inverse;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

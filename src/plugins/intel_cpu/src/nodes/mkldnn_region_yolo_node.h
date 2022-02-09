@@ -11,7 +11,8 @@
 #include <vector>
 #include <nodes/common/softmax.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_args_logistic {
     const void* src;
@@ -76,4 +77,5 @@ private:
     inline void calculate_logistic(size_t start_index, int count, uint8_t * dst_data);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -11,7 +11,8 @@
 #include <vector>
 #include <utils/general_utils.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNReorderNode : public MKLDNNNode {
 public:
@@ -80,4 +81,5 @@ private:
     void createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

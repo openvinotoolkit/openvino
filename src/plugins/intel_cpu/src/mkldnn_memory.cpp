@@ -21,7 +21,8 @@
 using namespace InferenceEngine;
 using namespace mkldnn;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 namespace {
     inline void setSubnormalsToZero(float *data, size_t size) {
         uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
@@ -239,4 +240,5 @@ void DnnlMemoryMngr::notifyUpdate() {
         }
     }
 }
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

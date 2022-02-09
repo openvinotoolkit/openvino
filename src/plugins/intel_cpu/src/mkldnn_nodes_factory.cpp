@@ -87,9 +87,9 @@
 #include "nodes/mkldnn_priorbox_clustered_node.h"
 
 #define MKLDNN_NODE(__prim, __type) \
-    registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>)
+    registerNodeIfRequired(intel_cpu, __prim, __type, MKLDNNNodeImpl<__prim>)
 
-MKLDNNPlugin::MKLDNNNode::NodesFactory::NodesFactory()
+ov::intel_cpu::MKLDNNNode::NodesFactory::NodesFactory()
     : Factory("NodesFactory") {
     MKLDNN_NODE(MKLDNNGenericNode, Generic);
     MKLDNN_NODE(MKLDNNCumSumNode, CumSum);

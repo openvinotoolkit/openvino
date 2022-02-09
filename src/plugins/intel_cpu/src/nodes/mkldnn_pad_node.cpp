@@ -15,7 +15,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 #define THROW_ERROR IE_THROW() << "Pad layer with name '" << getName() << "' "
@@ -29,7 +29,7 @@ bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
         }
 
         const auto pad_mode = pad->get_pad_mode();
-        if (!MKLDNNPlugin::one_of(pad_mode, ngraph::op::PadMode::CONSTANT, ngraph::op::PadMode::EDGE, ngraph::op::PadMode::REFLECT,
+        if (!ov::intel_cpu::one_of(pad_mode, ngraph::op::PadMode::CONSTANT, ngraph::op::PadMode::EDGE, ngraph::op::PadMode::REFLECT,
             ngraph::op::PadMode::SYMMETRIC)) {
             errorMessage = "Has unsupported pad_mode: " + ngraph::as_string(pad_mode);
             return false;
@@ -360,7 +360,7 @@ void MKLDNNPadNode::PadExecutor::padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNM
     }
 
     PadContext ctx { this, srcMemPtr, dstMemPtr };
-    OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, ctx, params.attrs.prc,
+    OV_SWITCH(intel_cpu, PadConstantEmitter, ctx, params.attrs.prc,
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),
               OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),

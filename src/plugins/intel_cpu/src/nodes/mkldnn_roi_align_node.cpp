@@ -18,7 +18,7 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/jit_load_store_emitters.hpp"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
@@ -828,7 +828,7 @@ void MKLDNNROIAlignNode::execute(mkldnn::stream strm) {
             *this
     };
 
-    OV_SWITCH(MKLDNNPlugin, ROIAlignExecute, ctx, std::tie(inputPrec, outputPrec),
+    OV_SWITCH(intel_cpu, ROIAlignExecute, ctx, std::tie(inputPrec, outputPrec),
               OV_CASE2(mkldnn_f32, mkldnn_f32, float, float),
               OV_CASE2(mkldnn_bf16, mkldnn_bf16, bfloat16_t, bfloat16_t))
 }

@@ -43,7 +43,7 @@
 #include <functional>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
 using namespace mkldnn::impl::cpu;
@@ -96,12 +96,12 @@ struct EltwiseEmitter<jit_power_static_emitter> {
 }   // namespace
 
 template <cpu_isa_t isa>
-struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, public jit_generator {
+struct jit_uni_eltwise_generic : public ov::intel_cpu::jit_uni_eltwise_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
     explicit jit_uni_eltwise_generic(const jit_eltwise_params& jep,
                                      const std::vector<MKLDNNEltwiseNode::EltwiseData>& eltwise_data,
-                                     const std::vector<MKLDNNPlugin::Type>& ops_list,
+                                     const std::vector<ov::intel_cpu::Type>& ops_list,
                                      const mkldnn::post_ops& post_ops)
     : jit_uni_eltwise_kernel(jep), jit_generator(), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
 
@@ -416,13 +416,13 @@ private:
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors = {};
 
     const std::vector<MKLDNNEltwiseNode::EltwiseData>& eltwise_data_;
-    const std::vector<MKLDNNPlugin::Type>& ops_list_;
+    const std::vector<ov::intel_cpu::Type>& ops_list_;
     const mkldnn::post_ops& post_ops_;
 
     std::set<Precision> get_supported_precisions(Algorithm algo) {
         std::set<Precision> precisions;
 
-        OV_SWITCH(MKLDNNPlugin, SupportedPrecisions, precisions, algo,
+        OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
         OV_CASE(EltwiseRelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseGelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseElu, jit_mkldnn_aux_emitter),
@@ -479,7 +479,7 @@ private:
             exec_prec
         };
 
-        OV_SWITCH(MKLDNNPlugin, EltwiseEmitter, ctx, data.algo,
+        OV_SWITCH(intel_cpu, EltwiseEmitter, ctx, data.algo,
         OV_CASE(EltwiseRelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseGelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseElu, jit_mkldnn_aux_emitter),

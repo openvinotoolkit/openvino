@@ -10,7 +10,8 @@
 #include <vector>
 
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class TileBroadcastCommon {
 protected:
@@ -41,4 +42,5 @@ private:
     } optimizedParams;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

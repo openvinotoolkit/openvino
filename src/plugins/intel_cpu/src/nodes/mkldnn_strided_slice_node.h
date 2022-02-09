@@ -8,7 +8,8 @@
 #include <string>
 #include <vector>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNStridedSliceNode : public MKLDNNNode {
 public:
@@ -99,4 +100,5 @@ private:
     bool isConstantInput[AXES_ID + 1] = {false};
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -9,7 +9,8 @@
 #include <string>
 #include <ie_precision.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MKLDNNConcatNode : public MKLDNNNode {
 public:
@@ -44,5 +45,5 @@ private:
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 };
 
-}  // namespace MKLDNNPlugin
-
+}   // namespace intel_cpu
+}   // namespace ov

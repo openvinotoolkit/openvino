@@ -63,7 +63,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace openvino;
 
 using namespace InferenceEngine::details;
@@ -1108,24 +1108,24 @@ bool MKLDNNNode::isFusedWith(Type fusedNodeType) const {
     return false;
 }
 
-Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
+InferenceEngine::Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
     switch (dims.size()) {
         case 0:
-            return Layout::SCALAR;
+            return InferenceEngine::Layout::SCALAR;
         case 1:
-            return Layout::C;
+            return InferenceEngine::Layout::C;
         case 2:
-            return Layout::NC;
+            return InferenceEngine::Layout::NC;
         case 3:
-            return Layout::CHW;
+            return InferenceEngine::Layout::CHW;
         case 4:
-            return Layout::OIHW;
+            return InferenceEngine::Layout::OIHW;
         case 5:
-            return isGrouped ? Layout::GOIHW : Layout::OIDHW;
+            return isGrouped ? InferenceEngine::Layout::GOIHW : InferenceEngine::Layout::OIDHW;
         case 6:
-            return isGrouped ? Layout::GOIDHW : Layout::BLOCKED;
+            return isGrouped ? InferenceEngine::Layout::GOIDHW : InferenceEngine::Layout::BLOCKED;
         default:
-            return Layout::BLOCKED;
+            return InferenceEngine::Layout::BLOCKED;
     }
 }
 
@@ -1203,14 +1203,14 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
     MKLDNNNode *newNode = nullptr;
     std::string errorMessage;
     {
-        std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, Generic, op, eng, w_cache));
+        std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(intel_cpu, Generic, op, eng, w_cache));
         if (ol != nullptr && ol->created(extMgr))
             newNode = ol.release();
     }
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, TypeFromName(op->get_type_name()), op, eng, w_cache));
+            std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, eng, w_cache));
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {

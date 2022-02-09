@@ -13,7 +13,8 @@
 #include <vector>
 #include <utility>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_quantize_params {
     int c;
@@ -218,4 +219,5 @@ private:
     BroadcastingPolicy broadcastingPolicy;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
