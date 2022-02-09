@@ -27,7 +27,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         ov::CompiledModel exeNetwork;
         ov::InferRequest inferRequest;
 
-        std::vector<ov::Output<ov::Node>> default_inputs;
+        std::vector<ov::Output<ov::Node>> defaultInputs;
 
         bool reshape = false;
         if (!reshapeShapes.empty()) {
@@ -61,7 +61,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                         if (reshape) {
                             {
                                 SCOPED_TIMER(reshape);
-                                default_inputs = getCopyOfDefaultInputs(cnnNetwork->inputs());
+                                defaultInputs = getCopyOfDefaultInputs(cnnNetwork->inputs());
                                 cnnNetwork->reshape(reshapeShapes);
                             }
                         }
@@ -84,7 +84,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                 SCOPED_TIMER(fill_inputs);
                 std::vector<ov::Output<const ov::Node>> inputs = exeNetwork.inputs();
                 if (reshape && dataShapes.empty()) {
-                    fillTensors(inferRequest, default_inputs);
+                    fillTensors(inferRequest, defaultInputs);
                 } else if (reshape && !dataShapes.empty()) {
                     fillTensorsWithSpecifiedShape(inferRequest, inputs, dataShapes);
                 } else {

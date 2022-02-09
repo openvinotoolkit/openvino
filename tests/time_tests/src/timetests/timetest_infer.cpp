@@ -5,7 +5,6 @@
 #include <iostream>
 
 #include "common_utils.h"
-#include "reshape_utils.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
 
@@ -26,11 +25,6 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         InferenceEngine::ExecutableNetwork exeNetwork;
         InferenceEngine::InferRequest inferRequest;
         size_t batchSize = 0;
-
-        bool reshape = false;
-        if (!reshapeShapes.empty()) {
-            reshape = true;
-        }
 
         // first_inference_latency = time_to_inference + first_inference
         {
@@ -56,12 +50,6 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                             cnnNetwork = ie.ReadNetwork(model);
                             batchSize = cnnNetwork.getBatchSize();
                         }
-                        if (reshape) {
-                            {
-                                SCOPED_TIMER(reshape);
-                                cnnNetwork.reshape(reshapeShapes);
-                            }
-                        }
                         {
                             SCOPED_TIMER(load_network);
                             exeNetwork = ie.LoadNetwork(cnnNetwork, device);
@@ -81,12 +69,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                 SCOPED_TIMER(fill_inputs);
                 const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
                 batchSize = batchSize != 0 ? batchSize : 1;
-                if (reshape) {
-                    setBlobsStaticShapes(inferRequest, inputsInfo, dataShapes);
-                    fillBlobs(inferRequest, inputsInfo, batchSize);
-                } else {
-                    fillBlobs(inferRequest, inputsInfo, batchSize);
-                }
+                fillBlobs(inferRequest, inputsInfo, batchSize);
             }
             inferRequest.Infer();
         }
