@@ -134,15 +134,10 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_static_axis_dim) {
         auto indices_type = ngraph::element::i32;
 
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::PartialShape{DYN, 15, DYN});
-        auto indices = ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {-1});
+        auto indices = ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {2});
         auto axis = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {1});
 
-        auto shape_of = std::make_shared<ngraph::opset7::ShapeOf>(data, indices_type);
-        auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
-            ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {1}), ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {0}));
-        auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices);
-        auto gather = std::make_shared<ngraph::opset7::Gather>(data, add, axis);
-
+        auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis);
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
 }
@@ -164,14 +159,10 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_static_axis_dim_neg_
         auto indices_type = ngraph::element::i32;
 
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::PartialShape{DYN, 15, DYN});
-        auto indices = ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {-1});
+        auto indices = ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {2});
         auto axis = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {-2});
 
-        auto shape_of = std::make_shared<ngraph::opset7::ShapeOf>(data, indices_type);
-        auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
-            ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {1}), ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {0}));
-        auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices);
-        auto gather = std::make_shared<ngraph::opset7::Gather>(data, add, axis);
+        auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
