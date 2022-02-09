@@ -98,9 +98,10 @@ ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_el
         if (!replaced) {
             reshape->input(0).replace_source_output(input);
             copy_runtime_info(nodes, reshape);
+            return false; // because root node wasn't replaced
         }
 
-        return false;
+        return true;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_b, matcher_name);

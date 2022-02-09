@@ -97,7 +97,6 @@ static bool eliminate_reshape_v1(const std::shared_ptr<Node>& node) {
     if (input.get_shape() == node->get_output_shape(0)) {
         return replace_output_update_name(node->output(0), input);
     }
-
     // eliminate redundant reshape, squeeze, or unsqueeze
     auto input_node = input.get_node_shared_ptr();
     if (ov::as_type_ptr<opset3::Squeeze>(input_node) ||
