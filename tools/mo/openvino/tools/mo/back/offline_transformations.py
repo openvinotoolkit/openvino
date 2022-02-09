@@ -94,8 +94,8 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     if 'scale' in argv:
         argv.scale = scale
 
-    apply_user_transformations(func, parse_transform(argv.transform))
     apply_moc_transformations(func)
+    apply_user_transformations(func, parse_transform(argv.transform))
 
     params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes)
     apply_moc_legacy_transformations(func, params_with_custom_types)

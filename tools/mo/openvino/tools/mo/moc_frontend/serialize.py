@@ -22,10 +22,10 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     from openvino.tools.mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations, \
         apply_moc_legacy_transformations
 
-    apply_user_transformations(ngraph_function, parse_transform(argv.transform))
     apply_moc_transformations(ngraph_function)
     from openvino.offline_transformations import compress_quantize_weights_transformation
     compress_quantize_weights_transformation(ngraph_function)
+    apply_user_transformations(ngraph_function, parse_transform(argv.transform))
 
     if argv.framework == "onnx":
         # set OldApi map in IR to be executed via OV API 1.x and for parity with legacy MO
