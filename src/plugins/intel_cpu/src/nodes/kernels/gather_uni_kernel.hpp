@@ -91,9 +91,9 @@ struct jitGatherKernelBase {
 
 protected:
     jGatherConfParams jcp;
-    uint64_t vlen;
-    uint64_t dataElPerVec;
-    uint64_t idxElPerVec;
+    uint64_t vlen = 0lu;
+    uint64_t dataElPerVec = 0lu;
+    uint64_t idxElPerVec = 0lu;
     static const unsigned shufMask8bitUni[16];
     static const unsigned permMask8bitA2[8];
     static const unsigned permMask8bitA5[16];
