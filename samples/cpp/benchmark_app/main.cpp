@@ -276,20 +276,25 @@ int main(int argc, char* argv[]) {
             }
             perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
+            auto supported_properties = core.get_property(device, ov::supported_properties);
+
+            auto supported = [&](const std::string& key) {
+                return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                       std::end(supported_properties);
+            };
             // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&] {
-                if (device_nstreams.count(device)) {
+                auto it_device_nstreams = device_nstreams.find(device);
+                if (it_device_nstreams != device_nstreams.end()) {
                     // set to user defined value
-                    auto supported_properties = core.get_property(device, ov::supported_properties);
-                    if (std::find(supported_properties.begin(), supported_properties.end(), ov::num_streams) ==
-                        supported_properties.end()) {
+                    if (!supported(ov::num_streams.name())) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" +
                                                ov::num_streams.name() + "'! " +
                                                "Please specify -nstreams for correct devices in format  "
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
                     }
-                    device_config.emplace(ov::num_streams(device_nstreams.at(device)));
+                    device_config.emplace(ov::num_streams(it_device_nstreams->second));
                 } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED &&
                            !device_config.count(ov::num_streams.name()) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
@@ -309,23 +314,18 @@ int main(int argc, char* argv[]) {
             };
 
             auto set_infer_precision = [&] {
-                if (device_infer_precision.count(device)) {
+                auto it_device_infer_precision = device_infer_precision.find(device);
+                if (it_device_infer_precision != device_infer_precision.end()) {
                     // set to user defined value
-                    auto supported_properties = core.get_property(device, ov::supported_properties);
-                    if (std::find(supported_properties.begin(),
-                                  supported_properties.end(),
-                                  ov::hint::inference_precision) == supported_properties.end()) {
+                    if (!supported(ov::hint::inference_precision.name())) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" +
                                                ov::hint::inference_precision.name() + "'! " +
                                                "Please specify -infer_precision for correct devices in format  "
                                                "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
                                                " or via configuration file.");
                     }
-                    device_config.emplace(ov::hint::inference_precision(device_infer_precision.at(device)));
+                    device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
                 }
-                auto it_infer_precision = device_config.find(ov::hint::inference_precision.name());
-                if (it_infer_precision != device_config.end())
-                    device_infer_precision[device] = it_infer_precision->second.as<std::string>();
             };
 
             auto fix_pin_option = [](const std::string& str) -> std::string {
@@ -336,6 +336,13 @@ int main(int argc, char* argv[]) {
                 else
                     return str;
             };
+
+            if (supported(ov::inference_num_threads.name()) && isFlagSetInCommandLine("nthreads")) {
+                device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
+            }
+            if (supported(ov::affinity.name()) && isFlagSetInCommandLine("pin")) {
+                device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
+            }
 
             if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
