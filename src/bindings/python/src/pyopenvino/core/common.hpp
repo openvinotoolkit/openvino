@@ -8,8 +8,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <ie_parameter.hpp>
-#include <ie_plugin_config.hpp>
 #include <openvino/core/type/element_type.hpp>
 #include <string>
 
@@ -18,6 +16,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/graph/any.hpp"
 

@@ -909,9 +909,6 @@ roll_negative_axes
 #-------------------------------------------------------------------------------
 
 # Clamp op:
-# Issue 51676: Output mismatch due to wrong conversion of bounds
-IE_CPU.clamp_integral
-IE_CPU.clamp_integral_negative
 # Issue 51679: CI failure on Ubuntu 20. Overflow handling -inf lower bound
 IE_CPU.clamp_int32
 # Precision mismatch
