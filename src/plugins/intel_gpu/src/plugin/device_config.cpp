@@ -520,7 +520,7 @@ bool Config::isNewApiProperty(std::string property) {
         ov::intel_gpu::hint::queue_priority.name(),
         ov::intel_gpu::hint::queue_throttle.name(),
         ov::compilation_num_threads.name(),
-        ov::streams::num.name(),
+        ov::num_streams.name(),
     };
     return new_api_keys.find(property) != new_api_keys.end();
 }

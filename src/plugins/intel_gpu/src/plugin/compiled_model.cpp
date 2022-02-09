@@ -161,8 +161,8 @@ InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) con
                 return InferenceEngine::util::string_to_property(val, ov::hint::performance_mode);
             } else if (name == ov::compilation_num_threads) {
                 return InferenceEngine::util::string_to_property(val, ov::compilation_num_threads);
-            } else if (name == ov::streams::num) {
-                return InferenceEngine::util::string_to_property(val, ov::streams::num);
+            } else if (name == ov::num_streams) {
+                return InferenceEngine::util::string_to_property(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
                 return InferenceEngine::util::string_to_property(val, ov::hint::num_requests);
             } else if (name == ov::device::id) {

@@ -214,14 +214,14 @@ std::map<std::string, std::string> Plugin::ConvertPerfHintsToConfig(
                                : plugin_config.perfHintsConfig.ovPerfHint;
         //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
         const auto streams = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == config.end() &&
-                             config.find(ov::streams::num.name()) == config.end();
+                             config.find(ov::num_streams.name()) == config.end();
         if (streams && !streamsSet) {
             if (mode_name == CONFIG_VALUE(LATENCY)) {
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
-                config[ov::streams::num.name()] = std::to_string(1);
+                config[ov::num_streams.name()] = std::to_string(1);
             } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-                config[ov::streams::num.name()] = std::to_string(ov::streams::AUTO);
+                config[ov::num_streams.name()] = std::to_string(ov::streams::AUTO);
                 //disabling the throttling temporarily to set the validation (that is switching to the hints) perf baseline
                 //checking throttling (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
                 // const auto bInConfig = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
@@ -558,8 +558,8 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
                 return InferenceEngine::util::string_to_property(val, ov::hint::performance_mode);
             } else if (name == ov::compilation_num_threads) {
                 return InferenceEngine::util::string_to_property(val, ov::compilation_num_threads);
-            } else if (name == ov::streams::num) {
-                return InferenceEngine::util::string_to_property(val, ov::streams::num);
+            } else if (name == ov::num_streams) {
+                return InferenceEngine::util::string_to_property(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
                 auto temp = InferenceEngine::util::string_to_property(val, ov::hint::num_requests);;
                 return temp;
@@ -687,7 +687,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
             ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::streams::num.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         };
@@ -899,7 +899,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         }
 
         auto it_streams = options.find("GPU_THROUGHPUT_STREAMS") != options.end() ? options.find("GPU_THROUGHPUT_STREAMS") :
-                          options.find(ov::streams::num.name()) != options.end() ? options.find(ov::streams::num.name()) :
+                          options.find(ov::num_streams.name()) != options.end() ? options.find(ov::num_streams.name()) :
                           options.end();
         if (it_streams != options.end()) {
             if (it_streams->second.is<int32_t>()) {
