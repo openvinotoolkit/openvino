@@ -38,7 +38,7 @@ class IEEngine(Engine):
 
     def set_model(self, model):
         """ Loads NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         if model.is_cascade:
             raise Exception('Cascade models are not supported in current engine')
@@ -48,8 +48,8 @@ class IEEngine(Engine):
         self._output_layers = [get_clean_name(output.get_node().friendly_name) for output in self._model.outputs]
 
     def _set_model(self, model):
-        """Creates IENetwork instances from NetworkX models in NXModel.
-        :param: model: NXModel instance
+        """Creates IENetwork instances from NetworkX models in CompressedModel.
+        :param: model: CompressedModel instance
         :return: list of dictionaries:
                  [
                     {

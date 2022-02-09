@@ -34,6 +34,7 @@ public:
     TransformationTestsF() : comparator(FunctionsComparator::no_default()) {
         m_unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
         comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
+        comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
         // TODO: enable attributes and constant values comparison by default XXX-68694
         // comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
         // comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
