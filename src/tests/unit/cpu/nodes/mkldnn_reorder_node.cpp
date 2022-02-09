@@ -260,7 +260,7 @@ protected:
 
     void fillData() {
         auto elemNum = std::accumulate(srcDims.begin(), srcDims.end(), size_t(1), std::multiplies<size_t>());
-        auto& inputReorder = parentEdge->getMemory().GetPrimitive();
+        const auto& inputReorder = parentEdge->getMemory().GetPrimitive();
         auto inputReorderData = map_memory<inputType>(inputReorder);
 
         MKLDNNPlugin::DnnlMemoryDescPtr dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
@@ -269,7 +269,7 @@ protected:
             inputReorderData[mdInput.off_l(i, false)] = inputType(i);
 
         elemNum = std::accumulate(dstDims.begin(), dstDims.end(), size_t(1), std::multiplies<size_t>());
-        auto& outputReorder = childEdge->getMemory().GetPrimitive();
+        const auto& outputReorder = childEdge->getMemory().GetPrimitive();
         auto outputReorderData = map_memory<outputType>(outputReorder);
         MKLDNNPlugin::DnnlMemoryDescPtr dnnlMdOutput = childEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
         const dnnl::impl::memory_desc_wrapper mdOutput{dnnlMdOutput->getDnnlDesc().data};
@@ -396,7 +396,7 @@ protected:
         inputNode->redefineOutputMemory({inputShape});
         auto elemNum = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
 
-        auto& inputReorder = parentEdge->getMemory().GetPrimitive();
+        const auto& inputReorder = parentEdge->getMemory().GetPrimitive();
         auto inputReorderData = map_memory<inputType>(inputReorder);
 
         DnnlMemoryDescPtr dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
