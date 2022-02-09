@@ -121,6 +121,7 @@ struct BaseProperty : public PropertyTag {
 private:
     const char* _name = nullptr;
 };
+
 template <typename T, PropertyMutability M>
 inline std::ostream& operator<<(std::ostream& os, const BaseProperty<T, M>& property) {
     return os << property.name();
@@ -270,7 +271,7 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
  * @brief High-level OpenVINO model priority hint
  * Defines what model should be provided with more performant bounded resource first
  */
-static constexpr Property<Priority> model_priority{"OV_MODEL_PRIORITY"};
+static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
 
 /**
  * @brief Enum to define possible performance mode hints
@@ -330,6 +331,11 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * ov::optimal_batch_size)
  */
 static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
+
+/**
+ * @brief Special key for auto batching feature configuration. Enabled by default
+ */
+static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
 }  // namespace hint
 
 /**

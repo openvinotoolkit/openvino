@@ -283,20 +283,27 @@ int main(int argc, char* argv[]) {
                        std::end(supported_properties);
             };
             // the rest are individual per-device settings (overriding the values set with perf modes)
-            auto setThroughputStreams = [&] {
+            auto setThroughputStreams = [&]() {
+                std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
                 auto it_device_nstreams = device_nstreams.find(device);
                 if (it_device_nstreams != device_nstreams.end()) {
                     // set to user defined value
-                    if (!supported(ov::num_streams.name())) {
-                        throw std::logic_error("Device " + device + " doesn't support config key '" +
-                                               ov::num_streams.name() + "'! " +
+                    auto supported_properties = core.get_property(device, ov::supported_properties);
+                    if (supported(key)) {
+                        device_config[key] = it_device_nstreams->second;
+                    } else if (supported(ov::num_streams.name())) {
+                        // Use API 2.0 key for streams
+                        key = ov::num_streams.name();
+                        device_config[key] = it_device_nstreams->second;
+                    } else {
+                        throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +
+                                               "and '" + ov::num_streams.name() + "'!" +
                                                "Please specify -nstreams for correct devices in format  "
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
                     }
-                    device_config.emplace(ov::num_streams(it_device_nstreams->second));
-                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED &&
-                           !device_config.count(ov::num_streams.name()) && (FLAGS_api == "async")) {
+                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) &&
+                           (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
@@ -304,9 +311,16 @@ int main(int argc, char* argv[]) {
                                   "but it still may be non-optimal for some cases, for more "
                                   "information look at README."
                                << slog::endl;
-                    if (std::string::npos == device.find("MYRIAD"))  // MYRIAD sets the default number of
-                                                                     // streams implicitly (without _AUTO)
-                        device_config.emplace(ov::num_streams(ov::NumStreams::AUTO));
+                    if (std::string::npos == device.find("MYRIAD")) {  // MYRIAD sets the default number of
+                                                                       // streams implicitly (without _AUTO)
+                        if (supported(key)) {
+                            device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
+                        } else if (supported(ov::num_streams.name())) {
+                            // Use API 2.0 key for streams
+                            key = ov::num_streams.name();
+                            device_config[key] = ov::NumStreams::AUTO;
+                        }
+                    }
                 }
                 auto it_streams = device_config.find(ov::num_streams.name());
                 if (it_streams != device_config.end())
@@ -642,21 +656,28 @@ int main(int argc, char* argv[]) {
         next_step();
         // output of the actual settings that the device selected
         for (const auto& device : devices) {
-            auto supported_properties = compiledModel.get_property(ov::supported_properties);
+            auto supported_properties = core.get_property(device, ov::supported_properties);
             slog::info << "Device: " << device << slog::endl;
             for (const auto& cfg : supported_properties) {
-                slog::info << "  {" << cfg << " , ";
-                std::stringstream strm;
-                compiledModel.get_property(cfg).print(strm);
-                strm << "";
-                slog::info << strm.str();
-                slog::info << " }" << slog::endl;
+                try {
+                    if (cfg == ov::supported_properties)
+                        continue;
+
+                    auto prop = compiledModel.get_property(cfg);
+                    slog::info << "  { " << cfg << " , " << prop.as<std::string>() << " }" << slog::endl;
+                } catch (const ov::Exception&) {
+                }
             }
         }
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {
-            device_nstreams[ds.first] = core.get_property(ds.first, ov::num_streams.name()).as<std::string>();
+            try {
+                const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
+                device_nstreams[ds.first] = core.get_property(ds.first, key).as<std::string>();
+            } catch (const ov::Exception&) {
+                device_nstreams[ds.first] = core.get_property(ds.first, ov::num_streams.name()).as<std::string>();
+            }
         }
 
         // Number of requests
