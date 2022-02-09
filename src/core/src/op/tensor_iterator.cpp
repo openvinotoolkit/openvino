@@ -141,7 +141,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                 auto part_size = concat_output_description->m_part_size;
                 auto axis = concat_output_description->m_axis;
 
-                if (body_value_partial_rank == 0) { // after scalars concatenation we must have 1D output
+                if (body_value_partial_rank == 0) {  // after scalars concatenation we must have 1D output
                     NODE_VALIDATION_CHECK(this,
                                           axis == 0,
                                           "Axis must be equal to 0 if concatenated output "
@@ -151,7 +151,8 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                     body_value_partial_shape = ov::PartialShape::dynamic(1);
                 }
 
-                body_value_partial_shape[axis] = m_num_iterations != -1 ? m_num_iterations * part_size : ov::Dimension::dynamic();
+                body_value_partial_shape[axis] =
+                    m_num_iterations != -1 ? m_num_iterations * part_size : ov::Dimension::dynamic();
                 set_output_type(index, body_value.get_element_type(), body_value_partial_shape);
             }
         } else if (auto body_output_description = ov::as_type_ptr<BodyOutputDescription>(output_description)) {
