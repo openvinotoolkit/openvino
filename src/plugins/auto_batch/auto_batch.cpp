@@ -308,8 +308,8 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     // WA for gcc 4.8 ( fails compilation with member init-list)
     _device = networkDevice;
     auto time_out = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
-    if (time_out != config.end())
-        _timeOut = ParseTimeoutValue(time_out->second.as<std::string>());
+    IE_ASSERT(time_out != config.end());
+    _timeOut = ParseTimeoutValue(time_out->second.as<std::string>());
 }
 
 AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {
@@ -639,6 +639,7 @@ IE_DEFINE_PLUGIN_CREATE_FUNCTION(AutoBatchInferencePlugin, version)
 
 AutoBatchInferencePlugin::AutoBatchInferencePlugin() {
     _pluginName = "BATCH";
+    _config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = "1000";  // default value, in ms
 }
 
 InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(
@@ -745,7 +746,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
         if (requests)
             optBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
-        metaDevice.batchForDevice = optBatchSize;
+        if (optBatchSize > 2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
+            metaDevice.batchForDevice = optBatchSize;
     }
 
     const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
@@ -760,8 +762,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         auto stats =
             pCore->GetMetric(device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
         for (auto s : stats)
-            if (s.first.find("_current") != std::string::npos)
-                footprint += s.second;
+            footprint += s.second;
         return footprint;
     };
 

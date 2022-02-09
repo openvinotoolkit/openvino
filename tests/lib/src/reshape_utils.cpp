@@ -91,26 +91,6 @@ std::vector<std::string> split(const std::string &s, char delim) {
 
 
 /**
- * @brief  Reshape blobs with dynamic shapes with static information from data shape
- */
-void setBlobsStaticShapes(InferenceEngine::InferRequest inferRequest,
-                          const InferenceEngine::ConstInputsDataMap &inputsInfo,
-                          std::map<std::string, std::vector<size_t>> dataShape) {
-    for (const InferenceEngine::ConstInputsDataMap::value_type &item : inputsInfo) {
-        InferenceEngine::Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
-
-        if (dataShape.count(item.first)) {
-            InferenceEngine::SizeVector newInputShape;
-            for (size_t i = 0; i < dataShape[item.first].size(); i++) {
-                newInputShape.emplace_back(dataShape[item.first][i]);
-            }
-            inputBlob->setShape(newInputShape);
-        }
-    }
-}
-
-
-/**
  * @brief  Getting tensor shapes. If tensor is dynamic, static shape from data info will be returned.
  */
 ov::Shape getTensorStaticShape(ov::Output<const ov::Node> &input,
@@ -135,6 +115,20 @@ ov::Shape getTensorStaticShape(ov::Output<const ov::Node> &input,
         throw std::logic_error("Please provide static shape for " + name + "input using -data_shapes argument!");
     }
     return inputShape;
+}
+
+
+/**
+ * @brief Return copy of inputs object before reshape
+ */
+std::vector<ov::Output<ov::Node>> getCopyOfDefaultInputs(std::vector<ov::Output<ov::Node>> defaultInputs) {
+    std::vector<ov::Output<ov::Node>> inputsCopy;
+    for (size_t i = 0; i < defaultInputs.size(); i++) {
+        auto nodeCopy = defaultInputs[i].get_node()->clone_with_new_inputs({});
+        auto inputNode = ov::Output<ov::Node>(nodeCopy);
+        inputsCopy.push_back(inputNode);
+    }
+    return inputsCopy;
 }
 
 

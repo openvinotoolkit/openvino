@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include <snippets/common.hpp>
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
 
@@ -48,7 +49,7 @@ public:
     std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)> get(const ngraph::DiscreteTypeInfo type) const {
         auto jitter = jitters.find(type);
         if (jitter == jitters.end()) {
-            throw ngraph_error(std::string("[SNIPPETS] Target code emitter is not available for ") + type.name + " operation.");
+            SNIPPETS_THROW() << "Target code emitter is not available for " << type.name << " operation.";
         }
         return jitter->second;
     }

@@ -584,13 +584,16 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
         } else if (kvp.first == ov::hint::model_priority.name()) {
             try {
                 int priority = -1;
-                if (kvp.second == "LOW") {
+                if (kvp.second == "LOW" ||
+                    kvp.second == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
                     priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::LOW);
                 }
-                if (kvp.second == "MEDIUM") {
+                if (kvp.second == "MEDIUM" ||
+                    kvp.second == CONFIG_VALUE(MODEL_PRIORITY_MED)) {
                     priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::MEDIUM);
                 }
-                if (kvp.second == "HIGH") {
+                if (kvp.second == "HIGH" ||
+                    kvp.second == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
                     priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::HIGH);
                 }
                 if (priority < 0) {
