@@ -41,6 +41,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassGetMetricTest, OVClassPropertyTest_INFERENCE_PRECISION,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassPropertyTest_FULL_DEVICE_NAME,
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
@@ -54,6 +58,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassPropertyTest_RANGE_FOR_STREAMS,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassGetMetricTest, OVClassPropertyTest_DEVICE_ARCHITECTURE,
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(

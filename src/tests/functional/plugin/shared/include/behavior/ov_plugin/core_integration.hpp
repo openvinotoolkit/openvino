@@ -66,6 +66,9 @@ using OVClassPropertyTest_DEVICE_GOPS = OVClassBaseTestP;
 using OVClassPropertyTest_DEVICE_TYPE = OVClassBaseTestP;
 using OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS = OVClassBaseTestP;
 using OVClassPropertyTest_OPTIMAL_BATCH_SIZE = OVClassBaseTestP;
+using OVClassPropertyTest_INFERENCE_PRECISION = OVClassBaseTestP;
+using OVClassPropertyTest_DEVICE_THERMAL = OVClassBaseTestP;
+using OVClassPropertyTest_DEVICE_ARCHITECTURE = OVClassBaseTestP;
 using OVClassPropertyTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
 using OVClassPropertyTest_MODEL_PRIORITY = OVClassBaseTestP;
 using OVClassPropertyTest_MAX_BATCH_SIZE = OVClassBaseTestP;
@@ -658,6 +661,50 @@ TEST_P(OVClassPropertyTest_OPTIMAL_BATCH_SIZE, GetPropertyOptimalBatchSizeAndPri
     std::cout << "OPTIMAL_BATCH_SIZE: " << property << std::endl;
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::optimal_batch_size);
+}
+
+TEST_P(OVClassPropertyTest_INFERENCE_PRECISION, GetPropertyAndPrintNoThrow) {
+    ov::Core ie;
+
+    ov::element::Type property;
+    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::hint::inference_precision);
+
+    std::cout << "INFERENCE_PRECISION: " << property << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::inference_precision);
+}
+
+TEST_P(OVClassPropertyTest_DEVICE_THERMAL, GetPropertyAndPrintNoThrow) {
+    ov::Core ie;
+
+    float property;
+    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::device::thermal);
+
+    std::cout << "DEVICE_THERMAL: " << property << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::thermal);
+}
+
+TEST_P(OVClassPropertyTest_DEVICE_ARCHITECTURE, GetPropertyAndPrintNoThrow) {
+    ov::Core ie;
+
+    std::string property;
+    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::device::architecture);
+
+    std::cout << "DEVICE_ARCHITECTURE: " << property << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::architecture);
+}
+
+TEST_P(OVClassPropertyTest_INFERENCE_NUM_THREADS, GetPropertyAndPrintNoThrow) {
+    ov::Core ie;
+
+    int32_t property;
+    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::inference_num_threads);
+
+    std::cout << "INFERENCE_NUM_THREADS: " << property << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::inference_num_threads);
 }
 
 TEST_P(OVClassPropertyTest_RANGE_FOR_STREAMS, GetPropertyAndPrintNoThrow) {

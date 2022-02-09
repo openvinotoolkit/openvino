@@ -54,6 +54,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
+        smoke_IEClassGetMetricTest, OVClassPropertyTest_INFERENCE_NUM_THREADS,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
