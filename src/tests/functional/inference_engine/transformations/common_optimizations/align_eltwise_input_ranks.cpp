@@ -32,6 +32,7 @@ TEST_P(AlignEltwiseInputRanksTest, FusionTest) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
         auto add = std::make_shared<opset8::Add>(data, op::Constant::create(element::f32, const_shape, {3}));
         auto less = std::make_shared<opset8::Less>(data, op::Constant::create(element::f32, const_shape, {5}));
+        auto sqr_diff = std::make_shared<opset8::SquaredDifference>(data, op::Constant::create(element::f32, const_shape, {5}));
         auto convert = std::make_shared<opset8::Convert>(data, element::boolean);
         auto logical_or = std::make_shared<opset8::LogicalOr>(convert, op::Constant::create(element::boolean, const_shape, {false}));
         auto low = op::Constant::create(element::f32, const_shape, {0});
@@ -46,6 +47,7 @@ TEST_P(AlignEltwiseInputRanksTest, FusionTest) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
         auto add = std::make_shared<opset8::Add>(data, op::Constant::create(element::f32, expected_const_shape, {3}));
         auto less = std::make_shared<opset8::Less>(data, op::Constant::create(element::f32, expected_const_shape, {5}));
+        auto sqr_diff = std::make_shared<opset8::SquaredDifference>(data, op::Constant::create(element::f32, expected_const_shape, {5}));
         auto convert = std::make_shared<opset8::Convert>(data, element::boolean);
         auto logical_or = std::make_shared<opset8::LogicalOr>(convert, op::Constant::create(element::boolean, expected_const_shape, {false}));
         auto low = op::Constant::create(element::f32, expected_const_shape, {0});
@@ -65,8 +67,9 @@ static std::vector<AlignEltwiseInputRanksParams> params = {
     AlignEltwiseInputRanksParams(PartialShape::dynamic(4), {}, {1, 1, 1, 1}, true),
     AlignEltwiseInputRanksParams(PartialShape::dynamic(4), {3, 1, 1}, {1, 3, 1, 1}, true),
     AlignEltwiseInputRanksParams(PartialShape::dynamic(4), {3}, {1, 1, 1, 3}, true),
-    AlignEltwiseInputRanksParams(PartialShape::dynamic(), {2, 3, 4}, {}, false),
     AlignEltwiseInputRanksParams(Shape{1, 4, 10, 10}, {4, 1, 1}, {1, 4, 1, 1}, true),
+    // negative cases
+    AlignEltwiseInputRanksParams(PartialShape::dynamic(), {2, 3, 4}, {}, false),
     AlignEltwiseInputRanksParams(Shape{}, {}, {}, false),
     AlignEltwiseInputRanksParams(Shape{}, {1}, {}, false),
     AlignEltwiseInputRanksParams(Shape{}, {2, 3, 4}, {}, false),
