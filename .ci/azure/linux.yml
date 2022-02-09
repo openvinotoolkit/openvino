@@ -99,6 +99,12 @@ jobs:
     submodules: recursive
     path: openvino
 
+  - script: |
+      cd $(REPO_DIR)
+      git reset --hard 89f071f5fa6490be435e681036f458745fe6df7a
+      git submodule foreach --recursive git reset --hard
+      git submodule update --init
+
   - checkout: openvino_contrib
     clean: true
     lfs: false
