@@ -53,7 +53,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
     ov::ParameterVector params;
     ov::ResultVector results;
     const auto& model_tf = std::dynamic_pointer_cast<InputModel>(model);
-    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV function");
+    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV Model");
     const auto& operation_places = model_tf->get_op_places();
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
@@ -255,7 +255,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
     // TODO: reorder results and params according to indices given in RT info (if any)
 
-    // create the OV function
+    // create the OV Model
     ng_function = std::make_shared<ov::Model>(results, params, model_name);
     OPENVINO_DEBUG << "Done with translations";
 }

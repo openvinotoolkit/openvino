@@ -392,8 +392,12 @@ Usage example:
 `ngraph::pass::VisualizeTree` can be parametrized via environment variables:
 
 ```
-NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES=1 - visualize shapes
-NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES=1  - visualize types
+OV_VISUALIZE_TREE_OUTPUT_SHAPES=1       - visualize shapes
+OV_VISUALIZE_TREE_OUTPUT_TYPES=1        - visualize types
+OV_VISUALIZE_TREE_MIN_MAX_DENORMAL=1    - pretty denormal values
+OV_VISUALIZE_TREE_RUNTIME_INFO=1        - print runtime information
+OV_VISUALIZE_TREE_IO=1                  - print I/O ports
+OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
 ```
 
 > **Note**: current VisualTree does not have user-friendly interface and it will be changed in the nearest future. The intention is to move visualization abilities inside transformations.
@@ -401,8 +405,8 @@ NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES=1  - visualize types
 If you are using `ngraph::pass::Manager` to run sequence of transformations, you can get additional debug capabilities by using the following environment variables:
 
 ```
-NGRAPH_PROFILE_PASS_ENABLE=1 - enables performance measurement for each transformation and prints execution status
-NGRAPH_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transformation. By default, it saves dot and svg files.
+OV_PROFILE_PASS_ENABLE=1 - enables performance measurement for each transformation and prints execution status
+OV_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transformation. By default, it saves dot and svg files.
 ```
 
 > **Note**: Make sure that you have dot installed on your machine; otherwise, it will silently save only dot file without svg file.

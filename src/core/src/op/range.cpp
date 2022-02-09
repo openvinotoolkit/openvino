@@ -352,7 +352,7 @@ void op::v0::Range::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           result_et != element::Type_t::u1 && result_et != element::Type_t::i4 &&
                               result_et != element::Type_t::u4 && result_et != element::Type_t::undefined,
-                          "Internal nGraph error: unsupported element type: ",
+                          "Internal OpenVINO error: unsupported element type: ",
                           result_et);
 
     if (result_et == element::Type_t::dynamic) {

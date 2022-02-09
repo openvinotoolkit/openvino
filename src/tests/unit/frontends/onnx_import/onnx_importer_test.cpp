@@ -97,7 +97,7 @@ TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
         FAIL() << "Any expection was thrown despite the ONNX model is not supported";
     }
     catch(const ngraph::ngraph_error& error) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("nGraph does not support the following ONNX operations: NotSupported"), error.what());
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("OpenVINO does not support the following ONNX operations: NotSupported"), error.what());
     }
     catch(...) {
         FAIL() << "Expected 'ngraph::ngraph_error' exception was not thrown despite the ONNX model is not supported";

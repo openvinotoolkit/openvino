@@ -217,7 +217,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsupported_op) {
         FAIL() << "Expected ngraph::ngraph_error";
     } catch (ngraph::ngraph_error const& err) {
         std::string what{err.what()};
-        EXPECT_NE(what.find("nGraph does not support"), std::string::npos);
+        EXPECT_NE(what.find("OpenVINO does not support"), std::string::npos);
         EXPECT_NE(what.find("FakeOpName"), std::string::npos);
         EXPECT_NE(what.find("AnotherFakeOpName"), std::string::npos);
     } catch (...) {
