@@ -178,7 +178,7 @@ Model Optimizer tried to infer a custom layer via the Caffe\* framework, but an 
 
 #### 14. What does the message "Cannot infer shape for node {} because there is no Caffe available. Please register python infer function for op or use Caffe for shape inference" mean? <a name="question-14"></a>
 
-Your model contains a custom layer and you have correctly registered it with the `CustomLayersMapping.xml` file. These steps are required to offload shape inference of the custom layer with the help of the system Caffe\*. However, the Model Optimizer could not import a Caffe package. Make sure that you have built Caffe with a `pycaffe` target and added it into the `PYTHONPATH` environment variable. For more information, please refer to the [Configuring the Model Optimizer](customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md). At the same time, it is highly recommend to avoid dependency on Caffe and write your own Model Optimizer extension for your custom layer. For more information, refer to the FAQ [#45](#question-45).
+Your model contains a custom layer and you have correctly registered it with the `CustomLayersMapping.xml` file. These steps are required to offload shape inference of the custom layer with the help of the system Caffe\*. However, the Model Optimizer could not import a Caffe package. Make sure that you have built Caffe with a `pycaffe` target and added it into the `PYTHONPATH` environment variable. At the same time, it is highly recommend to avoid dependency on Caffe and write your own Model Optimizer extension for your custom layer. For more information, refer to the FAQ [#45](#question-45).
 
 #### 15. What does the message "Framework name can not be deduced from the given options. Use --framework to choose one of Caffe, TensorFlow, MXNet" mean? <a name="question-15"></a>
 
@@ -214,7 +214,7 @@ One of the layers in the specified topology might not have inputs or values. Ple
 
 #### 24. What does the message "Part of the nodes was not translated to IE. Stopped" mean? <a name="question-24"></a>
 
-Some of the layers are not supported by the Inference Engine and cannot be translated to an Intermediate Representation. You can extend the Model Optimizer by allowing generation of new types of layers and implement these layers in the dedicated Inference Engine plugins. For more information, refer to [Extending the Model Optimizer with New Primitives](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page and [Inference Engine Extensibility Mechanism](../../IE_DG/Extensibility_DG/Intro.md)
+Some of the layers are not supported by the Inference Engine and cannot be translated to an Intermediate Representation. You can extend the Model Optimizer by allowing generation of new types of layers and implement these layers in the dedicated Inference Engine plugins. For more information, refer to the [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md) and [Inference Engine Extensibility Mechanism](../../OV_Runtime_UG/Extensibility_DG/Intro.md)
 
 #### 25. What does the message "While creating an edge from .. to .. : node name is undefined in the graph. Check correctness of the input model" mean? <a name="question-25"></a>
 
@@ -268,7 +268,7 @@ Model Optimizer tried to write an event file in the specified directory but fail
 
 #### 37. What does the message "There is no registered 'infer' function for node  with op = .. . Please implement this function in the extensions" mean? <a name="question-37"></a>
 
-Most likely, you tried to extend Model Optimizer with a new primitive, but did not specify an infer function. For more information on extensions, see [Extending the Model Optimizer with New Primitives](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
+Most likely, you tried to extend Model Optimizer with a new primitive, but did not specify an infer function. For more information on extensions, see [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
 
 #### 38. What does the message "Stopped shape/value propagation at node" mean? <a name="question-38"></a>
 
@@ -288,7 +288,7 @@ This error occurs when the `--input` command line option is used to cut a model 
 
 #### 42. What does the message "Module TensorFlow was not found. Please install TensorFlow 1.2 or higher" mean? <a name="question-42"></a>
 
-To convert TensorFlow\* models with Model Optimizer, TensorFlow 1.2 or newer must be installed. For more information on prerequisites, see [Configuring the Model Optimizer](Config_Model_Optimizer.md).
+To convert TensorFlow\* models with Model Optimizer, TensorFlow 1.2 or newer must be installed. For more information on prerequisites, see [Configuring the Model Optimizer](../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 #### 43. What does the message "Cannot read the model file: it is incorrect TensorFlow model file or missing" mean? <a name="question-43"></a>
 
@@ -300,7 +300,7 @@ Most likely, there is a problem with the specified file for model. The file exis
 
 #### 45. What does the message "Found custom layer. Model Optimizer does not support this layer. Please, register it in CustomLayersMapping.xml or implement extension" mean? <a name="question-45"></a>
 
-This means that the layer `{layer_name}` is not supported in the Model Optimizer. You can find a list of all unsupported layers in the corresponding section. You should add this layer to `CustomLayersMapping.xml` ([Legacy Mode for Caffe* Custom Layers](customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md)) or implement the extensions for this layer ([Extending Model Optimizer with New Primitives](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md)).
+This means that the layer `{layer_name}` is not supported in the Model Optimizer. You can find a list of all unsupported layers in the corresponding section. You should implement the extensions for this layer ([Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md)).
 
 #### 46. What does the message "Custom replacement configuration file does not exist" mean? <a name="question-46"></a>
 
@@ -308,7 +308,7 @@ Path to the custom replacement configuration file was provided with the `--trans
 
 #### 47. What does the message "Extractors collection have case insensitive duplicates" mean? <a name="question-47"></a>
 
-When extending Model Optimizer with new primitives keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see [Extending the Model Optimizer with New Primitives](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
+When extending Model Optimizer with new primitives keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
 
 #### 48. What does the message "Input model name is not in an expected format, cannot extract iteration number" mean? <a name="question-48"></a>
 
@@ -328,7 +328,7 @@ Model Optimizer tried to access a node that does not exist. This could happen if
 
 #### 52. What does the message "Module mxnet was not found. Please install MXNet 1.0.0" mean? <a name="question-52"></a>
 
-To convert MXNet\* models with Model Optimizer, MXNet 1.0.0 must be installed. For more information about prerequisites, see [Configuring the Model Optimizer](Config_Model_Optimizer.md).
+To convert MXNet\* models with Model Optimizer, MXNet 1.0.0 must be installed. For more information about prerequisites, see [Configuring the Model Optimizer](../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 #### 53. What does the message "The following error happened while loading MXNet model .." mean? <a name="question-53"></a>
 
@@ -340,7 +340,7 @@ Please, make sure that inputs are defined and have correct shapes. You can use `
 
 #### 55. What does the message "Attempt to register of custom name for the second time as class. Note that custom names are case-insensitive" mean? <a name="question-55"></a>
 
-When extending Model Optimizer with new primitives keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see [Extending the Model Optimizer with New Primitives](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) .
+When extending Model Optimizer with new primitives keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
 
 #### 56. What does the message "Both --input_shape and --batch were provided. Please, provide only one of them" mean? <a name="question-56"></a>
 
@@ -455,7 +455,7 @@ Your Caffe\* topology `.prototxt` file is intended for training. Model Optimizer
 
 #### 80. What does the message "Warning: please expect that Model Optimizer conversion might be slow" mean? <a name="question-80"></a>
 
-You are using an unsupported Python\* version. Use only versions 3.4 - 3.6 for the C++ `protobuf` implementation that is supplied with the OpenVINO Toolkit. You can still boost conversion speed by building protobuf library from sources. For complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
+You are using an unsupported Python\* version. Use only versions 3.4 - 3.6 for the C++ `protobuf` implementation that is supplied with the OpenVINO Toolkit. You can still boost conversion speed by building protobuf library from sources. For complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 #### 81. What does the message "Arguments --nd_prefix_name, --pretrained_model_name and --input_symbol should be provided. Please provide all or do not use any." mean? <a name="question-81"></a>
 
@@ -492,7 +492,7 @@ For more information, refer to [Converting a MXNet* Model](convert_model/Convert
 
 Model Optimizer tried to load the model that contains some unsupported operations. 
 If you want to convert model that contains unsupported operations you need to prepare extension for all such operations.
-For more information, refer to [Extending Model Optimizer with New Primitives](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
+For more information, refer to [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
 
 #### 87. What does the message "Can not register Op ... Please, call function 'register_caffe_python_extractor' with parameter 'name'" mean? <a name="question-87"></a>
 
@@ -538,7 +538,7 @@ Note that the first call <code>register_caffe_python_extractor(ProposalPythonExa
 
 The second call prevents Model Optimizer from using this extension as if it is an extension for 
 a layer with type `Proposal`. Otherwise, this layer can be chosen as an implementation of extension that can lead to potential issues.
-For more information, refer to the [Extending Model Optimizer with New Primitives](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
+For more information, refer to the [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
 
 #### 88. What does the message "Model Optimizer is unable to calculate output shape of Memory node .." mean? <a name="question-88"></a>
 
@@ -573,7 +573,7 @@ This message means that if you have model with custom layers and its json file h
 lower than 1.0.0, Model Optimizer does not support such topologies. If you want to convert it you have to rebuild 
 MXNet with unsupported layers or generate new json with MXNet version 1.0.0 and higher. Also you need to implement 
 Inference Engine extension for used custom layers.
-For more information, refer to the [appropriate section of Model Optimizer configuration](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
+For more information, refer to the [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
 
 #### 97. What does the message "Graph contains a cycle. Can not proceed .." mean?  <a name="question-97"></a>
 
@@ -586,7 +586,7 @@ For Tensorflow:
 
 For all frameworks: 
 1. [Replace cycle containing Sub-graph in Model Optimizer](customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md)
-2. [Extend Model Optimizer with New Primitives from first step](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md)
+2. [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md)
 
 or
 * Edit network in original framework to exclude cycle.
@@ -620,7 +620,7 @@ It means that you trying to convert the topology which contains '_contrib_box_nm
 
 #### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-103"></a>
 
-If a '*.caffemodel' file exists and it is correct, the error possibly occured due to the use of Python protobuf implementation. In some cases, it shows error message during model parsing, for example: "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.6/3.7 or build 'cpp' implementation of protobuf yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
+If a '*.caffemodel' file exists and it is correct, the error possibly occured due to the use of Python protobuf implementation. In some cases, it shows error message during model parsing, for example: "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.6/3.7 or build 'cpp' implementation of protobuf yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 #### 104. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet\* model conversion mean? <a name="question-104"></a>
 

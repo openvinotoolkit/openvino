@@ -17,7 +17,7 @@ addIeTargetTest(
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE}
         DEPENDENCIES
-            ov_intel_vpu_plugin
+            openvino_intel_myriad_plugin
         LINK_LIBRARIES
             vpu_graph_transformer
             vpu_common_lib

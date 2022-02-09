@@ -341,5 +341,5 @@ def get_ignored_operations(model):
     operation = {"transformer": [{"type": "Add"}, {"type": "Power"},
                                  {"type": "Squeeze"}, {"type": "Multiply"},
                                  {"type": "Subtract"}, {"type": "ReduceMean"},
-                                 {"type": "SquaredDifference"}]}
+                                 {"type": "SquaredDifference"}, {"type": "MVN"}]}
     return operation[model]

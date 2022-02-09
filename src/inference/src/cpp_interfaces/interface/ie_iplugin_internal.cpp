@@ -30,6 +30,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -74,6 +75,8 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     }
     return _networkOutputs;
 }
+
+IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     _dsc = v.description;
@@ -143,7 +146,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                                                orig_function->get_friendly_name());
         function->get_rt_info() = orig_function->get_rt_info();
     }
-    if (function && GetCore() && !GetCore()->isNewAPI()) {
+    const auto& core = GetCore();
+    if (function && core && !core->isNewAPI()) {
         auto& rt_info = function->get_rt_info();
         if (rt_info.find("version") == rt_info.end()) {
             rt_info["version"] = int64_t(10);
@@ -254,6 +258,10 @@ std::shared_ptr<ICore> IInferencePlugin::GetCore() const noexcept {
     return _core.lock();
 }
 
+const std::shared_ptr<ExecutorManager>& IInferencePlugin::executorManager() const {
+    return _executorManager;
+}
+
 QueryNetworkResult IInferencePlugin::QueryNetwork(const CNNNetwork& network,
                                                   const std::map<std::string, std::string>& config) const {
     IE_THROW(NotImplemented);
@@ -286,7 +294,8 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const std::shared_ptr<const ov::Model>& function) {
-    bool newAPI = this->GetCore() && this->GetCore()->isNewAPI();
+    const auto& core = GetCore();
+    bool newAPI = core && core->isNewAPI();
     InferenceEngine::SetExeNetworkInfo(exeNetwork, function, newAPI);
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
@@ -323,7 +332,25 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     const auto& inputsInfo = exeNetwork->GetInputsInfo();
     const auto& outputsInfo = exeNetwork->GetOutputsInfo();
     OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
-    OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
+
+    if (outputsInfo.size() != function->get_output_size()) {
+        const auto& outputs = function->outputs();
+        std::unordered_set<std::shared_ptr<ov::descriptor::Tensor>> output_tensors;
+        std::transform(outputs.cbegin(),
+                       outputs.cend(),
+                       std::inserter(output_tensors, output_tensors.begin()),
+                       [](const ov::Output<const ov::Node>& out) {
+                           return out.get_tensor_ptr();
+                       });
+
+        OPENVINO_ASSERT(outputsInfo.size() == output_tensors.size(),
+                        "outputsInfo.size() is: ",
+                        outputsInfo.size(),
+                        ", and function->get_output_size() is: ",
+                        function->get_output_size(),
+                        ". Number of duplicated outputs: ",
+                        outputs.size() - output_tensors.size());
+    }
 
     for (const auto& param : function->get_parameters()) {
         const auto& param_name = param->get_friendly_name();

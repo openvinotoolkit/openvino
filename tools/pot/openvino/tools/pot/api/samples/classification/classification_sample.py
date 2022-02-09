@@ -3,7 +3,6 @@
 
 import os
 import numpy as np
-from addict import Dict
 from cv2 import imread, resize as cv2_resize
 
 from openvino.tools.pot import Metric, DataLoader, IEEngine, \
@@ -20,10 +19,8 @@ init_logger(level='INFO')
 class ImageNetDataLoader(DataLoader):
 
     def __init__(self, config):
-        if not isinstance(config, Dict):
-            config = Dict(config)
         super().__init__(config)
-        self._annotations, self._img_ids = self._read_img_ids_annotations(config)
+        self._annotations, self._img_ids = self._read_img_ids_annotations(self.config)
 
     def __len__(self):
         return len(self._img_ids)
@@ -65,7 +62,7 @@ class ImageNetDataLoader(DataLoader):
         """
         image = imread(os.path.join(self.config.data_source, index))
         image = self._preprocess(image)
-        return image.transpose(2, 0, 1)
+        return image
 
     def _preprocess(self, image):
         """ Does preprocessing of an image according to the preprocessing config.
@@ -158,16 +155,16 @@ def get_configs(args):
     if not args.weights:
         args.weights = '{}.bin'.format(os.path.splitext(args.model)[0])
 
-    model_config = Dict({
+    model_config = {
         'model_name': 'sample_model',
         'model': os.path.expanduser(args.model),
         'weights': os.path.expanduser(args.weights)
-    })
-    engine_config = Dict({
+    }
+    engine_config = {
         'device': 'CPU',
         'stat_requests_number': 4,
         'eval_requests_number': 4
-    })
+    }
     dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
         'annotation_file': os.path.expanduser(args.annotation_file),

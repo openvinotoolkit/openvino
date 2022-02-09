@@ -527,6 +527,60 @@ TEST(model, multiple_inputs_outputs_model_from_const_model) {
     EXPECT_EQ(f->outputs().size(), 2);
 }
 
+TEST(model, parameter_result_function) {
+    std::shared_ptr<ov::Model> function = nullptr;
+    {
+        auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ngraph::Shape({1, 3, 24, 24}));
+        param->set_friendly_name("param");
+        param->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(param);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+        function->set_friendly_name("ParamResult");
+    }
+
+    EXPECT_EQ(function->inputs().size(), 1);
+    EXPECT_NO_THROW(function->input());
+    EXPECT_NO_THROW(function->input("data"));
+    EXPECT_THROW(function->input("param"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_NO_THROW(function->output());
+    EXPECT_EQ(1, function->output(0).get_tensor().get_names().size());
+    EXPECT_NO_THROW(function->output("data"));
+    EXPECT_THROW(function->output("constant"), ov::Exception);
+
+    EXPECT_EQ(ov::element::f16, function->input("data").get_element_type());
+    EXPECT_EQ(ov::element::f16, function->output("data").get_element_type());
+}
+
+TEST(model, constant_result_function) {
+    std::shared_ptr<ov::Model> function = nullptr;
+    std::shared_ptr<ov::Node> constant = nullptr;
+
+    {
+        constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, ngraph::Shape({1, 3, 24, 24}));
+        constant->set_friendly_name("constant");
+        constant->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(constant);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{});
+        function->set_friendly_name("ConstResult");
+    }
+
+    EXPECT_EQ(function->inputs().size(), 0);
+    EXPECT_THROW(function->input(), ov::Exception);
+    EXPECT_THROW(function->input("data"), ov::Exception);
+    EXPECT_THROW(function->input("constant"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_NO_THROW(function->output());
+    EXPECT_EQ(1, function->output(0).get_tensor().get_names().size());
+    EXPECT_NO_THROW(function->output("data"));
+    EXPECT_THROW(function->output("constant"), ov::Exception);
+    EXPECT_EQ(ov::element::f32, function->output("data").get_element_type());
+}
+
 TEST(model_reshape, ReshapedDynamicShapeLayout) {
     std::shared_ptr<ov::Model> ngraph;
     {
@@ -1384,7 +1438,7 @@ TEST(model, get_batch_size) {
 TEST(model, get_batch_size_with_conflict) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {ov::PartialShape::dynamic(), {5, 6}, {1, 3, 224, 224}, {3, 1}},
-                                       {"NCHW", "D...", "NCHW", "N???"});
+                                       {"NCHW", "D...", "NCHW", "N?"});
 
     // TODO: gtest v.10 limitation. Replace with EXPECT_THAT for gtest >= v1.11
     try {
@@ -1393,7 +1447,7 @@ TEST(model, get_batch_size_with_conflict) {
     } catch (const ov::Exception& err) {
         // Verify error message contains conflicting layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("NCHW").to_string()) != std::string::npos) << err.what();
-        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N???").to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N?").to_string()) != std::string::npos) << err.what();
         // Verify error message doesn't contain non-conflicting layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("D...").to_string()) == std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find("tensor_input_0") == std::string::npos) << err.what();
@@ -1471,7 +1525,7 @@ TEST(model, set_batch_size_dynamic_layout) {
 TEST(model, set_batch_size_with_conflict) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {ov::PartialShape::dynamic(), {5, 6}, {1, 3, 224, 224}, {3, 1}},
-                                       {"NCHW", "D...", "NCHW", "N???"});
+                                       {"NCHW", "D...", "NCHW", "N?"});
 
     // TODO: gtest v.10 limitation. Replace with EXPECT_THAT for gtest >= v1.11
     try {
@@ -1480,7 +1534,7 @@ TEST(model, set_batch_size_with_conflict) {
     } catch (const ov::Exception& err) {
         // Verify error message contains conflicting layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("NCHW").to_string()) != std::string::npos) << err.what();
-        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N???").to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N?").to_string()) != std::string::npos) << err.what();
         // Verify error message doesn't contain non-conflicting layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("D...").to_string()) == std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find("tensor_input_0") == std::string::npos) << err.what();
@@ -1522,4 +1576,89 @@ TEST(model, set_batch_size_validation_throw) {
     } catch (...) {
         FAIL() << "Expected ov::Exception";
     }
+}
+
+TEST(model, incompatible_layout) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 224, 224}}, {"NCHW"});
+    using callback = std::function<void()>;
+    auto verify_ex = [&](const callback& cb, const std::string& msg) {
+        try {
+            cb();
+            FAIL() << "set_layout shall throw";
+        } catch (const ov::Exception& err) {
+            // Verify error message contains conflicting layouts
+            EXPECT_TRUE(std::string(err.what()).find(msg) != std::string::npos) << err.what();
+        } catch (...) {
+            FAIL() << "Expected ov::Exception";
+        }
+    };
+    auto verify_ex_set_layout = [&](const ov::Layout& layout) {
+        auto msg = layout.to_string();
+        verify_ex(
+            [&]() {
+                ov::layout::set_layout(f->input(), layout);
+            },
+            msg);
+    };
+    verify_ex_set_layout("HWC");
+    verify_ex_set_layout("NDCHW");
+    verify_ex_set_layout("ND...CHW");
+    EXPECT_NO_THROW(ov::layout::set_layout(f->input(), "H...WC"));
+    EXPECT_NO_THROW(ov::layout::set_layout(f->input(), "...NCHW"));
+    EXPECT_NO_THROW(f->get_parameters()[0]->set_layout("NCHW..."));
+    EXPECT_NO_THROW(f->get_parameters()[0]->set_layout("NCHW"));
+
+    auto verify_ex_set_layout_param = [&](const ov::Layout& layout) {
+        auto msg = layout.to_string();
+        verify_ex(
+            [&]() {
+                f->get_parameters()[0]->set_layout(layout);
+            },
+            msg);
+    };
+    verify_ex_set_layout_param("HWC");
+    verify_ex_set_layout_param("NDCHW");
+    verify_ex_set_layout_param("ND...CHW");
+
+    auto verify_ex_set_partial_shape = [&](const ov::PartialShape& shape) {
+        std::stringstream msgStr;
+        msgStr << shape;
+        auto msg = msgStr.str();
+        verify_ex(
+            [&]() {
+                f->get_parameters()[0]->set_partial_shape(shape);
+            },
+            msg);
+    };
+    verify_ex_set_partial_shape({1, 2, 3, 4, 5});
+    verify_ex_set_partial_shape({1, 2, 3});
+    EXPECT_NO_THROW(f->get_parameters()[0]->set_partial_shape(ov::PartialShape::dynamic()));
+    EXPECT_NO_THROW(f->get_parameters()[0]->set_partial_shape(ov::PartialShape{1, 3, 224, 224}));
+
+    auto verify_ex_set_layout_result = [&](const ov::Layout& layout) {
+        auto msg = layout.to_string();
+        verify_ex(
+            [&]() {
+                ov::layout::set_layout(f->output(), layout);
+            },
+            msg);
+    };
+    verify_ex_set_layout_result("HWC");
+    verify_ex_set_layout_result("NDCHW");
+    verify_ex_set_layout_result("ND...CHW");
+
+    auto verify_ex_set_layout_result_validate = [&](const ov::PartialShape& param_shape, const ov::Layout& layout) {
+        auto msg = layout.to_string();
+        f = bs_utils::create_n_inputs(ov::element::f32, {ov::PartialShape::dynamic()}, {"..."});
+        verify_ex(
+            [&]() {
+                f->get_parameters()[0]->set_partial_shape(param_shape);
+                ov::layout::set_layout(f->output(), layout);
+                f->validate_nodes_and_infer_types();
+            },
+            msg);
+    };
+    verify_ex_set_layout_result_validate({1, 2, 3, 4}, "HWC");
+    verify_ex_set_layout_result_validate({1, 2, 3, 4}, "NDHWC");
+    verify_ex_set_layout_result_validate({1, 2, 3, 4}, "ND...HWC");
 }

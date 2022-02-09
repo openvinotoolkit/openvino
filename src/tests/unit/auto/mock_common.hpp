@@ -22,3 +22,8 @@ namespace internal {
     void PrintTo<ov::Any>(const ov::Any& a, std::ostream* os);
 }
 }
+
+#define ENABLE_LOG_IN_MOCK() \
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) { \
+            std::cout << stream.str() << std::endl; \
+            });

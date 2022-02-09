@@ -39,10 +39,6 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return false;
     }
 
-    if (NetworkHelper::isFQByDynamicDimension(layer)) {
-        return false;
-    }
-
     bool wasHandled = false;
     std::shared_ptr<opset1::FakeQuantize> fakeQuantize = layer;
     do {
@@ -108,11 +104,7 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
             return false;
         }
 
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) > 1) {
-            return false;
-        }
-
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) == 1ul) {
+        while (eltwiseOutputPShape.size() > shape.size()) {
             shape.insert(shape.begin(), 1ul);
         }
 

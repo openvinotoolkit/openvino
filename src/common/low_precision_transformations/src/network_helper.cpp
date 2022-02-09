@@ -373,7 +373,7 @@ std::shared_ptr<opset1::Constant> NetworkHelper::toScalar(std::shared_ptr<opset1
     return std::make_shared<opset1::Constant>(constant->get_element_type(), Shape{}, constant->get_data_ptr());
 }
 
-std::shared_ptr<Node> NetworkHelper::getConstantInput(const std::shared_ptr<Node>& node, const bool convertIsExpected) {
+std::shared_ptr<Node> NetworkHelper::getConstantInput(const std::shared_ptr<const Node>& node, const bool convertIsExpected) {
     std::shared_ptr<Node> parent = ov::as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr());
     if (parent != nullptr) {
         return parent;
@@ -746,7 +746,7 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         assert(constPShape.is_static());
         const Shape constShape = constPShape.to_shape();
 
-        if (constShape.empty() || constShape.size() > 5lu) {
+        if (constShape.size() > 5lu) {
             THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected dimensions count " << constShape.size();
         }
         if (outChannelsShapeIndex != 0 && outChannelsShapeIndex != 1) {
@@ -756,8 +756,8 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         size_t OC;
         size_t IC;
         // OIDHW or IODHW
-        if (constShape.size() == 1) {
-            OC = constShape[0];
+        if (constShape.size() <= 1) {
+            OC = constShape.empty() ? 1ul : constShape[0];
             IC = 1;
         } else {
             OC = constShape[outChannelsShapeIndex];
@@ -1933,74 +1933,6 @@ std::vector<element::Type> NetworkHelper::precisionIntersection(
     }
 
     return v3;
-}
-
-bool NetworkHelper::isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq) {
-    const auto pInputShape = fq->get_input_partial_shape(0);
-    const auto olPShape = fq->get_input_partial_shape(3);
-    assert(olPShape.is_static());
-    auto olShape = olPShape.to_shape();
-
-    if (shape_size(olShape) > 1ul) {
-        if (pInputShape.rank().is_dynamic()) {
-            return true;
-        }
-
-        const size_t rank = pInputShape.rank().get_length();
-        while (olShape.size() < rank) {
-            olShape.insert(olShape.begin(), 1ul);
-        }
-
-        for (size_t i = 0; i < olShape.size(); ++i) {
-            if (olShape[i] != 1ul && pInputShape[i].is_dynamic()) {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-bool NetworkHelper::isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx) {
-    const auto dequantization = getDequantization(layer, inputIdx);
-    if (dequantization.empty()) {
-        return false;
-    }
-
-    const auto dataPShape = dequantization.data.get_partial_shape();
-    auto constantByDynamicDymension = [&dataPShape](const std::shared_ptr<opset1::Constant>& constant) {
-        auto constShape = constant->get_shape();
-        if (shape_size(constShape) == 1ul) {
-            return false;
-        }
-
-        const auto rank = dataPShape.rank();
-        if (rank.is_dynamic()) {
-            return true;
-        }
-
-        const size_t rankValue = rank.get_length();
-        while (constShape.size() < rankValue) {
-            constShape.insert(constShape.begin(), 1ul);
-        }
-
-        for (size_t i = 0; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul && dataPShape[i].is_dynamic()) {
-                return true;
-            }
-        }
-
-        return false;
-    };
-
-    if (dequantization.subtract && constantByDynamicDymension(dequantization.subtractConstant)) {
-        return true;
-    }
-    if (dequantization.multiply && constantByDynamicDymension(dequantization.multiplyConstant)) {
-        return true;
-    }
-
-    return false;
 }
 
 bool isDisabled(const std::shared_ptr<Node>& node) {

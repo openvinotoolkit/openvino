@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <limits>
 #include <list>
 #include <memory>
@@ -76,6 +77,9 @@ public:
             hasZeroPoint(hasZeroPoint) {}
 
     bool empty() const noexcept {
+        assert(
+            ((precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
+            ((precision != element::undefined) && (max != 0.f)));
         return (precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
     }
 
@@ -108,6 +112,7 @@ public:
                     case low_precision::levels::int8_narrow_range:
                         return -127.f;
                 }
+                break;
             case element::i16:
                 switch (levels) {
                     case low_precision::levels::int16:
@@ -238,9 +243,11 @@ public:
     public:
         Params(
             const bool updatePrecisions = true,
-            element::Type deqPrecision = element::f32) :
+            element::Type deqPrecision = element::f32,
+            const bool reshapeIgnorePerTensorQuantizationCheck = false) :
             updatePrecisions(updatePrecisions),
-            deqPrecision(deqPrecision) {}
+            deqPrecision(deqPrecision),
+            reshapeIgnorePerTensorQuantizationCheck(reshapeIgnorePerTensorQuantizationCheck) {}
 
         Params& setUpdatePrecisions(const bool updatePrecisions) {
             this->updatePrecisions = updatePrecisions;
@@ -254,6 +261,8 @@ public:
 
         bool updatePrecisions;
         element::Type deqPrecision;
+        // to support GPU workarround to keep Reshape and MatMul in FP32
+        bool reshapeIgnorePerTensorQuantizationCheck;
     };
 
     class PrecisionDetails {
@@ -305,7 +314,7 @@ public:
     static DataPrecision getDataPrecision(
             const std::shared_ptr<Node>& layer,
             const QuantizationDetails& quantizationDetails,
-            const std::vector<element::Type>& precisions);
+            const std::vector<element::Type>& requiredPrecisions);
 
     static void setDefaultPrecisions(const std::vector<ngraph::element::Type>& precisions);
     static std::vector<ngraph::element::Type> getDefaultPrecisions();
@@ -321,6 +330,7 @@ protected:
 
     bool updatePrecisions;
     element::Type deqPrecision;
+    bool reshapeIgnorePerTensorQuantizationCheck;
 
     static constexpr char originalLayerPostfix[] = "_original";
     TransformationContext* context;

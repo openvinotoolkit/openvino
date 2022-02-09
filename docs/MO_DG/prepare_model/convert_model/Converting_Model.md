@@ -11,6 +11,7 @@
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle
    openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques
    openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
    openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
@@ -193,6 +194,8 @@ Framework-agnostic parameters:
   --transformations_config TRANSFORMATIONS_CONFIG
                         Use the configuration file with transformations
                         description.
+  --use_new_frontend    Force the usage of new frontend API for model processing.
+  --use_legacy_frontend Force the usage of legacy API for model processing.
 ```
 
 The sections below provide details on using particular parameters and examples of CLI commands.
@@ -265,7 +268,7 @@ mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values 
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto 
- file. For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
+ file. For more information about extensions, please refer to  the [Custom Layers Guide](../../../HOWTO/Custom_Layers_Guide.md).
 ```sh
 mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
 ```
@@ -288,7 +291,7 @@ mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --ou
 
 
 ## See Also
-* [Configuring the Model Optimizer](../Config_Model_Optimizer.md)
+* [Configuring the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md)
 * [IR Notation Reference](../../IR_and_opsets.md)
 * [Model Optimizer Extensibility](../customize_model_optimizer/Customize_Model_Optimizer.md)
 * [Model Cutting](Cutting_Model.md)
