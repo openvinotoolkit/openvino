@@ -27,31 +27,31 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassNetworkTestP, OVClassNetworkTestP
 //
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_SUPPORTED_PROPERTIES,
+        OVClassPropertyTest_SUPPORTED_PROPERTIES,
         ::testing::Values("GNA", "MULTI", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_AVAILABLE_DEVICES,
+        OVClassPropertyTest_AVAILABLE_DEVICES,
         ::testing::Values("GNA"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_FULL_DEVICE_NAME,
+        OVClassPropertyTest_FULL_DEVICE_NAME,
         ::testing::Values("GNA", "MULTI", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricTest,
-        OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
+        OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("GNA"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricTest,
-        OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values("GNA"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_ThrowUnsupported,
+        OVClassPropertyTest_ThrowUnsupported,
         ::testing::Values("GNA", "MULTI", "HETERO"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
-        OVClassGetConfigTest_ThrowUnsupported,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
+        OVClassGetPropertyTest_ThrowUnsupported,
         ::testing::Values("GNA", "MULTI", "HETERO"));
 
 
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailable
 // IE Class GetConfig
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest, OVClassGetConfigTest, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest, OVClassGetPropertyTest, ::testing::Values("GNA"));
 
 TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedScaleFactors) {
     ov::Core core;

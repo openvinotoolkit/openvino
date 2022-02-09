@@ -65,34 +65,34 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassImportExportTestP_HETERO_CPU,
 // IE Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly,
-                         OVClassGetMetricTest_ThrowUnsupported,
+INSTANTIATE_TEST_SUITE_P(OVClassPropertyTest_nightly,
+                         OVClassPropertyTest_ThrowUnsupported,
                          ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly,
-                         OVClassGetMetricTest_AVAILABLE_DEVICES,
+INSTANTIATE_TEST_SUITE_P(OVClassPropertyTest_nightly,
+                         OVClassPropertyTest_AVAILABLE_DEVICES,
                          ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly,
-                         OVClassGetMetricTest_SUPPORTED_PROPERTIES,
+INSTANTIATE_TEST_SUITE_P(OVClassPropertyTest_nightly,
+                         OVClassPropertyTest_SUPPORTED_PROPERTIES,
                          ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly,
-                         OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
+INSTANTIATE_TEST_SUITE_P(OVClassPropertyTest_nightly,
+                         OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
                          ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly,
-                         OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+INSTANTIATE_TEST_SUITE_P(OVClassPropertyTest_nightly,
+                         OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
                          ::testing::ValuesIn(devices));
 
 //
 // IE Class GetConfig
 //
 
-INSTANTIATE_TEST_SUITE_P(OVClassGetConfigTest_nightly, OVClassGetConfigTest, ::testing::ValuesIn(devices));
+INSTANTIATE_TEST_SUITE_P(OVClassGetPropertyTest_nightly, OVClassGetPropertyTest, ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_SUITE_P(OVClassGetConfigTest_nightly,
-                         OVClassGetConfigTest_ThrowUnsupported,
+INSTANTIATE_TEST_SUITE_P(OVClassGetPropertyTest_nightly,
+                         OVClassGetPropertyTest_ThrowUnsupported,
                          ::testing::ValuesIn(devices));
 
 // IE Class Query network

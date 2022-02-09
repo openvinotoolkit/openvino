@@ -32,43 +32,63 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassNetworkTestP, OVClassNetworkTestP, ::tes
 //
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_SUPPORTED_PROPERTIES,
+        OVClassPropertyTest_SUPPORTED_PROPERTIES,
         ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_AVAILABLE_DEVICES,
+        OVClassPropertyTest_AVAILABLE_DEVICES,
         ::testing::Values("GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_FULL_DEVICE_NAME,
+        OVClassPropertyTest_FULL_DEVICE_NAME,
         ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
+        OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_MAX_BATCH_SIZE,
-        ::testing::Values("GPU"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest, OVClassGetMetricTest_DEVICE_GOPS, ::testing::Values("GPU"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest, OVClassGetMetricTest_DEVICE_TYPE, ::testing::Values("GPU"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        OVClassPropertyTest_MAX_BATCH_SIZE,
         ::testing::Values("GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_RANGE_FOR_STREAMS,
+        OVClassPropertyTest_MODEL_PRIORITY,
+        ::testing::Values("GPU", "AUTO"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassPropertyTest_PERFORMANCE_MODE,
+        ::testing::Values("GPU", "AUTO"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassPropertyTest_ENABLE_PROFILING,
+        ::testing::Values("GPU", "MULTI", "AUTO", "HETERO"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassPropertyTest_DEVICE_GOPS,
         ::testing::Values("GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_ThrowUnsupported,
+        OVClassPropertyTest_DEVICE_TYPE,
+        ::testing::Values("GPU"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        ::testing::Values("GPU"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassPropertyTest_OPTIMAL_BATCH_SIZE,
+        ::testing::Values("GPU"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassPropertyTest_RANGE_FOR_STREAMS,
+        ::testing::Values("GPU"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassPropertyTest_ThrowUnsupported,
         ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
-        OVClassGetConfigTest_ThrowUnsupported,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest,
+        OVClassGetPropertyTest_ThrowUnsupported,
         ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailableDevices, ::testing::Values("GPU"));
@@ -76,8 +96,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailable
 //
 // GPU specific metrics
 //
-using OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_DEVICE_TOTAL_MEM_SIZE = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
     ov::Core ie;
     ov::Any p;
 
@@ -90,11 +110,11 @@ TEST_P(OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow)
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE,
+        OVClassPropertyTest_GPU_DEVICE_TOTAL_MEM_SIZE,
         ::testing::Values("GPU"));
 
-using OVClassGetMetricTest_GPU_UARCH_VERSION = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_UARCH_VERSION = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     ov::Core ie;
     ov::Any p;
 
@@ -106,11 +126,11 @@ TEST_P(OVClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_GPU_UARCH_VERSION,
+        OVClassPropertyTest_GPU_UARCH_VERSION,
         ::testing::Values("GPU"));
 
-using OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_EXECUTION_UNITS_COUNT = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) {
     ov::Core ie;
     ov::Any p;
 
@@ -123,110 +143,10 @@ TEST_P(OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow)
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-        OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT,
+        OVClassPropertyTest_GPU_EXECUTION_UNITS_COUNT,
         ::testing::Values("GPU"));
 
 using OVClassGetPropertyTest_GPU = OVClassBaseTestP;
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricAvailableDevicesAndPrintNoThrow) {
-    ov::Core ie;
-
-    std::vector<std::string> properties;
-    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::available_devices));
-
-    std::cout << "AVAILABLE_DEVICES: ";
-    for (const auto& prop : properties) {
-        std::cout << prop << " ";
-    }
-    std::cout << std::endl;
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::available_devices);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricRangeForAsyncInferRequestsAndPrintNoThrow) {
-    ov::Core ie;
-
-    std::tuple<unsigned int, unsigned int, unsigned int> property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::range_for_async_infer_requests));
-
-    std::cout << "RANGE_FOR_ASYNC_INFER_REQUESTS: " << std::get<0>(property) << " " <<
-                                                       std::get<1>(property) << " " <<
-                                                       std::get<2>(property) << std::endl;
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_async_infer_requests);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricRangeForStreamsAndPrintNoThrow) {
-    ov::Core ie;
-
-    std::tuple<unsigned int, unsigned int> property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::range_for_streams));
-
-    std::cout << "RANGE_FOR_STREAMS: " << std::get<0>(property) << " " <<
-                                          std::get<1>(property) << std::endl;
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_streams);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricOptimalBatchSizeAndPrintNoThrow) {
-    ov::Core ie;
-
-    unsigned int property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::optimal_batch_size));
-
-    std::cout << "OPTIMAL_BATCH_SIZE: " << property << std::endl;
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::optimal_batch_size);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricFullNameAndPrintNoThrow) {
-    ov::Core ie;
-
-    std::string property;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::device::full_name));
-
-    std::cout << "FULL_DEVICE_NAME: " << property << std::endl;
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::full_name);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricTypeAndPrintNoThrow) {
-    ov::Core ie;
-
-    ov::device::Type property = ov::device::Type::INTEGRATED;
-    ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::device::type));
-
-    std::cout << "DEVICE_TYPE: " << property << std::endl;
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::type);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricGopsAndPrintNoThrow) {
-    ov::Core ie;
-
-    std::map<ov::element::Type, float> properties;
-    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::device::gops));
-
-    std::cout << "DEVICE_GOPS: " << std::endl;
-    for (const auto& prop : properties) {
-        std::cout << "- " << prop.first << ": " << prop.second << std::endl;
-    }
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::gops);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetMetricCapabilitiesAndPrintNoThrow) {
-    ov::Core ie;
-
-    std::vector<std::string> properties;
-    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::device::capabilities));
-
-    std::cout << "OPTIMIZATION_CAPABILITIES: " << std::endl;
-    for (const auto& prop : properties) {
-        std::cout << "- " << prop << std::endl;
-    }
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities);
-}
 
 TEST_P(OVClassGetPropertyTest_GPU, GetMetricDeviceTotalMemSizeAndPrintNoThrow) {
     ov::Core ie;
@@ -273,39 +193,6 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricMemoryStatisticsAndPrintNoThrow) {
     }
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::memory_statistics);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetAndSetPerformanceModeNoThrow) {
-    ov::Core ie;
-
-    ov::hint::PerformanceMode defaultMode;
-    ASSERT_NO_THROW(defaultMode = ie.get_property(deviceName, ov::hint::performance_mode));
-
-    std::cout << "Default PERFORMANCE_HINT: \"" << defaultMode << "\"" << std::endl;
-
-    ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED));
-    ASSERT_EQ(ov::hint::PerformanceMode::UNDEFINED, ie.get_property(deviceName, ov::hint::performance_mode));
-    ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
-    ASSERT_EQ(ov::hint::PerformanceMode::LATENCY, ie.get_property(deviceName, ov::hint::performance_mode));
-    ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
-    ASSERT_EQ(ov::hint::PerformanceMode::THROUGHPUT, ie.get_property(deviceName, ov::hint::performance_mode));
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::performance_mode);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetAndSetEnableProfilingNoThrow) {
-    ov::Core ie;
-
-    bool defaultValue = false;
-    ASSERT_NO_THROW(defaultValue = ie.get_property(deviceName, ov::enable_profiling));
-
-    std::cout << "Default PERF_COUNT: " << defaultValue << std::endl;
-
-    ie.set_property(deviceName, ov::enable_profiling(true));
-    ASSERT_EQ(true, ie.get_property(deviceName, ov::enable_profiling));
-
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::enable_profiling);
 }
 
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetModelPriorityNoThrow) {
@@ -395,14 +282,14 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetPropertyTest_GPU,
         ::testing::Values("GPU"));
 
-using OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_OPTIMAL_BATCH_SIZE = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     unsigned int p;
 
     ov::AnyMap _options = {ov::hint::model(simpleNetwork)};
-    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::optimal_batch_size.name(), _options));
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::optimal_batch_size, _options));
 
     std::cout << "GPU device optimal batch size: " << p << std::endl;
 
@@ -410,18 +297,18 @@ TEST_P(OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassExecutableNetworkGetMetricTest, OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE,
+        nightly_OVClassExecutableNetworkGetMetricTest, OVClassPropertyTest_GPU_OPTIMAL_BATCH_SIZE,
         ::testing::Values("GPU")
 );
 
-using OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_MAX_BATCH_SIZE_DEFAULT = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     unsigned int p;
 
     ov::AnyMap _options = {ov::hint::model(simpleNetwork)};
-    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size.name(), _options));
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size, _options));
 
     std::cout << "GPU device max available batch size: " << p << std::endl;
 
@@ -429,12 +316,12 @@ TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT,
+        nightly_IEClassExecutableNetworkGetMetricTest, OVClassPropertyTest_GPU_MAX_BATCH_SIZE_DEFAULT,
         ::testing::Values("GPU")
 );
 
-using OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     unsigned int p;
@@ -446,7 +333,7 @@ TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPr
                            ov::streams::num(n_streams),
                            ov::intel_gpu::hint::available_device_mem(available_device_mem_size)};
 
-    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size.name(), _options));
+    ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size, _options));
 
     std::cout << "GPU device max available batch size: " << p << std::endl;
 
@@ -454,12 +341,12 @@ TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPr
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM,
+        nightly_IEClassExecutableNetworkGetMetricTest, OVClassPropertyTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM,
         ::testing::Values("GPU")
 );
 
-using OVClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_MEMORY_STATISTICS_DEFAULT = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_MEMORY_STATISTICS_DEFAULT, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     std::map<std::string, uint64_t> p;
@@ -479,12 +366,12 @@ TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT, GetMetricAndPrintNoTh
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassGetMetricTest, OVClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT,
+        nightly_IEClassGetMetricTest, OVClassPropertyTest_GPU_MEMORY_STATISTICS_DEFAULT,
         ::testing::Values("GPU")
 );
 
-using OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     std::map<std::string, uint64_t> t1;
@@ -516,12 +403,12 @@ TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAn
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassGetMetricTest, OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS,
+        nightly_IEClassGetMetricTest, OVClassPropertyTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS,
         ::testing::Values("GPU")
 );
 
-using OVClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_MEMORY_STATISTICS_CHECK_VALUES = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     std::map<std::string, uint64_t> t1;
@@ -578,12 +465,12 @@ TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassGetMetricTest, OVClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES,
+        nightly_IEClassGetMetricTest, OVClassPropertyTest_GPU_MEMORY_STATISTICS_CHECK_VALUES,
         ::testing::Values("GPU")
 );
 
-using OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPrintNoThrow) {
+using OVClassPropertyTest_GPU_MEMORY_STATISTICS_MULTI_THREADS = OVClassBaseTestP;
+TEST_P(OVClassPropertyTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     std::map<std::string, uint64_t> t1;
@@ -634,7 +521,7 @@ TEST_P(OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPri
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassGetMetricTest, OVClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS,
+        nightly_IEClassGetMetricTest, OVClassPropertyTest_GPU_MEMORY_STATISTICS_MULTI_THREADS,
         ::testing::Values("GPU")
 );
 
@@ -642,7 +529,7 @@ INSTANTIATE_TEST_SUITE_P(
 // IE Class GetConfig
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest, OVClassGetConfigTest, ::testing::Values("GPU"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetPropertyTest, OVClassGetPropertyTest, ::testing::Values("GPU"));
 
 // IE Class Query network
 

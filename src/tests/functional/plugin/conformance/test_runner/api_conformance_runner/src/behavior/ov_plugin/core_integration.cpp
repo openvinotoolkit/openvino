@@ -32,35 +32,35 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_PROPERTIES,
+        smoke_OVClassGetMetricTest, OVClassPropertyTest_SUPPORTED_PROPERTIES,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_AVAILABLE_DEVICES,
+        smoke_OVClassGetMetricTest, OVClassPropertyTest_AVAILABLE_DEVICES,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_FULL_DEVICE_NAME,
+        smoke_OVClassGetMetricTest, OVClassPropertyTest_FULL_DEVICE_NAME,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
+        smoke_OVClassGetMetricTest, OVClassPropertyTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        smoke_OVClassGetMetricTest, OVClassPropertyTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_STREAMS,
+        smoke_OVClassGetMetricTest, OVClassPropertyTest_RANGE_FOR_STREAMS,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_ThrowUnsupported,
+        smoke_OVClassGetMetricTest, OVClassPropertyTest_ThrowUnsupported,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetConfigTest, OVClassGetConfigTest_ThrowUnsupported,
+        smoke_OVClassGetPropertyTest, OVClassGetPropertyTest_ThrowUnsupported,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -72,7 +72,7 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetConfigTest, OVClassGetConfigTest,
+        smoke_OVClassGetPropertyTest, OVClassGetPropertyTest,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 // IE Class Query network
