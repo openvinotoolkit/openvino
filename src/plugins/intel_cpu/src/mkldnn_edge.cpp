@@ -223,9 +223,7 @@ MKLDNNEdge::ReorderStatus MKLDNNEdge::needReorder() {
     // Check whether the child node may accept the parent produced tensor
     if (!outPortDesc->isCompatible(*inputPortDesc)) {
         // Performance optimization which exploit the fact that some tensors do not need actual data reordering to be read using different descriptors
-        if (isPhycicalMemCompatible(*inputPortDesc->getMemDesc(), *outPortDesc->getMemDesc()) &&
-            !getParent()->isConstant() && getChild()->getType() != Output) {
-            // In case the reorder is connected with output layer, Op->Reorder->Output, Keep the reorder
+        if (isPhycicalMemCompatible(*inputPortDesc->getMemDesc(), *outPortDesc->getMemDesc()) && !getParent()->isConstant()) {
             optimized = true;
         } else {
             return ReorderStatus::Regular;
