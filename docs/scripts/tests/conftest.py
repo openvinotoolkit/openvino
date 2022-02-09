@@ -114,17 +114,21 @@ def pytest_generate_tests(metafunc):
         suppress_warnings.append(sphinx_ref_pattern2)
 
     # read doxygen log
-    doxy_parser = LogParser(metafunc.config.getoption('doxygen'))
+    doxy_parser = LogParser(metafunc.config.getoption('doxygen'),
+                            strip=metafunc.config.getoption('doxygen_strip'),
+                            xfail_list=metafunc.config.getoption('doxygen_xfail'),
+                            suppress_warnings=suppress_warnings)
     doxy_parser.parse()
-    doxygen_warnings = doxy_parser.filter(strip=metafunc.config.getoption('doxygen_strip'),
-                                          xfail_list=metafunc.config.getoption('doxygen_xfail'),
-                                          suppress_warnings=suppress_warnings)
+    doxygen_warnings = doxy_parser.filter()
 
-    sphinx_parser = LogParser(metafunc.config.getoption('sphinx'))
+    # read sphinx log
+    sphinx_parser = LogParser(metafunc.config.getoption('sphinx'),
+                              strip=metafunc.config.getoption('sphinx_strip'),
+                              xfail_list=metafunc.config.getoption('doxygen_xfail'),
+                              suppress_warnings=suppress_warnings
+                              )
     sphinx_parser.parse()
-    sphinx_warnings = sphinx_parser.filter(strip=metafunc.config.getoption('sphinx_strip'),
-                                           xfail_list=metafunc.config.getoption('doxygen_xfail'),
-                                           suppress_warnings=suppress_warnings)
+    sphinx_warnings = sphinx_parser.filter()
 
     all_warnings = dict()
     all_warnings.update(doxygen_warnings)
