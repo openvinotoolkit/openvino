@@ -283,6 +283,14 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
+        // set priority for device
+        if (priorities != fullConfig.end()) {
+            unsigned int devicePriority = 0;
+            for (auto& item : metaDevices) {
+                item.devicePriority = devicePriority;
+                devicePriority++;
+            }
+        }
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
         if (supportDevicesByConfig.size() == 0) {
              IE_THROW() << "There is no device support the configure";
@@ -527,6 +535,10 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
         // so select the last device of all available Devices.
         ptrSelectDevice = &lastDevice;
     } else {
+        // sort validDevices
+        std::sort(validDevices.begin(), validDevices.end(), [](DeviceInformation& a, DeviceInformation& b) {
+                return a.priority < b.priority;
+                });
         // select the first device in the rest of available devices.
         ptrSelectDevice = &validDevices.front();
     }
