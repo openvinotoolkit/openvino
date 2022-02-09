@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension, shape_delete, \
-    clarify_partial_shape, shape_array
+    clarify_partial_shape, shape_array, mo_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
@@ -98,7 +98,7 @@ class VariadicSplitBase(Op):
         # value propagation
         input_value = node.in_port(0).data.get_value()
         if input_value is not None:
-            split = np.split(input_value, idxs[:-1], axis)
+            split = np.split(input_value, mo_array(idxs[:-1], dtype=split_lengths.dtype), axis)
             for i, port in node.out_ports().items():
                 if not port.disconnected():
                     port.data.set_value(split[i])
