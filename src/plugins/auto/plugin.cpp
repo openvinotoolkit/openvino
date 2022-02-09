@@ -153,7 +153,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             uniqueName = fullDeviceName + "_" + deviceid;
         }
 
-        LOG_DEBUG("deviceName:%s, defaultDeviceID:%s, uniqueName:%s",
+        LOG_DEBUG("[AUTOPLUGIN]:deviceName:%s, defaultDeviceID:%s, uniqueName:%s",
               deviceName.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
         // create meta device
         metaDevices.push_back({deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName, 0});
@@ -320,6 +320,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
+             LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
         return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
     }
