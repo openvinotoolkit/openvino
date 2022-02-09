@@ -1,10 +1,8 @@
 # Install Intel® Distribution of OpenVINO™ toolkit for Windows* from Docker* Image {#openvino_docs_install_guides_installing_openvino_docker_windows}
 
-The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The Intel® Distribution of OpenVINO™ toolkit includes the Intel® Deep Learning Deployment Toolkit.  
+This guide provides steps for creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Windows* and using the Docker image on different devices.
 
-This guide provides device specifics for a Docker* image creation with Intel® Distribution of OpenVINO™ toolkit for Windows* and its further usage.
-
-## System Requirements
+## System requirements
 
 **Target Operating Systems**
 
@@ -15,64 +13,69 @@ This guide provides device specifics for a Docker* image creation with Intel® D
 - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or later) editions
 - Windows Server* 2016 or higher
 
-## Prebuilt Images
+## Creating an OpenVINO Docker image
 
-Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino).
+You can create a Docker image with OpenVINO via either of the following ways. 
 
-## Build a Docker* Image
+### Get a prebuilt image directly from provided sources
 
-You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci).
-The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can find device specific steps to configure an Intel® Distribution of OpenVINO™ toolkit Dockerfile below.
+You can find prebuilt images on [Docker Hub](https://hub.docker.com/u/openvino).
 
-## Configure and Run the Docker* Image for CPU
+### Build a Docker* image manually
 
-## Install Additional Dependencies
+You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci)which can generate a Dockerfile, build, test, and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
 
-### Install CMake
+## Using OpenVINO Docker image on different devices
 
-To add CMake to the image, add the following commands to the Dockerfile:
+### Using OpenVINO Docker* image on CPU
 
-```bat
-RUN powershell.exe -Command `
-    Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
-    Start-Process %TMP%\\cmake-3.14.7-win64-x64.msi -ArgumentList '/quiet /norestart' -Wait ; `
-    Remove-Item %TMP%\\cmake-3.14.7-win64-x64.msi -Force
+#### Step 1: Install additional dependencies
 
-RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
-```
+- **Install CMake**
 
-In case of proxy issues, please add the `ARG HTTPS_PROXY` and `-Proxy %%HTTPS_PROXY%` settings to the `powershell.exe` command to the Dockerfile. Then build a Docker image:
+   To add CMake to the image, add the following commands to the Dockerfile:
+   ```bat
+   RUN powershell.exe -Command `
+       Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
+       Start-Process %TMP%\\cmake-3.14.7-win64-x64.msi -ArgumentList '/quiet /norestart' -Wait ; `
+       Remove-Item %TMP%\\cmake-3.14.7-win64-x64.msi -Force
 
-```bat
-docker build . -t <image_name> `
---build-arg HTTPS_PROXY=<https://your_proxy_server:port>
-```
+   RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
+   ```
 
-### Install Microsoft Visual Studio* Build Tools
+   In case of proxy issues, please add the `ARG HTTPS_PROXY` and `-Proxy %%HTTPS_PROXY%` settings to the `powershell.exe` command to the Dockerfile. Then build a Docker image:
+   ```bat
+   docker build . -t <image_name> `
+   --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
+   ```   
+   
+- **Install Microsoft Visual Studio\* Build Tools**
 
-You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
-Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license.
-Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
+   You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
+   
+   Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license.
+   
+   Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
 
-To add MSBuild 2019 to the image, add the following commands to the Dockerfile:
+   To add MSBuild 2019 to the image, add the following commands to the Dockerfile:
+   ```bat
+   RUN powershell.exe -Command Invoke-WebRequest -URI https://aka.ms/vs/16/release/vs_buildtools.exe -OutFile %TMP%\\vs_buildtools.exe
 
-```bat
-RUN powershell.exe -Command Invoke-WebRequest -URI https://aka.ms/vs/16/release/vs_buildtools.exe -OutFile %TMP%\\vs_buildtools.exe
+   RUN %TMP%\\vs_buildtools.exe --quiet --norestart --wait --nocache `
+        --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools" `
+        --add Microsoft.VisualStudio.Workload.MSBuildTools `
+        --add Microsoft.VisualStudio.Workload.UniversalBuildTools `
+        --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended `
+        --remove Microsoft.VisualStudio.Component.Windows10SDK.10240 `
+        --remove Microsoft.VisualStudio.Component.Windows10SDK.10586 `
+        --remove Microsoft.VisualStudio.Component.Windows10SDK.14393 `
+        --remove Microsoft.VisualStudio.Component.Windows81SDK || IF "%ERRORLEVEL%"=="3010" EXIT 0 && powershell set-executionpolicy remotesigned
+   ```
 
-RUN %TMP%\\vs_buildtools.exe --quiet --norestart --wait --nocache `
-     --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools" `
-     --add Microsoft.VisualStudio.Workload.MSBuildTools `
-     --add Microsoft.VisualStudio.Workload.UniversalBuildTools `
-     --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended `
-     --remove Microsoft.VisualStudio.Component.Windows10SDK.10240 `
-     --remove Microsoft.VisualStudio.Component.Windows10SDK.10586 `
-     --remove Microsoft.VisualStudio.Component.Windows10SDK.14393 `
-     --remove Microsoft.VisualStudio.Component.Windows81SDK || IF "%ERRORLEVEL%"=="3010" EXIT 0 && powershell set-executionpolicy remotesigned
-```
+   In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
+   
 
-In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
-
-## Run the Docker* Image for CPU
+#### Step 2: Run OpenVINO Docker* image on CPU
 
 To start the interactive session, run the following command allows inference on the CPU:
 
@@ -83,10 +86,11 @@ docker run -it --rm <image_name>
 If you want to try some demos then run image with the root privileges (some additional 3-rd party dependencies will be installed):
 
 ```bat
-docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd samples\scripts && run_sample_squeezenet.bat -d CPU"
+docker run -it --rm <image_name> 
+cmd /S /C "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -kO https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python samples\python\hello_classification\hello_classification.py public\googlenet-v1\FP16\googlenet-v1.xml car_1.bmp CPU"
 ```
 
-## Configure and Run the Docker* Image for GPU
+### Using OpenVINO Docker* image on GPU
 
 GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO toolkit and Docker* requirements:
 
@@ -101,12 +105,12 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
   - Windows host and container version tags must match.
   - [Windows host and container isolation process support](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility)
 
-## Build a Docker* Image for Your Host System
+#### Step 1: Configure OpenVINO Docker* image for your host system
 
 1. Reuse one of [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). You can also use your own Dockerfile. 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
 3. Find the appropriate Windows container base image on [DockerHub*](https://hub.docker.com/_/microsoft-windows) and set up your host/container version in the `FROM` Dockerfile instruction.  
-   For example, in [openvino_c_dev_2021.dockerfile](https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/winserver2019/openvino_c_dev_2021.dockerfile), change:  
+   For example, in the `openvino_c_dev_<version>.dockerfile`, change:  
    ```bat
    FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS ov_base
    ```
@@ -114,7 +118,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    ```bat
    FROM mcr.microsoft.com/windows:20H2
    ```
-4. Build the Docker image
+4. Build the Docker image by running the following command:
    ```bat
    docker build --build-arg package_url=<OpenVINO pkg> -f <Dockerfile> -t <image_name> .
    ```
@@ -124,7 +128,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    copy C:\Windows\System32\OpenCL.dll C:\tmp
    ```
 
-## Run the Docker* Image for GPU
+#### Step 2: Run OpenVINO Docker* image on GPU
 
 1. To try inference on a GPU, run the image with the following command:
    ```bat
@@ -138,17 +142,14 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    ```bat
    copy C:\tmp\OpenCL.dll C:\Windows\System32\ && reg add "HKLM\SOFTWARE\Khronos\OpenCL\Vendors" /v "C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409\ocl\bin\x64\intelocl64.dll" /t REG_DWORD /d 0
    ```
-3. For example, run the `run_sample_squeezenet` demo with the command below:
+   For example, run the `Hello Classification Python` sample with the following command:
    ```bat
-   cd samples\scripts && run_sample_squeezenet.bat -d GPU
+   omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -kO https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python samples\python\hello_classification\hello_classification.py public\googlenet-v1\FP16\googlenet-v1.xml car_1.bmp GPU
    ```
-   > **NOTE**: Addittional third-party dependencies will be installed.
+   > **NOTE**: Additional third-party dependencies will be installed.
 
-## Troubleshooting
 
-If you got proxy issues, please setup proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Run_Locally) topic.
-
-## Additional Resources
+## Additional resources
 
 - [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 
