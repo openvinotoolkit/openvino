@@ -28,6 +28,9 @@ bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap& pattern_to
                                          {parameter.get_partial_shape()[1].get_length()}),
         ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}),
         std::vector<int64_t>{0},
+        std::vector<int64_t>{0},
+        std::vector<int64_t>{0},
+        std::vector<int64_t>{0},
         std::vector<int64_t>{0});
 
     proposal->input(2).replace_source_output(cropped_scales->output(0));
