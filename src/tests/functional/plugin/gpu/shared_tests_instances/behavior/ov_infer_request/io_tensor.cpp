@@ -69,6 +69,20 @@ std::vector<ov::element::Type> prcs = {
     ov::element::u64,
 };
 
+std::vector<ov::element::Type> supported_input_prcs = {
+        ov::element::boolean,
+        ov::element::f16,
+        ov::element::f32,
+        ov::element::i8,
+         // ov::element::i16,
+        ov::element::i32,
+        ov::element::i64,
+        ov::element::u8,
+        // ov::element::u16
+};
+
+    const std::vector<ov::AnyMap> emptyConfigs = {{}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(prcs),
@@ -96,4 +110,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestIOTensorSe
                                  ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                  ::testing::ValuesIn(AutoBatchConfigs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(supported_input_prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                 ::testing::ValuesIn(emptyConfigs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(supported_input_prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                 ::testing::ValuesIn(AutoBatchConfigs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
 }  // namespace
