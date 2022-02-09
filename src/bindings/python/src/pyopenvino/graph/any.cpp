@@ -39,14 +39,8 @@ void regclass_graph_Any(py::module m) {
             return self.as<py::object>();
         },
         R"(
-            Parameters
-            ----------
-            None
-
-            Returns
-            ----------
-            get : Any
-                Value of this OVAny.
+            :return: Value of this OVAny.
+            :rtype: Any
         )");
     ov_any.def(
         "set",
@@ -54,14 +48,8 @@ void regclass_graph_Any(py::module m) {
             self = PyAny(value);
         },
         R"(
-            Parameters
-            ----------
-            set : Any
-                Value to be set in OVAny.
-
-            Returns
-            ----------
-            set : None
+            :param: Value to be set in OVAny.
+            :type: Any
     )");
     ov_any.def_property_readonly(
         "value",
@@ -69,9 +57,7 @@ void regclass_graph_Any(py::module m) {
             return self.as<py::object>();
         },
         R"(
-        Returns
-        ----------
-        value : Any
-            Value of this OVAny.
+            :return: Value of this OVAny.
+            :rtype: Any
     )");
 }

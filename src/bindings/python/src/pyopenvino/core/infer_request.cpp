@@ -179,7 +179,7 @@ void regclass_InferRequest(py::module m) {
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
-            Calling any method will lead to throwning exceptions.
+            Calling any method will lead to throwing exceptions.
 
             :param inputs: Data to set on input tensors.
             :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
@@ -213,7 +213,7 @@ void regclass_InferRequest(py::module m) {
             work while this function runs in the background.
 
             Calling any method on this InferRequest while the request is
-            running will lead to throwning exceptions.
+            running will lead to throwing exceptions.
 
             :param inputs: Data to set on input tensors.
             :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
