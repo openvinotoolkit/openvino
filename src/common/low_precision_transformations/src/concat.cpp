@@ -331,7 +331,7 @@ bool ConcatTransformation::isHandled(const TransformationContext& context, const
     return false;
 }
 
-bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
     const auto concat = as_type_ptr<const opset1::Concat>(layer);
     if (concat == nullptr) {
         return false;
@@ -342,8 +342,8 @@ bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& 
         return false;
     }
 
-    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), concat->get_axis(), outputRank);
-    return normalizedAxis == 1ul;
+    const auto normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), concat->get_axis(), outputRank);
+    return normalizedAxis == 1;
 }
 
 } // namespace low_precision
