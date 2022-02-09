@@ -16,9 +16,6 @@ addIeTargetTest(
             $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/nodes
             $<TARGET_PROPERTY:openvino_intel_cpu_plugin_obj,SOURCE_DIR>/thirdparty/mkl-dnn
             $<TARGET_PROPERTY:openvino_intel_cpu_plugin_obj,SOURCE_DIR>/thirdparty/mkl-dnn/src
-            #$<TARGET_PROPERTY:sharedTestClasses,SOURCE_DIR>/include
-            #$<TARGET_PROPERTY:cpuFuncTests,SOURCE_DIR>
-            #$<TARGET_PROPERTY:funcTestUtils,SOURCE_DIR>/include
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
         OBJECT_FILES
             ${OBJ_LIB}
