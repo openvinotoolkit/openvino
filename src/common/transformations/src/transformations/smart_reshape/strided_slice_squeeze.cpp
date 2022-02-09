@@ -38,12 +38,14 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
         auto strides_vec = strides->cast_vector<int64_t>();
         auto begin_mask = slice->get_begin_mask();
         auto end_mask = slice->get_end_mask();
-        auto new_axis_mask = slice->get_new_axis_mask();
+        auto new_axis_mask = slice->get_new_axis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0)
+                                                                : slice->get_new_axis_mask();
         auto shrink_axis_mask = slice->get_shrink_axis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0)
                                                                       : slice->get_shrink_axis_mask();
-        auto ellipsis_mask = slice->get_ellipsis_mask();
+        auto ellipsis_mask = slice->get_ellipsis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0)
+                                                                : slice->get_ellipsis_mask();
         auto is_zero_vec = [](const std::vector<int64_t>& mask) {
-            return mask.empty() || std::all_of(mask.begin(), mask.end(), [](const int64_t& i) {
+            return std::all_of(mask.begin(), mask.end(), [](const int64_t& i) {
                 return i == 0;
             });
         };
@@ -72,7 +74,9 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
                                               // tensor is used along corresponding dimension.
         end_mask.resize(tensor_length, 1);    // igore what is appended to end_vec, and the real 'end' of the tensor is
                                               // used along corresponding dimension.
-        shrink_axis_mask.resize(begin_mask.size(), 0);  // validate: All masks of StridedSlice must have the same or 0 size.
+        new_axis_mask.resize(begin_mask.size(), 0);  // validate: All masks of StridedSlice must have the same size.
+        shrink_axis_mask.resize(begin_mask.size(), 0);
+        ellipsis_mask.resize(begin_mask.size(), 0);
 
         for (const auto& axis : axes) {
             if (begin_mask[axis]) {  // corresponding dimension of the begin input is ignored. starting from 0
@@ -138,13 +142,15 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         auto strides_vec = strides->cast_vector<int64_t>();
         auto begin_mask = slice->get_begin_mask();
         auto end_mask = slice->get_end_mask();
-        auto new_axis_mask = slice->get_new_axis_mask();
+        auto new_axis_mask = slice->get_new_axis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0)
+                                                                : slice->get_new_axis_mask();
         auto shrink_axis_mask = slice->get_shrink_axis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0)
                                                                       : slice->get_shrink_axis_mask();
-        auto ellipsis_mask = slice->get_ellipsis_mask();
+        auto ellipsis_mask = slice->get_ellipsis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0)
+                                                                : slice->get_ellipsis_mask();
 
         auto is_zero_vec = [](const std::vector<int64_t>& mask) {
-            return mask.empty() || std::all_of(mask.begin(), mask.end(), [](const int64_t& i) {
+            return std::all_of(mask.begin(), mask.end(), [](const int64_t& i) {
                 return i == 0;
             });
         };
@@ -165,7 +171,9 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
             strides_vec.insert(strides_vec.begin() + axis, 1);
             begin_mask.insert(begin_mask.begin() + axis, 0);
             end_mask.insert(end_mask.begin() + axis, 0);
+            new_axis_mask.insert(new_axis_mask.begin() + axis, 0);
             shrink_axis_mask.insert(shrink_axis_mask.begin() + axis, 1);
+            ellipsis_mask.insert(ellipsis_mask.begin() + axis, 0);
         }
 
         auto new_slice = std::make_shared<opset5::StridedSlice>(
