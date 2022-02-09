@@ -247,7 +247,7 @@ public:
 
 TEST_P(ConcatWithNotQuantizedParentTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);

@@ -99,7 +99,7 @@ public:
 
 TEST_P(ConvolutionQDqTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -175,7 +175,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {
                 {},
                 { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
-                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
+                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 {}
             },
             { std::vector<float>{ 100.f }, ngraph::element::i8},
@@ -351,7 +351,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {
                 {},
                 { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
-                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
+                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 {}
             },
             { std::vector<float>{ 2.f }, ngraph::element::i8},
@@ -420,7 +420,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {
                 {},
                 { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
-                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
+                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 {}
             },
             { std::vector<float>{ 2.f }, ngraph::element::i8},
