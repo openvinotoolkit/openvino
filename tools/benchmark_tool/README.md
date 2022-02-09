@@ -223,6 +223,6 @@ Below are fragments of sample output for CPU and GPU devices:
    ```
 
 ## See Also
-* [Using Inference Engine Samples](../../docs/IE_DG/Samples_Overview.md)
+* [Using Inference Engine Samples](../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)

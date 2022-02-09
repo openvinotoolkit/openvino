@@ -23,7 +23,8 @@ from tests_compatibility import (
     xfail_issue_48190,
     xfail_issue_58676,
     xfail_issue_63643,
-    xfail_issue_onnx_models_140)
+    xfail_issue_onnx_models_140,
+    xfail_issue_77668)
 
 MODELS_ROOT_DIR = tests_compatibility.MODEL_ZOO_DIR
 
@@ -167,6 +168,7 @@ if len(zoo_models) > 0:
             (xfail_issue_48190, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
             (xfail_issue_onnx_models_140, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
             (xfail_issue_63643, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
+            (xfail_issue_77668, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
 
             # Model MSFT
             (xfail_issue_37973, "test_MSFT_opset7_tf_inception_v2_model_cpu"),
@@ -183,6 +185,8 @@ if len(zoo_models) > 0:
             (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
             (xfail_issue_47495, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
             (xfail_issue_63643, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
+
+            (xfail_issue_77668, "test_MSFT_opset10_faster_rcnn_faster_rcnn_R_50_FPN_1x_cpu"),
         ]
         for test_case in import_xfail_list + execution_xfail_list:
             xfail, test_name = test_case

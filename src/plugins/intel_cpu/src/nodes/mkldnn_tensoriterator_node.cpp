@@ -33,7 +33,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 
         PortConfig data_conf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        data_conf.desc = descCreator->createSharedDesc(prec, shape);
+        data_conf.setMemDesc(descCreator->createSharedDesc(prec, shape));
         config.inConfs.push_back(data_conf);
     }
 
@@ -44,7 +44,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 
         PortConfig data_conf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        data_conf.desc = descCreator->createSharedDesc(prec, shape);
+        data_conf.setMemDesc(descCreator->createSharedDesc(prec, shape));
         config.outConfs.push_back(data_conf);
     }
 
@@ -52,27 +52,12 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     return config;
 }
 
-static void redefineToMemories(const std::vector<MKLDNNMemoryPtr>& to_mems, const MemoryDesc& new_desc) {
+static void redefineToMemories(const std::vector<MKLDNNMemoryPtr>& to_mems, MemoryDescPtr new_desc) {
     const auto &currDesc = to_mems.front()->getDesc();
-    if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != new_desc.getShape().getStaticDims()) {
-        // WA [DS] : need to rewrite it. Updated copypaste is from MKLDNNNode::redefineOutputMemory
-        // this path is necessary if there are several edges per one port
-        // in this case edge memory share same physical memory
-        // so we need to find which edge allocate memory, reallocate memory and share this memory between other edges
-        size_t sharedEdgeNum = 0;
+    if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != new_desc->getShape().getStaticDims()) {
+        // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
         for (size_t j = 0; j < to_mems.size(); j++) {
-            if (!to_mems[j]->isUsedExternalStorage()) {
-                sharedEdgeNum = j;
-                break;
-            }
-        }
-
-        to_mems[sharedEdgeNum]->redefineDesc(new_desc);
-        void *data = to_mems[sharedEdgeNum]->GetData();
-        for (size_t j = 0; j < to_mems.size(); j++) {
-            if (j == sharedEdgeNum)
-                continue;
-            to_mems[j]->redefineDesc(new_desc, data);
+            to_mems[j]->redefineDesc(new_desc);
         }
     }
 }
@@ -322,7 +307,7 @@ void DynamicBuffer::transfer(const MKLDNNNode* node) {
     if (mem_holder_buffer) {
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
                 MKLDNNExtensionUtils::convertToVectorDims(mem_holder_buffer->get_desc().dims()));
-        redefineToMemories(to, *desc);
+        redefineToMemories(to, desc);
 
         copy(get_ptr(*mem_holder_buffer.get()), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());
     } else {
@@ -330,7 +315,7 @@ void DynamicBuffer::transfer(const MKLDNNNode* node) {
         nullifyUndefinedDims(newDims);
 
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
-        redefineToMemories(to, *desc);
+        redefineToMemories(to, desc);
     }
 
     mem_holder_buffer.reset();
@@ -631,8 +616,7 @@ void MKLDNNTensorIteratorNode::prepareDynamicBackEdges() {
         auto from_mem = output_mem[map_rule.from];
         auto to_mems = input_mems[map_rule.to];
 
-        const auto& desc = from_mem->getDesc();
-        redefineToMemories(to_mems, desc);
+        redefineToMemories(to_mems, from_mem->getDescPtr());
 
         // first memory is enough to get common memory ptr
         back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mems.front(), eng));
@@ -693,7 +677,7 @@ void MKLDNNTensorIteratorNode::reshapeSubgraphInput() {
             new_dims[map_rule.axis] = abs(map_rule.stride);
 
         const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
-        redefineToMemories(to_mems, *desc);
+        redefineToMemories(to_mems, desc);
     }
 }
 
@@ -710,7 +694,7 @@ void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
             nullifyUndefinedDims(newDims);
 
             const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
-            redefineToMemories(to_mems, *desc);
+            redefineToMemories(to_mems, desc);
 
             if (!newShape.isDynamic()) {
                 BackEdgePortHelper mapper(from_mem, to_mems.front(), eng);

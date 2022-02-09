@@ -35,7 +35,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, get_c
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
 from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message
-from openvino.tools.mo.utils.guess_framework import deduce_framework_by_namespace
+from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
@@ -138,27 +138,45 @@ def get_moc_frontends(argv: argparse.Namespace):
 
 
 def arguments_post_parsing(argv: argparse.Namespace):
+    use_legacy_frontend = argv.use_legacy_frontend
+    use_new_frontend = argv.use_new_frontend
+
+    if use_new_frontend and use_legacy_frontend:
+        raise Error('Options --use_new_frontend and --use_legacy_frontend must not be used simultaneously '
+                    'in the Model Optimizer command-line')
+
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
-        deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
+    if not moc_front_end and use_new_frontend:
+        raise Error('Option --use_new_frontend is specified but the Model Optimizer is unable to find new frontend. '
+                    'Please ensure that your environment contains new frontend for the input model format or '
+                    'try to convert the model without specifying --use_new_frontend option.')
 
-    if any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
+        deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
+
+    is_legacy_frontend = any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx])
+    if not is_legacy_frontend and use_legacy_frontend:
+        raise Error('Option --use_legacy_frontend is specified but Model Optimizer does not have legacy frontend '
+                    'for the input model format. Please try to convert the model without specifying --use_legacy_frontend option.')
+
+    # handle a default case, i.e. use_new_frontend and use_legacy_frontend are not specified, when no frontend is found
+    if not is_legacy_frontend and not moc_front_end:
+        legacy_frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
+        frameworks = list(set(legacy_frameworks + available_moc_front_ends))
+        if not argv.framework:
+            raise Error('Framework name can not be deduced from the given options: {}={}. '
+                        'Please use --framework with one from the list: {}.',
+                        '--input_model', argv.input_model, frameworks)
+        elif argv.framework not in frameworks:
+            raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+                        refer_to_faq_msg(15), argv.framework, frameworks)
+
+    if is_legacy_frontend:
         if new_extensions_used(argv):
             raise Error('New kind of extensions used on legacy path')
         if new_transformations_config_used(argv):
             raise Error('New kind of transformations configuration used on legacy path')
-    else: # new frontend used
-        frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
-        frameworks = list(set(frameworks + available_moc_front_ends))
-        if argv.framework not in frameworks:
-            if argv.use_legacy_frontend:
-                raise Error('Framework {} is not a valid target when using the --use_legacy_frontend flag. '
-                            'The following legacy frameworks are available: {}' +
-                            refer_to_faq_msg(15), argv.framework, frameworks)
-            else:
-                raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
-                            refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -208,7 +226,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
     # dependency search does not break the MO pipeline
     def raise_ie_not_found():
         raise Error("Could not find the Inference Engine or nGraph Python API.\n"
-                    "Consider building the Inference Engine and nGraph Python APIs from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
+                    "Consider building the Inference Engine and nGraph Python APIs from sources or "
+                    "try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
                     "bat" if sys.platform == "windows" else "sh"))
     try:
         if not find_ie_version(silent=argv.silent):
@@ -332,7 +351,7 @@ def check_fallback(argv : argparse.Namespace):
     fallback_reasons = {}
 
     # Some frontend such as PDPD does not have legacy path so it has no reasons to fallback
-    if not any(deduce_framework_by_namespace(argv)):
+    if not any(deduce_legacy_frontend_by_namespace(argv)):
         return fallback_reasons
 
     # There is no possibility for fallback if a user strictly wants to use new frontend
@@ -372,7 +391,7 @@ def prepare_ir(argv : argparse.Namespace):
             return graph, ngraph_function
         else: # apply fallback
             reasons_message = ", ".join(fallback_reasons)
-            load_extensions(argv, *list(deduce_framework_by_namespace(argv)))
+            load_extensions(argv, *list(deduce_legacy_frontend_by_namespace(argv)))
             t.send_event("mo", "fallback_reason", reasons_message)
             log.warning("The IR preparation was executed by the legacy MO path. "
                         "This is a fallback scenario applicable only for some specific cases. "
@@ -449,7 +468,8 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         append_ir_info(file=orig_model_name,
                        meta_info=get_meta_info(argv),
                        mean_data=mean_data,
-                       input_names=input_names)
+                       input_names=input_names,
+                       legacy_path=True)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
