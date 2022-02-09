@@ -78,7 +78,7 @@ graph {
   }
 }
 opset_import {
-  domain: ""
+  domain: "ai.onnx"
   version: 13
 }
 
