@@ -271,6 +271,14 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     if (config.enforceBF16)
         EnforceBF16();
 
+    auto hasSubgraphConsumers = [] (const MKLDNNNodePtr& node) -> bool {
+        const auto & childEdges = node->getChildEdges();
+        return std::any_of(childEdges.begin(), childEdges.end(),
+                           [] (const MKLDNNEdgeWeakPtr& edge) -> bool {
+                               return edge.lock()->getChild()->getType() == Type::Subgraph;
+                           });
+    };
+
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto &input : inputNodesMap) {
@@ -279,7 +287,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
-            if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16)
+            if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16 &&
+                !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
         }
     }
