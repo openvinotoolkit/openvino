@@ -4,7 +4,7 @@
 
 .. toctree::
    :maxdepth: 1
-   
+
    openvino_docs_ops_arithmetic_Abs_1
    openvino_docs_ops_arithmetic_Acos_1
    openvino_docs_ops_arithmetic_Acosh_3
@@ -153,6 +153,7 @@
    openvino_docs_ops_infrastructure_Result_1
    openvino_docs_ops_movement_Reverse_1
    openvino_docs_ops_movement_ReverseSequence_1
+   openvino_docs_ops_signals_RFFT_9
    openvino_docs_ops_sequence_RNNCell_3
    openvino_docs_ops_sequence_RNNSequence_5
    openvino_docs_ops_detection_ROIAlign_3
