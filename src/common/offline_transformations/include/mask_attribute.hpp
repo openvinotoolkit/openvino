@@ -44,6 +44,11 @@ public:
             : std::vector<value_type>(size) {
     }
 
+    explicit Mask(const size_t & size, const bool adjust_value)
+            : std::vector<value_type>(size),
+              m_adjust_value(adjust_value) {
+    }
+
     Mask(std::initializer_list<std::initializer_list<uint64_t>> list)
             : std::vector<value_type>() {
         for (const auto & dim_values : list) {
@@ -196,8 +201,20 @@ public:
         m_need_initialization = true;
     }
 
+    bool adjust_value() const {
+        return m_adjust_value;
+    }
+
 private:
     bool m_is_shape_like{false};
+    // Flag is true if this mask should be interpretated in special way:
+    // Each value of the constant at index i decreasing by a number
+    // of elements in i'th mask dimension during weights shrinking pass.
+    // Only a 1D constants could be pruned in this way and
+    // the number of mask dimensions should be equal to the number of elements
+    // in the constant. The constant is typically interpetated as a shape
+    // of some operation.
+    bool m_adjust_value{false};
 
     // Masks dependent on this mask vs methods, specifying how
     // this mask will be modifed by correspondent dependent mask

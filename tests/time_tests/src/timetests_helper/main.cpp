@@ -18,29 +18,25 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
  * @brief Parses command line and check required arguments
  */
 bool parseAndCheckCommandLine(int argc, char **argv) {
-  gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
-  if (FLAGS_help || FLAGS_h) {
-    showUsage();
-    return false;
-  }
+    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+    if (FLAGS_help || FLAGS_h) {
+        showUsage();
+        return false;
+    }
 
-  if (FLAGS_m.empty())
-    throw std::logic_error(
-        "Model is required but not set. Please set -m option.");
+    if (FLAGS_m.empty())
+        throw std::logic_error(
+                "Model is required but not set. Please set -m option.");
 
-  if (FLAGS_d.empty())
-    throw std::logic_error(
-        "Device is required but not set. Please set -d option.");
+    if (FLAGS_d.empty())
+        throw std::logic_error(
+                "Device is required but not set. Please set -d option.");
 
-  if (FLAGS_s.empty())
-    throw std::logic_error(
-        "Statistics file path is required but not set. Please set -s option.");
+    if (FLAGS_s.empty())
+        throw std::logic_error(
+                "Statistics file path is required but not set. Please set -s option.");
 
-  if (!FLAGS_reshape_shapes.empty() && FLAGS_data_shapes.empty())
-    throw std::logic_error(
-        "Data shapes is required for reshape shapes argument. Please set -data_shapes option.");
-
-  return true;
+    return true;
 }
 
 /**
@@ -48,22 +44,22 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
  */
 int _runPipeline(std::map<std::string, ov::PartialShape> dynamicShapes,
                  std::map<std::string, std::vector<size_t>> staticShapes) {
-  SCOPED_TIMER(full_run);
-  return runPipeline(FLAGS_m, FLAGS_d, FLAGS_c, dynamicShapes, staticShapes);
+    SCOPED_TIMER(full_run);
+    return runPipeline(FLAGS_m, FLAGS_d, FLAGS_c, dynamicShapes, staticShapes);
 }
 
 /**
  * @brief Main entry point
  */
 int main(int argc, char **argv) {
-  if (!parseAndCheckCommandLine(argc, argv))
-    return -1;
+    if (!parseAndCheckCommandLine(argc, argv))
+        return -1;
 
-  auto dynamicShapes = parseReshapeShapes(FLAGS_reshape_shapes);
-  auto staticShapes = parseDataShapes(FLAGS_data_shapes);
+    auto dynamicShapes = parseReshapeShapes(FLAGS_reshape_shapes);
+    auto staticShapes = parseDataShapes(FLAGS_data_shapes);
 
-  auto status =  _runPipeline(dynamicShapes, staticShapes);
-  StatisticsWriter::Instance().setFile(FLAGS_s);
-  StatisticsWriter::Instance().write();
-  return status;
+    auto status =  _runPipeline(dynamicShapes, staticShapes);
+    StatisticsWriter::Instance().setFile(FLAGS_s);
+    StatisticsWriter::Instance().write();
+    return status;
 }

@@ -61,10 +61,12 @@ using OVClassGetMetricTest_SUPPORTED_METRICS = OVClassBaseTestP;
 using OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
 using OVClassGetMetricTest_AVAILABLE_DEVICES = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME = OVClassBaseTestP;
+using OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID = OVClassBaseTestP;
 using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_GOPS = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = OVClassBaseTestP;
+using OVClassGetMetricTest_MAX_BATCH_SIZE = OVClassBaseTestP;
 using OVClassGetMetricTest_ThrowUnsupported = OVClassBaseTestP;
 using OVClassGetConfigTest = OVClassBaseTestP;
 using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
@@ -299,16 +301,16 @@ TEST_P(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
 
 TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ov::hint::ModelPriority value;
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::ModelPriority::LOW)));
+    ov::hint::Priority value;
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
-    EXPECT_EQ(value, ov::hint::ModelPriority::LOW);
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::ModelPriority::MEDIUM)));
+    EXPECT_EQ(value, ov::hint::Priority::LOW);
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
-    EXPECT_EQ(value, ov::hint::ModelPriority::MEDIUM);
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::ModelPriority::HIGH)));
+    EXPECT_EQ(value, ov::hint::Priority::MEDIUM);
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
-    EXPECT_EQ(value, ov::hint::ModelPriority::HIGH);
+    EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
@@ -551,6 +553,21 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
     OV_ASSERT_PROPERTY_SUPPORTED(ov::device::full_name);
 }
 
+TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID, GetMetricAndPrintNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    std::string t;
+
+    if (supportsDeviceID(ie, deviceName)) {
+        auto device_ids = ie.get_property(deviceName, ov::available_devices);
+        ASSERT_GT(device_ids.size(), 0);
+        OV_ASSERT_NO_THROW(t = ie.get_property(deviceName, ov::device::full_name, ov::device::id(device_ids.front())));
+        std::cout << "Device " << device_ids.front() << " " <<  ", Full device name: " << std::endl << t << std::endl;
+        OV_ASSERT_PROPERTY_SUPPORTED(ov::device::full_name);
+    } else {
+        GTEST_SKIP() << "Device id is not supported";
+    }
+}
+
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> t;
@@ -560,6 +577,17 @@ TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
         std::cout << str << std::endl;
     }
     OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities);
+}
+
+TEST_P(OVClassGetMetricTest_MAX_BATCH_SIZE, GetMetricAndPrintNoThrow) {
+    ov::Core ie;
+    uint32_t max_batch_size;
+
+    ASSERT_NO_THROW(max_batch_size = ie.get_property(deviceName, ov::max_batch_size));
+
+    std::cout << "Max batch size: " << max_batch_size << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::max_batch_size);
 }
 
 TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {

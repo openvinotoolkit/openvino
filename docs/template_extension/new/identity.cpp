@@ -21,7 +21,7 @@ void Identity::validate_and_infer_types() {
 
 //! [op:copy]
 std::shared_ptr<ov::Node> Identity::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OPENVINO_ASSERT(new_args.size() != 1, "Incorrect number of new arguments");
+    OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
 
     return std::make_shared<Identity>(new_args.at(0));
 }
