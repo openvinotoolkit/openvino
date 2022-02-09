@@ -8,24 +8,26 @@ import numpy as np
 
 from openvino.tools.mo.back.MaxPool import MaxPool
 from openvino.tools.mo.back.TopKNormalizer import TopKNormalizer
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.GRU import GRU
 from openvino.tools.mo.ops.ReduceOps import ReduceOp
 from openvino.tools.mo.ops.activation_ops import Activation
+from openvino.tools.mo.ops.clamp import AttributedClamp
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.ops.deconvolution import Deconvolution
 from openvino.tools.mo.ops.dft import FFTBase
-from openvino.tools.mo.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
+from openvino.tools.mo.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, \
+    Sub
 from openvino.tools.mo.ops.embedding_bag import EmbeddingBagBase
 from openvino.tools.mo.ops.loop import Loop
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.pooling import Pooling
 from openvino.tools.mo.ops.psroipooling import DeformablePSROIPoolingOp
 from openvino.tools.mo.ops.scatter import Scatter
 from openvino.tools.mo.ops.scatternd import ScatterNDBase
 from openvino.tools.mo.ops.split import Split, VariadicSplit
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.graph.graph import Graph, Node
-from openvino.tools.mo.ops.clamp import AttributedClamp
-from openvino.tools.mo.ops.convolution import Convolution
-from openvino.tools.mo.ops.deconvolution import Deconvolution
-from openvino.tools.mo.ops.op import Op
-from openvino.tools.mo.ops.pooling import Pooling
 from openvino.tools.mo.utils.class_registration import update_registration
 from openvino.tools.mo.utils.import_extensions import import_by_path
 from openvino.tools.mo.utils.ir_reader.extender import Extender
@@ -40,6 +42,7 @@ custom_ops = {
     'Divide': Div,
     'GroupConvolution': Convolution,
     'GroupConvolutionBackpropData': Deconvolution,
+    'GRUSequence': GRU,
     'Loop': Loop,
     'MaxPool': Pooling,
     'Multiply': Mul,
