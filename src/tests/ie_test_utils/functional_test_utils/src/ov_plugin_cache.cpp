@@ -54,18 +54,18 @@ std::shared_ptr<ov::Core> PluginCache::core(const std::string &deviceToCheck) {
 
     // register template plugin if it is needed
     try {
-        std::string pluginName = "ov_template_plugin";
+        std::string pluginName = "openvino_template_plugin";
         pluginName += IE_BUILD_POSTFIX;
         ov_core->register_plugin(pluginName, "TEMPLATE");
     } catch (...) {
     }
 
     if (!deviceToCheck.empty()) {
-        std::vector<std::string> metrics = ov_core->get_property(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS));
+        auto properties = ov_core->get_property(deviceToCheck, ov::supported_properties);
 
-        if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(AVAILABLE_DEVICES)) != metrics.end()) {
-            std::vector<std::string> availableDevices =
-                    ov_core->get_property(deviceToCheck, METRIC_KEY(AVAILABLE_DEVICES));
+        if (std::find(properties.begin(), properties.end(), ov::available_devices) != properties.end()) {
+            auto availableDevices =
+                    ov_core->get_property(deviceToCheck, ov::available_devices);
 
             if (availableDevices.empty()) {
                 std::cerr << "No available devices for " << deviceToCheck << std::endl;

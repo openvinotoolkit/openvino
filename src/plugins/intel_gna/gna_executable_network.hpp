@@ -69,7 +69,10 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     InferenceEngine::IInferRequestInternal::Ptr
         CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
-        if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+        if (!this->_plugin)
+            return nullptr;
+        const auto& core = _plugin->GetCore();
+        if (!core || !core->isNewAPI())
             return nullptr;
         return std::make_shared<GNAInferRequest>(plg, inputs, outputs);
     }
@@ -92,7 +95,7 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
             IE_THROW() << "The list of configuration values is empty";
         }
 
-        std::vector<ov::PropertyName> supported_properties = Config::GetSupportedProperties(true);
+        auto supported_properties = Config::GetSupportedProperties(true).as<std::vector<ov::PropertyName>>();
         for (auto&& item : config) {
             auto it = std::find(supported_properties.begin(), supported_properties.end(), item.first);
             if (it != supported_properties.end()) {

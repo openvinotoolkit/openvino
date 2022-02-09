@@ -1993,10 +1993,10 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
         }
 
         auto& transposeOrder = transposeNode->getOrder();
-        auto layoutOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->as<BlockedMemoryDesc>()->getOrder();
+        auto layoutOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
 
-        auto inBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->as<BlockedMemoryDesc>();
-        auto outBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->as<BlockedMemoryDesc>();
+        auto inBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
+        auto outBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
 
         auto& inOrder = inBlockedDesc->getOrder();
         auto& outOrder = outBlockedDesc->getOrder();
@@ -2075,8 +2075,8 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
         graph.DropNode(parentNode);
         graph.DropNode(childNode);
 
-        auto& inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
-        auto& outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
+        auto inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
+        auto outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
 
         auto inPrec = inDesc->getPrecision();
         auto outPrec = outDesc->getPrecision();

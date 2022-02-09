@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "ov_auto_plugin")
+set (TARGET_NAME "openvino_auto_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp)
 
