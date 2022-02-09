@@ -136,6 +136,17 @@ StridedSliceTransformationTestValues::LayerParams channelSlice = {
     {} // elipsisMask
 };
 
+StridedSliceTransformationTestValues::LayerParams channelSlice2D = {
+    {0, 0},  // begin
+    {0, 2},  // end
+    {1, 1},  // strided
+    {1, 0},  // beginMask
+    {1, 0},  // endMask
+    {0, 0},  // newAxisMask
+    {0, 0},  // shrinkAxisMask
+    {0, 0}   // elipsisMask
+};
+
 StridedSliceTransformationTestValues::LayerParams spatialDimensionSlice = {
     { 0, 0, 0, 0 },
     { 1, 3, 20, 24 },
@@ -221,6 +232,21 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
     {
         LayerTransformation::createParamsU8I8(),
         channelSlice,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{ 128.f, 64.f }}, {{ 0.1f, 0.01f }}}
+        }
+    },
+    // U8: channel slice, per-channel quantization with different values
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice2D,
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
