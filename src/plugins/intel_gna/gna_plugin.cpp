@@ -922,12 +922,23 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         inputs_ptr_->at(input.first).ptrs.resize(gnaFlags->num_requests);
     }
 
-    // Creating Layer primitives
+    // Setting up lifetime
     uint16_t id = 0;
-    for (auto & layer : sortedNoMem) {
+    for (auto& layer : sortedNoMem) {
+        const auto info = LayerInfo(layer);
         IE_SUPPRESS_DEPRECATED_START
-        layer->userValue.v_int = id++;
+        // for activation and pooling the layer-fusing will occur,
+        // so the lifetime should be the same as the lifetime of
+        // the first layer in the fused set
+        if (!info.isActivation() && !info.isPooling()) {
+            id++;
+        }
+        layer->userValue.v_int = id;
         IE_SUPPRESS_DEPRECATED_END
+    }
+
+    // Creating Layer primitives
+    for (auto & layer : sortedNoMem) {
         graphCompiler.CreateLayerPrimitive(layer);
     }
 
