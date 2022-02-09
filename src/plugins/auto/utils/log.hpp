@@ -247,12 +247,11 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
         checkFormat(fmt);
         compatibleString =  "%s" + std::string(fmt);
         std::snprintf(&buffer[0], sizeof(buffer), compatibleString.c_str(), "", args...);
-    } catch (std::runtime_error &err) {
-        compatibleString =  "%s" + std::string(err.what());
-        std::snprintf(&buffer[0], sizeof(buffer), compatibleString.c_str(), "");
+        stream << ' ' << buffer << suffix << colorEnd(level);
+    } catch (std::runtime_error& err) {
+        stream << ' ' << err.what() << colorEnd(level);
     }
-    
-    stream << ' ' << buffer << suffix << colorEnd(level);
+
     std::lock_guard<std::mutex> autoLock(mutex);
     print(stream);
 }
