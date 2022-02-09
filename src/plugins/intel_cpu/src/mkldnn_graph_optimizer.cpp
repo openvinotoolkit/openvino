@@ -239,14 +239,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionMatMulAndBias(MKLDNNGraph &graph) {
                     int inNum = 0;
                     if (remEdge) {
                         inNum = remEdge->getInputNum();
-                        remEdge->drop();
                         graph.RemoveEdge(remEdge);
                     }
                     remEdge = childs[j].lock();
                     int outNum = 0;
                     if (remEdge) {
                         outNum = remEdge->getOutputNum();
-                        remEdge->drop();
                         graph.RemoveEdge(remEdge);
                     }
                     MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
@@ -259,7 +257,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionMatMulAndBias(MKLDNNGraph &graph) {
                 int inNum = 0;
                 if (remEdge) {
                     inNum = remEdge->getInputNum();
-                    remEdge->drop();
                     graph.RemoveEdge(remEdge);
                 }
 
@@ -1535,14 +1532,12 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
                         int inNum = 0;
                         if (remEdge) {
                             inNum = remEdge->getInputNum();
-                            remEdge->drop();
                             graph.RemoveEdge(remEdge);
                         }
                         remEdge = children[j].lock();
                         int outNum = 0;
                         if (remEdge) {
                             outNum = remEdge->getOutputNum();
-                            remEdge->drop();
                             graph.RemoveEdge(remEdge);
                         }
                         MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
@@ -1562,7 +1557,6 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
                         if (childNode->getAlgorithm() == EltwiseMulAdd) {
                             outNum = initialParentInNum + remEdge->getOutputNum() - 1;
                         }
-                        remEdge->drop();
                         graph.RemoveEdge(remEdge);
                     }
 
@@ -2067,7 +2061,6 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
             graphEdges.push_back(newEdge);
             graphNodes.push_back(cpuConstant);
 
-            edge->drop();
             graph.RemoveEdge(edge);
         }
     }

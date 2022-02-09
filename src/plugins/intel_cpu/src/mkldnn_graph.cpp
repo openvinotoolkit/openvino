@@ -1105,6 +1105,7 @@ Config MKLDNNGraph::getProperty() const {
 void MKLDNNGraph::RemoveEdge(MKLDNNEdgePtr& edge) {
     for (auto it = graphEdges.begin(); it != graphEdges.end(); it++) {
         if ((*it) == edge) {
+            edge->drop();
             graphEdges.erase(it);
             return;
         }
