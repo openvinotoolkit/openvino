@@ -94,8 +94,8 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
     const auto* decoder = node.get_decoder();
     auto dt = decoder->get_native_attribute("dtype").as<::tensorflow::DataType>();
 
-    // TODO: investigate why as<>() method using std::move leads to the issue (75371) in OVTF integration with
-    //  tensorflow frontend. The current fix: replace it with as<>() method using reference. But in fact, both
+    // TODO: investigate why as<>() && method using std::move leads to the issue (75371) in OVTF integration with
+    //  tensorflow frontend. The current fix: replace it with as<>() & method. But in fact, both
     //  approaches should work the same way.
     // auto tensor_proto = decoder->get_native_attribute("value").as<::tensorflow::TensorProto>();
     auto value = decoder->get_native_attribute("value");
