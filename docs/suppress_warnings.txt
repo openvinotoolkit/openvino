@@ -74,7 +74,6 @@ inheritance graph for
 ^convert darknet
 anonymous hyperlink mismatch: 4 references but 0 targets
 see "backrefs" attribute for ids
-\[autosummary\] failed to import
 doing serial read
 doing serial write
 possible hints:
