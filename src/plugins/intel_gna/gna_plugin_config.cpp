@@ -43,37 +43,6 @@ static const std::set<std::string> supportedTargets = {
     ""
 };
 
-inline std::istream& operator>>(std::istream& is, ov::element::Type& p) {
-    std::string str;
-    is >> str;
-    if ((str == "i8") || (str == "I8")) {
-        p = ov::element::i8;
-    } else if ((str == "i16") || (str == "I16")) {
-        p = ov::element::i16;
-    } else {
-        throw ov::Exception{"Unsupported precision: " + str};
-    }
-    return is;
-}
-
-<<<<<<< HEAD
-template <typename T>
-T property_from_string(const std::string& string_value) {
-    std::stringstream ss(string_value);
-    T value;
-    util::Read<T>{}(ss, value);
-    return value;
-}
-
-template <typename T>
-std::string property_to_string(const T& property) {
-    std::stringstream ss;
-    ov::util::Write<T>{}(ss, property);
-    return ss.str();
-}
-
-=======
->>>>>>> master
 void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
     for (auto&& item : config) {
         auto key = item.first;

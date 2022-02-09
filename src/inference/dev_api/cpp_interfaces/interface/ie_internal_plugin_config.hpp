@@ -23,14 +23,14 @@ template <typename T, ov::PropertyMutability M>
 inline T string_to_property(const std::string& val, const ov::util::BaseProperty<T, M>& property) {
     std::stringstream ss(val);
     T value;
-    ss >> value;
+    ov::util::Read<T>{}(ss, value);
     return value;
 }
 
 template <typename T>
 inline std::string property_to_string(const T& property) {
     std::stringstream ss;
-    ss << property;
+    ov::util::Write<T>{}(ss, property);
     return ss.str();
 }
 }  // namespace util

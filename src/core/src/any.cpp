@@ -200,13 +200,16 @@ void Read<long double>::operator()(std::istream& is, long double& value) const {
     });
 }
 
-void Read<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(std::istream& is, std::tuple<unsigned int, unsigned int, unsigned int>& tuple) const {
+void Read<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(
+    std::istream& is,
+    std::tuple<unsigned int, unsigned int, unsigned int>& tuple) const {
     Read<unsigned int>{}(is, std::get<0>(tuple));
     Read<unsigned int>{}(is, std::get<1>(tuple));
     Read<unsigned int>{}(is, std::get<2>(tuple));
 }
 
-void Read<std::tuple<unsigned int, unsigned int>>::operator()(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) const {
+void Read<std::tuple<unsigned int, unsigned int>>::operator()(std::istream& is,
+                                                              std::tuple<unsigned int, unsigned int>& tuple) const {
     Read<unsigned int>{}(is, std::get<0>(tuple));
     Read<unsigned int>{}(is, std::get<1>(tuple));
 }
@@ -219,11 +222,15 @@ void Write<bool>::operator()(std::ostream& os, const bool& b) const {
     os << (b ? "YES" : "NO");
 }
 
-void Write<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(std::ostream& os, const std::tuple<unsigned int, unsigned int, unsigned int>& tuple) const {
+void Write<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(
+    std::ostream& os,
+    const std::tuple<unsigned int, unsigned int, unsigned int>& tuple) const {
     os << std::get<0>(tuple) << " " << std::get<1>(tuple) << " " << std::get<2>(tuple);
 }
 
-void Write<std::tuple<unsigned int, unsigned int>>::operator()(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple) const {
+void Write<std::tuple<unsigned int, unsigned int>>::operator()(
+    std::ostream& os,
+    const std::tuple<unsigned int, unsigned int>& tuple) const {
     os << std::get<0>(tuple) << " " << std::get<1>(tuple);
 }
 
