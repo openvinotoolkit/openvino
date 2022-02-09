@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.ops.elementwise import Mul, Sub, Add, Maximum, Minimum, Div, Greater, GreaterEqual, Equal, Less, \
     LessEqual, Pow, NotEqual, LogicalAnd, LogicalOr, Round
 from openvino.tools.mo.front.extractor import FrontExtractorOp
@@ -259,7 +260,7 @@ class PlusScalarFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = np.array([attrs.float('scalar', 0.0)], dtype=np.float32)
+        node['scalar'] = mo_array([attrs.float('scalar', 0.0)], dtype=np.float32)
         return cls.enabled
 
 
@@ -270,7 +271,7 @@ class MinusScalarFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = np.array([attrs.float('scalar', 0.0)])
+        node['scalar'] = mo_array([attrs.float('scalar', 0.0)])
         return cls.enabled
 
 
@@ -281,7 +282,7 @@ class MulScalarFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = np.array([attrs.float('scalar', 1.0)], dtype=np.float32)
+        node['scalar'] = mo_array([attrs.float('scalar', 1.0)], dtype=np.float32)
         return cls.enabled
 
 
@@ -303,7 +304,7 @@ class GreaterScalarFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
         return cls.enabled
 
 
@@ -314,7 +315,7 @@ class GreaterEqualScalarFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
         return cls.enabled
 
 
@@ -325,7 +326,7 @@ class EqualScalarFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
         return cls.enabled
 
 
@@ -336,7 +337,7 @@ class NotEqualScalarFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
         return cls.enabled
 
 
@@ -347,7 +348,7 @@ class LesserScalarFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
         return cls.enabled
 
 
@@ -358,7 +359,7 @@ class LesserEqualScalarFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
         return cls.enabled
 
 

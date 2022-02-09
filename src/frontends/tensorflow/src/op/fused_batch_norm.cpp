@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
@@ -23,7 +23,7 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     bool is_v3 = node.get_op_type() == "FusedBatchNormV3";
 
     auto data_format = node.get_attribute<std::string>("data_format");
-    TF_OP_VALIDATION_CHECK(node, data_format == "NHWC" || data_format == "NCHW", "Unsupported data format");
+    TENSORFLOW_OP_VALIDATION(node, data_format == "NHWC" || data_format == "NCHW", "Unsupported data format");
 
     bool is_nhwc = (data_format == "NHWC");
 
@@ -50,6 +50,6 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     return result;
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

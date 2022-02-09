@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -191,29 +191,38 @@ class TestSum(OnnxRuntimeLayerTest):
         dict(dyn_shapes=[[4, 6, 8], [4, 6, 8], [4, 6, 8]], const_shapes=[]),
         dict(dyn_shapes=[[4, 6, 8], [4, 6, 8], [4, 6, 8]], const_shapes=[[4, 6, 8]]),
         dict(dyn_shapes=[[4, 6, 8], [4, 6, 8], [4, 6, 8]], const_shapes=[[4, 6, 8], [4, 6, 8]]),
-        dict(dyn_shapes=[[4, 6, 8], [4, 6, 8], [4, 6, 8]], const_shapes=[[4, 6, 8], [4, 6, 8], [4, 6, 8]]),
+        dict(dyn_shapes=[[4, 6, 8], [4, 6, 8], [4, 6, 8]],
+             const_shapes=[[4, 6, 8], [4, 6, 8], [4, 6, 8]]),
         dict(dyn_shapes=[[4, 6, 8, 10]], const_shapes=[[4, 6, 8, 10]]),
         dict(dyn_shapes=[[4, 6, 8, 10]], const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]]),
-        dict(dyn_shapes=[[4, 6, 8, 10]], const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]]),
+        dict(dyn_shapes=[[4, 6, 8, 10]],
+             const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]]),
         dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]], const_shapes=[]),
         dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]], const_shapes=[[4, 6, 8, 10]]),
-        dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]], const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]]),
-        dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]], const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]]),
+        dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]],
+             const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]]),
+        dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]],
+             const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]]),
         dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]], const_shapes=[]),
-        dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]], const_shapes=[[4, 6, 8, 10]]),
-        dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]], const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]]),
+        dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]],
+             const_shapes=[[4, 6, 8, 10]]),
+        dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]],
+             const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10]]),
         dict(dyn_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]],
              const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]]),
         dict(dyn_shapes=[[4, 6, 8, 10, 12]], const_shapes=[[4, 6, 8, 10, 12]]),
         dict(dyn_shapes=[[4, 6, 8, 10, 12]], const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]]),
-        dict(dyn_shapes=[[4, 6, 8, 10, 12]], const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]]),
+        dict(dyn_shapes=[[4, 6, 8, 10, 12]],
+             const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]]),
         dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]], const_shapes=[]),
         dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]], const_shapes=[[4, 6, 8, 10, 12]]),
-        dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]], const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]]),
+        dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]],
+             const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]]),
         dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]],
              const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]]),
         dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]], const_shapes=[]),
-        dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]], const_shapes=[[4, 6, 8, 10, 12]]),
+        dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]],
+             const_shapes=[[4, 6, 8, 10, 12]]),
         dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]],
              const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]]),
         dict(dyn_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]],
@@ -221,7 +230,8 @@ class TestSum(OnnxRuntimeLayerTest):
 
     const_test_data_precommit = [
         dict(const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]]),
-        dict(const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]])
+        dict(const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12],
+                           [4, 6, 8, 10, 12]])
     ]
 
     const_test_data = [
@@ -236,7 +246,8 @@ class TestSum(OnnxRuntimeLayerTest):
         dict(const_shapes=[[4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10], [4, 6, 8, 10]]),
         dict(const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12]]),
         dict(const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]]),
-        dict(const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12]])
+        dict(const_shapes=[[4, 6, 8, 10, 12], [4, 6, 8, 10, 12], [4, 6, 8, 10, 12],
+                           [4, 6, 8, 10, 12]])
     ]
 
     const_test_data_broadcasting_precommit = [
@@ -274,49 +285,57 @@ class TestSum(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sum_opset6(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_sum_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_sum_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_sum_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sum(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_sum(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(
-            *self.create_net(**params, precision=precision, ir_version=ir_version), ie_device, precision, ir_version,
-            temp_dir=temp_dir)
+            *self.create_net(**params, precision=precision, ir_version=ir_version), ie_device,
+            precision, ir_version,
+            temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", const_test_data)
     @pytest.mark.nightly
-    def test_sum_const_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_const_net(**params, opset=6, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_sum_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_const_net(**params, opset=6, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", const_test_data_precommit)
     @pytest.mark.precommit
-    def test_sum_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_sum_const_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", const_test_data)
     @pytest.mark.nightly
-    def test_sum_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_sum_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", const_test_data_broadcasting_precommit)
     @pytest.mark.precommit
-    def test_sum_const_broadcasting_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_sum_const_broadcasting_precommit(self, params, ie_device, precision, ir_version,
+                                              temp_dir, api_2):
+        self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", const_test_data_broadcasting)
     @pytest.mark.nightly
-    def test_sum_const_broadcasting(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_sum_const_broadcasting(self, params, ie_device, precision, ir_version, temp_dir,
+                                    api_2):
+        self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)

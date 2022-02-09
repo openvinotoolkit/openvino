@@ -1,4 +1,4 @@
-## Interpolate <a name="Interpolate"></a> {#openvino_docs_ops_image_Interpolate_4}
+# Interpolate {#openvino_docs_ops_image_Interpolate_4}
 
 **Versioned name**: *Interpolate-4*
 

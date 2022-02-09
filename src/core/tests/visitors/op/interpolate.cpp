@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, interpolate_op) {
+TEST(attributes, interpolate_op1) {
     NodeBuilder::get_ops().register_factory<opset1::Interpolate>();
     auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
     auto out_shape = make_shared<op::Parameter>(element::i32, Shape{2});
@@ -42,4 +42,37 @@ TEST(attributes, interpolate_op) {
     EXPECT_EQ(g_i_attrs.antialias, i_attrs.antialias);
     EXPECT_EQ(g_i_attrs.pads_begin, i_attrs.pads_begin);
     EXPECT_EQ(g_i_attrs.pads_end, i_attrs.pads_end);
+}
+
+TEST(attributes, interpolate_op4) {
+    NodeBuilder::get_ops().register_factory<opset4::Interpolate>();
+    auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
+    auto out_shape = make_shared<op::Parameter>(element::i32, Shape{2});
+    auto scales = op::v0::Constant::create(element::f32, {1}, {1.0});
+
+    op::v4::Interpolate::InterpolateAttrs attrs;
+    attrs.mode = op::v4::Interpolate::InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = op::v4::Interpolate::ShapeCalcMode::SIZES;
+    attrs.coordinate_transformation_mode = op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+    attrs.nearest_mode = op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
+    attrs.pads_begin = vector<size_t>{0, 0};
+    attrs.pads_end = vector<size_t>{0, 0};
+    attrs.antialias = true;
+    attrs.cube_coeff = -0.75;
+
+    auto interpolate = make_shared<opset4::Interpolate>(img, out_shape, scales, attrs);
+    NodeBuilder builder(interpolate);
+    auto g_interpolate = ov::as_type_ptr<opset4::Interpolate>(builder.create());
+
+    const auto i_attrs = interpolate->get_attrs();
+    const auto g_i_attrs = g_interpolate->get_attrs();
+
+    EXPECT_EQ(g_i_attrs.mode, i_attrs.mode);
+    EXPECT_EQ(g_i_attrs.shape_calculation_mode, i_attrs.shape_calculation_mode);
+    EXPECT_EQ(g_i_attrs.coordinate_transformation_mode, i_attrs.coordinate_transformation_mode);
+    EXPECT_EQ(g_i_attrs.nearest_mode, i_attrs.nearest_mode);
+    EXPECT_EQ(g_i_attrs.pads_begin, i_attrs.pads_begin);
+    EXPECT_EQ(g_i_attrs.pads_end, i_attrs.pads_end);
+    EXPECT_EQ(g_i_attrs.antialias, i_attrs.antialias);
+    EXPECT_EQ(g_i_attrs.cube_coeff, i_attrs.cube_coeff);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,21 @@
 #include <limits>
 #include <sstream>
 
+#include "dimension_tracker.hpp"
+
 using namespace ngraph;
 
 std::ostream& ov::operator<<(std::ostream& str, const Dimension& dimension) {
     if (dimension.is_static()) {
         return str << dimension.get_length();
+    } else if (dimension.get_min_length() > 0) {
+        str << dimension.get_min_length() << "..";
+        if (dimension.get_interval().has_upper_bound())
+            return str << dimension.get_max_length();
+        else
+            return str;
     } else if (dimension.get_interval().has_upper_bound()) {
-        return str << "[" << dimension.get_min_length() << ", " << dimension.get_max_length() << "]";
+        return str << ".." << dimension.get_max_length();
     } else {
         return str << "?";
     }
@@ -28,14 +36,33 @@ Dimension::Dimension(value_type min_dimension, value_type max_dimension)
     : m_dimension(min_dimension == -1 ? 0 : min_dimension, max_dimension == -1 ? Interval::s_max : max_dimension) {}
 
 Dimension Dimension::operator+(const Dimension& dim) const {
+    if (dim.m_dimension == 0)
+        return *this;
+    else if (m_dimension == 0)
+        return dim;
     return Dimension(m_dimension + dim.m_dimension);
 }
 
 Dimension Dimension::operator-(const Dimension& dim) const {
+    if (dim.m_dimension == 0)
+        return *this;
     return Dimension(m_dimension - dim.m_dimension);
 }
 
+Dimension Dimension::operator/(const value_type divisor) const {
+    OPENVINO_ASSERT(divisor >= 0, "divisor must be greater than 0");
+
+    if (m_dimension.get_max_val() == Interval::s_max && m_dimension.get_min_val() == 0)
+        return Dimension::dynamic();
+
+    return Dimension((m_dimension.get_min_val() + divisor - 1) / divisor, m_dimension.get_max_val() / divisor);
+}
+
 Dimension Dimension::operator*(const Dimension& dim) const {
+    if (dim.m_dimension == 1)
+        return *this;
+    else if (m_dimension == 1)
+        return dim;
     return Dimension(m_dimension * dim.m_dimension);
 }
 
@@ -64,21 +91,30 @@ bool Dimension::same_scheme(const Dimension& dim) const {
     return (m_dimension == dim.m_dimension) || (m_dimension.size() > 1 && dim.m_dimension.size() > 1);
 }
 
-bool Dimension::merge(Dimension& dst, const Dimension d1, const Dimension d2) {
+bool Dimension::merge(Dimension& dst, const Dimension& d1, const Dimension& d2) {
     auto result = d1.m_dimension & d2.m_dimension;
     if (result.empty()) {
         return false;
     }
     dst = result;
+
+    if (auto& t = d1.m_table_of_equivalence)
+        t->set_as_equal(d1, d2);
+    else if (auto& t = d2.m_table_of_equivalence)
+        t->set_as_equal(d1, d2);
+    if (d1.m_label == d2.m_label || d2.m_label == 0)
+        dst.m_label = d1.m_label;
+    else if (d1.m_label == 0)
+        dst.m_label = d2.m_label;
     return true;
 }
 
-bool Dimension::broadcast_merge(Dimension& dst, const Dimension d1, const Dimension d2) {
-    if (d1.m_dimension.get_min_val() == 1 && d1.m_dimension.size() == 1) {
+bool Dimension::broadcast_merge(Dimension& dst, const Dimension& d1, const Dimension& d2) {
+    if (d1 == 1) {
         dst = d2;
         return true;
     }
-    if (d2.m_dimension.get_min_val() == 1 && d2.m_dimension.size() == 1) {
+    if (d2 == 1) {
         dst = d1;
         return true;
     }
@@ -104,17 +140,4 @@ Dimension::value_type Dimension::get_max_length() const {
 
 Dimension::value_type Dimension::get_min_length() const {
     return dimension_length(m_dimension.get_min_val());
-}
-
-const int64_t& ov::AttributeAdapter<ov::Dimension>::get() {
-    if (!m_buffer_valid) {
-        m_buffer = m_ref.is_dynamic() ? -1 : m_ref.get_length();
-        m_buffer_valid = true;
-    }
-    return m_buffer;
-}
-
-void ov::AttributeAdapter<ov::Dimension>::set(const int64_t& value) {
-    m_ref = value == -1 ? ov::Dimension::dynamic() : Dimension(value);
-    m_buffer_valid = false;
 }

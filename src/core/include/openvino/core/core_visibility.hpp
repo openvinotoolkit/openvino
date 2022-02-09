@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,11 +20,11 @@
 #    define OPENVINO_API
 #    define OPENVINO_API_C(...) __VA_ARGS__
 #else
-#    ifdef ngraph_EXPORTS  // defined if we are building the NGRAPH DLL (instead of using it)
+#    ifdef IMPLEMENT_OPENVINO_API  // defined if we are building the NGRAPH DLL (instead of using it)
 #        define OPENVINO_API        OPENVINO_CORE_EXPORTS
 #        define OPENVINO_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS __VA_ARGS__ OPENVINO_CDECL
 #    else
 #        define OPENVINO_API        OPENVINO_CORE_IMPORTS
 #        define OPENVINO_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS __VA_ARGS__ OPENVINO_CDECL
-#    endif  // ngraph_EXPORTS
+#    endif  // IMPLEMENT_OPENVINO_API
 #endif      // OPENVINO_STATIC_LIBRARY

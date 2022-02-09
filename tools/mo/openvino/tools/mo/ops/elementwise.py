@@ -1,41 +1,14 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
+from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer, eltwise_reverse_infer
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.infer import copy_type_infer
 from openvino.tools.mo.ops.op import Op
-from openvino.tools.mo.pipeline.common import convert_const_node_value_type
-from openvino.tools.mo.utils.error import Error
-
-
-def override_data_type_of_constant(node: Node):
-    in_type_0 = node.in_port(0).get_data_type()
-    in_type_1 = node.in_port(1).get_data_type()
-    if in_type_0 != in_type_1:
-        # in case of input values data type mismatch we try to change the type of the constant to match the type of
-        # another input. The input values data type mismatch occur when the MO performs replacement of some
-        # operations like SquaredDifference of inputs with floating point data type to Power layer with the integer
-        # power value 2, or when replacing Neg operation with Mul with -1 as second input.
-        in_node_0 = node.in_port(0).get_source().node
-        in_node_1 = node.in_port(1).get_source().node
-
-        if in_node_0.op != 'Const' and in_node_1.op != 'Const':
-            raise Error("Elementwise operation '{}' has inputs of different data types: '{}' and '{}' "
-                        "that cannot be aligned".format(node.soft_get('name'), in_type_0, in_type_1))
-
-        if in_node_0.op == 'Const':
-            node_to_convert, src_type, dst_type = in_node_0, in_type_0, in_type_1
-        else:
-            node_to_convert, src_type, dst_type = in_node_1, in_type_1, in_type_0
-        log.error("Changing Const node '{}' data type from {} to {} for Elementwise operation".format(
-            node_to_convert.soft_get('name', node_to_convert.id), src_type, dst_type),
-            extra={'is_warning': True})
-        convert_const_node_value_type(node_to_convert, dst_type)
+from openvino.tools.mo.utils.type_utils import override_data_type_of_constant
 
 
 class Elementwise(Op):
@@ -51,6 +24,7 @@ class Elementwise(Op):
             'type': self.op_type,
             'version': self.version,
             'infer': lambda node: eltwise_infer(node, self.operation),
+            'reverse_infer': eltwise_reverse_infer,
             'type_infer': self.type_infer,
             'can_be_bias': True,
             'can_be_fused': True,
@@ -133,7 +107,7 @@ class Pow(Elementwise):
     @staticmethod
     def operation(a, b):
         if np.any(b < 0) and np.issubdtype(a.dtype, np.signedinteger):
-            return np.array(a.astype(np.float32) ** b, dtype=np.float32)
+            return float32_array(a.astype(np.float32) ** b)
         return a ** b
 
 
@@ -260,3 +234,14 @@ class Negative(UnaryElementwise):
     op = 'Negative'
     op_type = 'Negative'
     operation = staticmethod(lambda a: -a)
+
+
+class Sqrt(UnaryElementwise):
+    op = 'Sqrt'
+    op_type = 'Sqrt'
+
+    @staticmethod
+    def operation(a):
+        if np.issubdtype(a.dtype, np.signedinteger):
+            return float32_array(a.astype(np.float32) ** 0.5)
+        return a ** 0.5

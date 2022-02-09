@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,9 @@ private:
             return ptr;
         }
     }
+
+protected:
+    std::string _pluginInternalName = "GNA";
 
 public:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
@@ -67,7 +70,12 @@ public:
     }
 
     std::string GetName() const noexcept override {
-        return GetCurrentPlugin()->GetName();
+        auto ptr = plgPtr.lock();
+        if (ptr == nullptr) {
+            return _pluginInternalName;
+        } else {
+            return ptr->GetName();
+        }
     }
 
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,

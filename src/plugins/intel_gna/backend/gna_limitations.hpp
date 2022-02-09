@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cpp/ie_cnn_network.h>
 #include <ie_algorithm.hpp>
+#include <legacy/ie_layers.h>
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -22,6 +23,7 @@ constexpr uint32_t convFiltersNumDivider = 4;
 constexpr uint32_t convFilterSizeDivider = 8;
 constexpr uint32_t convFilterMaxSize = 768;
 constexpr uint32_t convEachKernelByteAlignment = 16;
+constexpr uint32_t inputByteAlignment = 64;
 constexpr uint32_t noOfInputsDivisor = 8;
 constexpr uint32_t noOfInputsLowPrecDivisor = 16;
 
@@ -138,12 +140,21 @@ public:
 };
 } // namespace Cnn2D
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning);
 
 inline size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
     auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
     return total_size / bufferMaxSize + 1;
 }
+
+/**
+ * @brief Validates if concat layer axis is supported by GNA
+ * @param layer concat layer
+ * @return true if concat layer axis is valid
+ */
+IE_SUPPRESS_DEPRECATED_START
+bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concatLayer);
+IE_SUPPRESS_DEPRECATED_END
 
 } // namespace GNALimitations
 } // namespace GNAPluginNS

@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from openvino.tools.mo.ops.convolution import Convolution
@@ -24,21 +25,21 @@ class ConvFrontExtractor(FrontExtractorOp):
         output = attr.int("num_filter", None)
         bias_term = not attr.bool("no_bias", False)
 
-        final_dilations = np.array([1, 1, *[d for d in dilate]], dtype=np.int64) if dilate is not None else None
+        final_dilations = int64_array([1, 1, *[d for d in dilate]]) if dilate is not None else None
 
         node_attrs = {
             'op': __class__.op,
             'bias_addable': True,
             'bias_term': bias_term,
-            'pad': np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
+            'pad': int64_array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]]),
+            'pad_spatial_shape': int64_array([[pad, pad] for pad in padding]),
             'dilation': final_dilations,
             'output_spatial_shape': None,
             'output_shape': None,
-            'stride': np.array([1, 1, *[s for s in stride]], dtype=np.int64),
+            'stride': int64_array([1, 1, *[s for s in stride]]),
             'group': group,
             'output': output,
-            'kernel_spatial': np.array([k for k in kernel], dtype=np.int64),
+            'kernel_spatial': int64_array([k for k in kernel]),
 
             'input_feature_channel': 1,
             'output_feature_channel': 0,
@@ -46,8 +47,8 @@ class ConvFrontExtractor(FrontExtractorOp):
             'reshape_kernel': True,
 
             'spatial_dims': None,
-            'channel_dims': np.array([1], dtype=np.int64),
-            'batch_dims': np.array([0], dtype=np.int64),
+            'channel_dims': int64_array([1]),
+            'batch_dims': int64_array([0]),
             'layout': 'NCHW',
         }
 
@@ -65,9 +66,9 @@ class DeconvFrontExtractor(FrontExtractorOp):
         padding = np.add.reduce(node.pad, axis=1)
         padding[node.spatial_dims] = node.stride[node.spatial_dims] * (input_shape[node.spatial_dims] - 1) + 1 + \
                                      (kernel_shape[node.spatial_dims] - 1) * node.dilation[node.spatial_dims]
-        padding[node.spatial_dims] = padding[node.spatial_dims] - node.output_spatial_shape;
+        padding[node.spatial_dims] = padding[node.spatial_dims] - node.output_spatial_shape
         padding[node.spatial_dims] = (padding[node.spatial_dims] + 1) / 2
-        return np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding[2:]]], dtype=np.int64)
+        return int64_array([[0, 0], [0, 0], *[[pad, pad] for pad in padding[2:]]])
 
     @classmethod
     def extract(cls, node):
@@ -82,39 +83,39 @@ class DeconvFrontExtractor(FrontExtractorOp):
         bias_term = not attr.bool("no_bias", True)
         target_shape = attr.tuple("target_shape", int, None)
         if target_shape:
-            target_shape = np.array(target_shape, dtype=np.int64)
+            target_shape = int64_array(target_shape)
 
-        final_dilations = np.array([1, 1, *[d for d in dilate]], dtype=np.int64) if dilate is not None else None
+        final_dilations = int64_array([1, 1, *[d for d in dilate]]) if dilate is not None else None
         node_attrs = {
             'op': __class__.op,
             'type': 'Deconvolution',
             'bias_addable': True,
             'bias_term': bias_term,
-            'pad': np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
+            'pad': int64_array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]]),
+            'pad_spatial_shape': int64_array([[pad, pad] for pad in padding]),
             'dilation': final_dilations,
             'output_spatial_shape': target_shape,
             'original_output_spatial_shape': target_shape,
             'output_shape': None,
-            'stride': np.array([1, 1, *[s for s in stride]], dtype=np.int64),
+            'stride': int64_array([1, 1, *[s for s in stride]]),
             'group': group,
             'output': output,
-            'kernel_spatial': np.array([k for k in kernel], dtype=np.int64),
+            'kernel_spatial': int64_array([k for k in kernel]),
             'input_feature_channel': 1,
             'output_feature_channel': 0,
             'kernel_spatial_idx': None,
             'reshape_kernel': True,
 
             'spatial_dims': None,
-            'channel_dims': np.array([1], dtype=np.int64),
-            'batch_dims': np.array([0], dtype=np.int64),
+            'channel_dims': int64_array([1]),
+            'batch_dims': int64_array([0]),
             'layout': 'NCHW',
             'get_pad': DeconvFrontExtractor.get_pad,
         }
 
         output_padding = attr.tuple("adj", int, None)
         if target_shape is None and output_padding:
-            node_attrs["output_padding"] = np.array([0, 0, *[s for s in output_padding]], dtype=np.int64)
+            node_attrs["output_padding"] = int64_array([0, 0, *[s for s in output_padding]])
 
         # update the attributes of the node
         Convolution.update_node_stat(node, node_attrs)

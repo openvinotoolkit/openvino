@@ -1,7 +1,5 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import numpy as np
 
 from typing import Dict
 
@@ -9,7 +7,7 @@ from openvino.tools.mo.front.mxnet.mx_reshape_to_reshape import MXReshapeToResha
 from openvino.tools.mo.front.mxnet.ssd_detection_output_replacer import SsdPatternDetectionOutputReplacer
 from openvino.tools.mo.ops.elementwise import Div, Add, Sub
 from openvino.tools.mo.ops.split import Split
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph, Node
@@ -33,7 +31,7 @@ def calculate_prior_box_value(value: Node, value_to_div: Port, value_to_add: Por
     graph = value.graph
     dtype = data_type_str_to_np(graph.graph['cmd_params'].data_type)
     _min = Sub(graph, dict(name=value.name + '/Sub')).create_node()
-    div = create_op_node_with_second_input(graph, Div, np.array([2], dtype=dtype), op_attrs=dict(name=value.name + '/Div'))
+    div = create_op_node_with_second_input(graph, Div, mo_array([2], dtype=dtype), op_attrs=dict(name=value.name + '/Div'))
     div.in_port(0).connect(value_to_div)
     _min.in_port(0).connect(value_to_add)
     _min.in_port(1).connect(div.out_port(0))

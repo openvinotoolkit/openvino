@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,9 +18,7 @@
 #include "am_intel_dnn.hpp"
 #include "dnn_types.h"
 
-#if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
-#endif
 
 #define DNN_MAX_BATCH_SIZE 8
 #define DNN_MAX_INPUTS 3072

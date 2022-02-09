@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -11,6 +11,7 @@ from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.pipeline.common import convert_const_node_value_type
 from openvino.tools.mo.utils.error import Error
 
 
@@ -24,6 +25,7 @@ class Convolution(Op):
             'version': 'opset1',
             'infer': self.infer,
             'reverse_infer': self.reverse_infer,
+            'type_infer': self.type_infer,
             'multiplication_transparent': True,
             'multiplication_transparent_ports': [(0, 0), (1, 0)],
             'in_ports_count': 3,
@@ -112,8 +114,12 @@ class Convolution(Op):
                     'group') and node.has_valid('kernel_spatial')):
                 log.error('Cannot reshape kernel due to not all required attrs was set to {} node'.format(node.id))
                 return
+
+            # since item() unmasks values, result should be masked back
+            num_in_channels = shape_array(input_shape[node.channel_dims].item())
+
             # layout for Convolution weights is OIHW
-            kernel_shape = shape_array([node.output, input_shape[node.channel_dims].item() / node.group,
+            kernel_shape = shape_array([node.output, num_in_channels / node.group,
                                        *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]])
             if node.type == 'Deconvolution':  # layout for Deconvolution weights is IOHW
                 kernel_shape[[0, 1]] = kernel_shape[[1, 0]]
@@ -287,3 +293,18 @@ class Convolution(Op):
                     break
             if shape is not None:
                 node.in_port(0).data.set_shape(shape)
+
+    @staticmethod
+    def type_infer(node):
+        in_type_0 = node.in_port(0).get_data_type()
+        in_type_1 = node.in_port(1).get_data_type()
+        in_node_1 = node.in_port(1).get_source().node
+        # in case of input values data type mismatch we try to change the type of the constant to match the type of
+        # input at index 0.
+        if in_type_1 in [np.float16, np.float32, np.float64] and in_type_0 != in_type_1 and in_node_1.op == 'Const':
+            in_node_1 = node.in_port(1).get_source().node
+            log.error("Changing Const node '{}' data type from {} to {} for Convolution operation".format(
+                in_node_1.soft_get('name', in_node_1.id), in_type_1, in_type_0),
+                extra={'is_warning': True})
+            convert_const_node_value_type(in_node_1, in_type_0)
+        node.out_port(0).set_data_type(node.in_port(0).get_data_type())

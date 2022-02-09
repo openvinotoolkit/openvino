@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,9 +42,9 @@ struct SwishParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
-    ov::runtime::Tensor betaBlob;
+    ov::Tensor inputData;
+    ov::Tensor refData;
+    ov::Tensor betaBlob;
 
     float beta;
 };
@@ -76,16 +76,16 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& Swishected_output_type, const float beta) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         if (beta != 1) {
             const auto BETA = std::make_shared<op::v0::Parameter>(input_type, Shape {});
             const auto Swish = std::make_shared<op::v4::Swish>(in, BETA);
-            return std::make_shared<Function>(NodeVector {Swish}, ParameterVector {in, BETA});
+            return std::make_shared<Model>(NodeVector {Swish}, ParameterVector {in, BETA});
         } else {
             const auto Swish = std::make_shared<op::v4::Swish>(in);
-            return std::make_shared<ov::Function>(NodeVector {Swish}, ParameterVector {in});
+            return std::make_shared<ov::Model>(NodeVector {Swish}, ParameterVector {in});
         }
     }
 };

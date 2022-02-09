@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,7 +20,7 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reade
 
 # install C++ samples
 
-ie_cpack_add_component(cpp_samples DEPENDS cpp_samples_deps core)
+ie_cpack_add_component(cpp_samples DEPENDS core_dev)
 
 if(UNIX)
     install(DIRECTORY cpp/
@@ -70,21 +70,3 @@ install(DIRECTORY python/
         DESTINATION samples/python
         USE_SOURCE_PERMISSIONS
         COMPONENT python_samples)
-
-# install scripts to run samples fast
-
-ie_cpack_add_component(demo_scripts DEPENDS core)
-
-if(UNIX)
-    install(DIRECTORY scripts/
-            DESTINATION samples/scripts
-            COMPONENT demo_scripts
-            USE_SOURCE_PERMISSIONS
-            PATTERN *.bat EXCLUDE)
-elseif(WIN32)
-    install(DIRECTORY scripts/
-            DESTINATION samples/scripts
-            COMPONENT demo_scripts
-            USE_SOURCE_PERMISSIONS
-            PATTERN *.sh EXCLUDE)
-endif()

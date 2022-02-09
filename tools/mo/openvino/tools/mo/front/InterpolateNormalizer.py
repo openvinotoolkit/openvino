@@ -1,12 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import inspect
 import logging as log
 
-import numpy as np
-
 from openvino.tools.mo.ops.elementwise import Mul, Add
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.const import Const
@@ -25,17 +24,17 @@ class InterpolateNormalizer(FrontReplacementOp):
         if 1 not in node.in_ports() or node.in_port(1).disconnected():
 
             if node.has_valid('factor') and not node.has_valid('width') and not node.has_valid('height'):
-                factor = Const(graph, {'value': np.array(node.factor)}).create_node()
+                factor = Const(graph, {'value': mo_array(node.factor)}).create_node()
 
                 shape = Shape(graph, {'name': node.name + '/shape'}).create_node()
 
-                begin = Const(graph, {'value': np.array([2])}).create_node()
-                end = Const(graph, {'value': np.array([4])}).create_node()
-                stride = Const(graph, {'value': np.array([1])}).create_node()
-                ss = StridedSlice(graph, {'name': node.name + '/ss_0_port', 'begin_mask': np.array([1]),
-                                          'end_mask': np.array([0]), 'new_axis_mask': np.array([0]),
-                                          'shrink_axis_mask': np.array([0]),
-                                          'ellipsis_mask': np.array([0])}).create_node()
+                begin = Const(graph, {'value': mo_array([2])}).create_node()
+                end = Const(graph, {'value': mo_array([4])}).create_node()
+                stride = Const(graph, {'value': mo_array([1])}).create_node()
+                ss = StridedSlice(graph, {'name': node.name + '/ss_0_port', 'begin_mask': mo_array([1]),
+                                          'end_mask': mo_array([0]), 'new_axis_mask': mo_array([0]),
+                                          'shrink_axis_mask': mo_array([0]),
+                                          'ellipsis_mask': mo_array([0])}).create_node()
 
                 mul = Mul(graph, {'name': node.name + '/factor_mul_'}).create_node()
 
@@ -55,13 +54,13 @@ class InterpolateNormalizer(FrontReplacementOp):
             else:
                 shape = Shape(graph, {'name': node.name + '/shape'}).create_node()
 
-                begin = Const(graph, {'value': np.array([2])}).create_node()
-                end = Const(graph, {'value': np.array([4])}).create_node()
-                stride = Const(graph, {'value': np.array([1])}).create_node()
-                ss = StridedSlice(graph, {'name': node.name + '/ss_0_port', 'begin_mask': np.array([1]),
-                                          'end_mask': np.array([0]), 'new_axis_mask': np.array([0]),
-                                          'shrink_axis_mask': np.array([0]),
-                                          'ellipsis_mask': np.array([0])}).create_node()
+                begin = Const(graph, {'value': mo_array([2])}).create_node()
+                end = Const(graph, {'value': mo_array([4])}).create_node()
+                stride = Const(graph, {'value': mo_array([1])}).create_node()
+                ss = StridedSlice(graph, {'name': node.name + '/ss_0_port', 'begin_mask': mo_array([1]),
+                                          'end_mask': mo_array([0]), 'new_axis_mask': mo_array([0]),
+                                          'shrink_axis_mask': mo_array([0]),
+                                          'ellipsis_mask': mo_array([0])}).create_node()
 
                 source = node.in_port(0).get_connection().get_source()
                 source.connect(shape.in_port(0))
@@ -71,7 +70,7 @@ class InterpolateNormalizer(FrontReplacementOp):
                 stride.out_port(0).connect(ss.in_port(3))
 
                 pads_value = node.pads_begin + node.pads_end
-                pads_const = Const(graph, {'value': np.array(pads_value)}).create_node()
+                pads_const = Const(graph, {'value': mo_array(pads_value)}).create_node()
                 add = Add(graph, {'name': node.name + '/pad_add'}).create_node()
                 ss.out_port(0).connect(add.in_port(0))
                 add.in_port(1).connect(pads_const.out_port(0))
@@ -83,18 +82,18 @@ class InterpolateNormalizer(FrontReplacementOp):
                         return None
 
                     const = Const(graph, {'name': node.name + '/pre_shrink_sub_const',
-                                          'value': np.array(-1)}).create_node()
+                                          'value': mo_array(-1)}).create_node()
                     sub = Add(graph, {'name': node.name + '/pre_shrink_sub'}).create_node()
                     add.out_port(0).connect(sub.in_port(0))
                     sub.in_port(1).connect(const.out_port(0))
 
-                    const = Const(graph, {'value': np.array(1 / shrink_factor),
+                    const = Const(graph, {'value': mo_array(1 / shrink_factor),
                                           'name': node.name + 'shrink_factor_div_const'}).create_node()
                     div = Mul(graph, {'name': node.name + 'shrink_factor_div'}).create_node()
                     sub.out_port(0).connect(div.in_port(0))
                     div.in_port(1).connect(const.out_port(0))
 
-                    const = Const(graph, {'name': node.name + '/shrink_factor_add_one_const', 'value': np.array(1)
+                    const = Const(graph, {'name': node.name + '/shrink_factor_add_one_const', 'value': mo_array(1)
                                           }).create_node()
                     add = Add(graph, {'name': node.name + '/shrink_factor_add_one'}).create_node()
                     div.out_port(0).connect(add.in_port(0))
@@ -118,13 +117,13 @@ class InterpolateNormalizer(FrontReplacementOp):
                     # Commented out section represents reshape that used in deeplab-caffe
                     # Uncomment the following lines, if your model was trained with deeplab-caffe
                     # or have the same reshape method
-                    # const = Const(graph, {'value': np.array(-1),
+                    # const = Const(graph, {'value': mo_array(-1),
                     #                       'name': node.name + 'zoom_factor_deeplab-caffe_sub_const'}).create_node()
                     # sub = Add(graph, {'name': node.name + 'zoom_factor_deeplab-caffe_sub'}).create_node()
                     # add.out_port(0).connect(sub.in_port(0))
                     # const.out_port(0).connect(sub.in_port(1))
                     #
-                    # const = Const(graph, {'value': np.array(zoom_factor - 1),
+                    # const = Const(graph, {'value': mo_array(zoom_factor - 1),
                     #                       'name': node.name + 'zoom_factor_deeplab-caffe_mul_const'}).create_node()
                     # mul = Mul(graph, {'name': node.name + 'zoom_factor_deeplab-caffe_mul'}).create_node()
                     # sub.out_port(0).connect(mul.in_port(0))
@@ -139,7 +138,7 @@ class InterpolateNormalizer(FrontReplacementOp):
                     # sum.out_port(0).connect(node.in_port(1))
 
                     # Comment out the following lines if you use the reshape method from previous section
-                    const = Const(graph, {'value': np.array(zoom_factor),
+                    const = Const(graph, {'value': mo_array(zoom_factor),
                                           'name': node.name + '/zoom_factor_mul_const'}).create_node()
                     mul = Mul(graph, {'name': node.name + '/zoom_factor_mul'}).create_node()
 
@@ -151,7 +150,7 @@ class InterpolateNormalizer(FrontReplacementOp):
                     mul.out_port(0).connect(node.in_port(1))
 
                 elif node.soft_get('width') != 0 and node.soft_get('height') != 0:
-                    const = Const(graph, {'value': np.array([node.height, node.width])}).create_node()
+                    const = Const(graph, {'value': mo_array([node.height, node.width])}).create_node()
                     node.add_input_port(1, skip_if_exist=True)
                     assert node.in_port(1).disconnected()
                     const.out_port(0).connect(node.in_port(1))
@@ -166,23 +165,23 @@ class InterpolateNormalizer(FrontReplacementOp):
                         log.error('Zoom factor should be positive in node {}'.format(node.id))
                         return None
 
-                    const = Const(graph, {'value': np.array(-1)}).create_node()
+                    const = Const(graph, {'value': mo_array(-1)}).create_node()
                     sub = Add(graph, {'name': node.name + '/shrink_zoom_factor_sub'}).create_node()
                     add.out_port(0).connect(sub.in_port(0))
                     const.out_port(0).connect(sub.in_port(1))
 
-                    const = Const(graph, {'value': np.array(1 / (shrink_factor + 1))}).create_node()
+                    const = Const(graph, {'value': mo_array(1 / (shrink_factor + 1))}).create_node()
                     div = Mul(graph, {'name': node.name + '/shrink_factor_div'}).create_node()
                     sub.out_port(0).connect(div.in_port(0))
                     const.out_port(0).connect(div.in_port(1))
 
-                    const = Const(graph, {'value': np.array(-1),
+                    const = Const(graph, {'value': mo_array(-1),
                                           'name': node.name + 'shrink_zoom_factor_sum_const'}).create_node()
                     sum = Add(graph, {'name': node.name + '/shrink_zoom_factor_sum'}).create_node()
                     div.out_port(0).connect(sum.in_port(0))
                     const.out_port(0).connect(sum.in_port(1))
 
-                    const = Const(graph, {'value': np.array(zoom_factor - 1)}).create_node()
+                    const = Const(graph, {'value': mo_array(zoom_factor - 1)}).create_node()
                     mul = Mul(graph, {'name': node.name + '/zoom_factor_mul'}).create_node()
                     sum.out_port(0).connect(mul.in_port(0))
                     const.out_port(0).connect(mul.in_port(1))
@@ -198,13 +197,13 @@ class InterpolateNormalizer(FrontReplacementOp):
             if node.soft_get('fw') == 'caffe':
                 shape = Shape(graph, {'name': node.name + '/shape'}).create_node()
 
-                begin = Const(graph, {'value': np.array([2])}).create_node()
-                end = Const(graph, {'value': np.array([4])}).create_node()
-                stride = Const(graph, {'value': np.array([1])}).create_node()
-                ss = StridedSlice(graph, {'name': node.name + '/ss_0_port', 'begin_mask': np.array([1]),
-                                          'end_mask': np.array([0]), 'new_axis_mask': np.array([0]),
-                                          'shrink_axis_mask': np.array([0]),
-                                          'ellipsis_mask': np.array([0])}).create_node()
+                begin = Const(graph, {'value': mo_array([2])}).create_node()
+                end = Const(graph, {'value': mo_array([4])}).create_node()
+                stride = Const(graph, {'value': mo_array([1])}).create_node()
+                ss = StridedSlice(graph, {'name': node.name + '/ss_0_port', 'begin_mask': mo_array([1]),
+                                          'end_mask': mo_array([0]), 'new_axis_mask': mo_array([0]),
+                                          'shrink_axis_mask': mo_array([0]),
+                                          'ellipsis_mask': mo_array([0])}).create_node()
 
                 source = node.in_port(1).get_connection().get_source()
                 node.in_port(1).disconnect()

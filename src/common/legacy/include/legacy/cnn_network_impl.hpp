@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ namespace details {
 
 IE_SUPPRESS_DEPRECATED_START
 
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl) final : public ICNNNetwork {
+class CNNNetworkImpl final : public ICNNNetwork {
 public:
     CNNNetworkImpl();
     explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,9 +43,9 @@ struct PriorBoxClusteredParams {
     ov::Shape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor layerShapeData;
-    ov::runtime::Tensor imageShapeData;
-    ov::runtime::Tensor refData;
+    ov::Tensor layerShapeData;
+    ov::Tensor imageShapeData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 
@@ -71,11 +71,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PriorBoxClusteredParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const PriorBoxClusteredParams& params) {
         auto LS = std::make_shared<opset1::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
         auto IS = std::make_shared<opset1::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
         const auto PriorBoxClustered = std::make_shared<op::v0::PriorBoxClustered>(LS, IS, params.attrs);
-        return std::make_shared<ov::Function>(NodeVector {PriorBoxClustered}, ParameterVector {});
+        return std::make_shared<ov::Model>(NodeVector {PriorBoxClustered}, ParameterVector {});
     }
 };
 

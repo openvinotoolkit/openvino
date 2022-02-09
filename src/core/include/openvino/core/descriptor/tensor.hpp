@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@ using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 
 namespace ov {
 class Node;
+using TensorLabel = std::vector<size_t>;
 namespace descriptor {
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 class OPENVINO_API Tensor {
@@ -59,6 +60,8 @@ public:
     void set_lower_value(const ngraph::HostTensorPtr& value);
     /// \brief sets upper bound value description
     void set_upper_value(const ngraph::HostTensorPtr& value);
+    /// \brief sets value label description
+    void set_value_label(const TensorLabel& value_label);
     /// \brief unsets bound value descriptions
     void invalidate_values();
 
@@ -76,6 +79,10 @@ public:
     /// \brief gets upper bound value description
     ngraph::HostTensorPtr get_upper_value() const {
         return m_upper_value;
+    }
+    /// \brief gets upper bound value description
+    TensorLabel get_value_label() const {
+        return m_value_label;
     }
     /// \brief checks if lower and upper bound are set and point to the same HostTensor
     bool has_and_set_bound() const {
@@ -98,7 +105,7 @@ protected:
     // Support for dynamic shapes required transition to ov::PartialShape.
     // To smoothly transition to ov::PartialShape we introduced m_partial_shape
     // and kept m_shape in sync with m_partial_shape. Synchronization point was placed
-    // in set_partial_shape which dramatically affected performance of ov::Function
+    // in set_partial_shape which dramatically affected performance of ov::Model
     // validation. Since we have started the transition to ov::PartialShape and reduced
     // Shape usage the only user of m_shape was get_shape method with signature:
     // const PartialShape& descriptor::Tensor::get_shape() const
@@ -110,6 +117,7 @@ protected:
 
     PartialShape m_partial_shape;
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
+    TensorLabel m_value_label;
     std::string m_name;
 
     std::unordered_set<std::string> m_names;

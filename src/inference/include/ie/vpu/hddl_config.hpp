@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,7 +85,7 @@ DECLARE_METRIC_KEY(HDDL_DEVICE_TOTAL_NUM, int);
 }  // namespace Metrics
 
 /**
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for OpenVINO Intel HDDL device]
  * Type: Arbitrary non-empty string. If empty (""), equals no set, default: "";
  * This option allows to specify the number of MYX devices used for inference a specific Executable network.
  * Note: Only one network would be allocated to one device.
@@ -103,7 +103,7 @@ DECLARE_METRIC_KEY(HDDL_DEVICE_TOTAL_NUM, int);
 DECLARE_VPU_CONFIG(HDDL_GRAPH_TAG);
 
 /**
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for OpenVINO Intel HDDL device]
  * Type: Arbitrary non-empty string. If empty (""), equals no set, default: "";
  * This config makes the executable networks to be allocated on one certain device (instead of multiple devices).
  * And all inference through this executable network, will be done on this device.
@@ -119,7 +119,7 @@ DECLARE_VPU_CONFIG(HDDL_GRAPH_TAG);
 DECLARE_VPU_CONFIG(HDDL_STREAM_ID);
 
 /**
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for OpenVINO Intel HDDL device]
  * Type: Arbitrary non-empty string. If empty (""), equals no set, default: "";
  * This config allows user to control device flexibly. This config gives a "tag" for a certain device while
  * allocating a network to it. Afterward, user can allocating/deallocating networks to this device with this "tag".
@@ -135,7 +135,7 @@ DECLARE_VPU_CONFIG(HDDL_STREAM_ID);
 DECLARE_VPU_CONFIG(HDDL_DEVICE_TAG);
 
 /**
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for OpenVINO Intel HDDL device]
  * Type: "YES/NO", default is "NO".
  * This config is a sub-config of DEVICE_TAG, and only available when "DEVICE_TAG" is set. After a user load a
  * network, the user got a handle for the network.
@@ -148,7 +148,7 @@ DECLARE_VPU_CONFIG(HDDL_DEVICE_TAG);
 DECLARE_VPU_CONFIG(HDDL_BIND_DEVICE);
 
 /**
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for OpenVINO Intel HDDL device]
  * Type: A signed int wrapped in a string, default is "0".
  * This config is a sub-config of DEVICE_TAG, and only available when "DEVICE_TAG" is set and "BIND_DEVICE" is "False".
  * When there are multiple devices running a certain network (a same network running on multiple devices in Bypass
@@ -158,7 +158,7 @@ DECLARE_VPU_CONFIG(HDDL_BIND_DEVICE);
 DECLARE_VPU_CONFIG(HDDL_RUNTIME_PRIORITY);
 
 /**
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for OpenVINO Intel HDDL device]
  * Type: "YES/NO", default is "NO".
  * SGAD is short for "Single Graph All Device". With this scheduler, once application allocates 1 network, all devices
  * (managed by SGAD scheduler) will be loaded with this graph. The number of network that can be loaded to one device
@@ -167,7 +167,7 @@ DECLARE_VPU_CONFIG(HDDL_RUNTIME_PRIORITY);
 DECLARE_VPU_CONFIG(HDDL_USE_SGAD);
 
 /**
- * @brief [Only for HDDLPlugin]
+ * @brief [Only for OpenVINO Intel HDDL device]
  * Type: A signed int wrapped in a string, default is "0".
  * This config gives a "group id" for a certain device when this device has been reserved for certain client, client
  * can use this device grouped by calling this group id while other client can't use this device

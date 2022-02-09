@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "transformations/utils/utils.hpp"
@@ -51,16 +52,20 @@ namespace InferenceEngine {
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
-        throw ov::runtime::Busy(ex.what());                                 \
+        throw ov::Busy(ex.what());                                          \
     } catch (const std::exception& ex) {                                    \
         throw ov::Exception(ex.what());                                     \
     } catch (...) {                                                         \
         OPENVINO_ASSERT(false, "Unexpected exception");                     \
     }
 
-InferRequest::InferRequest(const std::shared_ptr<void>& so, const IInferRequestInternal::Ptr& impl)
-    : _so(so),
-      _impl(impl) {
+InferRequest::~InferRequest() {
+    _impl = {};
+}
+
+InferRequest::InferRequest(const IInferRequestInternal::Ptr& impl, const std::shared_ptr<void>& so)
+    : _impl(impl),
+      _so(so) {
     IE_ASSERT(_impl != nullptr);
 }
 
@@ -151,7 +156,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet
 void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)> callbackToSet) {
     INFER_REQ_CALL_STATEMENT(
         auto weakThis =
-            InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}};
+            InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}, _so};
         _impl->SetCallback([callbackToSet, weakThis](std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
@@ -174,7 +179,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, St
 void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callbackToSet) {
     INFER_REQ_CALL_STATEMENT(
         IInferRequest::Ptr weakThis =
-            InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}};
+            InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}, _so};
         _impl->SetCallback([callbackToSet, weakThis](std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
@@ -202,7 +207,7 @@ std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
     INFER_REQ_CALL_STATEMENT(for (auto&& state
                                   : _impl->QueryState()) {
-        controller.emplace_back(VariableState{_so, state});
+        controller.emplace_back(VariableState{state, _so});
     })
     return controller;
 }
@@ -238,11 +243,14 @@ std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
 }  // namespace
 
 namespace ov {
-namespace runtime {
 
-InferRequest::InferRequest(const std::shared_ptr<void>& so, const ie::IInferRequestInternal::Ptr& impl)
-    : _so{so},
-      _impl{impl} {
+InferRequest::~InferRequest() {
+    _impl = {};
+}
+
+InferRequest::InferRequest(const ie::IInferRequestInternal::Ptr& impl, const std::shared_ptr<void>& so)
+    : _impl{impl},
+      _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
 }
 
@@ -261,6 +269,25 @@ void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
                         "Port for tensor name " + name + " was not found.");
         set_tensor(port, tensor);
     });
+}
+
+void InferRequest::set_tensors(const std::string& name, const std::vector<Tensor>& tensors) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        ov::Output<const ov::Node> port;
+        OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs()}),
+                        "set_tensors error. Input port for tensor name ",
+                        name,
+                        " was not found.");
+        set_tensors(port, tensors);
+    })
+}
+
+void InferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors) {
+    auto impls = std::vector<InferenceEngine::Blob::Ptr>();
+    std::transform(tensors.begin(), tensors.end(), std::back_inserter(impls), [](const Tensor& item) {
+        return item._impl;
+    });
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlobs(get_legacy_name_from_port(port), impls); })
 }
 
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
@@ -283,6 +310,28 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
                         "set_input_tensor() must be called on a function with exactly one parameter.");
         set_tensor(inputs.at(0)->output(0), tensor);
     });
+}
+
+void InferRequest::set_input_tensors(size_t idx, const std::vector<Tensor>& tensors) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        OPENVINO_ASSERT(idx < _impl->GetInputs().size(),
+                        "set_input_tensors error. Input port for index ",
+                        idx,
+                        " is out of bounds. Model has only ",
+                        _impl->GetInputs().size(),
+                        " inputs");
+        set_tensors(_impl->GetInputs().at(idx)->output(0), tensors);
+    })
+}
+
+void InferRequest::set_input_tensors(const std::vector<Tensor>& tensors) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        OPENVINO_ASSERT(_impl->GetInputs().size() == 1,
+                        "set_input_tensors(tensors) must be used for single-input models only. Model has ",
+                        _impl->GetInputs().size(),
+                        " inputs");
+        set_tensors(_impl->GetInputs().at(0)->output(0), tensors);
+    })
 }
 
 void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
@@ -310,8 +359,13 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& name = get_legacy_name_from_port(port);
+        OPENVINO_ASSERT(!_impl->GetBlobs(name),
+                        "get_tensor shall not be used together with batched "
+                        "set_tensors/set_input_tensors for name '",
+                        name,
+                        "'");
         auto blob = _impl->GetBlob(name);
-        return {_so, blob};
+        return {blob, _so};
     });
 }
 
@@ -440,10 +494,14 @@ std::vector<VariableState> InferRequest::query_state() {
     std::vector<VariableState> variable_states;
     OV_INFER_REQ_CALL_STATEMENT({
         for (auto&& state : _impl->QueryState()) {
-            variable_states.emplace_back(VariableState{_so, state});
+            variable_states.emplace_back(VariableState{state, _so});
         }
     })
     return variable_states;
+}
+
+CompiledModel InferRequest::get_compiled_model() {
+    OV_INFER_REQ_CALL_STATEMENT(return {_impl->getPointerToExecutableNetworkInternal(), _so});
 }
 
 bool InferRequest::operator!() const noexcept {
@@ -462,5 +520,4 @@ bool InferRequest::operator==(const InferRequest& r) const noexcept {
     return r._impl == _impl;
 }
 
-}  // namespace runtime
 }  // namespace ov

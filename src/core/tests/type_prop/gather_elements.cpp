@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -173,8 +173,8 @@ TEST(type_prop, gather_elements_out_of_bounds_axis) {
         auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
         // Should have thrown, so fail if it didn't
         FAIL() << "axis out of bounds check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("axis must be within interval"));
+    } catch (const ov::AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "axis out of bounds check failed for unexpected reason";
     }

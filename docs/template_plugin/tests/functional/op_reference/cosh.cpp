@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ namespace reference_tests {
 namespace {
 
 struct CoshParams {
-    Tensor input;
-    Tensor expected;
+    reference_tests::Tensor input;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<CoshParams> {
@@ -39,10 +39,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& shape, const element::Type& type) {
+    static std::shared_ptr<Model> CreateFunction(const Shape& shape, const element::Type& type) {
         const auto in = std::make_shared<op::v0::Parameter>(type, shape);
         const auto Cosh = std::make_shared<op::v0::Cosh>(in);
-        return std::make_shared<ov::Function>(NodeVector {Cosh}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {Cosh}, ParameterVector {in});
     }
 };
 

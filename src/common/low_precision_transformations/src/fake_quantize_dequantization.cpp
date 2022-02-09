@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,11 +114,11 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
-    if ((constShape.size() <= 1ul) || (std::all_of(constShape.begin(), constShape.end(), [](const size_t value) { return value == 1ul; }))) {
+    if (ngraph::shape_size(constShape) == 1) {
         return true;
     }
 
-    const auto partialShape = dequantizationElementwise->get_input_partial_shape(0);
+    const auto partialShape = dequantizationElementwise->get_output_partial_shape(0);
     if (partialShape.rank().is_dynamic()) {
         return false;
     }
@@ -153,6 +153,26 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
     }
 
     return true;
+}
+
+std::shared_ptr<Node> FakeQuantizeDequantization::copyWithNewInput(const std::shared_ptr<Node>& input) const {
+    auto lastNode = input;
+    if (convert) {
+        lastNode = convert->copy_with_new_inputs({lastNode});
+    }
+    if (subtract) {
+        std::shared_ptr<Node> input1 = nullptr;
+        if (subtractConvert) {
+            input1 = subtractConvert;
+        } else {
+            input1 = subtractConstant;
+        }
+        lastNode = subtract->copy_with_new_inputs({lastNode, input1});
+    }
+    if (multiply) {
+        lastNode = multiply->copy_with_new_inputs({lastNode, multiplyConstant});
+    }
+    return lastNode;
 }
 
 int FakeQuantizeDequantization::fillDequantizationParams(

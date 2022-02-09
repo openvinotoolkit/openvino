@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,36 @@ shared_ptr<opset5::GRUSequence> gru_seq_tensor_initialization(const gru_sequence
     return gru_sequence;
 }
 
+shared_ptr<opset5::GRUSequence> gru_seq_direction_initialization(const gru_sequence_parameters& param,
+                                                                 op::RecurrentSequenceDirection direction) {
+    auto batch_size = param.batch_size;
+    auto seq_length = param.seq_length;
+    auto input_size = param.input_size;
+    auto num_directions = param.num_directions;
+    auto hidden_size = param.hidden_size;
+    auto hidden_size_value = hidden_size.is_dynamic() ? 0 : hidden_size.get_length();
+    auto et = param.et;
+
+    const auto X = make_shared<opset5::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
+    const auto initial_hidden_state =
+        make_shared<opset5::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<opset5::Parameter>(et, PartialShape{batch_size});
+    const auto W = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3, input_size});
+    const auto R = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3, hidden_size});
+    const auto B = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3});
+
+    auto gru_sequence = make_shared<opset5::GRUSequence>(X,
+                                                         initial_hidden_state,
+                                                         sequence_lengths,
+                                                         W,
+                                                         R,
+                                                         B,
+                                                         hidden_size_value,
+                                                         direction);
+
+    return gru_sequence;
+}
+
 TEST(type_prop, gru_sequence_forward) {
     const size_t batch_size = 8;
     const size_t num_directions = 1;
@@ -84,7 +114,7 @@ TEST(type_prop, gru_sequence_forward) {
 
 TEST(type_prop, gru_sequence_bidirectional) {
     const size_t batch_size = 8;
-    const size_t num_directions = 1;
+    const size_t num_directions = 2;
     const size_t seq_length = 6;
     const size_t input_size = 4;
     const size_t hidden_size = 128;
@@ -132,7 +162,7 @@ TEST(type_prop, gru_sequence_bidirectional) {
 TEST(type_prop, gru_sequence_dynamic_batch_size) {
     gru_sequence_parameters param;
     param.batch_size = Dimension::dynamic();
-    param.num_directions = 2;
+    param.num_directions = 1;
     param.seq_length = 6;
     param.input_size = 4;
     param.hidden_size = 128;
@@ -162,9 +192,8 @@ TEST(type_prop, gru_sequence_dynamic_num_directions) {
     gru_sequence->validate_and_infer_types();
 
     EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
-              (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(gru_sequence->get_output_partial_shape(1),
-              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+              (PartialShape{param.batch_size, 1, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, 1, param.hidden_size}));
     EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
 }
@@ -235,7 +264,7 @@ TEST(type_prop, gru_sequence_invalid_input_dynamic_rank) {
     gru_sequence_parameters param;
 
     param.batch_size = 8;
-    param.num_directions = 2;
+    param.num_directions = 1;
     param.seq_length = 6;
     param.input_size = 4;
     param.hidden_size = 128;
@@ -257,4 +286,28 @@ TEST(type_prop, gru_sequence_invalid_input_dynamic_rank) {
         gru_sequence->validate_and_infer_types();
         EXPECT_EQ(check_dynamic_gru(gru_sequence), true);
     }
+}
+
+TEST(type_prop, gru_sequence_invalid_input_direction_num_mismatch) {
+    auto check_error = [](op::RecurrentSequenceDirection direction, int num_directions) {
+        gru_sequence_parameters param;
+
+        param.batch_size = 24;
+        param.num_directions = num_directions;
+        param.seq_length = 12;
+        param.input_size = 8;
+        param.hidden_size = 256;
+        param.et = element::f32;
+        try {
+            auto gru_sequence = gru_seq_direction_initialization(param, direction);
+            gru_sequence->validate_and_infer_types();
+            FAIL() << "GRUSequence node was created with invalid data.";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
+        }
+    };
+
+    check_error(op::RecurrentSequenceDirection::BIDIRECTIONAL, 1);
+    check_error(op::RecurrentSequenceDirection::FORWARD, 2);
+    check_error(op::RecurrentSequenceDirection::REVERSE, 2);
 }

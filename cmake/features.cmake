@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,7 +6,7 @@
 # Common cmake options
 #
 
-ie_dependent_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON "X86_64" OFF)
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for inference engine" ON "X86_64" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
@@ -87,22 +87,6 @@ ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in Open
 ie_dependent_option (ENABLE_INTEL_GNA "GNA support for inference engine" ON
     "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
 
-if (ENABLE_INTEL_GNA)
-    if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
-        set (DEFAULT_GNA_LIB GNA1)
-    else()
-        set (DEFAULT_GNA_LIB GNA2)
-    endif()
-    set(GNA_LIBRARY_VERSION "${DEFAULT_GNA_LIB}" CACHE STRING "GNAVersion")
-    set_property(CACHE GNA_LIBRARY_VERSION PROPERTY STRINGS "GNA1" "GNA1_1401" "GNA2")
-    list (APPEND IE_OPTIONS GNA_LIBRARY_VERSION)
-    if (NOT GNA_LIBRARY_VERSION STREQUAL "GNA1" AND
-        NOT GNA_LIBRARY_VERSION STREQUAL "GNA1_1401" AND
-        NOT GNA_LIBRARY_VERSION STREQUAL "GNA2")
-        message(FATAL_ERROR "GNA_LIBRARY_VERSION should be set to GNA1, GNA1_1401 or GNA2. Default option is ${DEFAULT_GNA_LIB}")
-    endif()
-endif()
-
 if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
     set(ENABLE_IR_V7_READER_DEFAULT ON)
 else()
@@ -116,21 +100,23 @@ ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
 ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
 
+ie_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
+
 ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 
 ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
-ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
+ie_dependent_option (ENABLE_INTEL_MYRIAD_COMMON "common part of myriad plugin" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
-ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_VPU" OFF)
+ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_INTEL_MYRIAD_COMMON" OFF)
 
-ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_MYRIAD" OFF)
+ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
 
 ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_GAPI_PREPROCESSING;ENABLE_TESTS" OFF)
 
 ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_GAPI_TESTS" OFF)
 
-ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF "ENABLE_TESTS;ENABLE_MYRIAD" OFF)
+ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF "ENABLE_TESTS;ENABLE_INTEL_MYRIAD" OFF)
 
 ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
@@ -163,11 +149,11 @@ else()
 endif()
 
 ie_dependent_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ON "protoc_available" OFF)
-ie_dependent_option(ENABLE_OV_PDPD_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
+ie_dependent_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_dependent_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
-    "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
+    "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
 ie_dependent_option(ENABLE_OV_CORE_BACKEND_UNIT_TESTS "Control the building of unit tests using backends" ON
     "ENABLE_OV_CORE_UNIT_TESTS" OFF)
@@ -195,11 +181,11 @@ if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
 endif()
 
-if (ENABLE_MYRIAD)
-    add_definitions(-DENABLE_MYRIAD=1)
+if (ENABLE_INTEL_MYRIAD)
+    add_definitions(-DENABLE_INTEL_MYRIAD=1)
 endif()
 
-if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_MYRIAD )
+if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_INTEL_MYRIAD)
     add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
 endif()
 
@@ -207,17 +193,12 @@ if (ENABLE_INTEL_GPU)
     add_definitions(-DENABLE_INTEL_GPU=1)
 endif()
 
-if (ENABLE_MKL_DNN)
-    add_definitions(-DENABLE_MKL_DNN=1)
+if (ENABLE_INTEL_CPU)
+    add_definitions(-DENABLE_INTEL_CPU=1)
 endif()
 
 if (ENABLE_INTEL_GNA)
     add_definitions(-DENABLE_INTEL_GNA)
-
-    if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
-        message(WARNING "${GNA_LIBRARY_VERSION} is not supported on GCC version ${CMAKE_CXX_COMPILER_VERSION}. Fallback to GNA1")
-        set(GNA_LIBRARY_VERSION GNA1)
-    endif()
 endif()
 
 print_enabled_features()

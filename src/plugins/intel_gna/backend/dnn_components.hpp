@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ struct DnnComponentExtra {
     intel_dnn_component_t dnnComponent;
     bool isDelayed;
     DnnComponentExtra(std::string name,
-                      intel_dnn_component_t dnnComponent,
+                      const intel_dnn_component_t& dnnComponent,
                       bool isDelayed) :
                       name(name), dnnComponent(dnnComponent), isDelayed(isDelayed) {}
 };

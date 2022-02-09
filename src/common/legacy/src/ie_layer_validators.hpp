@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
-namespace details {
+namespace details_legacy {
 
 /**
  * @brief Contains methods to validate layer of specific type
@@ -403,5 +403,5 @@ public:
     void parseParams(CNNLayer* layer) override;
 };
 
-}  // namespace details
+}  // namespace details_legacy
 }  // namespace InferenceEngine

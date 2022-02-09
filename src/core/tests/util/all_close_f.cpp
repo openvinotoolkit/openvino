@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -327,7 +327,7 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     }
 
     bool all_below_min_signal = below_min_count == distances.size();
-    if (rc && (getenv_bool("NGRAPH_GTEST_INFO"))) {
+    if (rc) {
         // Short unobtrusive message when passing
         std::cout << "[   INFO   ] Verifying match of <= " << (FLOAT_MANTISSA_BITS - tolerance_bits)
                   << " mantissa bits (" << FLOAT_MANTISSA_BITS << " bits precision - " << tolerance_bits
@@ -435,7 +435,7 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     }
 
     bool all_below_min_signal = below_min_count == distances.size();
-    if (rc && (getenv_bool("NGRAPH_GTEST_INFO"))) {
+    if (rc) {
         // Short unobtrusive message when passing
         std::cout << "[   INFO   ] Verifying match of >= " << (DOUBLE_MANTISSA_BITS - tolerance_bits)
                   << " mantissa bits (" << DOUBLE_MANTISSA_BITS << " bits precision - " << tolerance_bits
@@ -485,6 +485,32 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
 
 ::testing::AssertionResult test::all_close_f(const std::vector<std::shared_ptr<runtime::Tensor>>& as,
                                              const std::vector<std::shared_ptr<runtime::Tensor>>& bs,
+                                             int tolerance_bits,
+                                             float min_signal) {
+    if (as.size() != bs.size()) {
+        return ::testing::AssertionFailure() << "Cannot compare tensors with different sizes";
+    }
+    for (size_t i = 0; i < as.size(); ++i) {
+        auto ar = test::all_close_f(as[i], bs[i], tolerance_bits, min_signal);
+        if (!ar) {
+            return ar;
+        }
+    }
+    return ::testing::AssertionSuccess();
+}
+
+::testing::AssertionResult test::all_close_f(const ov::Tensor& a,
+                                             const ov::Tensor& b,
+                                             int tolerance_bits,
+                                             float min_signal) {
+    return test::all_close_f(std::make_shared<runtime::HostTensor>(a.get_element_type(), a.get_shape(), a.data()),
+                             std::make_shared<runtime::HostTensor>(b.get_element_type(), b.get_shape(), b.data()),
+                             tolerance_bits,
+                             min_signal);
+}
+
+::testing::AssertionResult test::all_close_f(const std::vector<ov::Tensor>& as,
+                                             const std::vector<ov::Tensor>& bs,
                                              int tolerance_bits,
                                              float min_signal) {
     if (as.size() != bs.size()) {

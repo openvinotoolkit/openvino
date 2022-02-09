@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "einsum_shape_inference.hpp"
 #include "itt.hpp"
 
 using namespace std;
@@ -180,97 +181,15 @@ void op::v7::Einsum::validate_and_infer_types() {
                               "Inputs to Einsum operation must have the same type.");
     }
 
-    // check that equation has correct format and extract input and output subscripts
-    std::vector<std::string> input_subscripts;
-    std::string output_subscript;
-    parse_equation(m_equation, input_subscripts, output_subscript);
-
-    // a number of input subscripts must match with a number of input tensors
-    NODE_VALIDATION_CHECK(this,
-                          input_subscripts.size() == num_inputs,
-                          "Equation must contain a number of subscripts equal to a number of Einsum inputs.");
-
-    // create a dictionary with dimension sizes (or ranges in case dynamic shapes) for each label
-    // and check their compatibility in case repeating labels
-    unordered_map<string, ov::PartialShape> label_to_shape;
-    label_to_shape.clear();
-
+    std::vector<ov::PartialShape> input_shapes;
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        const auto& pshape = get_input_partial_shape(input_idx);
-        std::vector<std::string> labels;
-        labels = extract_labels(input_subscripts[input_idx]);
-
-        if (pshape.rank().is_static()) {
-            size_t input_rank = pshape.rank().get_length();
-            // check that a rank is greater or equal to a number of labels
-            // these numbers are always equal if there is no ellipsis in the subscript
-            NODE_VALIDATION_CHECK(this,
-                                  input_rank >= labels.size(),
-                                  "Input rank must be greater or equal to a number of labels in the "
-                                  "corresponding input subscript.");
-
-            for (size_t label_ind = 0, dim_ind = 0; label_ind < labels.size() && dim_ind < input_rank; ++label_ind) {
-                auto const& label = labels[label_ind];
-                if (label.compare("...") == 0) {
-                    size_t num_broadcasted_dims = input_rank - labels.size() + 1;
-                    auto current_sub_pshape =
-                        ov::PartialShape(std::vector<Dimension>(pshape.begin() + dim_ind,
-                                                                pshape.begin() + dim_ind + num_broadcasted_dims));
-                    if (label_to_shape.find(label) == label_to_shape.end()) {
-                        label_to_shape[label] = current_sub_pshape;
-                    } else {
-                        bool is_broadcast_success =
-                            ov::PartialShape::broadcast_merge_into(label_to_shape[label],
-                                                                   current_sub_pshape,
-                                                                   op::AutoBroadcastType::NUMPY);
-                        NODE_VALIDATION_CHECK(this,
-                                              is_broadcast_success,
-                                              "Input dimensions labeled with ellipsis for Einsum "
-                                              "must be broadcastable.");
-                    }
-                    dim_ind += num_broadcasted_dims;
-                } else {
-                    if (label_to_shape.find(label) == label_to_shape.end()) {
-                        label_to_shape[label] = ov::PartialShape{pshape[dim_ind]};
-                    } else {
-                        NODE_VALIDATION_CHECK(this,
-                                              label_to_shape[label].compatible(ov::PartialShape{pshape[label_ind]}),
-                                              "Different input dimensions indicated by the same labels for Einsum "
-                                              "must be compatible.");
-                        ov::PartialShape::merge_into(label_to_shape[label], ov::PartialShape{pshape[dim_ind]});
-                    }
-                    ++dim_ind;
-                }
-            }
-        } else {
-            for (auto const& label : labels) {
-                NODE_VALIDATION_CHECK(this,
-                                      label != "...",
-                                      "The subscript corresponding to a dynamic rank input must "
-                                      "not contain ellipsis.");
-
-                if (label_to_shape.find(label) == label_to_shape.end()) {
-                    label_to_shape[label] = ov::PartialShape{Dimension::dynamic()};
-                }
-            }
-        }
+        input_shapes.push_back(get_input_partial_shape(input_idx));
     }
 
-    // compute the output shape
-    std::vector<std::string> output_labels;
-    output_labels = extract_labels(output_subscript);
-    std::vector<Dimension> output_pshape_vector;
+    shape_infer(this, input_shapes, output_shapes);
 
-    for (auto const& output_label : output_labels) {
-        NODE_VALIDATION_CHECK(this,
-                              label_to_shape.find(output_label) != label_to_shape.end(),
-                              "Label in output subscript of Einsum equation must enter at least "
-                              "one input subscript.");
-        output_pshape_vector.insert(output_pshape_vector.end(),
-                                    label_to_shape[output_label].begin(),
-                                    label_to_shape[output_label].end());
-    }
-    set_output_type(0, input_type_0, ov::PartialShape(output_pshape_vector));
+    set_output_type(0, input_type_0, output_shapes[0]);
 }
 
 bool op::v7::Einsum::visit_attributes(AttributeVisitor& visitor) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,11 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::frontend::tf;
+using namespace ov::frontend::tensorflow;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 #define OP_T_CONVERTER(op) \
@@ -93,7 +93,7 @@ OP_CONVERTER(translate_where_op);
 OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_zeros_like_op);
 
-const std::map<const std::string, const CreatorFunction> get_supported_ops() {
+const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         // note: UnaryOp translator declaration for each op must to be added in unary_op.cpp file
         {"Abs", translate_unary_op<opset8::Abs>},
@@ -244,6 +244,6 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
     };
 };
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

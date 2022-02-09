@@ -1,9 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from openvino.tools.mo.ops.elementwise import Mul, Add, Pow
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.const import Const
@@ -51,7 +50,7 @@ class FusedBatchNormNonConstant(MiddleReplacementPattern):
         mean_add = Add(graph, dict(name=node.name + '/mean_add_'))
         variance_mul = Mul(graph, dict(name=node.name + '/variance_mul_'))
 
-        neg_const = Const(graph, dict(value=np.array(-1), name=node.name + '/mean_negate_'))
+        neg_const = Const(graph, dict(value=mo_array(-1), name=node.name + '/mean_negate_'))
         mean_negate = Mul(graph, dict(name=node.name + '/mean_negate_'))
         mean_arg = mean_add.create_node_with_data([
             node.in_node(0),

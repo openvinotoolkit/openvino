@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -30,7 +30,7 @@ def test_dimension():
     assert dim.is_dynamic
     assert dim.get_min_length() == 5
     assert dim.get_max_length() == 15
-    assert repr(dim) == "<Dimension: [5, 15]>"
+    assert repr(dim) == "<Dimension: 5..15>"
 
 
 def test_dimension_comparisons():
@@ -129,7 +129,7 @@ def test_partial_shape():
     assert ps.rank == Dimension.dynamic()
     assert list(ps.get_min_shape()) == []
     assert list(ps.get_max_shape()) == []
-    assert repr(ps) == "<PartialShape: ?>"
+    assert repr(ps) == "<PartialShape: ...>"
 
     ps = PartialShape.dynamic(r=Dimension(2))
     assert not ps.is_static

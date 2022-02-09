@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace pass
 }  // namespace ov
 
-bool ov::pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
+bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -70,7 +70,7 @@ bool ov::pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ov::Functio
     return apply_matcher_passes(f, std::move(nodes_to_run));
 }
 
-bool ov::pass::GraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
+bool ov::pass::GraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -79,7 +79,7 @@ bool ov::pass::GraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
     return apply_matcher_passes(f, std::move(nodes_to_run));
 }
 
-bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Function> f,
+bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                                                   std::deque<std::weak_ptr<Node>> nodes_to_run) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
@@ -136,7 +136,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Function> f,
         // will be deprecated and removed.
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic()) {
             NGRAPH_DEBUG << "matcher callback requires static shape but the "
-                            "function is dynamic, skipping this "
+                            "model is dynamic, skipping this "
                             "optimization till the shapes are fully "
                             "materialized";
             return false;
@@ -176,7 +176,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Function> f,
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                 auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
-                run_on_function(sub_graph);
+                run_on_model(sub_graph);
             }
         }
         // Temporary keep this GraphRewrite property for backward compatibility
@@ -312,31 +312,14 @@ void ov::pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern:
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
 }
 
-bool ov::pass::RecurrentGraphRewrite::run_on_function(std::shared_ptr<Function> f) {
+bool ov::pass::RecurrentGraphRewrite::run_on_model(const std::shared_ptr<Model>& f) {
     bool changed = false;
     size_t i = 0;
 
-    // This check is very expensive and is only needed for experimental features, so we will hide
-    // it behind an environment variable for now. TODO: Find a less expensive way to handle this.
-    static bool s_rerun_dynamic_check = ngraph::getenv_bool("NGRAPH_GRAPH_REWRITE_RERUN_DYNAMIC_CHECK");
-
     auto run_matchers = [&]() -> bool {
-        bool is_dyn_func = s_rerun_dynamic_check && f->is_dynamic();
         for (const auto& node : f->get_ops()) {
             for (auto& m_pass : m_matchers) {
-                if (is_dyn_func && m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE)) {
-                    NGRAPH_DEBUG << "matcher callback requires static shape but the "
-                                    "function is dynamic, skipping this "
-                                    "optimization till the shapes are fully "
-                                    "materialized";
-                    continue;
-                }
                 if (m_pass->apply(node)) {
-                    // If call back may change function's is_dynamic state, we need to
-                    // update the cached value.
-                    if (m_pass->get_property(PassProperty::CHANGE_DYNAMIC_STATE)) {
-                        is_dyn_func = s_rerun_dynamic_check && f->is_dynamic();
-                    }
                     return true;
                 }
             }

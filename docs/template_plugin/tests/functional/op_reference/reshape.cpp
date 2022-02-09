@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,8 +63,8 @@ struct ReshapeParams {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
     bool m_zero_flag;
 };
 
@@ -98,8 +98,8 @@ struct ReshapeShuffleParams {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
     bool m_zero_flag;
 };
 
@@ -129,7 +129,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const element::Type& input_type,
                                                     const element::Type& expected_type,
                                                     const Shape& input_shape,
                                                     const Shape& expected_shape,
@@ -139,7 +139,7 @@ private:
             in,
             op::v0::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
             zero_flag);
-        return std::make_shared<Function>(NodeVector{reshape}, ParameterVector{in});
+        return std::make_shared<Model>(NodeVector{reshape}, ParameterVector{in});
     }
 };
 
@@ -171,7 +171,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const element::Type& input_type,
                                                     const element::Type& expected_type,
                                                     const Shape& input_shape1,
                                                     const Shape& input_shape2,
@@ -191,7 +191,7 @@ private:
             reshape2,
             op::v0::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
             zero_flag);
-        return std::make_shared<Function>(NodeVector{reshape3}, ParameterVector{in});
+        return std::make_shared<Model>(NodeVector{reshape3}, ParameterVector{in});
     }
 };
 

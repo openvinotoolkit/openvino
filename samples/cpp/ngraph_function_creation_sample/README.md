@@ -1,6 +1,6 @@
 # nGraph Function Creation C++ Sample {#openvino_inference_engine_samples_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an synchronous inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a network, which uses weights from LeNet classification network, which is known to work well on digit classification tasks.
+This sample demonstrates how to execute an synchronous inference using [OpenVINO Model feature](../../../docs/OV_Runtime_UG/model_representation.md) to create a network, which uses weights from LeNet classification network, which is known to work well on digit classification tasks.
 
 The sample supports only single-channel [MNIST database](http://yann.lecun.com/exdb/mnist) images as an input.
 
@@ -10,10 +10,10 @@ nGraph Function Creation C++ Sample demonstrates the following Inference Engine 
 
 | Feature    | API  | Description |
 |:---        |:---  |:---
-|Inference Engine Version| `InferenceEngine::GetInferenceEngineVersion` | Get Inference Engine API version
-|Available Devices|`InferenceEngine::Core::GetAvailableDevices`| Get version information of the devices for inference
-| Network Operations | `InferenceEngine::CNNNetwork::setBatchSize`, `InferenceEngine::CNNNetwork::getBatchSize` |  Managing of network, operate with its batch size. Setting batch size using input image count.
-|nGraph Functions| `ngraph::Function`, `ngraph::op`, `ngraph::Node`, `ngraph::Shape::Shape`, `ngraph::Strides::Strides`, `ngraph::CoordinateDiff::CoordinateDiff`, `ngraph::Node::set_friendly_name`, `ngraph::shape_size`, `ngraph::ParameterVector::vector`  |  Illustrates how to construct an nGraph function
+|OpenVINO Runtime Version| `ov::get_openvino_versio` | Get Openvino API version
+|Available Devices|`ov::Core::get_available_devices`| Get version information of the devices for inference
+| Model Operations | `ov::set_batch`, `ov::get_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count.
+|nGraph Functions| `ov::op`, `ov::Node`, `ov::Shape::Shape`, `ov::Strides::Strides`, `ov::CoordinateDiff::CoordinateDiff`, `ov::Node::set_friendly_name`, `ov::shape_size`, `ov::ParameterVector::vector`  |  Illustrates how to construct an nGraph function
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
@@ -22,18 +22,18 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 | Validated Models                 | LeNet
 | Model Format                     | Network weights file (\*.bin)
 | Validated images                 | single-channel `MNIST ubyte` images
-| Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [Python](../../../samples/python/ngraph_function_creation_sample/README.md) |
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, creates a network using the [nGraph function feature](../../../docs/nGraph_DG/build_function.md) and passed weights file, loads the network and image(s) to the Inference Engine plugin, performs synchronous inference and processes output data, logging each step in a standard output stream. You can place labels in .labels file near the model to get pretty output.
+At startup, the sample application reads command-line parameters, prepares input data, creates a network using the [OpenVINO Model feature](../../../docs/OV_Runtime_UG/model_representation.md) and passed weights file, loads the network and image(s) to the Inference Engine plugin, performs synchronous inference and processes output data, logging each step in a standard output stream. You can place labels in .labels file near the model to get pretty output.
 
-You can see the explicit description of each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+You can see the explicit description of each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 ## Running
 
@@ -95,7 +95,7 @@ ngraph_function_creation_sample.exe -m lenet.bin -i 7-ubyte
 [ INFO ] Loading Inference Engine
 [ INFO ] Device info:
         CPU
-        MKLDNNPlugin version ......... <version>
+        openvino_intel_cpu_plugin version ......... <version>
         Build ........... <build>
 
 [ INFO ] Preparing input blobs
@@ -146,6 +146,6 @@ classid probability
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,7 @@
 namespace InferenceEngine {
 namespace details {
 
-INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-INFERENCE_ENGINE_API_CPP(std::vector<CNNLayerPtr>) CNNNetSortTopologically(const CNNNetwork& network);
+std::vector<CNNLayerPtr> CNNNetSortTopologically(const CNNNetwork& network);
 
 }  // namespace details
 }  // namespace InferenceEngine

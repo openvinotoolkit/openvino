@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -67,10 +67,10 @@ class GlobalMaxPoolFrontExtractor(FrontExtractorOp):
 
 
 def common_onnx_pool_extractor(node):
-    kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
-    final_kernel_shape = np.array([1, 1, *[x for x in kernel_shape]], dtype=np.int64) if kernel_shape is not None else None
+    kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', default=None, dst_type=lambda x: int64_array(x))
+    final_kernel_shape = int64_array([1, 1, *[x for x in kernel_shape]]) if kernel_shape is not None else None
 
-    pads = onnx_attr(node, 'pads', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
+    pads = onnx_attr(node, 'pads', 'ints', default=None, dst_type=lambda x: int64_array(x))
 
     if kernel_shape is not None and pads is not None and kernel_shape.size * 2 != pads.size:
         log.warning('Node {} has pad = {} which is ill-formed -- it should have even amount of elements.'.format(
@@ -86,12 +86,12 @@ def common_onnx_pool_extractor(node):
         assert len(pads) % 2 == 0
         pads = pads.reshape([2, -1])
         pads = np.transpose(pads)
-        final_pads = np.array([[0, 0], [0, 0], *[p for p in pads]], dtype=np.int64)
+        final_pads = int64_array([[0, 0], [0, 0], *[p for p in pads]])
 
     # Extract strides attribute
     # In case if strides is not specified it will be set in default (1) in infer function
-    strides = onnx_attr(node, 'strides', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
-    final_strides = np.array([1, 1, *[x for x in strides]], dtype=np.int64) if strides is not None else None
+    strides = onnx_attr(node, 'strides', 'ints', default=None, dst_type=lambda x: int64_array(x))
+    final_strides = int64_array([1, 1, *[x for x in strides]]) if strides is not None else None
 
     dilation = onnx_attr(node, 'dilations', 'ints', default=None, dst_type=lambda x: int64_array(x))
     final_dilation = int64_array([1, 1, *[x for x in dilation]]) if dilation is not None else None
@@ -121,7 +121,7 @@ def common_onnx_pool_extractor(node):
         'window': final_kernel_shape,
         'stride': final_strides,
         'pad': final_pads,
-        'pad_spatial_shape': np.array(pads, dtype=np.int64) if pads is not None else None,
+        'pad_spatial_shape': int64_array(pads) if pads is not None else None,
         'pool_method': method,
         'exclude_pad': True if exclude_pad else False,
         'global_pool': global_pooling,
@@ -130,8 +130,8 @@ def common_onnx_pool_extractor(node):
         'dilation': final_dilation,
 
         'spatial_dims': None,
-        'channel_dims': np.array([1], dtype=np.int64),
-        'batch_dims': np.array([0], dtype=np.int64),
+        'channel_dims': int64_array([1]),
+        'batch_dims': int64_array([0]),
         'layout': 'NCHW',
 
         'pooling_convention': pooling_convention

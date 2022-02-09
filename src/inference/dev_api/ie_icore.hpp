@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
-#include "threading/ie_itask_executor.hpp"
+#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 
@@ -58,6 +58,22 @@ public:
      */
     virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
                                                     const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config = {}) = 0;
+
+    /**
+     * @brief Creates an executable network from a network object.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * @param remoteCtx  "Remote" (non-CPU) accelerator device-specific execution context to use
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+                                                    const RemoteContext::Ptr& remoteCtx,
                                                     const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -142,7 +158,33 @@ public:
      */
     virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
 
+    /**
+     * @brief Create a new shared context object on specified accelerator device
+     * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
+     * @param deviceName Name of a device to create new shared context on.
+     * @param params Map of device-specific shared context parameters.
+     * @return A shared pointer to a created remote context.
+     */
+    virtual InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
+                                                              const InferenceEngine::ParamMap&) = 0;
+
+    /**
+     * @brief Get only configs that are suppored by device
+     * @param deviceName Name of a device
+     * @param config Map of configs that can contains configs that are not supported by device
+     * @return map of configs that are supported by device
+     */
+    virtual std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
+                                                                  const std::map<std::string, std::string>& config) = 0;
+
     virtual bool isNewAPI() const = 0;
+
+    /**
+     * @brief Get a pointer to default shared context object for the specified device.
+     * @param deviceName  - A name of a device to get create shared context from.
+     * @return A shared pointer to a default remote context.
+     */
+    virtual RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) = 0;
 
     /**
      * @brief Default virtual destructor
@@ -165,6 +207,7 @@ public:
 
     static std::vector<std::string> getHeteroDevices(std::string fallbackDevice);
     static std::vector<std::string> getMultiDevices(std::string devicesList);
+    static std::string getBatchDevice(std::string devicesList);
 };
 
 }  // namespace InferenceEngine

@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, is_fully_defined
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
@@ -22,11 +23,11 @@ class Range(Op):
     >>> tf.range(1, 5, 2)
     <tf.Tensor 'range_2:0' shape = (2,) dtype = int32>
 
-    >>> np.array([0.5], dtype=np.float32)
+    >>> mo_array([0.5], dtype=np.float32)
     array([0.5], dtype=float32)
-    >>> np.arange(np.array([1], dtype=np.int32), np.array([5], dtype=np.int32), np.array([2], dtype=np.int32)).dtype
+    >>> np.arange(mo_array([1], dtype=np.int32), mo_array([5], dtype=np.int32), mo_array([2], dtype=np.int32)).dtype
     dtype('int64')
-    >>> np.arange(np.array([1], dtype=np.int32), np.array([5], dtype=np.int32), np.array([0.5], dtype=np.float32)).dtype
+    >>> np.arange(mo_array([1], dtype=np.int32), mo_array([5], dtype=np.int32), mo_array([0.5], dtype=np.float32)).dtype
     dtype('float64')
     """
     op = 'Range'

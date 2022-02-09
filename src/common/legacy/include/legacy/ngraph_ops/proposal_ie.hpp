@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(ProposalIE) : public Op {
+class ProposalIE : public Op {
 public:
     OPENVINO_OP("ProposalIE", "legacy");
     BWDCMP_RTTI_DECLARATION;

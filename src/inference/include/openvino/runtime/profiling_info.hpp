@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +14,12 @@
 #include <string>
 
 namespace ov {
-namespace runtime {
+
 /**
  * @struct ProfilingInfo
- * @brief Represents basic inference profiling information per node.
+ * @brief Represents basic inference profiling information per operation.
  *
- * If the node is executed using tiling, the sum time per each tile is indicated as the total execution time.
+ * If the operation is executed using tiling, the sum time per each tile is indicated as the total execution time.
  * Due to parallel execution, the total execution time for all nodes might be greater than the total inference time.
  */
 struct ProfilingInfo {
@@ -61,5 +61,9 @@ struct ProfilingInfo {
      */
     std::string node_type;
 };
+
+namespace runtime {
+using ov::ProfilingInfo;
 }  // namespace runtime
+
 }  // namespace ov

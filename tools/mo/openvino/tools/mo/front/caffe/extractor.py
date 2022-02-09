@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
-from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
 from openvino.tools.mo.front.common.register_custom_ops import extension_op_extractor
 from openvino.tools.mo.front.extractor import CaffePythonFrontExtractorOp
 from openvino.tools.mo.graph.graph import Node

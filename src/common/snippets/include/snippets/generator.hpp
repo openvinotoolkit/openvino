@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- * @brief A file contains public interface for target indepenent code generator.
+ * @brief A file contains public interface for target independent code generator.
  * @file generator.hpp
  */
 #pragma once
@@ -112,10 +112,10 @@ public:
     virtual ~Generator() = default;
     /**
      * @brief virtual method any specific implementation should implement
-     * @param f runction in canonical for for table-based code generation
+     * @param m model in canonical for for table-based code generation
      * @return pointer to generated code
      */
-    code generate(std::shared_ptr<Function>& f) const;
+    code generate(std::shared_ptr<ov::Model>& m, const void* compile_params = nullptr) const;
 
 protected:
     std::shared_ptr<TargetMachine> target;

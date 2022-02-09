@@ -1,10 +1,10 @@
-# Plugin Testing {#plugin_testing}
+# Plugin Testing {#openvino_docs_ie_plugin_dg_plugin_testing}
 
 Inference Engine (IE) tests infrastructure provides a predefined set of functional tests and utilities. They are used to verify a plugin using the Inference Engine public API.
 All the tests are written in the [Google Test C++ framework](https://github.com/google/googletest).
 
 Inference Engine Plugin tests are included in the `IE::funcSharedTests` CMake target which is built within the OpenVINO repository
-(see [Build Plugin Using CMake](@ref plugin_build) guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
+(see [Build Plugin Using CMake](@ref openvino_docs_ie_plugin_dg_plugin_build) guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
 
 Test definitions are split into tests class declaration (see `inference_engine/tests/functional/plugin/shared/include`) and tests class implementation (see `inference_engine/tests/functional/plugin/shared/src`) and include the following scopes of plugin conformance tests:
 
@@ -15,7 +15,7 @@ Engine concepts: plugin creation, multiple executable networks support, multiple
 
     - From the declaration of convolution test class we can see that it's a parametrized GoogleTest based class with the `convLayerTestParamsSet` tuple of parameters:
 
-    @snippet single_layer_tests/convolution.hpp test_convolution:definition
+    @snippet single_layer/convolution.hpp test_convolution:definition
 
     - Based on that, define a set of parameters for `Template` plugin functional test instantiation:
 
@@ -39,7 +39,7 @@ To use these tests for your own plugin development, link the `IE::funcSharedTest
 > **NOTE**: A plugin may contain its own tests for use cases that are specific to hardware or need to be extensively tested.
 
 To build test binaries together with other build artifacts, use the `make all` command. For details, see
-[Build Plugin Using CMake*](@ref plugin_build).
+[Build Plugin Using CMake*](@ref openvino_docs_ie_plugin_dg_plugin_build).
 
 ### Tests for plugin-specific ngraph transformations
 

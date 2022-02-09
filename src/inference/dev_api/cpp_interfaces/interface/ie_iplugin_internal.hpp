@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,7 @@ class Function;
 namespace InferenceEngine {
 
 class ICore;
+class ExecutorManager;
 class IExecutableNetworkInternal;
 class RemoteContext;
 class IExtension;
@@ -83,6 +84,17 @@ INFERENCE_ENGINE_API_CPP(InputsDataMap) copyInfo(const InputsDataMap& networkInp
  * @return copy of network outputs
  */
 INFERENCE_ENGINE_API_CPP(OutputsDataMap) copyInfo(const OutputsDataMap& networkOutputs);
+
+/**
+ * @brief Set input and output information to executable network. This method is used to
+ * set additional information to InferenceEngine::IExecutableNetworkInternal created by device plugin.
+ * @param exeNetwork Executable network object
+ * @param function Model with initial execution info
+ */
+INFERENCE_ENGINE_API_CPP(void)
+SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                  const std::shared_ptr<const ov::Model>& function,
+                  bool new_api);
 
 /**
  * @interface IInferencePlugin
@@ -253,6 +265,12 @@ public:
     virtual std::shared_ptr<ICore> GetCore() const noexcept;
 
     /**
+     * @brief Gets reference to tasks execution manager
+     * @return Reference to ExecutorManager interface
+     */
+    const std::shared_ptr<ExecutorManager>& executorManager() const;
+
+    /**
      * @brief      Queries a plugin about supported layers in network
      * @param[in]  network  The network object to query
      * @param[in]  config   The map of configuration parameters
@@ -262,6 +280,7 @@ public:
                                             const std::map<std::string, std::string>& config) const;
 
 protected:
+    IInferencePlugin();
     ~IInferencePlugin() = default;
 
     /**
@@ -314,11 +333,12 @@ protected:
      * @param function Function with initial execution info
      */
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                           const std::shared_ptr<ov::Function>& function);
+                           const std::shared_ptr<const ov::Model>& function);
 
-    std::string _pluginName;                     //!< A device name that plugins enables
-    std::map<std::string, std::string> _config;  //!< A map config keys -> values
-    std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
+    std::string _pluginName;                            //!< A device name that plugins enables
+    std::map<std::string, std::string> _config;         //!< A map config keys -> values
+    std::weak_ptr<ICore> _core;                         //!< A pointer to ICore interface
+    std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
 };
 
 /**

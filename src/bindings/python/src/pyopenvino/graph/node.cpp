@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,9 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
-#include "pyopenvino/graph/variant.hpp"
 
 class PyNode : public ov::Node {
 public:
@@ -83,8 +83,8 @@ void regclass_graph_Node(py::module m) {
     node.def(
         "evaluate",
         [](const ov::Node& self,
-           ov::runtime::TensorVector& output_values,
-           const ov::runtime::TensorVector& input_values,
+           ov::TensorVector& output_values,
+           const ov::TensorVector& input_values,
            const ov::EvaluationContext& evaluationContext) -> bool {
             return self.evaluate(output_values, input_values, evaluationContext);
         },
@@ -108,9 +108,7 @@ void regclass_graph_Node(py::module m) {
             )");
     node.def(
         "evaluate",
-        [](const ov::Node& self,
-           ov::runtime::TensorVector& output_values,
-           const ov::runtime::TensorVector& input_values) -> bool {
+        [](const ov::Node& self, ov::TensorVector& output_values, const ov::TensorVector& input_values) -> bool {
             return self.evaluate(output_values, input_values);
         },
         py::arg("output_values"),
@@ -129,14 +127,14 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_input_tensor",
              &ov::Node::get_input_tensor,
-             py::arg("i"),
+             py::arg("index"),
              py::return_value_policy::reference_internal,
              R"(
                 Returns the tensor for the node's input with index i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of Input.
 
                 Returns
@@ -166,13 +164,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("input_value",
              &ov::Node::input_value,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns input of the node with index i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of Input.
 
                 Returns
@@ -202,13 +200,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_element_type",
              &ov::Node::get_output_element_type,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns the element type for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
@@ -218,13 +216,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_shape",
              &ov::Node::get_output_shape,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns the shape for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
@@ -234,13 +232,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_partial_shape",
              &ov::Node::get_output_partial_shape,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns the partial shape for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
@@ -250,14 +248,14 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_tensor",
              &ov::Node::get_output_tensor,
-             py::arg("i"),
+             py::arg("index"),
              py::return_value_policy::reference_internal,
              R"(
                 Returns the tensor for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns

@@ -1,14 +1,13 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-
-import numpy as np
 
 from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
     is_output_data_in_correct_layout
 from openvino.tools.mo.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from openvino.tools.mo.middle.PreserveRuntimeInfo import PreserveRuntimeInfo
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.graph.perm_inputs import get_node_with_permutation
@@ -59,7 +58,7 @@ class ApplyPermutation(MiddleReplacementPattern):
                 assert len(node.value.shape) == len(node.permutation.perm), \
                     'Node {} has shape {} and permutation {} that does not match. Their lengths should be equal' \
                     ''.format(node.name, node.value.shape, node.permutation.perm)
-                node.value = np.array(node.value.transpose(node.permutation.perm))
+                node.value = mo_array(node.value.transpose(node.permutation.perm))
 
     @staticmethod
     def permute_op_nodes_attrs(graph: Graph):

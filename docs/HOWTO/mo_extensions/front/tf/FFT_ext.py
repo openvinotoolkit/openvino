@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # ! [fft_ext:extractor]
 from ...ops.FFT import FFT
-from mo.front.extractor import FrontExtractorOp
-from mo.utils.error import Error
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class FFT2DFrontExtractor(FrontExtractorOp):

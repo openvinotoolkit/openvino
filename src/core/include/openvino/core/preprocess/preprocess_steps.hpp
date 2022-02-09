@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ public:
     PreProcessSteps& mean(const std::vector<float>& values);
 
     /// \brief Signature for custom preprocessing operation. Custom preprocessing operation takes one input node and
-    /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
+    /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Model
     /// directly
     ///
     /// \param node Input node for custom preprocessing operation (output of previous preprocessing operation)

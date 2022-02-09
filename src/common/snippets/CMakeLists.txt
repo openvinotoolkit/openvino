@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,10 +25,10 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph
-                                     PRIVATE ngraph_reference)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
+                                     PRIVATE ngraph_reference openvino::runtime::dev)
 
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
@@ -36,10 +36,8 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 ie_mark_target_as_cc(${TARGET_NAME})
 
 # LTO
-
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# install
 
-# TODO: uncomment once snippets are integrated into CPU plugin
-# ov_install_static_lib(${TARGET_NAME} core)
+# install
+ov_install_static_lib(${TARGET_NAME} core)

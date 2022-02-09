@@ -1,16 +1,14 @@
 # Hello Reshape SSD C++ Sample {#openvino_inference_engine_samples_hello_reshape_ssd_README}
 
-This sample demonstrates how to execute an inference of object detection networks like SSD-VGG using Synchronous Inference Request API, [input reshape feature](../../../docs/IE_DG/ShapeInference.md) and implementation of [custom extension library for CPU device](../../../docs/IE_DG/Extensibility_DG/CPU_Kernel.md) (CustomReLU kernel).
+This sample demonstrates how to execute an inference of object detection networks like SSD-VGG using Synchronous Inference Request API, [input reshape feature](../../../docs/OV_Runtime_UG/ShapeInference.md).
 
 Hello Reshape SSD C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-| Network Operations | `InferenceEngine::CNNNetwork::getBatchSize`, `InferenceEngine::CNNNetwork::getFunction` |  Managing of network, operate with its batch size.
-|Input Reshape|`InferenceEngine::CNNNetwork::getInputShapes`, `InferenceEngine::CNNNetwork::reshape`| Resize network to match image sizes and given batch
-|nGraph Functions|`ngraph::Function::get_ops`, `ngraph::Node::get_friendly_name`, `ngraph::Node::get_type_info`| Go thru network nGraph
-|Custom Extension Kernels|`InferenceEngine::Core::AddExtension`| Load extension library
-|CustomReLU kernel| `InferenceEngine::ILayerExecImpl`| Implementation of custom extension library
+| Model Operations | `ov::Core::read_model`, `ov::Core::compile_model` |  Managing of model
+| Model Input Reshape | `ov::Model::reshape`| Resize model to match image sizes and given batch
+| Tensor Operations | `ov::Tensor::get_element_type`, `ov::Tensor::get_shape`, `ov::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
@@ -19,7 +17,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 | Validated Models                 | [person-detection-retail-0013](@ref omz_models_model_person_detection_retail_0013)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
-| Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [Python](../../../samples/python/hello_reshape_ssd/README.md) |
 
 ## How It Works
@@ -28,11 +26,11 @@ Upon the start-up the sample application reads command line parameters, loads sp
 Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application creates output image and output data to the standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 ## Running
 
@@ -43,7 +41,7 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -80,18 +78,33 @@ of the detected objects along with the respective confidence values and the coor
 rectangles to the standard output stream.
 
 ```
-Resizing network to the image size = [960x1699] with batch = 1
-Resulting input shape = [1,3,960,1699]
-Resulting output shape = [1,1,200,7]
-[0,1] element, prob = 0.722292, bbox = (852.382,187.756)-(983.352,520.733), batch id = 0
-The resulting image was saved in the file: hello_reshape_ssd_output.jpg
-
-This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+[ INFO ] Loading model files: C:\temp\models\public\ssd_mobilenet_v1_fpn_coco\FP16\ssd_mobilenet_v1_fpn_coco.xml
+[ INFO ] model name: ssd_mobilenet_v1_fpn_coco
+[ INFO ]     inputs
+[ INFO ]         input name: image_tensor
+[ INFO ]         input type: f32
+[ INFO ]         input shape: {1, 3, 640, 640}
+[ INFO ]     outputs
+[ INFO ]         output name: DetectionOutput
+[ INFO ]         output type: f32
+[ INFO ]         output shape: {1, 1, 100, 7}
+Reshape network to the image size = [512x512] with batch = 1
+[ INFO ] model name: ssd_mobilenet_v1_fpn_coco
+[ INFO ]     inputs
+[ INFO ]         input name: image_tensor
+[ INFO ]         input type: f32
+[ INFO ]         input shape: {1, 3, 512, 512}
+[ INFO ]     outputs
+[ INFO ]         output name: DetectionOutput
+[ INFO ]         output type: f32
+[ INFO ]         output shape: {1, 1, 100, 7}
+[0,18] element, prob = 0.781129    (109,52)-(342,441) batch id = 0
+The resulting image was saved in the file: hello_reshape_ssd_batch_0.bmp
 ```
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

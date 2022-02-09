@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -68,7 +68,8 @@ class TestLRN(OnnxRuntimeLayerTest):
                 'const_indata': {'value': [1], 'kind': 'data'},
                 'const': {'kind': 'op', 'type': 'Const'},
                 'const_data': {'shape': [1], 'kind': 'data'},
-                'norm': {'kind': 'op', 'type': 'LRN', 'alpha': alpha / bias, 'beta': beta, 'bias': bias,
+                'norm': {'kind': 'op', 'type': 'LRN', 'alpha': alpha / bias, 'beta': beta,
+                         'bias': bias,
                          'size': size},  # 'region': 'across'
                 'norm_data': {'shape': shape, 'kind': 'data'},
                 'result': {'kind': 'op', 'type': 'Result'}
@@ -110,24 +111,27 @@ class TestLRN(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_lrn_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_lrn_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         # onnxruntime only supports 4D tensors for LRN
         self.skip_framework = True
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_lrn(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_lrn(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         # onnxruntime only supports 4D tensors for LRN
         self.skip_framework = True
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_lrn_4D(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_lrn_4D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self.skip_framework = False
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)

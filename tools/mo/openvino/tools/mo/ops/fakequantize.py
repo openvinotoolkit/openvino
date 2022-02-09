@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.error import Error
@@ -10,12 +11,12 @@ from openvino.tools.mo.utils.error import Error
 
 def broadcastable(broadcast_from, broadcast_to):
     """Check if shape broadcast_from can be broadcasted to broadcast_to"""
-    broadcast_to = np.array(broadcast_to, dtype=np.int64)
-    broadcast_from = np.array(broadcast_from, dtype=np.int64)
+    broadcast_to = int64_array(broadcast_to)
+    broadcast_from = int64_array(broadcast_from)
     if broadcast_from.size > broadcast_to.size:
         return False
     broadcast_from = np.concatenate(
-        (np.array([1] * (broadcast_to.size - broadcast_from.size), dtype=np.int64), broadcast_from))
+        (int64_array([1] * (broadcast_to.size - broadcast_from.size)), broadcast_from))
     return np.all(np.logical_or(broadcast_from == 1, broadcast_from == broadcast_to))
 
 
@@ -63,7 +64,7 @@ class FakeQuantize(Op):
 
         if all([node.in_node(i).has_valid('value') for i in range(5)]):
             x, input_low, input_high, output_low, output_high = \
-                [np.array(np.broadcast_to(node.value, x.value.shape), dtype=np.float32) for node in inputs]
+                [float32_array(np.broadcast_to(node.value, x.value.shape)) for node in inputs]
 
             assert node.has_valid('levels')
             assert isinstance(node.levels, int)

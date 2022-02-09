@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 
 #include <algorithm>
+#include <experimental_detectron_roi_feature_shape_inference.hpp>
 #include <memory>
 #include <utility>
 
@@ -40,59 +41,18 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() >= 2, "At least two argument required.");
 
-    auto rois_shape = get_input_partial_shape(0);
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes;
+    for (size_t i = 0; i < get_input_size(); i++)
+        input_shapes.push_back(get_input_partial_shape(i));
+
+    shape_infer(this, input_shapes, output_shapes);
+
     auto input_et = get_input_element_type(0);
 
-    ov::PartialShape out_shape = {Dimension::dynamic(), Dimension::dynamic(), m_attrs.output_size, m_attrs.output_size};
-
-    ov::PartialShape out_rois_shape = {Dimension::dynamic(), 4};
-    if (rois_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
-
-        auto input_rois_last_dim_intersection_with_4 = rois_shape[1] & Dimension(4);
-        NODE_VALIDATION_CHECK(this,
-                              !input_rois_last_dim_intersection_with_4.get_interval().empty(),
-                              "The last dimension of the 'input_rois' input must be equal to 4. "
-                              "Got: ",
-                              rois_shape[1]);
-
-        out_shape[0] = rois_shape[0];
-        out_rois_shape[0] = rois_shape[0];
-    }
-
-    size_t num_of_inputs = get_input_size();
-    Dimension channels_intersection;
-
-    for (size_t i = 1; i < num_of_inputs; i++) {
-        auto current_shape = get_input_partial_shape(i);
-        auto current_rank = current_shape.rank();
-
-        if (current_rank.is_static()) {
-            NODE_VALIDATION_CHECK(this,
-                                  current_rank.get_length() == 4,
-                                  "Rank of each element of the pyramid must be equal to 4. Got: ",
-                                  current_rank);
-
-            auto first_dim_intersection_with_1 = current_shape[0] & Dimension(1);
-            NODE_VALIDATION_CHECK(this,
-                                  !first_dim_intersection_with_1.get_interval().empty(),
-                                  "The first dimension of each pyramid element must be equal to 1. "
-                                  "Got: ",
-                                  current_shape[0]);
-
-            channels_intersection &= current_shape[1];
-        }
-    }
-
-    NODE_VALIDATION_CHECK(this,
-                          !channels_intersection.get_interval().empty(),
-                          "The number of channels must be the same for all layers of the pyramid.");
-
-    out_shape[1] = channels_intersection;
-
-    set_output_size(2);
-    set_output_type(0, input_et, out_shape);
-    set_output_type(1, input_et, out_rois_shape);
+    set_output_size(output_shapes.size());
+    for (size_t i = 0; i < output_shapes.size(); i++)
+        set_output_type(i, input_et, output_shapes[i]);
 }
 
 shared_ptr<Node> op::v6::ExperimentalDetectronROIFeatureExtractor::clone_with_new_inputs(

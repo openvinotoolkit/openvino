@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ class TransformationsPipeline {
 public:
     explicit TransformationsPipeline(const Config &conf, const cldnn::device_info &device_info)
         : config(conf), device_info(device_info) {}
-    void apply(std::shared_ptr<ov::Function> func);
+    void apply(std::shared_ptr<ov::Model> func);
 
 private:
     Config config;

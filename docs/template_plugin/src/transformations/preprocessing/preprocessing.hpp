@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,5 +32,5 @@ public:
     NGRAPH_RTTI_DECLARATION;
     explicit AddPreprocessing(const InferenceEngine::InputsDataMap& inputInfoMap);
 
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

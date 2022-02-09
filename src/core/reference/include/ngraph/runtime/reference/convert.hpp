@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +32,8 @@ inline uint8_t get_u1(const uint8_t* buf, size_t idx) {
 inline void set_u4(uint8_t* buf, size_t idx, uint8_t val) {
     const size_t byte_idx = idx / 2;
     const uint8_t bit_shift = 4 * (++idx % 2);
-    buf[byte_idx] &= ~(0xF << bit_shift);  // half byte zeroed
-    buf[byte_idx] |= (val << bit_shift);   // set 1's
+    buf[byte_idx] &= ~(0xF << bit_shift);         // half byte zeroed
+    buf[byte_idx] |= ((val & 0xF) << bit_shift);  // set 1's
 }
 
 inline uint8_t get_u4(const uint8_t* buf, size_t idx) {
@@ -45,8 +45,8 @@ inline uint8_t get_u4(const uint8_t* buf, size_t idx) {
 inline void set_i4(uint8_t* buf, size_t idx, int8_t val) {
     const size_t byte_idx = idx / 2;
     const uint8_t bit_shift = 4 * (++idx % 2);
-    buf[byte_idx] &= ~(0xF << bit_shift);  // half byte zeroed
-    buf[byte_idx] |= (val << bit_shift);   // set 1's
+    buf[byte_idx] &= ~(0xF << bit_shift);         // half byte zeroed
+    buf[byte_idx] |= ((val & 0xF) << bit_shift);  // set 1's
 }
 
 inline int8_t get_i4(const uint8_t* buf, size_t idx) {

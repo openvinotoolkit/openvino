@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, is_fully_defined
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -29,7 +29,7 @@ class SliceLike(Op):
         input_value = node.in_port(0).data.get_value()
         shape_like = node.in_port(1).data.get_shape()
 
-        new_shape = np.copy(input_shape)
+        new_shape = shape_array(input_shape.copy())
         if node.axes is not None:
             node.axes = sorted([get_canonical_axis_index(input_shape, i) for i in node.axes])
             for i in node.axes:
@@ -38,10 +38,10 @@ class SliceLike(Op):
             assert input_shape.size == shape_like.size,\
                 'Input shape ranks are inconsistent: {} and {}'.format(input_shape.size, shape_like.size)
             node.axes = int64_array(range(shape_like.size))
-            new_shape = np.copy(shape_like)
+            new_shape = shape_like.copy()
         node.out_port(0).data.set_shape(new_shape)
 
-        if input_value is not None:
+        if input_value is not None and is_fully_defined(new_shape):
             out_value = np.copy(input_value)
 
             slice_indexes = []

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/runtime/tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 static constexpr int BFLOAT_MANTISSA_BITS = 8;
 static constexpr int FLOAT_MANTISSA_BITS = 24;
@@ -136,6 +137,27 @@ bool close_f(double a, double b, int tolerance_bits = DEFAULT_DOUBLE_TOLERANCE_B
 /// Returns true iff the two TensorViews are all close in float
 ::testing::AssertionResult all_close_f(const std::vector<std::shared_ptr<runtime::Tensor>>& as,
                                        const std::vector<std::shared_ptr<runtime::Tensor>>& bs,
+                                       int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
+                                       float min_signal = 0.0f);
+/// \brief Check if the two TensorViews are all close in float
+/// \param a First Tensor to compare
+/// \param b Second Tensor to compare
+/// \param tolerance_bits Bit tolerance error
+/// \param min_signal Minimum value for comparisons
+/// Returns true iff the two TensorViews are all close in float
+::testing::AssertionResult all_close_f(const ov::Tensor& a,
+                                       const ov::Tensor& b,
+                                       int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
+                                       float min_signal = 0.0f);
+
+/// \brief Check if the two vectors of TensorViews are all close in float
+/// \param as First vector of Tensor to compare
+/// \param bs Second vector of Tensor to compare
+/// \param tolerance_bits Bit tolerance error
+/// \param min_signal Minimum value for comparisons
+/// Returns true iff the two TensorViews are all close in float
+::testing::AssertionResult all_close_f(const std::vector<ov::Tensor>& as,
+                                       const std::vector<ov::Tensor>& bs,
                                        int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
                                        float min_signal = 0.0f);
 }  // namespace test

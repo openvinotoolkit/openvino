@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Main entry-point to run timetests tests.
@@ -34,7 +34,7 @@ from scripts.run_timetest import run_timetest
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, cpu_cache, vpu_compiler, perf_hint, model_cache_dir,
+def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_cache_dir,
                   test_info, temp_dir, validate_test_case, prepare_db_info):
     """Parameterized test.
 
@@ -67,9 +67,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, cpu_cache, vpu_comp
         "model": Path(model_path),
         "device": instance["device"]["name"],
         "niter": niter,
-        "perf_hint": perf_hint,
-        "cpu_cache": cpu_cache,
-        "vpu_compiler": vpu_compiler if vpu_compiler else ""
+        "model_cache": model_cache,
     }
     logging.info("Run timetest once to generate any cache")
     retcode, msg, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)

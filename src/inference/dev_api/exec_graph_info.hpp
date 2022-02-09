@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 
 /**
  * @brief A namespace with const values for Execution Graph parameters names.
- *
+ * @ingroup ie_dev_exec_graph
  * Executable Graph Info is represented in CNNNetwork format with general ExecutionNode nodes inside
  * including connections between the nodes. Each node describes an executable hardware-specific
  * primitive and stores its parameters within ExecutionNode::get_rt_info map.

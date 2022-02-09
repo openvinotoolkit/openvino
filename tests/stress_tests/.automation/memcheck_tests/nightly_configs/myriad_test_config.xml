@@ -2,6 +2,10 @@
     <devices>
         <value>MYRIAD</value>
     </devices>
+    <api_versions>
+        <value>1</value>
+        <value>2</value>
+    </api_versions>
     <models>
         <!--Models with FP32 precision-->
         <model name="mobilenet-v2-1.4-224" precision="FP32" source="omz" />
@@ -11,17 +15,14 @@
         <model name="se-inception" precision="FP32" source="omz" />
         <model name="efficientnet-b0" precision="FP32" source="omz" />
         <model name="mobilenet-v1-1.0-224-tf" precision="FP32" source="omz" />
-        <model name="mask_rcnn_resnet101_atrous_coco" precision="FP32" source="omz" />
+        <model name="mask_rcnn_resnet50_atrous_coco" precision="FP32" source="omz" />
         <model name="ssd_mobilenet_v1_coco" precision="FP32" source="omz" />
-        <model name="se-resnet-152" precision="FP32" source="omz" />
         <model name="octave-resnext-50-0.25" precision="FP32" source="omz" />
         <model name="googlenet-v3" precision="FP32" source="omz" />
-        <model name="ssd_mobilenet_v2_coco" precision="FP32" source="omz" />
         <model name="alexnet" precision="FP32" source="omz" />
         <model name="googlenet-v4-tf" precision="FP32" source="omz" />
         <model name="ssd300" precision="FP32" source="omz" />
         <model name="vgg19" precision="FP32" source="omz" />
-        <model name="ctdet_coco_dlav0_384" precision="FP32" source="omz" />
         <model name="googlenet-v1" precision="FP32" source="omz" />
         <model name="yolo-v3-tf" precision="FP32" source="omz" />
         <model name="mtcnn-o" precision="FP32" source="omz" />
@@ -29,7 +30,6 @@
         <model name="googlenet-v1-tf" precision="FP32" source="omz" />
         <model name="yolo-v2-tiny-tf" precision="FP32" source="omz" />
         <model name="ssd512" precision="FP32" source="omz" />
-        <model name="densenet-169" precision="FP32" source="omz" />
         <model name="brain-tumor-segmentation-0002" precision="FP32" source="omz" />
         <model name="Sphereface" precision="FP32" source="omz" />
         <model name="googlenet-v2" precision="FP32" source="omz" />
@@ -51,17 +51,14 @@
         <model name="se-inception" precision="FP16" source="omz" />
         <model name="efficientnet-b0" precision="FP16" source="omz" />
         <model name="mobilenet-v1-1.0-224-tf" precision="FP16" source="omz" />
-        <model name="mask_rcnn_resnet101_atrous_coco" precision="FP16" source="omz" />
+        <model name="mask_rcnn_resnet50_atrous_coco" precision="FP16" source="omz" />
         <model name="ssd_mobilenet_v1_coco" precision="FP16" source="omz" />
-        <model name="se-resnet-152" precision="FP16" source="omz" />
         <model name="octave-resnext-50-0.25" precision="FP16" source="omz" />
         <model name="googlenet-v3" precision="FP16" source="omz" />
-        <model name="ssd_mobilenet_v2_coco" precision="FP16" source="omz" />
         <model name="alexnet" precision="FP16" source="omz" />
         <model name="googlenet-v4-tf" precision="FP16" source="omz" />
         <model name="ssd300" precision="FP16" source="omz" />
         <model name="vgg19" precision="FP16" source="omz" />
-        <model name="ctdet_coco_dlav0_384" precision="FP16" source="omz" />
         <model name="googlenet-v1" precision="FP16" source="omz" />
         <model name="yolo-v3-tf" precision="FP16" source="omz" />
         <model name="mtcnn-o" precision="FP16" source="omz" />
@@ -69,7 +66,6 @@
         <model name="googlenet-v1-tf" precision="FP16" source="omz" />
         <model name="yolo-v2-tiny-tf" precision="FP16" source="omz" />
         <model name="ssd512" precision="FP16" source="omz" />
-        <model name="densenet-169" precision="FP16" source="omz" />
         <model name="brain-tumor-segmentation-0002" precision="FP16" source="omz" />
         <model name="Sphereface" precision="FP16" source="omz" />
         <model name="googlenet-v2" precision="FP16" source="omz" />

@@ -3,13 +3,13 @@
 ## Introduction
 
 Inference Engine CPU and GPU plugin can infer models in the low precision. 
-For details, refer to [Low Precision Inference on the CPU](../../../IE_DG/Int8Inference.md).
+For details, refer to [Low Precision Inference on the CPU](../../../OV_Runtime_UG/Int8Inference.md).
 
 Intermediate Representation (IR) should be specifically formed to be suitable for low precision inference. 
 Such an IR is called a Low Precision IR and you can generate it in two ways:
 - [Quantize regular IR with the Post-Training Optimization tool](@ref pot_README)
 - Use the Model Optimizer for a model pretrained for Low Precision inference: TensorFlow\* pre-TFLite models (`.pb` model file with `FakeQuantize*` operations) and ONNX\* quantized models.
-Both TensorFlow and ONNX quantized models could be prepared by [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf/blob/develop/README.md). 
+Both TensorFlow and ONNX quantized models could be prepared by [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf/blob/develop/README.md).
 
 For an operation to be executed in INT8, it must have `FakeQuantize` operations as inputs.
 See the [specification of `FakeQuantize` operation](../../../ops/quantization/FakeQuantize_1.md) for details. 

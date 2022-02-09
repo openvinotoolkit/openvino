@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "manager.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace test {
 
-inline std::shared_ptr<ov::Function> readModel(const std::string& model_path, const std::string& weights_path) {
+inline std::shared_ptr<ov::Model> readModel(const std::string& model_path, const std::string& weights_path) {
     static ov::frontend::FrontEndManager manager;
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
@@ -30,7 +30,7 @@ inline std::shared_ptr<ov::Function> readModel(const std::string& model_path, co
     OPENVINO_ASSERT(false, "Failed to read the model");
 }
 
-inline std::shared_ptr<ov::Function> readModel(const std::string& model) {
+inline std::shared_ptr<ov::Model> readModel(const std::string& model) {
     static ov::frontend::FrontEndManager manager;
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;

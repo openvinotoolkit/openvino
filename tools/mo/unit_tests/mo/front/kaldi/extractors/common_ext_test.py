@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -7,16 +7,18 @@ import numpy as np
 
 from openvino.tools.mo.graph.graph import Node, Graph
 from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import build_graph
 
 
-class KaldiFrontExtractorTest(unittest.TestCase):
+class KaldiFrontExtractorTest(UnitTestWithMockedTelemetry):
     graph = Graph()
     nodes_attributes = {}
     test_node = None
 
     @classmethod
     def setUp(cls):
+        super().setUp(cls)
         cls.nodes_attributes = {
             'input_data_node': {
                 'name': 'input_data_node',

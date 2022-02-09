@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "range_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -71,10 +72,6 @@ void op::v4::Range::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
 
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).compatible(ov::Shape{}), "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
-
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_integral_number() || get_input_element_type(0).is_real(),
                           "'start' input scalar should be a numeric type. Got: ",
@@ -88,63 +85,14 @@ void op::v4::Range::validate_and_infer_types() {
                           "'step' input scalar should be a numeric type. Got: ",
                           get_input_element_type(2));
 
-    auto const_start = get_constant_from_source(input_value(0));
-    auto const_stop = get_constant_from_source(input_value(1));
-    auto const_step = get_constant_from_source(input_value(2));
+    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
+    std::vector<PartialShape> input_shapes;
+    for (int i = 0; i < get_input_size(); i++)
+        input_shapes.push_back(get_input_partial_shape(i));
 
-    double start = 0;
-    double stop = 0;
-    double step = 0;
+    op::v4::shape_infer(this, input_shapes, result_shapes);
 
-    if (const_start != nullptr) {
-        std::vector<double> start_val = const_start->cast_vector<double>();
-        NODE_VALIDATION_CHECK(this, start_val.size() == 1);
-        start = start_val[0];
-        NODE_VALIDATION_CHECK(this, std::isfinite(start) && !std::isnan(start), "'start' cannot be nan or infinite.");
-    }
-
-    if (const_stop != nullptr) {
-        std::vector<double> stop_val = const_stop->cast_vector<double>();
-        NODE_VALIDATION_CHECK(this, stop_val.size() == 1);
-        stop = stop_val[0];
-        NODE_VALIDATION_CHECK(this, std::isfinite(stop) && !std::isnan(stop), "'stop' cannot be nan or infinite.");
-    }
-
-    if (const_step != nullptr) {
-        std::vector<double> step_val = const_step->cast_vector<double>();
-        NODE_VALIDATION_CHECK(this, step_val.size() == 1);
-        step = step_val[0];
-        NODE_VALIDATION_CHECK(this, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
-    }
-
-    ov::PartialShape result{ov::PartialShape::dynamic(1)};
-
-    if (const_start != nullptr && const_stop != nullptr && const_step != nullptr) {
-        // all inputs must be casted to output_type before
-        // the rounding for casting values are done towards zero
-        if (m_output_type.is_integral_number() && get_input_element_type(0).is_real()) {
-            start = std::trunc(start);
-        }
-        if (m_output_type.is_integral_number() && get_input_element_type(1).is_real()) {
-            stop = std::trunc(stop);
-        }
-        if (m_output_type.is_integral_number() && get_input_element_type(2).is_real()) {
-            step = std::trunc(step);
-        }
-
-        // the number of elements is: max(ceil((stop − start) / step), 0)
-        double span;
-        if ((step > 0 && start >= stop) || (step < 0 && start <= stop)) {
-            span = 0;
-        } else {
-            span = stop - start;
-        }
-
-        double strided = ceil(fabs(span) / fabs(step));
-
-        result = ov::PartialShape{Dimension(static_cast<int64_t>(strided))};
-    }
-    set_output_type(0, m_output_type, result);
+    set_output_type(0, m_output_type, result_shapes[0]);
 }
 
 shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -314,7 +262,8 @@ void static check_step(const op::v0::Range* node, T step) {
 
 template <typename T>
 static typename std::enable_if<std::is_integral<T>::value, T>::type adjust_for_step_and_sign(T span, T step) {
-    return ceil_div(span < 0 ? -span : span, step < 0 ? -step : step);
+    return ceil_div(span < 0 ? -static_cast<typename std::make_signed<T>::type>(span) : span,
+                    step < 0 ? -static_cast<typename std::make_signed<T>::type>(step) : step);
 }
 
 template <typename T>
@@ -400,70 +349,24 @@ void op::v0::Range::validate_and_infer_types() {
                           result_et != element::boolean,
                           "Element type for start, stop, and step, must not be boolean.");
 
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).compatible(ov::Shape{}), "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(this,
+                          result_et != element::Type_t::u1 && result_et != element::Type_t::i4 &&
+                              result_et != element::Type_t::u4 && result_et != element::Type_t::undefined,
+                          "Internal OpenVINO error: unsupported element type: ",
+                          result_et);
 
-    ov::PartialShape result_shape;
+    if (result_et == element::Type_t::dynamic) {
+        set_output_type(0, result_et, ov::PartialShape::dynamic(1));
+    } else {
+        std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
+        std::vector<PartialShape> input_shapes;
+        for (int i = 0; i < get_input_size(); i++)
+            input_shapes.push_back(get_input_partial_shape(i));
 
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic error "-Wswitch"
-#    pragma GCC diagnostic error "-Wswitch-enum"
-#endif
-    switch (result_et) {
-    case element::Type_t::bf16:
-        result_shape = infer_output_shape<bfloat16>(this, result_et);
-        break;
-    case element::Type_t::f16:
-        result_shape = infer_output_shape<float16>(this, result_et);
-        break;
-    case element::Type_t::f32:
-        result_shape = infer_output_shape<float>(this, result_et);
-        break;
-    case element::Type_t::f64:
-        result_shape = infer_output_shape<double>(this, result_et);
-        break;
-    case element::Type_t::i8:
-        result_shape = infer_output_shape<int8_t>(this, result_et);
-        break;
-    case element::Type_t::i16:
-        result_shape = infer_output_shape<int16_t>(this, result_et);
-        break;
-    case element::Type_t::i32:
-        result_shape = infer_output_shape<int32_t>(this, result_et);
-        break;
-    case element::Type_t::i64:
-        result_shape = infer_output_shape<int64_t>(this, result_et);
-        break;
-    case element::Type_t::u8:
-        result_shape = infer_output_shape<uint8_t>(this, result_et);
-        break;
-    case element::Type_t::u16:
-        result_shape = infer_output_shape<uint16_t>(this, result_et);
-        break;
-    case element::Type_t::u32:
-        result_shape = infer_output_shape<uint32_t>(this, result_et);
-        break;
-    case element::Type_t::u64:
-        result_shape = infer_output_shape<uint64_t>(this, result_et);
-        break;
-    case element::Type_t::dynamic:
-        result_shape = ov::PartialShape::dynamic(1);
-        break;
-    case element::Type_t::u1:
-    case element::Type_t::i4:
-    case element::Type_t::u4:
-    case element::Type_t::undefined:
-    case element::Type_t::boolean:
-        NODE_VALIDATION_CHECK(this, false, "Internal nGraph error: unsupported element type: ", result_et);
-        break;
+        op::v0::shape_infer(this, input_shapes, result_shapes);
+
+        set_output_type(0, result_et, result_shapes[0]);
     }
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#    pragma GCC diagnostic pop
-#endif
-
-    set_output_type(0, result_et, result_shape);
 }
 
 shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_args) const {

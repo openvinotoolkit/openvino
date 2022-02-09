@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1016,6 +1016,10 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*, QUANT_DESC> {
         auto layerIt = std::find_if_not(inputLayers.begin() + 1, inputLayers.end(), equalScaleFactor);
         if (layerIt != inputLayers.end()) {
             THROW_GNA_EXCEPTION << "layers entered into concat have different scale factors. Layer name: " << concatLayer->name;
+        }
+
+        if (sourceQuantParams == nullptr) {
+            THROW_GNA_EXCEPTION << "Source quantization parameters have not been initialized";
         }
 
         quantData->_dst_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());

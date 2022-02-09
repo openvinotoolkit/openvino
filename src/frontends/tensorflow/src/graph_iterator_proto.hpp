@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,14 @@
 #include "decoder_proto.hpp"
 #include "graph.pb.h"
 #include "node_def.pb.h"
-#include "tensorflow_frontend/decoder.hpp"
-#include "tensorflow_frontend/graph_iterator.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
+
 class GraphIteratorProto : public GraphIterator {
     std::vector<const ::tensorflow::NodeDef*> m_nodes;
     size_t node_index = 0;
@@ -53,9 +55,10 @@ public:
 
     /// Return NodeContext for the current node that iterator points to
     std::shared_ptr<DecoderBase> get_decoder() const override {
-        return std::make_shared<DecoderTFProto>(m_nodes[node_index]);
+        return std::make_shared<DecoderProto>(m_nodes[node_index]);
     }
 };
-}  // namespace tf
+
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

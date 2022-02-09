@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -98,7 +98,7 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
             memory_pair_id = unique_id('memory_for_const_dim')
             init_value_input_memory_const_dim = Const(graph, {'name': 'init_value_const_dim_in_memory',
                                                               'value': np.zeros(int64_array([in_shape[0],
-                                                                                             memory_size_constdim])),
+                                                                                             memory_size_constdim]), dtype=np.float32),
                                                               'shape': int64_array([in_shape[0],
                                                                                     memory_size_constdim])}).create_node()
             input_memory_const_dim = ReadValue(graph, {'name': 'const_dim_in_memory',
@@ -136,14 +136,14 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
             concat_const.in_port(0).connect(concat_node.out_port(0))
 
             init_value_input_memory = Const(graph, {'name': 'init_value_' + node.name,
-                                                    'value': np.zeros(int64_array([in_shape[0], memory_size])),
+                                                    'value': np.zeros(int64_array([in_shape[0], memory_size]), dtype=np.float32),
                                                     'shape': int64_array([in_shape[0], memory_size])}).create_node()
             init_value_input_memory.out_port(0).connect(input_memory.in_port(0))
             node.in_port(0).get_connection().set_destination(split.in_port(0))
             node.out_port(0).get_connection().set_source(concat_const.out_port(0))
         else:
             init_value_input_memory = Const(graph, {'name': 'init_value_' + node.name,
-                                                    'value': np.zeros(int64_array([in_shape[0], memory_size])),
+                                                    'value': np.zeros(int64_array([in_shape[0], memory_size]), dtype=np.float32),
                                                     'shape': int64_array([in_shape[0], memory_size])}).create_node()
             init_value_input_memory.out_port(0).connect(input_memory.in_port(0))
             node.in_port(0).get_connection().set_destination(concat_node.in_port(1))

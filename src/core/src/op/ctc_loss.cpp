@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/ctc_loss.hpp"
+
+#include <ctc_loss_shape_inference.hpp>
 
 #include "itt.hpp"
 
@@ -77,119 +79,22 @@ void op::v4::CTCLoss::validate_and_infer_types() {
                               blank_index_type);
     }
 
-    // check ranks of input tensors
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& logit_length_pshape = get_input_partial_shape(1);
     const auto& labels_pshape = get_input_partial_shape(2);
     const auto& label_length_pshape = get_input_partial_shape(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          logits_pshape.rank().compatible(3),
-                          "Expected a 3D tensor for logits. Got: ",
-                          logits_pshape);
-
-    NODE_VALIDATION_CHECK(this,
-                          logit_length_pshape.rank().compatible(1),
-                          "Expected a 1D tensor for logit length. Got: ",
-                          logit_length_pshape);
-
-    NODE_VALIDATION_CHECK(this,
-                          labels_pshape.rank().compatible(2),
-                          "Expected a 2D tensor for labels. Got: ",
-                          labels_pshape);
-
-    NODE_VALIDATION_CHECK(this,
-                          label_length_pshape.rank().compatible(1),
-                          "Expected a 1D tensor for label length. Got: ",
-                          label_length_pshape);
-
-    // check optional input shape: blank index
+    std::vector<ov::PartialShape> input_shapes;
     if (get_input_size() == 5) {
         const auto& blank_index_pshape = get_input_partial_shape(4);
-        NODE_VALIDATION_CHECK(this,
-                              blank_index_pshape.rank().compatible(0),
-                              "Expected a scalar for blank index. Got: ",
-                              blank_index_pshape);
-    }
-
-    // check shapes of input tensors
-    size_t batch_size = 1;
-    bool is_batch_size_set = false;
-    size_t time_steps = 1;
-    bool is_time_steps_set = false;
-
-    if (logits_pshape.rank().is_static()) {
-        if (logits_pshape[0].is_static()) {
-            batch_size = logits_pshape[0].get_length();
-            is_batch_size_set = true;
-        }
-        if (logits_pshape[1].is_static()) {
-            time_steps = logits_pshape[1].get_length();
-            is_time_steps_set = true;
-        }
-    }
-
-    if (logit_length_pshape.is_static()) {
-        if (is_batch_size_set) {
-            NODE_VALIDATION_CHECK(this,
-                                  logit_length_pshape[0].compatible(batch_size),
-                                  "The first dimension of logit length must be equal to the first dimension ",
-                                  "of the logits. Got: ",
-                                  logit_length_pshape[0],
-                                  " and: ",
-                                  batch_size);
-        } else if (logit_length_pshape[0].is_static()) {
-            batch_size = logit_length_pshape[0].get_length();
-            is_batch_size_set = true;
-        }
-    }
-
-    if (labels_pshape.is_static()) {
-        if (is_batch_size_set) {
-            NODE_VALIDATION_CHECK(this,
-                                  labels_pshape[0].compatible(batch_size),
-                                  "The first dimension of labels must be equal to the first dimension ",
-                                  "of the logits and the logit length. Got: ",
-                                  labels_pshape[0],
-                                  " and: ",
-                                  batch_size);
-        } else if (labels_pshape[0].is_static()) {
-            batch_size = labels_pshape[0].get_length();
-            is_batch_size_set = true;
-        }
-
-        if (is_time_steps_set) {
-            NODE_VALIDATION_CHECK(this,
-                                  labels_pshape[1].compatible(time_steps),
-                                  "The second dimension of labels must be equal to the second dimension ",
-                                  "of logits. Got: ",
-                                  labels_pshape[1],
-                                  " and: ",
-                                  time_steps);
-        }
-    }
-
-    if (label_length_pshape.is_static()) {
-        if (!is_batch_size_set && label_length_pshape[0].is_static()) {
-            batch_size = label_length_pshape[0].get_length();
-            is_batch_size_set = true;
-        }
-        NODE_VALIDATION_CHECK(this,
-                              label_length_pshape[0].compatible(batch_size),
-                              "The first dimension of label length must be equal to the first dimension ",
-                              "of the logits, the logit length and labels. Got: ",
-                              label_length_pshape[0],
-                              " and: ",
-                              batch_size);
-    }
-
-    // set output shape
-    set_output_size(1);
-    if (is_batch_size_set) {
-        set_output_type(0, logits_type, ov::Shape{batch_size});
+        input_shapes = {logits_pshape, logit_length_pshape, labels_pshape, label_length_pshape, blank_index_pshape};
     } else {
-        set_output_type(0, logits_type, ov::PartialShape{Dimension::dynamic()});
+        input_shapes = {logits_pshape, logit_length_pshape, labels_pshape, label_length_pshape};
     }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, logits_type, output_shapes[0]);
 }
 
 bool op::v4::CTCLoss::visit_attributes(AttributeVisitor& visitor) {

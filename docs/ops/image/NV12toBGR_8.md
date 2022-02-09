@@ -1,4 +1,4 @@
-## NV12toBGR <a name="NV12toBGR"></a> {#openvino_docs_ops_image_NV12toBGR_8}
+# NV12toBGR {#openvino_docs_ops_image_NV12toBGR_8}
 
 **Versioned name**: *NV12toBGR-8*
 

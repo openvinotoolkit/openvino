@@ -1,12 +1,10 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
 import os
-from addict import Dict
 
-from openvino.tools.pot.graph import load_model, save_model
-from openvino.tools.pot.pipeline.initializer import create_pipeline
+from openvino.tools.pot import load_model, save_model, create_pipeline
 from openvino.tools.pot.utils.logger import init_logger
 from openvino.tools.pot.api.samples.utils.argument_parser import get_common_argparser
 from openvino.tools.pot.api.samples.speech.data_loader import ArkDataLoader
@@ -68,15 +66,15 @@ def get_configs(args):
     if not args.weights:
         args.weights = '{}.bin'.format(os.path.splitext(args.model)[0])
 
-    model_config = Dict({
+    model_config = {
         'model_name': 'gna_model',
         'model': os.path.expanduser(args.model),
         'weights': os.path.expanduser(args.weights),
         'exec_log_dir': args.output
-    })
-    engine_config = Dict({
+    }
+    engine_config = {
         'device': 'CPU'
-    })
+    }
     dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
         'type': 'simplified',

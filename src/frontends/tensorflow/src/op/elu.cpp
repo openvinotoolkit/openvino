@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;
@@ -12,7 +12,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_elu_op(const NodeContext& node) {
@@ -23,6 +23,6 @@ OutputVector translate_elu_op(const NodeContext& node) {
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

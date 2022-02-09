@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace GNAPluginNS {
 template <typename T>
 void softsign(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = 1 / (1 + std::abs(arg[i]));
+        out[i] = arg[i] / (1 + std::abs(arg[i]));
     }
 }
 
@@ -33,14 +33,14 @@ std::shared_ptr<ngraph::Node> SoftSign::clone_with_new_inputs(const ngraph::Outp
 }
 
 template <ngraph::element::Type_t ET>
-inline bool evaluate(const ov::runtime::Tensor& arg, ov::runtime::Tensor& out, const size_t count) {
+inline bool evaluate(const ov::Tensor& arg, ov::Tensor& out, const size_t count) {
     using T = typename ngraph::element_type_traits<ET>::value_type;
     softsign<T>(arg.data<T>(), out.data<T>(), count);
     return true;
 }
 
 namespace {
-bool evaluate_softsign(const ov::runtime::Tensor& arg, ov::runtime::Tensor& out) {
+bool evaluate_softsign(const ov::Tensor& arg, ov::Tensor& out) {
     bool rc = true;
     size_t count = shape_size(arg.get_shape());
 
@@ -59,8 +59,8 @@ bool evaluate_softsign(const ov::runtime::Tensor& arg, ov::runtime::Tensor& out)
 }
 } // namespace
 
-bool SoftSign::evaluate(ov::runtime::TensorVector& outputs,
-                        const ov::runtime::TensorVector& inputs,
+bool SoftSign::evaluate(ov::TensorVector& outputs,
+                        const ov::TensorVector& inputs,
                         const ov::EvaluationContext& evaluation_context) const {
     return evaluate_softsign(inputs[0], outputs[0]);
 }

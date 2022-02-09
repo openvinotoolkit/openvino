@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from openvino.tools.mo.ops.deformable_convolution import DeformableConvolution
@@ -25,22 +26,22 @@ class DeformableConvolutionExtractor(FrontExtractorOp):
         output = attr.int("num_filter", None)
         bias_term = attr.str("no_bias", 'False') == 'False'
 
-        final_dilations = np.array([1, 1, *[d for d in dilate]], dtype=np.int64) if dilate is not None else None
+        final_dilations = int64_array([1, 1, *[d for d in dilate]]) if dilate is not None else None
 
         node_attrs = {
             'op': __class__.op,
             'bias_addable': True,
             'bias_term': bias_term,
-            'pad': np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
+            'pad': int64_array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]]),
+            'pad_spatial_shape': int64_array([[pad, pad] for pad in padding]),
             'dilation': final_dilations,
             'output_spatial_shape': None,
             'output_shape': None,
-            'stride': np.array([1, 1, *[s for s in stride]], dtype=np.int64),
+            'stride': int64_array([1, 1, *[s for s in stride]]),
             'group': num_group,
             'deformable_group': num_deformable_group,
             'output': output,
-            'kernel_spatial': np.array([k for k in kernel], dtype=np.int64),
+            'kernel_spatial': int64_array([k for k in kernel]),
 
             'input_feature_channel': 1,
             'output_feature_channel': 0,
@@ -49,8 +50,8 @@ class DeformableConvolutionExtractor(FrontExtractorOp):
             'weights_index': 2,
 
             'spatial_dims': None,
-            'channel_dims': np.array([1], dtype=np.int64),
-            'batch_dims': np.array([0], dtype=np.int64),
+            'channel_dims': int64_array([1]),
+            'batch_dims': int64_array([0]),
             'layout': 'NCHW',
         }
 

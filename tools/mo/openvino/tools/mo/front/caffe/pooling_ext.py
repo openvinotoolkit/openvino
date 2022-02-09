@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import get_spatial_attr
 from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.ops.pooling import Pooling
 
@@ -50,10 +49,10 @@ class PoolingFrontExtractor(FrontExtractorOp):
             rt = 'floor'
 
         attrs = {
-            'window': np.array([1, 1, kernel[1], kernel[0]], dtype=np.int64),
-            'stride': np.array([1, 1, stride[1], stride[0]], dtype=np.int64),
-            'pad': np.array([[0, 0], [0, 0], [padding[1], padding[1]], [padding[0], padding[0]]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[padding[1], padding[1]], [padding[0], padding[0]]], dtype=np.int64),
+            'window': int64_array([1, 1, kernel[1], kernel[0]]),
+            'stride': int64_array([1, 1, stride[1], stride[0]]),
+            'pad': int64_array([[0, 0], [0, 0], [padding[1], padding[1]], [padding[0], padding[0]]]),
+            'pad_spatial_shape': int64_array([[padding[1], padding[1]], [padding[0], padding[0]]]),
             'pool_method': method,
             'exclude_pad': exclude_pad,
             'global_pool': global_pooling,

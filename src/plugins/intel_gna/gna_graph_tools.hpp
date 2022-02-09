@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -486,7 +486,7 @@ inline DataPtr CNNReplaceDataWithChangedTensorDescription(DataPtr old_data, Tens
 /**
 * @brief Creates a Reshape with given name and tensor description
 */
-inline CNNLayerPtr CNNNetworkCreateReshape(TensorDesc td, std::string name, bool quantized) {
+inline CNNLayerPtr CNNNetworkCreateReshape(const TensorDesc& td, const std::string& name, bool quantized) {
     auto reshape = std::make_shared<ReshapeLayer>(LayerParams({name, "reshape", Precision::FP32}));
     auto reshapeLayerWithQuant = quantized ? InferenceEngine::injectData<GNAPluginNS::QuantizedLayerParams>(reshape) : reshape;
     auto dataPtr = std::make_shared<Data>(name + "_data", td);

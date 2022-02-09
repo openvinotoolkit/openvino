@@ -75,13 +75,14 @@ python3 download_glue_data.py --tasks MRPC
 8. Open the file `run_classifier.py` and insert the following code after the line 645:
 ```python
     import os, sys
+    import tensorflow as tf
     from tensorflow.python.framework import graph_io
-    with tf.Session(graph=tf.get_default_graph()) as sess:
+    with tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph()) as sess:
         (assignment_map, initialized_variable_names) = \
-            modeling.get_assignment_map_from_checkpoint(tf.trainable_variables(), init_checkpoint)
-        tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-        sess.run(tf.global_variables_initializer())
-        frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["bert/pooler/dense/Tanh"])
+            modeling.get_assignment_map_from_checkpoint(tf.compat.v1.trainable_variables(), init_checkpoint)
+        tf.compat.v1.train.init_from_checkpoint(init_checkpoint, assignment_map)
+        sess.run(tf.compat.v1.global_variables_initializer())
+        frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["bert/pooler/dense/Tanh"])
         graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
     print('BERT frozen model path {}'.format(os.path.join(os.path.dirname(__file__), 'inference_graph.pb')))
     sys.exit(0)
@@ -115,4 +116,4 @@ Run the Model Optimizer with the following command line parameters to generate r
 ```
 For other applicable parameters, refer to [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md).
 
-For more information about reshape abilities, refer to [Using Shape Inference](../../../../IE_DG/ShapeInference.md).
+For more information about reshape abilities, refer to [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md).

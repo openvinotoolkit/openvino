@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
@@ -33,7 +32,7 @@ class TensorArray(Op):
 
             out_node = node.out_node(0).id
             output_value = node.out_node(0).id
-            node.graph.node[out_node]['value'] = np.array(output_value)
+            node.graph.node[out_node]['value'] = mo_array(output_value)
 
             output_shape = node.graph.node[out_node]['value'].shape
             node.graph.node[out_node]['shape'] = shape_array(output_shape)
@@ -45,5 +44,5 @@ class TensorArray(Op):
             output_value = None
 
             out_node = node.out_node(1).id
-            node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
+            node.graph.node[out_node]['value'] = None if output_value is None else mo_array(output_value)
             node.graph.node[out_node]['shape'] = shape_array(output_shape)

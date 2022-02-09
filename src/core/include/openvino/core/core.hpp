@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,10 @@
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/enum_names.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/function.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/interval.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"

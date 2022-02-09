@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace pass {
 /**
  * @interface InsertLoad
  * @brief Inserts explicit load instruction after each parameter.
- * The pass is used to convert function to a canonical form for code generation
+ * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */
 class InsertLoad: public ngraph::pass::MatcherPass {
@@ -25,7 +25,7 @@ public:
 /**
  * @interface InsertStore
  * @brief Inserts explicit store instruction before each result.
- * The pass is used to convert function to a canonical form for code generation
+ * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */
 class InsertStore: public ngraph::pass::MatcherPass {

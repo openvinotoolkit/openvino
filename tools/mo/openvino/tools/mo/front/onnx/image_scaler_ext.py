@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
 
@@ -13,9 +14,9 @@ class ImageScalerFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        dst_type = lambda x: np.array(x)
+        dst_type = lambda x: mo_array(x)
 
-        scale = onnx_attr(node, 'scale', 'f', default=np.array(1.0), dst_type=dst_type)
+        scale = onnx_attr(node, 'scale', 'f', default=mo_array(1.0), dst_type=dst_type)
         bias = onnx_attr(node, 'bias', 'floats', default=None, dst_type=dst_type)
 
         # Expand dims for bias in case if it is not scalar

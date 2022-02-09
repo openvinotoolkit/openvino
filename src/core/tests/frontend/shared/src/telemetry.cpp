@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "telemetry.hpp"
 
-#include <common/telemetry_extension.hpp>
-
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
@@ -29,7 +28,7 @@ void FrontEndTelemetryTest::initParamTest() {
 ///////////////////////////////////////////////////////////////////
 
 TEST_P(FrontEndTelemetryTest, TestTelemetryMock) {
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     {
         using namespace std::placeholders;
         ov::frontend::FrontEnd::Ptr m_frontEnd;

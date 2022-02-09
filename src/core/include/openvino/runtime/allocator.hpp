@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 #include "openvino/core/core_visibility.hpp"
 
 namespace ov {
-namespace runtime {
 
 /**
  * @interface AllocatorImpl
@@ -64,24 +63,45 @@ class Tensor;
  *        And constructs default based on `new` `delete` c++ calls allocator if created without parameters
  */
 class OPENVINO_API Allocator {
-    std::shared_ptr<void> _so;
     AllocatorImpl::Ptr _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs Tensor from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that Allocator can work properly even if plugin object is
      * destroyed.
-     * @param impl Initialized shared pointer
      */
-    Allocator(const std::shared_ptr<void>& so, const AllocatorImpl::Ptr& impl);
+    Allocator(const AllocatorImpl::Ptr& impl, const std::shared_ptr<void>& so);
 
-    friend class ov::runtime::Tensor;
+    friend class ov::Tensor;
 
 public:
     /**
-     * @brief Creates the default implementation of the OpenVINO allocator.
+     * @brief Destructor preserves unloading order of implementation object and reference to library
      */
+    ~Allocator();
+
+    /// @brief Default constructor
     Allocator();
+
+    /// @brief Default copy constructor
+    /// @param other other Allocator object
+    Allocator(const Allocator& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other Allocator object
+    /// @return reference to the current object
+    Allocator& operator=(const Allocator& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other Allocator object
+    Allocator(Allocator&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other Allocator object
+    /// @return reference to the current object
+    Allocator& operator=(Allocator&& other) = default;
 
     /**
      * @brief Constructs Allocator from the initialized std::shared_ptr
@@ -127,5 +147,10 @@ public:
      */
     explicit operator bool() const noexcept;
 };
+
+namespace runtime {
+using ov::Allocator;
+using ov::AllocatorImpl;
 }  // namespace runtime
+
 }  // namespace ov

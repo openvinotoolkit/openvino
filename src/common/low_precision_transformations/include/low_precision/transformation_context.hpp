@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransformationContext instance is used to pass model transformation context data between transformations.
+ */
 class LP_TRANSFORMATIONS_API TransformationContext {
 public:
     TransformationContext();

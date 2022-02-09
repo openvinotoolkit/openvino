@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,7 @@
 #include "ie_remote_context.hpp"
 
 namespace ov {
-namespace runtime {
 class Core;
-}  // namespace runtime
 }  // namespace ov
 
 namespace InferenceEngine {
@@ -35,24 +33,45 @@ class IExecutableNetworkInternal;
  * @brief This is an interface of an executable network
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    std::shared_ptr<void> _so;
     std::shared_ptr<IExecutableNetworkInternal> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that ExecutableNetwork can work properly even if plugin
      * object is destroyed.
-     * @param impl Initialized shared pointer
      */
-    ExecutableNetwork(const std::shared_ptr<void>& so, const std::shared_ptr<IExecutableNetworkInternal>& impl);
+    ExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>& impl, const std::shared_ptr<void>& so);
     friend class Core;
-    friend class ov::runtime::Core;
+    friend class ov::Core;
 
 public:
-    /**
-     * @brief A default constructor.
-     */
+    /// @brief Default constructor
     ExecutableNetwork() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other ExecutableNetwork object
+    ExecutableNetwork(const ExecutableNetwork& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other ExecutableNetwork object
+    /// @return reference to the current object
+    ExecutableNetwork& operator=(const ExecutableNetwork& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other ExecutableNetwork object
+    ExecutableNetwork(ExecutableNetwork&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other ExecutableNetwork object
+    /// @return reference to the current object
+    ExecutableNetwork& operator=(ExecutableNetwork&& other) = default;
+
+    /**
+     * @brief Destructor preserves unloading order of implementation object and reference to library
+     */
+    ~ExecutableNetwork();
 
     /**
      * @brief Gets the Executable network output Data node information.

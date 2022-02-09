@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ ov::pass::Attributes::Attributes() {
     register_factory<Decompression>();
     register_factory<ov::preprocess::TensorInfoMemoryType>();
     register_factory<StridesPropagation>();
+    register_factory<PreprocessingAttribute>();
 }
 
 ov::Any ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) {

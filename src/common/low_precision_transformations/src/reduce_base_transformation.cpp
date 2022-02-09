@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,10 +36,6 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    if (NetworkHelper::isDQByDynamicDimension(reduce)) {
-        return false;
-    }
-
     const auto axesConstant = ov::as_type_ptr<ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
     if (axesConstant == nullptr) {
         return false;
@@ -55,8 +51,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     const std::vector<size_t> axes = ngraph::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
-        const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise);
-        const auto constShape = normalizedConst->get_shape();
+        const auto constShape = eltwise->get_shape();
 
         if (!constShape.empty()) {
             for (size_t i = 0; i < constShape.size(); ++i) {
@@ -69,11 +64,21 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     };
 
-    if (dequantization.subtract && deqByReducedConst(dequantization.subtract)) {
-        return false;
+    if (dequantization.subtract != nullptr) {
+        const auto normalizedSubtract = NetworkHelper::normalizeDequantizationShape(dequantization.subtract, true);
+        if (normalizedSubtract == nullptr) {
+            return false;
+        }
+        if (deqByReducedConst(normalizedSubtract)) {
+            return false;
+        }
     }
 
-    if (deqByReducedConst(dequantization.multiply)) {
+    const auto normalizedMultiply = NetworkHelper::normalizeDequantizationShape(dequantization.multiply);
+    if (normalizedMultiply == nullptr) {
+        return false;
+    }
+    if (deqByReducedConst(normalizedMultiply)) {
         return false;
     }
 

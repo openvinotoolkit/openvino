@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,21 +10,23 @@
 #include <pugixml.hpp>
 
 // Measure values
-enum MeasureValue { VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax };
+enum MeasureValue {
+    VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax
+};
 // Measure values headers
-const std::array<std::string, MeasureValueMax> MeasureValueHeader { "VMRSS", "VMHWM", "VMSIZE", "VMPEAK", "THREADS" };
+const std::array<std::string, MeasureValueMax> MeasureValueHeader{"VMRSS", "VMHWM", "VMSIZE", "VMPEAK", "THREADS"};
 
 namespace util {
-    template <typename Type>
-    static std::string get_measure_values_as_str(const std::array<Type, MeasureValueMax> & array,
-                                                 const std::string & delimiter = "\t\t") {
+    template<typename Type>
+    static std::string get_measure_values_as_str(const std::array<Type, MeasureValueMax> &array,
+                                                 const std::string &delimiter = "\t\t") {
         std::string str = std::to_string(*array.begin());
         for (auto it = array.begin() + 1; it != array.end(); it++)
             str += delimiter + std::to_string(*it);
         return str;
     }
 
-    static std::string get_measure_values_headers(const std::string & delimiter = "\t\t") {
+    static std::string get_measure_values_headers(const std::string &delimiter = "\t\t") {
         std::string str = *MeasureValueHeader.begin();
         for (auto it = MeasureValueHeader.begin() + 1; it != MeasureValueHeader.end(); it++)
             str += delimiter + *it;
@@ -35,16 +37,20 @@ namespace util {
 class MemCheckEnvironment {
 private:
     pugi::xml_document _refs_config;
+
     MemCheckEnvironment() = default;
-    MemCheckEnvironment(const MemCheckEnvironment&) = delete;
-    MemCheckEnvironment& operator=(const MemCheckEnvironment&) = delete;
+
+    MemCheckEnvironment(const MemCheckEnvironment &) = delete;
+
+    MemCheckEnvironment &operator=(const MemCheckEnvironment &) = delete;
+
 public:
-    static MemCheckEnvironment& Instance(){
+    static MemCheckEnvironment &Instance() {
         static MemCheckEnvironment env;
         return env;
     }
 
-    const pugi::xml_document & getRefsConfig() {
+    const pugi::xml_document &getRefsConfig() {
         return _refs_config;
     }
 
@@ -60,7 +66,7 @@ private:
 public:
     std::array<long, MeasureValueMax> references;
 
-    TestReferences () {
+    TestReferences() {
         std::fill(references.begin(), references.end(), -1);
 
         // Parse RefsConfig from MemCheckEnvironment

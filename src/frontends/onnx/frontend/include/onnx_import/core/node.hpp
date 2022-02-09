@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,9 @@ public:
     /// Function will return the Node's name if it has one, or the names of its outputs.
     /// \return Description of Node
     const std::string& get_description() const;
+
+    const std::string& input(int index) const;
+    std::size_t get_inputs_size() const;
 
     const std::vector<std::reference_wrapper<const std::string>>& get_output_names() const;
     const std::string& output(int index) const;
