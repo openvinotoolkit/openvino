@@ -78,8 +78,4 @@ public:
     void set_state(const Tensor& state);
 };
 
-namespace runtime {
-using ov::VariableState;
-}  // namespace runtime
-
 }  // namespace ov
