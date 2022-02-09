@@ -283,6 +283,44 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic, TopKLayerCPUTest,
         ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
 
+std::vector<ov::test::InputShape> inputShapes_bubble_BLK_on_channel_horiz = {
+    {{}, {{2, 2, 2, 2}}},
+};
+
+std::vector<ov::test::InputShape> inputShapesDynamic_bubble_BLK_on_channel_horiz = {
+    {{2, {2, 3}, 2, 2}, {{2, 2, 2, 2}, {2, 3, 2, 2}}}
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz, TopKLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            ::testing::Values(1),
+            ::testing::Values(1),
+            ::testing::ValuesIn(modes),
+            ::testing::ValuesIn(sortTypes),
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(ElementType::undefined),
+            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(inputShapes_bubble_BLK_on_channel_horiz)),
+        ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
+        ::testing::ValuesIn(additionalConfig)),
+    TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz_dynamic, TopKLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            ::testing::Values(1),
+            ::testing::Values(1),
+            ::testing::ValuesIn(modes),
+            ::testing::ValuesIn(sortTypes),
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(ElementType::undefined),
+            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(inputShapesDynamic_bubble_BLK_on_channel_horiz)),
+        ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
+        ::testing::ValuesIn(additionalConfig)),
+    TopKLayerCPUTest::getTestCaseName);
+
 } // namespace
 
 } // namespace CPULayerTestsDefinitions

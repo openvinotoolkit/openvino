@@ -1181,6 +1181,7 @@ private:
     inline void topk_bubble_BLK_on_channel_horiz() {
         mov(reg_bubble_axis_dim, ptr[reg_params + GET_OFF(axis_dim)]);
         mov(reg_seq_sort_stride, ptr[reg_params + GET_OFF(sort_stride)]);
+        mov(reg_bubble_seq_idx, ptr[reg_params + GET_OFF(idx_seq_buf)]);
 
         // load and sort
         mov(reg_i, 0);
@@ -1196,7 +1197,6 @@ private:
 
         L(topk_load_sort_label);
         {
-            mov(reg_bubble_seq_idx, ptr[reg_params + GET_OFF(idx_seq_buf)]);
             load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val(0).getIdx())},
                           std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, step, 0),
                           {}, {load_pool_gpr_idxs});
