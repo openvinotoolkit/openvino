@@ -426,7 +426,7 @@ protected:
         srcLayout = reorderParam.srcLayout;
         dstLayout = reorderParam.dstLayout;
         prec = reorderParam.prec;
-        srcDims = Shape(inputPartialShape);
+        srcDims = MKLDNNPlugin::Shape(inputPartialShape);
         dstDims = srcDims;
         blockCreatorMap = BlockedDescCreator::getCommonCreators();
         rtParamsCache = std::make_shared<MKLDNNPlugin::MultiCache>(100);
@@ -435,35 +435,20 @@ protected:
     }
 
     void buildReorderNode() {
-        auto getBlockedDims = [](const std::vector<size_t>& dims, const std::vector<size_t>& order) {
-            std::vector<size_t> result;
-            result.reserve(order.size());
-            for (auto i : order)
-                result.push_back(dims[i]);
-            return result;
-        };
-        auto getStrides = [](const std::vector<size_t>& dims) {
-            std::vector<size_t> result(dims.size());
-            result[dims.size() - 1] = 1;
-            for (int i = dims.size() - 2; i >= 0; --i) {
-                result[i] = result[i + 1] * dims[i + 1];
-            }
-            return result;
-        };
-        auto nspcCreator = blockCreatorMap[srcLayout];
-        auto ncspCreator = blockCreatorMap[dstLayout];
+        auto srcBlockedDescCreator = blockCreatorMap[srcLayout];
+        auto dstBlockedDescCreator = blockCreatorMap[dstLayout];
 
         const mkldnn::engine cpuEngine(dnnl::engine::kind::cpu, 0);
         MKLDNNPlugin::MKLDNNWeightsSharing::Ptr weightsCache;
 
-        inputNode = std::make_shared<MKLDNNPlugin::MKLDNNInputNode>(MKLDNNPlugin::Shape(srcDims),
+        inputNode = std::make_shared<MKLDNNPlugin::MKLDNNInputNode>(srcDims,
                                                                     prec,
                                                                     "Reorder_Input",
                                                                     "Parameter",
                                                                     cpuEngine,
                                                                     weightsCache);
         reorderNode = std::make_shared<MKLDNNPlugin::MKLDNNReorderNode>("Reorder", cpuEngine, weightsCache);
-        auto outputNode = std::make_shared<MKLDNNPlugin::MKLDNNInputNode>(MKLDNNPlugin::Shape(dstDims),
+        auto outputNode = std::make_shared<MKLDNNPlugin::MKLDNNInputNode>(dstDims,
                                                                           prec,
                                                                           "Reorder_Output",
                                                                           "Output",
@@ -477,11 +462,9 @@ protected:
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
         auto rtParamsCache = std::make_shared<MKLDNNPlugin::MultiCache>(100);
-        Shape srcShape(srcDims);
-        Shape dstShape(dstDims);
-        const MKLDNNPlugin::CpuBlockedMemoryDesc inputDesc = nspcCreator->createDesc(prec, srcShape);
+        const MKLDNNPlugin::CpuBlockedMemoryDesc inputDesc = srcBlockedDescCreator->createDesc(prec, srcDims);
 
-        const MKLDNNPlugin::CpuBlockedMemoryDesc outputDesc = nspcCreator->createDesc(prec, dstShape);
+        const MKLDNNPlugin::CpuBlockedMemoryDesc outputDesc = dstBlockedDescCreator->createDesc(prec, dstDims);
 
         auto parentMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
         auto childMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
@@ -511,8 +494,8 @@ private:
     std::shared_ptr<MKLDNNPlugin::MKLDNNEdge> parentEdge;
     std::shared_ptr<MKLDNNPlugin::MKLDNNEdge> childEdge;
 
-    Shape srcDims;
-    Shape dstDims;
+    MKLDNNPlugin::Shape srcDims;
+    MKLDNNPlugin::Shape dstDims;
     LayoutType srcLayout;
     LayoutType dstLayout;
     InferenceEngine::Precision prec;
@@ -527,12 +510,12 @@ TEST_P(ReorderCPUTestF32, CompareResult) {
     Run();
 }
 
-const auto reorderCpuTestParams_1 =
-    ::testing::Values(ReorderCPUTestParamSetF32{{2, 16, 8, -1},
-                                                {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
-                                                LayoutType::nspc,
-                                                LayoutType::ncsp,
-                                                InferenceEngine::Precision::FP32});
+const auto reorderCpuTestParams_1 = ::testing::Values(ReorderCPUTestParamSetF32{{10, 10, 10, -1},
+                                                                                {{10, 10, 10, 10}, {10, 10, 10, 20}, {10, 10, 10, 10}},
+                                                                                LayoutType::nspc,
+                                                                                LayoutType::ncsp,
+                                                                                InferenceEngine::Precision::FP32});
+
 const auto reorderCpuTestParams_2 =
     ::testing::Values(ReorderCPUTestParamSetF32{{2, 8, -1, 4},
                                                 {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
