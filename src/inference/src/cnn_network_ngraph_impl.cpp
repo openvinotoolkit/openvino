@@ -358,45 +358,57 @@ void CNNNetworkNGraphImpl::reshape() {
 
 StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
-    if (inputShapes.empty())
-        return OK;
-
-    const auto& params = _ngraph_function->get_parameters();
-
-    // Check that we need to do reshape only if input shapes will be changed
-    bool needReshape = false;
-    for (const auto& param : params) {
-        const auto it = inputShapes.find(param->get_friendly_name());
-        if (it == inputShapes.end()) {
-            continue;
-        }
-        if (param->get_output_partial_shape(0).is_dynamic() || param->get_output_partial_shape(0) != it->second) {
-            needReshape = true;
-            break;
-        }
-    }
-
-    if (!needReshape)
-        return OK;
-
-    // save original parameters shape
-    std::map<std::string, ngraph::PartialShape> originalInputShapes;
-    for (const auto& param : params) {
-        originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
-    }
-
     try {
-        ngraph::pass::Manager ssr_manager;
-        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
-        ssr_manager.run_passes(_ngraph_function);
+        if (inputShapes.empty())
+            return OK;
 
-        reshape(inputShapes);
-    } catch (std::exception& ex) {
-        reshape(originalInputShapes);
+        const auto& params = _ngraph_function->get_parameters();
+
+        // Check that we need to do reshape only if input shapes will be changed
+        bool needReshape = false;
+        for (const auto& param : params) {
+            const auto it = inputShapes.find(param->get_friendly_name());
+            if (it == inputShapes.end()) {
+                continue;
+            }
+            if (param->get_output_partial_shape(0).is_dynamic() || param->get_output_partial_shape(0) != it->second) {
+                needReshape = true;
+                break;
+            }
+        }
+
+        if (!needReshape)
+            return OK;
+
+        // save original parameters shape
+        std::map<std::string, ngraph::PartialShape> originalInputShapes;
+        for (const auto& param : params) {
+            originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
+        }
+
+        try {
+            ngraph::pass::Manager ssr_manager;
+            ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+            ssr_manager.run_passes(_ngraph_function);
+
+            reshape(inputShapes);
+        } catch (std::exception& ex) {
+            reshape(originalInputShapes);
+            return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
+        }
+
+        return OK;
+    } catch (const InferenceEngine::GeneralError& ex) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
+    } catch (const ov::Exception& ex) {
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
+    } catch (const std::runtime_error& ex) {
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
+    } catch (const std::out_of_range& ex) {
+        return DescriptionBuffer(OUT_OF_BOUNDS, responseDesc) << ex.what();
+    } catch (...) {
+        return GENERAL_ERROR;
     }
-
-    return OK;
 }
 
 StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,
