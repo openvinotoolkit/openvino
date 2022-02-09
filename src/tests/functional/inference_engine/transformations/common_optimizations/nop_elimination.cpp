@@ -140,17 +140,48 @@ TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
     pass_manager.register_pass<pass::NopElimination>();
     pass_manager.run_passes(f);
 
-    bool reshape_is_missing = true;
+    bool movement_are_missing = true;
     for (auto node : f->get_ops()) {
-        if (node->get_friendly_name() == "reshape") {
-            reshape_is_missing = false;
-            ASSERT_TRUE(std::dynamic_pointer_cast<opset4::Reshape>(node));
-            auto original_names = ngraph::getFusedNamesVector(node);
-            sort(original_names.begin(), original_names.end());
-            ASSERT_EQ(original_names, std::vector<std::string>({"reshape", "squeeze"}));
+        if (node->get_friendly_name() == "reshape" || node->get_friendly_name() == "squeeze") {
+            movement_are_missing = false;
         }
     }
-    ASSERT_FALSE(reshape_is_missing);
+    ASSERT_TRUE(movement_are_missing);
+}
+
+TEST(nop_elimination, squeeze_unsqueeze_elimination) {
+    std::shared_ptr<Function> f;
+    {
+        auto arg = std::make_shared<opset4::Parameter>(element::f32, PartialShape{8, 16, 1, 3});
+
+        auto relu = std::make_shared<opset4::Relu>(arg);
+        relu->set_friendly_name("relu");
+
+        auto squeeze_axes = opset4::Constant::create(element::i64, Shape{1}, {2});
+        auto squeeze = std::make_shared<opset4::Squeeze>(relu, squeeze_axes);
+        squeeze->set_friendly_name("squeeze");
+
+        auto unsqueeze_axes = opset4::Constant::create(element::i64, Shape{1}, {2});
+        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(squeeze, unsqueeze_axes);
+        unsqueeze->set_friendly_name("unsqueeze");
+
+        auto abs = std::make_shared<opset4::Abs>(unsqueeze);
+
+        f = std::make_shared<Function>(NodeVector{abs}, ParameterVector{arg});
+    }
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::InitNodeInfo>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(f);
+
+    bool movement_are_missing = true;
+    for (auto node : f->get_ops()) {
+        if (node->get_friendly_name() == "squeeze" || node->get_friendly_name() == "unsqueeze") {
+            movement_are_missing = false;
+        }
+    }
+    ASSERT_TRUE(movement_are_missing);
 }
 
 TEST(nop_elimination, reshape_elimination_v1_dynamic) {
@@ -163,6 +194,33 @@ TEST(nop_elimination, reshape_elimination_v1_dynamic) {
     pass_manager.register_pass<pass::NopElimination>();
     pass_manager.run_passes(f);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 1);
+}
+
+TEST(nop_elimination, reshape_elimination_v1_check_consumer_count) {
+    std::shared_ptr<Function> f;
+    {
+        auto arg = std::make_shared<opset4::Parameter>(element::f32, PartialShape{8, 16, 1, 3});
+
+        auto reshape_1_shape = opset4::Constant::create(element::i64, Shape{2}, {128, 3});
+        auto reshape_1 = std::make_shared<opset4::Reshape>(arg, reshape_1_shape, false);
+        reshape_1->set_friendly_name("reshape_1");
+
+        auto reshape_2_shape = opset4::Constant::create(element::i64, Shape{4}, {8, 16, 1, 3});
+        auto reshape_2 = std::make_shared<opset4::Reshape>(reshape_1, reshape_2_shape, false);
+        reshape_2->set_friendly_name("reshape_2");
+
+        auto relu = std::make_shared<opset4::Relu>(reshape_1);
+        relu->set_friendly_name("relu");
+
+        f = std::make_shared<Function>(NodeVector{reshape_2, relu}, ParameterVector{arg});
+    }
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::InitNodeInfo>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(f);
+
+    ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 2);
 }
 
 TEST(nop_elimination, concat_elimination_single_node) {
