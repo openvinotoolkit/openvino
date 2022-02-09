@@ -41,7 +41,7 @@ struct DeviceInformation {
     int numRequestsPerDevices;
     std::string defaultDeviceID;
     DeviceName uniqueName;
-    unsigned int devicePriority = 0;
+    unsigned int devicePriority;
 };
 
 struct AutoContext {

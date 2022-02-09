@@ -156,7 +156,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         LOG_DEBUG("deviceName:%s, defaultDeviceID:%s, uniqueName:%s",
               deviceName.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
         // create meta device
-        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName});
+        metaDevices.push_back({deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName, 0});
     }
 
     return metaDevices;
@@ -536,8 +536,8 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
         ptrSelectDevice = &lastDevice;
     } else {
         // sort validDevices
-        std::sort(validDevices.begin(), validDevices.end(), [](DeviceInformation& a, DeviceInformation& b) {
-                return a.priority < b.priority;
+        validDevices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
+                return a.devicePriority < b.devicePriority;
                 });
         // select the first device in the rest of available devices.
         ptrSelectDevice = &validDevices.front();
