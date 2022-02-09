@@ -101,18 +101,24 @@ public:
     FusedSubgraph(const std::vector<MKLDNNNodePtr> &opList, const MKLDNNConvolutionNode &conv, MKLDNNWeightsSharing::Ptr weightCache) {
         _graph = std::unique_ptr<MKLDNNGraph>(new MKLDNNGraph());
 
-        std::vector<MKLDNNNodePtr> nodes;
+        std::unordered_set<MKLDNNNodePtr> nodesSet;
         std::vector<MKLDNNEdgePtr> edges;
+
+        auto addEdge = [&](const MKLDNNNodePtr& parent, const MKLDNNNodePtr& child, size_t parentPort, size_t childPort) -> void {
+            auto edge = std::make_shared<MKLDNNEdge>(parent, child, parentPort, childPort);
+            child->addEdge(edge);
+            edges.push_back(edge);
+            nodesSet.insert(parent);
+            nodesSet.insert(child);
+        };
 
         //Make inputs
         const auto &inpMemDesc1 = conv.getBaseMemDescAtOutputPort(0);
         auto inp0 = std::make_shared<MKLDNNInputNode>(inpMemDesc1, "inp0", "Parameter", conv.getEngine(), weightCache);
-        nodes.push_back(inp0);
         inputs.push_back(inp0);
         const size_t sumPortNum = conv.getParentEdges().size() - 1;
         const auto &inpMemDesc2 = conv.getBaseMemDescAtInputPort(sumPortNum);
         auto inp1 = std::make_shared<MKLDNNInputNode>(inpMemDesc2, "inp1", "Parameter", conv.getEngine(), weightCache);
-        nodes.push_back(inp1);
         inputs.push_back(inp1);
 
         auto itr = std::find_if(opList.begin(), opList.end(), [](const MKLDNNNodePtr &node) {
@@ -122,13 +128,8 @@ public:
             return false;
         });
         auto sumNode = *itr;
-        MKLDNNEdgePtr edge1 = std::make_shared<MKLDNNEdge>(inp0, sumNode, 0, 0);
-        sumNode->addEdge(edge1);
-        edges.push_back(edge1);
-        MKLDNNEdgePtr edge2 = std::make_shared<MKLDNNEdge>(inp1, sumNode, 0, 1);
-        sumNode->addEdge(edge2);
-        edges.push_back(edge2);
-        nodes.push_back(sumNode);
+        addEdge(inp0, sumNode, 0, 0);
+        addEdge(inp1, sumNode, 0, 1);
 
         //Replicate the rest of the subgraph
         auto parentItr = itr;
@@ -138,18 +139,12 @@ public:
             if (FakeQuantize == currentNode->getType()) {
                 parentNode->addFusedNode(currentNode);
             } else {
-                auto edge = std::make_shared<MKLDNNEdge>(parentNode, currentNode, 0, 0);
-                currentNode->addEdge(edge);
-                edges.push_back(edge);
-                nodes.push_back(currentNode);
+                addEdge(parentNode, currentNode, 0, 0);
                 auto constantsItr = conv.fusedConstNodes.find(currentNode);
                 if (constantsItr != conv.fusedConstNodes.end()) {
                     size_t inpPort = 1lu;
                     for (const auto& item : constantsItr->second) {
-                        auto edge = std::make_shared<MKLDNNEdge>(item, currentNode, 0, inpPort++);
-                        currentNode->addEdge(edge);
-                        edges.push_back(edge);
-                        nodes.push_back(item);
+                        addEdge(item, currentNode, 0, inpPort++);
                     }
                 }
                 parentItr = itr;
@@ -159,11 +154,11 @@ public:
         //Make output
         const auto &outMemDesc = conv.getBaseMemDescAtOutputPort(0);
         auto out = std::make_shared<MKLDNNInputNode>(outMemDesc, "out", "Result", conv.getEngine(), weightCache);
-        MKLDNNEdgePtr edge3 = std::make_shared<MKLDNNEdge>(*parentItr, out, 0, 0);
-        out->addEdge(edge3);
-        edges.push_back(edge3);
-        nodes.push_back(out);
+        addEdge(*parentItr, out, 0, 0);
         outputs.push_back(out);
+
+        std::vector<MKLDNNNodePtr> nodes(nodesSet.begin(), nodesSet.end());
+
         _graph->CreateGraph(nodes, edges, weightCache, "fused_subgraph");
     }
 
