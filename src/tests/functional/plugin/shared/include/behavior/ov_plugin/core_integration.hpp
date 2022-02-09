@@ -66,6 +66,7 @@ using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_GOPS = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = OVClassBaseTestP;
+using OVClassGetMetricTest_MAX_BATCH_SIZE = OVClassBaseTestP;
 using OVClassGetMetricTest_ThrowUnsupported = OVClassBaseTestP;
 using OVClassGetConfigTest = OVClassBaseTestP;
 using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
@@ -576,6 +577,17 @@ TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
         std::cout << str << std::endl;
     }
     OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities);
+}
+
+TEST_P(OVClassGetMetricTest_MAX_BATCH_SIZE, GetMetricAndPrintNoThrow) {
+    ov::Core ie;
+    uint32_t max_batch_size;
+
+    ASSERT_NO_THROW(max_batch_size = ie.get_property(deviceName, ov::max_batch_size));
+
+    std::cout << "Max batch size: " << max_batch_size << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::max_batch_size);
 }
 
 TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {

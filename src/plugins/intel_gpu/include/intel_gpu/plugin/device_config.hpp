@@ -55,6 +55,7 @@ struct Config {
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
     void adjustKeyMapValues();
     static bool isNewApiProperty(std::string property);
+    static std::string ConvertPropertyToLegacy(const std::string& key, const std::string& value);
 
     std::string device_id;
     uint16_t throughput_streams;
