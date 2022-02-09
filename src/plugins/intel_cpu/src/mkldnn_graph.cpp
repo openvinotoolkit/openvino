@@ -98,9 +98,9 @@ void MKLDNNGraph::CreateGraph(const std::vector<MKLDNNNodePtr> &graphNodes,
     this->graphEdges = graphEdges;
 
     for (auto node : graphNodes) {
-        if (Type::Input == node->getType()) {
+        if ("Parameter" == node->getTypeStr()) {
             inputNodesMap[node->getName()] = node;
-        } else if (Type::Output == node->getType()) {
+        } else if ("Result" == node->getTypeStr()) {
             outputNodesMap[node->getName()] = node;
         }
     }
