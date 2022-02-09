@@ -86,20 +86,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
     auto out_dims = op->get_output_shape(0).size();
     if (out_dims == 3 && !keep_dims && rank >= 4) {
         resultLayerName = layerName + "_reshape";
-        auto out_shape = op->get_output_shape(0);
-        cldnn::tensor outTensor;
-        switch (rank) {
-            case 6:
-                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
-                                          1, TensorValue(out_shape[2]), 1, 1);
-            case 5:
-                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
-                                          1, TensorValue(out_shape[2]), 1);
-            case 4:
-                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
-                                          1, TensorValue(out_shape[2]));
-        }
-        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor, op->get_friendly_name());
+        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, op->get_output_partial_shape(0), op->get_friendly_name());
         p.AddPrimitive(reshape_prim);
         p.AddPrimitiveToProfiler(op, resultLayerName);
     }

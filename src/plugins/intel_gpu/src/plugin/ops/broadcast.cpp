@@ -71,9 +71,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
             inputShape = tmp_shape;
         }
 
-        auto targetShape = tensor_from_dims(inputShape);
-
-        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape, op->get_friendly_name());
+        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, inputShape, op->get_friendly_name());
         p.AddPrimitive(reshapePrim);
         p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
 

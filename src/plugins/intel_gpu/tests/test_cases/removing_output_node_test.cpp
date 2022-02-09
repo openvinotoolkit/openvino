@@ -32,7 +32,6 @@ TEST(removing_output_node, multiple_outputs) {
 
     tensor initial_shape = tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num));
     tensor after_strided_slice = tensor(spatial(y_size, feature_num), feature(batch_num), batch(1));
-    tensor after_reshape = tensor(feature(batch_num * feature_num * y_size * x_size));
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, initial_shape });
     auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } });
@@ -48,6 +47,8 @@ TEST(removing_output_node, multiple_outputs) {
     set_values(strides, {
             1, 1, 1, 2
     });
+
+    ov::PartialShape after_reshape = {1, batch_num * feature_num * y_size * x_size, 1, 1};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -72,7 +73,10 @@ TEST(removing_output_node, multiple_outputs) {
     auto output = outputs.at("reshape").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    ASSERT_TRUE(output->get_layout().get_tensor() == after_reshape);
+    auto out_dims = output->get_layout().get_dims();
+    ov::PartialShape out_shape(ov::Shape(out_dims.begin(), out_dims.end()));
+
+    ASSERT_TRUE(out_shape == after_reshape);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr[i], out_vec[i]);

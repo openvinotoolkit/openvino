@@ -621,11 +621,10 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         // Change input data of fully-connected node from bx to bf
         if (!input_layout.is_dynamic() && format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
             input_layout.feature() == 1 && input_layout.spatial(0) != 1 && input_layout.spatial(1) == 1) {
-            auto new_tensor = input_layout.get_tensor();
-            new_tensor.feature[0] = input_layout.spatial(0);
-            new_tensor.spatial[0] = 1;
-            input_layout = layout(input_layout.data_type, input_layout.format, new_tensor);
-            auto new_reshape = std::make_shared<reshape>("reorder:Reshape_bf_" + fc_node.id() + "_for_input", input.id(), new_tensor);
+            auto dims = input_layout.get_dims();
+            auto new_shape = ov::PartialShape(ov::Shape(dims.begin(), dims.end()));
+            std::swap(new_shape[1], new_shape[new_shape.size() - 1]);
+            auto new_reshape = std::make_shared<reshape>("reorder:Reshape_bf_" + fc_node.id() + "_for_input", input.id(), new_shape);
             auto& new_reorder_node = p.get_or_create(new_reshape);
             p.add_intermediate(new_reorder_node, fc_node, 0);
         }

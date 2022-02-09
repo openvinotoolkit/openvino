@@ -317,6 +317,9 @@ tensor layout::get_tensor() const {
     std::vector<tensor::value_type> dims(shape.begin(), shape.end());
 
     auto default_fmt = get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
+    if (default_fmt.dimension() > dims.size()) {
+        dims.insert(dims.end(), default_fmt.dimension() - dims.size(), 1);
+    }
     tensor t(default_fmt, dims);
     return t;
 }

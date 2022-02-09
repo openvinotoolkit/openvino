@@ -468,11 +468,10 @@ TEST(memory_pool, non_opt_intermidate_opt_after) {
     set_values(input_memory2, { 5.0f, 6.0f, 7.0f, 8.0f });
     set_values(scale_memory, { 1.0f });
 
-    auto reshape_tensor = cldnn::tensor(8, 1, 1, 1);
     auto input = cldnn::input_layout("input1", input_layout1);
     auto input2 = cldnn::input_layout("input2", input_layout2);
     auto concat = cldnn::concatenation("concat", { "input1", "input2" }, 0);
-    auto reshape = cldnn::reshape("reshape", "concat", reshape_tensor);
+    auto reshape = cldnn::reshape("reshape", "concat", ov::PartialShape{8, 1, 1, 1});
     auto crop1 = cldnn::crop("crop1", "reshape", { 1, 1, 1, 1 }, { 0, 0, 0, 0 });
     auto crop2 = cldnn::crop("crop2", "reshape", { 1, 1, 1, 1 }, { 1, 0, 0, 0 });
     auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");

@@ -61,9 +61,11 @@ void input_layout_inst::set_data(memory::ptr mem) {
     _output_changed = true;
     _shape_changed = mem->get_layout() != ol;
 
-    node.invalidate_users();
-    auto il_prim = std::const_pointer_cast<input_layout>(node.get_primitive());
-    il_prim->change_layout(mem->get_layout());
+    if (_shape_changed) {
+        node.invalidate_users();
+        auto il_prim = std::const_pointer_cast<input_layout>(node.get_primitive());
+        il_prim->change_layout(mem->get_layout());
+    }
 }
 
 std::string input_layout_inst::to_string(input_layout_node const& node) {

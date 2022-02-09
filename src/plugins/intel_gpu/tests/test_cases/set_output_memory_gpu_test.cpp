@@ -261,10 +261,10 @@ TEST(set_output_memory_gpu, basic_opt) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 1;
     auto& engine = get_test_engine();
 
-    tensor ishape = { batch_num, feature_num, x_size , y_size };
+    ov::PartialShape ishape = { batch_num, feature_num, y_size , x_size };
     layout il = { data_types::f32, format::bfyx, ishape };
 
-    tensor oshape = { batch_num*2, feature_num, x_size , y_size };
+    ov::PartialShape oshape = { batch_num*2, feature_num, y_size , x_size };
     layout ol = { data_types::f32, format::bfyx, oshape };
 
     auto input1 = engine.allocate_memory(il);

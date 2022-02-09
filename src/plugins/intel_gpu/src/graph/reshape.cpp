@@ -20,29 +20,34 @@ primitive_type_id reshape::type_id() {
 layout reshape_inst::calc_output_layout(reshape_node const& node) {
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
            "Output data type forcing is not supported for reshape_node!");
+    auto prim = node.get_primitive();
     auto input_layout = node.input().get_non_padded_output_layout();
-    auto sizes = node.get_primitive()->output_shape.sizes();
-    auto input_sizes = input_layout.get_dims();
-    size_t need_recalc = 0;
-    uint32_t shape_count = 1;
+    if (prim->output_shape.is_static()) {
+        auto sizes = prim->output_shape;
+        auto input_sizes = input_layout.get_dims();
+        size_t need_recalc = 0;
+        ov::Dimension::value_type shape_count = 1;
 
-    for (size_t i = 0; i < sizes.size(); i++) {
-        if (sizes[i] == -1) {
-            if (need_recalc) {
-                CLDNN_ERROR_MESSAGE(node.id(), "Only one dimension of the new shape can be -1");
+        for (size_t i = 0; i < sizes.size(); i++) {
+            if (sizes[i] == -1) {
+                if (need_recalc) {
+                    CLDNN_ERROR_MESSAGE(node.id(), "Only one dimension of the new shape can be -1");
+                }
+                need_recalc = i;
+                continue;
             }
-            need_recalc = i;
-            continue;
+            if (sizes[i] == 0) {
+                sizes[i] = input_sizes[i];
+            }
+            shape_count *= sizes[i].get_length();
         }
-        if (sizes[i] == 0) {
-            sizes[i] = input_sizes[i];
-        }
-        shape_count *= sizes[i];
-    }
-    if (need_recalc)
-        sizes[need_recalc] = static_cast<int>(input_layout.count()) / shape_count;
+        if (need_recalc)
+            sizes[need_recalc] = static_cast<int>(input_layout.count()) / shape_count;
 
-    return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
+        return layout{input_layout.data_type, input_layout.format, sizes};
+    } else {
+        return layout{input_layout.data_type, input_layout.format, prim->output_shape};
+    }
 }
 
 std::string reshape_inst::to_string(reshape_node const& node) {

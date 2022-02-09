@@ -10,6 +10,7 @@
 #include "ngraph/op/unsqueeze.hpp"
 
 #include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
@@ -21,23 +22,22 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto inDims = op->get_input_shape(0);
-    auto outDims = op->get_output_shape(0);
-    auto outTensor = tensor_from_dims(outDims);
+    auto in_shape = op->get_input_partial_shape(0);
+    auto out_shape = op->get_output_partial_shape(0);
 
     // if we convert from or to 5D/6D, additional reorder also required to change format
     cldnn::primitive_id reshapeInputId = inputPrimitives[0];
-    if (inDims.size() != outDims.size()) {
+    if (in_shape.size() != out_shape.size()) {
         cldnn::primitive_id reorderId = "reorder:" + op->get_friendly_name() + "_reorder";
         cldnn::format outputFormat = cldnn::format::bfyx;
 
-        switch (outDims.size()) {
+        switch (out_shape.size()) {
         case 5: outputFormat = cldnn::format::bfzyx; break;
         case 6: outputFormat = cldnn::format::bfwzyx; break;
         default: break;
         }
 
-        cldnn::layout outputLayout(DataTypeFromPrecision(op->get_output_element_type(0)), outputFormat, outTensor);
+        cldnn::layout outputLayout(DataTypeFromPrecision(op->get_output_element_type(0)), outputFormat, out_shape);
         p.AddPrimitive(cldnn::reorder(reorderId,
                                       reshapeInputId,
                                       outputLayout,
@@ -51,12 +51,22 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
         reshapeInputId = reorderId;
     }
 
-    auto reshapePrim = cldnn::reshape(layerName,
-                                      reshapeInputId,
-                                      outTensor,
-                                      op->get_friendly_name());
+    if (out_shape.is_static()) {
+        auto reshapePrim = cldnn::reshape(layerName,
+                                          reshapeInputId,
+                                          out_shape,
+                                          op->get_friendly_name());
 
-    p.AddPrimitive(reshapePrim);
+        p.AddPrimitive(reshapePrim);
+    } else {
+        auto shape_prim_id = inputPrimitives[1];
+        auto reshapePrim = cldnn::reshape(layerName,
+                                          reshapeInputId,
+                                          shape_prim_id,
+                                          op->get_friendly_name());
+
+        p.AddPrimitive(reshapePrim);
+    }
     p.AddPrimitiveToProfiler(op);
 }
 

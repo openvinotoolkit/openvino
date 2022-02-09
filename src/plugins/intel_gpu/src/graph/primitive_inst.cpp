@@ -8,6 +8,7 @@
 #include "generic_layer_inst.h"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
+#include "reshape_inst.h"
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -83,10 +84,33 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
 
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
+static std::vector<int64_t> read_vector(cldnn::memory::ptr mem, cldnn::stream& stream) {
+    switch (mem->get_layout().data_type) {
+        case data_types::i32: {
+            mem_lock<int32_t, mem_lock_type::read> lock{mem, stream};
+            return std::vector<int64_t>(lock.begin(), lock.end());
+        }
+        case data_types::i64: {
+            mem_lock<int64_t, mem_lock_type::read> lock{mem, stream};
+            return std::vector<int64_t>(lock.begin(), lock.end());
+        }
+        default: IE_THROW() << "read_vector: unsupported data type";
+    }
+}
+
 void primitive_inst::update_shape() {
     // Do nothing for static nodes
     // if (!_node.is_dynamic())
     //     return;
+
+    if (_node.is_type<reshape>() && _node.get_dependencies().size() == 2) {
+        auto shape_mem = _network.get_output_memory(_node.get_dependency(1).id());
+        if (shape_mem->get_allocation_type() == allocation_type::usm_device) {
+            IE_THROW() << " lockable memory is required to update shape for reshape prim\n";
+        }
+        auto reshape_prim = std::static_pointer_cast<reshape>(std::const_pointer_cast<primitive>(_node.get_primitive()));
+        reshape_prim->output_shape = ov::PartialShape(read_vector(shape_mem, _network.get_stream()));
+    }
 
     auto new_layout = _node.type()->calc_output_layout(_node);
     // TODO: Get rid of this const_cast ASAP

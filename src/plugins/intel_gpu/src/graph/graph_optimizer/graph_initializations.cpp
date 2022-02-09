@@ -309,10 +309,10 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             if (emit_last_cell)
                 concatenate_len++;
 
-            tensor output_size{input_layout.batch(),
-                               static_cast<int32_t>(concatenate_len),
-                               hidden_size.spatial[0],
-                               (int32_t)directions};
+            ov::PartialShape output_size{input_layout.batch(),
+                                         static_cast<int32_t>(concatenate_len),
+                                         (int32_t)directions,
+                                         hidden_size.spatial[0]};
             auto reshape_primitive = std::make_shared<reshape>(node.id() + ":reshape", concatenation_id, output_size);
             auto& reshape_node = p.get_or_create(reshape_primitive);
             p.add_connection(concatenation_node, reshape_node);
