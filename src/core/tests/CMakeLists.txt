@@ -586,7 +586,8 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         openvino::util
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
-                                        Threads::Thread
+                                        Threads::Threads
+                                        commonTestUtils
                                         openvino::conditional_compilation
                                         openvino::runtime::dev)
 

@@ -6,9 +6,9 @@
 
 #include <fstream>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "util/graph_comparator.hpp"
 #include "util/test_common.hpp"
 
 class SerializationCleanupTest : public ov::test::TestsCommon {

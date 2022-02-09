@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "graph_comparator.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 
 #include <algorithm>
 #include <cassert>
