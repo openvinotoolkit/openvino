@@ -23,6 +23,7 @@ private:
     void FuseConvolutionMatMulAndBias(MKLDNNGraph &graph);
     void FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseMultiplyAndAdd(MKLDNNGraph &graph);
+    void MergeConvertAndScaleShift(MKLDNNGraph& graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
     void FuseMatMulAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperationThroughMaxPool(MKLDNNGraph &graph);
