@@ -75,7 +75,7 @@ bool FakeQuantizeDequantization::isLowPrecision() const {
     return DataPrecision::isSupported(data.get_element_type());
 }
 
-bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>& elementwise) noexcept {
+bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>& elementwise) {
     std::shared_ptr<ngraph::opset1::Convert> convert;
     std::shared_ptr<ngraph::opset1::Constant> constant;
     const int branchIndex = FakeQuantizeDequantization::fillDequantizationParams(elementwise, convert, constant);
@@ -90,7 +90,7 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>&
     }
 
     if (!inPShape.rank().is_dynamic()) {
-        for (int i = 0; i < inPShape.rank().get_length(); ++i) {
+        for (int i = 0; i < inPShape.size(); ++i) {
             if (inPShape[i] != outPShape[i] && !inPShape[i].is_dynamic()) {
                 return false;
             }
@@ -178,7 +178,7 @@ std::shared_ptr<Node> FakeQuantizeDequantization::copyWithNewInput(const std::sh
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ngraph::Node>& elementwise,
     std::shared_ptr<ngraph::opset1::Convert>& convert,
-    std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept {
+    std::shared_ptr<ngraph::opset1::Constant>& constant) {
     auto fill = [](
         const std::shared_ptr<ngraph::Node>& elementwise,
         const size_t branchIndex,
@@ -211,7 +211,7 @@ int FakeQuantizeDequantization::fillDequantizationParams(
 
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ngraph::Node>& elementwise,
-    std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept {
+    std::shared_ptr<ngraph::opset1::Constant>& constant) {
     constant = elementwise->get_input_element_type(1ul).is_real() ?
         ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul)) :
         nullptr;
