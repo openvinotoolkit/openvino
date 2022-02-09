@@ -2407,8 +2407,8 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{0, 1, 2}, {}, {}, {}}));
     compare_masks(*getMask(conv->output(0)), Mask({{}, {0, 1, 2}, {}, {}}));
     compare_masks(*getMask(relu->output(0)), Mask({{}, {0, 1, 2}, {}, {}}));
-    auto ref_flatten_mask = std::set<size_t>();
-    for (uint i = 0; i < linear_input_features / 2; ++i)
+    auto ref_flatten_mask = std::set<uint64_t>();
+    for (uint64_t i = 0; i < linear_input_features / 2; ++i)
         ref_flatten_mask.insert(i);
 
     using nested_vector = std::vector<std::set<uint64_t>>;
@@ -2453,7 +2453,7 @@ TEST(TransformationTests, PruneLinearUp) {
     auto reshape = std::make_shared<opset5::Reshape>(conv, reshape_const, true);
 
     auto linear_mask = Mask();
-    auto outer_dim_zeros = std::set<size_t>();
+    auto outer_dim_zeros = std::set<uint64_t>();
     for (auto i = 0; i < linear_input_features / 2; ++i)
         outer_dim_zeros.insert(i);
     linear_mask.push_back({10, 11});
@@ -2769,8 +2769,8 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2}, {}, {}, {}}));
     compare_masks(*getMask(conv->output(0)), Mask({{}, {1, 2}, {}, {}}));
     compare_masks(*getMask(relu->output(0)), Mask({{}, {1, 2}, {}, {}}));
-    auto ref_flatten_mask = std::set<size_t>();
-    for (uint i = linear_input_features / 6; i < linear_input_features / 2; ++i)
+    auto ref_flatten_mask = std::set<uint64_t>();
+    for (uint64_t i = linear_input_features / 6; i < linear_input_features / 2; ++i)
         ref_flatten_mask.insert(i);
 
     auto reshape_ref_mask = nested_vector();

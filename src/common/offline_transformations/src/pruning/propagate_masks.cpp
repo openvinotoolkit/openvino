@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <iterator>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -720,11 +721,11 @@ public:
 };
 
 
-static std::pair<std::set<size_t>, bool> squeeze_mask(
-    const std::set<size_t> mask_dim, const size_t elems_per_ch, const bool squeeze) {
+static std::pair<std::set<uint64_t>, bool> squeeze_mask(
+    const std::set<uint64_t> mask_dim, const size_t elems_per_ch, const bool squeeze) {
     bool should_init_dep = false;
-    auto ret_set = std::set<size_t>();
-    auto mask_dim_copy = std::set<size_t>();
+    auto ret_set = std::set<uint64_t>();
+    auto mask_dim_copy = std::set<uint64_t>();
     std::copy(mask_dim.begin(), mask_dim.end(), std::inserter(mask_dim_copy, mask_dim_copy.begin()));
     while (mask_dim_copy.size()) {
         const auto elem = *mask_dim_copy.begin();
@@ -732,7 +733,7 @@ static std::pair<std::set<size_t>, bool> squeeze_mask(
         // Check all channel is zeroed
         const auto low = mask_dim_copy.lower_bound(ch * elems_per_ch);
         const auto upper = mask_dim_copy.lower_bound((ch + 1) * elems_per_ch);
-        auto channel_zeros = std::set<size_t>();
+        auto channel_zeros = std::set<uint64_t>();
         std::copy(low, upper, std::inserter(channel_zeros, channel_zeros.begin()));
 
         // Remove all zeros related to current channel from iter mask
@@ -818,7 +819,7 @@ public:
                                 cur_mask->at(dim) = weights_mask_row->at(dim);
 
                         bool should_init_dep;
-                        std::set<size_t> updated_mask;
+                        std::set<uint64_t> updated_mask;
                         std::tie(updated_mask, should_init_dep) = squeeze_mask(weights_mask_row->at(not_reshaped_dims), elems_per_ch, true);
 
                         cur_mask->at(not_reshaped_dims) = updated_mask;
@@ -851,7 +852,7 @@ public:
                         // For the last dimension keep only those zeros which completely
                         // covering a channel
                         bool should_init_dep;
-                        std::set<size_t> updated_mask;
+                        std::set<uint64_t> updated_mask;
                         std::tie(updated_mask, should_init_dep) = squeeze_mask(output_mask_row->at(not_reshaped_dims), elems_per_ch, false);
 
                         cur_mask->at(not_reshaped_dims) = updated_mask;
@@ -976,7 +977,6 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::Reduce>();
     add_matcher<mask_propagation::Reshape>();
     add_matcher<mask_propagation::FakeQuantize>();
-    add_matcher<mask_propagation::Reshape>();
     add_matcher<mask_propagation::Concat>();
     add_matcher<mask_propagation::SkipPropagation>();
     add_matcher<mask_propagation::StopPropagation>();
