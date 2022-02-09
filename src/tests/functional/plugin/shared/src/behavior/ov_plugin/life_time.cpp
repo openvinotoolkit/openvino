@@ -121,6 +121,18 @@ void OVHoldersTestOnImportedNetwork::TearDown() {
     ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
 }
 
+TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
+    ov::Core core = createCoreWithTemplate();
+    std::stringstream stream;
+    {
+        auto compiled_model = core.compile_model(function, targetDevice);
+        compiled_model.export_model(stream);
+    }
+    auto compiled_model = core.import_model(stream, targetDevice);
+    auto request = compiled_model.create_infer_request();
+    ov::Tensor tensor = request.get_input_tensor();
+}
+
 TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
     ov::Core core = createCoreWithTemplate();
     std::stringstream stream;
