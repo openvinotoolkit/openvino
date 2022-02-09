@@ -176,11 +176,11 @@ void MKLDNNBucketizeNode::prepareParams() {
     auto& inputTensorMemPtr = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr();
     auto& inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
-    if (!inputTensorMemPtr || !inputTensorMemPtr->GetPrimitivePtr())
+    if (!inputTensorMemPtr || !inputTensorMemPtr->isAllocated())
         IE_THROW() << "Input tensor didn't allocate.";
-    if (!inputBinsMemPtr || !inputBinsMemPtr->GetPrimitivePtr())
+    if (!inputBinsMemPtr || !inputBinsMemPtr->isAllocated())
         IE_THROW() << "Input bins didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
