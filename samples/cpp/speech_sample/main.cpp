@@ -117,18 +117,17 @@ int main(int argc, char* argv[]) {
             check_number_of_inputs(model->inputs().size(), numInputFiles);
             ov::preprocess::PrePostProcessor proc(model);
             const auto& inputs = model->inputs();
-            std::map<std::string, std::vector<std::string>> custom_layouts;
+            std::map<std::string, std::string> custom_layouts;
             if (!FLAGS_layout.empty()) {
                 custom_layouts = parse_input_layouts(FLAGS_layout, inputs);
             }
-            for (int i = 0; i < inputs.size(); i++) {
-                const auto& item = inputs[i];
-				const auto& item_name = item.get_any_name();
+            for (auto iter = inputs.begin(); iter != inputs.end(); ++iter) {
+                const auto& item_name = iter->get_any_name();
                 auto& in = proc.input(item_name);
                 in.tensor().set_element_type(ov::element::f32);
                 // Explicitly set inputs layout
-                if (!custom_layouts.empty() && custom_layouts.count(item_name) > 0) {
-                    in.model().set_layout(ov::Layout(custom_layouts.at(item_name)[0]));
+                if (custom_layouts.count(item_name) > 0) {
+                    in.model().set_layout(ov::Layout(custom_layouts.at(item_name)));
                 }
             }
             for (int i = 0; i < model->outputs().size(); i++) {
@@ -136,7 +135,8 @@ int main(int argc, char* argv[]) {
             }
             model = proc.build();
             if (FLAGS_bs) {
-                if (FLAGS_layout.empty() && std::any_of(inputs.begin(), inputs.end(), [](const auto& i) {
+                if (FLAGS_layout.empty() &&
+                    std::any_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& i) {
                         return (dynamic_cast<const ov::op::v0::Parameter&>(*i.get_node()).get_layout()).empty();
                     }))
                     slog::warn << "Layout is not set for any input, so custom batch size is not set." << slog::endl;

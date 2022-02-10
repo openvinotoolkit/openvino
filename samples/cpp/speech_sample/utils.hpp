@@ -495,10 +495,11 @@ std::vector<std::string> convert_str_to_vector(std::string str) {
  * @param input_info reference to vector of inputs
  * @return map of inputs with layout values
  */
-std::map<std::string, std::vector<std::string>> parse_input_layouts(
-    const std::string& layout_string,
-    const std::vector<ov::Output<ov::Node>>& input_info) {
-    std::map<std::string, std::vector<std::string>> return_value;
+std::map<std::string, std::string> parse_input_layouts(const std::string& layout_string,
+                                                       const std::vector<ov::Output<ov::Node>>& input_info) {
+    // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
+    // inputs)
+    std::map<std::string, std::string> return_value;
     std::string search_string = layout_string;
     auto start_pos = search_string.find_first_of('[');
     auto input_name = search_string.substr(0, start_pos);
@@ -510,10 +511,10 @@ std::map<std::string, std::vector<std::string>> parse_input_layouts(
             input_name = search_string.substr(0, start_pos);
         auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
         if (!input_name.empty()) {
-            return_value[input_name].push_back(input_value);
+            return_value[input_name] = input_value;
         } else {
             for (auto& item : input_info) {
-                return_value[item.get_any_name()].push_back(input_value);
+                return_value[item.get_any_name()] = input_value;
             }
         }
         search_string = search_string.substr(end_pos + 1);
