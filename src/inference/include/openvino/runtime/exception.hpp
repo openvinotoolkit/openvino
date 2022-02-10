@@ -10,22 +10,17 @@
 namespace ov {
 
 /**
- * @brief Thrown in case of cancel;ed asynchronous operation
+ * @brief Thrown in case of cancelled asynchronous operation.
  */
 class OPENVINO_RUNTIME_API Cancelled : public Exception {
     using Exception::Exception;
 };
 
 /**
- * @brief Thrown in case of calling InferRequest methods while the request is busy with compute operation.
+ * @brief Thrown in case of calling the InferRequest methods while the request is busy with compute operation.
  */
 class OPENVINO_RUNTIME_API Busy : public Exception {
     using Exception::Exception;
 };
-
-namespace runtime {
-using ov::Busy;
-using ov::Cancelled;
-}  // namespace runtime
 
 }  // namespace ov
