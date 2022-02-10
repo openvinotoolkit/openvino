@@ -48,14 +48,6 @@
 
    openvino_docs_IE_DG_Samples_Overview
 
-<!--
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Learning Path -->
-<!--   
-   Learning Path <openvino_docs_get_started_guide_learning_path>
--->
 
 @endsphinxdirective
  
