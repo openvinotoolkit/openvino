@@ -27,25 +27,6 @@ namespace behavior {
         ASSERT_NE(properties.end(), it);                                                           \
     }
 
-using PriorityParams = std::tuple<
-        std::string,            // Device name
-        ov::AnyMap              // device priority Configuration key
->;
-class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::Test, public ::testing::WithParamInterface<PriorityParams> {
-protected:
-    std::string deviceName;
-    ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> simpleNetwork;
-
-public:
-    void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tie(deviceName, configuration) = GetParam();
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
-    }
-};
-
-
 using OVClassImportExportTestP = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVClassBaseTestP;
@@ -184,7 +165,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY, GetMetricNoThrow) {
 
     ov::hint::Priority value;
     OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::hint::model_priority));
-    //ASSERT_EQ(value, configuration[ov::hint::model_priority.name()]);
+    ASSERT_EQ(value, configuration[ov::hint::model_priority.name()].as<ov::hint::Priority>());
 }
 
 TEST_P(OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY, GetMetricNoThrow) {
