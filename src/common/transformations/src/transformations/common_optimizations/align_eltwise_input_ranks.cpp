@@ -29,8 +29,14 @@ ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
 
-        if (node->get_autob() != ngraph::op::AutoBroadcastType::NUMPY)
+        auto fq = dynamic_cast<opset8::FakeQuantize*>(node.get());
+        if (fq) {
+            if (fq->get_auto_broadcast() != ngraph::op::AutoBroadcastType::NUMPY) {
+                return false;
+            }
+        } else if (node->get_autob() != ngraph::op::AutoBroadcastType::NUMPY) {
             return false;
+        }
 
         if (transformation_callback(node))
             return false;
