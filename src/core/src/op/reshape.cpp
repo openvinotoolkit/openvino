@@ -241,7 +241,7 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
 namespace {
 bool fully_eq(const Dimension& rhs, const Dimension& lhs) {
     return rhs == lhs && ov::DimensionTracker::get_label(rhs) == ov::DimensionTracker::get_label(lhs) &&
-    (ov::DimensionTracker::get_label(rhs) || rhs.is_static());
+           (ov::DimensionTracker::get_label(rhs) || rhs.is_static());
 }
 
 Dimension resolve_minus_one(const Node* reshape_node,
