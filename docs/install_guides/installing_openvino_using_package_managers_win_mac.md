@@ -12,7 +12,7 @@
 
 @endsphinxdirective
 
-This chapter introduces installing OpenVINO using package managers. You can select one of the following options to proceed: 
+This chapter introduces installing OpenVINO on Windows and macOS using package managers. You can select one of the following options to proceed: 
 
 * [Install from PyPI](installing-openvino-pip.md)
 * [Install from Anaconda* Cloud](installing-openvino-conda.md)

@@ -6,7 +6,7 @@ Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for quick
 * Supporting heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 * Speeding time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels.
 
-## Installation Options
+## Installation options
 
 You can install OpenVINO according to your needs:
 

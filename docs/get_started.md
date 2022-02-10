@@ -8,13 +8,13 @@
    :caption: Install OpenVINO
    
    Overview <openvino_docs_install_guides_overview>
-   Install on Linux <openvino_docs_install_guides_installing_openvino_linux_header>
-   Install on Windows <openvino_docs_install_guides_installing_openvino_windows_header>
-   Install on macOS <openvino_docs_install_guides_installing_openvino_macos>
-   Install on Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>
-   Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
+   Install on Linux* <openvino_docs_install_guides_installing_openvino_linux_header>
+   Install on Windows* <openvino_docs_install_guides_installing_openvino_windows_header>
+   Install on macOS* <openvino_docs_install_guides_installing_openvino_macos_header>
+   Install on Raspbian* OS <openvino_docs_install_guides_installing_openvino_raspbian>
    Install OpenVINO Model Development Tools <openvino_docs_install_guides_install_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
+   Create a Yocto* Image <openvino_docs_install_guides_installing_openvino_yocto>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
 .. toctree::
@@ -64,12 +64,11 @@
     
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
    <p id="GSG_introtext">To get started with OpenVINO, the first thing to do is to actually install it. If you haven't done it yet, choose the installation type that best suits your needs and follow the instructions:<br />
-     <a href="openvino_docs_install_guides_installing_openvino_pip.html" >Install<br /> OpenVINO Runtime </a>
-     <a href="openvino_docs_install_guides_install_dev_tools.html" >Install <br /> OpenVINO Model Development Tools</a>
+     <a href="openvino_docs_install_guides_overview.html" >Install <br />OpenVINO Runtime </a>
+     <a href="openvino_docs_install_guides_install_dev_tools.html" >Install OpenVINO <br />Model Development Tools</a>
      <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode" >Build <br /> from source</a>
    </p>
    <div style="clear:both;"> </div>   
-   <p>You can also review more installation options on the <a href="openvino_docs_install_guides_overview.html" >Overview</a> page. </p>
    
    <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. <br /> Here is a set of hands-on demonstrations of various complexity levels to guide you through the process: from performing sample inference with just one command, to running code samples, demo application or Jupyter notebooks. If you prefer working with GUI, you can also get started with the DL Workbench application. This way you can choose the right level for you.<br /></p>
  
