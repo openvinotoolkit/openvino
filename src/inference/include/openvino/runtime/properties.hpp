@@ -585,7 +585,7 @@ constexpr static const auto INT8 = "INT8";                    //!< Device suppor
 constexpr static const auto INT16 = "INT16";                  //!< Device supports int16 inference
 constexpr static const auto BIN = "BIN";                      //!< Device supports binary inference
 constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device supports winograd optimization
-constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports model export and import
+constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports compiled model export and import
 }  // namespace capability
 }  // namespace device
 
