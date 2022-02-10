@@ -26,7 +26,8 @@ struct ValueTyped {
     constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
 };
 
-template<typename, typename> struct Read;
+template <typename, typename>
+struct Read;
 
 template <typename T, typename std::enable_if<ValueTyped<T>::value, bool>::type = true>
 inline typename T::value_type from_string(const std::string& val, const T&) {
@@ -36,7 +37,8 @@ inline typename T::value_type from_string(const std::string& val, const T&) {
     return value;
 }
 
-template<typename> struct Write;
+template <typename>
+struct Write;
 
 template <typename T>
 inline std::string to_string(const T& value) {
