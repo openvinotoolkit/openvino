@@ -38,6 +38,13 @@ ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
             return false;
         }
 
+        if (ov::is_type<opset8::Multiply>(node)) {
+            const auto& map = m.get_pattern_value_map();
+            const auto& mul_input = map.at(input_pattern);
+            if (ov::is_type<opset8::NormalizeL2>(mul_input.get_node()))
+                return false;
+        }
+
         const auto rank = node->get_output_partial_shape(0).size();
 
         for (size_t i = 0; i < node->get_input_size(); i++) {

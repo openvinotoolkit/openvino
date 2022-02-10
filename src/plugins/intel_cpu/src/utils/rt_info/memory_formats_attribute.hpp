@@ -61,7 +61,7 @@ public:
     ~MKLDNNInputMemoryFormats() override;
 };
 
-std::string getMKLDNNInputMemoryFormats(const std::shared_ptr<const ngraph::Node>& node);
+std::string getMKLDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
 
 class MKLDNNOutputMemoryFormats : public MKLDNNMemoryFormats<MKLDNNOutputMemoryFormats> {
 public:
@@ -70,6 +70,6 @@ public:
     explicit MKLDNNOutputMemoryFormats(const std::string &_memory_format) : MKLDNNMemoryFormats(_memory_format) {}
     ~MKLDNNOutputMemoryFormats() override;
 };
-std::string getMKLDNNOutputMemoryFormats(const std::shared_ptr<const ngraph::Node>& node);
+std::string getMKLDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
 
 }  // namespace ngraph

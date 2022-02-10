@@ -56,7 +56,7 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
 
         auto axis = const_axis->cast_vector<size_t>();
         bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
-        bool channel_shared = (shape_size(constant->get_shape()) == 1);
+        bool channel_shared = (constant->get_shape().size() == 1);
 
         auto normalize_ie = std::make_shared<ngraph::op::NormalizeIE> (normalize->input(0).get_source_output(),
                                                                        constant->output(0),
