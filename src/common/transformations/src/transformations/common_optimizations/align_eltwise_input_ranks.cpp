@@ -38,9 +38,6 @@ ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
             return false;
         }
 
-        if (transformation_callback(node))
-            return false;
-
         const auto rank = node->get_output_partial_shape(0).size();
 
         for (size_t i = 0; i < node->get_input_size(); i++) {

@@ -116,7 +116,6 @@
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
-#include "utils/rt_info/memory_formats_attribute.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 # ifdef _WIN32
