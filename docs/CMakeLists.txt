@@ -24,7 +24,7 @@ if(NOT ENABLE_DOCKER)
 
     set(all_docs_targets
         ie_docs_snippets ov_template_func_tests
-        template_extension ov_template_extension ov_template_plugin)
+        template_extension openvino_template_extension openvino_template_plugin)
     foreach(target_name IN LISTS all_docs_targets)
         if(TARGET ${target_name})
             set_target_properties(${target_name} PROPERTIES FOLDER docs)
@@ -36,7 +36,7 @@ if(NOT ENABLE_DOCKER)
 
     # install
 
-    foreach(target ov_template_plugin template_extension ov_template_extension)
+    foreach(target openvino_template_plugin template_extension openvino_template_extension)
         if(TARGET ${target})
             install(TARGETS ${target}
                     LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
@@ -50,9 +50,7 @@ set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation c
 set(ENABLE_OPENVINO_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks")
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation dir.")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
-set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation dir.")
 set(OVMS_DOCS_DIR "" CACHE PATH "Path to model server documentation dir.")
-set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
 set(GRAPH_CSV_DIR "" CACHE PATH "Path to the folder containing csv data for rendering graphs.")
 
 function(build_docs)
@@ -90,6 +88,8 @@ function(build_docs)
 
     # Sphinx folders, doxyrest templates and config
     set(SPHINX_CONF_IN "${DOCS_SOURCE_DIR}/conf.py")
+    set(SPHINX_TEMPLATES_IN "${DOCS_SOURCE_DIR}/_templates")
+    set(SPHINX_TEMPLATES_OUT "${RST_OUTPUT}/_templates")
     set(SPHINX_CONF_OUT "${RST_OUTPUT}/conf.py")
     set(SPHINX_STATIC_IN "${DOCS_SOURCE_DIR}/_static")
     set(SPHINX_STATIC_OUT "${RST_OUTPUT}/_static")
@@ -152,15 +152,6 @@ function(build_docs)
             --output_dir=${DOCS_BUILD_DIR}/workbench)
     endif()
 
-    # pot doc files
-    if(EXISTS "${POT_DOCS_DIR}")
-        get_filename_component(POT_DOCS_DIR "${POT_DOCS_DIR}" ABSOLUTE)
-
-        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir=${POT_DOCS_DIR}
-        --output_dir=${DOCS_BUILD_DIR}/pot)
-    endif()
-
     # ovms doc files
     if(EXISTS "${OVMS_DOCS_DIR}")
         get_filename_component(OVMS_DOCS_DIR "${OVMS_DOCS_DIR}" ABSOLUTE)
@@ -168,14 +159,6 @@ function(build_docs)
         list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
         --input_dir=${OVMS_DOCS_DIR}
         --output_dir=${DOCS_BUILD_DIR}/ovms)
-    endif()
-
-    # gst doc files
-    if(EXISTS "${GST_DOCS_DIR}")
-        get_filename_component(GST_DOCS_DIR "${GST_DOCS_DIR}" ABSOLUTE)
-        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir=${GST_DOCS_DIR}
-        --output_dir=${DOCS_BUILD_DIR}/gst)
     endif()
 
     add_custom_target(preprocess_docs
@@ -208,6 +191,7 @@ function(build_docs)
                        COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN} ${API_DOCS_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_TEMPLATES_IN} ${SPHINX_TEMPLATES_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}
@@ -216,7 +200,7 @@ function(build_docs)
 
     add_custom_target(sphinx_docs
                       DEPENDS doxygen_xml
-                      COMMAND sphinx-build -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
+                      COMMAND sphinx-build -j auto -w ${DOCS_BUILD_DIR}/sphinx.log -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
                       WORKING_DIRECTORY ${RST_OUTPUT}
                       VERBATIM)
 

@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "itt.hpp"
+#include "layout_utils.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
@@ -253,6 +254,15 @@ void ov::Model::validate_nodes_and_infer_types() const {
     if (!only_pairs)
         throw ov::Exception("Model is incorrect. Assign and ReadValue operations must be in pairs on the "
                             "network.");
+    for (const auto& output : outputs()) {
+        OPENVINO_ASSERT(ov::layout::utils::is_compatible(ov::layout::get_layout(output), output.get_partial_shape()),
+                        "Result '",
+                        output,
+                        "' with shape ",
+                        output.get_partial_shape(),
+                        " is incompatible with layout ",
+                        ov::layout::get_layout(output).to_string());
+    }
 }
 
 std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
@@ -696,7 +706,7 @@ ov::Output<const ov::Node> ov::Model::output(const std::string& tensor_name) con
             return result;
         }
     }
-    throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+    throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
 }
 
 std::vector<ov::Output<ov::Node>> ov::Model::outputs() {
@@ -720,7 +730,7 @@ ov::Output<ov::Node> ov::Model::output(const std::string& tensor_name) {
         if (res->get_input_tensor(0).get_names().count(tensor_name))
             return res;
     }
-    throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+    throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
 }
 
 /// Input Model
@@ -751,7 +761,7 @@ ov::Output<const ov::Node> ov::Model::input(const std::string& tensor_name) cons
             return parameter;
         }
     }
-    throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+    throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
 }
 
 std::vector<ov::Output<ov::Node>> ov::Model::inputs() {
@@ -776,7 +786,7 @@ ov::Output<ov::Node> ov::Model::input(const std::string& tensor_name) {
         if (param->get_output_tensor(0).get_names().count(tensor_name))
             return param;
     }
-    throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+    throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
 }
 
 void ov::Model::reshape(const ov::PartialShape& partial_shape) {

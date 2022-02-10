@@ -1,6 +1,6 @@
 # Hello NV12 Input Classification C++ Sample {#openvino_inference_engine_samples_hello_nv12_input_classification_README}
 
-This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API and [input reshape feature](../../../docs/IE_DG/ShapeInference.md).
+This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API and [input reshape feature](../../../docs/OV_Runtime_UG/ShapeInference.md).
 
 Hello NV12 Input Classification C++ Sample demonstrates how to use the NV12 automatic input pre-processing API of the Inference Engine in your applications:
 
@@ -18,7 +18,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | An uncompressed image in the NV12 color format - \*.yuv
-| Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C](../../../samples/c/hello_nv12_input_classification/README.md) |
 
 ## How It Works
@@ -26,11 +26,11 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 Upon the start-up, the sample application reads command-line parameters, loads specified network and an
 image in the NV12 color format to an Inference Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream. You can place labels in .labels file near the model to get pretty output.
 
-You can see the explicit description of each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+You can see the explicit description of each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 
 ## Running
@@ -59,7 +59,7 @@ ffmpeg -i cat.jpg -pix_fmt nv12 cat.yuv
 >   model to work with RGB order, you need to reconvert your model using the Model Optimizer tool
 >   with `--reverse_input_channels` argument specified. For more information about the argument,
 >   refer to **When to Reverse Input Channels** section of
->   [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+>   [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
@@ -113,7 +113,7 @@ This sample is an API example, for any performance measurements please use the d
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

@@ -6,6 +6,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/variant.hpp>
@@ -56,7 +57,7 @@ namespace {
             ngraph::Output<ngraph::Node> in_0 = sequenceOp->get_input_node_shared_ptr(0)->input_value(0);
 
             auto shapeBeforeTranspose = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(in_0);
-            auto newInShape = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shapeBeforeTranspose,
+            auto newInShape = ngraph::op::util::make_try_fold<ngraph::opset8::Gather>(shapeBeforeTranspose,
                 ngraph::opset1::Constant::create(ngraph::element::i32, { 3 }, { 1, 0, 2 }),
                 ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(in_0, newInShape, false);
@@ -69,7 +70,7 @@ namespace {
             auto transposeAfter = seqTargetInputs.begin()->get_node()->shared_from_this();
 
             auto lstmOutShape = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(sequenceOp->output(0));
-            auto newOutShape = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(lstmOutShape,
+            auto newOutShape = ngraph::op::util::make_try_fold<ngraph::opset8::Gather>(lstmOutShape,
                 ngraph::opset1::Constant::create(ngraph::element::i32, { 4 }, { 2, 1, 0, 3 }),
                 ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
 

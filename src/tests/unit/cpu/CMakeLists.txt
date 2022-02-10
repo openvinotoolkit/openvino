@@ -5,15 +5,15 @@
 set(TARGET_NAME cpuUnitTests)
 
 if(BUILD_SHARED_LIBS)
-    set (OBJ_LIB $<TARGET_OBJECTS:ov_intel_cpu_plugin_obj>)
+    set (OBJ_LIB $<TARGET_OBJECTS:openvino_intel_cpu_plugin_obj>)
 endif()
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
-            $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src
-            $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src/nodes
+            $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src
+            $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/nodes
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
         OBJECT_FILES
             ${OBJ_LIB}
@@ -33,6 +33,14 @@ addIeTargetTest(
         LABELS
             CPU
 )
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
+
+if (WIN32)
+    # Prevents defining min/max as macros
+    target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
+endif()
 
 ie_faster_build(${TARGET_NAME}
     UNITY

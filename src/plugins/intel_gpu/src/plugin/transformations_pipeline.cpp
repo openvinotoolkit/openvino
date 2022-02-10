@@ -29,7 +29,7 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include "transformations/resolve_gen_names_collisions.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
@@ -409,13 +409,47 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
         });
+
         if (!use_onednn) {
             lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
                 return MatMulTransformation::is3DTensorOnActivations(node);
             });
         }
 
-        lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization);
+        lptPassConfig->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
+            // disable MultiplyToGroupConvolution if Multiply with Constant can be fused
+
+            const auto dequantization = NetworkHelper::getDequantization(node, 0, true);
+            std::shared_ptr<ov::Node> parent = dequantization.empty() ? nullptr : dequantization.data.get_node()->shared_from_this();
+            if (parent == nullptr) {
+                const auto constantNode = NetworkHelper::getConstantInput(node);
+                const auto constant = constantNode == nullptr ? nullptr : ngraph::as_type_ptr<ngraph::opset1::Constant>(constantNode);
+                if (constant != nullptr) {
+                    auto parent = node->get_input_node_shared_ptr(0);
+                    if (parent == constant) {
+                        parent = node->get_input_node_shared_ptr(1);
+                    }
+                }
+            }
+
+            if (parent != nullptr) {
+                const auto parentHasOneConsumer = parent->get_output_target_inputs(0).size() == 1ul;
+                if (parentHasOneConsumer) {
+                    return true;
+                }
+            }
+
+            // disable MultiplyToGroupConvolution for Multiply with scalar
+
+            if (MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node)) {
+                return true;
+            }
+
+            return false;
+        });
+
+        auto params = LayerTransformation::Params(true, element::f32, true);
+        lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
         lptManager.run_passes(func);
     }
 
@@ -437,7 +471,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !config.enable_loop_unrolling;
             });
-        manager.register_pass<ov::pass::ResolveGeneratedNameCollisions>();
+        manager.register_pass<ov::pass::ResolveNameCollisions>();
 
         manager.run_passes(func);
     }

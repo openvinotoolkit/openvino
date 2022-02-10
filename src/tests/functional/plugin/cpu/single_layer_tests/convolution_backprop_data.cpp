@@ -330,7 +330,7 @@ const std::vector<DeconvInputData> Planar_2D_inputs_nightly = {
         {}
     },
     DeconvInputData{
-        InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
+        InputShape{{-1, 12, 7, 7}, {{ 1, 12, 7, 7}, { 2, 12, 7, 7}, { 1, 12, 7, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
     }
@@ -397,9 +397,9 @@ const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
         {}
     },
     DeconvInputData{
-        InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
+        InputShape{{-1, 12, 5, 8, 8}, {{ 2, 12, 5, 8, 8}, { 2, 12, 5, 8, 8}, { 1, 12, 5, 8, 8}}},
         ngraph::helpers::InputLayerType::CONSTANT,
-        {{15, 15, 15}}
+        {{10, 16, 16}}
     }
 };
 

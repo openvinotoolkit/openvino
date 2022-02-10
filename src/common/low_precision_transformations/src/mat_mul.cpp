@@ -59,6 +59,9 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
                 getDefaultPrecisions() :
                 precisionsAttribute.as<PrecisionsAttribute>().value();
             const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
+            if (dataPrecision.empty()) {
+                return false;
+            }
 
             auto tuple = NetworkHelper::decomposeFakeQuantize(
                 fakeQuantize,
@@ -189,10 +192,6 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    if (NetworkHelper::isDQByDynamicDimension(layer, 1)) {
-        return false;
-    }
-
     std::shared_ptr<opset1::MatMul> matMul = ov::as_type_ptr<opset1::MatMul>(layer);
     if (matMul == nullptr) {
         return false;
@@ -265,7 +264,7 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
             precisionsAttribute.as<PrecisionsAttribute>().value();
 
         const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
-        if (dataPrecision.hasZeroPoint) {
+        if (dataPrecision.hasZeroPoint || dataPrecision.empty()) {
             return false;
         }
 

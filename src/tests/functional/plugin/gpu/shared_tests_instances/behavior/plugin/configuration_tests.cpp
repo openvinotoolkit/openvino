@@ -13,7 +13,7 @@ namespace {
             DefaultConfigurationTest,
             ::testing::Combine(
                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                    ::testing::Values(DefaultParameter{GPU_CONFIG_KEY(PLUGIN_THROTTLE), InferenceEngine::Parameter{std::string{"0"}}})),
+                    ::testing::Values(DefaultParameter{GPU_CONFIG_KEY(PLUGIN_THROTTLE), InferenceEngine::Parameter{std::string{"2"}}})),
             DefaultConfigurationTest::getTestCaseName);
 
     IE_SUPPRESS_DEPRECATED_START
@@ -68,10 +68,6 @@ namespace {
                     {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                     {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-                    {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "-1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-                    {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "should be int"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
                  CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
                     {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
@@ -96,13 +92,7 @@ namespace {
                     {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
                  CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
-                    {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
-                 CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "-1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
-                 CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "should be int"}}
+                    {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}}
     };
 
 
@@ -123,7 +113,7 @@ namespace {
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_TUNING_MODE, "TUNING_UNKNOWN_MODE"}},
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU},
-                    {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}},
+                    {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}}
     };
 
 
@@ -174,10 +164,6 @@ namespace {
             {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, "1"}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY, "0"}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY, "1"}},
-            {{InferenceEngine::GPUConfigParams::KEY_GPU_MODEL_PRIORITY, InferenceEngine::GPUConfigParams::GPU_QUEUE_PRIORITY_HIGH
-                                                        + std::string("|") + InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_ANY}},
-            {{InferenceEngine::GPUConfigParams::KEY_GPU_MODEL_PRIORITY, InferenceEngine::GPUConfigParams::GPU_QUEUE_PRIORITY_LOW
-                                                        + std::string("|") + InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_ANY}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS, "1"}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS, "4"}},
             {{InferenceEngine::GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, InferenceEngine::PluginConfigParams::YES}},
@@ -192,7 +178,7 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
              {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, "3"}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
-             {InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, "0"}},
+             {InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, "0"}}
     };
     IE_SUPPRESS_DEPRECATED_END
 
@@ -205,12 +191,6 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
              {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
              {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "0"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "2"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
                  CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
              {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
@@ -238,16 +218,7 @@ namespace {
              {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, InferenceEngine::PluginConfigParams::LOG_DEBUG}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
                  CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, InferenceEngine::PluginConfigParams::LOG_TRACE}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
-                 CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "0"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
-                 CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
-                 CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "2"}}
+             {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, InferenceEngine::PluginConfigParams::LOG_TRACE}}
     };
 
     const std::vector<std::map<std::string, std::string>> auto_batch_configs = {

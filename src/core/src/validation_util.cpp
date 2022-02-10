@@ -1204,31 +1204,33 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
                 if (stop_nodes.count(in.get_node()))
                     continue;
                 auto consumer = in.get_node()->shared_from_this();
-                // FIXME: Here we have a WA in order to save some original fields
-                // if we have conflicts because Variant merge doesn't work.
-                // We can restore original fields because we don't change the operation
-                auto orig_rt_info = consumer->get_rt_info();
-
                 copy_runtime_info({curr_node, consumer}, consumer);
-
-                auto& rt_info = consumer->get_rt_info();
-                for (const auto& it : orig_rt_info) {
-                    if (rt_info.find(it.first) == rt_info.end()) {
-                        bool copy = true;
-                        if (it.second.is<ov::RuntimeAttribute>()) {
-                            copy = it.second.as<ov::RuntimeAttribute>().is_copyable();
-                        }
-                        if (copy) {
-                            rt_info[it.first] = it.second;
-                        }
-                    }
-                }
             }
         }
     }
 }
 
-HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper) {
+bool are_equal(const HostTensorPtr& lhs, const HostTensorPtr& rhs, size_t max_elements_limit = 10) {
+    if (!lhs || !rhs)
+        return false;
+    const auto& lhs_shape = lhs->get_shape();
+    const auto& rhs_shape = rhs->get_shape();
+    OPENVINO_ASSERT(lhs_shape == rhs_shape);
+    const auto& lhs_et = lhs->get_element_type();
+    const auto& rhs_et = rhs->get_element_type();
+    OPENVINO_ASSERT(lhs_et == rhs_et);
+    if (shape_size(lhs_shape) > max_elements_limit)
+        return false;
+    auto mask = std::make_shared<HostTensor>(element::boolean, lhs_shape);
+    const auto& param = std::make_shared<op::Parameter>(lhs_et, lhs_shape);
+    op::v1::Equal(param, param, ngraph::op::AutoBroadcastType::NUMPY).evaluate({mask}, {lhs, rhs});
+    auto equal = op::Constant(mask).cast_vector<bool>();
+    return std::all_of(equal.begin(), equal.end(), [](bool i) {
+        return i;
+    });
+}
+
+HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper, bool invalidate_all_unused_values = true) {
     // bound is already set in the tensor
     if (is_upper && output.get_tensor().get_upper_value() != nullptr)
         return output.get_tensor().get_upper_value();
@@ -1247,22 +1249,31 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper) {
                 TensorLabelVector output_labels(outputs.size());
 
                 bool same_inputs = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-                    return input.get_tensor().has_and_set_bound();
+                    auto& tensor = input.get_tensor();
+                    return tensor.has_and_set_bound() || are_equal(tensor.get_lower_value(), tensor.get_upper_value());
                 });
                 for (size_t i = 0; i < outputs.size(); ++i) {
-                    // TODO: should we skip setting value for tensors that have only one consumer?
                     if ((same_inputs || is_upper) && node->get_output_tensor(i).get_upper_value() == nullptr)
                         node->get_output_tensor(i).set_upper_value(outputs[i]);
                     if ((same_inputs || !is_upper) && node->get_output_tensor(i).get_lower_value() == nullptr)
                         node->get_output_tensor(i).set_lower_value(outputs[i]);
+                    if (are_equal(node->get_output_tensor(i).get_lower_value(),
+                                  node->get_output_tensor(i).get_upper_value()))
+                        node->get_output_tensor(i).set_lower_value(node->get_output_tensor(i).get_upper_value());
                 }
                 if (node->evaluate_label(output_labels))
                     for (size_t i = 0; i < outputs.size(); ++i)
                         node->get_output_tensor(i).set_value_label(output_labels[i]);
-
-                for (const auto& input : input_values)
-                    if (input.get_target_inputs().size() == 1)
-                        input.get_tensor().invalidate_values();
+                for (const auto& input : input_values) {
+                    auto& tensor = input.get_tensor();
+                    bool should_invalidate = invalidate_all_unused_values;
+                    if (tensor.get_lower_value() && shape_size(tensor.get_lower_value()->get_shape()) > 10)
+                        should_invalidate |= true;
+                    if (tensor.get_upper_value() && shape_size(tensor.get_upper_value()->get_shape()) > 10)
+                        should_invalidate |= true;
+                    if (should_invalidate)
+                        tensor.invalidate_values();
+                }
                 propagate_rt_info(node, output);
             } else {
                 break;
@@ -1286,7 +1297,7 @@ HostTensorPtr ngraph::evaluate_upper_bound(const Output<Node>& output) {
 }
 
 pair<HostTensorPtr, HostTensorPtr> ngraph::evaluate_both_bounds(const Output<Node>& output) {
-    return {evaluate_lower_bound(output), evaluate_upper_bound(output)};
+    return {evaluate_bound(output, false, false), evaluate_upper_bound(output)};
 }
 
 bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
@@ -1596,9 +1607,8 @@ bool ngraph::host_tensor_is_positive(const HostTensorPtr& bound) {
     OutputVector all(1);
     folded = std::make_shared<op::v1::ReduceLogicalAnd>(greater[0], axes)->constant_fold(all, {greater[0], axes});
     NGRAPH_CHECK(folded && ov::is_type<op::Constant>(all[0].get_node_shared_ptr()));
-    const auto result = std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>();
     NGRAPH_CHECK(all[0].get_shape() == Shape{});
-    return result[0];
+    return std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {

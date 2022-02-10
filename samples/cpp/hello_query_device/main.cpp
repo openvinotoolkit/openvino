@@ -71,14 +71,33 @@ void print_any_value(const ov::Any& value) {
         slog::info << std::get<1>(values);
         slog::info << " }";
         slog::info << slog::endl;
+    } else if (value.is<std::map<ov::element::Type, float>>()) {
+        auto values = value.as<std::map<ov::element::Type, float>>();
+        slog::info << "{ ";
+        for (auto& kv : values) {
+            slog::info << kv.first << ": " << kv.second << "; ";
+        }
+        slog::info << " }";
+        slog::info << slog::endl;
+    } else if (value.is<std::map<std::string, uint64_t>>()) {
+        auto values = value.as<std::map<std::string, uint64_t>>();
+        slog::info << "{ ";
+        for (auto& kv : values) {
+            slog::info << kv.first << ": " << kv.second << "; ";
+        }
+        slog::info << " }";
+        slog::info << slog::endl;
+    } else if (value.is<ov::hint::PerformanceMode>()) {
+        auto values = value.as<std::string>();
+        slog::info << (values.empty() ? "\"\"" : values) << slog::endl;
     } else {
         std::stringstream strm;
         value.print(strm);
         auto str = strm.str();
         if (str.empty()) {
-            std::cout << "UNSUPPORTED TYPE" << std::endl;
+            slog::info << "UNSUPPORTED TYPE" << slog::endl;
         } else {
-            std::cout << str << std::endl;
+            slog::info << str << slog::endl;
         }
     }
 }
@@ -105,25 +124,14 @@ int main(int argc, char* argv[]) {
         for (auto&& device : availableDevices) {
             slog::info << device << slog::endl;
 
-            // Query supported metrics and print all of them
-            slog::info << "\tSUPPORTED_METRICS: " << slog::endl;
-            std::vector<std::string> supportedMetrics = core.get_property(device, METRIC_KEY(SUPPORTED_METRICS));
-            for (auto&& metricName : supportedMetrics) {
-                if (metricName != METRIC_KEY(SUPPORTED_METRICS) && metricName != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                    slog::info << "\t\t" << metricName << " : " << slog::flush;
-                    print_any_value(core.get_property(device, metricName));
-                }
-            }
-
-            // Query supported config keys and print all of them
-            if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) !=
-                supportedMetrics.end()) {
-                slog::info << "\tSUPPORTED_CONFIG_KEYS (default values): " << slog::endl;
-                std::vector<std::string> supportedConfigKeys =
-                    core.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                for (auto&& configKey : supportedConfigKeys) {
-                    slog::info << "\t\t" << configKey << " : " << slog::flush;
-                    print_any_value(core.get_property(device, configKey));
+            // Query supported properties and print all of them
+            slog::info << "\tSUPPORTED_PROPERTIES: " << slog::endl;
+            auto supported_properties = core.get_property(device, ov::supported_properties);
+            for (auto&& property : supported_properties) {
+                if (property != ov::supported_properties.name()) {
+                    slog::info << "\t\t" << (property.is_mutable() ? "Mutable: " : "Immutable: ") << property << " : "
+                               << slog::flush;
+                    print_any_value(core.get_property(device, property));
                 }
             }
 
