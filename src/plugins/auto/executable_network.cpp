@@ -171,7 +171,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
 
     _core = _multiPlugin->GetCore(); // shared_ptr that holds the Core
     _config[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = strDevices;
-
     std::string profilingTask = "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode";
 
     // loadContext[ACTUALDEVICE] is always enabled,
@@ -722,8 +721,29 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 }
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
+    const bool is_new_api = _plugin->GetCore()->isNewAPI();
     if (_workModeIsAUTO) {
-        if (name == ov::optimal_number_of_infer_requests) {
+        if (name == ov::supported_properties) {
+            return decltype(ov::supported_properties)::value_type {
+                // Metrics
+                ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::hint::performance_mode.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::hint::model_priority.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO}
+            };
+        } else if (name == ov::device::priorities) {
+            auto value = _config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+            return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
+        } else if (name == ov::hint::model_priority) {
+            auto value = _context.modelPriority;
+            if (is_new_api) {
+                return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
+            } else {
+                return value ? ((value > 1) ? CONFIG_VALUE(MODEL_PRIORITY_LOW) : CONFIG_VALUE(MODEL_PRIORITY_MED)) : CONFIG_VALUE(MODEL_PRIORITY_HIGH);
+            }
+        } else if (name == ov::optimal_number_of_infer_requests) {
             const unsigned int defaultNumForTPUT = 4u;
             const unsigned int defaultNumForLatency = 1u;
             unsigned int real = 0;
@@ -805,16 +825,17 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         }
         return _loadContext[CPU].executableNetwork->GetMetric(name);
     }
-    auto RO_property = [](const std::string& propertyName) {
-        return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
-    };
 
     if (name == ov::supported_properties) {
-        return std::vector<ov::PropertyName> {
-            RO_property(ov::supported_properties.name()),
-            RO_property(ov::model_name.name()),
-            RO_property(ov::optimal_number_of_infer_requests.name()),
-            RO_property(ov::device::priorities.name())
+        return decltype(ov::supported_properties)::value_type {
+            // Metrics
+            ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
+
+            // Configs
+            // device priority can be changed on-the-fly in MULTI
+            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW}
         };
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int res = 0u;
