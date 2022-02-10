@@ -93,7 +93,14 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
     TENSORFLOW_OP_VALIDATION(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
     const auto* decoder = node.get_decoder();
     auto dt = decoder->get_native_attribute("dtype").as<::tensorflow::DataType>();
-    auto tensor_proto = decoder->get_native_attribute("value").as<::tensorflow::TensorProto>();
+
+    // TODO: investigate why as<>() && method using std::move leads to the issue (75371) in OVTF integration with
+    //  tensorflow frontend. The current fix: replace it with as<>() & method. But in fact, both
+    //  approaches should work the same way.
+    // auto tensor_proto = decoder->get_native_attribute("value").as<::tensorflow::TensorProto>();
+    auto value = decoder->get_native_attribute("value");
+    auto tensor_proto = value.as<::tensorflow::TensorProto>();
+
     const ::tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
     tf_shape_to_ov_shape(shape, &pshape);
