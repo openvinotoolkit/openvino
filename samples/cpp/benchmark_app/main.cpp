@@ -534,7 +534,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
                 // Explicitly set inputs layout.
-                if (!app_inputs_info[0].at(name).layout.empty()) {
+                if (!name.empty() && !app_inputs_info[0].at(name).layout.empty()) {
                     in.model().set_layout(app_inputs_info[0].at(name).layout);
                 }
             }
