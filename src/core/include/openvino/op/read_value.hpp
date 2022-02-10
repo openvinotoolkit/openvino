@@ -33,6 +33,7 @@ public:
     std::string get_variable_id() const override {
         return m_variable_id;
     }
+    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 
 private:
     std::string m_variable_id;
