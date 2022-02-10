@@ -63,9 +63,9 @@ struct Read {
     template <typename U>
     auto operator()(std::istream&, U&) const ->
         typename std::enable_if<std::is_same<T, U>::value && !Istreamable<U>::value && !Readable<U>::value>::type {
-        throw std::runtime_error(std::string{"Could read type without std::istream& operator>>(std::istream&, T)"
-                                             " defined or ov::util::Read<T> class specialization, T: "} +
-                                 typeid(T).name());
+        throw ov::Exception(std::string{"Could read type without std::istream& operator>>(std::istream&, T)"
+                                        " defined or ov::util::Read<T> class specialization, T: "} +
+                            typeid(T).name());
     }
     template <typename U>
     auto operator()(std::istream& is, U& value) const ->
