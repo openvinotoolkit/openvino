@@ -60,9 +60,9 @@ void regclass_CompiledModel(py::module m) {
             optimizing workflows and creating advanced pipelines.
 
             :param inputs: Data to set on input tensors.
-            :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
             :return: Dictionary of results from output tensors with ports as keys.
-            :rtype: dict[openvino.runtime.ConstOutput : numpy.array]
+            :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         )");
 
     cls.def(
@@ -79,7 +79,7 @@ void regclass_CompiledModel(py::module m) {
             :rtype: bytes
 
             .. code-block:: python
-                
+
                 user_stream = compiled.export_model()
 
                 with open('./my_model', 'wb') as f:
@@ -118,8 +118,8 @@ void regclass_CompiledModel(py::module m) {
             :type model_stream: io.BytesIO
             :rtype: None
 
-            .. code-block: python
-            
+            .. code-block:: python
+
                 user_stream = io.BytesIO()
                 compiled.export_model(user_stream)
 
@@ -278,11 +278,6 @@ void regclass_CompiledModel(py::module m) {
             R"(
                 Gets output of a compiled model identified by a tensor_name.
                 If an output with given tensor name is not found, this method throws an exception.
-
-                Parameters
-                ----------
-                tensor_name : str
-                    An output tensor's name.
 
                 :param tensor_name: An output tensor's name.
                 :type tensor_name: str

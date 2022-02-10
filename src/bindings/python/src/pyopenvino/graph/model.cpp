@@ -462,7 +462,6 @@ void regclass_graph_Model(py::module m) {
                     Returns true if any of the op's defined in the function
                     contains partial shape.
 
-                    :return: bool
                     :rtype: bool
                  )");
     function.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
@@ -546,14 +545,14 @@ void regclass_graph_Model(py::module m) {
                  py::arg("parameter_index"),
                  py::arg("parameter"),
                  R"(
-                    Replace the `parameter_index`th parameter of the function with `parameter`.
+                    Replace the `parameter_index` parameter of the function with `parameter`
 
-                    All users of the `parameter_index`th parameter are redirected to `parameter`, and the
-                    `parameter_index`th entry in the function parameter list is replaced with `parameter`.
+                    All users of the `parameter_index` parameter are redirected to `parameter` , and the
+                    `parameter_index` entry in the function parameter list is replaced with `parameter`
 
                     :param parameter_index: The index of the parameter to replace.
                     :type parameter_index: int
-                    :param parameter: The parameter to substitute for the `parameter_index`th parameter.
+                    :param parameter: The parameter to substitute for the `parameter_index` parameter.
                     :type parameter: op.Parameter
         )");
 
@@ -562,7 +561,7 @@ void regclass_graph_Model(py::module m) {
         (int64_t(ov::Model::*)(const std::shared_ptr<ov::op::v0::Parameter>&) const) & ov::Model::get_parameter_index,
         py::arg("parameter"),
         R"(
-                    Return the index position of `parameter`.
+                    Return the index position of `parameter`
 
                     Return -1 if parameter not matched.
 

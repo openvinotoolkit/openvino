@@ -91,14 +91,20 @@ class InferRequest(InferRequestBase):
         Calling any method will lead to throwing exceptions.
 
         The allowed types of keys in the `inputs` dictionary are:
-        `int`, `str` or`openvino.runtime.ConstOutput`.
+
+        (1) `int`
+        (2) `str`
+        (3) `openvino.runtime.ConstOutput`
+
         The allowed types of values in the `inputs` are:
-        `numpy.array` or `openvino.runtime.Tensor`.
+
+        (1) `numpy.array`
+        (2) `openvino.runtime.Tensor`
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[dict[keys : values], list[values]], optional
+        :type inputs: Union[Dict[keys, values], List[values]], optional
         :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput : numpy.array]
+        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
         return super().infer(
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
@@ -114,12 +120,18 @@ class InferRequest(InferRequestBase):
         will lead to throwing exceptions.
 
         The allowed types of keys in the `inputs` dictionary are:
-        `int`, `str` or`openvino.runtime.ConstOutput`.
+
+        (1) `int`
+        (2) `str`
+        (3) `openvino.runtime.ConstOutput`
+
         The allowed types of values in the `inputs` are:
-        `numpy.array` or `openvino.runtime.Tensor`.
+
+        (1) `numpy.array`
+        (2) `openvino.runtime.Tensor`
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[dict[keys : values], list[values]], optional
+        :type inputs: Union[Dict[keys, values], List[values]], optional
         :param userdata: Any data that will be passed inside callback call.
         :type userdata: Any
         """
@@ -156,14 +168,20 @@ class CompiledModel(CompiledModelBase):
         optimizing workflows and creating advanced pipelines.
 
         The allowed types of keys in the `inputs` dictionary are:
-        `int`, `str` or`openvino.runtime.ConstOutput`.
+
+        (1) `int`
+        (2) `str`
+        (3) `openvino.runtime.ConstOutput`
+
         The allowed types of values in the `inputs` are:
-        `numpy.array` or `openvino.runtime.Tensor`.
+
+        (1) `numpy.array`
+        (2) `openvino.runtime.Tensor`
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[dict[keys : values], list[values]], optional
+        :type inputs: Union[Dict[keys, values], List[values]], optional
         :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput : numpy.array]
+        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
         return super().infer_new_request(
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
@@ -198,12 +216,18 @@ class AsyncInferQueue(AsyncInferQueueBase):
         """Run asynchronous inference using the next available InferRequest from the pool.
 
         The allowed types of keys in the `inputs` dictionary are:
-        `int`, `str` or`openvino.runtime.ConstOutput`.
+
+        (1) `int`
+        (2) `str`
+        (3) `openvino.runtime.ConstOutput`
+
         The allowed types of values in the `inputs` are:
-        `numpy.array` or `openvino.runtime.Tensor`.
+
+        (1) `numpy.array`
+        (2) `openvino.runtime.Tensor`
 
         :param inputs: Data to be set on input tensors of the next available InferRequest.
-        :type inputs: Union[dict[keys : values], list[values]], optional
+        :type inputs: Union[Dict[keys, values], List[values]], optional
         :param userdata: Any data that will be passed to a callback.
         :type userdata: Any, optional
         """
