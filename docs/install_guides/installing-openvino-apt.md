@@ -12,8 +12,8 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 **Operating Systems**
 
-- Ubuntu 18.04.x long-term support (LTS), 64-bit
-- Ubuntu 20.04.0 long-term support (LTS), 64-bit
+- Ubuntu 18.04 long-term support (LTS), 64-bit
+- Ubuntu 20.04 long-term support (LTS), 64-bit
 
 ## Install OpenVINO Runtime
 
