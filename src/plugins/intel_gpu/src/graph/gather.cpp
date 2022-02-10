@@ -9,6 +9,9 @@
 #include "json_object.h"
 #include <string>
 
+#include "gather_shape_inference.hpp"
+#include "openvino/op/gather.hpp"
+
 namespace cldnn {
 primitive_type_id gather::type_id() {
     static primitive_type_base<gather> instance;
@@ -27,6 +30,28 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
         output_type = node.get_fused_output_layout().data_type;
     }
 
+    std::cerr << "gather out shape ref: " << output_shape << std::endl;
+    {
+        ov::op::v8::Gather op;
+        std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
+        std::vector<ov::PartialShape> input_shapes = {
+            node.get_dependency(0).get_output_layout().size,
+            node.get_dependency(1).get_output_layout().size,
+            ov::PartialShape{1} // axis input is removed on gather primitive creation, so we can't user get_dependency(2)
+        };
+
+        for (auto& in_shape : input_shapes) {
+            std::cerr << "in=" << in_shape << std::endl;
+        }
+        int64_t axis = desc->axis;
+
+        auto axis_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&axis));
+        std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {{2, axis_tensor}};
+        ov::op::util::shape_infer(&op, input_shapes, output_shapes, const_data);
+        std::cerr << "gather out shape after infer: " << output_shapes[0] << std::endl;
+        return layout{output_type, output_format, output_shapes[0]};
+    }
+
     return layout{output_type, output_format, output_shape};
 }
 
@@ -41,7 +66,7 @@ std::string gather_inst::to_string(gather_node const& node) {
     gather_info.add("input id", input.id());
     gather_info.add("axis", desc->axis);
     gather_info.add("batch_dim", desc->batch_dim);
-    gather_info.add("output shape", desc->output_shape.to_string());
+    gather_info.add("output shape", cldnn::to_string(desc->output_shape));
 
     node_info->add("gather info", gather_info);
     node_info->dump(primitive_description);

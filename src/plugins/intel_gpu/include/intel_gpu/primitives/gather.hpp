@@ -19,15 +19,6 @@ namespace cldnn {
 struct gather : public primitive_base<gather> {
     CLDNN_DECLARE_PRIMITIVE(gather)
 
-    enum gather_axis {
-        along_b,
-        along_f,
-        along_x,
-        along_y,
-        along_z,
-        along_w
-    };
-
     /// @brief Constructs gather primitive.
     /// @param id This primitive id.
     /// @param dict Input dictionary primitive id.
@@ -39,9 +30,9 @@ struct gather : public primitive_base<gather> {
     gather(const primitive_id& id,
            const primitive_id& dict,
            const primitive_id& idx,
-           const gather_axis axis,
+           const int64_t axis,
            const format& output_format,
-           const tensor& output_shape,
+           const ov::PartialShape& output_shape,
            const int64_t batch_dim = 0,
            const bool support_neg_ind = false,
            const primitive_id& ext_prim_id = "",
@@ -51,11 +42,11 @@ struct gather : public primitive_base<gather> {
                          output_shape(output_shape), batch_dim(batch_dim), support_neg_ind(support_neg_ind) {}
 
     /// @brief Gathering axis
-    gather_axis axis;
+    int64_t axis;
     /// @brief Gather output format
     format output_format;
     /// @brief Gather output shape
-    tensor output_shape;
+    ov::PartialShape output_shape;
     /// @brief Gathering batch_dim
     int64_t batch_dim;
     /// @brief Support negative indexes

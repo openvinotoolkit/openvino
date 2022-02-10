@@ -48,7 +48,7 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 3, 2, 2, 4, 3} }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 3 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_y;
+    int64_t axis = 3;
     int64_t batch_dim = -1;
     bool negative_indexes = true;
 
@@ -95,7 +95,7 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfzyx, tensor(3, 2, 2, 3, 3), batch_dim, negative_indexes)
+        gather("gather", "InputDictionary", "InputText", axis, format::bfzyx, ov::PartialShape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
     );
 
     network network(engine, topology);
@@ -173,7 +173,7 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 2, 2, 2, 2, 2, 2} }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 2 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_x;
+    int64_t axis = 5;
     int64_t batch_dim = -1;
 
     set_values(input1, {
@@ -202,7 +202,7 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfwzyx, tensor(2, 2, 2, 2, 2, 2), batch_dim)
+        gather("gather", "InputDictionary", "InputText", axis, format::bfwzyx, ov::PartialShape{2, 2, 2, 2, 2, 2}, batch_dim)
     );
 
     network network(engine, topology);
@@ -267,7 +267,7 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 3, 2, 2, 4, 3} }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 3 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_y;
+    int64_t axis = 3;
     int64_t batch_dim = -1;
 
     set_values(input1, {
@@ -313,7 +313,7 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfzyx, tensor(3, 2, 2, 3, 3), batch_dim)
+        gather("gather", "InputDictionary", "InputText", axis, format::bfzyx, ov::PartialShape{3, 2, 3, 3, 2}, batch_dim)
     );
 
     network network(engine, topology);
@@ -385,7 +385,7 @@ TEST(gather7_gpu_fp16, d44_axisY_bdim1) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 3, 1, 5 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 4, 4, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_y;
+    int64_t axis = 2;
     int64_t batch_dim = 1;
 
     set_values(input1, {
@@ -417,7 +417,7 @@ TEST(gather7_gpu_fp16, d44_axisY_bdim1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(4, 3, 1, 4), batch_dim)
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{4, 3, 4, 1}, batch_dim)
     );
 
     network network(engine, topology);
@@ -474,7 +474,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_f;
+    int64_t axis = 1;
     size_t batch_dim = -1;
 
     set_values(input1, {
@@ -492,7 +492,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(3, 2, 1, 1), batch_dim)
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{3, 2, 1, 1}, batch_dim)
     );
 
     network network(engine, topology);
@@ -537,7 +537,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_f;
+    int64_t axis = 1;
     int64_t batch_dim = 1;
 
     set_values(input1, {
@@ -555,7 +555,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(3, 2, 1, 1), batch_dim)
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{3, 2, 1, 1}, batch_dim)
     );
 
     network network(engine, topology);
@@ -599,7 +599,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_f;
+    int64_t axis = 1;
     size_t batch_dim = 0;
 
     set_values(input1, {
@@ -617,7 +617,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(3, 3, 1, 2), batch_dim)
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{3, 3, 2, 1}, batch_dim)
     );
 
     network network(engine, topology);
@@ -667,9 +667,9 @@ TEST(gather_gpu_fp16, d14_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_b;
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, ov::PartialShape{ 2, 2, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, ov::PartialShape{ 1, 4 } }); // Indexes
+    int64_t axis = 0;
 
     set_values(input1, {
         FLOAT16(1.0f), FLOAT16(2.0f),
@@ -685,7 +685,7 @@ TEST(gather_gpu_fp16, d14_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(1, 4, 1, 2))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{1, 4, 2, 1})
     );
 
     network network(engine, topology);
@@ -728,7 +728,7 @@ TEST(gather_gpu_fp16, d222_axisB) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_b;
+    int64_t axis = 0;
 
     set_values(input1, {
         FLOAT16(1.f), FLOAT16(2.f), FLOAT16(3.f),
@@ -747,7 +747,7 @@ TEST(gather_gpu_fp16, d222_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 2))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 2, 2})
     );
 
     network network(engine, topology);
@@ -790,7 +790,7 @@ TEST(gather_gpu_fp16, d22_axisY) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_y;
+    int64_t axis = 2;
 
     set_values(input1, {
         FLOAT16(1.f), FLOAT16(2.f), FLOAT16(3.f),
@@ -808,7 +808,7 @@ TEST(gather_gpu_fp16, d22_axisY) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 2))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 2, 2})
     );
 
     network network(engine, topology);
@@ -851,7 +851,7 @@ TEST(gather_gpu_fp16, d22_axisF) {
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_f;
+    int64_t axis = 1;
 
     set_values(input1, {
             FLOAT16(1.f), FLOAT16(2.f), FLOAT16(3.f),
@@ -869,7 +869,7 @@ TEST(gather_gpu_fp16, d22_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 2, 2})
     );
 
     network network(engine, topology);
@@ -911,7 +911,7 @@ TEST(gather_gpu_fp32, d14_axisB) {
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_b;
+    int64_t axis = 0;
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -927,7 +927,7 @@ TEST(gather_gpu_fp32, d14_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(1, 4, 1, 2))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{1, 4, 2, 1})
     );
 
     network network(engine, topology);
@@ -970,7 +970,7 @@ TEST(gather_gpu_fp32, d222_axisB) {
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_b;
+    int64_t axis = 0;
 
     set_values(input1, {
         1.f, 2.f, 3.f,
@@ -988,7 +988,7 @@ TEST(gather_gpu_fp32, d222_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 2))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 2, 2})
     );
 
     network network(engine, topology);
@@ -1031,7 +1031,7 @@ TEST(gather_gpu_fp32, d22_axisY) {
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_y;
+    int64_t axis = 2;
 
     set_values(input1, {
         1.f, 2.f, 3.f,
@@ -1049,7 +1049,7 @@ TEST(gather_gpu_fp32, d22_axisY) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 2))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 2, 2})
     );
 
     network network(engine, topology);
@@ -1092,7 +1092,7 @@ TEST(gather_gpu_fp32, d22_axisF) {
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_f;
+    int64_t axis = 1;
 
     set_values(input1, {
             1.f, 2.f, 3.f,
@@ -1110,7 +1110,7 @@ TEST(gather_gpu_fp32, d22_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 2, 2})
     );
 
     network network(engine, topology);
@@ -1153,7 +1153,7 @@ TEST(gather_gpu_int32, d22_axisF) {
 
     auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_f;
+    int64_t axis = 1;
 
     set_values(input1, {
             1, 2, 3,
@@ -1171,7 +1171,7 @@ TEST(gather_gpu_int32, d22_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 2, 2})
     );
 
     network network(engine, topology);
@@ -1213,7 +1213,7 @@ TEST(gather_gpu_int32, d14_axisB) {
 
     auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 4, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_b;
+    int64_t axis = 0;
 
     set_values(input1, {
             1, 2,
@@ -1229,7 +1229,7 @@ TEST(gather_gpu_int32, d14_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(1, 4, 1, 2))
+            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{1, 4, 2, 1})
     );
 
     network network(engine, topology);
@@ -1272,7 +1272,7 @@ TEST(gather_gpu_int32, d222_axisB) {
 
     auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_b;
+    int64_t axis = 0;
 
     set_values(input1, {
             1, 2, 3,
@@ -1290,7 +1290,7 @@ TEST(gather_gpu_int32, d222_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 2, 2})
     );
 
     network network(engine, topology);
@@ -1333,7 +1333,7 @@ TEST(gather_gpu_int32, d22_axisY) {
 
     auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_y;
+    int64_t axis = 2;
 
     set_values(input1, {
             1, 2, 3,
@@ -1351,7 +1351,7 @@ TEST(gather_gpu_int32, d22_axisY) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 2, 2})
     );
 
     network network(engine, topology);
@@ -1397,7 +1397,7 @@ TEST(gather_gpu_fp32, d41_axisB) {
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_b;
+    int64_t axis = 0;
 
     set_values(input1, {
             1.f, 2.f, 3.f,
@@ -1415,7 +1415,7 @@ TEST(gather_gpu_fp32, d41_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(4, 1, 3, 2))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{4, 1, 2, 3})
     );
 
     network network(engine, topology);
@@ -1463,7 +1463,7 @@ TEST(gather_gpu_fp32, d41_axisF) {
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 1, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_f;
+    int64_t axis = 1;
 
     set_values(input1, {
             1.f, 2.f, 3.f, 4.f, 5.f, 6.f,
@@ -1478,7 +1478,7 @@ TEST(gather_gpu_fp32, d41_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 4, 2, 1))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 4, 1, 2})
     );
 
     network network(engine, topology);
@@ -1522,7 +1522,7 @@ TEST(gather_gpu_fp32, d2_axisX) {
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Dictionary
     auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 1, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_x;
+    int64_t axis = 3;
 
     set_values(input1, {
             1.f, 2.f,
@@ -1537,7 +1537,7 @@ TEST(gather_gpu_fp32, d2_axisX) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(2, 2, 2, 1))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{2, 2, 1, 2})
     );
 
     network network(engine, topology);
@@ -1572,7 +1572,7 @@ TEST(gather_gpu_fp32, 322_axisF) {
 
     auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 3, 1, 1 } }); // data
     auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_f;
+    int64_t axis = 1;
 
     set_values(input1, {
         0, 1, 2,  10, 11, 12,   20, 21, 22
@@ -1587,7 +1587,7 @@ TEST(gather_gpu_fp32, 322_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(3, 2, 1, 2))
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{3, 2, 2, 1})
     );
 
     network network(engine, topology);
@@ -1621,7 +1621,7 @@ TEST(gather_gpu_u8, 322_axisF) {
 
     auto input1 = engine.allocate_memory({data_types::u8, format::bfyx, tensor{3, 3, 1, 1}}); // data
     auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{2, 2, 1, 1}}); // Indexes
-    auto axis = cldnn::gather::gather_axis::along_f;
+    int64_t axis = 1;
 
     set_values<uint8_t>(input1, {0, 1, 2, 10, 11, 12, 20, 21, 22});
 
@@ -1632,7 +1632,7 @@ TEST(gather_gpu_u8, 322_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(3, 2, 1, 2)));
+        gather("gather", "InputDictionary", "InputText", axis, format::bfyx, ov::PartialShape{3, 2, 2, 1}));
 
     network network(engine, topology);
 

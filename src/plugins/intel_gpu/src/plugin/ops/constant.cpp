@@ -163,7 +163,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
 
     cldnn::layout constLayout = cldnn::layout(DataTypeFromPrecision(op->get_output_element_type(0)),
                                               constFormat,
-                                              constTensor);
+                                              ov::PartialShape{newDims});
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
