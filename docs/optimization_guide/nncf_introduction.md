@@ -20,7 +20,7 @@ This document describes Neural Network Compression Framework (NNCF) which is bei
  
 
 - Stacking of optimization methods, for example, 8-bit quatization + Filter Pruning.
-- Support for [Accuracy-Aware model training](https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#accuracy-aware-model-training) pipelines via the [Adaptive Compression Level Training](./docs/accuracy_aware_model_training/AdaptiveCompressionLevelTraining.md) and [Early Exit Training](./docs/accuracy_aware_model_training/EarlyExitTrainig.md).
+- Support for [Accuracy-Aware model training](https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#accuracy-aware-model-training) pipelines via the [Adaptive Compression Level Training](https://github.com/openvinotoolkit/nncf/tree/develop/docs/accuracy_aware_model_training/AdaptiveCompressionLevelTraining.md) and [Early Exit Training](https://github.com/openvinotoolkit/nncf/tree/develop/docs/accuracy_aware_model_training/EarlyExitTrainig.md).
 - Automatic, configurable model graph transformation to obtain the compressed model.
   > **NOTE**: Limited support for TensorFlow models. The models created using Sequential or Keras Functional API are only supported.
 - GPU-accelerated layers for faster compressed model fine-tuning.
@@ -51,9 +51,9 @@ NNCF provides various examples and tutorials that demonstrates usage of optimiza
   - [Semantic segmentation sample](https://github.com/openvinotoolkit/nncf/blob/develop/examples/torch/semantic_segmentation/README.md)
 
 - TensorFlow samples:
-  - [Image Classification sample](examples/tensorflow/classification/README.md)
-  - [Object Detection sample](examples/tensorflow/object_detection/README.md)
-  - [Instance Segmentation sample](examples/tensorflow/segmentation/README.md)
+  - [Image Classification sample](https://github.com/openvinotoolkit/nncf/blob/develop/examples/tensorflow/classification/README.md)
+  - [Object Detection sample](https://github.com/openvinotoolkit/nncf/blob/develop/examples/tensorflow/object_detection/README.md)
+  - [Instance Segmentation sample](https://github.com/openvinotoolkit/nncf/blob/develop/examples/tensorflow/segmentation/README.md)
 
 
 ## See also
