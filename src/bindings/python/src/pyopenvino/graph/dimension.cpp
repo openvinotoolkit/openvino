@@ -111,7 +111,7 @@ void regclass_graph_Dimension(py::module m) {
                 :param dim: The other dimension to compare this dimension to.
                 :type dim: Dimension
                 :return: True if this dimension and dim are both dynamic,
-                or if they are both static and equal, otherwise False.
+                         or if they are both static and equal, otherwise False.
                 :rtype: bool
             )");
     dim.def("compatible",

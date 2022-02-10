@@ -16,19 +16,15 @@ void regclass_Version(py::module m) {
     cls.def_readonly("build_number",
                      &ov::Version::buildNumber,
                      R"(
-                        Returns
-                        ----------
-                        build_number : str
-                            String with build number.
+                        :return: String with build number.
+                        :rtype: str
                      )");
 
     cls.def_readonly("description",
                      &ov::Version::description,
                      R"(
-                        Returns
-                        ----------
-                        description : str
-                            Description string.
+                        :return: Description string.
+                        :rtype: str
                      )");
 
     cls.def_property_readonly(
@@ -37,10 +33,8 @@ void regclass_Version(py::module m) {
             return OPENVINO_VERSION_MAJOR;
         },
         R"(
-            Returns
-            ----------
-            major : int
-                OpenVINO's major version.
+            :return: OpenVINO's major version.
+            :rtype: int
         )");
 
     cls.def_property_readonly(
@@ -49,9 +43,7 @@ void regclass_Version(py::module m) {
             return OPENVINO_VERSION_MINOR;
         },
         R"(
-        Returns
-        ----------
-        minor : int
-            OpenVINO's minor version.
-    )");
+            :return: OpenVINO's minor version.
+            :rtype: int
+        )");
 }

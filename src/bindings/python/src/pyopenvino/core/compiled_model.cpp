@@ -200,9 +200,8 @@ void regclass_CompiledModel(py::module m) {
                               R"(
                                 Gets all inputs of a compiled model.
 
-                                Returns
-                                ----------
-                                inputs : list[openvino.runtime.ConstOutput]
+                                :return: Inputs of a compiled model.
+                                :rtype: List[openvino.runtime.ConstOutput]
                               )");
 
     cls.def("input",
@@ -246,9 +245,8 @@ void regclass_CompiledModel(py::module m) {
                               R"(
                                 Gets all outputs of a compiled model.
 
-                                Returns
-                                ----------
-                                outputs : list[openvino.runtime.ConstOutput]
+                                :return: Outputs of a compiled model.
+                                :rtype: List[openvino.runtime.ConstOutput]
                               )");
 
     cls.def("output",

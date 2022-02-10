@@ -566,6 +566,7 @@ void regclass_graph_Model(py::module m) {
 
                     Return -1 if parameter not matched.
 
+                    :param parameter: Parameter which index is to be found.
                     :type parameter: op.Parameter
                     :return: Index for parameter
                     :rtype: int
@@ -590,7 +591,8 @@ void regclass_graph_Model(py::module m) {
             :param input_tensors: Tensors for the inputs. One for each inputs.
             :type input_tensors: List[op.Tensor]
             :param evaluation_context: Storage of additional settings and attributes that can be used
-            when evaluating the function. This additional information can be shared across nodes.
+                                       when evaluating the function. This additional information can be
+                                       shared across nodes.
             :type evaluation_context: PyRTMap
             :rtype: bool
         )");

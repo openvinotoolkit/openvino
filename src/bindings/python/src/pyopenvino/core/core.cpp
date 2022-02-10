@@ -43,18 +43,6 @@ void regclass_Core(py::module m) {
         py::arg("properties"),
         R"(
             Sets properties for the device.
-
-            Parameters
-            ----------
-            device_name : str
-                Name of the device to load the model to.
-
-            properties : dict
-                Dict of pairs: (property name, property value)
-
-            Returns
-            ----------
-            set_property : None
         )");
 
     cls.def(
@@ -70,14 +58,8 @@ void regclass_Core(py::module m) {
         R"(
             Sets properties.
 
-            Parameters
-            ----------
-            properties : dict
-                Dict of pairs: (property name, property value)
-
-            Returns
-            ----------
-            set_property : None
+            :param properties: Optional dict of pairs: (property name, property value).
+            :type properties: dict
         )");
 
     cls.def(
@@ -94,16 +76,10 @@ void regclass_Core(py::module m) {
         R"(
             Sets properties for the device.
 
-            Parameters
-            ----------
-            device_name : str
-                Name of the device to load the model to.
-            properties : dict
-                Dict of pairs: (property name, property value)
-
-            Returns
-            ----------
-            set_property : None
+            :param device_name: Name of the device.
+            :type device_name: str
+            :param properties: Optional dict of pairs: (property name, property value).
+            :type properties: dict
         )");
 
     cls.def(
@@ -122,20 +98,14 @@ void regclass_Core(py::module m) {
             Users can create as many compiled models as they need and use them simultaneously
             (up to the limitation of the hardware resources).
 
-            Parameters
-            ----------
-            model : openvino.runtime.Model
-                Model acquired from read_model function.
-
-            device_name : str
-                Name of the device to load the model to.
-
-            properties : dict
-                Optional dict of pairs: (property name, property value) relevant only for this load operation.
-
-            Returns
-            ----------
-            compile_model : openvino.runtime.CompiledModel
+            :param model: Model acquired from read_model function.
+            :type model: openvino.runtime.Model
+            :param device_name: Name of the device to load the model to.
+            :type device_name: str
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict
+            :return: A compiled model.
+            :rtype: openvino.runtime.CompiledModel
         )");
 
     cls.def(
@@ -152,18 +122,12 @@ void regclass_Core(py::module m) {
             selected by AUTO plugin. Users can create as many compiled models as they need and use
             them simultaneously (up to the limitation of the hardware resources).
 
-
-            Parameters
-            ----------
-            model : openvino.runtime.Model
-                Model acquired from read_model function.
-
-            properties : dict
-                Optional dict of pairs: (property name, property value) relevant only for this load operation.
-
-            Returns
-            ----------
-            compile_model : openvino.runtime.CompiledModel
+            :param model: Model acquired from read_model function.
+            :type model: openvino.runtime.Model
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict
+            :return: A compiled model.
+            :rtype: openvino.runtime.CompiledModel
         )");
 
     cls.def(
@@ -182,21 +146,14 @@ void regclass_Core(py::module m) {
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
 
-
-            Parameters
-            ----------
-            model_path : str
-                A path to a model in IR / ONNX / PDPD format.
-
-            device_name : str
-                Name of the device to load the model to.
-
-            properties : dict
-                Optional dict of pairs: (property name, property value) relevant only for this load operation.
-
-            Returns
-            ----------
-            compile_model : openvino.runtime.CompiledModel
+            :param model_path: A path to a model in IR / ONNX / PDPD format.
+            :type model_path: str
+            :param device_name: Name of the device to load the model to.
+            :type device_name: str
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict
+            :return: A compiled model.
+            :rtype: openvino.runtime.CompiledModel
         )");
 
     cls.def(
@@ -211,17 +168,12 @@ void regclass_Core(py::module m) {
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
 
-            Parameters
-            ----------
-            model_path : str
-                A path to a model in IR / ONNX / PDPD format.
-
-            properties : dict
-                Optional dict of pairs: (property name, property value) relevant only for this load operation.
-
-            Returns
-            ----------
-            compile_model : openvino.runtime.CompiledModel
+            :param model_path: A path to a model in IR / ONNX / PDPD format.
+            :type model_path: str
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict
+            :return: A compiled model.
+            :rtype: openvino.runtime.CompiledModel
         )");
 
     cls.def("get_versions",
@@ -230,14 +182,10 @@ void regclass_Core(py::module m) {
             R"(
                 Returns device plugins version information.
 
-                Parameters
-                ----------
-                device_name : str
-                    Device name to identify a plugin.
-
-                Returns
-                ----------
-                get_versions : dict[str, openvino.runtime.Version]
+                :param device_name: Device name to identify a plugin.
+                :type device_name: str
+                :return: Plugin version information.
+                :rtype: Dict[str, openvino.runtime.Version]
             )");
 
     cls.def(
@@ -262,17 +210,12 @@ void regclass_Core(py::module m) {
         R"(
             Reads models from IR / ONNX / PDPD formats.
 
-            Parameters
-            ----------
-            model : bytes
-                Bytes with model in IR / ONNX / PDPD format.
-
-            weights : bytes
-                Bytes with tensor's data.
-
-            Returns
-            ----------
-            read_model : openvino.runtime.Model
+            :param model: Bytes with model in IR / ONNX / PDPD format.
+            :type model: bytes
+            :param weights: Bytes with tensor's data.
+            :type weights: bytes
+            :return: A model.
+            :rtype: openvino.runtime.Model
         )");
 
     cls.def(
@@ -283,21 +226,16 @@ void regclass_Core(py::module m) {
         R"(
             Reads models from IR / ONNX / PDPD formats.
 
-            Parameters
-            ----------
-            model : str
-                A path to a model in IR / ONNX / PDPD format.
-
-            weights : str
-                A path to a data file For IR format (*.bin): if path is empty,
-                will try to read bin file with the same name as xml and if bin
-                file with the same name was not found, will load IR without weights.
-                For ONNX format (*.onnx): weights parameter is not used.
-                For PDPD format (*.pdmodel) weights parameter is not used.
-
-            Returns
-            ----------
-            read_model : openvino.runtime.Model
+            :param model: A path to a model in IR / ONNX / PDPD format.
+            :type model: str
+            :param weights: A path to a data file For IR format (*.bin): if path is empty,
+                            will try to read bin file with the same name as xml and if bin
+                            file with the same name was not found, will load IR without weights.
+                            For ONNX format (*.onnx): weights parameter is not used.
+                            For PDPD format (*.pdmodel) weights parameter is not used.
+            :type weights: str
+            :return: A model.
+            :rtype: openvino.runtime.Model
         )");
 
     cls.def(
@@ -308,17 +246,13 @@ void regclass_Core(py::module m) {
         R"(
             Reads models from IR / ONNX / PDPD formats.
 
-            Parameters
-            ----------
-            model : str
-                A string with model in IR / ONNX / PDPD format.
-
-            weights : openvino.runtime.Tensor
-                Tensor with weights. Reading ONNX / PDPD models doesn't support loading weights from weights tensors.
-
-            Returns
-            ----------
-            read_model : openvino.runtime.Model
+            :param model: A string with model in IR / ONNX / PDPD format.
+            :type model: str
+            :param weights: Tensor with weights. Reading ONNX / PDPD models doesn't support
+                            loading weights from weights tensors.
+            :type weights: openvino.runtime.Tensor
+            :return: A model.
+            :rtype: openvino.runtime.Model
         )");
 
     cls.def(
@@ -331,21 +265,16 @@ void regclass_Core(py::module m) {
         R"(
             Reads models from IR / ONNX / PDPD formats.
 
-            Parameters
-            ----------
-            model : str
-                A string with model in IR / ONNX / PDPD format.
-
-            weights : str
-                A path to a data file For IR format (*.bin): if path is empty,
-                will try to read bin file with the same name as xml and if bin
-                file with the same name was not found, will load IR without weights.
-                For ONNX format (*.onnx): weights parameter is not used.
-                For PDPD format (*.pdmodel) weights parameter is not used.
-
-            Returns
-            ----------
-            read_model : openvino.runtime.Model
+            :param model: A string with model in IR / ONNX / PDPD format.
+            :type model: str
+            :param weights: A path to a data file For IR format (*.bin): if path is empty,
+                            will try to read bin file with the same name as xml and if bin
+                            file with the same name was not found, will load IR without weights.
+                            For ONNX format (*.onnx): weights parameter is not used.
+                            For PDPD format (*.pdmodel) weights parameter is not used.
+            :type weights: str
+            :return: A model.
+            :rtype: openvino.runtime.Model
         )");
 
     cls.def(
@@ -364,32 +293,27 @@ void regclass_Core(py::module m) {
         R"(
             Imports a compiled model from a previously exported one.
 
-            Parameters
-            ----------
-            model_stream : bytes
-                Input stream containing a model previously exported using export_model method.
+            :param model_stream: Input stream containing a model previously exported using export_model method.
+            :type model_stream: bytes
+            :param device_name: Name of device to import compiled model for.
+                                Note, if device_name device was not used to compile the original mode, an exception is thrown.
+            :type device_name: str
+            :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict, optional
+            :return: A compiled model.
+            :rtype: openvino.runtime.CompiledModel
 
-            device_name : str
-                Name of device to import compiled model for.
-                Note, if device_name device was not used to compile the original mode, an exception is thrown.
+            :Example:
+            .. code-block:: python
 
-            properties : dict
-                Optional map of pairs: (property name, property value) relevant only for this load operation.
+                user_stream = compiled.export_model()
 
-            Returns
-            ----------
-            import_model : openvino.runtime.CompiledModel
+                with open('./my_model', 'wb') as f:
+                    f.write(user_stream)
 
-            Examples
-            ----------
-            user_stream = compiled.export_model()
+                # ...
 
-            with open('./my_model', 'wb') as f:
-                f.write(user_stream)
-
-            # ...
-
-            new_compiled = core.import_model(user_stream, "CPU")
+                new_compiled = core.import_model(user_stream, "CPU")
         )");
 
     // keep as second one to solve overload resolution problem
@@ -420,33 +344,29 @@ void regclass_Core(py::module m) {
             Advanced version of `import_model`. It utilizes, streams from standard
             Python library `io`.
 
-            Parameters
-            ----------
-            model_stream : io.BytesIO
-                Input stream containing a model previously exported using export_model method.
 
-            device_name : str
-                Name of device to import compiled model for.
-                Note, if device_name device was not used to compile the original mode, an exception is thrown.
+            :param model_stream: Input stream containing a model previously exported using export_model method.
+            :type model_stream: io.BytesIO
+            :param device_name: Name of device to import compiled model for.
+                                Note, if device_name device was not used to compile the original mode, an exception is thrown.
+            :type device_name: str
+            :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict, optional
+            :return: A compiled model.
+            :rtype: openvino.runtime.CompiledModel
 
-            properties : dict
-                Optional map of pairs: (property name, property value) relevant only for this load operation.
+            :Example:
+            .. code-block:: python
 
-            Returns
-            ----------
-            import_model : openvino.runtime.CompiledModel
+                user_stream = io.BytesIO()
+                compiled.export_model(user_stream)
 
-            Examples
-            ----------
-            user_stream = io.BytesIO()
-            compiled.export_model(user_stream)
+                with open('./my_model', 'wb') as f:
+                    f.write(user_stream.getvalue()) # or read() if seek(0) was applied before
 
-            with open('./my_model', 'wb') as f:
-                f.write(user_stream.getvalue()) # or read() if seek(0) was applied before
+                # ...
 
-            # ...
-
-            new_compiled = core.import_model(user_stream, "CPU")
+                new_compiled = core.import_model(user_stream, "CPU")
         )");
 
     // todo: remove after Accuracy Checker migration to set/get_property API
@@ -469,16 +389,12 @@ void regclass_Core(py::module m) {
         R"(
             Gets properties dedicated to device behaviour.
 
-            Parameters
-            ----------
-            device_name : str
-                A name of a device to get a properties value.
-            name : str
-                Property name.
-
-            Returns
-            ----------
-            get_property : Any
+            :param device_name: A name of a device to get a properties value.
+            :type device_name: str
+            :param name: Property name.
+            :type name: str
+            :return: Extracted information from property.
+            :rtype: object
         )");
 
     // todo: remove after Accuracy Checker migration to set/get_property API
@@ -498,19 +414,12 @@ void regclass_Core(py::module m) {
             R"(
                 Register a new device and plugin which enable this device inside OpenVINO Runtime.
 
-                Parameters
-                ----------
-                plugin_name : str
-                    A name of plugin. Depending on platform `plugin_name` is wrapped with shared library
-                    suffix and prefix to identify library full name E.g. on Linux platform plugin name
-                    specified as `plugin_name` will be wrapped as `libplugin_name.so`.
-
-                device_name : str
-                    A device name to register plugin for.
-
-                Returns
-                ----------
-                register_plugin : None
+                :param plugin_name: A name of plugin. Depending on platform `plugin_name` is wrapped with shared library
+                                    suffix and prefix to identify library full name E.g. on Linux platform plugin name
+                                    specified as `plugin_name` will be wrapped as `libplugin_name.so`.
+                :type plugin_name: str
+                :param device_name: A device name to register plugin for.
+                :type device_name: str
             )");
 
     cls.def("register_plugins",
@@ -520,14 +429,8 @@ void regclass_Core(py::module m) {
                 Registers a device plugin to OpenVINO Runtime Core instance using XML configuration
                 file with plugins description.
 
-                Parameters
-                ----------
-                xml_config_file : str
-                    A path to .xml file with plugins to register.
-
-                Returns
-                ----------
-                register_plugins : None
+                :param xml_config_file: A path to .xml file with plugins to register.
+                :type xml_config_file: str
             )");
 
     cls.def("unload_plugin",
@@ -538,14 +441,8 @@ void regclass_Core(py::module m) {
                 The method is needed to remove loaded plugin instance and free its resources.
                 If plugin for a specified device has not been created before, the method throws an exception.
 
-                Parameters
-                ----------
-                device_name : str
-                    A device name identifying plugin to remove from OpenVINO.
-
-                Returns
-                ----------
-                unload_plugin : None
+                :param device_name: A device name identifying plugin to remove from OpenVINO.
+                :type device_name: str
             )");
 
     cls.def(
@@ -562,21 +459,14 @@ void regclass_Core(py::module m) {
         R"(
             Query device if it supports specified model with specified properties.
 
-            Parameters
-            ----------
-            model : openvino.runtime.Model
-                Model object to query.
-
-            device_name : str
-                A name of a device to query.
-
-            properties : dict
-                Optional dict of pairs: (property name, property value)
-
-            Returns
-            ----------
-            query_model : dict
-                Pairs a operation name -> a device name supporting this operation.
+            :param model: Model object to query.
+            :type model: openvino.runtime.Model
+            :param device_name: A name of a device to query.
+            :type device_name: str
+            :param properties: Optional dict of pairs: (property name, property value)
+            :type properties: dict
+            :return: Pairs a operation name -> a device name supporting this operation.
+            :rtype: dict                
         )");
 
     cls.def("add_extension",

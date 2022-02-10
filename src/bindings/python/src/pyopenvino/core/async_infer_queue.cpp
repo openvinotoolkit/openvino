@@ -236,8 +236,6 @@ void regclass_AsyncInferQueue(py::module m) {
         Waits for all InferRequests in a pool to finish scheduled work. 
 
         Function releases GIL, other threads can work while this function waits.
-
-        :rtype: None
     )");
 
     cls.def(
@@ -275,7 +273,6 @@ void regclass_AsyncInferQueue(py::module m) {
 
         :param callback: Any Python defined function that matches callback's requirements.
         :type callback: function
-        :rtype: None
     )");
 
     cls.def(
@@ -315,6 +312,6 @@ void regclass_AsyncInferQueue(py::module m) {
         },
         R"(
         :return: List of all passed userdata. None if the data wasn't passed yet.
-        :rtype: list[Any]
+        :rtype: List[Any]
     )");
 }

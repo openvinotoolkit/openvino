@@ -69,7 +69,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 The tensor names associated with this output.
 
                 :return: Set of tensor names.
-                :rtype: set
+                :rtype: Set[str]
                )");
     output.def("get_element_type",
                &ov::Output<VT>::get_element_type,
