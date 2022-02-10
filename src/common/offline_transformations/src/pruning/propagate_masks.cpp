@@ -377,6 +377,11 @@ public:
             const auto & m_output = pattern_map.at(eltwise);
             const auto & m_input = pattern_map.at(input);
 
+            const auto & input_rank = m_input.get_partial_shape().rank().get_length();
+            const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
+            // Here assuming that masks can be propagated only through 3/4 dimensional tensors
+            // (since channel dim is necessary) or tensors with equal rank.
+            if (!((weights_rank > 2 && input_rank > 2) || weights_rank == input_rank)) return false;
             // Case when input masks should be united instead of intersection
             bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
 

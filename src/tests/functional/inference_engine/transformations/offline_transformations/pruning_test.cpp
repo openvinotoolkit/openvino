@@ -1021,6 +1021,70 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
 }
 
 
+TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor1DScale) {
+    Shape input_shape{1, 3, 64, 64};
+    Shape weights_shape{8, 3, 3, 3};
+    Shape weight_shape2{3, 8, 3, 3};
+    auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+    input->set_friendly_name("input");
+    auto weights_1 = opset5::Constant::create(element::i8, weights_shape, {0});
+    weights_1->set_friendly_name("weights_int8_const");
+
+    auto convert = std::make_shared<opset5::Convert>(weights_1, element::f32);
+    convert->set_friendly_name("convert");
+
+    auto sub_const = create_constant_with_zeros(Shape{1}, {{}});
+
+    auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
+    sub->set_friendly_name("sub");
+
+    auto mul_const = create_constant_with_zeros(Shape{1}, {{}});
+    auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
+    mul->set_friendly_name("mul");
+
+    auto conv1 = std::make_shared<opset5::Convolution>(input, mul, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+    conv1->set_friendly_name("conv1");
+
+    auto add_const = create_constant_with_zeros(Shape{1, 8, 1, 1}, {{}, {0, 1, 2, 3, 4}, {}, {}});;
+    auto add = std::make_shared<opset5::Add>(conv1, add_const);
+    add->set_friendly_name("add");
+
+    auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0});
+    auto input_high = opset5::Constant::create(element::f32, Shape{1, 1, 1, 1}, {20});
+    auto output_low = opset5::Constant::create(element::f32, Shape{}, {1});
+    auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
+    auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 8);
+
+    auto weights_2 = opset5::Constant::create(element::f32, weight_shape2, {0});
+    auto conv2 = std::make_shared<opset5::Convolution>(fq, weights_2, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+    auto function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor1DScale.svg").run_on_function(function);
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::Pruning>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(weights_1->output(0)), Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(sub->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(mul->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(conv1->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(add->output(0)),  Mask({{}, {},  {}, {}}));
+
+    compare_masks(*getMask(fq->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
+}
+
+
 TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{8, 3, 3, 3};
@@ -2724,8 +2788,9 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
     for (size_t i = 1; i < linear_input_features / 2; i++)
         add_zeros.insert(i);
     auto add_mask = nested_vector();
+    add_mask.push_back({});
     add_mask.push_back(add_zeros);
-    auto weights_add = create_constant_with_zeros({linear_input_features}, Mask(add_mask));
+    auto weights_add = create_constant_with_zeros({1, linear_input_features}, Mask(add_mask));
     auto add = std::make_shared<opset5::Add>(reshape, weights_add);
 
     auto weights_linear = create_constant_with_zeros(weights_linear_shape, {{}, {0, 1, 2}});
@@ -2747,7 +2812,7 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
         auto reshape_const = opset5::Constant::create(element::i64, Shape{2}, {1, 2 * linear_input_features / 3});
         auto reshape = std::make_shared<opset5::Reshape>(relu, reshape_const, true);
 
-        auto weights_add = create_constant_with_zeros({2 * linear_input_features / 3}, Mask{{}, {}});
+        auto weights_add = create_constant_with_zeros({1, 2 * linear_input_features / 3}, Mask{{}, {}});
         auto add = std::make_shared<opset5::Add>(reshape, weights_add);
 
         auto weights_linear = create_constant_with_zeros({
