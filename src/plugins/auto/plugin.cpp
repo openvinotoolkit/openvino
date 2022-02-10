@@ -115,6 +115,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         return "";
     };
 
+    unsigned int devicePriority = 0;
+    auto prioritiesIter = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    bool enableDevicePriority = (prioritiesIter != config.end);
     for (auto && d : devicesWithRequests) {
         auto openingBracket = d.find_first_of('(');
         auto closingBracket = d.find_first_of(')', openingBracket);
@@ -130,33 +133,47 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
         }
 
-        std::string defaultDeviceID = "";
         DeviceIDParser parsed{deviceName};
         std::string deviceid = parsed.getDeviceID();
+        std::vector<std::string> sameTypeDevices;
         if (deviceid.empty()) {
-            defaultDeviceID = getDefaultDeviceID(deviceName);
-            deviceid = defaultDeviceID;
-        }
-
-        std::string fullDeviceName = "";
-        std::string uniqueName = "";
-        if (parsed.getDeviceName() == "GPU") {
-            auto supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-            if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
-                fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+            auto deviceList = GetCore()->GetAvailableDevices();
+            for (auto&& device : deviceList) {
+                if (device.find(deviceName) != std::string::npos) {
+                    sameTypeDevices.push_back(std::move(device));
+                }
             }
-        }
-
-        if (fullDeviceName.empty()) {
-            uniqueName = parsed.getDeviceName() + "_" + deviceid;
         } else {
-            uniqueName = fullDeviceName + "_" + deviceid;
+            sameTypeDevices.push_back(std::move(deviceName));
         }
 
-        LOG_DEBUG("[AUTOPLUGIN]:deviceName:%s, defaultDeviceID:%s, uniqueName:%s",
-              deviceName.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
-        // create meta device
-        metaDevices.push_back({deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName, 0});
+        for (auto&& deviceNameWithID : sameTypeDevices) {
+            DeviceIDParser newParsed{deviceNameWithID};
+            std::string defaultDeviceID = newParsed.getDeviceID();
+
+            std::string fullDeviceName = "";
+            std::string uniqueName = "";
+            if (newParsed.getDeviceName() == "GPU") {
+                auto supportedMetrics = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+                if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
+                    fullDeviceName = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+                }
+            }
+
+            if (fullDeviceName.empty()) {
+                uniqueName = newParsed.getDeviceName() + "_" + deviceid;
+            } else {
+                uniqueName = fullDeviceName + "_" + deviceid;
+            }
+
+            LOG_DEBUG("[AUTOPLUGIN]:deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
+                    deviceNameWithID.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
+            // create meta device
+            metaDevices.push_back({deviceNameWithID, getDeviceConfig(deviceNameWithID), numRequests, defaultDeviceID, uniqueName, devicePriority});
+        }
+        if (enableDevicePriority) {
+            devicePriority++;
+        }
     }
 
     return metaDevices;
