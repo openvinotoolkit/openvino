@@ -144,18 +144,21 @@ void regclass_Core(py::module m) {
             ov::Tensor tensor(ov::element::Type_t::u8, {});
             return self.read_model(model, tensor);
         },
+        py::return_value_policy::reference_internal,
         py::arg("model"),
         py::arg("weights") = py::bytes());
 
     cls.def(
         "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const std::string&) const) & ov::Core::read_model,
+        py::return_value_policy::reference_internal,
         py::arg("model"),
         py::arg("weights") = "");
 
     cls.def(
         "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const ov::Tensor&) const) & ov::Core::read_model,
+        py::return_value_policy::reference_internal,
         py::arg("model"),
         py::arg("weights"));
 
@@ -164,6 +167,7 @@ void regclass_Core(py::module m) {
         [](ov::Core& self, py::object model, py::object weights) {
             return self.read_model(py::str(model), py::str(weights));
         },
+        py::return_value_policy::reference_internal,
         py::arg("model"),
         py::arg("weights") = "");
 
