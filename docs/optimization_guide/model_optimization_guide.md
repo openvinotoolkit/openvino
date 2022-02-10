@@ -15,7 +15,7 @@
 
  - **Post-training Optimization tool [(POT)](../../tools/pot/README.md)** is designed to optimize the inference of deep learning models by applying post-training methods that do not require model retraining or fine-tuning, like post-training quantization. 
 
-- **Neural Network Compression Framework [(NNCF)](./nncf_inroduction.md)** provides a suite of advanced algorithms for Neural Networks inference optimization with minimal accuracy drop, for example, quantization, pruning algorithms.
+- **Neural Network Compression Framework [(NNCF)](./nncf_introduction.md)** provides a suite of advanced algorithms for Neural Networks inference optimization with minimal accuracy drop, for example, quantization, pruning algorithms.
 
 - **Model Optimizer** implement some optimization to a model, most of them added by default, but you can configure mean/scale values, batch size RGB vs BGR input channels and other parameters to speed-up preprocess of a model ([Additional Optimization Use Cases](../MO_DG/prepare_model/Additional_Optimizations.md)) 
 
