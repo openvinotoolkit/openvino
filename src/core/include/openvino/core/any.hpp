@@ -63,9 +63,9 @@ struct Read {
     template <typename U>
     auto operator()(std::istream&, U&) const ->
         typename std::enable_if<std::is_same<T, U>::value && !Istreamable<U>::value && !Readable<U>::value>::type {
-        throw ov::Exception(std::string{"Could read type without std::istream& operator>>(std::istream&, T)"
-                                        " defined or ov::util::Read<T> class specialization, T: "} +
-                            typeid(T).name());
+        OPENVINO_UNREACHABLE("Could read type without std::istream& operator>>(std::istream&, T)",
+                             " defined or ov::util::Read<T> class specialization, T: ",
+                             typeid(T).name());
     }
     template <typename U>
     auto operator()(std::istream& is, U& value) const ->
@@ -318,7 +318,7 @@ class OPENVINO_API Any {
     template <class U>
     [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
                                                                                                       const U&) {
-        throw ov::Exception{"Could not compare types without equality operator"};
+        OPENVINO_UNREACHABLE("Could not compare types without equality operator");
     }
 
     template <typename T>
@@ -484,7 +484,7 @@ class OPENVINO_API Any {
         }
 
         void read(std::istream&) override {
-            throw ov::Exception{"Pointer to runtime attribute is not readable from std::istream"};
+            OPENVINO_UNREACHABLE("Pointer to runtime attribute is not readable from std::istream");
         }
 
         T runtime_attribute;
@@ -675,17 +675,20 @@ public:
             } else {
                 auto runtime_attribute = _impl->as_runtime_attribute();
                 if (runtime_attribute == nullptr) {
-                    throw ov::Exception{
-                        std::string{"Any does not contains pointer to runtime_attribute. It contains "} +
-                        _impl->type_info().name()};
+                    OPENVINO_UNREACHABLE("Any does not contains pointer to runtime_attribute. It contains ",
+                                         _impl->type_info().name());
                 }
                 auto vptr = std::dynamic_pointer_cast<typename T::element_type>(runtime_attribute);
                 if (vptr == nullptr && T::element_type::get_type_info_static() != runtime_attribute->get_type_info() &&
                     T::element_type::get_type_info_static() != RuntimeAttribute::get_type_info_static()) {
-                    throw ov::Exception{std::string{"Could not cast Any runtime_attribute to "} + typeid(T).name() +
-                                        " from " + _impl->type_info().name() + "; from " +
-                                        static_cast<std::string>(runtime_attribute->get_type_info()) + " to " +
-                                        static_cast<std::string>(T::element_type::get_type_info_static())};
+                    OPENVINO_UNREACHABLE("Could not cast Any runtime_attribute to ",
+                                         typeid(T).name(),
+                                         " from ",
+                                         _impl->type_info().name(),
+                                         "; from ",
+                                         static_cast<std::string>(runtime_attribute->get_type_info()),
+                                         " to ",
+                                         static_cast<std::string>(T::element_type::get_type_info_static()));
                 }
                 vptr = std::static_pointer_cast<typename T::element_type>(runtime_attribute);
                 _temp_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
@@ -710,17 +713,20 @@ public:
             } else {
                 auto runtime_attribute = _impl->as_runtime_attribute();
                 if (runtime_attribute == nullptr) {
-                    throw ov::Exception{
-                        std::string{"Any does not contains pointer to runtime_attribute. It contains "} +
-                        _impl->type_info().name()};
+                    OPENVINO_UNREACHABLE("Any does not contains pointer to runtime_attribute. It contains ",
+                                         _impl->type_info().name());
                 }
                 auto vptr = std::dynamic_pointer_cast<typename T::element_type>(runtime_attribute);
                 if (vptr == nullptr && T::element_type::get_type_info_static() != runtime_attribute->get_type_info() &&
                     T::element_type::get_type_info_static() != RuntimeAttribute::get_type_info_static()) {
-                    throw ov::Exception{std::string{"Could not cast Any runtime_attribute to "} + typeid(T).name() +
-                                        " from " + _impl->type_info().name() + "; from " +
-                                        static_cast<std::string>(runtime_attribute->get_type_info()) + " to " +
-                                        static_cast<std::string>(T::element_type::get_type_info_static())};
+                    OPENVINO_UNREACHABLE("Could not cast Any runtime_attribute to ",
+                                         typeid(T).name(),
+                                         " from ",
+                                         _impl->type_info().name(),
+                                         "; from ",
+                                         static_cast<std::string>(runtime_attribute->get_type_info()),
+                                         " to ",
+                                         static_cast<std::string>(T::element_type::get_type_info_static()));
                 }
                 vptr = std::static_pointer_cast<typename T::element_type>(runtime_attribute);
                 _temp_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
@@ -746,17 +752,20 @@ public:
             } else {
                 auto runtime_attribute = _impl->as_runtime_attribute();
                 if (runtime_attribute == nullptr) {
-                    throw ov::Exception{
-                        std::string{"Any does not contains pointer to runtime_attribute. It contains "} +
-                        _impl->type_info().name()};
+                    OPENVINO_UNREACHABLE("Any does not contains pointer to runtime_attribute. It contains ",
+                                         _impl->type_info().name());
                 }
                 auto vptr = std::dynamic_pointer_cast<typename T::element_type>(runtime_attribute);
                 if (vptr == nullptr && T::element_type::get_type_info_static() != runtime_attribute->get_type_info() &&
                     T::element_type::get_type_info_static() != RuntimeAttribute::get_type_info_static()) {
-                    throw ov::Exception{std::string{"Could not cast Any runtime_attribute to "} + typeid(T).name() +
-                                        " from " + _impl->type_info().name() + "; from " +
-                                        static_cast<std::string>(runtime_attribute->get_type_info()) + " to " +
-                                        static_cast<std::string>(T::element_type::get_type_info_static())};
+                    OPENVINO_UNREACHABLE("Could not cast Any runtime_attribute to ",
+                                         typeid(T).name(),
+                                         " from ",
+                                         _impl->type_info().name(),
+                                         "; from ",
+                                         static_cast<std::string>(runtime_attribute->get_type_info()),
+                                         " to ",
+                                         static_cast<std::string>(T::element_type::get_type_info_static()));
                 }
                 vptr = std::static_pointer_cast<typename T::element_type>(runtime_attribute);
                 _temp_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
@@ -810,7 +819,7 @@ public:
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
-        throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
+        OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**
@@ -837,7 +846,7 @@ public:
                 return *static_cast<const decay_t<T>*>(_impl->addressof());
             }
         }
-        throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
+        OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**
@@ -874,7 +883,7 @@ public:
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
-        throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
+        OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**
@@ -896,7 +905,7 @@ public:
                 return *static_cast<const decay_t<T>*>(_impl->addressof());
             }
         }
-        throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
+        OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**
@@ -906,13 +915,17 @@ public:
      */
     template <typename T>
     typename std::enable_if<std::is_same<T, std::string>::value, T>::type&& as() && {
-        impl_check();
-        if (_impl->is(typeid(decay_t<T>))) {
-            return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
+        if (_impl != nullptr) {
+            if (_impl->is(typeid(decay_t<T>))) {
+                return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
+            } else {
+                std::stringstream strm;
+                print(strm);
+                _str = strm.str();
+                return std::move(_str);
+            }
         } else {
-            std::stringstream strm;
-            print(strm);
-            _str = strm.str();
+            _str = {};
             return std::move(_str);
         }
     }
@@ -924,13 +937,17 @@ public:
      */
     template <class T>
     typename std::enable_if<std::is_same<T, std::string>::value, T>::type& as() & {
-        impl_check();
-        if (_impl->is(typeid(decay_t<T>))) {
-            return *static_cast<decay_t<T>*>(_impl->addressof());
+        if (_impl != nullptr) {
+            if (_impl->is(typeid(decay_t<T>))) {
+                return *static_cast<decay_t<T>*>(_impl->addressof());
+            } else {
+                std::stringstream strm;
+                print(strm);
+                _str = strm.str();
+                return _str;
+            }
         } else {
-            std::stringstream strm;
-            print(strm);
-            _str = strm.str();
+            _str = {};
             return _str;
         }
     }
@@ -942,13 +959,17 @@ public:
      */
     template <class T>
     const typename std::enable_if<std::is_same<T, std::string>::value, T>::type& as() const& {
-        impl_check();
-        if (_impl->is(typeid(decay_t<T>))) {
-            return *static_cast<const decay_t<T>*>(_impl->addressof());
+        if (_impl != nullptr) {
+            if (_impl->is(typeid(decay_t<T>))) {
+                return *static_cast<const decay_t<T>*>(_impl->addressof());
+            } else {
+                std::stringstream strm;
+                print(strm);
+                _str = strm.str();
+                return _str;
+            }
         } else {
-            std::stringstream strm;
-            print(strm);
-            _str = strm.str();
+            _str = {};
             return _str;
         }
     }
