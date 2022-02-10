@@ -22,12 +22,20 @@ class LogParser:
     # a line number, and an error,warning or critical
     regex = r'^(?!\*)(.*?):?([0-9]*):? ?(warning|error|critical): (.+)'
 
-    def __init__(self, log: Path):
+    def __init__(self, log: Path, strip: str, xfail_list: list, suppress_warnings: list):
         """
         Initialize a LogParser object for parsing doxygen and sphinx logs
         :param log: Path to a log file represented as a `pathlib.Path` object
+        :param strip: A part of the filepath that should be removed
+        :param suppress_warnings: A list of warnings that should be ignored
+        :param xfail_list: A list of filepaths that should be ignored
         """
         self.log = log
+        if not strip.endswith('/'):
+            strip = strip + '/'
+        self.strip = strip.replace('\\', '/').lower()
+        self.xfail_list = xfail_list
+        self.suppress_warnings = suppress_warnings
         self.out = dict()
 
     def get_match(self, line: str):
@@ -44,38 +52,34 @@ class LogParser:
             line = line.replace(sym, '')
         return line.strip().lower()
 
-    def strip_path(self, path, strip='build/docs'):
+    def strip_path(self, path):
         """
         Strip `path` components ends on `strip`
         """
         path = path.replace('\\', '/').lower()
-        strip = strip.replace('\\', '/').lower()
-        if not strip.endswith('/'):
-            strip = strip + '/'
-        new_path = path.split(strip)[-1]
+
+        new_path = path.split(self.strip)[-1]
         if new_path.startswith('build/docs/'):
             new_path = new_path.split('build/docs/')[-1]
         return new_path
 
-    def filter(self, strip='build/docs', suppress_warnings=tuple(), xfail_list=tuple()):
+    def filter(self):
         """
         Filter out a log file to remove files or warning based on the values provided in `strip`,
         `suppress_warnings`, and 'xfail_list`
-        :param strip: A part of the filepath that should be removed
-        :param suppress_warnings: A list of warnings that should be ignored
-        :param xfail_list: A list of filepaths that should be ignored
-        :return: filtered dict in which keys are filepaths and values are warnings/errors
         """
         filtered_out = dict()
         for filepath, warnings in self.out.items():
-            filepath = self.strip_path(filepath, strip)
-            if filepath in xfail_list:
+            filepath = self.strip_path(filepath)
+            if filepath in self.xfail_list:
                 continue
-            warnings = list(filter(lambda item: not any([re.search(re.compile(warning, re.IGNORECASE), item)
-                                                         for warning in suppress_warnings]), warnings))
+            warnings = list(filter(lambda item: not self.is_suppressed(item), warnings))
             if warnings:
                 filtered_out[filepath] = warnings
         return filtered_out
+
+    def is_suppressed(self, line):
+        return any([re.search(re.compile(warning, re.IGNORECASE), line) for warning in self.suppress_warnings])
 
     def parse(self):
         """
@@ -92,7 +96,7 @@ class LogParser:
             match = self.get_match(line)
             # if match is true then we found a line containing a filepath,
             # a line number, and a warning/error
-            if match:
+            if match and not self.is_suppressed(line):
                 filepath = match.group(1) or 'warning'
                 linenum = match.group(2)
                 warning = match.group(4)
