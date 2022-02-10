@@ -17,7 +17,7 @@ From 2022.1 release, the OpenVINO Model Development Tools can only be installed 
 |   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
 |   Red Hat Enterprise Linux 8, 64-bit                         | 3.6, 3.7, 3.8, 3.9                                  |
-|   macOS* 10.15.x                                             | 3.6, 3.7, 3.8, 3.9                                  |
+|   macOS* 10.15                                             | 3.6, 3.7, 3.8, 3.9                                  |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
 
 ## Install OpenVINO Runtime using the Anaconda* Package Manager
