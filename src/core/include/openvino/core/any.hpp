@@ -145,7 +145,7 @@ struct Read<std::vector<T, A>, typename std::enable_if<std::is_default_construct
         while (is.good()) {
             T v;
             Read<T>{}(is, v);
-            vec.emplace_back(std::move(v));
+            vec.push_back(std::move(v));
         }
     }
 };
