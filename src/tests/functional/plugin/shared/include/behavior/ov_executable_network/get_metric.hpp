@@ -27,12 +27,32 @@ namespace behavior {
         ASSERT_NE(properties.end(), it);                                                           \
     }
 
+using PriorityParams = std::tuple<
+        std::string,            // Device name
+        ov::AnyMap              // device priority Configuration key
+>;
+class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::Test, public ::testing::WithParamInterface<PriorityParams> {
+protected:
+    std::string deviceName;
+    ov::AnyMap configuration;
+    std::shared_ptr<ngraph::Function> simpleNetwork;
+
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::tie(deviceName, configuration) = GetParam();
+        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+    }
+};
+
 
 using OVClassImportExportTestP = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_NETWORK_NAME = OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = OVClassBaseTestP;
+using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
+using OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
 using OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported = OVClassBaseTestP;
 using OVClassExecutableNetworkGetConfigTest = OVClassBaseTestP;
 using OVClassExecutableNetworkSetConfigTest = OVClassBaseTestP;
@@ -157,6 +177,23 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, G
     std::cout << "Optimal number of Inference Requests: " << value << std::endl;
     ASSERT_GE(value, 1u);
     ASSERT_EXEC_METRIC_SUPPORTED(ov::optimal_number_of_infer_requests);
+}
+TEST_P(OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY, GetMetricNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    auto compiled_model = ie.compile_model(simpleNetwork, deviceName, configuration);
+
+    ov::hint::Priority value;
+    OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::hint::model_priority));
+    //ASSERT_EQ(value, configuration[ov::hint::model_priority.name()]);
+}
+
+TEST_P(OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY, GetMetricNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    auto compiled_model = ie.compile_model(simpleNetwork, deviceName, configuration);
+
+    std::string value;
+    OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::device::priorities));
+    ASSERT_EQ(value, configuration[ov::device::priorities.name()].as<std::string>());
 }
 
 TEST_P(OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) {
