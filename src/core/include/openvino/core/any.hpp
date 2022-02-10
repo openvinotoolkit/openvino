@@ -495,41 +495,6 @@ public:
      * @tparam T type
      * @return casted object
      */
-    template <typename T>
-    typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type&& as() && {
-        if (_impl == nullptr) {
-            _temp_impl = std::make_shared<Impl<decay_t<T>>>(T{});
-            return _temp_impl->as<T>();
-        } else {
-            if (_impl->is(typeid(decay_t<T>))) {
-                return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
-            } else {
-                auto runtime_attribute = _impl->as_runtime_attribute();
-                if (runtime_attribute == nullptr) {
-                    throw ov::Exception{
-                        std::string{"Any does not contains pointer to runtime_attribute. It contains "} +
-                        _impl->type_info().name()};
-                }
-                auto vptr = std::dynamic_pointer_cast<typename T::element_type>(runtime_attribute);
-                if (vptr == nullptr && T::element_type::get_type_info_static() != runtime_attribute->get_type_info() &&
-                    T::element_type::get_type_info_static() != RuntimeAttribute::get_type_info_static()) {
-                    throw ov::Exception{std::string{"Could not cast Any runtime_attribute to "} + typeid(T).name() +
-                                        " from " + _impl->type_info().name() + "; from " +
-                                        static_cast<std::string>(runtime_attribute->get_type_info()) + " to " +
-                                        static_cast<std::string>(T::element_type::get_type_info_static())};
-                }
-                vptr = std::static_pointer_cast<typename T::element_type>(runtime_attribute);
-                _temp_impl = std::make_shared<Impl<decay_t<T>>>(vptr);
-                return _temp_impl->as<T>();
-            }
-        }
-    }
-
-    /**
-     * Dynamic cast to specified type
-     * @tparam T type
-     * @return casted object
-     */
     template <class T>
     typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type& as() & {
         if (_impl == nullptr) {
@@ -601,27 +566,6 @@ public:
      * @tparam T type
      * @return casted object
      */
-    template <typename T>
-    typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
-                            T>::type&&
-    as() && {
-        impl_check();
-        if (_impl->is(typeid(std::string))) {
-            _temp_impl = std::make_shared<Impl<decay_t<T>>>();
-            std::stringstream strm{as<std::string>()};
-            _temp_impl->read(strm);
-            return std::move(*static_cast<decay_t<T>*>(_temp_impl->addressof()));
-        }
-        _impl->type_check(typeid(decay_t<T>));
-        return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
-    }
-
-    /**
-     * Dynamic cast to specified type
-     * @tparam T type
-     * @return casted object
-     */
     template <class T>
     typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
                                 !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
@@ -676,21 +620,6 @@ public:
      * @tparam T type
      * @return casted object
      */
-    template <typename T>
-    typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
-                            T>::type&&
-    as() && {
-        impl_check();
-        _impl->type_check(typeid(decay_t<T>));
-        return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
-    }
-
-    /**
-     * Dynamic cast to specified type
-     * @tparam T type
-     * @return casted object
-     */
     template <class T>
     typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
                                 !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
@@ -728,24 +657,6 @@ public:
             }
         }
         throw ov::Exception{std::string{"Bad cast from: "} + _impl->type_info().name() + " to: " + typeid(T).name()};
-    }
-
-    /**
-     * Dynamic cast to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    typename std::enable_if<std::is_same<T, std::string>::value, T>::type&& as() && {
-        impl_check();
-        if (_impl->is(typeid(decay_t<T>))) {
-            return std::move(*static_cast<decay_t<T>*>(_impl->addressof()));
-        } else {
-            std::stringstream strm;
-            print(strm);
-            _str = strm.str();
-            return std::move(_str);
-        }
     }
 
     /**
@@ -815,17 +726,6 @@ public:
     OPENVINO_DEPRECATED("Please use as() method")
     operator T&() const& {
         return const_cast<Any*>(this)->as<T>();
-    }
-
-    /**
-     * @brief Converts to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use as() method")
-    operator T &&() && {
-        return std::move(as<T&&>());
     }
 
     /**
