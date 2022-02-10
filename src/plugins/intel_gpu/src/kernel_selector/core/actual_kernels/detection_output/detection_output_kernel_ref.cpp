@@ -210,6 +210,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     auto num_classes = detectOutParams.detectOutParams.num_classes;
     auto num_loc_classes = (detectOutParams.detectOutParams.share_location) ? 1 : num_classes;
     auto num_prior_boxes = (loc_feature_num / (num_loc_classes * prior_box_size));
+    auto max_wg = detectOutParams.engineInfo.maxWorkGroupSize;
 
     constexpr size_t buffer_bytes = 10;  // The size of struct Scores in detection_output_gpu_ref.cl
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
@@ -238,7 +239,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                     cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE_OPT", "true")});
                 }
                 size_t num_bit_mask = CeilDiv(num_prior_boxes, 8);
-                size_t num_score_per_item = RoundUp(CeilDiv(num_prior_boxes, 256), 8);
+                size_t num_score_per_item = RoundUp(CeilDiv(num_prior_boxes, max_wg), 8);
                 size_t num_score_block = CeilDiv(num_prior_boxes, num_score_per_item);
                 cldnnJit.AddConstants({MakeJitConstant("NUM_BIT_MASK", num_bit_mask),
                                        MakeJitConstant("NUM_PRIORS_PER_ITEM", num_score_per_item),
