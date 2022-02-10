@@ -209,6 +209,10 @@ public:
     /// This validation is used by selecting onednn type as preferred impl and handling reorders at reorder_inputs and remove_redundant_reorders.
     /// As an example, if a reorder has 2 reorder users that each reorder has a convolution user, then merge is not done when those 2 convolutions
     /// have different result from this function.
-    bool needs_onednn_bfyx_to_blocked(format fmt_prev, format fmt_next, layout& prev_output_layout, const convolution_node& node);
+    bool needs_onednn_small_ic_to_blocked(format fmt_next, layout& prev_output_layout, const convolution_node& node);
+
+    /// @brief Validates all user node of the target 'node'.
+    /// All user nodes are convolutions which satisfy options for onednn first conv using 'needs_onednn_small_ic_to_blocked'.
+    bool needs_all_usr_onednn_small_ic_to_blocked(const program_node& node);
 };
 }  // namespace cldnn

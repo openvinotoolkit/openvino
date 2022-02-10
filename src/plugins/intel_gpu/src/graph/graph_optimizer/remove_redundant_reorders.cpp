@@ -369,8 +369,7 @@ void remove_redundant_reorders::run(program& p) {
         p.remove_if_dangling(node);
     }
 
-    // Remove reorder for cldnn convolution bfyx -> fs_b_yx_fsv32.
-    //                for onednn convolution bfyx-> b_fs_yx_fsv32 (only shallow-depth input)
+    // Remove reorder for cldnn convolution bfyx -> fs_b_yx_fsv32. (no case for onednn)
     auto try_fuse_reorder_bfyx_to_fsv32 = [&](reorder_node* node) -> bool {
         if (node->get_users().size() != 1)
             return false;
@@ -383,12 +382,9 @@ void remove_redundant_reorders::run(program& p) {
             node->get_output_layout().data_type != dep_layout.data_type ||
             dep_layout.format != format::bfyx)
             return false;
-        if (usr->as<convolution>().get_preferred_impl_type() != impl_types::onednn &&
-            usr->get_output_layout().format != format::fs_b_yx_fsv32)
+        if (usr->as<convolution>().get_preferred_impl_type() == impl_types::onednn)
             return false;
-        if (usr->as<convolution>().get_preferred_impl_type() == impl_types::onednn &&
-            (usr->get_output_layout().format != format::b_fs_yx_fsv32 ||
-            !lo.needs_onednn_bfyx_to_blocked(dep_layout.format, usr->get_output_layout().format, dep_layout, usr->as<convolution>())))
+        if (usr->get_output_layout().format != format::fs_b_yx_fsv32)
             return false;
 
         if (dep.is_type<input_layout>())
