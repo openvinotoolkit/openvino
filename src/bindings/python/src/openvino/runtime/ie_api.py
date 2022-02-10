@@ -90,13 +90,15 @@ class InferRequest(InferRequestBase):
         Blocks all methods of InferRequest while request is running.
         Calling any method will lead to throwing exceptions.
 
-        The allowed types of keys in the `inputs` dictionary are: `int`, `str` or `openvino.runtime.ConstOutput`.
-        The allowed types of values in the `inputs` are: `numpy.array` or `openvino.runtime.Tensor`.
+        The allowed types of keys in the `inputs` dictionary are:
+        `int`, `str` or`openvino.runtime.ConstOutput`.
+        The allowed types of values in the `inputs` are:
+        `numpy.array` or `openvino.runtime.Tensor`.
 
         :param inputs: Data to be set on input tensors.
         :type inputs: Union[dict[keys : values], list[values]], optional
         :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: dict[openvino.runtime.ConstOutput : numpy.array]
+        :rtype: Dict[openvino.runtime.ConstOutput : numpy.array]
         """
         return super().infer(
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
@@ -108,11 +110,13 @@ class InferRequest(InferRequestBase):
         """Starts inference of specified input(s) in asynchronous mode.
 
         Returns immediately. Inference starts also immediately.
-        Calling any method while the request is running will lead to
-        throwing exceptions.
+        Calling any method on the `InferRequest` object while the request is running
+        will lead to throwing exceptions.
 
-        The allowed types of keys in the `inputs` dictionary are: `int`, `str` or `openvino.runtime.ConstOutput`.
-        The allowed types of values in the `inputs` are: `numpy.array` or `openvino.runtime.Tensor`.
+        The allowed types of keys in the `inputs` dictionary are:
+        `int`, `str` or`openvino.runtime.ConstOutput`.
+        The allowed types of values in the `inputs` are:
+        `numpy.array` or `openvino.runtime.Tensor`.
 
         :param inputs: Data to be set on input tensors.
         :type inputs: Union[dict[keys : values], list[values]], optional
@@ -151,13 +155,15 @@ class CompiledModel(CompiledModelBase):
         It is advised to use dedicated InferRequest class for performance,
         optimizing workflows and creating advanced pipelines.
 
-        The allowed types of keys in the `inputs` dictionary are: `int`, `str` or `openvino.runtime.ConstOutput`.
-        The allowed types of values in the `inputs` are: `numpy.array` or `openvino.runtime.Tensor`.
+        The allowed types of keys in the `inputs` dictionary are:
+        `int`, `str` or`openvino.runtime.ConstOutput`.
+        The allowed types of values in the `inputs` are:
+        `numpy.array` or `openvino.runtime.Tensor`.
 
         :param inputs: Data to be set on input tensors.
         :type inputs: Union[dict[keys : values], list[values]], optional
         :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: dict[openvino.runtime.ConstOutput : numpy.array]
+        :rtype: Dict[openvino.runtime.ConstOutput : numpy.array]
         """
         return super().infer_new_request(
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
@@ -189,12 +195,14 @@ class AsyncInferQueue(AsyncInferQueueBase):
     def start_async(
         self, inputs: Union[dict, list] = None, userdata: Any = None
     ) -> None:
-        """Run asynchronous inference using next available InferRequest.
+        """Run asynchronous inference using the next available InferRequest from the pool.
 
-        The allowed types of keys in the `inputs` dictionary are: `int`, `str` or `openvino.runtime.ConstOutput`.
-        The allowed types of values in the `inputs` are: `numpy.array` or `openvino.runtime.Tensor`.
+        The allowed types of keys in the `inputs` dictionary are:
+        `int`, `str` or`openvino.runtime.ConstOutput`.
+        The allowed types of values in the `inputs` are:
+        `numpy.array` or `openvino.runtime.Tensor`.
 
-        :param inputs: Data to be set on input tensors of next available InferRequest from AsyncInferQueue's pool.
+        :param inputs: Data to be set on input tensors of the next available InferRequest.
         :type inputs: Union[dict[keys : values], list[values]], optional
         :param userdata: Any data that will be passed to a callback.
         :type userdata: Any, optional
@@ -255,8 +263,7 @@ def compile_model(model_path: str) -> CompiledModel:
 
     :param model_path: Path to file with model.
     :type model_path: str
-    :return: Extended version of `CompiledModel` that holds and
-    keeps alive `Core` object.
+    :return: Extended version of `CompiledModel` that holds and keeps alive `Core` object.
     """
     core = Core()
     return ExtendedModel(core, core.compile_model(model_path, "AUTO"))
@@ -267,7 +274,7 @@ class OVAny(OVAnyBase):
 
     Wrapper provides some useful overloads for simple built-in Python types.
 
-    Access to the OVAny value is direct if it is a built-in Python data type.
+    Access to the `OVAny` value is direct if it is a built-in Python data type.
 
     :Example:
     .. code-block:: ipython
@@ -277,10 +284,10 @@ class OVAny(OVAnyBase):
 
         Output: 2
 
-    Otherwise if OVAny value is a custom data type (for example user class),
-    access to the value is possible by 'get()' method or property 'value'.
-    :Example:
+    Otherwise if `OVAny` value is a custom data type (for example user class),
+    access to the value is possible by `get()` method or property 'value'.
 
+    :Example:
     .. code-block:: python
 
         class Test:
