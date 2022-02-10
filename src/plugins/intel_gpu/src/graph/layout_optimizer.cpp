@@ -1426,15 +1426,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         }
 
         if (node.is_type<deconvolution>()) {
-            auto& deconv = node.as<deconvolution>();
-            auto input_layout = deconv.input().get_output_layout();
-            bool valid_ic = input_layout.size.feature[0] >= 16;
-            bool valid_groups = deconv.get_primitive()->groups == 1;
-            bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
-            bool valid_params = valid_ic && valid_groups && onednn_valid_post_ops;
-            if (!valid_params)
-                impl_candidate = impl_types::ocl;
-            if (input_layout.data_type != deconv.get_output_layout().data_type)
+            if (!is_node_for_onednn(node.as<deconvolution>()))
                 impl_candidate = impl_types::ocl;
         }
 
