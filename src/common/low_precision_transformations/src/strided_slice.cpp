@@ -55,6 +55,9 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
     auto beginMask = stridedSlice->get_begin_mask();
     auto endMask = stridedSlice->get_end_mask();
     for (size_t i = 0; i < constantShape.size(); ++i) {
+        if ((beginMask.size() <= i) && (endMask.size() <= i)) {
+            break;
+        }
         // don't slice constant if current dimension is 1
         if (constantShape[i] == 1ul) {
             beginMask[i] = 1ul;

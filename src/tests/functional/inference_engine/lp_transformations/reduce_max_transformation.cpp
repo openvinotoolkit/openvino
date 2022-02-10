@@ -40,7 +40,7 @@ class ReduceMaxTransformation : public ReduceTransformation<opset1::ReduceMax> {
 
 TEST_P(ReduceMaxTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";

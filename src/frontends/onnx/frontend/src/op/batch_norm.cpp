@@ -46,7 +46,7 @@ OutputVector batch_norm(const Node& node) {
                 saved_var};
     }
 
-    throw ngraph_error("Cannot create nGraph batch norm with unsupported number of inputs");
+    throw ngraph_error("Cannot create OpenVINO batch norm with unsupported number of inputs");
 }
 }  // namespace set_1
 

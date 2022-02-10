@@ -61,7 +61,7 @@ private:
 
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size
-    size_t max_rank_out_desc_idx = 0;
+    std::vector<size_t> exec_domain = {};
 
     /// scheduling info
     size_t batchDimIdx = 0;
@@ -74,13 +74,13 @@ private:
     std::vector<MKLDNNMemoryPtr> srcMemPtrs = {};
     std::vector<MKLDNNMemoryPtr> dstMemPtrs = {};
 
-    std::vector<std::vector<int64_t>> dims_in = {};
-    std::vector<std::vector<int64_t>> offsets_in = {};
+    std::vector<std::vector<size_t>> dims_in = {};
+    std::vector<std::vector<size_t>> offsets_in = {};
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
 
-    std::vector<std::vector<int64_t>> dims_out = {};
-    std::vector<std::vector<int64_t>> offsets_out = {};
+    std::vector<std::vector<size_t>> dims_out = {};
+    std::vector<std::vector<size_t>> offsets_out = {};
 
     std::vector<int64_t> sch_dims = {};
     std::vector<int64_t> sch_offsets_in = {};
