@@ -62,8 +62,4 @@ public:
     std::string get_device_name() const;
 };
 
-namespace runtime {
-using ov::RemoteTensor;
-}  // namespace runtime
-
 }  // namespace ov
