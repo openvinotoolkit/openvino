@@ -59,6 +59,7 @@ protected:
 };
 
 TEST_F(RedundantReordersTest, smoke_RedundantReordersTest) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 }
 
