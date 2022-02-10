@@ -588,7 +588,7 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
     auto cfg = config;
     auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     if (it == cfg.end())
-        IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
+        IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
 
     auto val = it->second.as<std::string>();
     auto core = GetCore();
@@ -721,9 +721,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             const auto& shape = input->get_partial_shape();
             // currently no plugin support batched execution for dynamic networks
             if (shape.is_dynamic())
-                IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
+                IE_THROW(NotImplemented) << "Auto-batching does not support dynamic networks!";
             // check the batch dim: either 0th (and the original batch size of 1) or none
-            if (ov::DimensionTracker::get_label(shape[0])) {
+            if (shape.size() && ov::DimensionTracker::get_label(shape[0])) {
                 const auto& static_shape = input->get_shape();
                 if (static_shape[0] != 1)
                     IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
