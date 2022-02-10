@@ -173,7 +173,6 @@ protected:
         const InferenceEngine::CNNNetwork& network,
         const std::shared_ptr<InferenceEngine::RemoteContext> context,
         const std::map<std::string, std::string>& config);
-    std::vector<std::shared_ptr<void>> _additionalSOPtrs;
 };
 
 }  // namespace AutoBatchPlugin
