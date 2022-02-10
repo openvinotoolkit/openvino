@@ -43,8 +43,8 @@ ngraph::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         const auto elem_count = shape_size(const_node_shape);
         const auto one_dims_count = std::count(const_node_shape.cbegin(), const_node_shape.cend(), 1);
 
-        constexpr auto dim_low_limit = 5;
-        constexpr auto dim_up_limit = 500;
+        constexpr size_t dim_low_limit = 5;
+        constexpr size_t dim_up_limit = 500;
 
         // To affect less models, the transformation is applied to Constants with elements count in range (5:500)
         if (const_node_shape.size() - one_dims_count != 1 || elem_count <= dim_low_limit || elem_count >= dim_up_limit)
