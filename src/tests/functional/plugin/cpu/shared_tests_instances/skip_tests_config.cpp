@@ -42,8 +42,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse|ref).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
         R"(.*BinaryConvolutionLayerTest.*)",
-        R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
-        R"(.*ClampLayerTest.*netPrc=U64.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
         R"(.*_GroupConv.*_inFmts=nc.*_primitive=jit_gemm.*ENFORCE_BF16=YES.*)",
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet

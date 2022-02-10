@@ -220,11 +220,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
-        try {
-            return util::contains(plugin.get_property(ov::supported_properties), key);
-        } catch (...) {
-            return false;
-        }
+        return util::contains(plugin.get_property(ov::supported_properties), key);
     }
 
     bool DeviceSupportsImportExport(const ov::InferencePlugin& plugin) const {
@@ -242,11 +238,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     bool DeviceSupportsCacheDir(const ov::InferencePlugin& plugin) const {
-        try {
-            return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
-        } catch (...) {
-            return false;
-        }
+        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     }
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
@@ -552,7 +544,7 @@ public:
             deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
         } else {
             // check whether the Auto-Batching is disabled explicitly
-            const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
                 // virtual plugins like AUTO/MULTI will need the config
