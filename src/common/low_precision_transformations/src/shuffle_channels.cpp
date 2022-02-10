@@ -92,6 +92,20 @@ bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
+    // It's impossible to normalize a negative axis in case of dynamic rank
+    // but it's necessary when dequantization operations are per channel
+    if (shuffleChannels->get_input_partial_shape(0).rank().is_dynamic() && shuffleChannels->get_axis() < 0) {
+        const bool perChannelSub = dequantization.subtractConstant ?
+            ov::shape_size(dequantization.subtractConstant->get_shape()) > 0 :
+            false;
+        const bool perChannelMul = dequantization.multiplyConstant ?
+            ov::shape_size(dequantization.multiplyConstant->get_shape()) > 0 :
+            false;
+        if (perChannelMul || perChannelSub) {
+            return false;
+        }
+    }
+
     return true;
 }
 

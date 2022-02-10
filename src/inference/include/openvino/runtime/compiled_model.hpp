@@ -228,8 +228,4 @@ public:
     explicit operator bool() const noexcept;
 };
 
-namespace runtime {
-using ov::CompiledModel;
-}  // namespace runtime
-
 }  // namespace ov
