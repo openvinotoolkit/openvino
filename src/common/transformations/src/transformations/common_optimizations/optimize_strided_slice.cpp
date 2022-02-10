@@ -199,8 +199,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_
             if (!valid_for_replacement) break;
         }
 
-        if (!valid_for_replacement) continue;
-        if (output_to_partition.size() < 2) continue;
+        if (!valid_for_replacement || output_to_partition.size() < 2 || axis == -1) continue;
 
         std::sort(output_to_partition.begin(), output_to_partition.end(),
                 [](OutputToPatrition lhs, OutputToPatrition rhs)

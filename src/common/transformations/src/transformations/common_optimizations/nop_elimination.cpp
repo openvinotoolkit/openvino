@@ -102,16 +102,25 @@ static bool eliminate_reshape_v1(const std::shared_ptr<Node>& node) {
     if (ov::as_type_ptr<opset3::Squeeze>(input_node) ||
         ov::as_type_ptr<opset3::Unsqueeze>(input_node) ||
         ov::as_type_ptr<opset3::Reshape>(input_node)) {
+        if (input_node->get_output_target_inputs(0).size() != 1)
+            return false;
+
         auto shape = node->get_output_shape(0);
-        std::vector<int64_t> vi;
-        vi.assign(shape.begin(), shape.end());
-        auto pat = opset3::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
-        auto new_reshape =
-            make_shared<opset3::Reshape>(input.get_node()->input_value(0), pat, false);
-        new_reshape->set_friendly_name(node->get_friendly_name());
-        copy_runtime_info({input_node, node}, new_reshape);
-        replace_node(node, new_reshape);
-        return true;
+
+        // remove interchangeable nodes
+        if (input_node->get_input_partial_shape(0).is_static() && input_node->get_input_shape(0) == shape) {
+            return replace_output_update_name(node->output(0), input_node->input_value(0));
+        } else {
+            std::vector<int64_t> vi;
+            vi.assign(shape.begin(), shape.end());
+            auto pat = opset3::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
+            auto new_reshape =
+                    make_shared<opset3::Reshape>(input.get_node()->input_value(0), pat, false);
+            new_reshape->set_friendly_name(node->get_friendly_name());
+            copy_runtime_info({input_node, node}, new_reshape);
+            replace_node(node, new_reshape);
+            return true;
+        }
     }
 
     return false;
