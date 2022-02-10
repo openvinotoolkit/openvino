@@ -102,7 +102,7 @@ sudo apt autoremove openvino
 
 Run the following command:
 ```sh
-sudo apt autoremove openvino-<PACKAGE_TYPE>-<VERSION>.<UPDATE>.<PATCH>
+sudo apt autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 ```
 
 ### Step 3 (Optional): Install OpenCV* from APT
