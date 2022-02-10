@@ -101,6 +101,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     ) -> int:
         executed_tests = 0
         for test_data_dir in model_dir.glob("test_data_set*"):
+            print("test_data_dir", test_data_dir)
             inputs = []
             inputs_num = len(list(test_data_dir.glob("input_*.pb")))
             for i in range(inputs_num):
@@ -120,6 +121,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
             if(len(inputs) == 0):
                 continue
             outputs = list(prepared_model.run(inputs))
+            print("inputs num", inputs_num, "outputs num", ref_outputs_num, "outputs len", len(outputs))
             if post_processing is not None:
                 outputs = post_processing(outputs)
             cls.assert_similar_outputs(ref_outputs, outputs, result_rtol, result_atol)
