@@ -10,10 +10,10 @@ If you are planning to develop your own inference solutions, install OpenVINO Mo
 
 From 2022.1 release, the OpenVINO Developer Tools can only be installed via PyPI.
 
-> **NOTE**: To install OpenVINO Model Development Tools, you must have OpenVINO Runtime installed as a prerequisite.
-
 
 ## For C++ developers
+
+> **NOTE**: To install OpenVINO Model Development Tools, you must have OpenVINO Runtime installed as a prerequisite.
 
 Always ensure that the version of OpenVINO Model Development Tools you are installing matches that of OpenVINO Runtime. You can install OpenVINO Model Development Tools via either of the following ways:
 
