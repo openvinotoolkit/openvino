@@ -7,7 +7,7 @@ from time import time
 
 import copy
 import numpy as np
-from openvino.runtime import Core, AsyncInferQueue   # pylint: disable=E0611,E0401
+from openvino.runtime import Core, AsyncInferQueue, Shape   # pylint: disable=E0611,E0401
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
@@ -38,7 +38,7 @@ class IEEngine(Engine):
 
     def set_model(self, model):
         """ Loads NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         if model.is_cascade:
             raise Exception('Cascade models are not supported in current engine')
@@ -48,8 +48,8 @@ class IEEngine(Engine):
         self._output_layers = [get_clean_name(output.get_node().friendly_name) for output in self._model.outputs]
 
     def _set_model(self, model):
-        """Creates IENetwork instances from NetworkX models in NXModel.
-        :param: model: NXModel instance
+        """Creates IENetwork instances from NetworkX models in CompressedModel.
+        :param: model: CompressedModel instance
         :return: list of dictionaries:
                  [
                     {
@@ -233,7 +233,12 @@ class IEEngine(Engine):
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
-            return {input_blob_name: np.stack(image_batch, axis=0)}
+            image_batch = {input_blob_name: np.stack(image_batch, axis=0)}
+            if Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
+                                 f"Try to specify the layout of the model.")
+            return image_batch
 
         if len(input_info) == 2:
             image_info_nodes = list(filter(
@@ -249,6 +254,10 @@ class IEEngine(Engine):
             image_tensor_name = image_tensor_node.get_any_name()
 
             image_tensor = (image_tensor_name, np.stack(image_batch, axis=0))
+            if Shape(image_tensor[1].shape) != image_tensor_node.shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {Shape(image_tensor[1].shape)} into {image_tensor_node.shape}."
+                                 f"Try to specify the layout of the model.")
 
             ch, height, width = image_batch[0].shape
             image_info = (image_info_name,
@@ -303,12 +312,18 @@ class IEEngine(Engine):
                 start_time = time()
 
         progress_log_fn = logger.info if print_progress else logger.debug
-        self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'}, self._device)
-
+        try:
+            self._ie.set_property(self._device,
+                                  {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
+        except AttributeError:
+            self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'},
+                                self._device)
         # Load model to the plugin
         compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
-
-        optimal_requests_num = compiled_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        try:
+            optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        except AttributeError:
+            optimal_requests_num = compiled_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
         requests_num = optimal_requests_num if requests_num == 0 else requests_num
         logger.debug('Async mode requests number: %d', requests_num)
         infer_queue = AsyncInferQueue(compiled_model, requests_num)

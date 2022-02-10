@@ -17,7 +17,6 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
-#include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 
@@ -179,6 +178,13 @@ public:
                                                                   const std::map<std::string, std::string>& config) = 0;
 
     virtual bool isNewAPI() const = 0;
+
+    /**
+     * @brief Get a pointer to default shared context object for the specified device.
+     * @param deviceName  - A name of a device to get create shared context from.
+     * @return A shared pointer to a default remote context.
+     */
+    virtual RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) = 0;
 
     /**
      * @brief Default virtual destructor

@@ -19,7 +19,7 @@ namespace GNAPluginNS {
 template <typename T>
 void softsign(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = 1 / (1 + std::abs(arg[i]));
+        out[i] = arg[i] / (1 + std::abs(arg[i]));
     }
 }
 

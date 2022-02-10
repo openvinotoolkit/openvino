@@ -62,7 +62,7 @@ protected:
  */
 class DynamicBuffer {
 public:
-    DynamicBuffer(const MKLDNNMemoryPtr &from, const std::vector<MKLDNNMemoryPtr> &to, const PortMap &map_rule);
+    DynamicBuffer(const MKLDNNMemoryPtr &from_, const std::vector<MKLDNNMemoryPtr> &to_, const PortMap &map_rule_);
     ~DynamicBuffer() = default;
 
     void execute(const mkldnn::engine& eng, const int iter);
@@ -130,9 +130,6 @@ private:
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(mkldnn::stream strm);
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
-
-    // this method get all memory ptrs of childs of one port to redefine descs for them
-    std::vector<MKLDNNMemoryPtr> getToMemories(const MKLDNNNode* node, const size_t port) const;
 
     MKLDNNExtensionManager::Ptr ext_mng;
     MKLDNNGraph sub_graph;

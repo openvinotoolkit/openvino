@@ -29,7 +29,6 @@ IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 onnx_model_shape
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
-onnx_model_softmax
 onnx_model_elu
 onnx_model_top_k
 onnx_model_erf
@@ -113,17 +112,6 @@ IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
 # I64 ONNX Clip Failing on ubuntu18/20_release CI
 IE_CPU.onnx_clip_no_min_no_max_int64 # -2147483648 is not close to 2147483647 at index 2
 IE_CPU.onnx_clip_no_min_set_max_int64 # -1 is not close to 2147483647 at index 0
-
-# TopK Incorrect input data/index values precision
-onnx_model_argmax_int32
-onnx_model_argmin_int32
-arg_max_dyn_shape
-
-# Result mismatch
-onnx_model_argmax_float
-onnx_model_argmin_float
-onnx_model_argmax_select_last_index
-onnx_model_argmin_select_last_index
 
 # Constant has zero dimension that is not allowable
 onnx_dyn_shapes_transpose
@@ -921,9 +909,6 @@ roll_negative_axes
 #-------------------------------------------------------------------------------
 
 # Clamp op:
-# Issue 51676: Output mismatch due to wrong conversion of bounds
-IE_CPU.clamp_integral
-IE_CPU.clamp_integral_negative
 # Issue 51679: CI failure on Ubuntu 20. Overflow handling -inf lower bound
 IE_CPU.clamp_int32
 # Precision mismatch
@@ -1433,6 +1418,11 @@ onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
 onnx_if_dynamic_inputs
+onnx_if_branches_with_same_inputs
+onnx_if_branches_with_different_inputs
+onnx_if_branches_without_inputs
+onnx_if_inside_if
+onnx_if_branches_with_multiple_outputs
 
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference

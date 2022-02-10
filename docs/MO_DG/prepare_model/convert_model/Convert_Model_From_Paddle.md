@@ -2,10 +2,10 @@
 
 A summary of the steps for optimizing and deploying a model trained with Paddle\*:
 
-1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for Paddle\*.
+1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Paddle\*.
 2. [Convert a Paddle\* Model](#Convert_From_Paddle) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases.
-3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md).
-4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment.
+3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
+4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [Inference Engine](../../../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment.
 
 ## Supported Topologies
 
@@ -41,7 +41,7 @@ To convert a Paddle\* model:
 
 Parameters to convert your model:
 
-* [Framework-agnostic parameters](Converting_Model_General.md): These parameters are used to convert a model trained with any supported framework.
+* [Framework-agnostic parameters](Converting_Model.md): These parameters are used to convert a model trained with any supported framework.
 > **NOTE:** `--scale`, `--scale_values`, `--mean_values` are not supported in the current version of mo_paddle.
 
 ### Example of Converting a Paddle* Model

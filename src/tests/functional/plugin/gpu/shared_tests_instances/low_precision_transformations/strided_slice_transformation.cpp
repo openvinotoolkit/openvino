@@ -65,6 +65,25 @@ const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params
         {},
         {}
     },
+    // channel slice, per-channel quantization
+    {
+        {
+            256ul,
+            ngraph::Shape{ 1, 3, 1, 1 },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 25.5f, 2.55f },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 25.5f, 2.55f },
+        },
+        { 0, 0 },
+        { 1, 2 },
+        { 1, 1 },
+        { 1, 0 },
+        { 1, 0 },
+        {},
+        {},
+        {}
+    },
     // special dimension slice, per-channel quantization
     {
         {

@@ -14,7 +14,7 @@ static const Version gnaPluginDescription = {
         CI_BUILD_NUMBER
         "_with_GNA_LIB_VER==2"
         ,
-        "ov_intel_gna_plugin"
+        "openvino_intel_gna_plugin"
 };
 
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(GNAPluginInternal, gnaPluginDescription)

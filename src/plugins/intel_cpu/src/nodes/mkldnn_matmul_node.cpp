@@ -291,9 +291,10 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
         }
     }
 
-    std::vector<Shape> staticInputShapes(2);
-    staticInputShapes[0] = inputShape0.isStatic() ? inputShape0 : MemoryDescUtils::makeDummyShape(inputShape0);
-    staticInputShapes[1] = inputShape1.isStatic() ? inputShape1 : MemoryDescUtils::makeDummyShape(inputShape1);
+    std::vector<Shape> staticInputShapes{inputShape0, inputShape1};
+    if (inputShape0.isDynamic() || inputShape1.isDynamic()) {
+        std::tie(staticInputShapes[0], staticInputShapes[1]) = makeDummyInputShapes(inputShape0, inputShape1);
+    }
 
     auto staticOutputShape = outputShape.isStatic() ? outputShape : Shape(shapeInferGeneric(staticInputShapes).front());
 
@@ -305,6 +306,80 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
     outDataDesc   = std::make_shared<DnnlBlockedMemoryDesc>(outPortPrec, staticOutputShape);
 
     createDescriptor({inDataDesc[0], inDataDesc[1]}, {outDataDesc});
+}
+
+std::pair<Shape, Shape> MKLDNNMatMulNode::makeDummyInputShapes(const Shape& in0, const Shape& in1) const {
+    if (in0.getRank() < 2 || in1.getRank() < 2) {
+        IE_THROW() << "Can't create dummy inputs with rank less 2";
+    }
+
+    if (in0.getRank() != in1.getRank()) {
+        IE_THROW() << "Can't create dummy inputs if input's rank not equal";
+    }
+
+    auto swapTranspDims = [&](VectorDims& in0, VectorDims& in1) {
+        if (transposeIn[0]) {
+            std::swap(in0[in0.size() - 1], in0[in0.size() - 2]);
+        }
+        if (transposeIn[1]) {
+            std::swap(in1[in1.size() - 1], in1[in1.size() - 2]);
+        }
+    };
+
+    auto inDims0 = in0.getDims();
+    auto inDims1 = in1.getDims();
+
+    auto minDims0 = in0.getMinDims();
+    auto maxDims0 = in0.getMaxDims();
+    auto minDims1 = in1.getMinDims();
+    auto maxDims1 = in1.getMaxDims();
+
+    swapTranspDims(inDims0, inDims1);
+    swapTranspDims(minDims0, minDims1);
+    swapTranspDims(maxDims0, maxDims1);
+
+    auto fillDummy = [&](size_t idx0, size_t idx1) {
+        if (inDims0[idx0] == Shape::UNDEFINED_DIM && inDims1[idx1] == Shape::UNDEFINED_DIM) {
+            inDims0[idx0] = inDims1[idx1] = std::min(std::min(maxDims0[idx0], maxDims1[idx1]),
+                                            std::max(std::max(minDims0[idx0], minDims1[idx1]), static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
+        } else {
+            if (inDims0[idx0] == Shape::UNDEFINED_DIM && inDims1[idx1] != Shape::UNDEFINED_DIM) {
+                if (inDims1[idx1] == 1 && minDims0[idx0] != Shape::UNDEFINED_DIM) {
+                    inDims0[idx0] = std::max<Dim>(minDims0[idx0], 1);
+                } else {
+                    inDims0[idx0] = inDims1[idx1];
+                }
+            } else if (inDims0[idx0] != Shape::UNDEFINED_DIM && inDims1[idx1] == Shape::UNDEFINED_DIM) {
+                if (inDims0[idx0] == 1 && minDims1[idx1] != Shape::UNDEFINED_DIM) {
+                    inDims1[idx1] = std::max<Dim>(minDims1[idx1], 1);
+                } else {
+                    inDims1[idx1] = inDims0[idx0];
+                }
+            }
+        }
+    };
+
+    // fill k
+    fillDummy(inDims0.size() - 1, inDims1.size() - 2);
+
+    // fill m, n
+    if (inDims0[inDims0.size() - 2] == Shape::UNDEFINED_DIM) {
+        inDims0[inDims0.size() - 2] = std::min(maxDims0[inDims0.size() - 2],
+                                               std::max(minDims0[inDims0.size() - 2], static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
+    }
+    if (inDims1[inDims1.size() - 1] == Shape::UNDEFINED_DIM) {
+        inDims1[inDims1.size() - 1] = std::min(maxDims1[inDims1.size() - 1],
+                                               std::max(minDims1[inDims1.size() - 1], static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
+    }
+
+    // fill batches
+    for (size_t i = 0; i < inDims0.size() - 2; i++) {
+        fillDummy(i, i);
+    }
+
+    swapTranspDims(inDims0, inDims1);
+
+    return {Shape(inDims0), Shape(inDims1)};
 }
 
 void MKLDNNMatMulNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -337,18 +412,18 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = -1;
-                portConfig.constant = false;
-                portConfig.desc = getSrcMemDesc(itpd, i);
+                portConfig.inPlace(-1);
+                portConfig.constant(false);
+                portConfig.setMemDesc(getSrcMemDesc(itpd, i));
 
                 config.inConfs.push_back(portConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = canBeInPlace() ? 0 : -1;
-                portConfig.constant = false;
-                portConfig.desc = getDstMemDesc(itpd, i);
+                portConfig.inPlace(canBeInPlace() ? 0 : -1);
+                portConfig.constant(false);
+                portConfig.setMemDesc(getDstMemDesc(itpd, i));
 
                 config.outConfs.push_back(portConfig);
             }
@@ -391,9 +466,9 @@ void MKLDNNMatMulNode::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto& src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW()  << errorPrefix << " did not allocate destination memory";
-    if (!src0MemPtr || !src0MemPtr->GetPrimitivePtr() || !src1MemPtr || !src1MemPtr->GetPrimitivePtr())
+    if (!src0MemPtr || !src0MemPtr->isAllocated() || !src1MemPtr || !src1MemPtr->isAllocated())
         IE_THROW()  << errorPrefix << " did not allocate input memory";
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -429,7 +504,7 @@ void MKLDNNMatMulNode::prepareParams() {
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
         auto& biasMemory = getParentEdgeAt(2)->getMemoryPtr();
-        if (!biasMemory || !biasMemory->GetPrimitivePtr())
+        if (!biasMemory || !biasMemory->isAllocated())
             IE_THROW()  << errorPrefix << " did not allocate bias memory";
         dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();
     }

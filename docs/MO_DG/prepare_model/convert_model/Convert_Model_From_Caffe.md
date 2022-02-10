@@ -2,10 +2,10 @@
 
 A summary of the steps for optimizing and deploying a model that was trained with Caffe\*:
 
-1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for Caffe\*.
+1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Caffe\*.
 2. [Convert a Caffe\* Model](#Convert_From_Caffe) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values
-3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md)
-4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment
+3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../OV_Runtime_UG/Samples_Overview.md)
+4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [Inference Engine](../../../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment
 
 ## Supported Topologies
 
@@ -93,7 +93,7 @@ Caffe*-specific parameters:
    ```sh    
    mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt --output_dir <OUTPUT_MODEL_DIR>
    ```
-* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe\* system on the computer. To read more about this, see [Legacy Mode for Caffe* Custom Layers](../customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md).
+* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe\* system on the computer.
 Optional parameters without default values and not specified by the user in the `.prototxt` file are removed from the Intermediate Representation, and nested parameters are flattened:
    ```sh
    mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params --output_dir <OUTPUT_MODEL_DIR>

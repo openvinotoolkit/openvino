@@ -69,7 +69,7 @@ jobs:
   - script: >
       env -C ~/work
       ./buildreleasenolto.sh
-      libinference_engine_preproc.so
+      libopenvino_gapi_preproc.so
       ov_intel_cpu_plugin
       ov_intel_gpu_plugin
       clDNN_unit_tests64

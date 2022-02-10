@@ -81,6 +81,7 @@ class CustomBuild(build):
 
         # pylint: disable-msg=too-many-locals
         self.announce('Installing packages', level=log.INFO)
+        BUILD_BASE = Path.cwd() / self.build_base
         for cmp, cmp_data in PKG_INSTALL_CFG.items():
             self.announce(f'Processing package: {cmp}', level=log.INFO)
             if not cmp_data['src_dir'].is_dir():
@@ -88,39 +89,43 @@ class CustomBuild(build):
                     f'The source directory was not found: {cmp_data["src_dir"]}'
                 )
             subprocess.call([sys.executable, 'setup.py', 'install',
-                            '--root', str(SCRIPT_DIR),
-                             '--prefix', str(cmp_data.get("prefix"))],
+                            '--root', str(BUILD_BASE),
+                            '--prefix', str(cmp_data.get("prefix"))],
                             cwd=str(cmp_data.get('src_dir')))
 
             # grab installed modules
             lib_dir = 'lib/site-packages' if platform.system() == 'Windows' else f'lib/{PYTHON_VERSION}/site-packages'
-            src = SCRIPT_DIR / cmp_data.get('prefix') / lib_dir
+            src = BUILD_BASE / cmp_data.get('prefix') / lib_dir
 
             egg_info = list(src.glob('**/*.egg-info'))
             if egg_info:
-
-                def raw_req(req):
-                    req.marker = None
-                    return str(req)
-
                 distributions = pkg_resources.find_distributions(str(Path(egg_info[0]).parent))
                 for dist in distributions:
                     self.announce(f'Distribution: {dist.egg_name()}', level=log.INFO)
+                    dmap = dist._build_dep_map() # pylint: disable=W0212
 
                     # load install_requires list
-                    install_requires = list(sorted(map(raw_req, dist.requires())))
-                    self.announce(f'Install requires: {install_requires}', level=log.INFO)
                     if cmp_data.get("extract_requirements"):
+                        # install requires {None: [requirements]}
+                        install_requires = sorted(map(str, dmap.get(None, [])))
+                        self.announce(f'Install requires: {install_requires}', level=log.INFO)
                         self.distribution.install_requires.extend(install_requires)
-
-                    # load extras_require
-                    if cmp_data.get("extract_extras"):
-                        for extra in dist.extras:
+                        # conditional requirements {':<condition>': [requirements]}
+                        conditionals_req = dict(filter(lambda x: x[0] is not None and x[0].split(':')[0] == '', dmap.items()))
+                        self.announce(f'Install requires with marker: {conditionals_req}', level=log.INFO)
+                        for extra, req in conditionals_req.items():
                             if extra not in self.distribution.extras_require:
                                 self.distribution.extras_require[extra] = []
-                            extras_require = set(map(raw_req, dist.requires((extra,))))
-                            self.announce(f'Extras: {extra}:{extras_require}', level=log.INFO)
-                            self.distribution.extras_require[extra].extend(extras_require)
+                            self.distribution.extras_require[extra].extend(sorted(map(str, req)))
+
+                    if cmp_data.get("extract_extras"):
+                        # extra requirements {'marker:<condition>': [requirements]}
+                        extras = dict(filter(lambda x: x[0] is not None and x[0].split(':')[0] != '', dmap.items()))
+                        for extra, req in extras.items():
+                            self.announce(f'Extras: {extra}:{req}', level=log.INFO)
+                            if extra not in self.distribution.extras_require:
+                                self.distribution.extras_require[extra] = []
+                            self.distribution.extras_require[extra].extend(sorted(map(str, req)))
 
                     # extract console scripts
                     if cmp_data.get("extract_entry_points"):
@@ -139,6 +144,13 @@ class CustomBuild(build):
                 path_rel = path.relative_to(src)
                 (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
                 shutil.copyfile(path, dst / path_rel)
+
+        # remove duplications in requirements
+        reqs_set = set(map(lambda x: x.lower(), self.distribution.install_requires))
+        self.distribution.install_requires = sorted(reqs_set)
+        for extra, req in self.distribution.extras_require.items():
+            unique_req = list(set(map(lambda x: x.lower(), req)))
+            self.distribution.extras_require[extra] = unique_req
 
         # add dependecy on runtime package
         runtime_req = [f'openvino=={self.distribution.get_version()}']

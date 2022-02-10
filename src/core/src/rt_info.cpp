@@ -9,7 +9,23 @@
 
 namespace {
 
-ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes) {
+std::unordered_map<std::string, std::vector<ov::Any>> get_copyable_attrs(const ngraph::OutputVector& outputs) {
+    std::unordered_map<std::string, std::vector<ov::Any>> attrs;
+    for (const auto& output : outputs) {
+        for (const auto& item : output.get_rt_info()) {
+            bool copy = true;
+            if (item.second.is<ov::RuntimeAttribute>()) {
+                copy = item.second.as<ov::RuntimeAttribute>().is_copyable();
+            }
+            if (copy) {
+                attrs[item.first].push_back(item.second);
+            }
+        }
+    }
+    return attrs;
+}
+
+std::unordered_map<std::string, std::vector<ov::Any>> get_copyable_attrs(const ngraph::NodeVector& nodes) {
     std::unordered_map<std::string, std::vector<ov::Any>> attrs;
     for (const auto& node : nodes) {
         for (const auto& item : node->get_rt_info()) {
@@ -22,6 +38,12 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes) {
             }
         }
     }
+    return attrs;
+}
+
+template <typename T>
+ngraph::Node::RTMap mergeRuntimeInfo(const T& items) {
+    std::unordered_map<std::string, std::vector<ov::Any>> attrs = get_copyable_attrs(items);
 
     ngraph::Node::RTMap merged_attrs;
     for (auto& item : attrs) {
@@ -30,7 +52,7 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes) {
             merged_attrs[item.first] = attr;
         } else {
             if (attr.is<ov::RuntimeAttribute>()) {
-                auto merge_attr = attr.as<ov::RuntimeAttribute>().merge(nodes);
+                auto merge_attr = attr.as<ov::RuntimeAttribute>().merge(items);
                 if (!merge_attr.empty()) {
                     merged_attrs[item.first] = merge_attr;
                 }
@@ -51,7 +73,9 @@ ov::Any get_opset(const ngraph::Node::RTMap& rt_info) {
 
 void assign_runtime_info(const ngraph::Node::RTMap& from, ngraph::Node::RTMap& to) {
     auto opset = get_opset(to);
-    to = from;
+    for (auto& item : from) {
+        to[item.first] = item.second;
+    }
     if (!opset.empty()) {
         to["opset"] = opset;
     }
@@ -62,7 +86,6 @@ void assign_runtime_info(const ngraph::Node::RTMap& from, ngraph::Node::RTMap& t
 void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to) {
     auto& attrs = to->get_rt_info();
     auto opset = get_opset(attrs);
-    attrs.clear();
 
     for (const auto& item : from->get_rt_info()) {
         bool copy = item.first != "opset";
@@ -94,6 +117,14 @@ void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVecto
     auto mergedInfo = mergeRuntimeInfo(from);
     for (auto& node : to) {
         auto& rtInfoTo = node->get_rt_info();
+        assign_runtime_info(mergedInfo, rtInfoTo);
+    }
+}
+
+void ngraph::copy_output_runtime_info(const ngraph::OutputVector& from, ngraph::OutputVector to) {
+    auto mergedInfo = mergeRuntimeInfo(from);
+    for (auto& node : to) {
+        auto& rtInfoTo = node.get_rt_info();
         assign_runtime_info(mergedInfo, rtInfoTo);
     }
 }

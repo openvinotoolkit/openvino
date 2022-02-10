@@ -5,47 +5,39 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install From Release Packages
-   
-   Linux <openvino_docs_install_guides_installing_openvino_linux>
-   Windows <openvino_docs_install_guides_installing_openvino_windows>
-   macOS <openvino_docs_install_guides_installing_openvino_macos>
-   Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>
-   Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
-
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Install From Images and Repositories
+   :caption: Install Intel® Distribution of OpenVINO™ Toolkit
    
    Overview <openvino_docs_install_guides_installing_openvino_images>
-   PIP<openvino_docs_install_guides_installing_openvino_pip>
-   Docker for Linux <openvino_docs_install_guides_installing_openvino_docker_linux>
-   Docker for Windows <openvino_docs_install_guides_installing_openvino_docker_windows>
+   Linux <openvino_docs_install_guides_installing_openvino_linux_header>
+   Windows <openvino_docs_install_guides_installing_openvino_windows_header>
+   macOS <openvino_docs_install_guides_installing_openvino_macos>
+   Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>   
+   PIP<openvino_docs_install_guides_installing_openvino_pip>   
    Docker with DL Workbench <workbench_docs_Workbench_DG_Run_Locally>
-   APT <openvino_docs_install_guides_installing_openvino_apt>
-   YUM <openvino_docs_install_guides_installing_openvino_yum>
    Conda <openvino_docs_install_guides_installing_openvino_conda>
    Yocto <openvino_docs_install_guides_installing_openvino_yocto>
+   Install OpenVINO Model Development Tools <installing_model_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
-
+   Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Configuration for Hardware
+   :caption: Configure Intel® Distribution of OpenVINO™ Toolkit
    
-   Configure Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux*<openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
+   Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux Setup Guide <openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
+   Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Windows Setup Guide <openvino_docs_install_guides_installing_openvino_windows_ivad_vpu>
    Intel® Movidius™ VPUs Setup Guide <openvino_docs_install_guides_movidius_setup_guide>
    Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
+   Intel® Movidius™ VPUs Demos <openvino_docs_install_guides_movidius_demos>
+   Intel® GPU Setup Guide <openvino_docs_install_guides_gpu_setup_guide>
+   Intel® Neural Compute Stick 2 Setup Guide <openvino_docs_install_guides_ncs2_setup_guide>
    
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Get Started Guides
    
-   Get Started with One-Command Demo <openvino_docs_get_started_get_started_scripts>
    Get Started with Step-by-step Demo <openvino_docs_get_started_get_started_demos>
    Get Started with Tutorials <tutorials>
 
@@ -55,18 +47,6 @@
    :caption: Inference Engine Code Samples
 
    openvino_docs_IE_DG_Samples_Overview
-
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Reference Implementations For Speech Recognition Apps
-
-   openvino_inference_engine_samples_speech_libs_and_demos_Speech_libs_and_demos
-   openvino_inference_engine_samples_speech_libs_and_demos_Speech_library
-   openvino_inference_engine_samples_speech_libs_and_demos_Offline_speech_recognition_demo
-   openvino_inference_engine_samples_speech_libs_and_demos_Live_speech_recognition_demo
-   openvino_inference_engine_samples_speech_libs_and_demos_Kaldi_SLM_conversion_tool
 
 @endsphinxdirective
    
@@ -86,10 +66,6 @@
    <h3>Choose how you want to progress:</h3>
    
    <div id="GSG_nextstepchoice">
-     <a href="openvino_docs_get_started_get_started_scripts.html" >
-        <h4>One-command demo 		</h4>
-        <p>Execute just one command and watch all the steps happening before your eyes. </p>
-     </a>  		
      <a href="openvino_docs_get_started_get_started_demos.html" >
         <h4>Step-by-step demo		</h4>
         <p>Follow the step-by-step instructions to execute simple tasks with OpenVINO. </p>
