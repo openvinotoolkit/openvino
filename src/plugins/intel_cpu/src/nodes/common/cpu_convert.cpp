@@ -467,7 +467,7 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
             || (to == Precision::BOOL && from != to);   // T -> bool
 }
 
-struct CopyContext {
+struct MKLDNNCopyContext {
         const void *srcPtr;
         void *dstPtr;
         size_t size;
@@ -477,7 +477,7 @@ struct CopyContext {
 
 template<typename ele_t>
 struct CopyElement {
-    void operator()(CopyContext &ctx) {
+    void operator()(MKLDNNCopyContext &ctx) {
         auto src = static_cast<const ele_t *>(ctx.srcPtr);
         auto dst = static_cast<ele_t *>(ctx.dstPtr);
         parallel_for(ctx.size, [&](size_t i) {
@@ -557,7 +557,7 @@ void cpu_convert(const void *srcPtr,
         IE_THROW() << "cpu_convert has null data pointer";
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
-        CopyContext ctx = {
+        MKLDNNCopyContext ctx = {
                 srcPtr,
                 dstPtr,
                 size,
@@ -585,3 +585,5 @@ void cpu_convert(const void *srcPtr,
 
 #undef MKLDNN_CVT
 #undef MKLDNN_CVT_LIST
+#undef MKLDNN_COPY
+#undef MKLDNN_COPY_LIST
