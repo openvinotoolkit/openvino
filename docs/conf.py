@@ -95,6 +95,12 @@ repositories = {
         'github_version': 'master',
         'host_url': 'https://github.com'
     },
+    'pot': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'openvino',
+        'github_version': 'master',
+        'host_url': 'https://github.com'
+    },
     'open_model_zoo': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'open_model_zoo',
