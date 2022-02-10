@@ -81,7 +81,9 @@ Options:
   -h, --help            Show this help message and exit.
   -i PATH_TO_INPUT, --path_to_input PATH_TO_INPUT
                         Optional. Path to a folder with images and/or binaries
-                        or to specific image or binary file.
+                        or to specific image or binary file. To map input files
+                        to the specific input use next syntax:
+                        "input1:image_path1/folder_path1,input2:image_path2/folder_path2"
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
                         Required. Path to an .xml/.onnx/.prototxt file with a
                         trained model or to a .blob file with a trained
@@ -124,10 +126,21 @@ Options:
   -shape SHAPE          Optional. Set shape for input. For example,
                         "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]"
                         in case of one input size.
+  -data_shape DATA_SHAPE
+                        Optional. Define shape of data to infer dynamic
+                        model. To process images with original shapes
+                        this parameter can be ommited, but it's required
+                        in other cases to benchmark dynamic model.
+                        For example "[shape1],[shape2], ..." can be
+                        used to set several data shapes in case one input
+                        or to set shape1 to input1, shape2 to input2
+                        and so on in case several inputs. Input mapping
+                        is also supported: "input1[shape1,shape2],input2[shape3,shape4]".
   -layout LAYOUT        Optional. Prompts how network layouts should be
                         treated by application. For example,
                         "input1[NCHW],input2[NC]" or "[NCHW]" in case of one
-                        input size.
+                        input size. Also can be defined partially -
+                        "input1[N...],input2[N...C]"
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
                        Optional. Number of streams to use for inference on the CPU/GPU/MYX in throughput mode
                        (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
@@ -137,6 +150,13 @@ Options:
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU
                         (including HETERO  and MULTI cases).
+  --latency_percentile LATENCY_PERCENTILE
+                        Optional. Defines the percentile to be reported in latency metric.
+                        The valid range is [1, 100]. The default value is 50 (median).
+  -enforcebf16 ENFORCEBF16, --enforce_bfloat16 ENFORCEBF16
+                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
+                           True  - enable  bfloat16 regardless of platform support.
+                           False - disable bfloat16 regardless of platform support.
   -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
                         Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs),
                         threads->(NUMA)nodes ('NUMA'),
@@ -148,9 +168,23 @@ Options:
                         graph information serialized.
   -pc [PERF_COUNTS], --perf_counts [PERF_COUNTS]
                         Optional. Report performance counters.
-  -ip "U8"/"FP16"/"FP32"    Optional. Specifies precision for all input layers of the network.
-  -op "U8"/"FP16"/"FP32"    Optional. Specifies precision for all output layers of the network.
-  -iop                      Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
+  -pcseq PCSEQ --pcseq PCSEQ
+                        Optional. Report latencies for each shape in -data_shape sequence.
+  -inference_only INFERENCE_ONLY, --inference_only INFERENCE_ONLY
+                        Optional. If true inputs filling only once before measurements.
+                           True - fill inputs once before the measurements loop, default value for static models
+                           False - fill inputs each time before inference, default value for dynamic models
+  -report_type REPORT_TYPE, --report_type REPORT_TYPE
+                        Optional. Enable collecting statistics report.
+                           "--report_type no_counters" report contains configuration options specified, resulting FPS and latency.
+                           "--report_type average_counters"
+                           "report extends \"no_counters\" report and additionally includes average PM "
+                           "counters values for each layer from the network. \"detailed_counters\" report "
+                           "extends \"average_counters\" report and additionally includes per-layer PM "
+                           "counters and latency for each executed infer request.
+  -ip "u8"/"f16"/"f32"  Optional. Specifies precision for all input layers of the network.
+  -op "u8"/"f16"/"f32"  Optional. Specifies precision for all output layers of the network.
+  -iop                  Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

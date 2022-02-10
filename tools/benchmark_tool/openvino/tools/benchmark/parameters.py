@@ -101,8 +101,8 @@ def parse_args():
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
     args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True, choices=[True, False],
                       help='Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. '
-                           '\'true\'  - enable  bfloat16 regardless of platform support. '
-                           '\'false\' - disable bfloat16 regardless of platform support.')
+                           '\'True\'  - enable  bfloat16 regardless of platform support. '
+                           '\'False\' - disable bfloat16 regardless of platform support.')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU, GNA '
                            '(including HETERO and MULTI cases).')
