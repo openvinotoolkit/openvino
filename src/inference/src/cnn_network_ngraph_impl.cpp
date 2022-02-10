@@ -259,7 +259,11 @@ void CNNNetworkNGraphImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
 }
 
 size_t CNNNetworkNGraphImpl::layerCount() const noexcept {
-    return _ngraph_function->get_ops().size();
+    try {
+        return _ngraph_function->get_ops().size();
+    } catch (...) {
+        return 0;
+    }
 }
 
 void CNNNetworkNGraphImpl::validate(int version) {
@@ -334,20 +338,24 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     // The original code from CNNNetworkImpl just gets the first input and returns the first dimension.
     // This is not correct in general. We can follow the same semantics, but order of inputs should be
     // guaranteed to be the same.
-    auto params = _ngraph_function->get_parameters();
-    sort(params.begin(), params.end(), [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
-        return lhs->get_friendly_name() < rhs->get_friendly_name();
-    });
+    try {
+        auto params = _ngraph_function->get_parameters();
+        sort(params.begin(), params.end(), [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+            return lhs->get_friendly_name() < rhs->get_friendly_name();
+        });
 
-    for (const auto& param : params) {
-        if (param->get_output_partial_shape(0).rank().is_dynamic())
-            continue;
-        auto pshape = param->get_output_partial_shape(0);
-        auto rank = pshape.rank().get_length();
-        // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
-        if ((rank == 2 || rank > 3) && pshape[0].is_static()) {
-            return pshape[0].get_length();
+        for (const auto& param : params) {
+            if (param->get_output_partial_shape(0).rank().is_dynamic())
+                continue;
+            auto pshape = param->get_output_partial_shape(0);
+            auto rank = pshape.rank().get_length();
+            // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
+            if ((rank == 2 || rank > 3) && pshape[0].is_static()) {
+                return pshape[0].get_length();
+            }
         }
+    } catch (...) {
+        // Empty implementation, returns 1 by default
     }
     return 1;
 }
