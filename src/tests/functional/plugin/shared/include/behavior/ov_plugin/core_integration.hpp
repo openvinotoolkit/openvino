@@ -701,7 +701,7 @@ TEST_P(OVClassPropertyTest_DEVICE_ARCHITECTURE, GetPropertyAndPrintNoThrow) {
 TEST_P(OVClassPropertyTest_INFERENCE_NUM_THREADS, GetPropertyAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
-    int32_t property;
+    int32_t property = 0;
     ASSERT_NO_THROW(property = ie.get_property(deviceName, ov::inference_num_threads));
 
     std::cout << "INFERENCE_NUM_THREADS: " << property << std::endl;

@@ -546,12 +546,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
 // GetConfig / SetConfig for specific device
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestGetConfig,
+        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestGetProperty,
         ::testing::Values("GPU.0")
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestGetConfig,
+        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestGetProperty,
         ::testing::Values("GPU.1")
 );
 
