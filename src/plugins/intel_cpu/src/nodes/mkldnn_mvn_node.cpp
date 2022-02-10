@@ -782,19 +782,19 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = false;
     config.inConfs.resize(inputsNum);
     config.outConfs.resize(1);
-    config.inConfs[0].constant = false;
-    config.outConfs[0].constant = false;
-    config.inConfs[0].inPlace = -1;
-    config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
+    config.inConfs[0].constant(false);
+    config.outConfs[0].constant(false);
+    config.inConfs[0].inPlace(-1);
+    config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
     if (inputsNum == 2) {
-        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, getInputShapeAtPort(1));
-        config.inConfs[1].constant = true;
+        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, getInputShapeAtPort(1)));
+        config.inConfs[1].constant(true);
     }
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
-        config.inConfs[0].desc = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
-        config.outConfs[0].desc = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
+        config.inConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0)));
+        config.outConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -828,7 +828,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     // planar
     if (canBeInplace)
-        config.inConfs[0].inPlace = 0;
+        config.inConfs[0].inPlace(0);
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
@@ -906,9 +906,9 @@ void MKLDNNMVNNode::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_d
 void MKLDNNMVNNode::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -918,8 +918,8 @@ void MKLDNNMVNNode::prepareParams() {
 
     if (mayiuse(cpu::x64::sse41)) {
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].desc->getPrecision();
-        mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].desc->getPrecision();
+        mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
+        mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
         if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
             mvnAttrs.layout = MVNLayoutType::planar;
         } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {

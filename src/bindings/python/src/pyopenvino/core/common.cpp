@@ -293,6 +293,17 @@ PyAny from_ov_any(const ov::Any& any) {
             PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
         }
         return dict;
+    }
+    // Check for std::vector<ov::PropertyName>
+    else if (any.is<std::vector<ov::PropertyName>>()) {
+        auto val = any.as<std::vector<ov::PropertyName>>();
+        PyObject* dict = PyDict_New();
+        for (const auto& it : val) {
+            std::string property_name = it;
+            std::string mutability = it.is_mutable() ? "RW" : "RO";
+            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
+        }
+        return dict;
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return (PyObject*)NULL;

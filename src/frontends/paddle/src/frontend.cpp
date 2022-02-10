@@ -16,6 +16,7 @@
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
@@ -217,7 +218,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::string>()) {
         std::string suffix = ".pdmodel";
         std::string model_path = variants[0].as<std::string>();
-        if (!paddle::endsWith(model_path, suffix)) {
+        if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<char>() + "__model__";
         }
         std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
@@ -229,7 +230,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<std::wstring>()) {
         std::wstring suffix = L".pdmodel";
         std::wstring model_path = variants[0].as<std::wstring>();
-        if (!paddle::endsWith(model_path, suffix)) {
+        if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
         std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);

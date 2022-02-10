@@ -39,6 +39,7 @@ void regclass_graph_Type(py::module m) {
         return "<Type: 'u" + self.c_type_string() + bitwidth + "'>";
     });
 
+    type.def("__hash__", &ov::element::Type::hash);
     type.def(
         "__eq__",
         [](const ov::element::Type& a, const ov::element::Type& b) {
