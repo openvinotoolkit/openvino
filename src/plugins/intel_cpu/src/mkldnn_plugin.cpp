@@ -27,7 +27,6 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
-#include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
@@ -381,12 +380,6 @@ static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Fun
                     }
                 }
                 return true;
-            });
-
-    pass_config->set_callback<ngraph::pass::AlignEltwiseInputRanks>(
-            [](const_node_ptr &node) -> bool {
-                auto formats = ngraph::getMKLDNNInputMemoryFormats(node);
-                return formats.size() > 0;
             });
 
     // List of enabled/disabled transformations
