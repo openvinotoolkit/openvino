@@ -678,8 +678,4 @@ public:
     RemoteContext get_default_context(const std::string& device_name);
 };
 
-namespace runtime {
-using ov::Core;
-}  // namespace runtime
-
 }  // namespace ov
