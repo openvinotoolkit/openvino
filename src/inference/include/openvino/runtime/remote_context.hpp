@@ -166,8 +166,4 @@ public:
     Tensor create_host_tensor(const element::Type type, const Shape& shape);
 };
 
-namespace runtime {
-using ov::RemoteContext;
-}  // namespace runtime
-
 }  // namespace ov
