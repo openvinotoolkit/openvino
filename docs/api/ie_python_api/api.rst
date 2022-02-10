@@ -5,14 +5,7 @@ OpenVINO Python API
    :toctree: _autosummary
    :template: custom-module-template.rst
 
-   openvino.inference_engine
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-
    openvino.runtime
-
 
 .. autosummary::
    :toctree: _autosummary
@@ -98,14 +91,8 @@ OpenVINO Python API
 
    openvino.offline_transformations
 
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
+.. toctree::
+   :maxdepth: 2
+   :hidden:
 
-   ngraph
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-
-   _pyngraph
+   compatibility
