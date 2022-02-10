@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "mkldnn_node.h"
+#include <node.h>
 
 #include <memory>
 #include <vector>

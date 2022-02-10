@@ -5,7 +5,7 @@
 #include "jit_eltwise_emitters.hpp"
 #include <cpu/x64/jit_uni_eltwise.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <nodes/mkldnn_eltwise_node.h>
+#include <nodes/eltwise.h>
 
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;

@@ -8,7 +8,9 @@
 #include <ngraph/variant.hpp>
 
 #include "jit_emitter.hpp"
+
 using namespace Xbyak;
+
 namespace ov {
 namespace intel_cpu {
 

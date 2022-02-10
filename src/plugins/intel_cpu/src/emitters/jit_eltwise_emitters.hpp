@@ -6,7 +6,6 @@
 
 #include <cpu/x64/jit_generator.hpp>
 #include "jit_emitter.hpp"
-#include "mkldnn_node.h"
 
 namespace ov {
 namespace intel_cpu {

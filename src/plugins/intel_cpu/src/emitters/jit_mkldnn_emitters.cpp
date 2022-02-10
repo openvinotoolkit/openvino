@@ -3,7 +3,7 @@
 //
 
 #include "jit_mkldnn_emitters.hpp"
-#include "nodes/mkldnn_eltwise_node.h"
+#include <nodes/eltwise.h>
 
 using namespace mkldnn::impl::utils;
 using namespace mkldnn::impl;

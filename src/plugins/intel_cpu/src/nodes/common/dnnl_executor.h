@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "mkldnn_memory.h"
-#include "mkldnn_primitive.h"
+#include <cpu_memory.h>
+#include <primitive.h>
 
 namespace ov {
 namespace intel_cpu {

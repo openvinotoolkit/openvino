@@ -5,10 +5,10 @@
 #include <gtest/gtest.h>
 #include <ie_common.h>
 
-#include "mkldnn_reorder_node.h"
-#include "mkldnn_input_node.h"
-#include "mkldnn_edge.h"
-#include "mkldnn_node.h"
+#include <nodes/reorder.h>
+#include "nodes/input.h"
+#include <edge.h>
+#include <node.h>
 #include "cache/multi_cache.h"
 
 /*

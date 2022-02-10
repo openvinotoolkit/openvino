@@ -9,7 +9,7 @@
 
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
-#include "mkldnn_node.h"
+#include <node.h>
 
 #include <set>
 

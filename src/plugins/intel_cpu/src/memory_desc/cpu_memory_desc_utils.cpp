@@ -4,7 +4,7 @@
 
 #include "cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "mkldnn_memory.h"
+#include <cpu_memory.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"

@@ -5,7 +5,7 @@
 
 #ifdef CPU_DEBUG_CAPS
 
-#include "mkldnn_node.h"
+#include <node.h>
 
 #include <string>
 #include <cstdlib>

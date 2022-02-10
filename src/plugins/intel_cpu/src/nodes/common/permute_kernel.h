@@ -5,7 +5,7 @@
 #pragma once
 
 #include <ie_common.h>
-#include <mkldnn_node.h>
+#include <node.h>
 #include <memory>
 
 namespace ov {

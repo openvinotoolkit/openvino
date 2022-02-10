@@ -4,7 +4,7 @@
 #ifdef CPU_DEBUG_CAPS
 
 #include "verbose.h"
-#include "mkldnn_node.h"
+#include <node.h>
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 

@@ -5,8 +5,8 @@
 #pragma once
 
 #include "blocked_memory_desc.h"
-#include "mkldnn_memory.h"
-#include "mkldnn_extension_utils.h"
+#include <cpu_memory.h>
+#include <extension_utils.h>
 
 namespace ov {
 namespace intel_cpu {

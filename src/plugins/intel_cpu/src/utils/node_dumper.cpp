@@ -5,7 +5,7 @@
 
 #include "node_dumper.h"
 
-#include "mkldnn_node.h"
+#include <node.h>
 #include "ie_common.h"
 #include "utils/blob_dump.h"
 #include "memory_desc/cpu_memory_desc_utils.h"

@@ -6,7 +6,6 @@
 
 #include "jit_emitter.hpp"
 #include <cpu/x64/jit_generator.hpp>
-#include "mkldnn_node.h"
 #include "jit_bf16_emitters.hpp"
 
 using namespace mkldnn::impl;

@@ -7,7 +7,7 @@
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
 #include <utils/jit_kernel.hpp>
-#include <mkldnn_selective_build.h>
+#include <selective_build.h>
 #include <ie_parallel.hpp>
 #include <openvino/core/type/float16.hpp>
 #include <cpu/x64/jit_generator.hpp>

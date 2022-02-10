@@ -7,7 +7,7 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <ie_parallel.hpp>
-#include <mkldnn_extension_utils.h>
+#include <extension_utils.h>
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 

@@ -7,7 +7,6 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "jit_emitter.hpp"
-#include "mkldnn_node.h"
 
 namespace ov {
 namespace intel_cpu {

@@ -4,7 +4,7 @@
 #ifdef CPU_DEBUG_CAPS
 #pragma once
 
-#include "mkldnn_node.h"
+#include <node.h>
 #include "config.h"
 
 namespace ov {

@@ -3,7 +3,7 @@
 //
 
 #include "dnnl_memory_desc.h"
-#include "mkldnn_extension_utils.h"
+#include <extension_utils.h>
 #include <common/memory_desc_wrapper.hpp>
 #include "mkldnn/ie_mkldnn.h"
 
