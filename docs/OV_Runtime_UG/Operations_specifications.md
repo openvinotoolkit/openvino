@@ -137,6 +137,7 @@
    openvino_docs_ops_generation_RandomUniform_8
    openvino_docs_ops_generation_Range_1
    openvino_docs_ops_generation_Range_4
+   openvino_docs_ops_signals_RDFT_9
    openvino_docs_ops_infrastructure_ReadValue_3
    openvino_docs_ops_activation_ReLU_1
    openvino_docs_ops_reduction_ReduceL1_4
@@ -154,7 +155,6 @@
    openvino_docs_ops_infrastructure_Result_1
    openvino_docs_ops_movement_Reverse_1
    openvino_docs_ops_movement_ReverseSequence_1
-   openvino_docs_ops_signals_RFFT_9
    openvino_docs_ops_sequence_RNNCell_3
    openvino_docs_ops_sequence_RNNSequence_5
    openvino_docs_ops_detection_ROIAlign_3
