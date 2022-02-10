@@ -467,6 +467,26 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
             || (to == Precision::BOOL && from != to);   // T -> bool
 }
 
+struct CopyContext {
+        const void *srcPtr;
+        void *dstPtr;
+        size_t size;
+        Precision dstPrc;
+        bool converted;
+    };
+
+template<typename ele_t>
+struct CopyElement {
+    void operator()(CopyContext &ctx) {
+        auto src = static_cast<const ele_t *>(ctx.srcPtr);
+        auto dst = static_cast<ele_t *>(ctx.dstPtr);
+        parallel_for(ctx.size, [&](size_t i) {
+            dst[i] = src[i];
+        });
+        ctx.converted = true;
+    }
+};
+
 }   // namespace
 
 #define MKLDNN_CVT(ST, DT) OV_CASE2(Precision::ST, Precision::DT, PrecisionInfo<Precision::ST>::value_type, PrecisionInfo<Precision::DT>::value_type)
@@ -515,29 +535,6 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
     MKLDNN_CVT(U32, U32),   MKLDNN_CVT(I32, I32),   MKLDNN_CVT(U64, U64),   MKLDNN_CVT(I64, I64),   \
     MKLDNN_CVT(FP32, FP32), MKLDNN_CVT(FP16, FP16), MKLDNN_CVT(BF16, BF16), MKLDNN_CVT(FP64, FP64), \
     MKLDNN_CVT(BOOL, BOOL)
-
-struct CopyContext {
-    const void *srcPtr;
-    void *dstPtr;
-    size_t size;
-    Precision dstPrc;
-    bool converted;
-};
-
-template<typename T>
-struct CopyElement;
-template<typename ele_t>
-struct CopyElement {
-    void operator()(CopyContext & ctx) {
-        auto src = static_cast<const ele_t *>(ctx.srcPtr);
-        auto dst = static_cast<ele_t *>(ctx.dstPtr);
-        parallel_for(ctx.size, [&](size_t i) {
-            dst[i] = src[i];
-        });
-
-        ctx.converted = true;
-    }
-};
 
 #define MKLDNN_COPY(DT) OV_CASE(Precision::DT, PrecisionInfo<Precision::DT>::value_type)
 #define MKLDNN_COPY_LIST \
