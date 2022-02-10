@@ -449,7 +449,7 @@ class AppInputInfo:
     def is_image_info(self):
         if str(self.layout) != "[N,C]":
             return False
-        return self.channels.relaxes(Dimension(2))
+        return len(self.channels) >= 2 if self.channels.is_static else self.channels.relaxes(Dimension(2))
 
     def getDimentionByLayout(self, character):
         if self.layout.has_name(character):
