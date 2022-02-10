@@ -79,44 +79,6 @@ void OVInferRequestDynamicTests::TearDown() {
     function.reset();
 }
 
-TEST_P(OVInferRequestDynamicTests, InferStaticNetworkSetInputTensor) {
-    const ov::Shape shape1 = inOutShapes[0].first;
-    const ov::Shape shape2 = inOutShapes[1].first;
-    std::map<std::string, ov::PartialShape> shapes;
-    shapes[function->inputs().back().get_any_name()] = shape1;
-    OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Model to target plugins
-    auto execNet = ie->compile_model(function, targetDevice, configuration);
-    // Create InferRequest
-    ov::runtime::InferRequest req;
-    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    // Get input_tensor
-    ov::runtime::Tensor tensor;
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
-    // Set shape
-    OV_ASSERT_NO_THROW(tensor.set_shape(shape2));
-    ASSERT_ANY_THROW(req.infer());
-}
-
-TEST_P(OVInferRequestDynamicTests, InferStaticNetworkSetOutputTensor) {
-    const ov::Shape shape1 = inOutShapes[0].first;
-    const ov::Shape shape2 = inOutShapes[1].first;
-    std::map<std::string, ov::PartialShape> shapes;
-    shapes[function->inputs().back().get_any_name()] = shape1;
-    OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Model to target plugins
-    auto execNet = ie->compile_model(function, targetDevice, configuration);
-    // Create InferRequest
-    ov::runtime::InferRequest req;
-    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    // Get output_tensor
-    ov::runtime::Tensor tensor;
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()););
-    // Set shape
-    OV_ASSERT_NO_THROW(tensor.set_shape(shape2));
-    ASSERT_ANY_THROW(req.infer());
-}
-
 /*
 We have to check that we don't get a segmentation fault during
 inference if we set the first two times to the same shape and
@@ -151,7 +113,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetwork) {
     }
 }
 
-TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputTensorBeforeInfer) {
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetUnexpectedOutputTensorBeforeInfer) {
     const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refOutShape = inOutShapes[0].second;
