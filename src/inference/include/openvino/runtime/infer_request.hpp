@@ -297,6 +297,14 @@ public:
     /**
      * @brief Sets a callback std::function that will be called on success or failure of asynchronous request
      * @param callback callback object which will be called on when inference finish.
+     * @warning Do not capture strong references to OpenVINO runtime objects into callback.
+     * Folowing objects should not be captured like:
+     *  - ov::InferRequest
+     *  - ov::ExecutableNetwork
+     *  - ov::Core
+     * As specfied objects implements shared refernce concept do not capture this objects by value.
+     * It can lead to memroy leaks or undefined behaviour!
+     * Try to use weak references or pointers.
      */
     void set_callback(std::function<void(std::exception_ptr)> callback);
 
