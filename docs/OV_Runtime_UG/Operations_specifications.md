@@ -85,6 +85,7 @@
    openvino_docs_ops_image_I420toBGR_8
    openvino_docs_ops_image_I420toRGB_8
    openvino_docs_ops_signals_IDFT_7
+   openvino_docs_ops_signals_IRFFT_9
    openvino_docs_ops_infrastructure_If_8
    openvino_docs_ops_image_Interpolate_1
    openvino_docs_ops_image_Interpolate_4

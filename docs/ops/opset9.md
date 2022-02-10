@@ -83,6 +83,7 @@ declared in `namespace opset8`.
 * [I420toRGB](image/I420toRGB_8.md)
 * [If](condition/If_8.md)
 * [Interpolate](image/Interpolate_4.md)
+* [IRFFT](signals/IRFFT_9.md)
 * [Less](comparison/Less_1.md)
 * [LessEqual](comparison/LessEqual_1.md)
 * [Log](arithmetic/Log_1.md)
