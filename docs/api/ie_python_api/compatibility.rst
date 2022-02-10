@@ -1,5 +1,5 @@
 OpenVINO Python API - Compatibility
-===================
+===================================
 
 .. autosummary::
    :toctree: _autosummary
