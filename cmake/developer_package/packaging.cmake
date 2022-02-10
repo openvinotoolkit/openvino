@@ -4,6 +4,7 @@
 
 include(CMakeParseArguments)
 include(CPackComponent)
+include(GNUInstallDirs)
 
 #
 # ie_cpack_set_library_dir()
@@ -20,9 +21,17 @@ function(ie_cpack_set_library_dir)
         set(IE_CPACK_RUNTIME_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
         set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
     else()
-        set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        if (NOT LINUX_OS_NAME STREQUAL "CHROMIUMOS")
+            set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(IE_CPACK_RUNTIME_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(IE_CPACK_INCLUDES_PATH runtime/include PARENT_SCOPE)
+        else()
+            set(IE_CPACK_LIBRARY_PATH ${CMAKE_INSTALL_FULL_LIBDIR} PARENT_SCOPE)
+            set(IE_CPACK_RUNTIME_PATH ${CMAKE_INSTALL_FULL_LIBDIR} PARENT_SCOPE)
+            set(IE_CPACK_ARCHIVE_PATH ${CMAKE_INSTALL_FULL_LIBDIR} PARENT_SCOPE)
+            set(IE_CPACK_INCLUDES_PATH ${CMAKE_INSTALL_FULL_INCLUDEDIR} PARENT_SCOPE)
+        endif()
     endif()
 endfunction()
 

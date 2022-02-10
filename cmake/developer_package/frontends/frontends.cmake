@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "runtime/include/")
+set(FRONTEND_INSTALL_INCLUDE ${IE_CPACK_INCLUDES_PATH})
 set(FRONTEND_NAME_PREFIX "openvino_")
 set(FRONTEND_NAME_SUFFIX "_frontend")
 

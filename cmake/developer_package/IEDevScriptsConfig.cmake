@@ -83,6 +83,9 @@ if(NOT COMMAND find_host_program)
     endmacro()
 endif()
 
+include(linux_name)
+get_linux_name(LINUX_OS_NAME)
+
 #
 # Common scripts
 #
@@ -234,10 +237,8 @@ include(download/dependency_solver)
 include(cross_compile/cross_compiled_func)
 include(faster_build)
 include(whole_archive)
-include(linux_name)
 include(models)
 include(api_validator/api_validator)
-
 include(vs_version/vs_version)
 include(plugins/plugins)
 include(frontends/frontends)

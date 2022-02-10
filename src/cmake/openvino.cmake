@@ -62,8 +62,8 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        INCLUDES DESTINATION runtime/include
-                             runtime/include/ie)
+        INCLUDES DESTINATION ${IE_CPACK_INCLUDES_PATH}
+                             ${IE_CPACK_INCLUDES_PATH}/ie)
 
 #
 # Add openvin::dev target

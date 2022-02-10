@@ -36,7 +36,12 @@ if(libGNA_FIND_REQUIRED_KERNEL)
 endif()
 
 if(libGNA_FIND_REQUIRED_API)
-    find_path(libGNA_INCLUDE_DIRS gna2-api.h PATHS "${GNA_EXT_DIR}/include")
+    if(NOT LINUX_OS_NAME STREQUAL "CHROMIUMOS")
+        find_path(libGNA_INCLUDE_DIRS gna2-api.h PATHS "${GNA_EXT_DIR}/include")
+    else()
+        find_path(libGNA_INCLUDE_DIRS gna2-api.h PATHS ${GNA_INCLUDE_LOC})
+    endif()
+
     if(NOT libGNA_INCLUDE_DIRS MATCHES NOTFOUND)
         add_library(libGNA::API INTERFACE IMPORTED)
         set_target_properties(libGNA::API PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${libGNA_INCLUDE_DIRS})

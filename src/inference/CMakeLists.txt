@@ -209,7 +209,7 @@ set_target_properties(${TARGET_NAME}_obj
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME}_plugin_api)
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION ${IE_CPACK_INCLUDES_PATH}
         COMPONENT core_dev)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF

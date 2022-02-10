@@ -127,7 +127,7 @@ target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_
 #-----------------------------------------------------------------------------------------------
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION "runtime/include"
+        DESTINATION ${IE_CPACK_INCLUDES_PATH}
         COMPONENT core_dev
         FILES_MATCHING
             PATTERN "*.hpp"

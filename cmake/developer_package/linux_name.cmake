@@ -6,17 +6,22 @@ include(target_flags)
 
 if (LINUX)
     function(get_linux_name res_var)
-        if (NOT EXISTS "/etc/lsb-release")
-            execute_process(COMMAND find -L /etc/ -maxdepth 1 -type f -name *-release -exec cat {} \;
-                    OUTPUT_VARIABLE release_data RESULT_VARIABLE result)
-            string(REPLACE "Red Hat" "CentOS" release_data "${release_data}")
-            set(name_regex "NAME=\"([^ \"\n]*).*\"\n")
-            set(version_regex "VERSION=\"([0-9]+(\\.[0-9]+)?)[^\n]*\"")
-        else ()
+        if (TARGET_OS_NAME STREQUAL "CHROMIUMOS")
+            set(${res_var} "CHROMIUMOS" PARENT_SCOPE)
+            return()
+        endif()
+
+        if (EXISTS "/etc/lsb-release")
             # linux version detection using cat /etc/lsb-release
             file(READ "/etc/lsb-release" release_data)
             set(name_regex "DISTRIB_ID=([^ \n]*)\n")
             set(version_regex "DISTRIB_RELEASE=([0-9]+(\\.[0-9]+)?)")
+        else ()
+            execute_process(COMMAND find -L /etc/ -maxdepth 1 -type f -name *-release -exec cat {} \;
+                OUTPUT_VARIABLE release_data RESULT_VARIABLE result)
+            string(REPLACE "Red Hat" "CentOS" release_data "${release_data}")
+            set(name_regex "NAME=\"([^ \"\n]*).*\"\n")
+            set(version_regex "VERSION=\"([0-9]+(\\.[0-9]+)?)[^\n]*\"")
         endif ()
 
         string(REGEX MATCH ${name_regex} name ${release_data})

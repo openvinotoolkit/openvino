@@ -26,22 +26,29 @@ fetch_models_and_validation_set()
 get_linux_name(LINUX_OS_NAME)
 
 if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
-    set(protoc_version "3.18.2")
+    if (NOT LINUX_OS_NAME STREQUAL "CHROMIUMOS")
+        set(protoc_version "3.18.2")
 
-    RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
-        ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
-        TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64"
-        SHA256 "42fde2b6044c1f74c7e86d4e03b43aac87128ddf57ac6ed8c4eab7a1e21bbf21"
-    )
-    debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
+	RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
+		ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
+		TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64"
+		SHA256 "42fde2b6044c1f74c7e86d4e03b43aac87128ddf57ac6ed8c4eab7a1e21bbf21")
+	debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
 
-    reset_deps_cache(SYSTEM_PROTOC)
+        reset_deps_cache(SYSTEM_PROTOC)
 
-    find_host_program(
-        SYSTEM_PROTOC
-        NAMES protoc
-        PATHS "${SYSTEM_PROTOC_ROOT}/bin"
-        NO_DEFAULT_PATH)
+        find_host_program(
+            SYSTEM_PROTOC
+            NAMES protoc
+            PATHS "${SYSTEM_PROTOC_ROOT}/bin"
+            NO_DEFAULT_PATH)
+    else()
+        find_host_program(
+            SYSTEM_PROTOC
+            NAMES protoc
+            PATHS "${SYSTEM_PROTOC_ROOT}/bin")
+    endif()
+
     if(NOT SYSTEM_PROTOC)
         message(FATAL_ERROR "[ONNX IMPORTER] Missing host protoc binary")
     endif()
@@ -281,6 +288,11 @@ if(ENABLE_OPENCV)
             elseif((LINUX_OS_NAME STREQUAL "Ubuntu 20.04" OR LINUX_OS_NAME STREQUAL "LinuxMint 20.1") AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu20")
                 set(OPENCV_HASH "2fe7bbc40e1186eb8d099822038cae2821abf617ac7a16fadf98f377c723e268")
+            elseif(LINUX_OS_NAME STREQUAL "CHROMIUMOS" AND X86_64)
+                find_package(OpenCV)
+                if (NOT OpenCV_FOUND)
+                    message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
+                endif()
             elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})
                 message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
@@ -306,14 +318,15 @@ else()
 endif()
 
 if(ENABLE_INTEL_GNA)
-    reset_deps_cache(
-            GNA_EXT_DIR
-            GNA_PLATFORM_DIR
-            GNA_KERNEL_LIB_NAME
-            GNA_LIBS_LIST
-            GNA_LIB_DIR
-            libGNA_INCLUDE_DIRS
-            libGNA_LIBRARIES_BASE_PATH)
+    if (NOT LINUX_OS_NAME STREQUAL "CHROMIUMOS")
+        reset_deps_cache(
+                GNA_EXT_DIR
+                GNA_PLATFORM_DIR
+                GNA_KERNEL_LIB_NAME
+                GNA_LIBS_LIST
+                GNA_LIB_DIR
+                libGNA_INCLUDE_DIRS
+                libGNA_LIBRARIES_BASE_PATH)
         set(GNA_VERSION "03.00.00.1455.2")
         set(GNA_HASH "e52785d3f730fefb4e794bb7ab40c8676537ef2f7c69c5b4bb89a5d3cc0bbe60")
 
@@ -325,13 +338,14 @@ if(ENABLE_INTEL_GNA)
         endif()
 
         RESOLVE_DEPENDENCY(GNA_EXT_DIR
-                ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
-                TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
-                VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
-                SHA256 ${GNA_HASH})
-    update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
-    debug_message(STATUS "gna=" ${GNA_EXT_DIR})
+            ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
+            TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
+            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
+            FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
+	    SHA256 ${GNA_HASH})
+        update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
+        debug_message(STATUS "gna=" ${GNA_EXT_DIR})
+    endif()
 
     if (WIN32)
         set(GNA_PLATFORM_DIR win64 CACHE STRING "" FORCE)
