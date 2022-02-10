@@ -2720,7 +2720,7 @@ public:
     }
 
     self& add_smoke_3d(data_types in_dt, data_types wei_dt, data_types out_dt, format::type in_fmt, format::type out_fmt) {
-        std::vector<int> batches = { 1, 2 };
+        std::vector<int> batches = { 1, 2, 16, 32 };
         for (auto b : batches) {
             // 1x1
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7, 7}, wei_dt, format::oizyx, {15, 15, 1, 1, 1}, tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
