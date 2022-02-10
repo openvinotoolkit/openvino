@@ -1,4 +1,4 @@
-# Inference Engine Developer Guide {#openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide}
+# OpenVINO™ Runtime User Guide {#openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide}
 
 @sphinxdirective
 
@@ -8,6 +8,8 @@
    
    openvino_2_0_transition_guide
    openvino_docs_IE_DG_Integrate_with_customer_application_new_API
+   openvino_docs_OV_Runtime_UG_Model_Representation
+   ngraph_transformation
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_IE_DG_Device_Plugins
    Direct ONNX Format Support <openvino_docs_IE_DG_ONNX_Support>
@@ -34,8 +36,6 @@ Inference Engine uses a plugin architecture. Inference Engine plugin is a softwa
 The scheme below illustrates the typical workflow for deploying a trained deep learning model: 
 
 ![](img/BASIC_FLOW_IE_C.svg)
-
-\\* _nGraph_ is the internal graph representation in the OpenVINO™ toolkit. Use it to [build a model from source code](https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_build_function.html).
 
 
 ## Video

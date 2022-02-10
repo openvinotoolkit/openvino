@@ -3,6 +3,7 @@
 //
 
 #include "vpu_case_common.hpp"
+#include "ie_plugin_config.hpp"
 
 bool CheckMyriadX() {
     if (auto envVar = std::getenv("IE_VPU_MYRIADX")) {

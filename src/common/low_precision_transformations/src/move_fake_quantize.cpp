@@ -86,9 +86,14 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     const auto concat_axis = concat_node->get_concatenation_axis();
     for (size_t i = 0; i < 4; i++) {
         curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
-        if (!multi_chanels && curr_constants[i]->get_shape().size() > (concat_axis + 1ul) && curr_constants[i]->get_shape()[concat_axis] != 1) {
+        if (!multi_chanels && curr_constants[i]->get_shape().size() > concat_axis && curr_constants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
         }
+    }
+
+    // it's impossible to split fq constants by channel if number of channels is dynamic
+    if (multi_chanels && fq->get_input_partial_shape(0)[concat_axis].is_dynamic()) {
+        return false;
     }
 
     std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> new_constants;

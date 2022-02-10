@@ -103,23 +103,55 @@ void AutoBatchInferRequest::ShareBlobsWithBatchRequest() {
                 _batchId,
                 _batchSize);
             break;
+        case InferenceEngine::Precision::I16:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I16>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+            break;
         case InferenceEngine::Precision::U16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
                 _batchId,
                 _batchSize);
             break;
-
-        case InferenceEngine::Precision::I16:
-            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I16>(
+        case InferenceEngine::Precision::FP64:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP64>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
                 _batchId,
                 _batchSize);
-
+            break;
+        case InferenceEngine::Precision::FP16:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP16>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+            break;
+        case InferenceEngine::Precision::BF16:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::BF16>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+            break;
+        case InferenceEngine::Precision::U64:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U64>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+        case InferenceEngine::Precision::I64:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I64>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
             break;
         case InferenceEngine::Precision::U8:
-        case InferenceEngine::Precision::BOOL:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U8>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+            break;
+        case InferenceEngine::Precision::BOOL:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::BOOL>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
                 _batchId,
                 _batchSize);
@@ -152,23 +184,56 @@ void AutoBatchInferRequest::ShareBlobsWithBatchRequest() {
                 _batchId,
                 _batchSize);
             break;
+        case InferenceEngine::Precision::I16:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I16>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+            break;
         case InferenceEngine::Precision::U16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
                 _batchId,
                 _batchSize);
             break;
-
-        case InferenceEngine::Precision::I16:
-            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I16>(
+        case InferenceEngine::Precision::FP64:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP64>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
                 _batchId,
                 _batchSize);
-
+            break;
+        case InferenceEngine::Precision::FP16:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP16>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+            break;
+        case InferenceEngine::Precision::BF16:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::BF16>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+            break;
+        case InferenceEngine::Precision::U64:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U64>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+            break;
+        case InferenceEngine::Precision::I64:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I64>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
             break;
         case InferenceEngine::Precision::U8:
-        case InferenceEngine::Precision::BOOL:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U8>(
+                _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                _batchId,
+                _batchSize);
+            break;
+        case InferenceEngine::Precision::BOOL:
+            res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::BOOL>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
                 _batchId,
                 _batchSize);
@@ -271,7 +336,10 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
                       auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
                       if (batchReq._exceptionPtr)  // when the batchN execution failed
                           std::rethrow_exception(batchReq._exceptionPtr);
-                      this->_inferRequest->CopyOutputsIfNeeded();
+                      // in the case of non-batched execution the blobs were set explicitly
+                      if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
+                          this->_inferRequest->_wasBatchedRequestUsed)
+                          this->_inferRequest->CopyOutputsIfNeeded();
                       if (needPerfCounters) {
                           try {
                               this->_inferRequest->_perfMap = batchReq._inferRequestBatched->GetPerformanceCounts();
@@ -305,8 +373,8 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     // WA for gcc 4.8 ( fails compilation with member init-list)
     _device = networkDevice;
     auto time_out = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
-    if (time_out != config.end())
-        _timeOut = ParseTimeoutValue(time_out->second.as<std::string>());
+    IE_ASSERT(time_out != config.end());
+    _timeOut = ParseTimeoutValue(time_out->second.as<std::string>());
 }
 
 AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {
@@ -399,6 +467,8 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completionTasks[n] = std::move(t.second);
                             t.first->_inferRequest->CopyInputsIfNeeded();
+                            t.first->_inferRequest->_wasBatchedRequestUsed =
+                                AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
                     } else if ((status == std::cv_status::timeout) && sz) {
@@ -418,6 +488,8 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                                     if (sz == ++arrived)
                                         all_completed.set_value();
                                 });
+                            t.first->_inferRequest->_wasBatchedRequestUsed =
+                                AutoBatchInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
                             t.first->_inferRequest->SetBlobsToAnotherRequest(t.first->_inferRequestWithoutBatch);
                             t.first->_inferRequestWithoutBatch->StartAsync();
                         }
@@ -632,6 +704,7 @@ IE_DEFINE_PLUGIN_CREATE_FUNCTION(AutoBatchInferencePlugin, version)
 
 AutoBatchInferencePlugin::AutoBatchInferencePlugin() {
     _pluginName = "BATCH";
+    _config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = "1000";  // default value, in ms
 }
 
 InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(
@@ -738,7 +811,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
         if (requests)
             optBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
-        metaDevice.batchForDevice = optBatchSize;
+        if (optBatchSize > 2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
+            metaDevice.batchForDevice = optBatchSize;
     }
 
     const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
@@ -753,8 +827,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         auto stats =
             pCore->GetMetric(device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
         for (auto s : stats)
-            if (s.first.find("_current") != std::string::npos)
-                footprint += s.second;
+            footprint += s.second;
         return footprint;
     };
 

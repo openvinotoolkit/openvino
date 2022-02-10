@@ -1,6 +1,6 @@
 # Hello Query Device C++ Sample {#openvino_inference_engine_samples_hello_query_device_README}
 
-This sample demonstrates how to execute an query Inference Engine devices, prints their metrics and default configuration values, using [Query Device API feature](../../../docs/IE_DG/InferenceEngine_QueryAPI.md).
+This sample demonstrates how to execute an query Inference Engine devices, prints their metrics and default configuration values, using [Query Device API feature](../../../docs/OV_Runtime_UG/InferenceEngine_QueryAPI.md).
 
 Hello Query Device C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
 
@@ -12,7 +12,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 
 | Options  | Values |
 |:---                              |:---
-| Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [Python](../../../samples/python/hello_query_device/README.md) |
 
 ## How It Works
@@ -21,7 +21,7 @@ The sample queries all available Inference Engine devices, prints their supporte
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 ## Running
 
@@ -89,5 +89,5 @@ Available devices:
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)

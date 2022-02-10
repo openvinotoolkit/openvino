@@ -41,12 +41,19 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         if (!mul_const)
             return false;
 
+        auto const_shape = mul_const->get_shape();
+        if (ngraph::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
+            // We can't eliminate Multiply if Constant input broadcasts another input shape because
+            // when we reconnect input from Multiply to FQ won't broadcast given input, so it will result
+            // in shape collision.
+            return false;
+        }
+
         auto mul_const_value = mul_const->cast_vector<float>();
         if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f <= 0.0f; }))
             return false;
 
         std::shared_ptr<Node> new_const = mul_const;
-        auto const_shape = mul_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
         bool is_single_value = const_shape_size == 1;
 
@@ -60,14 +67,24 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         }
 
         if (!is_single_value) {
+            const auto& fq_input_shape = fq->get_input_partial_shape(0);
+            if (fq_input_shape.rank().is_dynamic())
+                return false;
+
+            const auto diff = fq_input_shape.size() - const_shape.size();
+            if (diff > 0) {
+                // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
+                const_shape.insert(const_shape.begin(), diff, 1);
+                new_const = std::make_shared<opset5::Reshape>(new_const,
+                        op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
+            }
+
             // disallow constant shapes other than (N, 1, 1, ..., 1) or (1, C, 1, ..., 1)
             if (!(const_shape[0] > 1 && const_shape[0] == const_shape_size) &&
                 !(const_shape.size() > 1 && const_shape[1] == const_shape_size)) {
                 return false;
             }
-            const auto& rank = fq->get_input_partial_shape(0).rank();
-            if (rank.is_dynamic())
-                return false;
+
             auto fq_users = fq->get_users();
             // Concat LPT transformation supports per tensor quantization only
             bool fq_user_is_concat = std::any_of(fq_users.begin(), fq_users.end(),
@@ -77,11 +94,6 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                                                  });
             if (fq_user_is_concat)
                 return false;
-            auto diff = rank.get_length() - static_cast<Dimension::value_type>(const_shape.size());
-            // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
-            const_shape.insert(const_shape.begin(), diff, 1);
-            new_const = std::make_shared<opset5::Reshape>(new_const,
-                    op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
         }
 
         auto input_low_div = std::make_shared<opset5::Divide>(fq->input_value(1), new_const);

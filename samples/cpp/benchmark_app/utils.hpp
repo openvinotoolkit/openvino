@@ -78,14 +78,14 @@ std::map<std::string, std::vector<std::string>> parse_input_parameters(const std
 /// <param name="shape_string">command-line shape string</param>
 /// <param name="layout_string">command-line layout string</param>
 /// <param name="batch_size">command-line batch string</param>
-/// <param name="tensors_shape_string">command-line tensor_shape string</param>
+/// <param name="tensors_shape_string">command-line data_shape string</param>
 /// <param name="scale_string">command-line iscale string</param>
 /// <param name="mean_string">command-line imean string</param>
 /// <param name="input_info">inputs vector obtained from ov::Model</param>
 /// <param name="reshape_required">returns true to this parameter if reshape is required</param>
 /// <returns>vector of benchmark_app::InputsInfo elements.
 /// Each element is a configuration item for every test configuration case
-/// (number of cases is calculated basing on tensor_shape and other parameters).
+/// (number of cases is calculated basing on data_shape and other parameters).
 /// Each element is a map (input_name, configuration) containing data for each input</returns>
 std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_string,
                                                        const std::string& layout_string,
@@ -103,14 +103,14 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 /// <param name="shape_string">command-line shape string</param>
 /// <param name="layout_string">command-line layout string</param>
 /// <param name="batch_size">command-line batch string</param>
-/// <param name="tensors_shape_string">command-line tensor_shape string</param>
+/// <param name="tensors_shape_string">command-line data_shape string</param>
 /// <param name="scale_string">command-line iscale string</param>
 /// <param name="mean_string">command-line imean string</param>
 /// <param name="input_info">inputs vector obtained from ov::Model</param>
 /// <param name="reshape_required">returns true to this parameter if reshape is required</param>
 /// <returns>vector of benchmark_app::InputsInfo elements.
 /// Each element is a configuration item for every test configuration case
-/// (number of cases is calculated basing on tensor_shape and other parameters).
+/// (number of cases is calculated basing on data_shape and other parameters).
 /// Each element is a map (input_name, configuration) containing data for each
 /// input</returns>
 std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_string,
