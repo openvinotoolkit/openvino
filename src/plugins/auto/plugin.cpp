@@ -102,22 +102,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         return GetCore()->GetSupportedConfig(deviceName, tconfig);
     };
 
-    auto getDefaultDeviceID = [this](std::string deviceName) -> std::string {
-        auto supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-        if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) != supportedMetrics.end()) {
-            auto supportKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-
-            if (std::find(supportKeys.begin(), supportKeys.end(), CONFIG_KEY(DEVICE_ID)) != supportKeys.end()) {
-                return GetCore()->GetConfig(deviceName, CONFIG_KEY(DEVICE_ID)).as<std::string>();
-            }
-        }
-
-        return "";
-    };
-
     unsigned int devicePriority = 0;
     auto prioritiesIter = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    bool enableDevicePriority = (prioritiesIter != config.end);
+    bool enableDevicePriority = (prioritiesIter != config.end());
     for (auto && d : devicesWithRequests) {
         auto openingBracket = d.find_first_of('(');
         auto closingBracket = d.find_first_of(')', openingBracket);
