@@ -29,6 +29,9 @@ ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
 
+        if (transformation_callback(node))
+            return false;
+
         const auto rank = node->get_output_partial_shape(0).size();
 
         for (size_t i = 0; i < node->get_input_size(); i++) {
