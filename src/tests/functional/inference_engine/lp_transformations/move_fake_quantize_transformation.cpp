@@ -221,7 +221,7 @@ public:
 
 TEST_P(MoveFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -236,14 +236,11 @@ const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f16
 };
 
-namespace testValues1 {
+namespace perTensorValues {
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {
     {{ 1, 1, 9, 9 }, { 1, 1, 9, 9 }},
     {{ 4, 3, 9, 9 }, { 4, 3, 9, 9 }},
-    {
-        { Dimension::dynamic(), 1, Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), 1, Dimension::dynamic(), Dimension::dynamic() }
-    }
+    {{ -1, -1, -1, -1 }, { -1, -1, -1, -1 }}
 };
 
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
@@ -438,9 +435,9 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn({ false, true })),
     MoveFakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues1
+} // namespace perTensorValues
 
-namespace testValues2 {
+namespace perChannelValues {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     ngraph::element::f16
@@ -448,7 +445,8 @@ const std::vector<ngraph::element::Type> precisions = {
 
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {
     {{ 1, 1, 224, 224 }, { 1, 2, 224, 224 }},
-    {{ 4, 1, 9, 9 }, { 4, 2, 9, 9 }}
+    {{ 4, 1, 9, 9 }, { 4, 2, 9, 9 }},
+    {{ -1, 1, -1, -1 }, { -1, 2, -1, -1 }},
 };
 
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
@@ -584,7 +582,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn({ false })),
     MoveFakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues2
+} // namespace perChannelValues
 
 namespace testValues3 {
     const std::vector<ngraph::element::Type> precisions = {
@@ -649,4 +647,62 @@ namespace testValues3 {
             ::testing::ValuesIn({ false })),
         MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues3
+
+namespace NegativeTestValues {
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32
+};
+
+const std::vector<std::vector<ngraph::PartialShape>> shapes = {
+    {{-1, -1, -1, -1}, {-1, -1, -1, -1}},
+};
+const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            2,
+            {},
+            {},
+            {},
+            "",
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+                {-31.7f, -35.7f, -49.1f},
+                {277.8f, 267.f, 254.9f},
+                {-2.6f}, {2.6f},
+            },
+            {},
+            {}
+        },
+        {
+            2,
+            {},
+            {},
+            {},
+            "",
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+                {-31.7f, -35.7f, -49.1f},
+                {277.8f, 267.f, 254.9f},
+                {-2.6f}, {2.6f},
+            },
+            {},
+            {}
+        },
+    },
+};
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    MoveFakeQuantizeTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(shapes),
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn({ false })),
+    MoveFakeQuantizeTransformation::getTestCaseName);
+} // namespace NegativeTestValues
 } // namespace

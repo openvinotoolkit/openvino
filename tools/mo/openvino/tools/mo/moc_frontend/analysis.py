@@ -42,4 +42,4 @@ def json_model_analysis_dump(framework_model: Model):
 
 
 def json_model_analysis_print(json_dump:str):
-    print(json_dump)
+    print(json.dumps(json_dump))
