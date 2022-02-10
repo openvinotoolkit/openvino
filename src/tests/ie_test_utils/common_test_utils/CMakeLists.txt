@@ -68,3 +68,5 @@ set(TARGET_NAME commonTestUtils)
 
 add_common_utils(${TARGET_NAME})
 add_common_utils(${TARGET_NAME}_s USE_STATIC_IE)
+
+add_subdirectory(tests)
