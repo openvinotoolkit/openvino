@@ -7,6 +7,7 @@
 #include "mutable_data_inst.h"
 #include "generic_layer_inst.h"
 #include "input_layout_inst.h"
+#include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "reshape_inst.h"
 
@@ -77,6 +78,15 @@ bool is_user_cpu(const program_node* user) {
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
     for (const auto& user : users) {
         if (is_user_cpu(user))
+            return true;
+    }
+    return false;
+}
+
+static bool on_shape_path_for_reshape(const program_node& node) {
+    const std::list<const program_node*>& users = node.get_users();
+    for (const auto& user : users) {
+        if (user->is_type<reshape>() && user->get_dependencies().size() == 2 && &node == &user->get_dependency(1))
             return true;
     }
     return false;
@@ -340,6 +350,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
     auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
+                               on_shape_path_for_reshape(_node) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
 
     GPU_DEBUG_GET_INSTANCE(debug_config);

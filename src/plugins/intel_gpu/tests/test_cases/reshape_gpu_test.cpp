@@ -9,6 +9,8 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/shape_of.hpp>
+#include <intel_gpu/primitives/reduce.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -580,7 +582,7 @@ TEST(reshape_gpu_f32, basic_bfwzyx) {
     }
 }
 
-TEST(reshape_gpu_f32, basic_dynamic) {
+TEST(reshape_gpu_f32, basic_runtime_static_shape) {
     // input:  bfwzyx, (3, 3, 2, 2, 1, 1)
     // reshape: (1, 1, 2, 2, 3, 3), pad (0, 0, 0, 0, 0, 1)
 
@@ -590,7 +592,9 @@ TEST(reshape_gpu_f32, basic_dynamic) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reshape("reshape", "input", ov::PartialShape{1, 1, 3, 3, 2, 2}, "", padding({0, 0, 0, 0, 0, 1}, 0.f)));
+    topology.add(shape_of("shape_of_input", "input", data_types::i32));
+    topology.add(reduce("reduced_shape", "shape_of_input", reduce_mode::prod, {0}, true));
+    topology.add(reshape("reshape", "input", "reduced_shape"));
 
     // clang-format off
     std::vector<float> input_data = {
@@ -600,27 +604,6 @@ TEST(reshape_gpu_f32, basic_dynamic) {
         1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
     };
 
-    std::vector<float> expected_out = {
-        0.f, 0.f, 0.f, 0.f,
-        0.f, 0.f, 0.f, 0.f,
-        0.f, 0.f, 0.f, 0.f,
-
-        1.f, 2.f, 3.f, 4.f,
-        5.f, 6.f, 7.f, 8.f,
-        9.f, 1.f, 2.f, 3.f,
-
-        4.f, 5.f, 6.f, 7.f,
-        8.f, 9.f, 1.f, 2.f,
-        3.f, 4.f, 5.f, 6.f,
-
-        7.f, 8.f, 9.f, 1.f,
-        2.f, 3.f, 4.f, 5.f,
-        6.f, 7.f, 8.f, 9.f,
-
-        0.f, 0.f, 0.f, 0.f,
-        0.f, 0.f, 0.f, 0.f,
-        0.f, 0.f, 0.f, 0.f,
-    };
     // clang-format on
 
     set_values(input, input_data);
@@ -638,10 +621,10 @@ TEST(reshape_gpu_f32, basic_dynamic) {
     EXPECT_TRUE(output->get_layout().format == input->get_layout().format);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    ASSERT_EQ(output_ptr.size(), expected_out.size());
+    ASSERT_EQ(output_ptr.size(), input_data.size());
 
-    for (size_t i = 0; i < expected_out.size(); i++) {
-        EXPECT_TRUE(are_equal(expected_out[i], output_ptr[i]));
+    for (size_t i = 0; i < input_data.size(); i++) {
+        EXPECT_TRUE(are_equal(input_data[i], output_ptr[i]));
     }
 }
 

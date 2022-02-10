@@ -115,6 +115,9 @@ std::vector<tensor::value_type> layout::get_dims() const {
     auto shape = size.to_shape();
     std::vector<tensor::value_type> res(shape.begin(), shape.end());
 
+    if (res.size() < format.dimension())
+        res.insert(res.end(), format.dimension() - res.size(), 1);
+
     return res;
 }
 

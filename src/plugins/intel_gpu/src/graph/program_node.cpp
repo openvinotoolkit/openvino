@@ -21,6 +21,8 @@
 #include <string>
 #include <set>
 
+#include "reshape_inst.h"
+
 using namespace cldnn;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
@@ -313,6 +315,9 @@ bool program_node::is_dynamic() const {
         if (input->get_output_layout().is_dynamic())
             return true;
     }
+
+    if (is_type<reshape>() && get_dependencies().size() == 2)
+        return true;
 
     return get_output_layout().is_dynamic();
 }
