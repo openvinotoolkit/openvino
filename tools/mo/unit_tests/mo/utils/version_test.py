@@ -66,22 +66,27 @@ class TestingVersion(unittest.TestCase):
         self.assertEqual(get_simplified_ie_version(version="custom_my/branch/3_4c8eae"), "custom")
 
     def test_extracting_version_hash_full_with_build_number(self):
-        self.assertEqual(extract_version_hash(full_version="2021.1.0-1028-55e4d5673a8"), "55e4d5673a8")
+        self.assertEqual(extract_version_hash(full_version="2021.1.0-1028-55e4d5673a8"), "55e4d56")
 
     def test_extracting_version_hash_full_with_build_number_dirty(self):
-        self.assertEqual(extract_version_hash(full_version="2021.1.0-1028-55e4d5673a8-dirty"), "55e4d5673a8")
+        self.assertEqual(extract_version_hash(full_version="2021.1.0-1028-55e4d5673a8-dirty"), "55e4d56")
 
     def test_extracting_version_hash_full_with_build_number_private(self):
-        self.assertEqual(extract_version_hash(full_version="2021.1.0-1028-55e4d5673a8-private"), "55e4d5673a8")
+        self.assertEqual(extract_version_hash(full_version="2021.1.0-1028-55e4d5673a8-private"), "55e4d56")
 
     def test_extracting_version_hash_custom_master(self):
         self.assertEqual(extract_version_hash(full_version="custom_master_55e4d5673a833abab638ee9837bc87a0b7c3a043"),
-                         "55e4d5673a8")
+                         "55e4d56")
 
     def test_extracting_version_hash_mo_format(self):
         self.assertEqual(extract_version_hash(full_version="2022.1.custom_master_55e4d5673a833abab638ee9837bc87a0b7c3a043"),
-                         "55e4d5673a8")
+                         "55e4d56")
 
     def test_negative_extracting_version_hash(self):
         self.assertEqual(extract_version_hash(full_version="2022.1.custom_master"),
                          None)
+
+    # format from the current nightly wheel
+    def test_negative_extracting_version_hash(self):
+        self.assertEqual(extract_version_hash(full_version="2022.1.0-6311-a90bb1f"),
+                         "a90bb1f")

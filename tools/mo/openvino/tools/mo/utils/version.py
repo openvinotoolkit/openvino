@@ -81,7 +81,7 @@ def extract_version_hash(full_version: str):
     :param full_version:
     :return:
     """
-    res = re.match(r'(.*)[-_]{1}([a-z0-9]{11,})', full_version)
+    res = re.findall(r'[-_]{1}([a-z0-9]{7,})', full_version)
     if res is not None:
-        res = res[2][:11]
+        res = res[0][:7]
     return res
