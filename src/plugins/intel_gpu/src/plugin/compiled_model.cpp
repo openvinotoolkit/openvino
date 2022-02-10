@@ -24,6 +24,8 @@
 #include <cmath>
 #include <algorithm>
 
+#include <openvino/util/common_util.hpp>
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -146,27 +148,27 @@ InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) con
             if (name == ov::enable_profiling) {
                 return val == PluginConfigParams::YES ? true : false;
             } else if (name == ov::hint::model_priority) {
-                return InferenceEngine::util::string_to_property(val, ov::hint::model_priority);
+                return ov::util::from_string(val, ov::hint::model_priority);
             } else if (name == ov::intel_gpu::hint::host_task_priority) {
-                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::host_task_priority);
+                return ov::util::from_string(val, ov::intel_gpu::hint::host_task_priority);
             } else if (name == ov::intel_gpu::hint::queue_priority) {
-                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::queue_priority);
+                return ov::util::from_string(val, ov::intel_gpu::hint::queue_priority);
             } else if (name == ov::intel_gpu::hint::queue_throttle) {
-                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::queue_throttle);
+                return ov::util::from_string(val, ov::intel_gpu::hint::queue_throttle);
             } else if (name == ov::intel_gpu::enable_loop_unrolling) {
                 return val == PluginConfigParams::YES ? true : false;
             } else if (name == ov::cache_dir) {
-                return InferenceEngine::util::string_to_property(val, ov::cache_dir);
+                return ov::util::from_string(val, ov::cache_dir);
             } else if (name == ov::hint::performance_mode) {
-                return InferenceEngine::util::string_to_property(val, ov::hint::performance_mode);
+                return ov::util::from_string(val, ov::hint::performance_mode);
             } else if (name == ov::compilation_num_threads) {
-                return InferenceEngine::util::string_to_property(val, ov::compilation_num_threads);
+                return ov::util::from_string(val, ov::compilation_num_threads);
             } else if (name == ov::num_streams) {
-                return InferenceEngine::util::string_to_property(val, ov::num_streams);
+                return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
-                return InferenceEngine::util::string_to_property(val, ov::hint::num_requests);
+                return ov::util::from_string(val, ov::hint::num_requests);
             } else if (name == ov::device::id) {
-                return InferenceEngine::util::string_to_property(val, ov::device::id);
+                return ov::util::from_string(val, ov::device::id);
             } else {
                 return val;
             }

@@ -29,7 +29,7 @@ namespace ov {
 /** @cond INTERNAL */
 class Any;
 namespace util {
-template <typename T>
+template <typename T, typename = void>
 struct Read;
 
 template <class T>
@@ -58,7 +58,7 @@ struct Readable {
     constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
 };
 
-template <typename T>
+template <typename T, typename>
 struct Read {
     template <typename U>
     auto operator()(std::istream&, U&) const ->
@@ -140,7 +140,7 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
 };
 
 template <typename T, typename A>
-struct Read<std::vector<T, A>> {
+struct Read<std::vector<T, A>, typename std::enable_if<std::is_default_constructible<T>::value>::type> {
     void operator()(std::istream& is, std::vector<T, A>& vec) const {
         while (is.good()) {
             T v;
@@ -151,7 +151,9 @@ struct Read<std::vector<T, A>> {
 };
 
 template <typename K, typename T, typename C, typename A>
-struct Read<std::map<K, T, C, A>> {
+struct Read<
+    std::map<K, T, C, A>,
+    typename std::enable_if<std::is_default_constructible<K>::value && std::is_default_constructible<T>::value>::type> {
     void operator()(std::istream& is, std::map<K, T, C, A>& map) const {
         while (is.good()) {
             K k;

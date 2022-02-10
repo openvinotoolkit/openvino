@@ -16,6 +16,7 @@
 #include "ie_api.h"
 #include "intel_gpu/plugin/itt.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include <openvino/util/common_util.hpp>
 
 #ifdef _WIN32
 #    include <direct.h>
@@ -127,15 +128,15 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 queuePriority = cldnn::priority_mode_types::low;
         } else if (key.compare(PluginConfigParams::KEY_MODEL_PRIORITY) == 0 || key == ov::hint::model_priority) {
             if (val.compare(PluginConfigParams::MODEL_PRIORITY_HIGH) == 0 ||
-                val.compare(InferenceEngine::util::property_to_string(ov::hint::Priority::HIGH)) == 0) {
+                val.compare(ov::util::to_string(ov::hint::Priority::HIGH)) == 0) {
                 queuePriority = cldnn::priority_mode_types::high;
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
             } else if (val.compare(PluginConfigParams::MODEL_PRIORITY_MED) == 0 ||
-                       val.compare(InferenceEngine::util::property_to_string(ov::hint::Priority::MEDIUM)) == 0) {
+                       val.compare(ov::util::to_string(ov::hint::Priority::MEDIUM)) == 0) {
                 queuePriority = cldnn::priority_mode_types::med;
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
             } else if (val.compare(PluginConfigParams::MODEL_PRIORITY_LOW) == 0 ||
-                       val.compare(InferenceEngine::util::property_to_string(ov::hint::Priority::LOW)) == 0) {
+                       val.compare(ov::util::to_string(ov::hint::Priority::LOW)) == 0) {
                 queuePriority = cldnn::priority_mode_types::low;
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
             } else {
@@ -317,13 +318,13 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
         } else if (key.compare(GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY) == 0 ||
                    key == ov::intel_gpu::hint::host_task_priority) {
             if (val.compare(GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH) == 0 ||
-                val.compare(InferenceEngine::util::property_to_string(ov::hint::Priority::HIGH)) == 0) {
+                val.compare(ov::util::to_string(ov::hint::Priority::HIGH)) == 0) {
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
             } else if (val.compare(GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM) == 0 ||
-                       val.compare(InferenceEngine::util::property_to_string(ov::hint::Priority::MEDIUM)) == 0) {
+                       val.compare(ov::util::to_string(ov::hint::Priority::MEDIUM)) == 0) {
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
             } else if (val.compare(GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW) == 0 ||
-                       val.compare(InferenceEngine::util::property_to_string(ov::hint::Priority::LOW)) == 0) {
+                       val.compare(ov::util::to_string(ov::hint::Priority::LOW)) == 0) {
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
             } else {
                 IE_THROW(NotFound) << "Unsupported host task priority by plugin: " << val;
@@ -384,16 +385,16 @@ void Config::adjustKeyMapValues() {
             (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG ||
              getAvailableCoresTypes().size() == 1)) {
             key_config_map[ov::hint::model_priority.name()] =
-                InferenceEngine::util::property_to_string(ov::hint::Priority::HIGH);
+                ov::util::to_string(ov::hint::Priority::HIGH);
         } else if (queuePriority == cldnn::priority_mode_types::low &&
                    (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE ||
                     getAvailableCoresTypes().size() == 1)) {
             key_config_map[ov::hint::model_priority.name()] =
-                InferenceEngine::util::property_to_string(ov::hint::Priority::LOW);
+                ov::util::to_string(ov::hint::Priority::LOW);
         } else if (queuePriority == cldnn::priority_mode_types::med &&
                    task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::ANY) {
             key_config_map[ov::hint::model_priority.name()] =
-                InferenceEngine::util::property_to_string(ov::hint::Priority::MEDIUM);
+                ov::util::to_string(ov::hint::Priority::MEDIUM);
         }
     }
     {
@@ -417,11 +418,11 @@ void Config::adjustKeyMapValues() {
     {
         std::string priority;
         if (queuePriority == cldnn::priority_mode_types::high)
-            priority = InferenceEngine::util::property_to_string(ov::hint::Priority::HIGH);
+            priority = ov::util::to_string(ov::hint::Priority::HIGH);
         else if (queuePriority == cldnn::priority_mode_types::low)
-            priority = InferenceEngine::util::property_to_string(ov::hint::Priority::LOW);
+            priority = ov::util::to_string(ov::hint::Priority::LOW);
         else
-            priority = InferenceEngine::util::property_to_string(ov::hint::Priority::MEDIUM);
+            priority = ov::util::to_string(ov::hint::Priority::MEDIUM);
         key_config_map[ov::intel_gpu::hint::queue_priority.name()] = priority;
     }
     {
@@ -445,21 +446,21 @@ void Config::adjustKeyMapValues() {
     {
         std::string throttleLevel;
         if (queueThrottle == cldnn::throttle_mode_types::high)
-            throttleLevel = InferenceEngine::util::property_to_string(ov::intel_gpu::hint::ThrottleLevel::HIGH);
+            throttleLevel = ov::util::to_string(ov::intel_gpu::hint::ThrottleLevel::HIGH);
         else if (queueThrottle == cldnn::throttle_mode_types::low)
-            throttleLevel = InferenceEngine::util::property_to_string(ov::intel_gpu::hint::ThrottleLevel::LOW);
+            throttleLevel = ov::util::to_string(ov::intel_gpu::hint::ThrottleLevel::LOW);
         else
-            throttleLevel = InferenceEngine::util::property_to_string(ov::intel_gpu::hint::ThrottleLevel::MEDIUM);
+            throttleLevel = ov::util::to_string(ov::intel_gpu::hint::ThrottleLevel::MEDIUM);
         key_config_map[ov::intel_gpu::hint::queue_throttle.name()] = throttleLevel;
     }
     {
         std::string hostTaskPriority;
         if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE)
-            hostTaskPriority = InferenceEngine::util::property_to_string(ov::hint::Priority::LOW);
+            hostTaskPriority = ov::util::to_string(ov::hint::Priority::LOW);
         else if (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG)
-            hostTaskPriority = InferenceEngine::util::property_to_string(ov::hint::Priority::HIGH);
+            hostTaskPriority = ov::util::to_string(ov::hint::Priority::HIGH);
         else
-            hostTaskPriority = InferenceEngine::util::property_to_string(ov::hint::Priority::MEDIUM);
+            hostTaskPriority = ov::util::to_string(ov::hint::Priority::MEDIUM);
         key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = hostTaskPriority;
     }
     {
@@ -527,7 +528,7 @@ bool Config::isNewApiProperty(std::string property) {
 
 std::string Config::ConvertPropertyToLegacy(const std::string& key, const std::string& value) {
     if (key == PluginConfigParams::KEY_MODEL_PRIORITY) {
-        auto priority = InferenceEngine::util::string_to_property(value, ov::hint::model_priority);
+        auto priority = ov::util::from_string(value, ov::hint::model_priority);
         if (priority == ov::hint::Priority::HIGH)
             return PluginConfigParams::MODEL_PRIORITY_HIGH;
         else if (priority == ov::hint::Priority::MEDIUM)
@@ -535,7 +536,7 @@ std::string Config::ConvertPropertyToLegacy(const std::string& key, const std::s
         else if (priority == ov::hint::Priority::LOW)
             return PluginConfigParams::MODEL_PRIORITY_LOW;
     } else if (key == GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY) {
-        auto priority = InferenceEngine::util::string_to_property(value, ov::intel_gpu::hint::host_task_priority);
+        auto priority = ov::util::from_string(value, ov::intel_gpu::hint::host_task_priority);
         if (priority == ov::hint::Priority::HIGH)
             return GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH;
         else if (priority == ov::hint::Priority::MEDIUM)
