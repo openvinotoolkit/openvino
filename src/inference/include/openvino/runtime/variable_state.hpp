@@ -60,7 +60,7 @@ public:
 
     /**
      * @brief Gets the name of the current variable state. If length of an array is not enough, the name is truncated by
-     * len, null terminator is inserted as well. `variable_id` from the corresponding `ReadValue` is used as variable 
+     * len, null terminator is inserted as well. `variable_id` from the corresponding `ReadValue` is used as variable
      * state name.
      * @return A string representing state name.
      */

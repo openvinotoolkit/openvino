@@ -226,7 +226,7 @@ public:
      * @brief Gets an input tensor for inference.
      *
      * @param idx Index of the tensor to get.
-     * @return Tensor with the input index @p idx. If the tensor with the specified @p idx is not found, an exception 
+     * @return Tensor with the input index @p idx. If the tensor with the specified @p idx is not found, an exception
      * is thrown.
      */
     Tensor get_input_tensor(size_t idx);
@@ -242,8 +242,8 @@ public:
      * @brief Gets an output tensor for inference.
      *
      * @param idx Index of the tensor to get.
-     * @return Tensor with the output index @p idx. If the tensor with the specified @p idx is not found, an exception is
-     * thrown.
+     * @return Tensor with the output index @p idx. If the tensor with the specified @p idx is not found, an exception
+     * is thrown.
      */
     Tensor get_output_tensor(size_t idx);
 
