@@ -193,6 +193,7 @@ Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const
             case Datatype::F16: return Datatype::F32;
             case Datatype::INT8: return Datatype::INT32;
             case Datatype::UINT8: return Datatype::INT32;
+            case Datatype::INT32: return Datatype::INT32;
             default: return Datatype::F32;
         }
     }
