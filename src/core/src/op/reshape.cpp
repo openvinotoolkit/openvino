@@ -240,7 +240,8 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
 
 namespace {
 bool fully_eq(const Dimension& rhs, const Dimension& lhs) {
-    return rhs == lhs && ov::DimensionTracker::get_label(rhs) == ov::DimensionTracker::get_label(lhs);
+    return rhs == lhs && ov::DimensionTracker::get_label(rhs) == ov::DimensionTracker::get_label(lhs) &&
+    (ov::DimensionTracker::get_label(rhs) || rhs.is_static());
 }
 
 Dimension resolve_minus_one(const Node* reshape_node,
@@ -250,13 +251,13 @@ Dimension resolve_minus_one(const Node* reshape_node,
     Dimension input_const_part(1), output_const_part(1);
 
     for (const auto& dim : output_product)
-        if (!ov::DimensionTracker::get_label(dim)) {
+        if (!ov::DimensionTracker::get_label(dim) && dim.is_static()) {
             output_const_part *= dim;
             to_delete_from_output.push_back(dim);
         }
 
     for (const auto& dim : input_product)
-        if (!ov::DimensionTracker::get_label(dim)) {
+        if (!ov::DimensionTracker::get_label(dim) && dim.is_static()) {
             input_const_part *= dim;
             to_delete_from_input.push_back(dim);
         }

@@ -87,9 +87,12 @@ template <typename T>
 void infer_using_scales(T& output_shape, const std::vector<int64_t>& axes, const std::vector<float>& scales) {
     size_t i = 0;
     static constexpr float epsilon = 1.0e-6f;
-    for (auto axis : axes) {
+    for (const auto& axis : axes) {
+        if (scales[i] == 1.) {
+            ++i;
+            continue;
+        }
         const auto& current_dim = output_shape[axis];
-        if (scales[i] == 1.) continue;
         float multiplier = scales[i] + epsilon;
         if (current_dim.is_static()) {
             output_shape[axis] = multiply_bound_and_scale(current_dim.get_length(), multiplier);
