@@ -29,6 +29,9 @@ ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
 
+        if (node->get_autob() != ngraph::op::AutoBroadcastType::NUMPY)
+            return false;
+
         if (transformation_callback(node))
             return false;
 
