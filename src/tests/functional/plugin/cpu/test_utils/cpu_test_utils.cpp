@@ -345,8 +345,8 @@ void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function, s
     ASSERT_EQ(expectedCount, actualNodeCount) << "Unexpected count of the node type '" << nodeType << "' ";
 }
 
-void CheckNumberOfNodesWithType(ov::runtime::CompiledModel &execNet, std::string nodeType, size_t expectedCount) {
-    std::shared_ptr<const ov::Model> function = execNet.get_runtime_model();
+void CheckNumberOfNodesWithType(ov::CompiledModel &compiledModel, std::string nodeType, size_t expectedCount) {
+    std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);
 }
 

@@ -26,14 +26,14 @@ void OVInferRequestPerfCountersTest::SetUp() {
 TEST_P(OVInferRequestPerfCountersTest, NotEmptyAfterAsyncInfer) {
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
-    std::vector<runtime::ProfilingInfo> perf;
+    std::vector<ov::ProfilingInfo> perf;
     OV_ASSERT_NO_THROW(perf = req.get_profiling_info());
     ASSERT_FALSE(perf.empty());
 }
 
 TEST_P(OVInferRequestPerfCountersTest, NotEmptyAfterSyncInfer) {
     OV_ASSERT_NO_THROW(req.infer());
-    std::vector<runtime::ProfilingInfo> perf;
+    std::vector<ov::ProfilingInfo> perf;
     OV_ASSERT_NO_THROW(perf = req.get_profiling_info());
     ASSERT_FALSE(perf.empty());
 }

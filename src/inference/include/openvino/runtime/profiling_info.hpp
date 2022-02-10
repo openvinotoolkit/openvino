@@ -62,8 +62,4 @@ struct ProfilingInfo {
     std::string node_type;
 };
 
-namespace runtime {
-using ov::ProfilingInfo;
-}  // namespace runtime
-
 }  // namespace ov

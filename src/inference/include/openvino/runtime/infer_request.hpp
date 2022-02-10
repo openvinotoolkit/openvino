@@ -341,8 +341,4 @@ public:
     bool operator==(const InferRequest& other) const noexcept;
 };
 
-namespace runtime {
-using ov::InferRequest;
-}  // namespace runtime
-
 }  // namespace ov

@@ -70,8 +70,8 @@ jobs:
       env -C ~/work
       ./buildreleasenolto.sh
       libopenvino_gapi_preproc.so
-      ov_intel_cpu_plugin
-      ov_intel_gpu_plugin
+      openvino_intel_cpu_plugin
+      openvino_intel_gpu_plugin
       clDNN_unit_tests64
       gpuFuncTests
     displayName: Build Lin

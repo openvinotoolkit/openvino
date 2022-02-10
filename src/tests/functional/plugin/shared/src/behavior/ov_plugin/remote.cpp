@@ -70,7 +70,7 @@ TEST_P(OVRemoteTest, canCreateRemote) {
         ASSERT_NE(params.find(param.first), params.end());
     }
     ASSERT_EQ(target_device, device);
-    runtime::RemoteTensor remote_tensor;
+    ov::RemoteTensor remote_tensor;
     ASSERT_NO_THROW(remote_tensor = context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters));
 
     ASSERT_NO_THROW(params = remote_tensor.get_params());

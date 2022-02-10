@@ -51,10 +51,6 @@ namespace ie = InferenceEngine;
  */
 using SupportedOpsMap = std::map<std::string, std::string>;
 
-namespace runtime {
-using ov::SupportedOpsMap;
-}  // namespace runtime
-
 }  // namespace ov
 
 namespace std {
