@@ -45,15 +45,14 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_dim_match) {
         const auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i32, Shape{}, {0});
         const auto target_dim_index_node = ngraph::opset8::Constant::create(ngraph::element::i64, Shape{}, {target_dim_neg_index});
         const auto gather_dim = std::make_shared<ngraph::opset8::Gather>(target_shape, target_dim_index_node, axis_node);
-        const auto scalar_gather_dim = std::make_shared<ngraph::opset8::Squeeze>(gather_dim);
 
         const auto one_dim_const = ngraph::opset8::Constant::create(target_shape_elem_type, {}, {1});
-        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(scalar_gather_dim, one_dim_const);
+        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(gather_dim, one_dim_const);
 
         const auto start = ngraph::opset8::Constant::create(data_elem_type, {}, {0});
         const auto original_end = ngraph::opset8::Constant::create(data_elem_type, {}, {elem_count});
 
-        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(scalar_gather_dim, data_elem_type);
+        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(gather_dim, data_elem_type);
         const auto select_end = std::make_shared<ngraph::opset8::Select>(dim_check_one, original_end, cast_gather_dim);
 
         const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
@@ -94,16 +93,15 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_dim_one) {
         const auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i32, Shape{}, {0});
         const auto target_dim_index_node = ngraph::opset8::Constant::create(ngraph::element::i64, Shape{}, {target_dim_neg_index});
         const auto gather_dim = std::make_shared<ngraph::opset8::Gather>(target_shape, target_dim_index_node, axis_node);
-        const auto scalar_gather_dim = std::make_shared<ngraph::opset8::Squeeze>(gather_dim);
 
         // If the corresponding target dim is 1, use the original end of range
         const auto one_dim_const = ngraph::opset8::Constant::create(target_shape_elem_type, {}, {1});
-        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(scalar_gather_dim, one_dim_const);
+        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(gather_dim, one_dim_const);
 
         const auto start = ngraph::opset8::Constant::create(data_elem_type, {}, {0});
         const auto original_end = ngraph::opset8::Constant::create(data_elem_type, {}, {elem_count});
 
-        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(scalar_gather_dim, data_elem_type);
+        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(gather_dim, data_elem_type);
         const auto select_end = std::make_shared<ngraph::opset8::Select>(dim_check_one, original_end, cast_gather_dim);
 
         const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
@@ -148,16 +146,15 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof) {
         const auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i32, Shape{}, {0});
         const auto target_dim_index_node = ngraph::opset8::Constant::create(ngraph::element::i64, Shape{}, {target_dim_neg_index});
         const auto gather_dim = std::make_shared<ngraph::opset8::Gather>(target_shape, target_dim_index_node, axis_node);
-        const auto scalar_gather_dim = std::make_shared<ngraph::opset8::Squeeze>(gather_dim);
 
         // If the corresponding target dim is 1, use the original end of range
         const auto one_dim_const = ngraph::opset8::Constant::create(target_shape_elem_type, {}, {1});
-        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(scalar_gather_dim, one_dim_const);
+        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(gather_dim, one_dim_const);
 
         const auto start = ngraph::opset8::Constant::create(data_elem_type, {}, {0});
         const auto original_end = ngraph::opset8::Constant::create(data_elem_type, {}, {elem_count});
 
-        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(scalar_gather_dim, data_elem_type);
+        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(gather_dim, data_elem_type);
         const auto select_end = std::make_shared<ngraph::opset8::Select>(dim_check_one, original_end, cast_gather_dim);
 
         const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
@@ -202,15 +199,14 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof_mixed
         const auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i32, Shape{}, {0});
         const auto target_dim_index_node = ngraph::opset8::Constant::create(ngraph::element::i64, Shape{}, {target_dim_neg_index});
         const auto gather_dim = std::make_shared<ngraph::opset8::Gather>(target_shape, target_dim_index_node, axis_node);
-        const auto scalar_gather_dim = std::make_shared<ngraph::opset8::Squeeze>(gather_dim);
 
         const auto one_dim_const = ngraph::opset8::Constant::create(target_shape_elem_type, {}, {1});
-        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(scalar_gather_dim, one_dim_const);
+        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(gather_dim, one_dim_const);
 
         const auto start = ngraph::opset8::Constant::create(data_elem_type, {}, {0});
         const auto original_end = ngraph::opset8::Constant::create(data_elem_type, {}, {elem_count});
 
-        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(scalar_gather_dim, data_elem_type);
+        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(gather_dim, data_elem_type);
         const auto select_end = std::make_shared<ngraph::opset8::Select>(dim_check_one, original_end, cast_gather_dim);
 
         const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
