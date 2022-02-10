@@ -21,37 +21,86 @@ public:
 };
 
 TEST_F(LogUtilsFormatTest, format_s) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%s", "DEBUG"));
+    LOG_DEBUG("%sabc", "DEBUG");
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 TEST_F(LogUtilsFormatTest, format_d) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%d", -1));
+    LOG_DEBUG("%dabc", -1);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_ld) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%ld", -3));
+    LOG_DEBUG("%ldabc", -3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_u) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%u", 1));
+    LOG_DEBUG("%uabc", 1);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_lu) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%lu", 3));
+    LOG_DEBUG("%luabc", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_s_d_ld_u_lu) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%s,%d,%ld,%u,%lu", "DEBUG", -1, -3, 1, 3));
+    LOG_DEBUG("%s,%d,%ld,%u,%lu,abc", "DEBUG", -1, -3, 1, 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_s_d_ld_u_lu2) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%s%d%ld%u%lu", "DEBUG", -1, -3, 1, 3));
+    LOG_DEBUG("%s%d%ld%u%luabc", "DEBUG", -1, -3, 1, 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_p) {
