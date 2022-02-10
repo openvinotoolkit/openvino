@@ -152,7 +152,7 @@ TEST_P(MarkupAvgPoolPrecisionsTransformation, CompareFunctions) {
     ASSERT_TRUE(checkIfAttributesAreTheSame<AvgPoolPrecisionPreservedAttribute>(precisionPreserved)) <<
         "AvgPoolPrecisionPreservedAttribute are not the same";
 
-    //auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    //auto res = compare_functions(actualFunction, referenceFunction, true, true);
     //ASSERT_TRUE(res.first) << res.second;
 }
 
