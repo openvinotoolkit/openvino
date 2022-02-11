@@ -288,7 +288,7 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
             RO_property(ov::supported_properties.name()),
             RO_property(ov::model_name.name()),
             RO_property(ov::optimal_number_of_infer_requests.name()),
-            RO_property(ov::streams::num.name()),
+            RO_property(ov::num_streams.name()),
             RO_property(ov::affinity.name()),
             RO_property(ov::inference_num_threads.name()),
             RO_property(ov::enable_profiling.name()),
@@ -304,9 +304,9 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
     } else if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig._streams;
         return static_cast<uint32_t>(streams); // ov::optimal_number_of_infer_requests has no negative values
-    } else if (name == ov::streams::num) {
+    } else if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig._streams;
-        return static_cast<int32_t>(streams); // ov::streams::num has special negative values (AUTO = -1, NUMA = -2)
+        return static_cast<int32_t>(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = config.streamExecutorConfig._threadBindingType;
         switch (affinity) {

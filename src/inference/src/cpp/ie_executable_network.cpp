@@ -250,10 +250,6 @@ Any CompiledModel::get_property(const std::string& name) const {
     });
 }
 
-void CompiledModel::get_property(const std::string& name, Any& to) const {
-    any_lexical_cast(get_property(name), to);
-}
-
 RemoteContext CompiledModel::get_context() const {
     OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), _so});
 }

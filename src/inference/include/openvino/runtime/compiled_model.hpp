@@ -50,8 +50,6 @@ class OPENVINO_RUNTIME_API CompiledModel {
     friend class ov::Core;
     friend class ov::InferRequest;
 
-    void get_property(const std::string& name, ov::Any& to) const;
-
 public:
     /**
      * @brief Default constructor.
@@ -202,9 +200,7 @@ public:
      */
     template <typename T, PropertyMutability mutability>
     T get_property(const ov::Property<T, mutability>& property) const {
-        auto to = Any::make<T>();
-        get_property(property.name(), to);
-        return to.template as<T>();
+        return get_property(property.name()).template as<T>();
     }
 
     /**
