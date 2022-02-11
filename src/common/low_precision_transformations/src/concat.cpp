@@ -47,7 +47,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     std::vector<FakeQuantizeDequantization> layerDequantizations;
     layerDequantizations.reserve(concat->get_input_size());
     for (size_t parentIndex = 0ul; parentIndex < concat->get_input_size(); parentIndex++) {
-        FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, parentIndex);
+        FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, defaultPrecisions, parentIndex);
         if (dequantization.empty()) {
             return false;
         }
@@ -237,7 +237,7 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
 
     element::Type precision;
     for (size_t i = 0ul; i < concat->get_input_size(); i++) {
-        const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, i);
+        const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, defaultPrecisions, i);
         if (dequantization.empty() || (updatePrecisions && !dequantization.isLowPrecision())) {
             return false;
         }
