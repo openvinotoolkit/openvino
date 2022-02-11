@@ -15,11 +15,16 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
     blockedDims = dims;
     offsetPadding = 0;
     offsetPaddingToData.resize(dims.size(), 0);
-    strides.resize(order.size());
-    // for empty tensor case we fill all strides with 0 values
-    strides[strides.size() - 1] = shape.hasZeroDims() ? 0 : 1;
-    for (size_t i = 2; i <= order.size(); i++) {
-        strides[strides.size() - i] = strides[strides.size() - (i - 1)] * blockedDims[blockedDims.size() - (i - 1)];
+    if (shape.hasZeroDims()) {
+        strides.resize(order.size(), 0);
+    } else if (std::any_of(this->blockedDims.begin(), this->blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+        strides.resize(order.size(), Shape::UNDEFINED_DIM);
+    } else {
+        strides.resize(order.size());
+        strides.back() = 1;
+        for (size_t i = 2; i <= order.size(); i++) {
+            strides[order.size() - i] = strides[order.size() - (i - 1)] * blockedDims[blockedDims.size() - (i - 1)];
+        }
     }
 }
 
