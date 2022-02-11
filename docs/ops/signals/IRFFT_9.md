@@ -61,8 +61,8 @@ There is no `signal_size` input (4D input tensor):
     <input>
         <port id="0">
             <dim>1</dim>
-            <dim>320</dim>
-            <dim>320</dim>
+            <dim>161</dim>
+            <dim>161</dim>
             <dim>2</dim>
         </port>
         <port id="1">
@@ -73,7 +73,6 @@ There is no `signal_size` input (4D input tensor):
             <dim>1</dim>
             <dim>320</dim>
             <dim>320</dim>
-            <dim>2</dim>
         </port>
     </output>
 </layer>
@@ -84,8 +83,8 @@ There is no `signal_size` input (3D input tensor):
 <layer ... type="IRDFT" ... >
     <input>
         <port id="0">
-            <dim>320</dim>
-            <dim>320</dim>
+            <dim>161</dim>
+            <dim>161</dim>
             <dim>2</dim>
         </port>
         <port id="1">
@@ -95,7 +94,6 @@ There is no `signal_size` input (3D input tensor):
         <port id="2">
             <dim>320</dim>
             <dim>320</dim>
-            <dim>2</dim>
         </port>
     </output>
 </layer>
@@ -108,8 +106,8 @@ There is `signal_size` input (4D input tensor):
     <input>
         <port id="0">
             <dim>1</dim>
-            <dim>320</dim>
-            <dim>320</dim>
+            <dim>161</dim>
+            <dim>161</dim>
             <dim>2</dim>
         </port>
         <port id="1">
@@ -123,7 +121,6 @@ There is `signal_size` input (4D input tensor):
             <dim>1</dim>
             <dim>512</dim>
             <dim>100</dim>
-            <dim>2</dim>
         </port>
     </output>
 </layer>
@@ -135,8 +132,8 @@ There is `signal_size` input (3D input tensor):
 <layer ... type="IRDFT" ... >
     <input>
         <port id="0">
-            <dim>320</dim>
-            <dim>320</dim>
+            <dim>161</dim>
+            <dim>161</dim>
             <dim>2</dim>
         </port>
         <port id="1">
@@ -149,7 +146,6 @@ There is `signal_size` input (3D input tensor):
         <port id="3">
             <dim>512</dim>
             <dim>100</dim>
-            <dim>2</dim>
         </port>
     </output>
 </layer>
@@ -179,7 +175,6 @@ There is `signal_size` input (5D input tensor, `-1` in `signal_size`, unsorted a
             <dim>768</dim>
             <dim>1024</dim>
             <dim>170</dim>
-            <dim>2</dim>
         </port>
     </output>
 </layer>
@@ -209,7 +204,6 @@ There is `signal_size` input (5D input tensor, `-1` in `signal_size`, unsorted a
             <dim>768</dim>
             <dim>2056</dim>
             <dim>258</dim>
-            <dim>2</dim>
         </port>
     </output>
 </layer>
