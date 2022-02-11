@@ -20,8 +20,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
             R"(.*(InferRequestPreprocessDynamicallyInSetBlobTest).*)",
-            // TODO: Issue: 41462
-            R"(.*(SoftMaxLayerTest).*axis=0.*)",
             // TODO: Issue: 46841
             R"(.*(QuantGroupConvBackpropData3D).*)",
 
