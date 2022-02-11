@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+//! [include]
 #include <openvino/openvino.hpp>
+//! [include]
 
 //! [part1_4_1]
 std::shared_ptr<ov::Model> create_model() {

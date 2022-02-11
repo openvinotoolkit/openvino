@@ -155,13 +155,13 @@ auto consumers = output.get_target_inputs();
 }
 
 {
-// ! [ngraph:shape]
-auto partial_shape = node->input(0).get_partial_shape(); // get zero input partial shape
+// ! [ov:shape]
+ov::PartialShape partial_shape = node->input(0).get_partial_shape(); // get zero input partial shape
 if (partial_shape.is_dynamic() /* or !partial_shape.is_static() */) {
     return false;
 }
-auto static_shape = partial_shape.get_shape();
-// ! [ngraph:shape]
+ov::Shape static_shape = partial_shape.get_shape();
+// ! [ov:shape]
 }
 
 {

@@ -20,6 +20,36 @@ Read the sections below to learn about each item.
 > * [For macOS*](../install_guides/installing-openvino-macos.md)
 > * To build an open source version, use the [OpenVINO™ Runtime Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
+### OpenVINO™ Model Representation
+
+Before the start, it is necessary to say several words about OpenVINO™ Model representation.
+In OpenVINO™ Runtime a model is represented by the `ov::Model` class.
+
+The `ov::Model` object stores shared pointers to `ov::op::v0::Parameter`, `ov::op::v0::Result` and `ov::op::Sink` operations that are inputs, outputs and sinks of the graph.
+Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If an operation has no consumers and it's not the `Result` or `Sink` operation
+(shared pointer counter is zero), then it will be destructed and won't be accessible anymore. 
+
+Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
+
+For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref build_model) section.
+
+#### Shapes representation
+
+OpenVINO™ Runtime provides two types for shape representation: 
+
+* `ov::Shape` - Represents static (fully defined) shapes.
+
+* `ov::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (undefined). `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise the conversion raises an exception.
+  `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise, conversion raises an exception.
+
+    @snippet example_ngraph_utils.cpp ov:shape
+
+  But in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.
+
+#### Element types
+
+`ov::element::Type` class represents 
+
 ### Link with OpenVINO™ Runtime
 
 1. **Create a structure** for the project:
@@ -45,6 +75,10 @@ This section provides step-by-step instructions to implement a typical inference
 
 #### Step 1. Create OpenVINO™ Runtime Core 
 
+Include next files to work with OpenVINO™ Runtime:
+
+@snippet snippets/src/main.cpp include
+
 Use the following code to create OpenVINO™ Core to manage available devices and read model objects:
 
 @snippet snippets/src/main.cpp part0
@@ -56,26 +90,8 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
     <div class="collapsible-section">
 @endsphinxdirective
-    
 
-Optionally, configure input and output of the model using the steps below:
-
-1. Load a model to a Core object:
-   - IR:
-        @snippet snippets/src/main.cpp part1_1
-   - ONNX:
-        @snippet snippets/src/main.cpp part1_2
-   - Paddle:
-        @snippet snippets/src/main.cpp part1_3
-   - OpenVINO Model:
-        @snippet snippets/src/main.cpp part1_4_1
-        @snippet snippets/src/main.cpp part1_4_2
-    
-
-2. Request input and output information using `ov::Model::inputs()`, and `ov::Model::outputs()` methods:
-    @snippet snippets/src/main.cpp part2
-    @snippet snippets/src/main.cpp part3
-   To apply some pre-post processing please read this article about [OpenVINO™ Runtime PrePostProcessor].
+Optionally, OpenVINO™ Runtime allows to configure input and output of the model, please read this article about [OpenVINO™ Runtime PrePostProcessor] to understand how to do it.
 
 @sphinxdirective
 .. raw:: html
