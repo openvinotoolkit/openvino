@@ -1,4 +1,4 @@
-# opset8 {#openvino_docs_ops_opset9}
+# opset9 {#openvino_docs_ops_opset9}
 
 This specification document describes the `opset8` operation set supported in OpenVINO™.
 Support for each particular operation from the list below depends on the capabilities of an inference plugin
