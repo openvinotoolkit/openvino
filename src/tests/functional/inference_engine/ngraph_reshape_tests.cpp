@@ -74,6 +74,7 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
 
     CNNNetwork cnnNetwork(ngraph);
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    ASSERT_EQ(cnnNetwork.getInputsInfo()["A"]->getInputData()->getDims(), (SizeVector{0, 0, 0, 0}));
 
     ICNNNetwork::InputShapes new_shape;
     new_shape["A"] = {1, 3, 22, 22};
