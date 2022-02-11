@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,7 @@ ov::PartialShape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& di
                                                              m_rounding_type == op::RoundingType::CEIL,
                                                              dilations);
     } else {
-        if (arg_shape.rank().is_static()) {
+        if (arg_shape.rank().is_static() && arg_shape.rank().get_max_length() > 0) {
             output_shape = std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
             if (arg_shape[0].is_static()) {
                 output_shape[0] = arg_shape[0];  // batch size

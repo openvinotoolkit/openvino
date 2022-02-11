@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import math
@@ -94,17 +94,20 @@ class TestUpsample(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("mode", [None, 'nearest'])
     @pytest.mark.parametrize("opset", [7, 9])
     @pytest.mark.nightly
-    def test_upsample_nearest(self, params, mode, opset, ie_device, precision, ir_version, temp_dir):
+    def test_upsample_nearest(self, params, mode, opset, ie_device, precision, ir_version, temp_dir,
+                              api_2):
         self._test(*self.create_net(**params, mode=mode, opset=opset, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("opset", [7, 9])
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason='Both onnxruntime and caffe2 calculate linear upsampling differently from IE')
-    def test_upsample_linear(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    @pytest.mark.xfail(
+        reason='Both onnxruntime and caffe2 calculate linear upsampling differently from IE')
+    def test_upsample_linear(self, params, opset, ie_device, precision, ir_version, temp_dir,
+                             api_2):
         self._test(*self.create_net(**params, mode='linear', opset=opset, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
 
 class PytorchLayerTest(CommonLayerTest):
@@ -172,17 +175,21 @@ class TestPytorchUpsample(PytorchLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("mode", [None, 'nearest'])
-    def test_pytorch_upsample_precommit(self, params, mode, ie_device, precision, ir_version, temp_dir):
+    def test_pytorch_upsample_precommit(self, params, mode, ie_device, precision, ir_version,
+                                        temp_dir, api_2):
         if ie_device == 'GPU':
             pytest.skip('Linear upsampling not supported on GPU')
-        self._test(*self.create_net(**params, mode=mode, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+        self._test(*self.create_net(**params, mode=mode, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("mode", [None, 'nearest', 'bilinear'])
     @pytest.mark.nightly
-    def test_pytorch_upsample(self, params, mode, ie_device, precision, ir_version, temp_dir):
+    def test_pytorch_upsample(self, params, mode, ie_device, precision, ir_version, temp_dir,
+                              api_2):
         if ie_device == 'GPU' and mode == 'bilinear':
             pytest.skip('Linear upsampling not supported on GPU')
-        self._test(*self.create_net(**params, mode=mode, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+        self._test(*self.create_net(**params, mode=mode, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)

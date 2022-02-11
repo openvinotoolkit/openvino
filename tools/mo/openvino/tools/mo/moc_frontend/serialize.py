@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -39,16 +39,21 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
 
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-    from openvino.offline_transformations import serialize # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import serialize, generate_mapping_file # pylint: disable=import-error,no-name-in-module
     serialize(ngraph_function, (orig_model_name + ".xml").encode('utf-8'), (orig_model_name + ".bin").encode('utf-8'))
 
     del argv.feManager
+
+    path_to_mapping = orig_model_name + ".mapping"
+    extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
+    generate_mapping_file(ngraph_function, path_to_mapping.encode('utf-8'), extract_names)
 
     # add meta information to IR
     append_ir_info(file=orig_model_name,
                    meta_info=get_meta_info(argv),
                    mean_data=None,
-                   input_names=None)
+                   input_names=None,
+                   legacy_path=False)
 
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))

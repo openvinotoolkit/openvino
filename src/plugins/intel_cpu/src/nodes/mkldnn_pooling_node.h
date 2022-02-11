@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,8 @@ private:
                                                                                const mkldnn::algorithm alg) const;
 
     AttrPtr pAttr;
+
+    Shape inShape;
 
     bool isMaxPool8 = false;
     bool auto_pad = false;

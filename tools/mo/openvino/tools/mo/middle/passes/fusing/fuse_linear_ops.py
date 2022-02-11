@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -142,7 +142,10 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         const_port.disconnect()
         # as Mul node is added before convolution, output tensor from Convolution node
         # corresponds to original Mul node
-        node.out_port(0).get_connection().set_source(producer_port, "dest")
+        if producer_port.node.soft_get('type') == 'Parameter':
+            node.out_port(0).get_connection().set_source(producer_port, "source")
+        else:
+            node.out_port(0).get_connection().set_source(producer_port, "dest")
 
     return is_fused
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,10 +34,34 @@ public:
     virtual ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const = 0;
 
     /**
+     * @brief Returns extensions that should be registered together with this extension class object.
+     *
+     * Attached extensions may include frontend extensions that OpenVINO op to framework ops or necessary
+     * transformations that should be applied to the network which consist of target op.
+     *
+     * @return
+     */
+    virtual std::vector<ov::Extension::Ptr> get_attached_extensions() const = 0;
+
+    /**
      * @brief Destructor
      */
     ~BaseOpExtension() override;
 };
+
+namespace detail {
+#define OV_COLLECT_ATTACHED_EXTENSIONS(FRAMEWORK)                                                         \
+    template <class T>                                                                                    \
+    static auto collect_attached_extensions_##FRAMEWORK(std::vector<ov::Extension::Ptr>& res)             \
+        ->decltype(typename T::template __openvino_framework_map_helper_##FRAMEWORK<T>().get(), void()) { \
+        res.emplace_back(typename T::template __openvino_framework_map_helper_##FRAMEWORK<T>().get());    \
+    }                                                                                                     \
+    template <class>                                                                                      \
+    static auto collect_attached_extensions_##FRAMEWORK(ov::Any)->void {}
+
+OV_COLLECT_ATTACHED_EXTENSIONS(onnx)
+OV_COLLECT_ATTACHED_EXTENSIONS(tensorflow)
+}  // namespace detail
 
 /**
  * @brief The default implementation of OpenVINO operation extensions
@@ -66,6 +90,13 @@ public:
             node->constructor_validate_and_infer_types();
         }
         return node->outputs();
+    }
+
+    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+        std::vector<ov::Extension::Ptr> res;
+        detail::collect_attached_extensions_onnx<T>(res);
+        detail::collect_attached_extensions_tensorflow<T>(res);
+        return res;
     }
 };
 

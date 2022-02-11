@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -403,7 +403,7 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         HeaderLatest::RuntimeEndPoint ep;
         ep.elements_count = desc.num_elements;
         ep.scaleFactor = desc.scale_factor;
-        ep.element_size = desc.num_bytes_per_element;
+        ep.element_size = desc.tensor_precision.size();
         ep.layout = desc.model_layout;
         ep.precision = desc.model_precision;
         ep.orientation = desc.orientation;
@@ -538,10 +538,9 @@ void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::
         input.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + ep.descriptor_offset));
         input.orientation = ep.orientation;
         input.num_elements = ep.elements_count;
-        input.num_bytes_per_element = ep.element_size;
         input.scale_factor = ep.scaleFactor;
         input.model_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        input.tensor_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
+        input.set_precision(ep.element_size);
         input.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
         input.allocated_size = input.get_required_size();
 
@@ -565,10 +564,9 @@ void GNAModelSerial::ImportOutputs(std::istream &is, void* basePtr, GNAPluginNS:
         output.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + ep.descriptor_offset));
         output.orientation = ep.orientation;
         output.num_elements = ep.elements_count;
-        output.num_bytes_per_element = ep.element_size;
         output.scale_factor = ep.scaleFactor;
+        output.set_precision(ep.element_size);
         output.model_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        output.tensor_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
         output.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
         output.allocated_size = output.get_required_size();
 

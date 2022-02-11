@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -69,7 +69,7 @@ class ACEngine(Engine):
 
     def set_model(self, model):
         """ Load NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         def _set_model(path):
             tmp_model_name = 'tmp_model'

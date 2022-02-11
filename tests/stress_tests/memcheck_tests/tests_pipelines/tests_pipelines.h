@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,7 @@ private:
      * @brief Measures values at the current point of time
      */
     std::array<long, MeasureValueMax> _measure();
+
 public:
     /**
      * @brief Constructs MemCheckPipeline object and
@@ -45,7 +46,7 @@ public:
      * @brief Measures values and records aligned measurements using provided identifier
      *        provided identifier
      */
-    void record_measures(const std::string & id);
+    void record_measures(const std::string &id);
 
     /**
      * @brief Prepares string used for fast generation of file with references
@@ -54,6 +55,6 @@ public:
                                               std::string precision, std::string target_device);
 };
 
-TestResult common_test_pipeline(const std::function<std::array<long, MeasureValueMax>()>& test_pipeline,
+TestResult common_test_pipeline(const std::function<std::array<long, MeasureValueMax>()> &test_pipeline,
                                 const std::array<long, MeasureValueMax> &references);
 // tests_pipelines/tests_pipelines.cpp

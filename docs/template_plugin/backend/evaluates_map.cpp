@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,7 @@
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/if.hpp>
+#include <ngraph/runtime/reference/interpolate.hpp>
 #include <ngraph/runtime/reference/log.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
@@ -57,6 +58,7 @@
 #include <ngraph/runtime/reference/non_max_suppression.hpp>
 #include <ngraph/runtime/reference/normalize_l2.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
+#include <ngraph/runtime/reference/prelu.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
 #include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
@@ -2168,6 +2170,17 @@ bool evaluate(const shared_ptr<op::v0::Relu>& op, const HostTensorVector& output
 }
 
 template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::PRelu>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::prelu<T>(inputs[0]->get_data_ptr<T>(),
+                                 inputs[1]->get_data_ptr<T>(),
+                                 outputs[0]->get_data_ptr<T>(),
+                                 inputs[0]->get_shape(),
+                                 inputs[1]->get_shape());
+    return true;
+}
+
+template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::Sign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::sign<T>(inputs[0]->get_data_ptr<T>(),
@@ -2479,24 +2492,28 @@ bool evaluate(const shared_ptr<op::v0::RNNCell>& op, const HostTensorVector& out
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::LSTMCell>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::lstm_cell<T>(inputs[0]->get_data_ptr<ET>(),
-                                     inputs[0]->get_shape(),
-                                     inputs[1]->get_data_ptr<ET>(),
-                                     inputs[1]->get_shape(),
-                                     inputs[2]->get_data_ptr<ET>(),
-                                     inputs[2]->get_shape(),
-                                     inputs[3]->get_data_ptr<ET>(),
-                                     inputs[3]->get_shape(),
-                                     inputs[4]->get_data_ptr<ET>(),
-                                     inputs[4]->get_shape(),
-                                     inputs[5]->get_data_ptr<ET>(),
-                                     inputs[5]->get_shape(),
-                                     outputs[0]->get_data_ptr<ET>(),
-                                     outputs[1]->get_data_ptr<ET>(),
-                                     op->get_activations()[0],
-                                     op->get_activations()[1],
-                                     op->get_activations()[2],
-                                     op->get_clip());
+    runtime::reference::lstm_cell_v1<T>(inputs[0]->get_data_ptr<ET>(),
+                                        inputs[0]->get_shape(),
+                                        inputs[1]->get_data_ptr<ET>(),
+                                        inputs[1]->get_shape(),
+                                        inputs[2]->get_data_ptr<ET>(),
+                                        inputs[2]->get_shape(),
+                                        inputs[3]->get_data_ptr<ET>(),
+                                        inputs[3]->get_shape(),
+                                        inputs[4]->get_data_ptr<ET>(),
+                                        inputs[4]->get_shape(),
+                                        inputs[5]->get_data_ptr<ET>(),
+                                        inputs[5]->get_shape(),
+                                        inputs[6]->get_data_ptr<ET>(),
+                                        inputs[6]->get_shape(),
+                                        outputs[0]->get_data_ptr<ET>(),
+                                        outputs[1]->get_data_ptr<ET>(),
+                                        op->get_activations()[0],
+                                        op->get_activations()[1],
+                                        op->get_activations()[2],
+                                        op->get_clip(),
+                                        op->get_weights_format(),
+                                        op->get_input_forget());
     return true;
 }
 
@@ -2591,6 +2608,42 @@ bool evaluate(const shared_ptr<op::v5::RNNSequence>& op,
     return true;
 }
 
+namespace lstm_seq_v1 {
+template <element::Type_t t1, element::Type_t t2>
+inline void evaluate(const shared_ptr<op::v0::LSTMSequence>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    using T1 = typename element_type_traits<t1>::value_type;
+    using T2 = typename element_type_traits<t2>::value_type;
+    runtime::reference::lstm_sequence_v1<T1, T2>(inputs[0]->get_data_ptr<char>(),
+                                                 inputs[0]->get_shape(),
+                                                 inputs[1]->get_data_ptr<char>(),
+                                                 inputs[1]->get_shape(),
+                                                 inputs[2]->get_data_ptr<char>(),
+                                                 inputs[2]->get_shape(),
+                                                 inputs[3]->get_data_ptr<char>(),
+                                                 inputs[3]->get_shape(),
+                                                 inputs[4]->get_data_ptr<char>(),
+                                                 inputs[4]->get_shape(),
+                                                 inputs[5]->get_data_ptr<char>(),
+                                                 inputs[5]->get_shape(),
+                                                 inputs[6]->get_data_ptr<char>(),
+                                                 inputs[6]->get_shape(),
+                                                 inputs[7]->get_data_ptr<char>(),
+                                                 inputs[7]->get_shape(),
+                                                 outputs[0]->get_data_ptr<char>(),
+                                                 outputs[1]->get_data_ptr<char>(),
+                                                 outputs[2]->get_data_ptr<char>(),
+                                                 op->get_activations()[0],
+                                                 op->get_activations()[1],
+                                                 op->get_activations()[2],
+                                                 op->get_clip_threshold(),
+                                                 op->get_weights_format(),
+                                                 op->get_input_forget(),
+                                                 op->get_direction());
+}
+}  // namespace lstm_seq_v1
+
 namespace lstm_seq_v5 {
 template <element::Type_t t1, element::Type_t t2>
 inline void evaluate(const shared_ptr<op::v5::LSTMSequence>& op,
@@ -2622,6 +2675,25 @@ inline void evaluate(const shared_ptr<op::v5::LSTMSequence>& op,
                                               op->get_direction());
 }
 }  // namespace lstm_seq_v5
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::LSTMSequence>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    switch (inputs[3]->get_element_type()) {
+    case element::Type_t::i64:
+    case element::Type_t::u64:
+        lstm_seq_v1::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+        break;
+    case element::Type_t::i32:
+    case element::Type_t::u32:
+        lstm_seq_v1::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
 
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v5::LSTMSequence>& op,
@@ -3294,6 +3366,65 @@ inline bool evaluate(const shared_ptr<op::v8::NV12toBGR>& op,
                                                       outputs,
                                                       inputs,
                                                       ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR);
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::I420toRGB>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_i420<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_RGB);
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::I420toBGR>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_i420<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_BGR);
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    element::Type input_et = op->get_input_element_type(0);
+    switch (input_et) {
+    case element::Type_t::f64:
+        ngraph::runtime::reference::interpolate<double>(inputs[0]->get_data_ptr<double>(),
+                                                        op->get_input_partial_shape(0),
+                                                        outputs[0]->get_data_ptr<double>(),
+                                                        op->get_output_shape(0),
+                                                        op->get_attrs());
+        break;
+    case element::Type_t::f32:
+        ngraph::runtime::reference::interpolate<float>(inputs[0]->get_data_ptr<float>(),
+                                                       op->get_input_partial_shape(0),
+                                                       outputs[0]->get_data_ptr<float>(),
+                                                       op->get_output_shape(0),
+                                                       op->get_attrs());
+        break;
+    case element::Type_t::f16:
+        ngraph::runtime::reference::interpolate<float16>(inputs[0]->get_data_ptr<float16>(),
+                                                         op->get_input_partial_shape(0),
+                                                         outputs[0]->get_data_ptr<float16>(),
+                                                         op->get_output_shape(0),
+                                                         op->get_attrs());
+        break;
+    case element::Type_t::bf16:
+        ngraph::runtime::reference::interpolate<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
+                                                          op->get_input_partial_shape(0),
+                                                          outputs[0]->get_data_ptr<bfloat16>(),
+                                                          op->get_output_shape(0),
+                                                          op->get_attrs());
+        break;
+    default:;
+    }
+    return true;
 }
 
 template <typename T>

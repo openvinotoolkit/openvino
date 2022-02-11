@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ protected:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             bool isReal = funcInput.get_element_type().is_real();
             switch (eltwiseType) {
                 case ngraph::helpers::EltwiseTypes::POWER:
@@ -196,7 +196,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Differen
         // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
 };
 
-std::map<std::string, std::string> additional_config;
+ov::AnyMap additional_config;
 
 std::vector<ElementType> netType = {ElementType::bf16, ElementType::f32};
 
@@ -492,23 +492,37 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {
 };
 
 //// ============================================ 4D ============================================
-std::vector<InputShape> inShapes_4D_dyn_const = {
+std::vector<std::vector<InputShape>> inShapes_4D_dyn_const = {
     {
-        // dynamic
-        {3, 2, -1, -1},
-        // target
         {
-            {3, 2, 1, 1},
-            {3, 2, 5, 1},
-            {3, 2, 1, 6},
-            {3, 2, 4, 11},
+            // dynamic
+            {3, 2, -1, -1},
+            // target
+            {
+                {3, 2, 1, 1},
+                {3, 2, 5, 1},
+                {3, 2, 1, 6},
+                {3, 2, 4, 11},
+            }
+        }
+    },
+    {
+        {
+           // dynamic
+           {{1, 10}, 2, 5, 6},
+           // target
+           {
+               {3, 2, 5, 6},
+               {1, 2, 5, 6},
+               {2, 2, 5, 6},
+           }
         }
     },
 };
 
 const auto params_4D_dyn_const = ::testing::Combine(
         ::testing::Combine(
-                ::testing::Values(inShapes_4D_dyn_const),
+                ::testing::ValuesIn(inShapes_4D_dyn_const),
                 ::testing::ValuesIn(eltwiseOpTypesBinInp),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),

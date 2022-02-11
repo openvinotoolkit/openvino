@@ -31,15 +31,15 @@ There are three steps to support inference of a model with custom operation(s):
 1. Add support for a custom operation in the [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) so
 the Model Optimizer can generate the IR with the operation.
 2. Create an operation set and implement a custom nGraph operation in it as described in the
-[Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md).
-3. Implement a customer operation in one of the [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
+[Custom nGraph Operation](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md).
+3. Implement a customer operation in one of the [Inference Engine](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
 plugins to support inference of this operation using a particular target hardware (CPU, GPU or VPU).
 
 To see the operations that are supported by each device plugin for the Inference Engine, refer to the
-[Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md).
+[Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md).
 
 > **NOTE**: If a device doesn't support a particular operation, an alternative to creating a new operation is to target
-> an additional device using the HETERO plugin. The [Heterogeneous Plugin](../IE_DG/supported_plugins/HETERO.md) may be
+> an additional device using the HETERO plugin. The [Heterogeneous Plugin](../OV_Runtime_UG/supported_plugins/HETERO.md) may be
 > used to run an inference model on multiple devices allowing the unsupported operations on one device to "fallback" to
 > run on another device (e.g., CPU) that does support those operations.
 
@@ -61,20 +61,20 @@ operation. Refer to the "Operation Extractor" section of
 
 ## Custom Operations Extensions for the Inference Engine
 
-Inference Engine provides an extension mechanism to support new operations. This mechanism is described in [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md).
+Inference Engine provides an extension mechanism to support new operations. This mechanism is described in [Inference Engine Extensibility Mechanism](../OV_Runtime_UG/Extensibility_DG/Intro.md).
 
 Each device plugin includes a library of optimized implementations to execute known operations which must be extended to execute a custom operation. The custom operation extension is implemented according to the target device:
 
 - Custom Operation CPU Extension
    - A compiled shared library (`.so` or `.dll`) needed by the CPU Plugin for executing the custom operation
-   on a CPU. Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more
+   on a CPU. Refer to the [How to Implement Custom CPU Operations](../OV_Runtime_UG/Extensibility_DG/CPU_Kernel.md) for more
    details.
 - Custom Operation GPU Extension
-   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the GPU along with an operation description file (.xml) needed by the GPU Plugin for the custom operation kernel. Refer to the [How to Implement Custom GPU Operations](../IE_DG/Extensibility_DG/GPU_Kernel.md) for more details.
+   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the GPU along with an operation description file (.xml) needed by the GPU Plugin for the custom operation kernel. Refer to the [How to Implement Custom GPU Operations](../OV_Runtime_UG/Extensibility_DG/GPU_Kernel.md) for more details.
 - Custom Operation VPU Extension
-   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the VPU along with an  operation description file (.xml) needed by the VPU Plugin for the custom operation kernel. Refer to [How to Implement Custom Operations for VPU](../IE_DG/Extensibility_DG/VPU_Kernel.md) for more details.
+   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the VPU along with an  operation description file (.xml) needed by the VPU Plugin for the custom operation kernel. Refer to [How to Implement Custom Operations for VPU](../OV_Runtime_UG/Extensibility_DG/VPU_Kernel.md) for more details.
 
-Also, it is necessary to implement nGraph custom operation according to [Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md) so the Inference Engine can read an IR with this
+Also, it is necessary to implement nGraph custom operation according to [Custom nGraph Operation](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md) so the Inference Engine can read an IR with this
 operation and correctly infer output tensor shape and type.
 
 ## Enabling Magnetic Resonance Image Reconstruction Model
@@ -125,7 +125,7 @@ Firstly, open the model in TensorBoard or other TensorFlow* model visualization 
 batch dimension because the value for the batch dimension is not hardcoded in the model. Model Optimizer need to set all
 dynamic dimensions to some specific value to create the IR, therefore specify the command line parameter `-b 1` to set
 the batch dimension equal to 1. The actual batch size dimension can be changed at runtime using the Inference Engine API
-described in the [Using Shape Inference](../IE_DG/ShapeInference.md). Also refer to the General Conversion Parameters section in [Converting a Model to Intermediate Representation (IR)](../MO_DG/prepare_model/convert_model/Converting_Model.md) and [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+described in the [Using Shape Inference](../OV_Runtime_UG/ShapeInference.md). Also refer to the General Conversion Parameters section in [Converting a Model to Intermediate Representation (IR)](../MO_DG/prepare_model/convert_model/Converting_Model.md) and [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 for more details and command line parameters used for the model conversion.
 
 ```sh
@@ -254,8 +254,6 @@ Now it is possible to convert the model using the following command line:
 mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
 ```
 
-@endsphinxdirective
-
 The sub-graph corresponding to the originally non-supported one is depicted in the image below:
 
 ![Converted sub-graph](img/converted_subgraph.png)
@@ -265,13 +263,13 @@ The sub-graph corresponding to the originally non-supported one is depicted in t
 
 ### Inference Engine Extension Implementation
 Now it is necessary to implement the extension for the CPU plugin with operation "FFT" introduced previously. The code
-below is based on the template extension described in [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md).
+below is based on the template extension described in [Inference Engine Extensibility Mechanism](../OV_Runtime_UG/Extensibility_DG/Intro.md).
 
 #### CMake Build File
 The first step is to create a CMake configuration file which builds the extension. The content of the "CMakeLists.txt"
 file is the following:
 
-@snippet ../template_extension/CMakeLists.txt cmake:extension
+@snippet template_extension/old/CMakeLists.txt cmake:extension
 
 The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the extension library is linked with
 `opencv_core` which comes with the OpenVINO.
@@ -279,30 +277,30 @@ The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the
 #### Custom nGraph Operation "FFT" Implementation
 The next step is to create the nGraph operation FFT. The header file "fft_op.hpp" has the following content:
 
-@snippet ../template_extension/fft_op.hpp fft_op:header
+@snippet template_extension/old/fft_op.hpp fft_op:header
 
 The operation has just one boolean attribute `inverse`. Implementation of the necessary nGraph operation functions are
 in the `fft_op.cpp` file with the following content:
 
-@snippet ../template_extension/fft_op.cpp fft_op:implementation
+@snippet template_extension/old/fft_op.cpp fft_op:implementation
 
-Refer to the [Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md) for more details.
+Refer to the [Custom nGraph Operation](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md) for more details.
 
 #### CPU FFT Kernel Implementation
 The operation implementation for CPU plugin uses OpenCV to perform the FFT. The header file "fft_kernel.hpp" has the
 following content:
 
-@snippet ../template_extension/fft_kernel.hpp fft_kernel:header
+@snippet template_extension/old/fft_kernel.hpp fft_kernel:header
 
 The "fft_kernel.cpp" with the implementation of the CPU has the following content:
 
-@snippet ../template_extension/fft_kernel.cpp fft_kernel:implementation
+@snippet template_extension/old/fft_kernel.cpp fft_kernel:implementation
 
-Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more details.
+Refer to the [How to Implement Custom CPU Operations](../OV_Runtime_UG/Extensibility_DG/CPU_Kernel.md) for more details.
 
 #### Extension Library Implementation
 The last step is to create an extension library "extension.cpp" and "extension.hpp" which will include the FFT
-operation for the CPU plugin. The code of  the library is described in the [Extension Library](../IE_DG/Extensibility_DG/Extension.md).
+operation for the CPU plugin. The code of  the library is described in the [Extension Library](../OV_Runtime_UG/Extensibility_DG/Extension.md).
 
 ### Building and Running the Custom Extension
 To build the extension, run the following:<br>
@@ -334,11 +332,11 @@ python3 mri_reconstruction_demo.py \
 ## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
-- OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
+- OpenVINO™ toolkit online documentation: [https://docs.openvino.ai](https://docs.openvino.ai)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
-- [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md)
-- [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
+- [Inference Engine Extensibility Mechanism](../OV_Runtime_UG/Extensibility_DG/Intro.md)
+- [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md)
 - [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 

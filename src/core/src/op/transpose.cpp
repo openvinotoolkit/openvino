@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,10 @@ void op::v1::Transpose::validate_and_infer_types() {
                               arg_shape);
         set_output_type(0, get_input_element_type(0), ngraph::apply_permutation(arg_shape, permutation));
     } else {
-        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(arg_shape.rank()));
+        Rank output_rank = arg_shape.rank();
+        if (output_rank.is_dynamic() && input_order_shape.is_static() && input_order_shape[0].get_length())
+            output_rank = input_order_shape[0];
+        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(output_rank));
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }

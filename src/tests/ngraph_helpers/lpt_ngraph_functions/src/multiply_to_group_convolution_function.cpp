@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,8 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOrigina
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData,
-    const Constant& constant) {
+    const Constant& constant,
+    const bool parentHasOneConsumer) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantize = makeFakeQuantize(input, precision, fqOnData);
 
@@ -58,7 +59,9 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOrigina
         std::make_shared<ngraph::opset1::Constant>(constant.outPrecision, constant.shape, constant.values));
     multiply->set_friendly_name("output");
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(multiply)};
+    ngraph::ResultVector results = parentHasOneConsumer ?
+        ngraph::ResultVector{std::make_shared<ngraph::opset1::Result>(multiply)} :
+        ngraph::ResultVector{std::make_shared<ngraph::opset1::Result>(maxPool), std::make_shared<ngraph::opset1::Result>(multiply)};
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MultiplyToGroupConvolutionFunction");
 }
 

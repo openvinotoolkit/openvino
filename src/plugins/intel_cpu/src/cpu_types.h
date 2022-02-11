@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,6 +229,8 @@ enum Algorithm {
     // Color conversions
     ColorConvertNV12toRGB,
     ColorConvertNV12toBGR,
+    ColorConvertI420toRGB,
+    ColorConvertI420toBGR,
 };
 
 extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;

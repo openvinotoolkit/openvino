@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,8 @@ public:
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
+
+    void setDynamicBatchLim(int lim) override;
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;

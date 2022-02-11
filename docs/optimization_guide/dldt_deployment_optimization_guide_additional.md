@@ -26,14 +26,14 @@ usually gives the same best latency as a single request on the single socket, bu
 $ benchmark_app -m <model.xml> -nstreams 2
  ```
 Number of NUMA nodes on the machine can be queried via 'lscpu'.
-Please see more on the NUMA support in the [Optimization Guide](supported_plugins/MULTI.md).
+Please see more on the NUMA support in the [Optimization Guide](../OV_Runtime_UG/supported_plugins/MULTI.md).
  
   
  ##  Threading 
 
  - As explained in the <a href="#cpu-checklist">CPU Checklist</a> section, by default the Inference Engine uses Intel TBB as a parallel engine. Thus, any OpenVINO-internal threading (including CPU inference) uses the same threads pool, provided by the TBB. But there are also other threads in your application, so oversubscription is possible at the application level:
 - The rule of thumb is that you should try to have the overall number of active threads in your application equal to the number of cores in your machine. Keep in mind the spare core(s) that the OpenCL driver under the GPU plugin might also need.
-- One specific workaround to limit the number of threads for the Inference Engine is using the [CPU configuration options](../IE_DG/supported_plugins/CPU.md).
+- One specific workaround to limit the number of threads for the Inference Engine is using the [CPU configuration options](../OV_Runtime_UG/supported_plugins/CPU.md).
 - To avoid further oversubscription, use the same threading model in all modules/libraries that your application uses. Notice that third party components might bring their own threading. For example, using Inference Engine which is now compiled with the TBB by default might lead to [performance troubles](https://www.threadingbuildingblocks.org/docs/help/reference/appendices/known_issues/interoperability.html) when mixed in the same app with another computationally-intensive library, but compiled with OpenMP. You can try to compile the [open source version](https://github.com/opencv/dldt) of the Inference Engine to use the OpenMP as well. But notice that in general, the TBB offers much better composability, than other threading solutions.
 - If your code (or third party libraries) uses GNU OpenMP, the Intel&reg; OpenMP (if you have recompiled Inference Engine with that) must be initialized first. This can be achieved by linking your application with the Intel OpenMP instead of GNU OpenMP, or using `LD_PRELOAD` on Linux* OS.
 

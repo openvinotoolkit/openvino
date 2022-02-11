@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,8 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
                                                    const op::AutoBroadcastSpec& autob) {
     auto const_shape = mul_const->get_shape();
     auto const_rank = static_cast<int64_t>(const_shape.size());
-    const auto& weights_shape = weights.get_shape();
-    int64_t weights_rank = static_cast<int64_t>(weights_shape.size());
+    const auto& weights_shape = weights.get_partial_shape();
+    int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
 
     // Fuse if const is a scalar
     if (ngraph::is_scalar(const_shape)) {
@@ -61,10 +61,12 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         if (const_shape.back() > 1) {
             // Check if const's last dimension matches last weights dimension
             if (matmul_casted->get_transpose_b()) {
-                if (weights_rank > 1 && const_shape.back() != weights_shape[weights_rank - 2]) {
+                if (weights_shape[weights_rank - 2].is_dynamic() ||
+                   (weights_rank > 1 && const_shape.back() != static_cast<size_t>(weights_shape[weights_rank - 2].get_length()))) {
                     return nullptr;
                 }
-            } else if (const_shape.back() != weights_shape.back()) {
+            } else if (weights_shape[weights_rank - 1].is_dynamic() ||
+                       const_shape.back() != static_cast<size_t>(weights_shape[weights_rank - 1].get_length())) {
                 return nullptr;
             }
         }
@@ -139,7 +141,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
 pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     MATCHER_SCOPE(MatMulMultiplyFusion);
     auto input_pattern = pattern::any_input();
-    auto weights_pattern = pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pattern::any_input(pattern::has_static_rank());
     auto mul_const_pattern = pattern::wrap_type<opset8::Constant>();
     auto matmul_pattern = pattern::wrap_type<opset8::MatMul>({input_pattern, weights_pattern});
     auto mul_pattern = pattern::wrap_type<opset8::Multiply>({matmul_pattern, mul_const_pattern});

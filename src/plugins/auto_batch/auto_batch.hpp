@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,7 @@ protected:
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool _needPerfCounters = false;
     std::atomic_size_t _numRequestsCreated = {0};
-    std::atomic_int _timeOut = {1000};  // in ms
+    std::atomic_int _timeOut = {0};  // in ms
 };
 
 class AutoBatchInferRequest : public InferenceEngine::IInferRequestInternal {
@@ -106,6 +106,11 @@ public:
     void CopyOutputsIfNeeded();
     AutoBatchExecutableNetwork::WorkerInferRequest& _myBatchedRequestWrapper;
     std::exception_ptr _exceptionPtr;
+    enum eExecutionFlavor : uint8_t {
+        NOT_EXECUTED,
+        BATCH_EXECUTED,
+        TIMEOUT_EXECUTED
+    } _wasBatchedRequestUsed = eExecutionFlavor::NOT_EXECUTED;
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> _perfMap;
 
 protected:

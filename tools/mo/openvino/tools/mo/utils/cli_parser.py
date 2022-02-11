@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -291,7 +291,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default='ERROR')
     common_group.add_argument('--input',
                               help='Quoted list of comma-separated input nodes names with shapes, data types, '
-                                   'and values for freezing. The shape and value are specified as space-separated '
+                                   'and values for freezing. The order of inputs in converted model is the same as '
+                                   'order of specified operation names. The shape and value are specified as space-separated '
                                    'lists. The data type of input node is specified in braces and '
                                    'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
                                    'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
@@ -308,7 +309,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    '"0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
     common_group.add_argument('--output',
                               help='The name of the output operation of the model. ' +
-                                   'For TensorFlow*, do not add :0 to this name.')
+                                   'For TensorFlow*, do not add :0 to this name.'
+                                   'The order of outputs in converted model is the same as order of '
+                                   'specified operation names.')
     common_group.add_argument('--mean_values', '-ms',
                               help='Mean values to be used for the input image per channel. ' +
                                    'Values to be provided in the (R,G,B) or [R,G,B] format. ' +
@@ -348,7 +351,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' for example: --layout name1(nchw),name2(nc). It is possible to instruct '
                                    'ModelOptimizer to change layout, for example: '
                                    '--layout name1(nhwc->nchw),name2(cn->nc). Also "*" in long layout form can be used'
-                                   ' to fuse dimensions, for example [n,c,...]->[n*c,…].',
+                                   ' to fuse dimensions, for example [n,c,...]->[n*c,...].',
                               default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
@@ -440,10 +443,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--legacy_ir_generation',
                               help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     common_group.add_argument("--use_new_frontend",
-                              help="Use new frontend API for model processing",
+                              help="Force the usage of new frontend API for model processing",
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
-                              help="Use legacy API for model processing",
+                              help="Force the usage of legacy API for model processing",
                               action='store_true', default=False)
     return parser
 
@@ -1130,10 +1133,12 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     placeholder_shapes = dict()
     placeholder_data_types = dict()
     are_shapes_specified_through_input = False
+    inputs_list = list()
     if argv_input:
         for input_value in argv_input.split(','):
             node_name, shape, _, data_type = parse_input_value(input_value)
             placeholder_shapes[node_name] = shape
+            inputs_list.append(node_name)
             if data_type is not None:
                 placeholder_data_types[node_name] = data_type
             if shape is not None:
@@ -1148,10 +1153,11 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
                     "parameter is allowed.")
 
     if are_shapes_specified_through_input:
-        return placeholder_shapes, placeholder_data_types
+        return inputs_list, placeholder_shapes, placeholder_data_types
 
     shapes = list()
     inputs = list()
+    inputs_list = list()
     placeholder_shapes = None
 
     range_reg = r'([0-9]*\.\.[0-9]*)'
@@ -1184,8 +1190,10 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
                                                   shapes)))
         for inp in inputs:
             if '->' not in inp:
+                inputs_list.append(inp)
                 continue
             shape = placeholder_shapes[inp.split('->')[0]]
+            inputs_list.append(inp.split('->')[0])
 
             if shape is None:
                 continue
@@ -1196,7 +1204,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     elif argv_input:
         raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
 
-    return placeholder_shapes, placeholder_data_types
+    return inputs_list, placeholder_shapes, placeholder_data_types
 
 
 def parse_tuple_pairs(argv_values: str):

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) noexcept {
+bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) {
     const auto rank = shape.rank();
     if (rank.is_dynamic()) {
         return false;

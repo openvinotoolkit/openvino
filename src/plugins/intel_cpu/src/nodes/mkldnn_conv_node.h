@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ public:
     InferenceEngine::Precision getRuntimePrecision() const override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
-    const mkldnn::memory& getWeights() const;
-    const mkldnn::memory& getBias() const;
+    mkldnn::memory getWeights() const;
+    mkldnn::memory getBias() const;
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
         return getOriginalInputsNumber();
@@ -60,6 +60,8 @@ public:
     }
 
     bool isWinograd() const { return isWino; }
+
+    void setDynamicBatchLim(int lim) override;
 
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;

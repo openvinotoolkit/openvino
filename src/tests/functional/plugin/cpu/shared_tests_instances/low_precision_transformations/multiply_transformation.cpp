@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,19 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         false,
+        { 256ul, ngraph::Shape {}, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
+        ngraph::element::f32,
+        true
+    },
+    {
+        false,
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ngraph::element::i8
+        ngraph::element::i8,
+        false
     },
     {
         false,
@@ -30,7 +40,8 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ngraph::element::u8
+        ngraph::element::u8,
+        false
     },
     {
         true,
@@ -38,7 +49,8 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ngraph::element::u8
+        ngraph::element::u8,
+        false
     },
     {
         true,
@@ -46,7 +58,8 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ngraph::element::i8
+        ngraph::element::i8,
+        false
     },
     {
         false,
@@ -54,7 +67,8 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         true,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ngraph::element::i8
+        ngraph::element::i8,
+        false
     },
     {
         false,
@@ -62,7 +76,8 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ngraph::element::u8
+        ngraph::element::u8,
+        false
     },
     {
         false,
@@ -70,10 +85,11 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         true,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.27f }, { 1.28f }, { -1.27f }, { 1.28f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ngraph::element::u8
+        ngraph::element::u8,
+        false
     },
-    { false, {}, false, {}, {}, ngraph::element::f32 },
-    { true, {}, true, {}, {}, ngraph::element::f32 },
+    { false, {}, false, {}, {}, ngraph::element::f32, false },
+    { true, {}, true, {}, {}, ngraph::element::f32, false },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyTransformation,

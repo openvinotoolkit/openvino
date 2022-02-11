@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,12 @@
 #include <fstream>
 #include <queue>
 
-#include "decoder.hpp"
+#include "decoder_proto.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
-#include "node_context.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "openvino/util/common_util.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
 
@@ -181,7 +182,7 @@ template <typename T>
 std::basic_string<T> get_model_path(const std::basic_string<T>& path, std::ifstream* weights_stream) {
     std::string model_file{path};
     std::string ext = ".pdmodel";
-    if (paddle::endsWith(model_file, ext)) {
+    if (ov::util::ends_with(model_file, ext)) {
         std::string params_ext = ".pdiparams";
         std::string weights_file{path};
         weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
@@ -199,7 +200,7 @@ template <>
 std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path, std::ifstream* weights_stream) {
     std::wstring model_file{path};
     std::wstring ext = L".pdmodel";
-    if (paddle::endsWith(model_file, ext)) {
+    if (ov::util::ends_with(model_file, ext)) {
         std::wstring params_ext = L".pdiparams";
         std::wstring weights_file{path};
         weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
@@ -266,7 +267,7 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
     for (const auto& item : m_var_places) {
         const auto& var_desc = item.second->get_desc();
         const auto& name = item.first;
-        if (paddle::endsWith(name, std::string{"feed"}) || paddle::endsWith(name, std::string{"fetch"}))
+        if (ov::util::ends_with(name, std::string{"feed"}) || ov::util::ends_with(name, std::string{"fetch"}))
             continue;
         if (!var_desc.persistable())
             continue;
