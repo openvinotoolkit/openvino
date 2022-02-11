@@ -21,7 +21,7 @@ namespace test {
 namespace behavior {
 
 inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::string targetDevice,
-                                                                              std::vector<size_t> inputShape = {1, 4, 32, 32},
+                                                                              std::vector<size_t> inputShape = {1, 1, 32, 32},
                                                                               ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     // auto-batching (which now relies on the dim tracking) needs a ngraph function without reshapes in that
     if (targetDevice.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos)
