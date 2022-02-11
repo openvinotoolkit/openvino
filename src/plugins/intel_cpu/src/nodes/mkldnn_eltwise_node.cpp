@@ -1978,6 +1978,24 @@ void MKLDNNEltwiseNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
+void MKLDNNEltwiseNode::setDynamicBatchLim(int lim) {
+    MKLDNNNode::setDynamicBatchLim(lim);
+
+    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
+    if (!getParentEdgesAtPort(0)[0]->getParent()->isConstant()) {
+        outShape[0] = batchToProcess();
+    }
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        auto currentShape = getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
+        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant()) {
+            currentShape[0] = batchToProcess();
+        }
+        if (!ov::PartialShape::broadcast_merge_into(outShape, currentShape, ov::op::AutoBroadcastType::NUMPY)) {
+            IE_THROW() << "Can't execute eltwise node with dynamic batch. Input shapes are incompatible";
+        }
+    }
+}
+
 bool MKLDNNEltwiseNode::created() const {
     return getType() == Eltwise;
 }

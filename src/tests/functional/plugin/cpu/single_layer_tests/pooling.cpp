@@ -281,6 +281,15 @@ const std::vector<InputShape> inputShapes4D = {
                 {1, 16, 16, 12},
                 {1, 32, 8, 8}
             }
+        },
+        {
+            // dynamic
+            {{1, 10}, 16, 8, 8},
+            // target
+            {
+                {1, 16, 8, 8},
+                {2, 16, 8, 8},
+            }
         }
 };
 

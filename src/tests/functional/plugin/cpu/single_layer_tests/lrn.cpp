@@ -99,6 +99,12 @@ const std::vector<InputShape> inputShapes = {
         // static
         {{15, 5, 7, 8}, {10, 10, 3, 8}, {1, 3, 5, 5}, {10, 10, 3, 8}}
     },
+    InputShape{
+        // dynamic
+        {{1, 15}, 3, 5, 5},
+        // static
+        {{2, 3, 5, 5}, {1, 3, 5, 5}, {3, 3, 5, 5}}
+    },
 };
 
 const auto testCases = ::testing::Combine(

@@ -296,6 +296,7 @@ const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1} };
+
 std::vector<InputShape> inputShapes2d = {
         {{}, {{ 1, 64, 7, 7 }}},
         {{}, {{ 1, 67, 7, 7 }}},
@@ -316,6 +317,7 @@ std::vector<InputShape> inputShapes2d = {
             }
         }
 };
+
 std::vector<InputShape> inputShapesPlain2Blocked2d = {
         {{}, {{ 1, 1, 7, 7 }}},
         {{}, {{ 1, 2, 7, 7 }}},
@@ -839,6 +841,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32, ConvolutionLayerCPUTest,
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
                                  ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+std::vector<InputShape> inputShapes2d_dynBatch = {
+        {
+            //dynamic shape
+            { {1, 10}, 64, 7, 7 },
+            { //target static shapes
+                { 2, 64, 7, 7 },
+                { 1, 64, 7, 7 }
+            }
+        },
+};
+
+const std::vector<fusingSpecificParams> fusingParamsSet_dynBatch{
+        emptyFusingSpec,
+        fusingReluScaleShift,
+        fusingSum,
+        fusingAddPerChannel
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32_dynBatch, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_2D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes2d_dynBatch),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
+                                 ::testing::ValuesIn(fusingParamsSet_dynBatch),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 

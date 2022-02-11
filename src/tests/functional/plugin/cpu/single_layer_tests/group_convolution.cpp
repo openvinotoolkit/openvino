@@ -576,6 +576,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
                                 ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
+std::vector<InputShape> inputShapes2d_dynBatch = {
+    {
+        //dynamic shapes
+        { {1, 10}, 64, 7, 7},
+        { //target static shapes
+            { 2, 64, 7, 7 },
+            { 1, 64, 9, 9 },
+            { 3, 64, 9, 9 }
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_2D,
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes2d_dynBatch),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
+                        GroupConvolutionLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(

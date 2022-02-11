@@ -492,23 +492,37 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {
 };
 
 //// ============================================ 4D ============================================
-std::vector<InputShape> inShapes_4D_dyn_const = {
+std::vector<std::vector<InputShape>> inShapes_4D_dyn_const = {
     {
-        // dynamic
-        {3, 2, -1, -1},
-        // target
         {
-            {3, 2, 1, 1},
-            {3, 2, 5, 1},
-            {3, 2, 1, 6},
-            {3, 2, 4, 11},
+            // dynamic
+            {3, 2, -1, -1},
+            // target
+            {
+                {3, 2, 1, 1},
+                {3, 2, 5, 1},
+                {3, 2, 1, 6},
+                {3, 2, 4, 11},
+            }
+        }
+    },
+    {
+        {
+           // dynamic
+           {{1, 10}, 2, 5, 6},
+           // target
+           {
+               {3, 2, 5, 6},
+               {1, 2, 5, 6},
+               {2, 2, 5, 6},
+           }
         }
     },
 };
 
 const auto params_4D_dyn_const = ::testing::Combine(
         ::testing::Combine(
-                ::testing::Values(inShapes_4D_dyn_const),
+                ::testing::ValuesIn(inShapes_4D_dyn_const),
                 ::testing::ValuesIn(eltwiseOpTypesBinInp),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),

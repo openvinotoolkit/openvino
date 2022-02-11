@@ -454,6 +454,16 @@ VectorDims MKLDNNDeconvolutionNode::shapeInferInternal(const VectorDims &inDims,
     return outputShapes.back().to_shape();
 }
 
+void MKLDNNDeconvolutionNode::setDynamicBatchLim(int lim) {
+    if (!execPtr) {
+        IE_THROW() << "Can't set dynamic batch for Deconvolution node with name: " << getName() << ", because executor is not compiled";
+    }
+    if (execPtr->needReordering()) {
+        IE_THROW() << "Can't execute Deconvolution node with dynamic batch via executor with reorders";
+    }
+    MKLDNNNode::setDynamicBatchLim(lim);
+}
+
 void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Deconvolution node with name: " << getName() << ", because executor is not compiled";

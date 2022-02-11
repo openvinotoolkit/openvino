@@ -61,6 +61,8 @@ public:
 
     bool isWinograd() const { return isWino; }
 
+    void setDynamicBatchLim(int lim) override;
+
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 

@@ -332,6 +332,11 @@ const std::vector<DeconvInputData> Planar_2D_inputs_nightly = {
         InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
+    },
+    DeconvInputData{
+        InputShape{{{1, 10}, 12, 7, 7}, {{ 1, 12, 7, 7}, { 3, 12, 7, 7}, { 2, 12, 7, 7}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{15, 15}}
     }
 };
 
@@ -409,6 +414,11 @@ const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{15, 15, 15}}
+    },
+    DeconvInputData{
+        InputShape{{{1, 10}, 12, 7, 7, 7}, {{ 3, 12, 7, 7, 7}, { 2, 12, 7, 7, 7}, { 1, 12, 7, 7, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15, 15}}
     }
@@ -490,6 +500,11 @@ const std::vector<DeconvInputData> Blocked_2D_inputs_nightly = {
         InputShape{{-1, 64, -1, -1}, {{ 2, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}}
+    },
+    DeconvInputData{
+        InputShape{{{1, 10}, 64, 7, 7}, {{ 2, 64, 7, 7}, { 3, 64, 7, 7}, { 1, 64, 7, 7}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{15, 15}}
     }
 };
 
@@ -569,6 +584,11 @@ const std::vector<DeconvInputData> Blocked_3D_inputs_nightly = {
         InputShape{{-1, 64, -1, -1, -1}, {{ 1, 64, 5, 5, 5}, { 2, 64, 5, 7, 5}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{7, 7, 7}}
+    },
+    DeconvInputData{
+        InputShape{{{1, 10}, 64, -1, -1, -1}, {{ 1, 64, 5, 5, 5}, { 2, 64, 5, 5, 5}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{7, 7, 7}}
     }
 };
 
@@ -646,6 +666,11 @@ const std::vector<DeconvInputData> dw_2D_inputs_nightly = {
     },
     DeconvInputData{
         InputShape{{-1, 32, -1, -1}, {{ 1, 32, 5, 5}, { 2, 32, 5, 7}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{7, 7}}
+    },
+    DeconvInputData{
+        InputShape{{{1, 10}, 32, 5, 5}, {{ 2, 32, 5, 5}, { 1, 32, 5, 5}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{7, 7}}
     }

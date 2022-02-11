@@ -43,3 +43,7 @@ void DnnlExecutor::exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn
         outReorder.second.exec(primArgs[outReorder.first], outputMem[outReorder.first], strm);
     }
 }
+
+bool DnnlExecutor::needReordering() const {
+    return !inputReorders.empty() || !outputReorders.empty();
+}

@@ -118,6 +118,8 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override;
 
+    void setDynamicBatchLim(int lim) override;
+
     enum BroadcastingPolicy {
         PerChannel,
         PerTensor,

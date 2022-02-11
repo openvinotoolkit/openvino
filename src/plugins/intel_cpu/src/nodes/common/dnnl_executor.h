@@ -26,6 +26,7 @@ class DnnlExecutor {
 
     public:
         void exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn::stream strm);
+        bool needReordering() const;
         virtual ~DnnlExecutor() = default;
 
     protected:
