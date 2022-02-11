@@ -122,6 +122,20 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     }
     node_info->add("fused primitives", fused_nodes_info);
 
+    json_composite fused_activations;
+    auto fused_activations_funcs = get_fused_activations_funcs();
+    if (!fused_activations_funcs.empty()) {
+        for (size_t i = 0; i < fused_activations_funcs.size(); i++) {
+            json_composite fused_activation_info;
+            auto activation_type = activation_type_to_str(fused_activations_funcs[i]);
+            auto params = get_fused_activations_params()[i];
+            fused_activation_info.add("params", "a=" + std::to_string(params.a) + ", b=" + std::to_string(params.b));
+            fused_activation_info.add("activation", activation_type);
+            fused_activations.add("fused activation idx " + std::to_string(i), fused_activation_info);
+        }
+        node_info->add("fused activations (legacy)", fused_activations);
+    }
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& onednn_post_ops = get_fused_primitives_onednn();
     if (onednn_post_ops.size()) {

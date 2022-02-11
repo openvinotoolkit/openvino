@@ -70,18 +70,21 @@ std::vector<ov::element::Type> prcs = {
 };
 
 std::vector<ov::element::Type> supported_input_prcs = {
-        ov::element::boolean,
-        ov::element::f16,
-        ov::element::f32,
-        ov::element::i8,
-         // ov::element::i16,
-        ov::element::i32,
-        ov::element::i64,
-        ov::element::u8,
-        // ov::element::u16
+    ov::element::boolean,
+    ov::element::f16,
+    ov::element::f32,
+    ov::element::f64,
+    ov::element::i8,
+    ov::element::i16,
+    ov::element::i32,
+    ov::element::i64,
+    ov::element::u8,
+    ov::element::u16,
+    ov::element::u32,
+    ov::element::u64
 };
 
-    const std::vector<ov::AnyMap> emptyConfigs = {{}};
+const std::vector<ov::AnyMap> emptyConfigs = {{}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
