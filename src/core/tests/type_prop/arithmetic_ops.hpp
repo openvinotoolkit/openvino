@@ -14,6 +14,7 @@
 //*****************************************************************************
 
 #include <vector>
+#include <dimension_tracker.hpp>
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 
@@ -202,6 +203,63 @@ TYPED_TEST_P(ArithmeticOperator, full_dynamic_shape)
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_a)
+{
+    Dimension b = -1;
+    ov::DimensionTracker::set_label(b, 10);
+    PartialShape A = {b, 3, 224, 224}, B = {1, 3, 1, 1};
+
+    auto paramA = std::make_shared<op::Parameter>(element::f64, A);
+    auto paramB = std::make_shared<op::Parameter>(element::f64, B);
+    const auto op = std::make_shared<TypeParam>(paramA, paramB);
+
+    const auto shape = op->get_output_partial_shape(0);
+
+    ASSERT_EQ(shape, A);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[0]), 10);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[1]), 0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[2]), 0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[3]), 0);
+}
+
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_b)
+{
+    Dimension b = -1;
+    ov::DimensionTracker::set_label(b, 10);
+    PartialShape A = {b, 3, 224, 224}, B = {1, 3, 1, 1};
+
+    auto paramA = std::make_shared<op::Parameter>(element::f64, A);
+    auto paramB = std::make_shared<op::Parameter>(element::f64, B);
+    const auto op = std::make_shared<TypeParam>(paramB, paramA);
+
+    const auto shape = op->get_output_partial_shape(0);
+
+    ASSERT_EQ(shape, A);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[0]), 10);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[1]), 0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[2]), 0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[3]), 0);
+}
+
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_different_rank)
+{
+    Dimension b = -1;
+    ov::DimensionTracker::set_label(b, 10);
+    PartialShape A = {b, -1, -1, -1}, B = {3, 1, 1};
+
+    auto paramA = std::make_shared<op::Parameter>(element::f64, A);
+    auto paramB = std::make_shared<op::Parameter>(element::f64, B);
+    const auto op = std::make_shared<TypeParam>(paramA, paramB);
+
+    const auto shape = op->get_output_partial_shape(0);
+
+    ASSERT_EQ(shape, ov::PartialShape({-1, 3, -1, -1}));
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[0]), 10);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[1]), 0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[2]), 0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(shape[3]), 0);
+}
+
 REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             shape_inference_2D,
                             shape_inference_4D,
@@ -219,4 +277,7 @@ REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             shape_inference_5D_x_5D_incompatible,
                             dynamic_shape_3D,
                             dynamic_shape_5D,
-                            full_dynamic_shape);
+                            full_dynamic_shape,
+                            dynamic_shape_static_rank_with_labels_a,
+                            dynamic_shape_static_rank_with_labels_b,
+                            dynamic_shape_static_rank_with_labels_different_rank);
