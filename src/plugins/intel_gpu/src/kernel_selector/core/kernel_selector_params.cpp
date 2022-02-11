@@ -270,6 +270,9 @@ void ParamsKey::EnableSoftmaxDim(SoftmaxDim d) {
         case SoftmaxDim::Y:
             key.restrict.val.dedicated.softmax.dimY = 1;
             break;
+        case SoftmaxDim::Z:
+            key.restrict.val.dedicated.softmax.dimZ = 1;
+            break;
         case SoftmaxDim::FEATURE:
             key.restrict.val.dedicated.softmax.dimFeature = 1;
             break;
