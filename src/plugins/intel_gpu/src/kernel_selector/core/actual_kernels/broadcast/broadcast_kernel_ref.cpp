@@ -24,9 +24,11 @@ ParamsKey BroadcastKernelRef::GetSupportedKey() const {
 
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfwzyx);
 
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
 
     k.EnableTensorOffset();
     k.EnableTensorPitches();
