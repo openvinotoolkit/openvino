@@ -258,7 +258,7 @@ void CNNNetworkNGraphImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
     inputs = _inputData;
 }
 
-size_t CNNNetworkNGraphImpl::layerCount() const noexcept {
+size_t CNNNetworkNGraphImpl::layerCount() const {
     return _ngraph_function->get_ops().size();
 }
 
@@ -329,7 +329,7 @@ void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node>& out
     }
 }
 
-size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
+size_t CNNNetworkNGraphImpl::getBatchSize() const {
     // TODO Provide adequate implementation.
     // The original code from CNNNetworkImpl just gets the first input and returns the first dimension.
     // This is not correct in general. We can follow the same semantics, but order of inputs should be
