@@ -15,7 +15,4 @@
 
 namespace ov {
 std::map<std::string, std::string> any_copy(const ov::AnyMap& config_map);
-
-void any_lexical_cast(const Any& any, ov::Any& to);
-
 }  // namespace ov

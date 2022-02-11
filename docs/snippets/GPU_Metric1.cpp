@@ -9,7 +9,7 @@ uint32_t n_streams = 2;
 int64_t available_device_mem_size = 3221225472;
 ov::AnyMap options = {
     ov::hint::model(model),   // Required. Set the address of the target network. If this is not set, the MAX_BATCH_SIZE returns 1.
-    ov::streams::num(n_streams),  // Optional. Set only when you want to estimate max batch size for a specific throughtput streams. Default is 1 or throughtput streams set by SetConfig.
+    ov::num_streams(n_streams),  // Optional. Set only when you want to estimate max batch size for a specific throughtput streams. Default is 1 or throughtput streams set by SetConfig.
     ov::intel_gpu::hint::available_device_mem(available_device_mem_size)  // Optional. Set only when you want to limit the available device mem size.
 };
 

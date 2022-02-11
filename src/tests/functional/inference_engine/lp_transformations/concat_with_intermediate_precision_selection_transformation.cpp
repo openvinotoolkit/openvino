@@ -136,7 +136,7 @@ public:
 
 TEST_P(ConcatWithIntermediatePrecisionSelectionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, false, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
