@@ -23,8 +23,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
             R"(.*(InferRequestPreprocessDynamicallyInSetBlobTest).*)",
-            // TODO: Issue: 41462
-            R"(.*(SoftMaxLayerTest).*axis=0.*)",
             // TODO: Issue: 43511
             R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*)",
             R"(.*EltwiseLayerTest.*IS=\(2\).*OpType=Mod.*opType=VECTOR.*)",
