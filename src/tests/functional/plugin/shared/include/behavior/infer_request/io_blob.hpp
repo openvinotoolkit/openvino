@@ -336,7 +336,7 @@ public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-        function = CommonTestUtils::getDefaultNGraphFunctionForTheDevice(targetDevice);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
         cnnNet = InferenceEngine::CNNNetwork(function);
         execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     }

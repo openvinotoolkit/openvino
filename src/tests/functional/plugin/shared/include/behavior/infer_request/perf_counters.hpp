@@ -14,7 +14,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
         ie = PluginCache::get().ie(targetDevice);
-        function = CommonTestUtils::getDefaultNGraphFunctionForTheDevice(targetDevice);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
         cnnNet = InferenceEngine::CNNNetwork(function);
         configuration.insert({ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES });
         // Load CNNNetwork to target plugins

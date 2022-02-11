@@ -14,10 +14,8 @@
 #include <ostream>
 #include <memory>
 
-#include "common_test_utils/test_constants.hpp"
-#include "cpp/ie_cnn_network.h"
-#include "ngraph/function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include <cpp/ie_cnn_network.h>
+#include <ngraph/function.hpp>
 
 namespace InferenceEngine {
 class CNNLayer;
@@ -36,16 +34,6 @@ IE_SUPPRESS_DEPRECATED_START
 std::shared_ptr<InferenceEngine::CNNLayer>
 getLayerByName(const InferenceEngine::CNNNetwork & network, const std::string & layerName);
 IE_SUPPRESS_DEPRECATED_END
-
-inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::string targetDevice,
-        std::vector<size_t> inputShape = {1, 4, 32, 32},
-        ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    // auto-batching (which now relies on the dim tracking) needs a ngraph function without reshapes in that
-    if (targetDevice.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos)
-        return ngraph::builder::subgraph::makeConvPoolReluNoReshapes(inputShape, ngPrc);
-    else  // for compatibility with the GNA that fails on any other ngraph function
-        return ngraph::builder::subgraph::makeConvPoolRelu(inputShape, ngPrc);
-}
 
 template<typename vecElementType>
 inline std::string vec2str(const std::vector<vecElementType> &vec) {
