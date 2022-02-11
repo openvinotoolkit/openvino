@@ -226,10 +226,17 @@ class IEEngine(Engine):
         :param model: IENetwork instance
         :param image_batch: list of ndarray images or list with a dictionary of inputs mapping
         """
-        if isinstance(image_batch[0], dict):
-            return image_batch[0]
-
         input_info = model.inputs
+        input_blobs = {get_clean_name(in_node.get_node().friendly_name): in_node for in_node in input_info}
+
+        if isinstance(image_batch[0], dict):
+            feed_dict = {}
+            for input_name in image_batch[0].keys():
+                input_blob = input_blobs[input_name]
+                input_blob_name = self._get_input_any_name(input_blob)
+                feed_dict[input_blob_name] = np.reshape(image_batch[0][input_name], list(input_blob.shape))
+            return feed_dict
+
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
