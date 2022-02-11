@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
         // -------------------------------------
         ov::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
-        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
+        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0 || !FLAGS_bs) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
         std::vector<std::string> outputs;
         std::vector<size_t> ports;
@@ -115,16 +115,16 @@ int main(int argc, char* argv[]) {
                 }
             }
             check_number_of_inputs(model->inputs().size(), numInputFiles);
-            const ov::Layout tensor_layout{"NC"};
             ov::preprocess::PrePostProcessor proc(model);
             for (int i = 0; i < model->inputs().size(); i++) {
-                proc.input(i).tensor().set_element_type(ov::element::f32).set_layout(tensor_layout);
+                proc.input(i).tensor().set_element_type(ov::element::f32);
             }
             for (int i = 0; i < model->outputs().size(); i++) {
                 proc.output(i).tensor().set_element_type(ov::element::f32);
             }
             model = proc.build();
-            ov::set_batch(model, batchSize);
+            if (FLAGS_bs)
+                ov::set_batch(model, batchSize);
         }
         // ------------------------------ Get Available Devices ------------------------------------------------------
         auto isFeature = [&](const std::string xFeature) {

@@ -175,8 +175,8 @@ DEFINE_int32(qb, 16, quantization_bits_message);
 /// @brief Scale factor for quantization
 DEFINE_string(sf, "", scale_factor_message);
 
-/// @brief Batch size (default 1)
-DEFINE_int32(bs, 1, batch_size_message);
+/// @brief Batch size
+DEFINE_int32(bs, 0, batch_size_message);
 
 /// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
 DEFINE_int32(nthreads, 1, infer_num_threads_message);
@@ -281,7 +281,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
 
     uint32_t batchSize = (uint32_t)FLAGS_bs;
-    if ((batchSize < 1) || (batchSize > 8)) {
+    if (batchSize && ((batchSize < 1) || (batchSize > 8))) {
         throw std::logic_error("Batch size out of range (1..8).");
     }
 

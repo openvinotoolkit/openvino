@@ -98,6 +98,29 @@ Usage message:
 speech_sample [OPTION]
 Options:
 
+    -h                      Print a usage message.
+    -i "<path>"             Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.
+    -m "<path>"             Required. Path to an .xml file with a trained model (required if -rg is missing).
+    -o "<path>"             Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>
+    -d "<device>"           Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA
+     as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown below. The sample will look for a suitable plugin for device specified.
+    -pc                     Optional. Enables per-layer performance report.
+    -q "<mode>"             Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).
+    -qb "<integer>"         Optional. Weight bits for quantization: 8 or 16 (default)
+    -sf "<double>"          Optional. User-specified input scale factor for quantization (use with -q user). If the network contains multiple inputs, provide scale factors by separating them with commas.
+    -bs "<integer>"         Optional. Batch size 1-8
+    -r "<path>"             Optional. Read referefile and compare scores. Example of usage: <reference.ark> or <reference.npz>
+    -rg "<path>"            Read GNA model from file using path/filename provided (required if -m is missing).
+    -wg "<path>"            Optional. Write GNA model to file using path/filename provided.
+    -we "<path>"            Optional. Write GNA embedded model to file using path/filename provided.
+    -nthreads "<integer>"   Optional. Number of threads to use for concurrent async inference requests on the GNA.
+    -cw_l "<integer>"       Optional. Number of frames for left context windows (default is 0). Works only with context window networks.
+                            If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.
+    -cw_r "<integer>"       Optional. Number of frames for right context windows (default is 0). Works only with context window networks.
+                            If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.
+    -oname "<string>"       Optional. Layer names for output blobs. The names are separated with "," Example: Output1:port,Output2:port
+    -iname "<string>"       Optional. Layer names for input blobs. The names are separated with "," Example: Input1,Input2
+    -pwl_me "<double>"      Optional. The maximum percent of error for PWL function.The value must be in <0, 100> range. The default value is 1.0.
     -h                         Print a usage message.
     -i "<path>"                Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.
     -m "<path>"                Required. Path to an .xml file with a trained model (required if -rg is missing).
