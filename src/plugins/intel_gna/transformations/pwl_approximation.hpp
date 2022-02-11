@@ -22,21 +22,28 @@
 namespace GNAPluginNS {
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeToPwl transformation replaces suitable activation function with pwl
+ * @brief PWLApproximation transformation replaces suitable activation function with pwl
  */
-class TRANSFORMATIONS_API TransposeToPwl : public ngraph::pass::MatcherPass {
+class TRANSFORMATIONS_API PWLApproximation : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    TransposeToPwl(double max_error_percent);
+    PWLApproximation(double max_error_percent);
+};
+
+class TRANSFORMATIONS_API PWLApproximationWithFq : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    PWLApproximationWithFq(double max_error_percent);
 };
 
 namespace details {
 struct Pwl {
     Pwl() = default;
-    Pwl(double im, double ib, double ialpha) : m(im), b(ib), alpha(ialpha) {}
+    Pwl(double im, double ib, double ialpha, double ibeta = 0) : m(im), b(ib), alpha(ialpha), beta(ibeta) {}
     double m;
     double b;
     double alpha;
+    double beta;
 }; // struct Pwl
 
 inline bool are_floats_equal(float p1, float p2) {
@@ -49,7 +56,7 @@ struct Function;
 template<>
 struct Function<ngraph::opset8::Sigmoid> {
     static const char* name() {
-        return "Sigmoid";
+        return "sigmoid";
     }
 
     double get_value(double x) const {
@@ -67,12 +74,20 @@ struct Function<ngraph::opset8::Sigmoid> {
     static double upper_bound() {
         return 10;
     }
+
+    static double min_value() {
+        return 0;
+    }
+
+    static double max_value() {
+        return 1;
+    }
 }; // struct Function<ngraph::opset8::Sigmoid>
 
 template<>
 struct Function<ngraph::opset8::Tanh> {
     static const char* name() {
-        return "Tanh";
+        return "tanh";
     }
 
     double get_value(double x) const {
@@ -90,12 +105,20 @@ struct Function<ngraph::opset8::Tanh> {
     static double upper_bound() {
         return 5;
     }
+
+    static double min_value() {
+        return -1;
+    }
+
+    static double max_value() {
+        return 1;
+    }
 }; // struct Function<ngraph::opset8::Tanh>
 
 template<>
 struct Function<ngraph::opset8::Exp> {
     static const char* name() {
-        return "Exp";
+        return "exp";
     }
 
     double get_value(double x) const {
@@ -113,12 +136,20 @@ struct Function<ngraph::opset8::Exp> {
     static double upper_bound() {
         return std::log10(INT16_MAX);
     }
+
+    static double min_value() {
+        return 0;
+    }
+
+    static double max_value() {
+        return INT16_MAX;
+    }
 }; // struct Function<ngraph::opset8::Exp>
 
 template<>
 struct Function<ngraph::opset8::Log> {
     static const char* name() {
-        return "Log";
+        return "log";
     }
 
     double get_value(double x) const {
@@ -136,12 +167,20 @@ struct Function<ngraph::opset8::Log> {
     static double upper_bound() {
         return 2981;
     }
+
+    static double min_value() {
+        return -11;
+    }
+
+    static double max_value() {
+        return INT16_MAX;
+    }
 }; // struct Function<ngraph::opset8::Log>
 
 template<>
 struct Function<SoftSign> {
     static const char* name() {
-        return "SoftSign";
+        return "softsign";
     }
 
     double get_value(double x) const {
@@ -159,7 +198,22 @@ struct Function<SoftSign> {
     static double upper_bound() {
         return 10;
     }
+
+    static double min_value() {
+        return -1;
+    }
+
+    static double max_value() {
+        return 1;
+    }
 }; // struct Function<SoftSign>
+
+template<>
+struct Function<ngraph::op::PowerIE> {
+    static const char* name() {
+        return "power";
+    }
+}; // struct Function<ngraph::op::PowerIE>
 
 template<>
 struct Function<ngraph::opset8::Power> {
@@ -168,7 +222,7 @@ struct Function<ngraph::opset8::Power> {
     }
 
     static const char* name() {
-        return "Power";
+        return "power";
     }
 
     double get_value(double x) const {
@@ -180,11 +234,11 @@ struct Function<ngraph::opset8::Power> {
     }
 
     static double lower_bound(double exponent) {
-        return std::max(are_floats_equal(std::fmod(exponent, 1.0), 0.0) ? static_cast<double>(std::numeric_limits<int32_t>::min()) : 0., -16.);
+        return are_floats_equal(fmod(exponent, 1.0), 0.0f) ? -16 : 0;
     }
 
     static double upper_bound() {
-        return std::min(static_cast<double>(std::numeric_limits<int32_t>::max()), 16.);
+        return 16;
     }
 
     const double m_exponent;

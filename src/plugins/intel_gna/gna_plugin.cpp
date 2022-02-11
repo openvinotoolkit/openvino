@@ -60,7 +60,7 @@
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include <transformations/utils/utils.hpp>
 
-#include "transformations/transpose_to_pwl.hpp"
+#include "transformations/pwl_approximation.hpp"
 #include "transformations/remove_extra_reshapes.hpp"
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
@@ -719,9 +719,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
               transormations
         */
         manager.register_pass<BroadcastAddMultiplyConst>();
+        if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
+            manager.register_pass<PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
+            manager.register_pass<PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
+        }
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-        manager.register_pass<TransposeToPwl>(config.gnaFlags.pwlMaxErrorPercent);
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type

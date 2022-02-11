@@ -30,6 +30,8 @@ public:
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
+    void set_base_node(const std::shared_ptr<ngraph::Node>& base_node);
+    std::shared_ptr<ngraph::Node> get_base_node();
 
 private:
     template<typename T1, typename ...Types1, typename ...Types2>
@@ -74,5 +76,7 @@ private:
     template <typename T1, typename T2>
     bool evaluate(const ov::HostTensorVector& outputs,
                   const ov::HostTensorVector& inputs) const;
+
+    std::shared_ptr<ngraph::Node> m_base_node;
 }; // class OPENVINO_API Pwl
 }  // namespace GNAPluginNS

@@ -14,7 +14,9 @@
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "gna_copy_layer.hpp"
-
+#include <legacy/ngraph_ops/power.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include "ops/pwl.hpp"
 
 namespace GNAPluginNS {
 
@@ -118,6 +120,34 @@ class LayerInfo {
             THROW_GNA_EXCEPTION << "batch size is not define in layer '" << layer->name << "'";
         }
     }
+
+    template <typename T>
+    static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
+        using A = typename ov::element_type_traits<T::value>::value_type;
+        const auto& values = constant->get_vector<A>();
+        if (values.empty() || values.size() > 1) {
+            throw std::runtime_error("The size of values is more than 1.");
+        }
+
+        value = values[0];
+        return true;
+    }
+
+    template<typename T>
+    static bool get_constant_value(const std::tuple<T>& args,
+                      const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
+        return constant->get_element_type() == T::value &&
+               get_constant_value<T>(constant, value);
+    }
+
+    template<typename T, typename ...Types>
+    static bool get_constant_value(const std::tuple<T, Types...>&,
+                      const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
+        return constant->get_element_type() == T::value &&
+               get_constant_value<T>(constant, value) ||
+               get_constant_value<Types...>(std::tuple<Types...>(), constant, value);
+    }
+
     bool isActivation() const noexcept {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> activations =
@@ -137,11 +167,19 @@ class LayerInfo {
              "softsign",
              "power",
              "fakequantize",
-             "Pwl"};
+             "pwl"};
 
-        if (isPower()) {
+        if (isOfType("power")) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
             return powerLayer != nullptr && powerLayer->power != 1.0f;
+        } else {
+            std::shared_ptr<Pwl> pwl_node;
+            if (layer->getNode() && (pwl_node = std::dynamic_pointer_cast<Pwl>(layer->getNode()))) {
+                auto powerEI = std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node());
+                if (powerEI) {
+                    return powerEI->power != 1.0;
+                }
+            }
         }
 
         return activations.find(layer->type) != activations.end();
@@ -170,7 +208,15 @@ class LayerInfo {
         return isOfType("convolution");
     }
     bool isPower() const noexcept {
-        return isOfType("power");
+        if (isOfType("power")) {
+            return true;
+        }
+        std::shared_ptr<Pwl> pwl_node;
+        if (!layer->getNode() || !(pwl_node = std::dynamic_pointer_cast<Pwl>(layer->getNode()))) {
+            return false;
+        }
+        return std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node()) ||
+               std::dynamic_pointer_cast<ngraph::opset8::Power>(pwl_node->get_base_node());
     }
     bool has32BInput() const noexcept {
         IS_VALID();

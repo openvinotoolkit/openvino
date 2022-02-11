@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "transformations/transpose_to_pwl.hpp"
+#include "transformations/pwl_approximation.hpp"
 
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -38,11 +38,11 @@ void RunTest(const std::shared_ptr<ngraph::Function>& func,
              const std::shared_ptr<ngraph::Function>& reference_func,
              float lower_bound,
              float upper_bound) {
-    double max_error_percent = 0.02;
+    double max_error_percent = 1;
     {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::TransposeToPwl>(max_error_percent);
+        m.register_pass<GNAPluginNS::PWLApproximation>(max_error_percent);
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }

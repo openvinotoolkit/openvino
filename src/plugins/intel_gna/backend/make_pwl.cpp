@@ -68,6 +68,12 @@ static void print_segments_header(const DnnActivation&  fun) {
                 "y" << std::setw(12) << std::setfill(' ') << "slope" << std::endl;
 }
 
+static void print_segments_header() {
+    gnalog() <<  "=========================== segments ===========================\n";
+    gnalog() << std::setw(12) << std::setfill(' ') << "x" << std::setw(12) << std::setfill(' ') <<
+                "y" << std::setw(12) << std::setfill(' ') << "slope" << std::endl;
+}
+
 static void print_segment(double x, double y, double slope) {
     gnalog() << std::setw(12) << std::setfill(' ') << x << std::setw(12) << std::setfill(' ') <<
                 y << std::setw(12) << std::setfill(' ') << slope << std::endl;
@@ -341,6 +347,26 @@ void make_gna_pwl(const DnnActivation&  fun,
 }
 
 template<typename T>
+static T from_with_overflow_check(double v, bool round = true) {
+    if (v == std::numeric_limits<double>::infinity() || v > std::numeric_limits<T>::max()) {
+        return std::numeric_limits<T>::max();
+    }
+
+    if (v == -std::numeric_limits<double>::infinity() || v < std::numeric_limits<T>::min()) {
+        return std::numeric_limits<T>::min();
+    }
+
+    return round ? FLOAT_TO_INT32(v) : static_cast<T>(v);
+}
+
+/**
+ * Make GNA segments from PWL (m*x + b).
+ * @param m - array of slopes of a function
+ * @param b - array of offset of a function
+ * @param alpha - array x-the value of the beginning of a segments
+ * @param count - number of PWL segments
+ */
+template<typename T>
 static void make_gna_pwl(const T* m,
                          const T* b,
                          const T* alpha,
@@ -348,14 +374,60 @@ static void make_gna_pwl(const T* m,
                          double in_scale,
                          double out_scale,
                          std::vector<gna_pwl_segment_t> &gna_pwl) {
-    gna_pwl.clear();
+    auto multiplication_with_overflow_check = [](double a, double b) -> double {
+        if (a == 0 || b == 0) {
+            return 0;
+        }
+
+        if (std::fabs(a) == std::numeric_limits<double>::infinity() ||
+            std::fabs(b) == std::numeric_limits<double>::infinity()) {
+            return (a > 0 && b > 0 || a < 0 && b < 0) ?
+                std::numeric_limits<double>::infinity() :
+                -std::numeric_limits<double>::infinity();
+        }
+
+        if (b != 0 && std::fabs(a) > std::numeric_limits<double>::max() / std::fabs(b)) {
+            return (a > 0 && b > 0 || a < 0 && b < 0) ?
+                std::numeric_limits<double>::infinity() :
+                -std::numeric_limits<double>::infinity();
+        }
+
+        return a * b;
+    };
+
+    auto addition_with_overflow_check = [](double a, double b) -> double {
+        if ((a > 0 && b > 0 || a < 0 && b < 0) && std::fabs(a) > std::numeric_limits<double>::max() - std::fabs(b)) {
+            return a > 0 && b > 0 ?
+                std::numeric_limits<double>::infinity() :
+                -std::numeric_limits<double>::infinity();
+        }
+
+        return a + b;
+    };
+
+    gnalog() << "make_gna_pwl\n";
+    gnalog() << "   in_scale  " << in_scale << "\n";
+    gnalog() << "   out_scale " << out_scale << "\n";
+    print_segments_header();
+    gna_pwl.resize(0);
     for (size_t i = 0; i < count; i++) {
         auto s = gna_slope(m[i], in_scale, out_scale);
-        int32_t xbase = ((static_cast<int32_t>(in_scale * alpha[i])) & XBASEMASK) | s.slope_scale_index;
-        int16_t ybase = FLOAT_TO_INT32((m[i]*alpha[i] + b[i]) * out_scale);
-        int16_t slope = FLOAT_TO_INT32(s.slope * s.slope_scale);
+        int32_t xbase =
+            (from_with_overflow_check<int32_t>(multiplication_with_overflow_check(in_scale, alpha[i]), false) & XBASEMASK) | s.slope_scale_index;
+        int16_t ybase = from_with_overflow_check<int16_t>(
+                multiplication_with_overflow_check(
+                    addition_with_overflow_check(
+                        multiplication_with_overflow_check(m[i], alpha[i]),
+                        b[i]),
+                    out_scale));
+        int16_t slope = from_with_overflow_check<int16_t>(multiplication_with_overflow_check(s.slope, s.slope_scale));
         gna_pwl.push_back({xbase, ybase, slope});
-        print_segment(alpha[i], m[i]*alpha[i] + b[i], m[i]);
+        print_segment(
+            alpha[i],
+                addition_with_overflow_check(
+                    multiplication_with_overflow_check(m[i], alpha[i]),
+                    b[i]),
+            m[i]);
     }
 }
 
@@ -408,8 +480,6 @@ static void make_gna_pwl(const std::tuple<T, Types...>& args,
 }
 
 void make_gna_pwl(const std::shared_ptr<ngraph::Node>& node,
-                  double l_bound,
-                  double u_bound,
                   double in_scale,
                   double out_scale,
                   bool low_precision,

@@ -78,4 +78,12 @@ bool Pwl::has_evaluate() const {
     return false;
 }
 
+void Pwl::set_base_node(const std::shared_ptr<ngraph::Node>& base_node) {
+    m_base_node = base_node;
+}
+
+std::shared_ptr<ngraph::Node> Pwl::get_base_node() {
+    return m_base_node;
+}
+
 } // namespace GNAPluginNS

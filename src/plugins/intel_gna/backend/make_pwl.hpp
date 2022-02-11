@@ -17,8 +17,6 @@ void make_gna_pwl(const DnnActivation&  fun,
                   const bool low_precision,
                   std::vector<gna_pwl_segment_t> &gna_pwl);
 void make_gna_pwl(const std::shared_ptr<ngraph::Node>& node,
-                  const double l_bound,
-                  const double u_bound,
                   const double in_scale,
                   const double out_scale,
                   const bool low_precision,

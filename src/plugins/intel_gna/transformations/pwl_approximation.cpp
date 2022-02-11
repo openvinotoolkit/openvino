@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose_to_pwl.hpp"
+#include "pwl_approximation.hpp"
 #include "transformations/utils/utils.hpp"
 #include "ops/pwl.hpp"
 #include "ops/reference/pwl.hpp"
@@ -17,11 +17,22 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
+#include "gna_plugin_log.hpp"
+
 static constexpr double EXP_BREAK = 0.045;
 
 namespace GNAPluginNS {
 
-NGRAPH_RTTI_DEFINITION(TransposeToPwl, "TransposeToPwl", 0);
+NGRAPH_RTTI_DEFINITION(PWLApproximation, "PWLApproximation", 0);
+NGRAPH_RTTI_DEFINITION(PWLApproximationWithFq, "PWLApproximationWithFq", 0);
+
+auto supported_types = std::tuple<std::integral_constant<ov::element::Type_t, ov::element::i32>,
+                                  std::integral_constant<ov::element::Type_t, ov::element::i64>,
+                                  std::integral_constant<ov::element::Type_t, ov::element::u32>,
+                                  std::integral_constant<ov::element::Type_t, ov::element::u64>,
+                                  std::integral_constant<ov::element::Type_t, ov::element::f16>,
+                                  std::integral_constant<ov::element::Type_t, ov::element::f32>,
+                                  std::integral_constant<ov::element::Type_t, ov::element::f64>>();
 
 template<typename T>
 double get_break_bound() {
@@ -110,31 +121,31 @@ double pivot_search(const details::Function<T>& activation_function,
 
         // Figure 4:  Test for completion
         max_epsilon_prev = max_epsilon;
-        max_epsilon = fabs(epsilon[0][j]);
-        min_epsilon = fabs(epsilon[0][j]);
+        max_epsilon = std::fabs(epsilon[0][j]);
+        min_epsilon = std::fabs(epsilon[0][j]);
         for (int i = 1; i < N + 1; i++) {
-            if (fabs(epsilon[i][j]) > max_epsilon) max_epsilon = fabs(epsilon[i][j]);
-            if (fabs(epsilon[i][j]) < min_epsilon) min_epsilon = fabs(epsilon[i][j]);
+            if (std::fabs(epsilon[i][j]) > max_epsilon) max_epsilon = std::fabs(epsilon[i][j]);
+            if (std::fabs(epsilon[i][j]) < min_epsilon) min_epsilon = std::fabs(epsilon[i][j]);
         }
         if (j == details::max_iterations<T>() || max_epsilon - min_epsilon < threshold * min_epsilon) {
             details::Pwl value;
             result.resize(0);
             epsilon_final = (max_epsilon + min_epsilon) / 4.0;  // Andrzej's modification
             for (int i = 0; i < N; i++) {
-                double val, val_next;
-                double value_t = t[i][j];
                 value.alpha = alpha[i][j];
-                val = sgn * activation_function.first_derivative(value_t) * (value.alpha - value_t) +
-                    sgn * activation_function.get_value(value_t) - epsilon_final;
-                val_next = sgn * activation_function.first_derivative(value_t) * (alpha[i + 1][j] - value_t) +
-                    sgn * activation_function.get_value(value_t) - epsilon_final;
-                value.m = (val_next - val) / (alpha[i + 1][j] - value.alpha);
-                value.b = (val - value.m * value.alpha);
+                value.beta = sgn * activation_function.first_derivative(t[i][j]) * (value.alpha - t[i][j]) +
+                    sgn * activation_function.get_value(t[i][j]) - epsilon_final;
+                value.m = sgn * activation_function.first_derivative(t[i][j]);
+                value.b = value.beta - value.m * value.alpha;
                 result.push_back(value);
             }
-            value.m = value.b = 0.0;
-            value.alpha = alpha[N][j];
-            result.push_back(value);
+
+            result.emplace_back(
+                0,
+                0,
+                alpha[N][j],
+                sgn * activation_function.first_derivative(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) +
+                    sgn * activation_function.get_value(t[N - 1][j]) - epsilon_final);
             if (j == details::max_iterations<T>()) {
                 throw std::runtime_error("Failed to converge in pivot_search!");
             }
@@ -182,34 +193,21 @@ double calculate_error_pct(const details::Function<T>& activation_function,
                            const double offset,
                            bool negative,
                            int samples = 500) {
-    double sgn = negative ? -1 : 1;
     double delta = (upper_bound - lower_bound) / (samples + 1);
     if (delta < 0) {
         return 0.0;
     }
 
-    std::vector<double> m(segments.size() - 1);
-    std::vector<double> b(segments.size() - 1);
-    std::vector<double> alpha(segments.size());
-    for (size_t i = 0; i < segments.size() - 1; i++) {
-        m[i] = segments[i].m;
-        b[i] = segments[i].b;
-        alpha[i] = segments[i].alpha;
-    }
-    alpha[segments.size() - 1] = segments[segments.size() - 1].alpha;
-
-    std::vector<double> in(samples);
-    for (int i = 0; i < samples; i++)
-        in[i] = lower_bound + i * delta;
-    std::vector<double> out(samples);
-    runtime::reference::pwl<double, double>(in.data(), out.data(), in.size(), m.data(), b.data(), alpha.data(), m.size());
-    double max_err = std::fabs(activation_function.get_value(lower_bound) - sgn * out[0]);
+    double min_val = activation_function.get_value(lower_bound);
+    double max_val = activation_function.get_value(lower_bound);
     for (int i = 0; i < samples; i++) {
-        double err = std::fabs(activation_function.get_value(lower_bound + i * delta) - sgn * out[i]);
-        if (err > max_err)
-            max_err = err;
+        double arg = lower_bound + i * delta;
+        double val = activation_function.get_value(arg);
+        if (val > max_val) max_val = val;
+        if (val < min_val) min_val = val;
     }
 
+    double max_err = (100.0 * std::fabs(offset) / (max_val - min_val));
     return max_err;
 }
 
@@ -303,93 +301,168 @@ std::vector<details::Pwl> pwl_search(const details::Function<T>& activation_func
     return pwl;
 }
 
-template<typename T>
-std::vector<details::Pwl> pwl_search(const std::shared_ptr<T>& node,
-                                     double allowed_err_pct,
-                                     double& err_pct) {
-    return pwl_search<T>(details::Function<T>(),
-                         details::lower_bound<T>(),
-                         details::upper_bound<T>(),
-                         allowed_err_pct,
-                         err_pct);
-}
-
 template <typename T>
-bool get_exponent(const std::shared_ptr<ngraph::opset8::Constant>& constant, double& exponent) {
+bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
     using A = typename ov::element_type_traits<T::value>::value_type;
-    const auto& exponents = constant->get_vector<A>();
-    if (exponents.empty() || exponents.size() > 1) {
-        throw std::runtime_error("The size of exponents is more than 1.");
+    const auto& values = constant->get_vector<A>();
+    if (values.empty() || values.size() > 1) {
+        throw std::runtime_error("The size of values is more than 1.");
     }
 
-    exponent = exponents[0];
+    value = values[0];
     return true;
 }
 
 template<typename T>
-bool get_exponent(const std::tuple<T>& args,
-                  const std::shared_ptr<ngraph::opset8::Constant>& constant, double& exponent) {
+bool get_constant_value(const std::tuple<T>& args,
+                  const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
     return constant->get_element_type() == T::value &&
-           get_exponent<T>(constant, exponent);
+           get_constant_value<T>(constant, value);
 }
 
 template<typename T, typename ...Types>
-bool get_exponent(const std::tuple<T, Types...>&,
-                  const std::shared_ptr<ngraph::opset8::Constant>& constant, double& exponent) {
+bool get_constant_value(const std::tuple<T, Types...>&,
+                  const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
     return constant->get_element_type() == T::value &&
-           get_exponent<T>(constant, exponent) ||
-           get_exponent<Types...>(std::tuple<Types...>(), constant, exponent);
-}
-
-template<>
-std::vector<details::Pwl> pwl_search<ngraph::opset8::Power>(const std::shared_ptr<ngraph::opset8::Power>& node,
-                                                            double allowed_err_pct,
-                                                            double& err_pct) {
-    auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node->get_input_node_shared_ptr(1));
-    double exponent = 0;
-    if (!get_exponent(std::tuple<std::integral_constant<ov::element::Type_t, ov::element::i32>,
-                                 std::integral_constant<ov::element::Type_t, ov::element::i64>,
-                                 std::integral_constant<ov::element::Type_t, ov::element::u32>,
-                                 std::integral_constant<ov::element::Type_t, ov::element::u64>,
-                                 std::integral_constant<ov::element::Type_t, ov::element::f16>,
-                                 std::integral_constant<ov::element::Type_t, ov::element::f32>,
-                                 std::integral_constant<ov::element::Type_t, ov::element::f64>>(),
-                      constant,
-                      exponent)) {
-        throw std::runtime_error("The unsupported type of element.");
-    }
-
-    if (details::are_floats_equal(exponent, 1.0)) {
-        std::vector<details::Pwl> pwl;
-        pwl.emplace_back(1., 0., static_cast<double>(std::numeric_limits<int32_t>::min()));
-        pwl.emplace_back(0., 0., static_cast<double>(std::numeric_limits<int32_t>::max()));
-        return pwl;
-    }
-
-    return pwl_search<ngraph::opset8::Power>(details::Function<ngraph::opset8::Power>(exponent, 1, 0),
-                                             details::lower_bound<ngraph::opset8::Power>(exponent),
-                                             details::upper_bound<ngraph::opset8::Power>(),
-                                             allowed_err_pct,
-                                             err_pct);
-}
-
-template<>
-std::vector<details::Pwl> pwl_search<ngraph::op::PowerIE>(const std::shared_ptr<ngraph::op::PowerIE>& node,
-                                                          double allowed_err_pct,
-                                                          double& err_pct) {
-    auto power = std::dynamic_pointer_cast<ngraph::op::PowerIE>(node);
-    return pwl_search<ngraph::opset8::Power>(details::Function<ngraph::opset8::Power>(power->power, power->scale, power->shift),
-                                             details::lower_bound<ngraph::opset8::Power>(power->power),
-                                             details::upper_bound<ngraph::opset8::Power>(),
-                                             allowed_err_pct,
-                                             err_pct);
+           get_constant_value<T>(constant, value) ||
+           get_constant_value<Types...>(std::tuple<Types...>(), constant, value);
 }
 
 template<typename T>
-bool transpose_to_pwl(const std::shared_ptr<T>& node, double allowed_err_pct) {
+std::pair<double, double> get_bounds(const std::shared_ptr<ngraph::Node>& fake_quantize) {
+    auto fq = std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(fake_quantize);
+    auto lower_bound = details::lower_bound<T>();
+    auto upper_bound = details::upper_bound<T>();
+    if (fq) {
+        auto input_low = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(1));
+        auto input_high = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(2));
+        if (!get_constant_value(supported_types, input_low, lower_bound) ||
+            !get_constant_value(supported_types, input_high, upper_bound)) {
+            throw std::runtime_error("The unsupported type of element.");
+        }
+
+        auto abs_max = std::max(std::fabs(std::min(lower_bound, upper_bound) * 1.25),
+                                std::fabs(std::max(lower_bound, upper_bound) * 1.25));
+        lower_bound = abs_max < std::fabs(details::lower_bound<T>()) ? -abs_max : details::lower_bound<T>();
+        upper_bound = abs_max < std::fabs(details::upper_bound<T>()) ? abs_max : details::upper_bound<T>();
+    }
+
+    return std::make_pair(lower_bound, upper_bound);
+}
+
+template<>
+std::pair<double, double> get_bounds<ngraph::opset8::Log>(const std::shared_ptr<ngraph::Node>& fake_quantize) {
+    return std::make_pair(details::lower_bound<ngraph::opset8::Log>(), details::upper_bound<ngraph::opset8::Log>());
+}
+
+template<typename T>
+bool pwl_search(const std::shared_ptr<T>& node,
+                const std::shared_ptr<ngraph::Node>& fake_quantize,
+                double allowed_err_pct,
+                double& err_pct,
+                std::vector<details::Pwl>& segments) {
+    double lower_bound = 0;
+    double upper_bound = 0;
+    std::tie(lower_bound, upper_bound) = get_bounds<T>(fake_quantize);
+    segments = pwl_search<T>(details::Function<T>(),
+                             lower_bound,
+                             upper_bound,
+                             allowed_err_pct,
+                             err_pct);
+    if (segments.size() <= 2) {
+        return false;
+    }
+
+    segments.insert(segments.begin(), {0,
+        std::max((segments.front().b > 0 ? 1. : -1.) * segments.front().beta, details::Function<T>::min_value()),
+        -std::numeric_limits<double>::infinity()});
+    segments.back().b =
+        std::min((segments.at(segments.size() - 2).b > 0 ? 1. : -1.) * segments.back().beta, details::Function<T>::max_value());
+    segments.push_back({0, 0, std::numeric_limits<double>::infinity()});
+    return true;
+}
+
+static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
+                             double exponent,
+                             double scale,
+                             double offset,
+                             const std::shared_ptr<ngraph::Node>& fake_quantize,
+                             double allowed_err_pct,
+                             double& err_pct,
+                             std::vector<details::Pwl>& segments) {
+    auto fq = std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(fake_quantize);
+    auto lower_bound = details::lower_bound<ngraph::opset8::Power>(exponent);
+    auto upper_bound = details::upper_bound<ngraph::opset8::Power>();
+    if (fq) {
+        auto output_low = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(1));
+        auto output_high = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(2));
+        if (!get_constant_value(supported_types, output_low, lower_bound) ||
+            !get_constant_value(supported_types, output_high, upper_bound)) {
+            throw std::runtime_error("The unsupported type of element.");
+        }
+    }
+
+    if (details::are_floats_equal(exponent, 1.0)) {
+        // An affine primitive will be used in this case.
+        return false;
+    } else if (details::are_floats_equal(exponent, 0.0)) {
+        segments.emplace_back(0, 1, -std::numeric_limits<double>::infinity());
+        segments.emplace_back(0, 1, std::numeric_limits<double>::infinity());
+        segments.emplace_back(0, 0, std::numeric_limits<double>::infinity());
+        return true;
+    }
+
+    segments = pwl_search<ngraph::opset8::Power>(details::Function<ngraph::opset8::Power>(exponent, scale, offset),
+                                                 lower_bound,
+                                                 upper_bound,
+                                                 allowed_err_pct > 0.015 ? 0.015 : allowed_err_pct,
+                                                 err_pct);
+    if (segments.size() <= 2) {
+        return false;
+    }
+
+    segments.insert(segments.begin(), {
+        0,
+        segments.front().beta,
+        details::are_floats_equal(fmod(exponent, 1.0), 0.0f) ? -std::numeric_limits<double>::infinity() : 0});
+    segments.back().b = segments.back().beta;
+    segments.push_back({0, 0, std::numeric_limits<double>::infinity()});
+    return true;
+}
+
+template<>
+bool pwl_search<ngraph::opset8::Power>(const std::shared_ptr<ngraph::opset8::Power>& node,
+                                       const std::shared_ptr<ngraph::Node>& fake_quantize,
+                                       double allowed_err_pct,
+                                       double& err_pct,
+                                       std::vector<details::Pwl>& segments) {
+    auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node->get_input_node_shared_ptr(1));
+    double exponent = 0;
+    if (!get_constant_value(supported_types, constant, exponent)) {
+        throw std::runtime_error("The unsupported type of element.");
+    }
+
+    return pwl_search_power(node, exponent, 1, 0, fake_quantize, allowed_err_pct, err_pct, segments);
+}
+
+template<>
+bool pwl_search<ngraph::op::PowerIE>(const std::shared_ptr<ngraph::op::PowerIE>& node,
+                                     const std::shared_ptr<ngraph::Node>& fake_quantize,
+                                     double allowed_err_pct,
+                                     double& err_pct,
+                                     std::vector<details::Pwl>& segments) {
+    auto power = std::dynamic_pointer_cast<ngraph::op::PowerIE>(node);
+    return pwl_search_power(node, power->power, power->scale, power->shift, fake_quantize, allowed_err_pct, err_pct, segments);
+}
+
+template<typename T>
+bool transpose_to_pwl(
+    const std::shared_ptr<ngraph::Node>& fake_quantize,
+    const std::shared_ptr<T>& node,
+    double allowed_err_pct) {
     double err_pct = 0;
-    auto segments = pwl_search<T>(node, allowed_err_pct, err_pct);
-    if (segments.size() < 2) {
+    std::vector<details::Pwl> segments;
+    if (!pwl_search<T>(node, fake_quantize, allowed_err_pct, err_pct, segments)) {
         return false;
     }
 
@@ -405,11 +478,17 @@ bool transpose_to_pwl(const std::shared_ptr<T>& node, double allowed_err_pct) {
 
     auto m_constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::f64,
         ngraph::Shape{segments.size() - 1}, m);
+    m_constant->set_friendly_name("PWL slope");
     auto b_constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::f64,
         ngraph::Shape{segments.size() - 1}, b);
+    b_constant->set_friendly_name("PWL offset");
     auto alpha_constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::f64,
         ngraph::Shape{segments.size()}, alpha);
-    auto pwl = std::make_shared<Pwl>(node->input(0).get_source_output(), m_constant, b_constant, alpha_constant);
+    alpha_constant->set_friendly_name("PWL alpha");
+    auto pwl = std::make_shared<Pwl>(
+        fake_quantize ? fake_quantize : node->input_value(0),
+        m_constant, b_constant, alpha_constant);
+    pwl->set_base_node(node);
     pwl->set_friendly_name(node->get_friendly_name());
     ngraph::copy_runtime_info(node, pwl);
     replace_node(node, pwl);
@@ -418,51 +497,55 @@ bool transpose_to_pwl(const std::shared_ptr<T>& node, double allowed_err_pct) {
 
 template<typename T>
 bool transpose_to_pwl(const std::tuple<T>& args,
+                      const std::shared_ptr<ngraph::Node>& fake_quantize,
                       const std::shared_ptr<ngraph::Node>& node,
                       double allowed_err_pct);
 
 template<typename T, typename ...Types>
 bool transpose_to_pwl(const std::tuple<T, Types...>& args,
+                      const std::shared_ptr<ngraph::Node>& fake_quantize,
                       const std::shared_ptr<ngraph::Node>& node,
                       double allowed_err_pct) {
     auto op = std::dynamic_pointer_cast<T>(node);
     if (op) {
-        return transpose_to_pwl(op, allowed_err_pct);
+        return transpose_to_pwl(fake_quantize, op, allowed_err_pct);
     }
-    return transpose_to_pwl<Types...>(std::tuple<Types...>(), node, allowed_err_pct);
+    return transpose_to_pwl<Types...>(std::tuple<Types...>(), fake_quantize, node, allowed_err_pct);
 }
 
 template<typename T>
 bool transpose_to_pwl(const std::tuple<T>& args,
+                      const std::shared_ptr<ngraph::Node>& fake_quantize,
                       const std::shared_ptr<ngraph::Node>& node,
                       double allowed_err_pct) {
     auto op = std::dynamic_pointer_cast<T>(node);
     if (op) {
-        return transpose_to_pwl(op, allowed_err_pct);
+        return transpose_to_pwl(fake_quantize, op, allowed_err_pct);
     }
     return false;
 }
 
-TransposeToPwl::TransposeToPwl(double allowed_err_pct) {
-    MATCHER_SCOPE(TransposeToPwl);
-    auto sigmoid = ngraph::pattern::wrap_type<ngraph::opset8::Sigmoid>({ ngraph::pattern::any_input() });
-    auto tanh = ngraph::pattern::wrap_type<ngraph::opset8::Tanh>({ ngraph::pattern::any_input() });
-    auto exp = ngraph::pattern::wrap_type<ngraph::opset8::Exp>({ ngraph::pattern::any_input() });
-    auto power = ngraph::pattern::wrap_type<ngraph::opset8::Power>({ ngraph::pattern::any_input(), ngraph::pattern::any_input() });
-    auto powerIE = ngraph::pattern::wrap_type<ngraph::op::PowerIE>({ ngraph::pattern::any_input() });
-    auto log = ngraph::pattern::wrap_type<ngraph::opset8::Log>({ ngraph::pattern::any_input() });
-    auto softsign = ngraph::pattern::wrap_type<SoftSign>({ ngraph::pattern::any_input() });
-    const auto activation_functions =
+static std::shared_ptr<ngraph::pattern::Matcher> create_matcher(ov::graph_rewrite_callback& handler_callback,
+                                                           double allowed_err_pct,
+                                                           const std::string& matcher_name,
+                                                           bool fq) {
+    auto activation_input = ngraph::pattern::any_input();
+    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({ngraph::pattern::any_input(), ngraph::pattern::any_input(),
+        ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()});
+    if (fq)
+        activation_input = fake_quantize;
+    auto sigmoid = ngraph::pattern::wrap_type<ngraph::opset8::Sigmoid>({activation_input});
+    auto tanh = ngraph::pattern::wrap_type<ngraph::opset8::Tanh>({activation_input});
+    auto exp = ngraph::pattern::wrap_type<ngraph::opset8::Exp>({activation_input});
+    auto power = ngraph::pattern::wrap_type<ngraph::opset8::Power>({activation_input,
+        ngraph::pattern::any_input(), ngraph::pattern::any_input() });
+    auto powerIE = ngraph::pattern::wrap_type<ngraph::op::PowerIE>({activation_input});
+    auto log = ngraph::pattern::wrap_type<ngraph::opset8::Log>({activation_input});
+    auto softsign = ngraph::pattern::wrap_type<SoftSign>({activation_input});
+    auto activation_function =
         std::make_shared<ngraph::pattern::op::Or>(ov::OutputVector{ sigmoid, tanh, exp, power, powerIE, log, softsign });
 
-    auto callback = [sigmoid,
-                     tanh,
-                     exp,
-                     power,
-                     powerIE,
-                     log,
-                     softsign,
-                     allowed_err_pct](ngraph::pattern::Matcher & m) -> bool {
+    auto callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto iter = pattern_to_output.find(sigmoid);
         if (iter == pattern_to_output.end() &&
@@ -474,6 +557,7 @@ TransposeToPwl::TransposeToPwl(double allowed_err_pct) {
             (iter = pattern_to_output.find(softsign)) == pattern_to_output.end()) {
             return false;
         }
+        auto fake_quantize_iter = pattern_to_output.find(fake_quantize);
         return transpose_to_pwl(
             std::tuple<
                 ngraph::opset8::Sigmoid,
@@ -483,11 +567,27 @@ TransposeToPwl::TransposeToPwl(double allowed_err_pct) {
                 ngraph::op::PowerIE,
                 ngraph::opset8::Log,
                 SoftSign>(),
+            fake_quantize_iter != pattern_to_output.end() ?
+                fake_quantize_iter->second.get_node_shared_ptr() : std::shared_ptr<ngraph::Node>(),
             iter->second.get_node_shared_ptr(),
             allowed_err_pct);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(activation_functions, matcher_name);
+    handler_callback = callback;
+    return std::make_shared<ngraph::pattern::Matcher>(activation_function, matcher_name);
+}
+
+PWLApproximation::PWLApproximation(double allowed_err_pct) {
+    MATCHER_SCOPE(PWLApproximation);
+    ov::graph_rewrite_callback callback;
+    auto m = create_matcher(callback, allowed_err_pct, matcher_name, false);
+    register_matcher(m, callback);
+}
+
+PWLApproximationWithFq::PWLApproximationWithFq(double allowed_err_pct) {
+    MATCHER_SCOPE(PWLApproximationWithFq);
+    ov::graph_rewrite_callback callback;
+    auto m = create_matcher(callback, allowed_err_pct, matcher_name, true);
     register_matcher(m, callback);
 }
 

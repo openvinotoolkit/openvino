@@ -37,6 +37,7 @@
 #include "gna_groups.hpp"
 #include "backend/gna_limitations.hpp"
 #include "descriptions/gna_desc.hpp"
+#include "ops/pwl.hpp"
 
 using namespace InferenceEngine;
 using namespace std;
@@ -671,6 +672,144 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
             64);
     } else {
         gnamem->readonly().push_value(layer, ptr_biases, 0.0f, out_channels, 64);
+    }
+}
+
+void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
+    auto& power = dynamic_cast<PowerLayer&>(*layer.get());
+    if (power.power < 0.0f || power.power > 2.8f) {
+        IE_THROW() << "[GNA plugin] unsupported power factor, expected be in <0, 2.8> range but was " << power.power;
+    }
+
+    auto input = layer->insData[0].lock();
+
+    auto outputs = *layer->outData.begin();
+    auto reshaped_dims = Get2DReshapedData(input, GNALimitations::GetMinBatchToFitInBuffer(input), 8)->getDims();
+    const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+        GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
+    uint32_t num_rows_in = reshaped_dims[1];
+    uint32_t num_columns_in = reshaped_dims[0];
+    uint32_t num_rows_out = num_rows_in;
+    uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
+
+    size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
+        * outputs->getPrecision().size();
+
+    size_t num_data_bytes_in = InferenceEngine::details::product(begin(input->getDims()), end(input->getDims()))
+        * input->getPrecision().size();
+
+    if (power.power == 1.0f) {
+        void* ptr_inputs = nullptr;
+        void* ptr_outputs = nullptr;
+        void* ptr_weights = nullptr;
+        void* ptr_biases = nullptr;
+
+        auto& currentComponent = dnnComponents.addComponent(layer->name, "power");
+
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+        IE_ASSERT(gnaFlags->sw_fp32 ? (quantized == nullptr) : (quantized != nullptr));
+        dnn->InitAffineComponent(currentComponent,
+            num_rows_in + num_padding,
+            num_columns_in,
+            num_rows_out + num_padding,
+            input->getPrecision().size(),
+            outputs->getPrecision().size(),
+            // TODO: only fp32 and Int16 tested
+            quantized == nullptr ? input->getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 2),
+            quantized == nullptr ? input->getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 4),
+            quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+            quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
+            ptr_inputs,
+            ptr_outputs,
+            ptr_weights,
+            ptr_biases,
+            true);
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+        connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+
+        if (gnaFlags->sw_fp32) {
+            IE_ASSERT(quantized == nullptr);
+            gnamem->readonly().push_value(layer, ptr_weights, power.scale, num_rows_out, 64);
+            gnamem->readonly().push_value(layer, ptr_biases, power.offset, num_rows_out, 64);
+        } else {
+            IE_ASSERT(quantized != nullptr);
+            if (!gnaFlags->input_low_precision) {
+                auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.GetScale() * power.scale,
+                    static_cast<float>(INT16_MAX)));
+                auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.GetScale() * power.offset,
+                    static_cast<float>(INT32_MAX)));
+                gnamem->readonly().push_value<int16_t>(layer, ptr_weights, quantizedScale, num_rows_out, 64);
+                gnamem->readonly().push_value<int32_t>(layer, ptr_biases, quantizedOffset, num_rows_out, 64);
+            } else {
+                auto quantizedScale = FLOAT_TO_INT8(std::min(quantized->_weights_quant.GetScale() * power.scale,
+                    static_cast<float>(INT8_MAX)));
+                auto quantizedOffset = FLOAT_TO_INT8(std::min(quantized->_dst_quant.GetScale() * power.offset,
+                    static_cast<float>(INT8_MAX)));
+                gnamem->readonly().push_value<int8_t>(layer, ptr_weights, quantizedScale, num_rows_out, 64);
+                gnamem->readonly().push_value<int8_t>(layer, ptr_biases, quantizedOffset, num_rows_out, 64);
+            }
+        }
+    } else {
+        //use PWL to calculate power
+        std::vector<gna_pwl_segment_t> ptr_pwl_segments;
+
+        auto orientation = kDnnInterleavedOrientation;
+
+        auto activation_type = DnnActivation::fromType(kActPow);
+        activation_type.fqParams.set = false;
+        activation_type.srcFQParams.set = false;
+        activation_type.args.pow.exponent = power.power;
+        activation_type.args.pow.scale = power.scale;
+        activation_type.args.pow.offset = power.offset;
+
+        auto& pwlComponent = dnnComponents.addComponent(layer->name, "power");
+
+        gna_pwl_segment_t* ptr_pwl_segments_target = nullptr;
+
+        float output_pwl_scale_factor = getScaleFactor(layer, QuantizedDataType::output);
+        float input_pwl_scale_factor = getScaleFactor(layer, QuantizedDataType::input);
+
+        if (!gnaFlags->sw_fp32 && gnaFlags->uniformPwlDesign) {
+            uint32_t num_segments = POW_NUM_SEGMENTS;
+            if (activation_type.args.pow.exponent == 0.0f) {
+                num_segments = 3;
+            }
+            ptr_pwl_segments.resize(num_segments);
+
+            PwlDesign(activation_type,
+                &*ptr_pwl_segments.begin(),
+                static_cast<uint32_t>(ptr_pwl_segments.size()),
+                input_pwl_scale_factor,
+                output_pwl_scale_factor,
+                gnaFlags->input_low_precision);
+        }
+
+        ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
+
+        void* ptr_pwl_input = nullptr;
+        void* ptr_pwl_outputs = nullptr;
+        dnn->InitPiecewiseLinearComponent(pwlComponent,
+            activation_type,
+            orientation,
+            num_rows_in + num_padding,
+            num_columns_in,
+            input->getPrecision().size(),
+            outputs->getPrecision().size(),
+            ptr_pwl_segments.size(),
+            output_pwl_scale_factor,
+            output_pwl_scale_factor,
+            ptr_pwl_input,
+            ptr_pwl_outputs,
+            ptr_pwl_segments_target);
+        connectOutput(layer, ptr_pwl_outputs, num_data_bytes_out);
+        connectInput(layer, ptr_pwl_input, num_data_bytes_in, 0, 0);
+
+        if (ptr_pwl_segments_target != nullptr) {
+            gnamem->readonly().push_local_ptr(layer, ptr_pwl_segments_target,
+                &ptr_pwl_segments.front(),
+                ptr_pwl_segments.size() * sizeof(gna_pwl_segment_t),
+                64);
+        }
     }
 }
 
@@ -1739,16 +1878,21 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t num_data_bytes_in = num_columns * num_rows * inputs->getPrecision().size();
 
     static InferenceEngine::details::caseless_unordered_map<std::string, DnnActivationType> supportedActivations = {
+        {"sigmoid", kActSigmoid},
+        {"tanh", kActTanh},
         {"relu", kActRelu},
         {"leakyrelu", kActLeakyRelu},
         {"clamp", kActKaldiLstmClipping},
+        {"exp", kActExp},
+        {"log", kActLog},
         {"sign", kActSign},
         {"abs", kActAbs},
         {"neglog", kActNegLog},
         {"neghalflog", kActNegHalfLog},
         {"identity", kActIdentity},
+        {"softsign", kActSoftSign},
         {"fakequantize", kActFakeQuantize},
-        {"Pwl", kActPwl}
+        {"pwl", kActPwl}
     };
 
     auto it = supportedActivations.find(type);
@@ -1809,10 +1953,13 @@ case name:\
     actName = #name;\
     break
     switch (activation_type) {
+        GET_ACTIVATION_NAME(kActSigmoid);
+        GET_ACTIVATION_NAME(kActTanh);
         GET_ACTIVATION_NAME(kActRelu);
         GET_ACTIVATION_NAME(kActLeakyRelu);
         GET_ACTIVATION_NAME(kActKaldiLstmClipping);
         GET_ACTIVATION_NAME(kActIdentity);
+        GET_ACTIVATION_NAME(kActSoftSign);
         GET_ACTIVATION_NAME(kActCustom);
         GET_ACTIVATION_NAME(kActSign);
         GET_ACTIVATION_NAME(kActAbs);
@@ -1830,12 +1977,18 @@ case name:\
         // now that scale factors are known, create PWL approximations to activation functions
         if (gnaFlags->uniformPwlDesign) {
             switch (activation_type) {
+            case kActSigmoid:ptr_pwl_segments.resize(SIGMOID_NUM_SEGMENTS);
+                break;
+            case kActTanh:ptr_pwl_segments.resize(TANH_NUM_SEGMENTS);
+                break;
             case kActRelu:ptr_pwl_segments.resize(RELU_NUM_SEGMENTS);
                 break;
             case kActLeakyRelu:ptr_pwl_segments.resize(RELU_NUM_SEGMENTS);
                 break;
             case kActKaldiLstmClipping:
             case kActIdentity:ptr_pwl_segments.resize(IDENTITY_NUM_SEGMENTS);
+                break;
+            case kActSoftSign:ptr_pwl_segments.resize(SOFTSIGN_NUM_SEGMENTS);
                 break;
             case kActCustom:
             default:
@@ -1978,17 +2131,23 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Slice"}, SKIP},
         {{"link"}, SKIP},
         {{"clamp",
+          "sigmoid",
           "relu",
+          "tanh",
           "identity",
+          "softsign",
+          "exp",
+          "log",
           "sign",
           "abs",
           "neglog",
           "neghalflog",
-          "Pwl"},
+          "pwl"},
           CREATE(PWLPrimitive)},
         {{"Convolution"}, CREATE(ConvolutionPrimitive)},
         {{"Permute"}, CREATE(PermutePrimitive)},  // permute of certain form (2D transpose) can be assimilated in followed FC layer
         {{"Pooling"}, CREATE(PoolingPrimitive)},
+        {{"Power"} , CREATE(PowerPrimitive)},
         {{"Concat"}, CREATE(ConcatPrimitive)},
         {{"Reshape"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
         {{"Squeeze"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
