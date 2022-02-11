@@ -73,7 +73,7 @@ const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY,
-                         ::testing::Combine(::testing::Values("AUTO"),
+                         ::testing::Combine(::testing::Values("AUTO:CPU"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
 
 } // namespace
