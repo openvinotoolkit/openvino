@@ -75,13 +75,9 @@ def get_simplified_ie_version(env=dict(), version=None):
     return simplify_version(version)
 
 
-def extract_version_hash(full_version: str):
-    """
-    extracts 11 character hash from the full version string
-    :param full_version:
-    :return:
-    """
-    res = re.findall(r'[-_]{1}([a-z0-9]{7,})', full_version)
-    if res is not None:
-        res = res[0][:7]
-    return res
+def extract_hash_from_version(full_version: str):
+    res = re.findall(r'[-_]([a-f0-9]{7,40})', full_version)
+    if len(res) > 0:
+        return res[0]
+    else:
+        return None

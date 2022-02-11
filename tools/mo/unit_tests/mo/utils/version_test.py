@@ -7,7 +7,7 @@ from unittest.mock import mock_open
 from unittest.mock import patch
 
 from openvino.tools.mo.utils.version import get_version, extract_release_version, get_simplified_ie_version, \
-    get_simplified_mo_version, extract_version_hash
+    get_simplified_mo_version, extract_hash_from_version
 
 
 class TestingVersion(unittest.TestCase):
@@ -66,27 +66,27 @@ class TestingVersion(unittest.TestCase):
         self.assertEqual(get_simplified_ie_version(version="custom_my/branch/3_4c8eae"), "custom")
 
     def test_extracting_version_hash_full_with_build_number(self):
-        self.assertEqual(extract_version_hash(full_version="2021.1.0-1028-55e4d5673a8"), "55e4d56")
+        self.assertEqual(extract_hash_from_version(full_version="2021.1.0-1028-55e4d5673a8"), "55e4d5673a8")
 
     def test_extracting_version_hash_full_with_build_number_dirty(self):
-        self.assertEqual(extract_version_hash(full_version="2021.1.0-1028-55e4d5673a8-dirty"), "55e4d56")
+        self.assertEqual(extract_hash_from_version(full_version="2021.1.0-1028-55e4d5673a8-dirty"), "55e4d5673a8")
 
     def test_extracting_version_hash_full_with_build_number_private(self):
-        self.assertEqual(extract_version_hash(full_version="2021.1.0-1028-55e4d5673a8-private"), "55e4d56")
+        self.assertEqual(extract_hash_from_version(full_version="2021.1.0-1028-55e4d5673a8-private"), "55e4d5673a8")
 
     def test_extracting_version_hash_custom_master(self):
-        self.assertEqual(extract_version_hash(full_version="custom_master_55e4d5673a833abab638ee9837bc87a0b7c3a043"),
-                         "55e4d56")
+        self.assertEqual(extract_hash_from_version(full_version="custom_master_55e4d5673a833abab638ee9837bc87a0b7c3a043"),
+                         "55e4d5673a833abab638ee9837bc87a0b7c3a043")
 
     def test_extracting_version_hash_mo_format(self):
-        self.assertEqual(extract_version_hash(full_version="2022.1.custom_master_55e4d5673a833abab638ee9837bc87a0b7c3a043"),
-                         "55e4d56")
+        self.assertEqual(extract_hash_from_version(full_version="2022.1.custom_master_55e4d5673a833abab638ee9837bc87a0b7c3a043"),
+                         "55e4d5673a833abab638ee9837bc87a0b7c3a043")
 
     def test_negative_extracting_version_hash(self):
-        self.assertEqual(extract_version_hash(full_version="2022.1.custom_master"),
+        self.assertEqual(extract_hash_from_version(full_version="2022.1.custom_master"),
                          None)
 
     # format from the current nightly wheel
-    def test_negative_extracting_version_hash(self):
-        self.assertEqual(extract_version_hash(full_version="2022.1.0-6311-a90bb1f"),
+    def test_extracting_version_hash_from_old_format(self):
+        self.assertEqual(extract_hash_from_version(full_version="2022.1.0-6311-a90bb1f"),
                          "a90bb1f")
