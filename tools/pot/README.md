@@ -30,8 +30,7 @@ and run on CPU with the OpenVINO&trade;.
 Figure below shows the optimization workflow:
 ![](docs/images/workflow_simple.png) 
 
-Post-training Optimization Tool provides the following key
-features:
+### Features
 
 * Two post-training 8-bit quantization algorithms: fast [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) and precise [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md).
 * Compression for different hardware targets such as CPU and GPU.
