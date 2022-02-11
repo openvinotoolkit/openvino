@@ -8,8 +8,6 @@ import sys
 
 from openvino.tools.mo.utils.utils import get_mo_root_dir
 
-mo_major_and_minor_version = 2022.1
-
 
 def get_version_file_path():
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, "version.txt")
@@ -24,7 +22,7 @@ def generate_mo_version():
         mo_dir = get_mo_root_dir()
         branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=mo_dir).strip().decode()
         commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=mo_dir).strip().decode()
-        return "{}.custom_{}_{}".format(mo_major_and_minor_version, branch_name, commit_hash)
+        return "custom_{}_{}".format(branch_name, commit_hash)
     except Exception as e:
         return "unknown version"
 
@@ -75,3 +73,11 @@ def get_simplified_ie_version(env=dict(), version=None):
     if m and len(m.groups()) == 3:
         return simplify_version(m.group(3))
     return simplify_version(version)
+
+
+def extract_hash_from_version(full_version: str):
+    res = re.findall(r'[-_]([a-f0-9]{7,40})', full_version)
+    if len(res) > 0:
+        return res[0]
+    else:
+        return None
