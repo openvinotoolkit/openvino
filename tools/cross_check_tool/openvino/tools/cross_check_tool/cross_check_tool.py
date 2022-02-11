@@ -17,10 +17,10 @@ except Exception as e:
     print(f"The following error happened while importing OpenVINO Python API module:\n[ {exception_type} ] {e}")
     sys.exit(1)
 
-from openvino.tools.cross_check_tool.utils import get_config_dictionary, get_layers_list, print_output_layers, \
+from openvino.tools.cross_check_tool.utils import get_config_dictionary, get_ops_list, print_output_ops, \
     input_processing, accuracy_metrics, validate_args, build_parser, set_logger, find_out_cct_mode, \
     print_all_over_the_net_metrics, update_global_accuracy_matrics, blob_counters, performance_metrics, \
-    dump_output_file, load_dump, error_handling, print_input_layers, set_verbosity, perf_counts_to_dump, load_profiling_info
+    dump_output_file, load_dump, error_handling, print_inputs, set_verbosity, perf_counts_to_dump, load_profiling_info
 
 
 ###
@@ -30,7 +30,7 @@ from openvino.tools.cross_check_tool.utils import get_config_dictionary, get_lay
 
 @error_handling('plugin of \'{device}\' device config \'{config}\' loading')
 def set_plugin_config(core: Core, device: str, config: str = None):
-    core.set_config(get_config_dictionary(config_file=config), device_name=device)
+    core.set_property(device, get_config_dictionary(config_file=config))
 
 
 @error_handling('\'{cpu_ext}\' cpu extensions loading')
@@ -80,7 +80,7 @@ def get_model_copy_with_output(model: str, output: tuple, core: Core):
     return model_copy, new_output
 
 
-@error_handling('getting model layers info')
+@error_handling('getting model operations info')
 def get_model_info(model: Model):
     return model.get_ordered_ops(), model.inputs, model.outputs
 
@@ -98,20 +98,20 @@ def check_inputs_and_default_outputs_are_equal(model, ref_model):
             raise Exception("Models have different outputs! Cannot cross check!")
 
 
-def get_layers_intersection(layers, ref_layers):
-    layers_map = {node.friendly_name: node for node in layers}
-    operation_names = set(layers_map.keys())
-    ref_operation_names = set(node.friendly_name for node in ref_layers)
+def get_ops_intersection(ops, ref_ops):
+    ops_map = {node.friendly_name: node for node in ops}
+    operation_names = set(ops_map.keys())
+    ref_operation_names = set(node.friendly_name for node in ref_ops)
     intersection_names = operation_names.intersection(ref_operation_names)
-    return [layers_map[intersection_name] for intersection_name in intersection_names]
+    return [ops_map[intersection_name] for intersection_name in intersection_names]
 
 
-def get_layers_union(layers, ref_layers):
-    layers_map = {}
-    for layer, ref_layer in zip(layers, ref_layers):
-        layers_map.update({layer.friendly_name: layer})
-        layers_map.update({ref_layer.friendly_name: ref_layer})
-    return layers_map.values()
+def get_ops_union(ops, ref_ops):
+    ops_map = {}
+    for op, ref_op in zip(ops, ref_ops):
+        ops_map.update({op.friendly_name: op})
+        ops_map.update({ref_op.friendly_name: ref_op})
+    return ops_map.values()
 
 ###
 #   INFER
@@ -141,8 +141,8 @@ def infer(model: Model, core: Core, device: str, inputs: Union[list, dict], outp
         return result, prof_info
 
 
-@error_handling('getting inference results for outputs: \'{layers}\'')
-def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out_layers: list, inputs: list,
+@error_handling('computing overall performance')
+def overall_accuracy_check(model: str, ref_model: str, out_ops: list, ref_out_ops: list, inputs: list,
                            ref_inputs: list, core: Core, device: str, ref_core: Core, ref_device: str, layers: str,
                            num_of_iterations: int):
     global_times, ref_global_times = [], []
@@ -163,27 +163,27 @@ def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out
 def one_ir_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     model = get_model(model_path=args.model, core=core)
-    model_layers, model_inputs, model_outputs = get_model_info(model)
+    model_ops, model_inputs, model_outputs = get_model_info(model)
     log.info(f'{args.device} vs {args.reference_device}')
     log.info(f'The same IR on both devices: {args.model}')
-    out_layers = get_layers_list(model_layers, model_outputs, args.layers)
-    print_input_layers(model_inputs)
-    print_output_layers(out_layers)
+    out_ops = get_ops_list(model_ops, model_outputs, args.layers)
+    print_inputs(model_inputs)
+    print_output_ops(out_ops)
     ref_core = get_plugin(args.reference_device, args.l, args.reference_config)
     global_accuracy = []
     inputs = input_processing(model_path=args.model, model_inputs=model_inputs, input_file=args.input)
     global_times, ref_global_times = overall_accuracy_check(model=args.model, ref_model=args.model,
-                                                            out_layers=out_layers, ref_out_layers=out_layers,
+                                                            out_ops=out_ops, ref_out_ops=out_ops,
                                                             inputs=inputs, ref_inputs=inputs, core=core,
                                                             device=args.device, ref_core=ref_core,
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
-    for out_layer in out_layers:
-        log.info(f'Layer {out_layer.friendly_name} statistics')
-        for i in range(out_layer.get_output_size()):
-            if out_layer.get_output_size() > 1:
+    for op in out_ops:
+        log.info(f'Layer {op.friendly_name} statistics')
+        for i in range(op.get_output_size()):
+            if op.get_output_size() > 1:
                 log.info(f'Port {i}: ')
-            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(out_layer.friendly_name, i), core=core)
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
             out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
             ref_out_blob, ref_pc = infer(model=model_copy, core=ref_core, device=args.reference_device, inputs=inputs, output=new_output)
             a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
@@ -198,43 +198,43 @@ def two_ir_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     ref_core = get_plugin(args.reference_device, args.l, args.reference_config)
     model = get_model(model_path=args.model, core=core)
-    model_layers, model_inputs, model_outputs = get_model_info(model)
+    model_ops, model_inputs, model_outputs = get_model_info(model)
     ref_model = get_model(model_path=args.reference_model, core=ref_core)
-    ref_model_layers, _, _, = get_model_info(ref_model)
+    ref_model_ops, _, _ = get_model_info(ref_model)
     check_inputs_and_default_outputs_are_equal(model, ref_model)
     log.info(f'{args.device} vs {args.reference_device}')
     log.info(f'IR for {args.device} : {args.model}')
     log.info(f'IR for {args.reference_device} : {args.reference_model}')
     if args.reference_layers:
-        out_layers = get_layers_list(model_layers, model_outputs, args.layers)
-        ref_out_layers = get_layers_list(ref_model_layers, model_outputs, args.reference_layers)
-        if len(out_layers) != len(ref_out_layers):
+        out_ops = get_ops_list(model_ops, model_outputs, args.layers)
+        ref_out_ops = get_ops_list(ref_model_ops, model_outputs, args.reference_layers)
+        if len(out_ops) != len(ref_out_ops):
             raise Exception("Number of layers to compare against should be equal!")
     else:
-        ref_out_layers = out_layers = get_layers_list(get_layers_intersection(model_layers, ref_model_layers), model_outputs, args.layers)
-    print_input_layers(model_inputs)
-    print_output_layers(get_layers_union(out_layers, ref_out_layers))
+        ref_out_ops = out_ops = get_ops_list(get_ops_intersection(model_ops, ref_model_ops), model_outputs, args.layers)
+    print_inputs(model_inputs)
+    print_output_ops(get_ops_union(out_ops, ref_out_ops))
     inputs = input_processing(model_path=args.model, model_inputs=model_inputs, input_file=args.input)
     global_accuracy = []
     global_times, ref_global_times = overall_accuracy_check(model=args.model, ref_model=args.reference_model,
-                                                            out_layers=out_layers, ref_out_layers=out_layers,
+                                                            out_ops=out_ops, ref_out_ops=out_ops,
                                                             inputs=inputs, ref_inputs=inputs, core=core,
                                                             device=args.device, ref_core=ref_core,
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
-    for out_layer, ref_out_layer in zip(out_layers, ref_out_layers):
-        if out_layer.friendly_name == ref_out_layer.friendly_name:
-            log.info(f'Layer {out_layer.friendly_name} statistics')
+    for op, ref_op in zip(out_ops, ref_out_ops):
+        if op.friendly_name == ref_op.friendly_name:
+            log.info(f'Layer {op.friendly_name} statistics')
         else:
-            if out_layer.get_output_size() != ref_out_layer.get_output_size():
-                log.warning(f"Skipping {out_layer.friendly_name} vs {ref_out_layer.frinedly_name} comparison due to different number of outputs!")
+            if op.get_output_size() != ref_op.get_output_size():
+                log.warning(f"Skipping {op.friendly_name} vs {ref_op.frinedly_name} comparison due to different number of outputs!")
                 continue
-            log.info(f'Layer {out_layer.friendly_name} vs {ref_out_layer.friendly_name} statistics')
-        for i in range(out_layer.get_output_size()):
-            if out_layer.get_output_size() > 1:
+            log.info(f'Layer {op.friendly_name} vs {ref_op.friendly_name} statistics')
+        for i in range(op.get_output_size()):
+            if op.get_output_size() > 1:
                 log.info(f'Port {i}: ')
-            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(out_layer.friendly_name, i), core=core)
-            ref_model_copy, ref_new_output = get_model_copy_with_output(model=args.reference_model, output=(ref_out_layer.friendly_name, i), core=ref_core)
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
+            ref_model_copy, ref_new_output = get_model_copy_with_output(model=args.reference_model, output=(ref_op.friendly_name, i), core=ref_core)
             out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
             ref_out_blob, ref_pc = infer(model=ref_model_copy, core=ref_core, device=args.reference_device,
                                                                     inputs=inputs, output=ref_new_output)
@@ -250,19 +250,19 @@ def two_ir_mode(args):
 def dump_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     model = get_model(model_path=args.model, core=core)
-    model_layers, model_inputs, model_outputs = get_model_info(model)
-    out_layers = get_layers_list(model_layers, model_outputs, args.layers)
+    model_ops, model_inputs, model_outputs = get_model_info(model)
+    out_ops = get_ops_list(model_ops, model_outputs, args.layers)
     inputs = input_processing(args.model, model_inputs, args.input)
     dump_dict = defaultdict(list)
-    for out_layer in out_layers:
-        for i in range(out_layer.get_output_size()):
-            if out_layer.get_output_size() > 1:
-                log.info(f'Layer {out_layer.friendly_name}, port {i} processing')
+    for op in out_ops:
+        for i in range(op.get_output_size()):
+            if op.get_output_size() > 1:
+                log.info(f'Layer {op.friendly_name}, port {i} processing')
             else:
-                log.info(f'Layer {out_layer.friendly_name} processing')
-            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(out_layer.friendly_name, i), core=core)
+                log.info(f'Layer {op.friendly_name} processing')
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
             out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
-            dump_dict[out_layer.friendly_name].append(np.array({'blob': out_blob, 'pc': perf_counts_to_dump(pc)}))
+            dump_dict[op.friendly_name].append(np.array({'blob': out_blob, 'pc': perf_counts_to_dump(pc)}))
     dump_dict["device"] = args.device
     dump_output_file(args.model + '_' + args.device + '_dump.npz', dump_dict)
 
@@ -272,25 +272,25 @@ def load_mode(args):
     log.info(f'IR for {args.device} : {args.model}')
     log.info(f'Loading blob from {args.load}')
     model = get_model(model_path=args.model, core=core)
-    model_layers, model_inputs, model_outputs = get_model_info(model)
-    out_layers = get_layers_list(model_layers, model_outputs, args.layers)
-    print_input_layers(model_inputs)
-    print_output_layers(out_layers)
+    model_ops, model_inputs, model_outputs = get_model_info(model)
+    out_ops = get_ops_list(model_ops, model_outputs, args.layers)
+    print_inputs(model_inputs)
+    print_output_ops(out_ops)
     inputs = input_processing(args.model, model_inputs, args.input)
     global_accuracy = []
     loaded = load_dump(args.load)
-    for out_layer in out_layers:
-        if out_layer.friendly_name in loaded:
-            log.info(f'Layer {out_layer.friendly_name} statistics')
+    for op in out_ops:
+        if op.friendly_name in loaded:
+            log.info(f'Layer {op.friendly_name} statistics')
         else:
-            log.info(f'Statistics for layer \'{out_layer.friendly_name}\' was not dumped. Skipping this layer.')
+            log.info(f'Statistics for layer \'{op.friendly_name}\' was not dumped. Skipping this layer.')
             continue
-        for i in range(out_layer.get_output_size()):
-            if out_layer.get_output_size() > 1:
+        for i in range(op.get_output_size()):
+            if op.get_output_size() > 1:
                 log.info(f'Port {i}: ')
-            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(out_layer.friendly_name, i), core=core)
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
             out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
-            ref_out_blob, ref_pc = loaded[out_layer.friendly_name][i]['blob'], load_profiling_info(loaded[out_layer.friendly_name][i]['pc'])
+            ref_out_blob, ref_pc = loaded[op.friendly_name][i]['blob'], load_profiling_info(loaded[op.friendly_name][i]['pc'])
             a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
             performance_metrics(args.device, pc, loaded["device"], ref_pc)
             blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)

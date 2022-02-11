@@ -277,13 +277,13 @@ def find_out_cct_mode(args):
 
 
 #TODO: remove info about shape
-def print_input_layers(inputs: list):
+def print_inputs(inputs: list):
     word = 'inputs' if len(inputs) > 1 else 'input'
     log.info(f"{len(inputs)} {word} detected: {', '.join(f'{input.any_name} {input.shape}' for input in inputs)}")
 
-def print_output_layers(output_layers: list, extra = {}):
-    layers = 'layers' if len(output_layers) > 1 else 'layer'
-    log.info(f"Statistics will be dumped for {len(output_layers)} {layers}: {', '.join(out_layer.friendly_name for out_layer in output_layers)}")
+def print_output_ops(output_ops: list):
+    layers = 'layers' if len(output_ops) > 1 else 'layer'
+    log.info(f"Statistics will be dumped for {len(output_ops)} {layers}: {', '.join(op.friendly_name for op in output_ops)}")
 
 
 ###
@@ -518,22 +518,19 @@ def print_all_over_the_net_metrics(global_accuracy: list, global_times: list = N
 ###
 
 
-#TODO: rename to ops
-def get_layers_list(all_layers: list, outputs: list, layers: str):
+def get_ops_list(all_ops: list, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
-            return [layer for layer in all_layers if layer.get_type_name() not in ['Constant', 'Result']]
+            return [op for op in all_ops if op.get_type_name() not in ['Constant', 'Result', 'Parameter']]
         else:
-            all_layers_map = {node.friendly_name: node for node in all_layers}
-            user_layers = [layer.strip() for layer in layers.split(',')]
+            all_ops_map = {op.friendly_name: op for op in all_ops}
+            user_ops = [layer.strip() for layer in layers.split(',')]
             new_outputs = []
-            for user_layer in user_layers:
-                if user_layer not in all_layers_map:
-                    raise Exception(f"Layer {user_layer} doesn't exist in the model")
+            for user_op in user_ops:
+                if user_op not in all_ops_map:
+                    raise Exception(f"Operation with name `{user_op}` doesn't exist in the model")
                 else:
-                    # TODO: prev op if result?
-                    # TODO: forbid inputs?
-                    new_outputs.append(all_layers_map[user_layer])
+                    new_outputs.append(all_ops_map[user_op])
             return new_outputs
     else:
         return [output.node for output in outputs]
