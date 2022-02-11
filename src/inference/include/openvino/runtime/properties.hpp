@@ -169,7 +169,6 @@ class Property : public util::BaseProperty<T, mutability_> {
             return value;
         }
 
-
         V&& value;
     };
 
