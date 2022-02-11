@@ -11,7 +11,7 @@ using namespace testing;
 class GNA_AmIntelDnn_test : public ::testing::Test {
 protected:
     GNAPluginNS::backend::AMIntelDNN amIntelDnn;
-    Gna2Model  desc = {};
+    Gna2Model desc = {};
 };
 
 
