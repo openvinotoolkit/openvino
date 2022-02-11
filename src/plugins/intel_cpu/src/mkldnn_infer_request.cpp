@@ -154,8 +154,12 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::InferImpl() {
 
     ThrowIfCanceled();
 
-    if (graph->hasDynamicInput())
+    if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
+    } else if (graph->getProperty().isNewApi && graph->getProperty().batchLimit > 0) {
+        const auto batch = _inputs.begin()->second->getTensorDesc().getDims()[0];
+        SetBatch(batch);
+    }
 
     execDataPreprocessing(_inputs);
 
@@ -169,7 +173,7 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::InferImpl() {
         PushStates();
     }
 
-    graph->Infer(this, m_curBatch);
+    graph->Infer(this);
 
     if (memoryStates.size() != 0) {
         PullStates();
@@ -189,7 +193,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MKLDNNPlugin:
 }
 
 static inline void changeEdgePtr(const MKLDNNPlugin::MKLDNNEdgePtr &edge, void *newPtr) {
-    edge->getMemory().GetPrimitivePtr()->set_data_handle(newPtr);
+    edge->getMemoryPtr()->setDataHandle(newPtr);
 }
 
 void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
@@ -198,7 +202,7 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
         auto input = inputNodesMap.find(it.first);
         if (input != inputNodesMap.end()) {
             MKLDNNNodePtr inputNodePtr = input->second;
-            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle() == it.second)
+            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetData() == it.second)
                 continue;
             auto& childEdges = inputNodePtr->getChildEdges();
             // Input cannot be in-place with other primitives
@@ -240,7 +244,7 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
                     if (!e)
                         IE_THROW() << "Node " << child->getName() << " contains empty child edge";
 
-                    if (e->getMemory().GetPrimitive().get_data_handle() == ce->getMemory().GetPrimitive().get_data_handle()) {
+                    if (e->getMemory().GetData() == ce->getMemory().GetData()) {
                         canBeInPlace = false;
                         break;
                     }
@@ -266,11 +270,11 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
         auto output = outputNodesMap.find(it.first);
         if (output != outputNodesMap.end()) {
             auto parentEdge = output->second->getParentEdgeAt(0);
-            if (parentEdge->getMemory().GetPrimitive().get_data_handle() == it.second)
+            if (parentEdge->getMemory().GetData() == it.second)
                 continue;
 
             bool canBeInPlace = true;
-            void* defaultPtr = parentEdge->getMemory().GetPrimitivePtr()->get_data_handle();
+            void* defaultPtr = parentEdge->getMemory().GetData();
             // Cannot be in-place after concat because concat is using different ptrs without offsets
             auto parent = parentEdge->getParent();
             MKLDNNNodePtr previousParent;
@@ -287,7 +291,7 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
                     if (!e)
                         IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
 
-                    if (e->getMemory().GetPrimitivePtr()->get_data_handle() == defaultPtr) {
+                    if (e->getMemory().GetData() == defaultPtr) {
                         parent = e->getParent();
                         break;
                     }
@@ -298,23 +302,6 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
             continue;
         }
         IE_THROW() << "Cannot find input/output blob: " << it.first;
-    }
-}
-
-
-void MKLDNNPlugin::MKLDNNInferRequestBase::SetBatch(int new_batch) {
-    if (!graph->getProperty().enableDynamicBatch)
-        IE_THROW() << "Dynamic batch is not enabled.";
-
-    if (new_batch < 1 || new_batch > graph->getProperty().batchLimit) {
-        IE_THROW() << "Invalid dynamic batch size " << new_batch <<
-            " for this request.";
-    }
-
-    m_curBatch = new_batch;
-
-    for (const auto& node : graph->GetNodes()) {
-        node->setDynamicBatchLim(new_batch);
     }
 }
 
@@ -363,6 +350,22 @@ void MKLDNNPlugin::MKLDNNLegacyInferRequest::initBlobs() {
     }
     for (const auto& it : _networkOutputs) {
         MKLDNNLegacyInferRequest::GetBlob(it.first);
+    }
+}
+
+void MKLDNNPlugin::MKLDNNLegacyInferRequest::SetBatch(int new_batch) {
+    if (!graph->getProperty().enableDynamicBatch)
+        IE_THROW() << "Dynamic batch is not enabled.";
+
+    if (new_batch < 1 || new_batch > graph->getProperty().batchLimit) {
+        IE_THROW() << "Invalid dynamic batch size " << new_batch <<
+            " for this request.";
+    }
+
+    m_curBatch = new_batch;
+
+    for (const auto& node : graph->GetNodes()) {
+        node->setDynamicBatchLim(new_batch);
     }
 }
 
@@ -671,6 +674,22 @@ void MKLDNNPlugin::MKLDNNInferRequest::initBlobs() {
     }
     for (const auto& it : modelOutputsMap) {
         MKLDNNInferRequest::GetBlob(it.first);
+    }
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::SetBatch(int new_batch) {
+    if (!graph->getProperty().batchLimit || modelInputsMap.begin()->second->get_output_partial_shape(0).is_static()) {
+        IE_THROW() << "Can't SetBatch for model that can't be executed via legacy dynamic batch or for static model";
+    }
+
+    if (new_batch < 1 || new_batch > graph->getProperty().batchLimit) {
+        IE_THROW() << "Can't set batch that more than upper bound";
+    }
+
+    m_curBatch = new_batch;
+
+    for (const auto& node : graph->GetNodes()) {
+        node->setDynamicBatchLim(new_batch);
     }
 }
 

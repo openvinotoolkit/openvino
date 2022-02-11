@@ -93,7 +93,6 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void initOptimalPrimitiveDescriptor() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
@@ -118,6 +117,8 @@ public:
     void prepareParams() override;
 
     void executeDynamicImpl(mkldnn::stream strm) override;
+
+    void setDynamicBatchLim(int lim) override;
 
     enum BroadcastingPolicy {
         PerChannel,

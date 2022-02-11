@@ -18,6 +18,9 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupCanBeQuantized, "MarkupCanBeQuantized", 0);
 
+ngraph::pass::low_precision::MarkupCanBeQuantized::MarkupCanBeQuantized(const std::vector<ngraph::element::Type> defaultPrecisions)
+    : defaultPrecisions(defaultPrecisions) {}
+
 bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     auto setEmptyPrecisions = [](const std::shared_ptr<ngraph::Node>& node) {
         for (auto& input : node->inputs()) {
@@ -34,19 +37,19 @@ bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_model(const std::
         }
 
         if (const auto convolution = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node)) {
-            if (!ConvolutionTransformation::isQuantizedStatic(convolution)) {
+            if (!ConvolutionTransformation::isQuantizedStatic(convolution, defaultPrecisions)) {
                 setEmptyPrecisions(convolution);
             }
             continue;
         }
         if (const auto convolutionBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
-            if (!ConvolutionBackpropDataTransformation::isQuantizedStatic(convolutionBackpropData)) {
+            if (!ConvolutionBackpropDataTransformation::isQuantizedStatic(convolutionBackpropData, defaultPrecisions)) {
                 setEmptyPrecisions(convolutionBackpropData);
             }
             continue;
         }
         if (const auto groupConvolution = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
-            if (!GroupConvolutionTransformation::isQuantizedStatic(groupConvolution)) {
+            if (!GroupConvolutionTransformation::isQuantizedStatic(groupConvolution, defaultPrecisions)) {
                 setEmptyPrecisions(groupConvolution);
             }
             continue;

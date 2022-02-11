@@ -423,13 +423,13 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 config.dynBatchSupport = true;
                 for (size_t i = 0; i < descInputNumbers(desc); i++) {
                     PortConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
+                    dataConfig.inPlace(-1);
+                    dataConfig.constant(false);
                     auto desc = getSrcMemDesc(itpd, i);
                     if (desc->getType() & MemoryDescType::Blocked && !isGrouped) {
-                        dataConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                        dataConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                     } else {
-                        dataConfig.desc = std::move(desc);
+                        dataConfig.setMemDesc(std::move(desc));
                     }
 
                     config.inConfs.push_back(dataConfig);
@@ -443,34 +443,34 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                     std::vector<size_t> dwBiasesDims({dw_conv_oc});
 
                     PortConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
-                    dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g);
+                    dataConfig.inPlace(-1);
+                    dataConfig.constant(false);
+                    dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g));
                     config.inConfs.push_back(dataConfig);
 
-                    dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x);
+                    dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x));
                     config.inConfs.push_back(dataConfig);
                  }
 
                 for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                     PortConfig dataConfig;
                     if (withSum) {
-                        dataConfig.inPlace = getParentEdges().size() - 1;
+                        dataConfig.inPlace(getParentEdges().size() - 1);
                     }
 
-                    dataConfig.constant = false;
+                    dataConfig.constant(false);
                     auto desc = getDstMemDesc(itpd, i);
                     if (desc->getType() & MemoryDescType::Blocked && !isGrouped) {
-                        dataConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                        dataConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                     } else {
-                        dataConfig.desc = std::move(desc);
+                        dataConfig.setMemDesc(std::move(desc));
                     }
 
                     config.outConfs.push_back(dataConfig);
 
                     if (withSum) {
-                        dataConfig.inPlace = -1;
-                        dataConfig.desc = dataConfig.desc->cloneWithNewPrecision(dataConfig.desc->getPrecision());
+                        dataConfig.inPlace(-1);
+                        dataConfig.setMemDesc(dataConfig.getMemDesc()->cloneWithNewPrecision(dataConfig.getMemDesc()->getPrecision()));
                         config.inConfs.push_back(dataConfig);
                     }
                 }
@@ -614,7 +614,7 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
     }
 
     if (isStridedBlobsSupported) {
-        createDescriptor({config.inConfs[0].desc}, {config.outConfs[0].desc});
+        createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
     }
     // attr[0] - depthwise, quantize
     // attr[1] - binary
@@ -638,9 +638,9 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
                 cfg.dynBatchSupport = true;
                 for (size_t j = 0; j < descInputNumbers(desc); j++) {
                     PortConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
-                    dataConfig.desc = getSrcMemDesc(itpd, j);
+                    dataConfig.inPlace(-1);
+                    dataConfig.constant(false);
+                    dataConfig.setMemDesc(getSrcMemDesc(itpd, j));
                     cfg.inConfs.push_back(dataConfig);
                 }
 
@@ -652,25 +652,25 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
                     std::vector <size_t> dwBiasesDims({dw_conv_oc});
 
                     PortConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
-                    dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g);
+                    dataConfig.inPlace(-1);
+                    dataConfig.constant(false);
+                    dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g));
                     cfg.inConfs.push_back(dataConfig);
 
-                    dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x);
+                    dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x));
                     cfg.inConfs.push_back(dataConfig);
                 }
 
                 for (size_t j = 0; j < descOutputNumbers(desc); j++) {
                     PortConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
-                    dataConfig.desc = getDstMemDesc(itpd, j);
+                    dataConfig.inPlace(-1);
+                    dataConfig.constant(false);
+                    dataConfig.setMemDesc(getDstMemDesc(itpd, j));
                     if (withSum) {
                         auto eltwiseConfig = dataConfig;
-                        eltwiseConfig.desc = eltwiseConfig.desc->cloneWithNewPrecision(eltwisePrecision);
+                        eltwiseConfig.setMemDesc(eltwiseConfig.getMemDesc()->cloneWithNewPrecision(eltwisePrecision));
                         cfg.inConfs.push_back(eltwiseConfig);
-                        dataConfig.inPlace = getParentEdges().size() - 1;
+                        dataConfig.inPlace(getParentEdges().size() - 1);
                     }
 
                     cfg.outConfs.push_back(dataConfig);
@@ -777,11 +777,21 @@ bool MKLDNNConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-const mkldnn::memory& MKLDNNConvolutionNode::getWeights() const {
+mkldnn::memory MKLDNNConvolutionNode::getWeights() const {
     return getParentEdgeAt(1)->getMemory().GetPrimitive();
 }
 
-const mkldnn::memory& MKLDNNConvolutionNode::getBias() const {
+void MKLDNNConvolutionNode::setDynamicBatchLim(int lim) {
+    if (!execPtr) {
+        IE_THROW() << "Can't set dynamic batch for Convolution node with name: " << getName() << ", because executor is not compiled";
+    }
+    if (execPtr->needReordering()) {
+        IE_THROW() << "Can't execute Convolution node with dynamic batch via executor with reorders";
+    }
+    MKLDNNNode::setDynamicBatchLim(lim);
+}
+
+mkldnn::memory MKLDNNConvolutionNode::getBias() const {
     return getParentEdgeAt(2)->getMemory().GetPrimitive();
 }
 
@@ -929,16 +939,16 @@ void MKLDNNConvolutionNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory was not allocated.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory was not allocated.";
-    if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
+    if (!wghMemPtr || !wghMemPtr->isAllocated())
         IE_THROW() << "Weight memory was not allocated.";
     MKLDNNMemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
-        if (!biasMemPtr || !biasMemPtr->GetPrimitivePtr())
+        if (!biasMemPtr || !biasMemPtr->isAllocated())
             IE_THROW() << "Input memory didn't allocate.";
     }
 

@@ -13,6 +13,40 @@
 namespace ov {
 namespace util {
 
+template <class T>
+struct ValueTyped {
+    template <class U>
+    static auto test(U*) -> decltype(std::declval<typename U::value_type&>(), std::true_type()) {
+        return {};
+    }
+    template <typename>
+    static auto test(...) -> std::false_type {
+        return {};
+    }
+    constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
+};
+
+template <typename, typename>
+struct Read;
+
+template <typename T, typename std::enable_if<ValueTyped<T>::value, bool>::type = true>
+inline typename T::value_type from_string(const std::string& val, const T&) {
+    std::stringstream ss(val);
+    typename T::value_type value;
+    Read<typename T::value_type, void>{}(ss, value);
+    return value;
+}
+
+template <typename>
+struct Write;
+
+template <typename T>
+inline std::string to_string(const T& value) {
+    std::stringstream ss;
+    Write<T>{}(ss, value);
+    return ss.str();
+}
+
 template <typename T>
 std::string join(const T& v, const std::string& sep = ", ") {
     std::ostringstream ss;
@@ -91,6 +125,17 @@ inline bool ends_with(const std::string& src, const char* with) {
     if (so < 0)
         return false;
     return 0 == strncmp(with, &src[so], wl);
+}
+
+/**
+ * @brief check string/wstring end with given substring
+ * @param src - string/wstring to check
+ * @param with - given substring
+ * @return true if string end with given substring
+ */
+template <typename T>
+inline bool ends_with(const std::basic_string<T>& str, const std::basic_string<T>& suffix) {
+    return str.length() >= suffix.length() && 0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix);
 }
 
 std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);

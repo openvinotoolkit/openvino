@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include <ngraph/validation_util.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -131,9 +132,9 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
             return false;
         }
 
-        auto new_out_low = std::make_shared<ngraph::opset4::Multiply>(
+        std::shared_ptr<Node> new_out_low = std::make_shared<ngraph::opset4::Multiply>(
                 std::make_shared<ngraph::opset4::Subtract>(output_low, zero_point), scale);
-        auto new_out_high = std::make_shared<ngraph::opset4::Multiply>(
+        std::shared_ptr<Node> new_out_high = std::make_shared<ngraph::opset4::Multiply>(
                 std::make_shared<ngraph::opset4::Subtract>(output_high, zero_point), scale);
 
         // check if new_out_low/high shapes are broadcastable to FQ's input
@@ -146,6 +147,13 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         auto out_high_shape = new_out_high->get_output_partial_shape(0);
         if (out_high_shape.rank().is_dynamic() || out_high_shape.rank().get_length() > data_shape.rank().get_length())
             return false;
+
+        std::shared_ptr<Node> const_out_low = get_constant_from_source(new_out_low);
+        if (const_out_low)
+            new_out_low = const_out_low;
+        std::shared_ptr<Node> const_out_high = get_constant_from_source(new_out_high);
+        if (const_out_high)
+            new_out_high = const_out_high;
 
         auto new_fq = std::make_shared<ngraph::opset4::FakeQuantize>(data, input_low, input_high, new_out_low, new_out_high, levels);
         new_fq->set_friendly_name(mul->get_friendly_name());

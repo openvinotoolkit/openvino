@@ -59,9 +59,9 @@ using ThrottleLevel = ov::hint::Priority;
 /**
  * @brief This key instructs the GPU plugin to use OpenCL queue throttle hints
  * as defined in https://www.khronos.org/registry/OpenCL/specs/opencl-2.1-extensions.pdf,
- * chapter 9.19. This option should be used with ov::intl_gpu::hint::ThrottleLevel values.
+ * chapter 9.19. This option should be used with ov::intel_gpu::hint::ThrottleLevel values.
  */
-static constexpr Property<ov::hint::Priority> queue_throttle{"GPU_QUEUE_THROTTLE"};
+static constexpr Property<ThrottleLevel> queue_throttle{"GPU_QUEUE_THROTTLE"};
 
 /**
  * @brief This key instructs the GPU plugin to use the OpenCL queue priority hint
@@ -80,7 +80,7 @@ static constexpr Property<ov::hint::Priority> queue_priority{"GPU_QUEUE_PRIORITY
  * - MEDIUM (DEFAULT) - instructs the GPU Plugin to use any available cores (BIG or LITTLE cores)
  * - HIGH - instructs the GPU Plugin to use BIG cores if they are available
  */
-static constexpr Property<ov::hint::Priority> host_task_priority{"OV_GPU_HOST_TASK_PRIORITY"};
+static constexpr Property<ov::hint::Priority> host_task_priority{"GPU_HOST_TASK_PRIORITY"};
 
 /**
  * @brief This key identifies available device memory size in bytes

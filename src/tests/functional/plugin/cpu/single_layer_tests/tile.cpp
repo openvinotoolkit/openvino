@@ -294,6 +294,30 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape4D, TileLayerCPUTest,
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 
+const std::vector<std::vector<ov::test::InputShape>> dynBatchInputShapes4D = {
+    { // Origin dynamic shapes
+        {
+            {{1, 20}, 16, 3, 4},
+            { // Dynamic shapes instances
+                {2, 16, 3, 4},
+                {1, 16, 3, 4},
+                {3, 16, 3, 4}
+            }
+        }
+    }
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_DynBatch4D, TileLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                    ::testing::ValuesIn(dynBatchInputShapes4D),
+                                    ::testing::Values(std::vector<int64_t>{1, 2, 1, 3}),
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(true),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
+                        TileLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D, TileLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
