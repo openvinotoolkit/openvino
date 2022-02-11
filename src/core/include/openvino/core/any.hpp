@@ -640,19 +640,32 @@ public:
     bool empty() const;
 
     /**
+     * @brief Enum to optimize Any cast mode
+     */
+    enum Mode {
+        STRICT = 0b000,  //!< Disable any check except strict type check
+        BASE = 0b001,    //!< Enable casts to base class
+        STRING = 0b010,  //!< Enable string casts
+        FULL = 0b111,    //!< Enable all checks in casts
+    };
+
+    /**
      * @brief check the type of value in any
      * @tparam T Type of value
+     * @tparam mode type cast mode
      * @return true if type of value is correct
      */
-    template <class T>
+    template <class T, int mode = FULL>
     bool is() const {
         if (_impl != nullptr) {
             if (_impl->is(typeid(decay_t<T>))) {
                 return true;
             }
-            for (const auto& type_index : _impl->base_type_info()) {
-                if (equal(type_index, typeid(decay_t<T>))) {
-                    return true;
+            if (mode & BASE) {
+                for (const auto& type_index : _impl->base_type_info()) {
+                    if (equal(type_index, typeid(decay_t<T>))) {
+                        return true;
+                    }
                 }
             }
         }
@@ -741,7 +754,7 @@ public:
      * @tparam T type
      * @return casted object
      */
-    template <class T>
+    template <class T, int mode = FULL>
     typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
                                 !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
                             T>::type&
@@ -749,15 +762,19 @@ public:
         impl_check();
         if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<decay_t<T>*>(_impl->addressof());
-        } else if (_impl->is(typeid(std::string))) {
-            _temp_impl = std::make_shared<Impl<decay_t<T>>>();
-            std::stringstream strm{as<std::string>()};
-            _temp_impl->read(strm);
-            return *static_cast<decay_t<T>*>(_temp_impl->addressof());
+        } else if (mode & STRING) {
+            if (_impl->is(typeid(std::string))) {
+                _temp_impl = std::make_shared<Impl<decay_t<T>>>();
+                std::stringstream strm{as<std::string>()};
+                _temp_impl->read(strm);
+                return *static_cast<decay_t<T>*>(_temp_impl->addressof());
+            }
         }
-        for (const auto& type_index : _impl->base_type_info()) {
-            if (equal(type_index, typeid(decay_t<T>))) {
-                return *static_cast<decay_t<T>*>(_impl->addressof());
+        if (mode & BASE) {
+            for (const auto& type_index : _impl->base_type_info()) {
+                if (equal(type_index, typeid(decay_t<T>))) {
+                    return *static_cast<decay_t<T>*>(_impl->addressof());
+                }
             }
         }
         OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
@@ -766,9 +783,10 @@ public:
     /**
      * Dynamic cast to specified type
      * @tparam T type
+     * @tparam mode type cast mode
      * @return casted object
      */
-    template <class T>
+    template <class T, int mode = FULL>
     const typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
                                       !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
                                   T>::type&
@@ -776,15 +794,19 @@ public:
         impl_check();
         if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<const decay_t<T>*>(_impl->addressof());
-        } else if (_impl->is(typeid(std::string))) {
-            _temp_impl = std::make_shared<Impl<decay_t<T>>>();
-            std::stringstream strm{as<std::string>()};
-            _temp_impl->read(strm);
-            return *static_cast<const decay_t<T>*>(_temp_impl->addressof());
+        } else if (mode & STRING) {
+            if (_impl->is(typeid(std::string))) {
+                _temp_impl = std::make_shared<Impl<decay_t<T>>>();
+                std::stringstream strm{as<std::string>()};
+                _temp_impl->read(strm);
+                return *static_cast<const decay_t<T>*>(_temp_impl->addressof());
+            }
         }
-        for (const auto& type_index : _impl->base_type_info()) {
-            if (equal(type_index, typeid(decay_t<T>))) {
-                return *static_cast<const decay_t<T>*>(_impl->addressof());
+        if (mode & BASE) {
+            for (const auto& type_index : _impl->base_type_info()) {
+                if (equal(type_index, typeid(decay_t<T>))) {
+                    return *static_cast<const decay_t<T>*>(_impl->addressof());
+                }
             }
         }
         OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
@@ -793,9 +815,10 @@ public:
     /**
      * Dynamic cast to specified type
      * @tparam T type
+     * @tparam mode type cast mode
      * @return casted object
      */
-    template <class T>
+    template <class T, int mode = FULL>
     typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
                                 !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
                             T>::type&
@@ -804,9 +827,11 @@ public:
         if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<decay_t<T>*>(_impl->addressof());
         }
-        for (const auto& type_index : _impl->base_type_info()) {
-            if (equal(type_index, typeid(decay_t<T>))) {
-                return *static_cast<decay_t<T>*>(_impl->addressof());
+        if (mode & BASE) {
+            for (const auto& type_index : _impl->base_type_info()) {
+                if (equal(type_index, typeid(decay_t<T>))) {
+                    return *static_cast<decay_t<T>*>(_impl->addressof());
+                }
             }
         }
         OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
@@ -817,7 +842,7 @@ public:
      * @tparam T type
      * @return casted object
      */
-    template <class T>
+    template <class T, int mode = FULL>
     const typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
                                       !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
                                   T>::type&
@@ -826,9 +851,11 @@ public:
         if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<const decay_t<T>*>(_impl->addressof());
         }
-        for (const auto& type_index : _impl->base_type_info()) {
-            if (equal(type_index, typeid(decay_t<T>))) {
-                return *static_cast<const decay_t<T>*>(_impl->addressof());
+        if (mode & BASE) {
+            for (const auto& type_index : _impl->base_type_info()) {
+                if (equal(type_index, typeid(decay_t<T>))) {
+                    return *static_cast<const decay_t<T>*>(_impl->addressof());
+                }
             }
         }
         OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
@@ -837,44 +864,54 @@ public:
     /**
      * Dynamic cast to specified type
      * @tparam T type
+     * @tparam mode type cast mode
      * @return casted object
      */
-    template <class T>
+    template <class T, int mode = FULL>
     typename std::enable_if<std::is_same<T, std::string>::value, T>::type& as() & {
         if (_impl != nullptr) {
             if (_impl->is(typeid(decay_t<T>))) {
                 return *static_cast<decay_t<T>*>(_impl->addressof());
-            } else {
+            } else if (mode & STRING) {
                 std::stringstream strm;
                 print(strm);
                 _str = strm.str();
                 return _str;
+            } else {
+                OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
             }
-        } else {
+        } else if (mode & STRING) {
             _str = {};
             return _str;
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
         }
     }
 
     /**
      * Dynamic cast to specified type
      * @tparam T type
+     * @tparam mode type cast mode
      * @return casted object
      */
-    template <class T>
+    template <class T, int mode = FULL>
     const typename std::enable_if<std::is_same<T, std::string>::value, T>::type& as() const& {
         if (_impl != nullptr) {
             if (_impl->is(typeid(decay_t<T>))) {
                 return *static_cast<const decay_t<T>*>(_impl->addressof());
-            } else {
+            } else if (mode & STRING) {
                 std::stringstream strm;
                 print(strm);
                 _str = strm.str();
                 return _str;
+            } else {
+                OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
             }
-        } else {
+        } else if (mode & STRING) {
             _str = {};
             return _str;
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
         }
     }
 
