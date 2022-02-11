@@ -23,12 +23,15 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
             R"(.*(InferRequestPreprocessDynamicallyInSetBlobTest).*)",
+<<<<<<< HEAD
             // TODO: Issue: 41462
             R"(.*(SoftMaxLayerTest).*axis=0.*)",
             // TODO: Issue: 43511
             R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*)",
             R"(.*EltwiseLayerTest.*IS=\(2\).*OpType=Mod.*opType=VECTOR.*)",
             R"(.*EltwiseLayerTest.*OpType=FloorMod.*netPRC=I64.*)",
+=======
+>>>>>>> e4c9566de... [GPU] Modify Softmax single layer tests to check axis 0
             // TODO: Issue: 46841
             R"(.*(QuantGroupConvBackpropData3D).*)",
 
