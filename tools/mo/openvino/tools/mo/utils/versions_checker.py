@@ -73,47 +73,49 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
     # check environment marker
     if len(split_requirement) > 1:
         env_req = split_requirement[1]
-        if any([x in split_requirement[1] for x in [' and ', ' or ']]):
-            log.error("The version checker doesn't support environment marker combination and it will be ignored: {}"
-                      "".format(split_requirement[1]), extra={'is_warning': True})
+        if any([x in split_requirement[1] for x in [' or ']]):
+            log.error("The version checker doesn't support environment marker combination with 'or', "
+                      "it will be ignored: {}".format(split_requirement[1]), extra={'is_warning': True})
             return version_list
-        split_env_req = re.split(r"==|>=|<=|>|<|~=|!=", env_req)
-        split_env_req = [l.strip(',') for l in split_env_req]
-        env_marker = split_env_req[0].strip(' ')
-        if env_marker == 'python_version' and env_marker in env_setup:
-            installed_python_version = env_setup['python_version']
-            env_req_version_list = []
-            split_required_versions = re.split(r",", env_req)
-            for i, l in enumerate(split_required_versions):
-                for comparison in ['==', '>=', '<=', '<', '>', '~=']:
-                    if comparison in l:
-                        required_version = split_env_req[i + 1].strip(' ').replace("'", "").replace('"', '')
-                        env_req_version_list.append((env_marker, comparison, required_version))
-                        break
+
+        required_py_version_match = re.match(r'.*(\b\w+\b) (==|>=|<=|>|<|~=|!=) ["\']([.0-9]+)["\']', env_req)
+        required_platform_match = re.match(r'.*(\b\w+\b) (==|!=) (["\'][0-9a-z]+["\'])', env_req)
+
+        if any([x in split_requirement[1] for x in [' and ']]):
+            if required_platform_match is None or required_py_version_match is None or \
+                    required_py_version_match[1] != 'python_version' or required_platform_match[1] != 'sys_platform':
+                log.error("Error during platform version check, line: {}".format(line))
+
+        if required_py_version_match is not None and 'python_version' in env_setup:
+            required_py_version = required_py_version_match[3]
+            sign = required_py_version_match[2]
+
             not_satisfied_list = []
-            for name, key, required_version in env_req_version_list:
-                version_check(name, installed_python_version, required_version,
-                              key, not_satisfied_list)
+            version_check('python_version', env_setup['python_version'], required_py_version,
+                              sign, not_satisfied_list)
             if len(not_satisfied_list) > 0:
                 # this python_version requirement is not satisfied to required environment
                 # and requirement for a dependency will be skipped
                 return version_list
-        elif env_marker == 'sys_platform' and env_marker in env_setup:
-            split_env_req[1] = split_env_req[1].strip(' ').replace("'", "").replace('"', '')
-            if '==' in env_req:
-                if env_setup['sys_platform'] != split_env_req[1]:
+
+        if required_platform_match is not None and 'sys_platform' in env_setup:
+            required_platform = required_platform_match[3].replace("'", '').replace('"', '')
+            sign = required_platform_match[2]
+            if sign == '==':
+                if env_setup['sys_platform'] != required_platform:
                     # this sys_platform requirement is not satisfied to required environment
                     # and requirement for a dependency will be skipped
                     return version_list
-            elif '!=' in env_req:
-                if env_setup['sys_platform'] == split_env_req[1]:
+            elif sign == '!=':
+                if env_setup['sys_platform'] == required_platform:
                     # this sys_platform requirement is not satisfied to required environment
                     # and requirement for a dependency will be skipped
                     return version_list
             else:
                 log.error("Error during platform version check, line: {}".format(line))
-        else:
-            log.error("{} is unsupported environment marker and it will be ignored".format(env_marker),
+
+        if required_platform_match is None and required_py_version_match is None:
+            log.error("Error during platform version check, line: {}".format(line),
                       extra={'is_warning': True})
 
     # parse a requirement for a dependency
