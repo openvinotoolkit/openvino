@@ -4,19 +4,19 @@
 @sphinxdirective
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 4
    :hidden:
 
-   Install from PyPI <openvino_docs_install_guides_installing_openvino_pip>
-   Install from APT <openvino_docs_install_guides_installing_openvino_apt>
-   Install from YUM <openvino_docs_install_guides_installing_openvino_yum>
-   Install from Anaconda* Cloud <openvino_docs_install_guides_installing_openvino_conda>
+   PyPI <openvino_docs_install_guides_installing_openvino_pip>
+   APT <openvino_docs_install_guides_installing_openvino_apt>
+   YUM <openvino_docs_install_guides_installing_openvino_yum>
+   Anaconda Cloud <openvino_docs_install_guides_installing_openvino_conda>
 
 @endsphinxdirective
 
 This chapter introduces installing OpenVINO on Linux using package managers. You can select one of the following options to proceed: 
 
-* [Install from PyPI](installing-openvino-pip.md)
-* [Install from APT](installing-openvino-apt.md)
-* [Install from YUM](installing-openvino-yum.md)
-* [Install from Anaconda* Cloud](installing-openvino-conda.md)
+* [Install OpenVINO from PyPI](installing-openvino-pip.md)
+* [Install OpenVINO Runtime from APT](installing-openvino-apt.md)
+* [Install OpenVINO Runtime from YUM](installing-openvino-yum.md)
+* [Install OpenVINO Runtime from Anaconda Cloud](installing-openvino-conda.md)

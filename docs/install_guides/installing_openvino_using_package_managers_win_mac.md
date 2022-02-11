@@ -4,15 +4,15 @@
 @sphinxdirective
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 4
    :hidden:
 
-   Install from PyPI <openvino_docs_install_guides_installing_openvino_pip>
-   Install from Anaconda* Cloud <openvino_docs_install_guides_installing_openvino_conda>
+   PyPI <openvino_docs_install_guides_installing_openvino_pip>
+   Anaconda Cloud <openvino_docs_install_guides_installing_openvino_conda>
 
 @endsphinxdirective
 
 This chapter introduces installing OpenVINO on Windows and macOS using package managers. You can select one of the following options to proceed: 
 
-* [Install from PyPI](installing-openvino-pip.md)
-* [Install from Anaconda* Cloud](installing-openvino-conda.md)
+* [Install OpenVINO from PyPI](installing-openvino-pip.md)
+* [Install OpenVINO Runtime from Anaconda Cloud](installing-openvino-conda.md)
