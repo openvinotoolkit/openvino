@@ -1672,7 +1672,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
             (*pKernel)(&arg);
         });
     } else {
-        parallel_nd(N, CB, D, H, [&](int n, int cb, int d, int h) {
+        parallel_nd_legacy(N, CB, D, H, [&](int n, int cb, int d, int h) {
             auto arg = jit_quantize_call_args();
 
             int c = cb * blk_size;
