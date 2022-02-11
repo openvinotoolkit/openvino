@@ -607,6 +607,26 @@ public:
         }
     }
 
+    std::tuple<bool, std::string> CheckStatic(const ie::CNNNetwork& network) {
+        bool res = true;
+        std::stringstream errMsg;
+        auto model = network.getFunction();
+        for (const auto& input : model->inputs()) {
+            if (input.get_partial_shape().is_dynamic()) {
+                errMsg << "{ input:'";
+                for (const auto& name : input.get_names()) {
+                    errMsg << name << ",";
+                }
+                if (auto node = input.get_node_shared_ptr()) {
+                    errMsg << node->get_friendly_name();
+                }
+                errMsg << "', shape=" << input.get_partial_shape() << "} ";
+                res = false;
+            }
+        }
+        return {res, errMsg.str()};
+    }
+
     ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
                                                 const std::string& deviceNameOrig,
                                                 const std::map<std::string, std::string>& config) override {
@@ -1349,6 +1369,11 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::map<st
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
+    auto valid = _impl->CheckStatic(network);
+    OPENVINO_ASSERT(std::get<0>(valid),
+                    "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                    std::get<1>(valid));
     auto exec = _impl->LoadNetwork(network, deviceName, config);
     return {exec._ptr, exec._so};
 }
@@ -1356,6 +1381,11 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
+    auto valid = _impl->CheckStatic(network);
+    OPENVINO_ASSERT(std::get<0>(valid),
+                    "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                    std::get<1>(valid));
     auto exec = _impl->LoadNetwork(network, std::dynamic_pointer_cast<RemoteContext>(context), config);
     return {exec._ptr, exec._so};
 }
@@ -1467,6 +1497,12 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
+    auto valid = _impl->CheckStatic(network);
+    OPENVINO_ASSERT(std::get<0>(valid),
+                    "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
+                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                    std::get<1>(valid));
+
     return _impl->QueryNetwork(network, deviceName, config);
 }
 
