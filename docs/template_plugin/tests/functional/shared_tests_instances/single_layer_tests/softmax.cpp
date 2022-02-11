@@ -30,7 +30,7 @@ const std::vector<ov::test::InputShape> inputDynamicShape2D = {
 };
 
 const std::vector<int64_t> axis2D = {
-        0, 1, -1
+        -2, -1, 0, 1
 };
 
 const auto params2D_static = testing::Combine(
@@ -83,7 +83,7 @@ const std::vector<ov::test::ElementType> netPrecisions4D = {
         ov::element::f32,
 };
 
-const std::vector<int64_t> axis4D = {0, 1, 2, 3, -1, -2, -3};
+const std::vector<int64_t> axis4D = {0, 1, 2, 3, -1, -2, -3, -4};
 
 const auto params4Dstatic = testing::Combine(
         testing::ValuesIn(netPrecisions4D),
