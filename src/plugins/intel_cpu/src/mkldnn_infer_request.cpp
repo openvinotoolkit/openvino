@@ -429,7 +429,7 @@ void MKLDNNPlugin::MKLDNNLegacyInferRequest::SetBlob(const std::string& name, co
 
             auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
             if (!pBlob) {
-                IE_THROW() << "MKLDNN graph doesn't contain input node with name: " << name;
+                IE_THROW() << "Blob returned after trying to interpret input node's memory is nullable. Input node name: " << name;
             }
 
             if (data->getTensorDesc() == pBlob->getTensorDesc() &&
@@ -467,7 +467,7 @@ void MKLDNNPlugin::MKLDNNLegacyInferRequest::SetBlob(const std::string& name, co
 
         auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
         if (!pBlob)
-            IE_THROW() << "MKLDNN graph doesn't contain output node with name: " << name;
+            IE_THROW() << "Blob returned after trying to interpret output node's memory is nullable. Output node name: " << name;
 
         if (data->getTensorDesc() == pBlob->getTensorDesc() &&
                 !graph->getProperty().batchLimit) {
@@ -500,7 +500,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNLegacyInferRequest::GetBlob(const
         if (_inputs.find(name) == _inputs.end()) {
             auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
             if (!pBlob) {
-                IE_THROW() << "MKLDNN graph doesn't contain input node with name: " << name;
+                IE_THROW() << "Blob returned after trying to interpret input node's memory is nullable. Input node name: " << name;
             }
 
             InferenceEngine::TensorDesc desc = pBlob->getTensorDesc();
@@ -545,7 +545,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNLegacyInferRequest::GetBlob(const
         if (_outputs.find(name) == _outputs.end()) {
             auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
             if (!pBlob) {
-                IE_THROW() << "MKLDNN graph doesn't contain output node with name: " << name;
+                IE_THROW() << "Blob returned after trying to interpret output node's memory is nullable. Output node name: " << name;
             }
 
             if (!data) {
