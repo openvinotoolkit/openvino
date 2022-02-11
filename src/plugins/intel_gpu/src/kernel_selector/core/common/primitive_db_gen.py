@@ -205,19 +205,9 @@ class OpenCL2CHeaders(object):
                 res += '{}\n'.format(line.rstrip())
                 characters += len(line) + 1
             res += ')",\n\n'
-        return res
+        return self.post_process_sources(res)
 
-    def cl_file_to_str(self, filename):
-        name = ntpath.basename(filename)
-        self.include_files[filename] = {}
-        kernel_name = name[:name.find('.cl')]
-        res = '{{"{}",\n(std::string) R"__krnl(\n'.format(kernel_name)
-        content = self.append_file_content(filename, filename)
-        content += self.append_undefs(filename)
-        max_lines = 200
-        max_characters = 16350
-        characters = 1  # Newline character above
-
+    def post_process_sources(self, content):
         comment_regexp = re.compile(r'(^)?[^\S\n]*/(?:\*(.*?)\*/[^\S\n]*|/[^\n]*)($)?', re.DOTALL | re.MULTILINE)
 
         def comment_replacer(match):
@@ -238,7 +228,24 @@ class OpenCL2CHeaders(object):
         # Remove empty lines
         content = os.linesep.join([s for s in content.splitlines() if s])
         # Remove multiple spaces
+        content = content.replace("\\\n", "")
         content = re.sub(' +', ' ', content)
+
+        return content
+
+    def cl_file_to_str(self, filename):
+        name = ntpath.basename(filename)
+        self.include_files[filename] = {}
+        kernel_name = name[:name.find('.cl')]
+        res = '{{"{}",\n(std::string) R"__krnl(\n'.format(kernel_name)
+        content = self.append_file_content(filename, filename)
+        content += self.append_undefs(filename)
+        max_lines = 200
+        max_characters = 16350
+        characters = 1  # Newline character above
+
+        content = self.post_process_sources(content)
+
         for i, line in enumerate(content.split('\n')):
             if (i + 1) % max_lines == 0 or characters + len(line) + 1 > max_characters:
                 res += ')__krnl"\n + R"__krnl('
