@@ -126,7 +126,7 @@ std::string reorder_options(const std::string& org_options) {
 }
 
 inline bool does_options_support_batch_compilation(const std::string& options) {
-    options.find("-I") == std::string::npos;
+    return options.find("-I") == std::string::npos;
 }
 
 }  // namespace
