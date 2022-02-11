@@ -137,7 +137,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (output_format != l.format || output_datatype != l.data_type)
             return false;
 
-        if (l.format.block_sizes().size() != 1)
+        if (l.format.block_sizes().size() > 1)
             return false;
 
         // TODO: Below condition should be moved to program_node::supports_padding.
