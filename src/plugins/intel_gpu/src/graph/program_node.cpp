@@ -4,6 +4,7 @@
 
 #include "program_node.h"
 #include "intel_gpu/graph/program.hpp"
+#include "program_helpers.h"
 #include "primitive_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -806,11 +807,11 @@ void program_node::init_onednn_primitive_attributes() {
             auto in = get_dependency(dep_idx).get_output_layout();
 
             if (e_node.get_primitive()->mode == eltwise_mode::sum) {
-                if (e_node.get_primitive()->needs_onednn_sum_post_op(in)) {
+                if (program_helpers::needs_onednn_sum_post_op(e_node, in)) {
                     post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
                 } else {
-                    dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
+                    dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
                     post_ops.append_binary(dnnl::algorithm::binary_add, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }

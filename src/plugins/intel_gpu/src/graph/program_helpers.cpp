@@ -191,4 +191,18 @@ bool program_helpers::are_layouts_identical_for_onednn_sum_post_op(layout input_
     return false;
 }
 
+bool program_helpers::needs_onednn_sum_post_op(const eltwise_node& n, layout input_layout) {
+    auto output_layout = n.get_output_layout();
+    if (n.get_primitive()->mode == eltwise_mode::sum &&
+        (input_layout.size.spatial[0] > 1 || input_layout.size.spatial[1] > 1 || input_layout.size.batch[0] > 1)
+        && output_layout.data_type == input_layout.data_type) {
+        return true;
+    }
+
+    return false;
+}
+
+
+
+
 }  // namespace cldnn

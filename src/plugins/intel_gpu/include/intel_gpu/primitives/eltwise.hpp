@@ -159,15 +159,6 @@ struct eltwise : public primitive_base<eltwise> {
         }
     }
 
-    bool needs_onednn_sum_post_op(layout input_layout) const {
-        if (mode == eltwise_mode::sum &&
-            (input_layout.size.spatial[0] > 1 || input_layout.size.spatial[1] > 1 || input_layout.size.batch[0] > 1)) {
-            return true;
-        }
-
-        return false;
-    }
-
     /// @param mode Eltwise mode.
     eltwise_mode mode;
     /// @param coefficients Blob-wise coefficient for SUM operation.
