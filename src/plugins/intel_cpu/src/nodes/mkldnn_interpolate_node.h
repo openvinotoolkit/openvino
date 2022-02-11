@@ -243,6 +243,8 @@ private:
 
     bool isAxesSpecified = false;
     std::vector<int> axes;
+    std::vector<float> scales;
+    bool isScaleConstant = false;
 
     // 6 ptrs for each quantization, 2 ptrs for each depth_wise
     std::vector<const void*> postOpsDataPtrs;
