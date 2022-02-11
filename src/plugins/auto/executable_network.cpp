@@ -721,7 +721,6 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 }
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
-    const bool is_new_api = _core->isNewAPI();
     if (_workModeIsAUTO) {
         if (name == ov::supported_properties) {
             return decltype(ov::supported_properties)::value_type {
@@ -738,7 +737,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
             return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
         } else if (name == ov::hint::model_priority) {
             auto value = _context.modelPriority;
-            if (is_new_api) {
+            if (_core->isNewAPI()) {
                 return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
             } else {
                 return value ? ((value > 1) ? CONFIG_VALUE(MODEL_PRIORITY_LOW) : CONFIG_VALUE(MODEL_PRIORITY_MED)) : CONFIG_VALUE(MODEL_PRIORITY_HIGH);
