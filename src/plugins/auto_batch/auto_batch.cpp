@@ -144,6 +144,7 @@ void AutoBatchInferRequest::ShareBlobsWithBatchRequest() {
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
                 _batchId,
                 _batchSize);
+            break;
         case InferenceEngine::Precision::I64:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I64>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
