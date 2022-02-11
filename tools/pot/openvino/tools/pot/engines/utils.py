@@ -106,8 +106,8 @@ def get_sequential_activations(activations, layer, activation_seq, stats_layout,
     elif old_names_mapping.get(layer, None) in stats_layout and hasattr(stat_names_by_layer[layer], 'kwargs') \
             and not stat_names_by_layer[layer].kwargs.get('inplace_statistics', False):
         activation_seq[layer].append(activations)
-    elif old_names_mapping.get(layer, None) in stats_layout and (callable(stat_names_by_layer[layer])
-                                                                 or callable(stats_layout[layer][stat_names_by_layer[layer]])):
+    elif old_names_mapping.get(layer, None) in stats_layout and (callable(stat_names_by_layer[layer]) \
+            or callable(stats_layout[layer][stat_names_by_layer[layer]])):
         activation_seq[layer].append(activations)
 
 

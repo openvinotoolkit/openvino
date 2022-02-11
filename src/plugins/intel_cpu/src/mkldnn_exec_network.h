@@ -34,7 +34,8 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
-                      const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
+                      const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing,
+                      const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
 
     void setProperty(const std::map<std::string, std::string> &properties);
 
@@ -73,8 +74,14 @@ protected:
      */
     Graph::Lock GetGraph() const;
 
-
+    bool canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Model> function, int64_t& maxBatchSize) const;
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
+
+    bool isLegacyAPI() const;
+
+    InferenceEngine::Parameter GetConfigLegacy(const std::string &name) const;
+
+    InferenceEngine::Parameter GetMetricLegacy(const std::string &name, const Graph& graph) const;
 };
 
 }  // namespace MKLDNNPlugin

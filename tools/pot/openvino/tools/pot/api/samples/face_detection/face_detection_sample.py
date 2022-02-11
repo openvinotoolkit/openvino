@@ -6,7 +6,6 @@ from argparse import ArgumentParser
 from functools import partial
 from time import time
 
-from addict import Dict
 import cv2
 import numpy as np
 
@@ -27,8 +26,6 @@ class WiderFaceLoader(DataLoader):
 
     # Required methods:
     def __init__(self, config):
-        if not isinstance(config, Dict):
-            config = Dict(config)
         super().__init__(config)
         self._min_height_ann = 60
         self._img_ids, self._annotations = self._read_image_ids_annotations(config.annotation_file)
@@ -95,7 +92,7 @@ class MTCNNEngine(IEEngine):
 
     def set_model(self, model):
         """ Loads NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         # save graph to IR and use it to initialize IE Network
         self._model = self._set_model(model)
@@ -322,7 +319,7 @@ def main():
 
     args = parser.parse_args()
 
-    model_config = Dict({
+    model_config = {
         'model_name': 'mtcnn',
         'cascade': [
             {
@@ -344,20 +341,20 @@ def main():
                                               args.onet_model.replace('.xml', '.bin'))
             }
         ]
-    })
+    }
 
-    engine_config = Dict({
+    engine_config = {
         'device': 'CPU',
         'outputs': {
             'probabilities': ['prob1', 'prob1', 'prob1'],
             'regions': ['conv4-2', 'conv5-2', 'conv6-2']
         }
-    })
+    }
 
-    dataset_config = Dict({
+    dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
         'annotation_file': os.path.expanduser(args.annotation_file)
-    })
+    }
 
     algorithms = [
         {

@@ -59,7 +59,7 @@ namespace {
                     auto res = PerfHintsConfig::SupportedKeys();
                     res.push_back(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
                     res.push_back(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
-                    res.push_back(PluginConfigParams::KEY_PERF_COUNT);
+                    res.push_back(ov::enable_profiling.name());
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
                     res.push_back(ov::hint::model_priority.name());
                     res.push_back(PluginConfigParams::KEY_ALLOW_AUTO_BATCHING);
@@ -322,7 +322,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
         });
     }
-    auto executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+    auto executor = executorManager()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
                                      static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                                      1 /*single thread per stream*/,
@@ -584,13 +584,16 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
         } else if (kvp.first == ov::hint::model_priority.name()) {
             try {
                 int priority = -1;
-                if (kvp.second == "LOW") {
+                if (kvp.second == "LOW" ||
+                    kvp.second == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
                     priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::LOW);
                 }
-                if (kvp.second == "MEDIUM") {
+                if (kvp.second == "MEDIUM" ||
+                    kvp.second == CONFIG_VALUE(MODEL_PRIORITY_MED)) {
                     priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::MEDIUM);
                 }
-                if (kvp.second == "HIGH") {
+                if (kvp.second == "HIGH" ||
+                    kvp.second == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
                     priority = static_cast<int>(ov::hint::Priority::HIGH) - static_cast<int>(ov::hint::Priority::HIGH);
                 }
                 if (priority < 0) {

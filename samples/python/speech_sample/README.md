@@ -19,7 +19,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | :------------------------- | :---------------------------------------------------------------------------------------------------- |
 | Validated Models           | Acoustic model based on Kaldi* neural networks (see [Model Preparation](#model-preparation) section) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin) |
-| Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/speech_sample/README.md) |
 
 ## How It Works
@@ -27,7 +27,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 At startup, the sample application reads command-line parameters, loads a specified model and input data to the Inference Engine plugin, performs synchronous inference on all speech utterances stored in the input file, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## GNA-specific details
 
@@ -238,8 +238,8 @@ The sample application logs each step in a standard output stream.
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 

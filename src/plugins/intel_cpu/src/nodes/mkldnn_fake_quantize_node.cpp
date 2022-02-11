@@ -1260,24 +1260,24 @@ void MKLDNNFakeQuantizeNode::initSupportedPrimitiveDescriptors() {
         config.dynBatchSupport = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             PortConfig dataConfig;
-            dataConfig.inPlace = -1;
-            dataConfig.constant = false;
+            dataConfig.inPlace(-1);
+            dataConfig.constant(false);
 
             if (i == 0) {
                 auto descCreator = BlockedDescCreator::getCommonCreators().at(fmt);
-                dataConfig.desc = descCreator->createSharedDesc(getInputPrecision(), getInputShapeAtPort(i));
+                dataConfig.setMemDesc(descCreator->createSharedDesc(getInputPrecision(), getInputShapeAtPort(i)));
             } else {
                 auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-                dataConfig.desc = descCreator->createSharedDesc(Precision::FP32, getInputShapeAtPort(i));
+                dataConfig.setMemDesc(descCreator->createSharedDesc(Precision::FP32, getInputShapeAtPort(i)));
             }
             config.inConfs.push_back(dataConfig);
         }
 
         PortConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
+        dataConfig.inPlace(-1);
+        dataConfig.constant(false);
         auto descCreator = BlockedDescCreator::getCommonCreators().at(fmt);
-        dataConfig.desc = descCreator->createSharedDesc(getOutputPrecision(), getOutputShapeAtPort(0));
+        dataConfig.setMemDesc(descCreator->createSharedDesc(getOutputPrecision(), getOutputShapeAtPort(0)));
         config.outConfs.push_back(dataConfig);
 
         supportedPrimitiveDescriptors.push_back({config, impl_type});
@@ -1393,9 +1393,9 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
         //Form FakeQuanKey
         FakeQuantKey key = {};
         key.jqp.c = inDims.size() > 1 ? inDims[1] : 1;
-        key.jqp.src_prc = config.inConfs[0].desc->getPrecision();
+        key.jqp.src_prc = config.inConfs[0].getMemDesc()->getPrecision();
         key.jqp.wei_prc = Precision::FP32;
-        key.jqp.dst_prc = config.outConfs[0].desc->getPrecision();
+        key.jqp.dst_prc = config.outConfs[0].getMemDesc()->getPrecision();
 
         auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
         key.jqp.s_str = srcDesc->getStrides();
@@ -1672,7 +1672,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
             (*pKernel)(&arg);
         });
     } else {
-        parallel_nd(N, CB, D, H, [&](int n, int cb, int d, int h) {
+        parallel_nd_legacy(N, CB, D, H, [&](int n, int cb, int d, int h) {
             auto arg = jit_quantize_call_args();
 
             int c = cb * blk_size;

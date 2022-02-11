@@ -58,6 +58,7 @@
 #include <ngraph/runtime/reference/non_max_suppression.hpp>
 #include <ngraph/runtime/reference/normalize_l2.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
+#include <ngraph/runtime/reference/prelu.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
 #include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
@@ -2169,6 +2170,17 @@ bool evaluate(const shared_ptr<op::v0::Relu>& op, const HostTensorVector& output
 }
 
 template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::PRelu>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::prelu<T>(inputs[0]->get_data_ptr<T>(),
+                                 inputs[1]->get_data_ptr<T>(),
+                                 outputs[0]->get_data_ptr<T>(),
+                                 inputs[0]->get_shape(),
+                                 inputs[1]->get_shape());
+    return true;
+}
+
+template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::Sign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::sign<T>(inputs[0]->get_data_ptr<T>(),
@@ -3354,6 +3366,26 @@ inline bool evaluate(const shared_ptr<op::v8::NV12toBGR>& op,
                                                       outputs,
                                                       inputs,
                                                       ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR);
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::I420toRGB>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_i420<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_RGB);
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::I420toBGR>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_i420<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_BGR);
 }
 
 template <element::Type_t ET>

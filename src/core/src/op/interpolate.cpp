@@ -201,8 +201,9 @@ void op::v4::Interpolate::validate_and_infer_types() {
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
-                              input_et == element::bf16 || input_et == element::u8,
-                          "Input element type must be f32, f16, bf16, i8 or u8");
+                              input_et == element::bf16 || input_et == element::u8 || input_et == element::i64 ||
+                              input_et == element::i32,
+                          "Input element type must be f32, f16, bf16, i8, u8, i64, i32");
 
     element::Type sizes_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(
@@ -454,6 +455,7 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
                                                         outputs[0]->get_data_ptr<int8_t>(),
                                                         out_shape,
                                                         m_attrs);
+        break;
     case element::Type_t::u8:
         ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
                                                          padded_input_shape,
