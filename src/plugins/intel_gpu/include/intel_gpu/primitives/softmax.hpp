@@ -27,6 +27,7 @@ struct softmax : public primitive_base<softmax> {
 
     /// @brief Enum type to specify softmax's normalization scope (see #dimension).
     enum dimension_t {
+        normalize_b,
         normalize_f,
         normalize_x,
         normalize_y,
