@@ -141,7 +141,7 @@ def build_parser():
               '\n--device device_for_model                          \\'
               '\n--reference_device reference_device_for_model      \n'
               + '-' * 62 +
-              '\nFor dumping blob and performance counters run:'
+              '\nFor dumping tensors and performance counters run:'
               '\npython3 cross_check_tool.py                        \\'
               '\n--input path/to/file/describing/input              \\'
               '\n--model path/to/model/*.xml                        \\'
@@ -200,8 +200,8 @@ def build_parser():
 
     modes = parser.add_argument_group('CCT mode arguments')
     # TODO eps? nobody uses it
-    modes.add_argument('--dump', help='Enables blobs statistics dumping', action='store_true', default=False)
-    modes.add_argument('--load', type=str, action=ExistingFileAction, help='Path to a file to load blobs from')
+    modes.add_argument('--dump', help='Enables tensors statistics dumping', action='store_true', default=False)
+    modes.add_argument('--load', type=str, action=ExistingFileAction, help='Path to a file to load tensors from')
     model.add_argument('--num_of_iterations', '-ni', type=int, default=50,
                        help='Number of iterations to collect all over the net performance')
     parser.add_argument('-v', '--verbosity', action='store_true', default=False,
@@ -318,18 +318,18 @@ def read_multi_input_file(input_file: str, model_inputs: list):
             raise Exception(f"Can not find input data for input {model_input.any_name} in multi-input file {input_file}.\n"
                             f"Input data was provided for layers: {', '.join(files)}\n"
                             f"Network inputs: {', '.join(input.any_name for input in model_inputs)}")
-        if 'blob' in npz[model_input.any_name].item(0):
-            just_blob = npz[model_input.any_name].item(0)['blob']
+        if 'tensor' in npz[model_input.any_name].item(0):
+            just_tensor = npz[model_input.any_name].item(0)['tensor']
             input_shape = list(model_input.shape)
-            log.info(f'Layer {model_input.any_name} shape = {input_shape}, input blob from multi-input file shape = {just_blob.shape}')
+            log.info(f'Layer {model_input.any_name} shape = {input_shape}, input tensor from multi-input file shape = {just_tensor.shape}')
             try:
-                reshaped_blob = np.reshape(just_blob, input_shape)
+                reshaped_tensor = np.reshape(just_tensor, input_shape)
             except:
-                raise Exception(f'Can not reshape input blob from multi-input file for layer {model_input.any_name} to shape {input_shape}')
-            dump.append(reshaped_blob)
+                raise Exception(f'Can not reshape input tensor from multi-input file for layer {model_input.any_name} to shape {input_shape}')
+            dump.append(reshaped_tensor)
         else:
             raise Exception(
-                f'Can not find \'blob\' parameter for input {model_input.any_name} in input file {input_file}')
+                f'Can not find \'tensor\' parameter for input {model_input.any_name} in input file {input_file}')
     return dump
 
 
@@ -380,16 +380,16 @@ def read_image_file(image_file: str, model_input: Output):
 
 def get_random_inputs(model_inputs, model_path):
     inputs = [np.clip(np.random.normal(0.5, 0.1, size=list(input.shape)), 0, 1) for input in model_inputs]
-    dump_output_file(model_path + '_random_input_dump.npz', {model_inputs[i].any_name: {'blob': inputs[i]} for i in range(len(model_inputs))})
+    dump_output_file(model_path + '_random_input_dump.npz', {model_inputs[i].any_name: {'tensor': inputs[i]} for i in range(len(model_inputs))})
     return inputs
 
 
 def read_binary_file(bin_file, model_input):
     log.info(f"Prepare binary file {str(bin_file)}")
     binary_file_size = os.path.getsize(bin_file)
-    blob_size = model_input.tensor.size
-    if blob_size != binary_file_size:
-        raise Exception(f"File {bin_file} contains {binary_file_size} bytes but model expects {blob_size}")
+    tensor_size = model_input.tensor.size
+    if tensor_size != binary_file_size:
+        raise Exception(f"File {bin_file} contains {binary_file_size} bytes but model expects {tensor_size}")
     return np.reshape(np.fromfile(bin_file, get_dtype(model_input.element_type)), list(model_input.shape))
 
 
@@ -430,10 +430,10 @@ def input_processing(model_path: str, model_inputs: list, input_file: str):
     return input_data
 
 
-def accuracy_metrics(out_blob, ref_out_blob):
-    if out_blob.size != ref_out_blob.size:
-        raise Exception(f'Different number of elements in blobs {out_blob.size} and {ref_out_blob.size}. Can not compare')
-    abs_diff = np.absolute(out_blob - ref_out_blob)
+def accuracy_metrics(tensor, ref_tensor):
+    if tensor.size != ref_tensor.size:
+        raise Exception(f'Different number of elements in tensors {tensor.size} and {ref_tensor.size}. Can not compare')
+    abs_diff = np.absolute(tensor - ref_tensor)
     np.seterr(divide='ignore', invalid='ignore')
     rel_diff = np.divide(abs_diff, np.min(abs_diff) if np.min(abs_diff) != 0 else 1e-20)
 
@@ -442,14 +442,14 @@ def accuracy_metrics(out_blob, ref_out_blob):
         ('Min absolute difference', np.min(abs_diff)),
         ('Max relative difference', np.max(rel_diff)),
         ('Min relative difference', np.min(rel_diff)),
-        ('Min reference value', np.min(ref_out_blob)),
-        ('Min absolute reference value', np.min(np.abs(ref_out_blob))),
-        ('Max reference value', np.max(ref_out_blob)),
-        ('Max absolute reference value', np.max(np.abs(ref_out_blob))),
-        ('Min actual value', np.min(out_blob)),
-        ('Min absolute actual value', np.min(np.abs(out_blob))),
-        ('Max actual value', np.max(out_blob)),
-        ('Max absolute actual value', np.max(np.abs(out_blob)))
+        ('Min reference value', np.min(ref_tensor)),
+        ('Min absolute reference value', np.min(np.abs(ref_tensor))),
+        ('Max reference value', np.max(ref_tensor)),
+        ('Max absolute reference value', np.max(np.abs(ref_tensor))),
+        ('Min actual value', np.min(tensor)),
+        ('Min absolute actual value', np.min(np.abs(tensor))),
+        ('Max actual value', np.max(tensor)),
+        ('Max absolute actual value', np.max(np.abs(tensor)))
     ]
 
     for key, value in metrics:
@@ -472,12 +472,12 @@ def performance_metrics(device, pc, ref_device, ref_pc):
         log.info(f'{metric:>35}: {actual:>16} {reference:>16}', extra={'no_lvl': True})
 
 
-def blob_counters(out_blob, ref_out_blob):
+def tensor_counters(tensor, ref_tensor):
     counters = [
-        ('Number of NAN', np.sum(np.isnan(out_blob)), np.sum(np.isnan(ref_out_blob))),
-        ('Number of INF', np.sum(np.isinf(out_blob)), np.sum(np.isinf(ref_out_blob))),
-        ('Number of ZERO', out_blob.size - np.count_nonzero(out_blob),
-         ref_out_blob.size - np.count_nonzero(ref_out_blob))
+        ('Number of NAN', np.sum(np.isnan(tensor)), np.sum(np.isnan(ref_tensor))),
+        ('Number of INF', np.sum(np.isinf(tensor)), np.sum(np.isinf(ref_tensor))),
+        ('Number of ZERO', tensor.size - np.count_nonzero(tensor),
+         ref_tensor.size - np.count_nonzero(ref_tensor))
     ]
     for metric, actual, reference in counters:
         log.info(f'{metric:>35}: {actual:>16} {reference:>16}', extra={'no_lvl': True})

@@ -19,7 +19,7 @@ except Exception as e:
 
 from openvino.tools.cross_check_tool.utils import get_config_dictionary, get_ops_list, print_output_ops, \
     input_processing, accuracy_metrics, validate_args, build_parser, set_logger, find_out_cct_mode, \
-    print_all_over_the_net_metrics, update_global_accuracy_matrics, blob_counters, performance_metrics, \
+    print_all_over_the_net_metrics, update_global_accuracy_matrics, tensor_counters, performance_metrics, \
     dump_output_file, load_dump, error_handling, print_inputs, set_verbosity, perf_counts_to_dump, load_profiling_info
 
 
@@ -184,11 +184,11 @@ def one_ir_mode(args):
             if op.get_output_size() > 1:
                 log.info(f'Port {i}: ')
             model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
-            out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
-            ref_out_blob, ref_pc = infer(model=model_copy, core=ref_core, device=args.reference_device, inputs=inputs, output=new_output)
-            a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            out_tensor, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            ref_out_tensor, ref_pc = infer(model=model_copy, core=ref_core, device=args.reference_device, inputs=inputs, output=new_output)
+            a_m = accuracy_metrics(out_tensor, ref_out_tensor)
             performance_metrics(args.device, pc, args.reference_device, ref_pc)
-            blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            tensor_counters(out_tensor, ref_out_tensor)
             global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
     print_all_over_the_net_metrics(global_times=global_times, ref_global_times=ref_global_times,
                                    global_accuracy=global_accuracy)
@@ -235,18 +235,17 @@ def two_ir_mode(args):
                 log.info(f'Port {i}: ')
             model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
             ref_model_copy, ref_new_output = get_model_copy_with_output(model=args.reference_model, output=(ref_op.friendly_name, i), core=ref_core)
-            out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
-            ref_out_blob, ref_pc = infer(model=ref_model_copy, core=ref_core, device=args.reference_device,
+            out_tensor, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            ref_out_tensor, ref_pc = infer(model=ref_model_copy, core=ref_core, device=args.reference_device,
                                                                     inputs=inputs, output=ref_new_output)
-            a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            a_m = accuracy_metrics(out_tensor, ref_out_tensor)
             performance_metrics(args.device, pc, args.reference_device, ref_pc)
-            blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            tensor_counters(out_tensor, ref_out_tensor)
             global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
     print_all_over_the_net_metrics(global_times=global_times, ref_global_times=ref_global_times,
                                    global_accuracy=global_accuracy)
 
 
-# TODO: rename blob to tensor
 def dump_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     model = get_model(model_path=args.model, core=core)
@@ -261,8 +260,8 @@ def dump_mode(args):
             else:
                 log.info(f'Layer {op.friendly_name} processing')
             model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
-            out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
-            dump_dict[op.friendly_name].append(np.array({'blob': out_blob, 'pc': perf_counts_to_dump(pc)}))
+            out_tensor, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            dump_dict[op.friendly_name].append(np.array({'tensor': out_tensor, 'pc': perf_counts_to_dump(pc)}))
     dump_dict["device"] = args.device
     dump_output_file(args.model + '_' + args.device + '_dump.npz', dump_dict)
 
@@ -270,7 +269,7 @@ def dump_mode(args):
 def load_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     log.info(f'IR for {args.device} : {args.model}')
-    log.info(f'Loading blob from {args.load}')
+    log.info(f'Loading tensors from {args.load}')
     model = get_model(model_path=args.model, core=core)
     model_ops, model_inputs, model_outputs = get_model_info(model)
     out_ops = get_ops_list(model_ops, model_outputs, args.layers)
@@ -289,11 +288,11 @@ def load_mode(args):
             if op.get_output_size() > 1:
                 log.info(f'Port {i}: ')
             model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
-            out_blob, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
-            ref_out_blob, ref_pc = loaded[op.friendly_name][i]['blob'], load_profiling_info(loaded[op.friendly_name][i]['pc'])
-            a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            out_tensor, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            ref_out_tensor, ref_pc = loaded[op.friendly_name][i]['tensor'], load_profiling_info(loaded[op.friendly_name][i]['pc'])
+            a_m = accuracy_metrics(out_tensor, ref_out_tensor)
             performance_metrics(args.device, pc, loaded["device"], ref_pc)
-            blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
+            tensor_counters(out_tensor, ref_out_tensor)
             global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
     print_all_over_the_net_metrics(global_accuracy=global_accuracy)
 
