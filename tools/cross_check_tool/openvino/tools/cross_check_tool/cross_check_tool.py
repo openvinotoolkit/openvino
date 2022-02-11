@@ -11,7 +11,7 @@ from typing import Union
 import numpy as np
 
 try:
-    from openvino.runtime import Core, Model, CompiledModel, InferRequest, Output, Type, get_version
+    from openvino.runtime import Core, Model, CompiledModel, InferRequest, Output, get_version
 except Exception as e:
     exception_type = type(e).__name__
     print(f"The following error happened while importing OpenVINO Python API module:\n[ {exception_type} ] {e}")

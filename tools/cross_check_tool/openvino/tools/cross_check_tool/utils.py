@@ -6,7 +6,6 @@ import logging as log
 import os
 import sys
 import traceback
-import xml
 from pathlib import Path
 
 from openvino.runtime import Layout, ProfilingInfo, Output
