@@ -23,14 +23,11 @@ namespace low_precision {
 
 constexpr char LayerTransformation::originalLayerPostfix[];
 
-// order defines default precision
-std::vector<ngraph::element::Type> LayerTransformation::defaultPrecisions = precision_set::int8_support;
-std::mutex LayerTransformation::defaultPrecisionsMutex;
-
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
     deqPrecision(params.deqPrecision),
     reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
+    defaultPrecisions(params.defaultPrecisions),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
@@ -41,15 +38,20 @@ void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
     this->updatePrecisions = updatePrecisions;
 }
 
+void LayerTransformation::setDefaultPrecisions(const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    this->defaultPrecisions = defaultPrecisions;
+}
+
 bool LayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!isQuantized(layer)) {
+    if (!isQuantized(layer, defaultPrecisions)) {
         return false;
     }
 
     return canBeTransformedStatic(layer);
 }
 
-bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer) {
+bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) {
     for (const auto& output : layer->outputs()) {
         const auto rank = output.get_partial_shape().rank();
         if (rank.is_dynamic() || rank.get_length() < 2) {
@@ -57,7 +59,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
         }
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(layer);
+    const auto dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (!dequantization.empty()) {
         auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
             if (ngraph::shape_size(constShape) == 1ul) {
@@ -103,7 +105,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 }
 
 bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!isQuantized(layer)) {
+    if (!isQuantized(layer, defaultPrecisions)) {
         return false;
     }
 
@@ -308,16 +310,17 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
     return getPrecisionDetails(quantizationDetails.levels, quantizationDetails.outputLowValues, quantizationDetails.outputHighValues);
 }
 
-bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer) {
+bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) {
     const auto nonConstNode = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
-    const auto dequantization = NetworkHelper::getDequantization(nonConstNode);
+    const auto dequantization = NetworkHelper::getDequantization(nonConstNode, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }
     return dequantization.subtract != nullptr;
 }
 
-bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
+bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer, const std::vector<ngraph::element::Type>& defaultPrecisions) const {
     return true;
 }
 
@@ -374,7 +377,11 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision,
     const bool moveSubtract) const {
-    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision, moveSubtract);
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation,
+        dequantization,
+        updatePrecision,
+        moveSubtract,
+        defaultPrecisions);
     updateOutput(context, result.lastDequantization, result.newOperation);
     return result.newOperation;
 }
@@ -385,7 +392,10 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationBefore(
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision,
     const bool moveSubtract) const {
-    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation, dequantization, updatePrecision, moveSubtract);
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation,
+        dequantization,
+        updatePrecision,
+        moveSubtract);
     updateOutput(context, result.newOperation, result.lastDequantization);
     return result.newOperation;
 }
@@ -443,16 +453,6 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
     NGRAPH_SUPPRESS_DEPRECATED_START
     pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END
-}
-
-void LayerTransformation::setDefaultPrecisions(const std::vector<ngraph::element::Type>& precisions) {
-    std::lock_guard<std::mutex> lock(defaultPrecisionsMutex);
-    defaultPrecisions = precisions;
-}
-
-std::vector<ngraph::element::Type> LayerTransformation::getDefaultPrecisions() {
-    std::lock_guard<std::mutex> lock(defaultPrecisionsMutex);
-    return defaultPrecisions;
 }
 
 }  // namespace low_precision

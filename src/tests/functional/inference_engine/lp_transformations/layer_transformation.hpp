@@ -27,7 +27,8 @@ struct TestTransformationParams {
         bool supportAsymmetricQuantization = true,
         element::Type deqPrecision = element::f32,
         bool support3DTensorOnActivations = true,
-        bool deconvolutionSpecificChannelsRatio = false);
+        bool deconvolutionSpecificChannelsRatio = false,
+        std::vector<ngraph::element::Type> defaultPrecisions = { element::u8, element::i8 });
 
     TestTransformationParams& setUpdatePrecisions(const bool updatePrecisions);
     TestTransformationParams& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization);
@@ -35,6 +36,7 @@ struct TestTransformationParams {
     TestTransformationParams& setPrecisionsOnWeights(const std::vector<element::Type>& precisionsOnWeights);
     TestTransformationParams& setSupport3DTensorOnActivations(const bool support3DTensorOnActivations);
     TestTransformationParams& setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio);
+    TestTransformationParams& setDefaultPrecisions(const std::vector<element::Type>& defaultPrecisions);
 
     static pass::low_precision::LayerTransformation::Params toParams(const TestTransformationParams& params);
 
@@ -45,6 +47,7 @@ struct TestTransformationParams {
     element::Type deqPrecision;
     bool support3DTensorOnActivations;
     bool deconvolutionSpecificChannelsRatio;
+    std::vector<element::Type> defaultPrecisions;
 };
 
 class LayerTransformation : public CommonTestUtils::TestsCommon {

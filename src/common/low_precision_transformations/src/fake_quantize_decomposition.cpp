@@ -300,7 +300,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             return false;
         }
 
-        layer = NetworkHelper::composeFakeQuantize(layer);
+        layer = NetworkHelper::composeFakeQuantize(layer, defaultPrecisions);
         if (layer == nullptr) {
             return false;
         }
@@ -316,7 +316,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     DataPrecision dataPrecision = fq_decomposition::getDataPrecisionByOutputPort(layer);
 
-    PrecisionsAttribute precisionsAttribute(getDefaultPrecisions());
+    PrecisionsAttribute precisionsAttribute(defaultPrecisions);
     {
         // TODO: LPT: return attribute (not wrapper)
         auto attributeWrapper = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));

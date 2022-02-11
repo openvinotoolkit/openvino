@@ -70,7 +70,7 @@ public:
 
     static ov::Any create(
         const std::shared_ptr<ngraph::Node>& node,
-        const AttributeParameters& params);
+        const AttributeParameters& params = AttributeParameters());
     void merge(std::vector<ov::Any>& attributes);
     std::string to_string() const override;
 

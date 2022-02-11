@@ -18,14 +18,16 @@ TestTransformationParams::TestTransformationParams(
     bool supportAsymmetricQuantization,
     element::Type deqPrecision,
     bool support3DTensorOnActivations,
-    bool deconvolutionSpecificChannelsRatio) :
+    bool deconvolutionSpecificChannelsRatio,
+    const std::vector<ngraph::element::Type> defaultPrecisions) :
     updatePrecisions(updatePrecisions),
     precisionsOnActivations(precisionsOnActivations),
     precisionsOnWeights(precisionsOnWeights),
     supportAsymmetricQuantization(supportAsymmetricQuantization),
     deqPrecision(deqPrecision),
     support3DTensorOnActivations(support3DTensorOnActivations),
-    deconvolutionSpecificChannelsRatio(deconvolutionSpecificChannelsRatio) {
+    deconvolutionSpecificChannelsRatio(deconvolutionSpecificChannelsRatio),
+    defaultPrecisions(defaultPrecisions) {
     if (precisionsOnActivations.size() == 0ul) {
         THROW_TRANSFORMATION_EXCEPTION << "precisions on activations are not specisifed";
     }
@@ -65,6 +67,11 @@ TestTransformationParams& TestTransformationParams::setDeconvolutionSpecificChan
     return *this;
 }
 
+TestTransformationParams& TestTransformationParams::setDefaultPrecisions(const std::vector<element::Type>& defaultPrecisions) {
+    this->defaultPrecisions = defaultPrecisions;
+    return *this;
+}
+
 TestTransformationParams LayerTransformation::createParamsU8U8() {
     return TestTransformationParams(true, { ngraph::element::u8 }, { ngraph::element::u8 });
 }
@@ -84,7 +91,8 @@ TestTransformationParams LayerTransformation::createParamsU8I8AndI8() {
 pass::low_precision::LayerTransformation::Params TestTransformationParams::toParams(const TestTransformationParams& params) {
     return low_precision::LayerTransformation::Params(
         params.updatePrecisions,
-        params.deqPrecision);
+        params.deqPrecision,
+        params.defaultPrecisions);
 }
 
 std::string LayerTransformation::toString(const TestTransformationParams& params) {

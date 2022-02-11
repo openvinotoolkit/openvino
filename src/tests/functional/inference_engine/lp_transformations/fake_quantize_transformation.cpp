@@ -71,16 +71,15 @@ public:
         const ngraph::PartialShape shape = std::get<1>(GetParam());
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
-
-        const auto params = TestTransformationParams(fakeQuantizeOnData.params).setUpdatePrecisions(updatePrecision);
+        std::vector<element::Type> defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support;
 
         if (fakeQuantizeOnData.actual.quantizationLevel != 256) {
-            low_precision::LowPrecision::setDefaultPrecisions({
-                 ngraph::element::u8, ngraph::element::i8,
-                 ngraph::element::u16, ngraph::element::i16,
-                 ngraph::element::u32, ngraph::element::i32
-            });
+            defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
         }
+
+        const auto params = TestTransformationParams(fakeQuantizeOnData.params)
+            .setUpdatePrecisions(updatePrecision)
+            .setDefaultPrecisions(defaultPrecisions);
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
             TestTransformationParams::toParams(fakeQuantizeOnData.params),
@@ -93,7 +92,7 @@ public:
            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, params.precisionsOnActivations}})
         });
 
-        SimpleLowPrecisionTransformer transform(supportedPrecisions);
+        SimpleLowPrecisionTransformer transform(supportedPrecisions, {}, { ngraph::element::f32, defaultPrecisions });
         transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
         transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(params);
         transform.transform(actualFunction);

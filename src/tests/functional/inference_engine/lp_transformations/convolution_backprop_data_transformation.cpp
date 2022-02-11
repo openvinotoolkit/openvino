@@ -480,7 +480,10 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             {{ngraph::element::f32}, {128.f}, {0.01f}},
             { 255ul, Shape({ 1, 2, 1, 1 }), { 0.f }, { 254.f }, { 0.f }, { 25.4f } },
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            low_precision::LayerTransformation::isAsymmetricQuantization
+            [](const_node_ptr& node) {
+                return low_precision::LayerTransformation::isAsymmetricQuantization(node,
+                    { ngraph::element::u8,  ngraph::element::i8 });
+            }
         },
         // ExpectedValues
         {

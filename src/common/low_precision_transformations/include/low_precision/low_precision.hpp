@@ -42,11 +42,13 @@ public:
     NGRAPH_RTTI_DECLARATION;
     MarkupOptimizations(
         const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
-        const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions);
+        const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
+        const AttributeParameters& params);
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 private:
     const std::vector<OperationPrecisionRestriction>& precisionRestrictions;
     const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions;
+    const AttributeParameters& params;
 };
 
 class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::TypeRelaxedReplacer : public ngraph::pass::GraphRewrite {
@@ -66,7 +68,6 @@ public:
 
     static bool isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function);
     static bool isFQLevelsPresent(const std::shared_ptr<const ngraph::Function>& function, const std::set<size_t>& levels);
-    static void setDefaultPrecisions(const std::vector<element::Type>& precisions);
 
 protected:
     std::vector<OperationPrecisionRestriction> precisionRestrictions;

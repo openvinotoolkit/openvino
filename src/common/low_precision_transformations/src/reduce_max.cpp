@@ -39,7 +39,7 @@ bool ReduceMaxTransformation::canBeTransformed(const TransformationContext& cont
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(reduce);
+    const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     const std::vector<float> scales = ov::as_type_ptr<opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
     if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
         return false;

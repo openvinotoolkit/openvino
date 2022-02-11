@@ -99,7 +99,8 @@ public:
 
     static std::shared_ptr<opset1::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
 
-    static std::shared_ptr<opset1::FakeQuantize> composeFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
+    static std::shared_ptr<opset1::FakeQuantize> composeFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
     static std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -136,13 +137,18 @@ public:
         const bool updatePrecision,
         const element::Type deqPrecision = element::f32);
 
-    static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node);
+    static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
-    static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node);
+    static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node,
+        const std::vector<ngraph::element::Type>& _defaultPrecisions = precision_set::int8_support);
 
     static bool isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
-    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<const Node>& node, const size_t parentIndex = 0ul, const bool inPlace = false);
+    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<const Node>& node,
+        const std::vector<ngraph::element::Type> _defaultPrecisions = precision_set::int8_support,
+        const size_t parentIndex = 0ul,
+        const bool inPlace = false);
 
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node, const bool convertIsMandatory = false);
 
@@ -171,7 +177,8 @@ public:
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
-        const bool moveSubtract);
+        const bool moveSubtract,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
     static InsertDequantizationResult moveDequantizationBefore(
         const std::shared_ptr<ngraph::Node>& operation,
@@ -199,9 +206,13 @@ public:
     static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
     static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, int outChannelsShapeIndex = 0);
 
-    static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
+    static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node,
+        const size_t branchIndex,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support,
+        const bool inPlace = false);
 
-    static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node);
+    static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
     static std::shared_ptr<opset1::FakeQuantize> fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
