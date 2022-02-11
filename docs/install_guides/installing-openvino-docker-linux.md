@@ -1,26 +1,33 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Linux* from a Docker* Image {#openvino_docs_install_guides_installing_openvino_docker_linux}
+# Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image {#openvino_docs_install_guides_installing_openvino_docker_linux}
 
-This guide provides steps on creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Linux* and using the image on different devices.  
+This guide provides steps on creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Linux* and using the image on different devices. 
+
+There are two options to install OpenVINO with Docker:
+
+* You can <a href="#using-prebuilt-image">get a prebilt image and run the image directly</a>;
+* Or <a href="#build-image-manually">build a docker image manually and run the image on different devices</a>.
 
 ## System requirements
 
-**Target Operating Systems**
+@sphinxdirective
+.. tab:: Target Operating Systems
 
-- Ubuntu\* 18.04 long-term support (LTS), 64-bit
-- Ubuntu\* 20.04 long-term support (LTS), 64-bit
-- Red Hat\* Enterprise Linux* 8 (64 bit)
+  * Ubuntu\* 18.04 long-term support (LTS), 64-bit
+  * Ubuntu\* 20.04 long-term support (LTS), 64-bit
+  * Red Hat\* Enterprise Linux* 8 (64 bit)
 
-**Host Operating Systems**
+.. tab:: Host Operating Systems
 
-- Linux
-- Windows Subsystem for Linux 2 on CPU or GPU
-- macOS on CPU only
+  * Linux
+  * Windows Subsystem for Linux 2 on CPU or GPU
+  * macOS on CPU only
 
-## Creating an OpenVINO Docker image
+@endsphinxdirective
 
-You can create a Docker image with OpenVINO via either of the following ways. 
 
-### Get a prebuilt image directly from provided sources
+## <a name="using-prebuilt-image"></a>Installing OpenVINO with a prebuilt image
+
+### Step 1: Get a prebuilt image from provided sources
 
 You can find prebuilt images on:
 
@@ -29,14 +36,23 @@ You can find prebuilt images on:
 - [Red Hat* Ecosystem Catalog](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
 - [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino)
 
-### Build a Docker* image manually
+### Step 2: Run the image
+
+Run the Docker image using the following command:
+```
+docker run -it --rm <image_name>
+```
+
+## <a name="build-image-manually"></a>Installing OpenVINO by building a Docker image manually
+
+### Step 1: Create a dockerfile
 
 You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test, and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
-You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials) which demonstrate the usage of Docker containers with Intel® Distribution of OpenVINO™ toolkit. 
+You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials) which demonstrate the usage of Docker containers with OpenVINO. 
 
-## Using OpenVINO Docker image on different devices
+### Step 2: Configure and run the image for different devices
 
-### Using OpenVINO Docker* image on CPU
+#### Using OpenVINO Docker image on CPU
 
 Note the following things:
 
@@ -49,11 +65,11 @@ To use the OpenVINO Docker image on CPU, you don’t need extra configurations. 
 docker run -it --rm <image_name>
 ```
 
-### Using OpenVINO Docker* image on GPU
+#### Using OpenVINO Docker image on GPU
 
 > **NOTE**: Only Intel® integrated graphics are supported.
 
-#### Prerequisites
+**Prerequisites**
 
 - GPU is not available in container by default, you must attach it to the container.
 - Kernel driver must be installed on the host.
@@ -66,7 +82,7 @@ To launch a Linux image on Windows Subsystem for Linux 2, note the following thi
 - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see [this article](https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434) for more details.
 - The Docker images for 2022.1 release contain preinstalled recommended version of OpenCL Runtime with WSL2 support.
 
-#### Step 1: Configure OpenVINO Docker* image for GPU
+##### Step 1: Configure the image for GPU
 
 If you have installed your custom version of GPU driver and want to build an image, see the following examples for your Dockerfile:
 
@@ -139,7 +155,7 @@ RUN ./install_NEO_OCL_driver.sh --no_numa -y  && \
     yum remove -y epel-release
 ```
 
-#### Step 2: Run the Docker* image on GPU
+##### Step 2: Run the image on GPU
 
 To make GPU available in the container, attach the GPU to the container using `--device /dev/dri` option and run the container:
 
@@ -155,7 +171,7 @@ To make GPU available in the container, attach the GPU to the container using `-
 
 > **NOTE**: If your host system is Ubuntu 20, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
 
-### Using OpenVINO Docker* image on Intel® Neural Compute Stick 2
+#### Using OpenVINO Docker image on Intel® Neural Compute Stick 2
 
 **Known limitations:**
 
@@ -200,12 +216,12 @@ Use the following steps for Intel® Neural Compute Stick 2:
             ldconfig
         ```
 
-2. Run the Docker* image:
+2. Run the Docker image:
     ```sh
     docker run -it --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
     ```
 
-#### An alternative option to run the image
+##### An alternative option to run the image
 
 While the steps above is not working, you can also run container in the privileged mode, enable the Docker network configuration as host, and mount all devices to the container. Run the following command:
 ```sh
@@ -215,9 +231,9 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 > **NOTE**: This option is not recommended, as conflicts with Kubernetes* and other tools that use orchestration and private networks may occur. Please use it with caution and only for troubleshooting purposes.
 
 
-### Using OpenVINO Docker* image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+#### Using OpenVINO Docker image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
-#### Step 1: Configure OpenVINO Docker* image
+##### Step 1: Configure the image
 
 > **NOTE**: When building the Docker image, create a user in the Dockerfile that has the same UID (User Identifier) and GID (Group Identifier) as the user which that runs hddldaemon on the host, and then run the application in the Docker image with this user. This step is necessary to run the container as a non-root user.
 
@@ -252,7 +268,7 @@ To use the Docker container for inference on Intel® Vision Accelerator Design w
     $HDDL_INSTALL_DIR/hddldaemon
     ```
 
-#### Step 2: Run the Docker* image
+##### Step 2: Run the image
 
 To run the built Docker* image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, use the following command:
 
@@ -275,7 +291,7 @@ docker run -it --rm --net=host -v /var/tmp:/var/tmp –-ipc=host <image_name>
 ```
 If that still does not solve the issue, try starting `hddldaemon` with the root user on host. However, this approach is not recommended. Please use with caution.
 
-## Running samples in OpenVINO Docker* image
+## Running samples in OpenVINO Docker image
 
 To run the `Hello Classification Sample` on a specific inference device, run the following commands:
 

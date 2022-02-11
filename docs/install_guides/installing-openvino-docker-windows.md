@@ -2,34 +2,51 @@
 
 This guide provides steps for creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Windows* and using the Docker image on different devices.
 
+There are two options to install OpenVINO with Docker:
+
+* You can <a href="#using-prebuilt-image">get a prebilt image and run the image directly</a>;
+* Or <a href="#build-image-manually">build a docker image manually and run the image on different devices</a>.
+
+
 ## System requirements
 
-**Target Operating Systems**
+@sphinxdirective
+.. tab:: Target Operating Systems
 
-- Windows Server Core*
+  Windows Server Core
 
-**Host Operating Systems**
+.. tab:: Host Operating Systems
 
-- Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or later) editions
-- Windows Server* 2016 or higher
+  * Windows 10, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or later) editions
+  * Windows Server 2016 or higher
 
-## Creating an OpenVINO Docker image
+@endsphinxdirective
 
-You can create a Docker image with OpenVINO via either of the following ways. 
 
-### Get a prebuilt image directly from provided sources
+## <a name="using-prebuilt-image"></a>Installing OpenVINO with a prebuilt image
+
+### Step 1: Get a prebuilt image from provided sources
 
 You can find prebuilt images on [Docker Hub](https://hub.docker.com/u/openvino).
 
-### Build a Docker* image manually
+### Step 2: Run the image
+
+Run the Docker image using the following command:
+```bat
+docker run -it --rm <image_name>
+```
+
+## <a name="build-image-manually"></a>Installing OpenVINO by building a Docker image manually
+
+### Step 1: Create a dockerfile
 
 You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci)which can generate a Dockerfile, build, test, and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
 
-## Using OpenVINO Docker image on different devices
+### Step 2: Configure and run the image for different devices
 
-### Using OpenVINO Docker* image on CPU
+#### Using OpenVINO Docker image on CPU
 
-#### Step 1: Install additional dependencies
+##### Step 1: Install additional dependencies
 
 - **Install CMake**
 
@@ -75,7 +92,7 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
    In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
    
 
-#### Step 2: Run OpenVINO Docker* image on CPU
+##### Step 2: Run OpenVINO Docker* image on CPU
 
 To start the interactive session, run the following command allows inference on the CPU:
 
@@ -90,7 +107,7 @@ docker run -it --rm <image_name>
 cmd /S /C "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -kO https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python samples\python\hello_classification\hello_classification.py public\googlenet-v1\FP16\googlenet-v1.xml car_1.bmp CPU"
 ```
 
-### Using OpenVINO Docker* image on GPU
+#### Using OpenVINO Docker* image on GPU
 
 GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO toolkit and Docker* requirements:
 
@@ -105,7 +122,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
   - Windows host and container version tags must match.
   - [Windows host and container isolation process support](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility)
 
-#### Step 1: Configure OpenVINO Docker* image for your host system
+##### Step 1: Configure OpenVINO Docker* image for your host system
 
 1. Reuse one of [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). You can also use your own Dockerfile. 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
@@ -128,7 +145,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    copy C:\Windows\System32\OpenCL.dll C:\tmp
    ```
 
-#### Step 2: Run OpenVINO Docker* image on GPU
+##### Step 2: Run OpenVINO Docker* image on GPU
 
 1. To try inference on a GPU, run the image with the following command:
    ```bat
