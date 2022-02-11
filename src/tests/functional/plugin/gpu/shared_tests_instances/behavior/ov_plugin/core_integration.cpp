@@ -464,7 +464,7 @@ TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPr
     uint32_t n_streams = 2;
     int64_t available_device_mem_size = 1073741824;
     ov::AnyMap _options = {ov::hint::model(simpleNetwork),
-                           ov::streams::num(n_streams),
+                           ov::num_streams(n_streams),
                            ov::intel_gpu::hint::available_device_mem(available_device_mem_size)};
 
     ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size.name(), _options));

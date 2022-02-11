@@ -57,7 +57,7 @@ public:
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
     void PullOutputData(InferenceEngine::BlobMap &out);
 
-    void Infer(MKLDNNInferRequestBase* request = nullptr, int batch = -1);
+    void Infer(MKLDNNInferRequestBase* request = nullptr);
 
     const std::vector<MKLDNNNodePtr>& GetNodes() const {
         return graphNodes;
