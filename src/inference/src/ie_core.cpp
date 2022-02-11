@@ -495,17 +495,19 @@ public:
         bool res = true;
         std::stringstream errMsg;
         auto model = network.getFunction();
-        for (const auto& input : model->inputs()) {
-            if (input.get_partial_shape().is_dynamic()) {
-                errMsg << "{ input:'";
-                for (const auto& name : input.get_names()) {
-                    errMsg << name << ",";
+        if (model) {
+            for (const auto& input : model->inputs()) {
+                if (input.get_partial_shape().is_dynamic()) {
+                    errMsg << "{ input:'";
+                    for (const auto& name : input.get_names()) {
+                        errMsg << name << ",";
+                    }
+                    if (auto node = input.get_node_shared_ptr()) {
+                        errMsg << node->get_friendly_name();
+                    }
+                    errMsg << "', shape=" << input.get_partial_shape() << "} ";
+                    res = false;
                 }
-                if (auto node = input.get_node_shared_ptr()) {
-                    errMsg << node->get_friendly_name();
-                }
-                errMsg << "', shape=" << input.get_partial_shape() << "} ";
-                res = false;
             }
         }
         return {res, errMsg.str()};
