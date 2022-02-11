@@ -118,8 +118,8 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
     return devices;
 }
 
-std::map<std::string, std::string> parse_nstreams_value_per_device(const std::vector<std::string>& devices,
-                                                                   const std::string& values_string) {
+std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
+                                                          const std::string& values_string) {
     //  Format: <device1>:<value1>,<device2>:<value2> or just <value>
     std::map<std::string, std::string> result;
     auto device_value_strings = split(values_string, ',');
