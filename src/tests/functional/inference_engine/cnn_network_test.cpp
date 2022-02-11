@@ -6,6 +6,8 @@
 #include "cpp/ie_cnn_network.h"
 #include "inference_engine.hpp"
 #include "openvino/opsets/opset.hpp"
+#include "openvino/pass/serialize.hpp"
+#include <common_test_utils/file_utils.hpp>
 
 using namespace InferenceEngine;
 
@@ -75,7 +77,7 @@ TEST_F(CNNNetworkTests, throwsOnConstUninitializedGetInputShapes) {
     ASSERT_THROW(network.getInputShapes(), InferenceEngine::Exception);
 }
 
-std::shared_ptr<ov::Model> create_model() {
+static std::shared_ptr<ov::Model> CNNNetworkTests_create_model() {
     auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
     param1->set_friendly_name("p1_friendly");
     param1->output(0).set_names({"p1_1", "p1_2"});
@@ -90,7 +92,7 @@ std::shared_ptr<ov::Model> create_model() {
 }
 
 TEST_F(CNNNetworkTests, throwsHasDynamicInputs) {
-    auto model = create_model();
+    auto model = CNNNetworkTests_create_model();
     CNNNetwork network(model);
     InferenceEngine::Core core;
     try {
@@ -108,7 +110,7 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs) {
 }
 
 TEST_F(CNNNetworkTests, throwsHasDynamicInputs_remoteContext) {
-    auto model = create_model();
+    auto model = CNNNetworkTests_create_model();
     CNNNetwork network(model);
     InferenceEngine::Core core;
     try {
@@ -126,7 +128,7 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs_remoteContext) {
 }
 
 TEST_F(CNNNetworkTests, throwsHasDynamicInputs_queryNetwork) {
-    auto model = create_model();
+    auto model = CNNNetworkTests_create_model();
     CNNNetwork network(model);
     InferenceEngine::Core core;
     try {
@@ -134,6 +136,39 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs_queryNetwork) {
         FAIL() << "QueryNetwork with dynamic inputs shall throw";
     } catch (const ov::AssertFailure& e) {
         EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::QueryNetwork") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_1") == std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
+    }
+}
+
+class CNNNetworkTests_LoadFromFileTest : public ::testing::Test {
+protected:
+    std::string modelName = "CNNNetworkTests_LoadFromFileTest.xml";
+    std::string weightsName = "CNNNetworkTests_LoadFromFileTest.bin";
+    InferenceEngine::Core core;
+public:
+    void SetUp() override {
+        std::shared_ptr<ov::Model> model = CNNNetworkTests_create_model();
+        ov::pass::Serialize(modelName, weightsName).run_on_model(model);
+        core.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, "mock");
+    }
+
+    void TearDown() override {
+        CommonTestUtils::removeIRFiles(modelName, weightsName);
+        core.UnregisterPlugin("mock");
+    }
+};
+
+TEST_F(CNNNetworkTests_LoadFromFileTest, throwsHasDynamicInputs_fromPath) {
+    try {
+        core.LoadNetwork(modelName, "mock");
+        FAIL() << "LoadNetwork with dynamic inputs shall throw";
+    } catch (const ov::AssertFailure& e) {
+        EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p2_1") != std::string::npos) << e.what();
