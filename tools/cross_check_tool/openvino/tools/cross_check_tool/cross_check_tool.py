@@ -55,6 +55,7 @@ def get_plugin(device: str, cpu_ext: str = None, config: str = None):
 @error_handling('reading {xml_path} IR model')
 def get_model(model_path: str, core: Core):
     model = core.read_model(model=model_path)
+    # TODO: can we support it?
     if model.is_dynamic():
         raise Exception("Cross check tool doesn't support dynamic models for now.")
     return model
@@ -81,13 +82,7 @@ def get_model_copy_with_output(model: str, output: tuple, core: Core):
 
 @error_handling('getting model layers info')
 def get_model_info(model: Model):
-    precision = None
-    for input in model.inputs:
-        if precision == None:
-            precision = input.element_type
-        elif precision != input.element_type:
-            precision = Type.undefined
-    return model.get_ordered_ops(), model.inputs, model.outputs, precision.get_type_name()
+    return model.get_ordered_ops(), model.inputs, model.outputs
 
 
 def check_inputs_and_default_outputs_are_equal(model, ref_model):
@@ -168,8 +163,8 @@ def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out
 def one_ir_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     model = get_model(model_path=args.model, core=core)
-    model_layers, model_inputs, model_outputs, precision = get_model_info(model)
-    log.info(f'{args.device} : {precision} vs {args.reference_device} : {precision}')
+    model_layers, model_inputs, model_outputs = get_model_info(model)
+    log.info(f'{args.device} vs {args.reference_device}')
     log.info(f'The same IR on both devices: {args.model}')
     out_layers = get_layers_list(model_layers, model_outputs, args.layers)
     print_input_layers(model_inputs)
@@ -203,11 +198,11 @@ def two_ir_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     ref_core = get_plugin(args.reference_device, args.l, args.reference_config)
     model = get_model(model_path=args.model, core=core)
-    model_layers, model_inputs, model_outputs, precision = get_model_info(model)
+    model_layers, model_inputs, model_outputs = get_model_info(model)
     ref_model = get_model(model_path=args.reference_model, core=ref_core)
-    ref_model_layers, _, _, ref_precision = get_model_info(ref_model)
+    ref_model_layers, _, _, = get_model_info(ref_model)
     check_inputs_and_default_outputs_are_equal(model, ref_model)
-    log.info(f'{args.device} : {precision} vs {args.reference_device} : {ref_precision}')
+    log.info(f'{args.device} vs {args.reference_device}')
     log.info(f'IR for {args.device} : {args.model}')
     log.info(f'IR for {args.reference_device} : {args.reference_model}')
     if args.reference_layers:
@@ -251,10 +246,11 @@ def two_ir_mode(args):
                                    global_accuracy=global_accuracy)
 
 
+# TODO: rename blob to tensor
 def dump_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     model = get_model(model_path=args.model, core=core)
-    model_layers, model_inputs, model_outputs, _ = get_model_info(model)
+    model_layers, model_inputs, model_outputs = get_model_info(model)
     out_layers = get_layers_list(model_layers, model_outputs, args.layers)
     inputs = input_processing(args.model, model_inputs, args.input)
     dump_dict = defaultdict(list)
@@ -276,7 +272,7 @@ def load_mode(args):
     log.info(f'IR for {args.device} : {args.model}')
     log.info(f'Loading blob from {args.load}')
     model = get_model(model_path=args.model, core=core)
-    model_layers, model_inputs, model_outputs, _ = get_model_info(model)
+    model_layers, model_inputs, model_outputs = get_model_info(model)
     out_layers = get_layers_list(model_layers, model_outputs, args.layers)
     print_input_layers(model_inputs)
     print_output_layers(out_layers)

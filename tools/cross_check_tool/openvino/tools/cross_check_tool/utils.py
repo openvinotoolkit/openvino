@@ -224,7 +224,7 @@ def validate_args(args):
         args.reference_model = None
     if args.model != args.reference_model and args.reference_model is not None and (args.layers is None or \
             args.reference_layers is None):
-        log.warning('Check over two different IRs was enabled. In case if layer names in this two IRs differ, '
+        log.warning('Check over two different IRs was enabled. In case if layer names in these two IRs are different, '
                     'please provide both -layers and --reference_layers to compare against.')
     # device check
     if args.device is None and args.reference_device is None:
@@ -276,6 +276,7 @@ def find_out_cct_mode(args):
     raise Exception('Unknown Cross Check Tool CLI configuration.\nFor more details use -h option')
 
 
+#TODO: remove info about shape
 def print_input_layers(inputs: list):
     word = 'inputs' if len(inputs) > 1 else 'input'
     log.info(f"{len(inputs)} {word} detected: {', '.join(f'{input.any_name} {input.shape}' for input in inputs)}")
@@ -517,6 +518,7 @@ def print_all_over_the_net_metrics(global_accuracy: list, global_times: list = N
 ###
 
 
+#TODO: rename to ops
 def get_layers_list(all_layers: list, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
@@ -529,6 +531,8 @@ def get_layers_list(all_layers: list, outputs: list, layers: str):
                 if user_layer not in all_layers_map:
                     raise Exception(f"Layer {user_layer} doesn't exist in the model")
                 else:
+                    # TODO: prev op if result?
+                    # TODO: forbid inputs?
                     new_outputs.append(all_layers_map[user_layer])
             return new_outputs
     else:
