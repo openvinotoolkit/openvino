@@ -721,7 +721,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 }
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
-    const bool is_new_api = _plugin->GetCore()->isNewAPI();
+    const bool is_new_api = _core->isNewAPI();
     if (_workModeIsAUTO) {
         if (name == ov::supported_properties) {
             return decltype(ov::supported_properties)::value_type {
