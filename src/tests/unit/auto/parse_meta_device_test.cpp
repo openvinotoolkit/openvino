@@ -91,6 +91,9 @@ public:
                    StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(igpuFullDeviceName));
        ON_CALL(*core, GetMetric(StrEq("GPU.1"),
                    StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(dgpuFullDeviceName));
+       IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys, {});
+       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
+           .WillByDefault(RETURN_MOCK_VALUE(configKeys));
 
        ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
 
