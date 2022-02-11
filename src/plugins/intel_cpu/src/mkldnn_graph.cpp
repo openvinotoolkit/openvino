@@ -459,9 +459,11 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() const {
     }
 }
 
-static bool isReorderAvailable(const MemoryDesc& parentDesc, const MemoryDesc& childDesc, const mkldnn::engine& eng) {
-    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(childDesc.clone())->getDnnlDesc();
-    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(parentDesc.clone())->getDnnlDesc();
+static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc, const mkldnn::engine& eng) {
+    auto definedParentDesc = parentDesc->isDefined() ? parentDesc : MemoryDescUtils::makeDummyDesc(*parentDesc);
+    auto definedChildDesc = childDesc->isDefined() ? childDesc : MemoryDescUtils::makeDummyDesc(*childDesc);
+    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedParentDesc)->getDnnlDesc();
+    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedChildDesc)->getDnnlDesc();
     mkldnn::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
@@ -513,7 +515,9 @@ void MKLDNNGraph::InitEdges() {
             MKLDNNEdge::ReorderStatus reorderStatusInternal = MKLDNNEdge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
-                    !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
+                    !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
+                                        edge->getOutputPortDesc()->getMemDesc(),
+                                        this->getEngine())) {
                 // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
                 const auto& inDesc = edge->getInputDesc();
                 const auto& outDesc = edge->getOutputDesc();
