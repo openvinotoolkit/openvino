@@ -105,6 +105,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     unsigned int devicePriority = 0;
     auto prioritiesIter = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     bool enableDevicePriority = (prioritiesIter != config.end());
+    auto deviceList = GetCore()->GetAvailableDevices();
     for (auto && d : devicesWithRequests) {
         auto openingBracket = d.find_first_of('(');
         auto closingBracket = d.find_first_of(')', openingBracket);
@@ -124,7 +125,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         std::string deviceid = parsed.getDeviceID();
         std::vector<std::string> sameTypeDevices;
         if (deviceid.empty()) {
-            auto deviceList = GetCore()->GetAvailableDevices();
             for (auto&& device : deviceList) {
                 if (device.find(deviceName) != std::string::npos) {
                     sameTypeDevices.push_back(std::move(device));
@@ -148,9 +148,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
 
             if (fullDeviceName.empty()) {
-                uniqueName = newParsed.getDeviceName() + "_" + deviceid;
+                uniqueName = newParsed.getDeviceName() + "_" + defaultDeviceID;
             } else {
-                uniqueName = fullDeviceName + "_" + deviceid;
+                uniqueName = fullDeviceName + "_" + defaultDeviceID;
             }
 
             LOG_DEBUG("[AUTOPLUGIN]:deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
