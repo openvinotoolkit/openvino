@@ -293,7 +293,10 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         const auto & childEdges = node->getChildEdges();
         return std::any_of(childEdges.begin(), childEdges.end(),
                            [] (const MKLDNNEdgeWeakPtr& edge) -> bool {
-                               return edge.lock()->getChild()->getType() == Type::Subgraph;
+                               auto edgePtr = edge.lock();
+                               if (!edgePtr)
+                                   return false;
+                               return edgePtr->getChild()->getType() == Type::Subgraph;
                            });
     };
 
@@ -306,6 +309,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
             if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16 &&
+                // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
         }

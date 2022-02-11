@@ -11,6 +11,20 @@ namespace SubgraphTestsDefinitions {
 
 using namespace ngraph;
 
+/*
+   In cases like: Parameter->Gather->Subgraph->AvgPool when input blob precision is forced to U8.
+   there is a precision mismatch between Gather and Subgraph,
+   since Gather 'inherits' input precision (U8) and Subgraph works on FP32.
+   That affects Subgraph's output layout. In this case Subgraph
+   exposes 3 supported descriptors: (nhwc, fp32), (nChw8c, fp32), (nchw, fp32).
+   Since none of the descriptors matches parent node (because of precision mismatch)
+   the first one (nhwc) is picked instead of nchw. Subgraph's layout also affects
+   AvgPool layout and for this node also nhwc is picked instead of more preferable
+   nChw8c or nChw16c.
+   To address the issue, there is a WA in MKLDNNGraph::Replicate - we skip propagating
+   input's precision if its child has Subgraph consumers.
+   Same scenario happens when we have Eltwise instead of Subgraph - to be addressed in #78939.
+*/
 class GatherAddAvgpool : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
