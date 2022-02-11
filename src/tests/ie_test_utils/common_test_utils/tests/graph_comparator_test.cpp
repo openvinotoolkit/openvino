@@ -46,19 +46,53 @@ TEST(GraphComparatorTests, CheckbyDefault) {
     ASSERT_FALSE(res.valid) << res.message;
 }
 
+TEST(GraphComparatorTests, NamesCheckPositive) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
+        input->set_friendly_name("new_name1");
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        constant->set_friendly_name("new_name2");
+        auto add = std::make_shared<ov::opset8::Add>(input, constant);
+        add->set_friendly_name("new_name3");
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
+        input->set_friendly_name("new_name1");
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        constant->set_friendly_name("new_name2");
+        auto add = std::make_shared<ov::opset8::Add>(input, constant);
+        add->set_friendly_name("new_name3");
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
+    comparator.enable(FunctionsComparator::NAMES);
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
 TEST(GraphComparatorTests, NamesCheckNegative) {
     FunctionsComparator comparator(FunctionsComparator::no_default());
     std::shared_ptr<ov::Model> function, function_ref;
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
+        input->set_friendly_name("new_name1");
         auto constant = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        constant->set_friendly_name("new_name2");
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
-        auto result = std::make_shared<ov::opset8::Result>(add);
-        function_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ input });
-        function = ov::clone_model(*function_ref);
-        result->set_friendly_name("new_name");
+        add->set_friendly_name("new_name3");
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
-    //?
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
+        input->set_friendly_name("new_name1");
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        constant->set_friendly_name("new_name2");
+        auto add = std::make_shared<ov::opset8::Add>(input, constant);
+        add->set_friendly_name("new_name3_different");
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
     comparator.enable(FunctionsComparator::NAMES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
