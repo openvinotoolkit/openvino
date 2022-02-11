@@ -53,6 +53,8 @@ public:
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
 
+    void setDynamicBatchLim(int lim) override;
+
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;

@@ -154,8 +154,12 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::InferImpl() {
 
     ThrowIfCanceled();
 
-    if (graph->hasDynamicInput())
+    if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
+    } else if (graph->getProperty().isNewApi && graph->getProperty().batchLimit > 0) {
+        const auto batch = _inputs.begin()->second->getTensorDesc().getDims()[0];
+        SetBatch(batch);
+    }
 
     execDataPreprocessing(_inputs);
 
@@ -169,7 +173,7 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::InferImpl() {
         PushStates();
     }
 
-    graph->Infer(this, m_curBatch);
+    graph->Infer(this);
 
     if (memoryStates.size() != 0) {
         PullStates();
@@ -301,23 +305,6 @@ void MKLDNNPlugin::MKLDNNInferRequestBase::changeDefaultPtr() {
     }
 }
 
-
-void MKLDNNPlugin::MKLDNNInferRequestBase::SetBatch(int new_batch) {
-    if (!graph->getProperty().enableDynamicBatch)
-        IE_THROW() << "Dynamic batch is not enabled.";
-
-    if (new_batch < 1 || new_batch > graph->getProperty().batchLimit) {
-        IE_THROW() << "Invalid dynamic batch size " << new_batch <<
-            " for this request.";
-    }
-
-    m_curBatch = new_batch;
-
-    for (const auto& node : graph->GetNodes()) {
-        node->setDynamicBatchLim(new_batch);
-    }
-}
-
 std::vector<InferenceEngine::IVariableStateInternal::Ptr> MKLDNNPlugin::MKLDNNInferRequestBase::QueryState() {
     return memoryStates;
 }
@@ -363,6 +350,22 @@ void MKLDNNPlugin::MKLDNNLegacyInferRequest::initBlobs() {
     }
     for (const auto& it : _networkOutputs) {
         MKLDNNLegacyInferRequest::GetBlob(it.first);
+    }
+}
+
+void MKLDNNPlugin::MKLDNNLegacyInferRequest::SetBatch(int new_batch) {
+    if (!graph->getProperty().enableDynamicBatch)
+        IE_THROW() << "Dynamic batch is not enabled.";
+
+    if (new_batch < 1 || new_batch > graph->getProperty().batchLimit) {
+        IE_THROW() << "Invalid dynamic batch size " << new_batch <<
+            " for this request.";
+    }
+
+    m_curBatch = new_batch;
+
+    for (const auto& node : graph->GetNodes()) {
+        node->setDynamicBatchLim(new_batch);
     }
 }
 
@@ -671,6 +674,22 @@ void MKLDNNPlugin::MKLDNNInferRequest::initBlobs() {
     }
     for (const auto& it : modelOutputsMap) {
         MKLDNNInferRequest::GetBlob(it.first);
+    }
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::SetBatch(int new_batch) {
+    if (!graph->getProperty().batchLimit || modelInputsMap.begin()->second->get_output_partial_shape(0).is_static()) {
+        IE_THROW() << "Can't SetBatch for model that can't be executed via legacy dynamic batch or for static model";
+    }
+
+    if (new_batch < 1 || new_batch > graph->getProperty().batchLimit) {
+        IE_THROW() << "Can't set batch that more than upper bound";
+    }
+
+    m_curBatch = new_batch;
+
+    for (const auto& node : graph->GetNodes()) {
+        node->setDynamicBatchLim(new_batch);
     }
 }
 

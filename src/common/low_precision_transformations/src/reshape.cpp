@@ -56,7 +56,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
 
 namespace {
 
-void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
+void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape, const std::vector<ngraph::element::Type>& defaultPrecisions) {
     // Reshape dequantization operation Constant.
     //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
     //    For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3}, result for broadcast: {1, 3, 4, 1},
@@ -132,7 +132,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
         replace_node(originalConstant, resultConstant);
     };
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, defaultPrecisions, 0);
 
     if (dequantization.subtract != nullptr) {
         replaceConstant(reshape, dequantization.subtractConstant);
@@ -155,9 +155,9 @@ bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    reshape = ov::as_type_ptr<opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape));
-    reshapeDequantizationConstant(reshape);
-    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
+    reshape = ov::as_type_ptr<opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
+    reshapeDequantizationConstant(reshape, defaultPrecisions);
+    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0), false);
     return true;
 }
 
@@ -190,7 +190,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }
