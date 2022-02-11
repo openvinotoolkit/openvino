@@ -29,6 +29,7 @@ void register_implementations() {
     REGISTER_OCL(detection_output);
     REGISTER_OCL(batch_to_space);
     REGISTER_OCL(experimental_detectron_roi_feature_extractor);
+    REGISTER_OCL(experimental_detectron_topk_rois);
     REGISTER_OCL(eltwise);
     REGISTER_OCL(fully_connected);
     REGISTER_OCL(gather);
