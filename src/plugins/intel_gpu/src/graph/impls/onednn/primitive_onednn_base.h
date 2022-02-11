@@ -209,15 +209,17 @@ protected:
         if (profiling) {
             stream.finish();
             event->set();
-        } else {
-            // Create and set user event as complete
-            event = stream.create_user_event(true);
-        }
+        } 
+        // null event for perf
+        // else {
+        //    // Create and set user event as complete
+        //    event = stream.create_user_event(true);
+        //}
 
-        if (!event) {
-            std::string error_msg = "Event was not created properly for " + instance.id();
-            throw std::runtime_error(error_msg);
-        }
+        // if (!event) {
+        //    std::string error_msg = "Event was not created properly for " + instance.id();
+        //    throw std::runtime_error(error_msg);
+        // }
 
         return event;
     }

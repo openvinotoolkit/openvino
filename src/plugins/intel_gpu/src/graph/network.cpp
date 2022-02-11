@@ -848,16 +848,17 @@ std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::
 
 void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                                      const std::vector<event::ptr>& events) {
-    auto id = primitive->id();
-    auto it = _events.find(id);
-    bool found = (it != _events.end());
-    CLDNN_ERROR_BOOL(id,
-                     "Invalid primitive call ",
-                     found,
-                     "Primitive " + id + " is tried to be executed for the second time");
+    // commented for in order queue
+    // auto id = primitive->id();
+    // auto it = _events.find(id);
+    // bool found = (it != _events.end());
+    // CLDNN_ERROR_BOOL(id,
+    //                 "Invalid primitive call ",
+    //                 found,
+    //                 "Primitive " + id + " is tried to be executed for the second time");
 
     event::ptr ev = primitive->execute(events);
-    _events.insert({id, ev});
+    // _events.insert({id, ev});
 }
 
 void network::allocate_primitive_instance(program_node const& node) {

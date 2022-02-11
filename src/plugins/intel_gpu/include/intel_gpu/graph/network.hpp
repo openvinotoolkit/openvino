@@ -102,7 +102,10 @@ public:
     }
 
     network_output get_output(const primitive_id& output_id) {
-        return network_output(get_primitive_event(output_id), get_output_memory(output_id), get_stream_ptr());
+        event::ptr evt;
+        if (has_event(output_id))
+            evt = get_primitive_event(output_id);
+        return network_output(evt, get_output_memory(output_id), get_stream_ptr());
     }
 
     memory::ptr get_output_memory(const primitive_id& output_id);

@@ -148,20 +148,22 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         return _impl->execute(events, *this);
 
     std::vector<event::ptr> dependencies;
+
+    // comment dependancies for in order queue
     dependencies.reserve(_exec_deps.size());
-    for (auto& input : _exec_deps) {
-        auto id = input->id();
-        try {
-            // if the requested event does not exits it means that it has not been executed, so the processing_order is
-            // wrong or synchronization failed.
-            auto ev = get_network().get_primitive_event(id);
-            dependencies.emplace_back(ev);
-        } catch (const std::out_of_range& oor) {
-            std::string temp = std::string("internal CLDNN error: execution order corrupted.") + std::string("\n") +
-                               std::string(oor.what() + std::string("\n"));
-            CLDNN_ERROR_MESSAGE(id, temp);
-        }
-    }
+    // for (auto& input : _exec_deps) {
+    //    auto id = input->id();
+    //    try {
+    //        // if the requested event does not exits it means that it has not been executed, so the processing_order is
+    //        // wrong or synchronization failed.
+    //        auto ev = get_network().get_primitive_event(id);
+    //        dependencies.emplace_back(ev);
+    //    } catch (const std::out_of_range& oor) {
+    //        std::string temp = std::string("internal CLDNN error: execution order corrupted.") + std::string("\n") +
+    //                           std::string(oor.what() + std::string("\n"));
+    //        CLDNN_ERROR_MESSAGE(id, temp);
+    //    }
+    //}
     return _impl->execute(dependencies, *this);
 }
 
