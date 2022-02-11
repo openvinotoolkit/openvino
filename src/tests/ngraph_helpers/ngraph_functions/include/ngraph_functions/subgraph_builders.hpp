@@ -47,7 +47,7 @@ inline std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
     return fnPtr;
 }
 
-inline std::shared_ptr<ngraph::Function> makeConvPoolReluNoReshapes(std::vector<size_t> inputShape = {1, 4, 32, 32},
+inline std::shared_ptr<ngraph::Function> makeConvPoolReluNoReshapes(std::vector<size_t> inputShape = {1, 1, 32, 32},
                                                                     ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
