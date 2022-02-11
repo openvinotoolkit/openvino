@@ -7,9 +7,6 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-/*
- * Description:
- */
 /**
  * @ingroup ie_transformation_common_api
  * @brief transformation aligns elementwise constant inputs ranks with its output rank
