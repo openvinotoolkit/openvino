@@ -23,7 +23,7 @@ ngraph::snippets::pass::InsertLoad::InsertLoad() {
             // check if already has Load as an output
             for (auto output : root->outputs()) {
                 for (auto consumer : output.get_target_inputs()) {
-                    if (dynamic_cast<ngraph::snippets::op::Load*>(consumer.get_node())) {
+                    if (ov::is_type<ngraph::snippets::op::Load>(consumer.get_node())) {
                         return false;
                     }
                 }
@@ -56,7 +56,7 @@ ngraph::snippets::pass::InsertStore::InsertStore() {
 
             // check if already has Store as an input
             for (auto input : root->inputs()) {
-                if (dynamic_cast<ngraph::snippets::op::Store*>(input.get_source_output().get_node())) {
+                if (ov::is_type<ngraph::snippets::op::Store>(input.get_source_output().get_node())) {
                     return false;
                 }
             }

@@ -12,6 +12,7 @@
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants_to_scalars.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
+#include "snippets/pass/vector_to_scalar.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -210,6 +211,9 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
+    auto skip_matching_domain = [](const std::shared_ptr<const ov::Node>& n) -> bool {
+        return n->get_input_shape(0).back() != 1;
+    };
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
@@ -217,6 +221,14 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.register_pass<snippets::pass::InsertStore>();
     manager.register_pass<snippets::pass::InsertMoveBroadcast>();
     manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
+    manager.register_pass<snippets::pass::ReplaceLoadsWithScalarLoads>();
+    manager.register_pass<snippets::pass::ReplaceStoresWithScalarStores>();
+    if (exec_domain.back() != 1) {
+        manager.get_pass_config()->
+        set_callback<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>(skip_matching_domain);
+        manager.get_pass_config()->
+        set_callback<ngraph::snippets::pass::ReplaceStoresWithScalarStores>(skip_matching_domain);
+    }
     manager.run_passes(m_body);
 }
 
