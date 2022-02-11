@@ -13,9 +13,12 @@ From 2022.1 release, the OpenVINO Developer Tools can only be installed via PyPI
 
 ## For C++ developers
 
-> **NOTE**: To install OpenVINO Model Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through an installer ([Linux](installing-openvino-linux.md), [Windows](installing-openvino-windows.md), [macOS](installing-openvino-macos.md)), [APT for Linux](installing-openvino-apt.md) or [YUM for Linux](installing-openvino-yum.md). 
+Note the following things:
 
-Always ensure that the version of OpenVINO Model Development Tools you are installing matches that of OpenVINO Runtime. Then install OpenVINO Model Development Tools via either of the following ways:
+* To install OpenVINO Model Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through an installer ([Linux](installing-openvino-linux.md), [Windows](installing-openvino-windows.md), or [macOS](installing-openvino-macos.md)), [APT for Linux](installing-openvino-apt.md) or [YUM for Linux](installing-openvino-yum.md). 
+* Ensure that the version of OpenVINO Model Development Tools you are installing matches that of OpenVINO Runtime. 
+
+Use either of the following ways to install OpenVINO Model Development Tools:
 
 ### Recommended: Install using the requirements files
 

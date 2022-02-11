@@ -8,12 +8,9 @@
    :caption: Install OpenVINO
    
    Overview <openvino_docs_install_guides_overview>
-   Install OpenVINO Runtime on Linux <openvino_docs_install_guides_installing_openvino_linux_header>
-   Install OpenVINO Runtime on Windows <openvino_docs_install_guides_installing_openvino_windows_header>
-   Install OpenVINO Runtime on macOS <openvino_docs_install_guides_installing_openvino_macos_header>
+   Install OpenVINO Runtime <openvino_docs_install_guides_install_runtime>
    Install Model Development Tools <openvino_docs_install_guides_install_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
-   Install OpenVINO Runtime on Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>
    Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
@@ -24,7 +21,7 @@
    
    Configurations for Intel® GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
    Configurations for Intel® NCS2 <openvino_docs_install_guides_configurations_for_ncs2>
-   Configurations for VPU <openvino_docs_install_guides_installing_openvino_ivad_vpu>
+   Configurations for Intel® VPU <openvino_docs_install_guides_installing_openvino_ivad_vpu>
    
 .. toctree::
    :maxdepth: 1
@@ -55,8 +52,8 @@
 .. raw:: html
     
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
-   <p id="GSG_introtext">To get started with OpenVINO, the first thing to do is to actually install it. If you haven't done it yet, choose the installation type that best suits your needs and follow the instructions:<br />
-     <a href="openvino_docs_install_guides_overview.html" >Install <br />OpenVINO Runtime </a>
+   <p id="GSG_introtext">To get started with OpenVINO, the first thing to do is to actually install it. You can get an <a href="openvino_docs_install_guides_overview.html" >overview</a> of what installation options we provide and start from there, or choose the installation type that best suits your needs directly if you already have enough information:<br />
+     <a href="openvino_docs_install_guides_install_runtime.html" >Install <br />OpenVINO Runtime </a>
      <a href="openvino_docs_install_guides_install_dev_tools.html" >Install OpenVINO <br />Model Development Tools</a>
      <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode" >Build <br /> from source</a>
    </p>

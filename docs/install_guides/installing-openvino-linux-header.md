@@ -21,4 +21,3 @@ If you want to install Intel® Distribution of OpenVINO™ toolkit on your Linux
 * [Install from Anaconda* Cloud](installing-openvino-conda.md)
 * [Install with Docker](installing-openvino-docker-linux.md)
 
-Enjoy your journey with OpenVINO™.
