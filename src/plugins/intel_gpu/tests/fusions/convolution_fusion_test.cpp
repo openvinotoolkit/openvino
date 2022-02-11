@@ -3431,4 +3431,68 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_input_range, ::test
     convolution_test_params{ CASE_CONV_S8S8_15, 2, 3 },
 }));
 
+
+// input:b_fs_yx_fsv32:u8 X weight:bfyx:i8 + eltwise_sum:b_fs_yx_fsv32:u8
+// After optimization: eltwise_any + binary_add
+// DNNL_VERBOSE log with optimization:    attr-post-ops:eltwise_tanh+binary_add:u8:14:aBcd32b+eltwise_linear:1
+class post_ops_optimizations_onednn_binary_add_full_tensor : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_onednn_binary_add_full_tensor, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("in_lo", get_mem(get_single_element_layout(p), 0)),
+        data("in_hi", get_mem(get_single_element_layout(p), 255)),
+        data("out_lo", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi", get_mem(get_single_element_layout(p), 255)),
+        data("eltwise_data", get_mem(get_output_layout(p), 0, 255)),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", activation_func::hyperbolic_tan),
+        eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum),
+        quantize("quantize", "sum", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
+        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+// in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_CONV_U8S8_FT_BINARY_ADD_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0, 0, 1, 1, 0 }, tensor{ 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    // cases with batch = 1
+    convolution_test_params{ CASE_CONV_U8S8_FT_BINARY_ADD_1, 2, 5 },
+}));
+
+
+// input:b_fs_yx_fsv16:f16 X weight:bfyx:f16 + eltwise_sum:b_fs_yx_fsv16:f16
+// After optimization: eltwise_any + sum
+// DNNL_VERBOSE log with optimization:    attr-post-ops:eltwise_tanh+sum:1:0:f16
+class post_ops_optimizations_onednn_sum_full_tensor : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_onednn_sum_full_tensor, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", activation_func::hyperbolic_tan),
+        data("eltwise_data", get_mem(get_output_layout(p), 0, 255)),
+        eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum),
+        reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+#define CASE_CONV_F16F16_FT_ELTW_SUM_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0, 0, 1, 1, 0 }, tensor{ 1 }, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::bfyx, data_types::f32, format::bfyx
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_sum_full_tensor, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    // cases with batch = 1
+    convolution_test_params{ CASE_CONV_F16F16_FT_ELTW_SUM_1, 2, 4 },
+}));
+
 #endif  // ENABLE_ONEDNN_FOR_GPU
