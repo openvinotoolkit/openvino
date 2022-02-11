@@ -393,7 +393,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         bool needs_split_reorder = false;
         bool use_onednn_impls = lo.get_optimization_attributes().use_onednn_impls;
         if (node->is_type<convolution>() && use_onednn_impls)
-            needs_split_reorder = lo.needs_onednn_bfyx_to_blocked(in_layout.format, out_layout.format, in_layout, node->as<convolution>());
+            needs_split_reorder = lo.needs_onednn_small_ic_to_blocked(out_layout.format, in_layout, node->as<convolution>());
 
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,
@@ -576,6 +576,30 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     p.add_intermediate(reorder.first, conv_node, 1, !reorder.second);
                 }
             }
+        }
+
+        // For supporting optimized onednn first conv, the input format from prev reorder to this conv is changed to a recommended format by onednn.
+        auto& input = conv_node.input();
+        auto input_layout = input.get_output_layout();
+        auto conv_format = conv_node.get_output_layout().format;
+        if (conv_node.impl_type == impl_types::onednn &&
+            lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node)) {
+            auto new_layout = input_layout;
+            if (new_layout.data_type == data_types::f16)
+                new_layout.format = format::bs_fs_yx_bsv8_fsv2;
+            else if (data_type_traits::is_i8_u8(new_layout.data_type))
+                new_layout.format = format::bs_fs_yx_bsv8_fsv4;
+
+            if (new_layout == input_layout)
+                return;
+
+            if (!input.is_type<reorder>() || input.get_users().size() > 1) {
+                auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+                if (new_input.first)
+                    p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
+            }
+
+            conv_node.get_dependencies().front()->set_output_layout(new_layout, false);
         }
 
         std::vector<format> wrong_format = {format::b_fs_yx_fsv16, format::bs_fs_yx_bsv32_fsv16};

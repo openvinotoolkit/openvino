@@ -49,6 +49,7 @@ set(SRC
     coordinate_range.cpp
     copy.cpp
     copy_runtime_info.cpp
+    dimension.cpp
     element_type.cpp
     eval.cpp
     extension.cpp
