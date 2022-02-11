@@ -119,4 +119,57 @@ INSTANTIATE_TEST_SUITE_P(
         SoftMaxLayerTest::getTestCaseName
 );
 
+
+const std::vector<ov::Shape> inputStaticShape5D = {
+        {1, 100, 1, 1, 1},
+        {50, 100, 4, 1, 1},
+        {2, 100, 10, 1, 1},
+};
+
+const std::vector<ov::test::InputShape> inputDynamicShape5D = {
+        {{ngraph::Dimension::dynamic(), 100, ngraph::Dimension(1, 10), 1, 1}, {{1, 100, 1, 1, 1}, {100, 100, 5, 1, 1}}},
+        {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
+                                                                           {{1, 100, 1, 1, 1}, {50, 100, 4, 1, 1}, {2, 100, 10, 1, 1}}},
+};
+
+const std::vector<ov::test::ElementType> netPrecisions5D = {
+        ov::element::f32,
+};
+
+const std::vector<int64_t> axis5D = {0, 1, 2, 3, 4, -1, -2, -3, -4, -5};
+
+const auto params5Dstatic = testing::Combine(
+        testing::ValuesIn(netPrecisions5D),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape5D)),
+        testing::ValuesIn(axis5D),
+        testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+        testing::Values(ov::AnyMap())
+);
+
+const auto params5Ddynamic = testing::Combine(
+        testing::ValuesIn(netPrecisions5D),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        testing::ValuesIn(inputDynamicShape5D),
+        testing::ValuesIn(axis5D),
+        testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+        testing::Values(ov::AnyMap())
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_SoftMax5D_static,
+        SoftMaxLayerTest,
+        params5Dstatic,
+        SoftMaxLayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_SoftMax5D_dynamic,
+        SoftMaxLayerTest,
+        params5Ddynamic,
+        SoftMaxLayerTest::getTestCaseName
+);
+
 }  // namespace
