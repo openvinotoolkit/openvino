@@ -116,7 +116,7 @@ RangeType MyriadMetrics::RangeForAsyncInferRequests(
 
     auto throughput_streams_str = config.find(InferenceEngine::MYRIAD_THROUGHPUT_STREAMS);
     if (throughput_streams_str == config.end()) {
-        throughput_streams_str = config.find(ov::streams::num.name());
+        throughput_streams_str = config.find(ov::num_streams.name());
     }
     if (throughput_streams_str != config.end()) {
         try {
