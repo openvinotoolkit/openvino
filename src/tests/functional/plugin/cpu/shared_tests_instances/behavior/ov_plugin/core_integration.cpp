@@ -72,6 +72,21 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
         ::testing::Values("CPU"));
 
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+const std::vector<ov::AnyMap> multiConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
+        ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+                           ::testing::ValuesIn(multiConfigs)));
 //
 // IE Class GetConfig
 //

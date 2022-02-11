@@ -77,6 +77,23 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailableDevices, ::testing::Values("GPU"));
 
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+const std::vector<ov::AnyMap> multiConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
+        ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+                           ::testing::ValuesIn(multiConfigs)));
 //
 // GPU specific metrics
 //
