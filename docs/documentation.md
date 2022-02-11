@@ -101,5 +101,12 @@ The toolkit provides a [Performance Optimization Guide](optimization_guide/dldt_
 ## Graphical Web Interface for OpenVINO™ Toolkit
 You can choose to use the [OpenVINO™ Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), a web-based tool that guides you through the process of converting, measuring, optimizing, and deploying models. This tool also serves as a low-effort introduction to the toolkit and provides a variety of useful interactive charts for understanding performance.
 
-## Media Processing
-You can also add media processing capabilities to your application using third-party additional tools and libraries which include [Intel® Deep Learning Streamer (Intel® DL Streamer)](@ref openvino_docs_dlstreamer), a utility that eases creation of media analytics pipelines via command line or API, and optimized versions of [OpenCV](https://opencv.org/).
+## Media Processing and Computer Vision Libraries
+
+The OpenVINO™ toolkit also works with the following media processing frameworks and libraries:
+
+* [Intel® Deep Learning Streamer (Intel® DL Streamer)](@ref openvino_docs_dlstreamer) — A streaming media analytics framework based on GStreamer, for creating complex media analytics pipelines optimized for Intel hardware platforms. Go to the Intel® DL Streamer [documentation](https://dlstreamer.github.io/) website to learn more.
+* [Intel® oneAPI Video Processing Library (oneVPL)](https://www.intel.com/content/www/us/en/develop/documentation/oneapi-programming-guide/top/api-based-programming/intel-oneapi-video-processing-library-onevpl.html) — A programming interface for video decoding, encoding, and processing to build portable media pipelines on CPUs, GPUs, and other accelerators.
+
+You can also add computer vision capabilities to your application using optimized versions of [OpenCV](https://opencv.org/) and [OpenVX](https://khronos.org/openvx).
+
