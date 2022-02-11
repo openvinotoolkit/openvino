@@ -1223,9 +1223,9 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         if (mergedConv->fusedWith.size() > 0 &&
            (mergedConv->fusedWith[0]->getType() == Convolution || mergedConv->fusedWith[0]->getType() == BinaryConvolution)) {
             // Merged with DW_conv. Shape may change
-            mergedConv->inputShapes.push_back(mergedConv->fusedWith[0]->outputShapes[0]);
+            mergedConv->inputShapes.push_back(mergedConv->fusedWith[0]->getOutputShapeAtPort(0));
         } else {
-            mergedConv->inputShapes.push_back(sum->inputShapes[1]);
+            mergedConv->inputShapes.push_back(sum->getInputShapeAtPort(1));
         }
 
         size_t childIdx = 0lu;

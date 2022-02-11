@@ -1372,12 +1372,11 @@ void MKLDNNPlugin::MKLDNNConvolutionNode::addFusedNode(const MKLDNNNodePtr &fusi
             }
         }
         if (withSum && isDynamicNode()) {
-            for (auto edge : fusingNode->getParentEdges()) {
-                if (auto edgePtr = edge.lock()) {
-                    auto parent = edgePtr->getParent();
-                    if ("Constant" == parent->getTypeStr()) {
-                        fusedConstNodes[fusingNode].push_back(parent);
-                    }
+            for (size_t i = 0; i < fusingNode->getParentEdges().size(); ++i) {
+                auto edge = fusingNode->getParentEdgesAtPort(i).front();
+                auto parent = edge->getParent();
+                if ("Constant" == parent->getTypeStr()) {
+                    fusedConstNodes[fusingNode].push_back(parent);
                 }
             }
         }
