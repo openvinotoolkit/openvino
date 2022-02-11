@@ -326,6 +326,27 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     reshapeMemory(DNNL_ARG_DST);
 }
 
+void MKLDNNFullyConnectedNode::setDynamicBatchLim(int lim) {
+    dynBatchLim = lim;
+
+    auto setBatchPrimArgs = [this](int argType, const mkldnn::memory& oldMem) {
+        mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+        newMemDesc.data.dims[0] = batchToProcess();
+        newMemDesc.data.padded_dims[0] = batchToProcess();
+        auto dims = newMemDesc.dims();
+
+        if (dims.size() == 3) {
+            std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
+            newMemDesc = newMemDesc.reshape(normalizedDims);
+        }
+
+        primArgs.at(argType) = mkldnn::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+    };
+
+    setBatchPrimArgs(DNNL_ARG_SRC, getParentEdgesAtPort(0)[0]->getMemory().GetPrimitive());
+    setBatchPrimArgs(DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemory().GetPrimitive());
+}
+
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
     if (prim) {
         // in cases parameter -> FullyConnected or dynamic shapes
