@@ -5,8 +5,8 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.middle.TensorIterator_utils import delete_selects_from
 from openvino.tools.mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.middle.TensorIterator_utils import delete_selects_from
 from openvino.tools.mo.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
 from openvino.tools.mo.ops.identity import Identity
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array

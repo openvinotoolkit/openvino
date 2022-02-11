@@ -17,17 +17,9 @@ class TensorIteratorConditionTests(unittest.TestCase):
 
         graph = build_graph_with_attrs(nodes_with_attrs=pattern['nodes'], edges_with_attrs=pattern['edges'],
                                        new_nodes_with_attrs=[
-                                           ('maximum', {'kind': 'op', 'op': 'Maximum'}),
-                                           ('maximum_data', {'kind': 'data'}),
-                                           ('TensorIteratorInput', {'kind': 'op', 'op': 'TensorIteratorInput'}),
-                                           ('some_op', {'kind': 'op', 'op': 'Add'}),
-                                           ('minimum', {'kind': 'op', 'op': 'Minimum'})],
+                                           ('TensorIteratorInput', {'kind': 'op', 'op': 'TensorIteratorInput'})],
                                        new_edges_with_attrs=[
-                                           ('Identity_1_data', 'TensorIteratorInput'),
-                                           ('maximum', 'maximum_data'),
-                                           ('maximum_data', 'minimum'),
-                                           ('minimum', 'minimum_data'),
-                                           ('loop_cond_data', 'some_op')],
+                                           ('Identity_1_data', 'TensorIteratorInput')],
                                        update_nodes_attributes=[
                                            ('init_1_data', {'value': np.array([0])}),
                                            ('init_2_data', {'value': np.array([0])}),
@@ -40,24 +32,22 @@ class TensorIteratorConditionTests(unittest.TestCase):
 
         pattern_matcher.find_and_replace_pattern(graph)
         nodes_attributes = {
-            **regular_op_with_empty_data('loop_cond', {'op': 'TensorIteratorCondition', 'type': None}),
             **regular_op_with_empty_data('StridedSlice', {'op': 'StridedSlice', 'type': None}),
-            **regular_op_with_empty_data('maximum', {'op': 'Maximum', 'type': None}),
-            **regular_op_with_empty_data('minimum', {'op': 'Minimum', 'type': None}),
-            'some_op': {'kind': 'op', 'op': 'Add'},
+            'TensorIteratorCondition': {'kind': 'op', 'op': 'TensorIteratorCondition'},
+            'loop_cond_data': {'kind': 'data'},
             'identity_data': {'kind': 'data'},
+            'minimum_data': {'kind': 'data'},
             'TensorIteratorInput': {'kind': 'op', 'op': 'TensorIteratorInput'}
         }
         edges = [
-            *connect('StridedSlice', '0:loop_cond'),
-            *connect('maximum', 'minimum'),
-            *connect('minimum', '1:loop_cond'),
-            *connect('loop_cond', 'some_op'),
-            ('loop_cond', 'identity_data'),
+            *connect('StridedSlice', '0:TensorIteratorCondition'),
+            ('minimum_data', 'TensorIteratorCondition', {'in':1}),
+            ('TensorIteratorCondition', 'loop_cond_data'),
+            ('TensorIteratorCondition', 'identity_data'),
             ('identity_data', 'TensorIteratorInput')
         ]
         graph_ref = build_graph(nodes_attributes, edges)
-        (flag, resp) = compare_graphs(graph, graph_ref, 'some_op', check_op_attrs=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'loop_cond_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_not_dynamic_2(self):
