@@ -102,6 +102,19 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         return GetCore()->GetSupportedConfig(deviceName, tconfig);
     };
 
+    auto getDefaultDeviceID = [this](std::string deviceName) -> std::string {
+        auto supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+        if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) != supportedMetrics.end()) {
+            auto supportKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+
+            if (std::find(supportKeys.begin(), supportKeys.end(), CONFIG_KEY(DEVICE_ID)) != supportKeys.end()) {
+                return GetCore()->GetConfig(deviceName, CONFIG_KEY(DEVICE_ID)).as<std::string>();
+            }
+        }
+
+        return "";
+    };
+
     unsigned int devicePriority = 0;
     auto prioritiesIter = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     bool enableDevicePriority = (prioritiesIter != config.end());
@@ -124,19 +137,28 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         DeviceIDParser parsed{deviceName};
         std::string deviceid = parsed.getDeviceID();
         std::vector<std::string> sameTypeDevices;
+        // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
         if (deviceid.empty()) {
             for (auto&& device : deviceList) {
                 if (device.find(deviceName) != std::string::npos) {
                     sameTypeDevices.push_back(std::move(device));
                 }
             }
-        } else {
+        }
+        // it's a virtrul device like HETERO, TEMPLATE
+        // or real device with ID like GPU.1
+        if (sameTypeDevices.size() == 0) {
             sameTypeDevices.push_back(std::move(deviceName));
         }
 
         for (auto&& deviceNameWithID : sameTypeDevices) {
             DeviceIDParser newParsed{deviceNameWithID};
-            std::string defaultDeviceID = newParsed.getDeviceID();
+            std::string defaultDeviceID = "";
+            if (newParsed.getDeviceID().empty()) {
+                defaultDeviceID = getDefaultDeviceID(deviceNameWithID);
+            } else {
+                defaultDeviceID = newParsed.getDeviceID();
+            }
 
             std::string fullDeviceName = "";
             std::string uniqueName = "";
@@ -287,14 +309,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
-        // set priority for device
-        if (priorities != fullConfig.end()) {
-            unsigned int devicePriority = 0;
-            for (auto& item : metaDevices) {
-                item.devicePriority = devicePriority;
-                devicePriority++;
-            }
-        }
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
         if (supportDevicesByConfig.size() == 0) {
              IE_THROW() << "There is no device support the configure";
