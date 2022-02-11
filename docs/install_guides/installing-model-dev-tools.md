@@ -13,21 +13,21 @@ From 2022.1 release, the OpenVINO Developer Tools can only be installed via PyPI
 
 ## For C++ developers
 
-> **NOTE**: To install OpenVINO Model Development Tools, you must have OpenVINO Runtime installed as a prerequisite.
+> **NOTE**: To install OpenVINO Model Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through an installer ([Linux](installing-openvino-linux.md), [Windows](installing-openvino-windows.md), [macOS](installing-openvino-macos.md)), [APT for Linux](installing-openvino-apt.md) or [YUM for Linux](installing-openvino-yum.md). 
 
-Always ensure that the version of OpenVINO Model Development Tools you are installing matches that of OpenVINO Runtime. You can install OpenVINO Model Development Tools via either of the following ways:
+Always ensure that the version of OpenVINO Model Development Tools you are installing matches that of OpenVINO Runtime. Then install OpenVINO Model Development Tools via either of the following ways:
 
 ### Recommended: Install using the requirements files
 
-1. If you have installed OpenVINO Runtime from the installer, APT or YUM repository, you can find a set of requirements files in the `<installdir>\tools\` directory and select most suitable ones.
-2. You can manually install the same version of OpenVINO Model Development Tools by using the requirements files. 
+1. After you have installed OpenVINO Runtime from an installer, APT or YUM repository, you can find a set of requirements files in the `<INSTALLDIR>\tools\` directory. Select the most suitable ones to use.
+2. Install the same version of OpenVINO Model Development Tools by using the requirements files. 
    To install mandatory requirements only, use the following command:
    ```
-   pip install -r <installdir>\tools\requirements.txt
+   pip install -r <INSTALLDIR>\tools\requirements.txt
    ```
 3. Make sure that you also install your additional frameworks with the corresponding requirements files. For example, if you are using a TensorFlow model, use the following command to install requirements for TensorFlow:  
 ```
-pip install -r <installdir>\tools\requirements_tensorflow2.txt
+pip install -r <INSTALLDIR>\tools\requirements_tensorflow2.txt
 ```
 
 ### Alternative: Install from the openvino-dev package

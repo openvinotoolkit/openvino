@@ -8,13 +8,13 @@
    :caption: Install OpenVINO
    
    Overview <openvino_docs_install_guides_overview>
-   Install on Linux* <openvino_docs_install_guides_installing_openvino_linux_header>
-   Install on Windows* <openvino_docs_install_guides_installing_openvino_windows_header>
-   Install on macOS* <openvino_docs_install_guides_installing_openvino_macos_header>
-   Install on Raspbian* OS <openvino_docs_install_guides_installing_openvino_raspbian>
-   Install OpenVINO Model Development Tools <openvino_docs_install_guides_install_dev_tools>
+   Install OpenVINO Runtime on Linux <openvino_docs_install_guides_installing_openvino_linux_header>
+   Install OpenVINO Runtime on Windows <openvino_docs_install_guides_installing_openvino_windows_header>
+   Install OpenVINO Runtime on macOS <openvino_docs_install_guides_installing_openvino_macos_header>
+   Install Model Development Tools <openvino_docs_install_guides_install_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
-   Create a Yocto* Image <openvino_docs_install_guides_installing_openvino_yocto>
+   Install OpenVINO Runtime on Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>
+   Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
 .. toctree::
@@ -22,9 +22,9 @@
    :hidden:
    :caption: Additional Configurations
    
-   Configurations for Intel® Processor Graphics (GPU) <openvino_docs_install_guides_configurations_for_intel_gpu>
-   Configurations for Intel® Neural Compute Stick 2 <openvino_docs_install_guides_configurations_for_ncs2>
-   Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs <openvino_docs_install_guides_installing_openvino_ivad_vpu>
+   Configurations for Intel® GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
+   Configurations for Intel® NCS2 <openvino_docs_install_guides_configurations_for_ncs2>
+   Configurations for VPU <openvino_docs_install_guides_installing_openvino_ivad_vpu>
    
 .. toctree::
    :maxdepth: 1
