@@ -58,6 +58,7 @@
 #include <ngraph/runtime/reference/non_max_suppression.hpp>
 #include <ngraph/runtime/reference/normalize_l2.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
+#include <ngraph/runtime/reference/prelu.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
 #include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
@@ -2165,6 +2166,17 @@ bool evaluate(const shared_ptr<op::v0::Relu>& op, const HostTensorVector& output
     runtime::reference::relu<T>(inputs[0]->get_data_ptr<T>(),
                                 outputs[0]->get_data_ptr<T>(),
                                 shape_size(inputs[0]->get_shape()));
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::PRelu>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::prelu<T>(inputs[0]->get_data_ptr<T>(),
+                                 inputs[1]->get_data_ptr<T>(),
+                                 outputs[0]->get_data_ptr<T>(),
+                                 inputs[0]->get_shape(),
+                                 inputs[1]->get_shape());
     return true;
 }
 

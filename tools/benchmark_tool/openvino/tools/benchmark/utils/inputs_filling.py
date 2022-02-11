@@ -98,7 +98,8 @@ def get_input_data(paths_to_input, app_input_info):
                     logger.warning(f"Some binaries will be dublicated: {total_frames} is required, "
                                    f"but only {images_to_be_used_map[info.name]} were provided.")
             else:
-                logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")
+                if not (info.is_image_info and len(image_sizes) == 1):
+                    logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")
         else:
             if info.name in image_mapping:
                 logger.info(f"Images given for input '{info.name}' will be processed with original shapes.")
@@ -117,7 +118,6 @@ def get_input_data(paths_to_input, app_input_info):
             image_size = image_sizes[0]
             logger.info(f"Create input tensors for input '{info.name}' with image sizes: {image_size}")
             data[port] = get_image_info_tensors(image_size, info)
-
         else:
             logger.info(f"Fill input '{info.name}' with random values ")
             data[port] = fill_tensors_with_random(info)
@@ -184,14 +184,8 @@ def get_image_tensors(image_paths, info, batch_sizes):
                 try:
                     images[b] = image
                 except ValueError:
-                    #raise Exception(f"Image shape {image.shape} is not compatible with input shape {shape}. "
-                                    #f"Try to provide layout for input '{info.name}'.")
-                    # backward compatibility
-                    # will be removed
-                    logger.warning(f"Image shape {image.shape} is not compatible with input shape {shape}. "
-                                   f"Input '{info.name}' will be filled with random values!")
-                    return fill_tensors_with_random(info)
-
+                    raise Exception(f"Image shape {image.shape} is not compatible with input shape {shape}! "
+                                    f"Make sure -i parameter is valid.")
             image_index += 1
         processed_frames += current_batch_size
         if not process_with_original_shapes:
@@ -350,8 +344,9 @@ def parse_path(path, app_input_info):
             logger.warning(f"Number of provided input files '{num_files}' is not a multiple of the number of "
                                    f"model inputs. Only {len(input_files)} files fill be used.")
         num_files = len(input_files)
+        inputs_to_fill = list(info.name for info in app_input_info if not info.is_image_info)
         for i in range(num_files):
-            input_path_mapping[input_names[i % num_inputs]].append(input_files[i])
+            input_path_mapping[inputs_to_fill[i % len(inputs_to_fill)]].append(input_files[i])
 
     images_mapping = defaultdict(list)
     binary_mapping = defaultdict(list)

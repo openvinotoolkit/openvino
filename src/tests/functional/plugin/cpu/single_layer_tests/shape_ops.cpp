@@ -193,6 +193,18 @@ const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsCPUTest, params_const, ShapeOpsCPUTest::getTestCaseName);
 
+inputDescription shape_dynBatch{{{{1, 10}, 5, 7, 3},
+                                 {ngraph::Shape{2, 5, 7, 3}, ngraph::Shape{10, 5, 7, 3}, ngraph::Shape{1, 5, 7, 3}}},
+                                 {std::vector<int>{-1, 15, 7}}};
+
+const auto params_dynBatch = ::testing::Combine(::testing::Values(shape_dynBatch),
+                                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                                ::testing::Values(shapeNodeType::Reshape),
+                                                ::testing::Values(Precision::FP32),
+                                                ::testing::Values(true));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynBatch, ShapeOpsCPUTest, params_dynBatch, ShapeOpsCPUTest::getTestCaseName);
+
 } // namespace reshapeTest
 
 namespace squeezeTest {
