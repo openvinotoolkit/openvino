@@ -39,7 +39,7 @@ void regclass_InferRequest(py::module m) {
             Set tensors using given keys.
 
             :param inputs: Data to set on tensors.
-            :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
         )");
 
     cls.def(
@@ -102,7 +102,7 @@ void regclass_InferRequest(py::module m) {
             Set output tensors using given indexes.
 
             :param inputs: Data to set on output tensors.
-            :type inputs: Dict[int : openvino.runtime.Tensor]
+            :type inputs: Dict[int, openvino.runtime.Tensor]
         )");
 
     // Python API exclusive function
@@ -119,7 +119,7 @@ void regclass_InferRequest(py::module m) {
             Set input tensors using given indexes.
 
             :param inputs: Data to set on output tensors.
-            :type inputs: Dict[int : openvino.runtime.Tensor]
+            :type inputs: Dict[int, openvino.runtime.Tensor]
         )");
 
     cls.def(
@@ -176,9 +176,9 @@ void regclass_InferRequest(py::module m) {
             Calling any method will lead to throwing exceptions.
 
             :param inputs: Data to set on input tensors.
-            :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
             :return: Dictionary of results from output tensors with ports as keys.
-            :rtype: Dict[openvino.runtime.ConstOutput : numpy.array]
+            :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         )");
 
     cls.def(
@@ -210,7 +210,7 @@ void regclass_InferRequest(py::module m) {
             running will lead to throwing exceptions.
 
             :param inputs: Data to set on input tensors.
-            :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
             :param userdata: Any data that will be passed inside callback call.
             :type userdata: Any
         )");
@@ -539,7 +539,8 @@ void regclass_InferRequest(py::module m) {
             return self.userdata;
         },
         R"(
-            :return: Gets currently held userdata.
+            Gets currently held userdata.
+
             :rtype: Any
         )");
 
@@ -549,7 +550,8 @@ void regclass_InferRequest(py::module m) {
             return self._inputs;
         },
         R"(
-            :return: Gets all inputs of a compiled model which was used to create this InferRequest.
+            Gets all inputs of a compiled model which was used to create this InferRequest.
+
             :rtype: List[openvino.runtime.ConstOutput]
         )");
 
@@ -561,7 +563,6 @@ void regclass_InferRequest(py::module m) {
         R"(
             Gets all outputs of a compiled model which was used to create this InferRequest.
 
-            :return: Gets all outputs of a compiled model which was used to create this InferRequest.
             :rtype: List[openvino.runtime.ConstOutput]
         )");
 
@@ -631,6 +632,6 @@ void regclass_InferRequest(py::module m) {
             Gets all outputs tensors of this InferRequest.
 
             :return: Dictionary of results from output tensors with ports as keys.
-            :rtype: Dict[openvino.runtime.ConstOutput : numpy.array]
+            :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         )");
 }
