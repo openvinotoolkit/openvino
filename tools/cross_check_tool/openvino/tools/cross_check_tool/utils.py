@@ -276,10 +276,9 @@ def find_out_cct_mode(args):
     raise Exception('Unknown Cross Check Tool CLI configuration.\nFor more details use -h option')
 
 
-#TODO: remove info about shape
 def print_inputs(inputs: list):
     word = 'inputs' if len(inputs) > 1 else 'input'
-    log.info(f"{len(inputs)} {word} detected: {', '.join(f'{input.any_name} {input.shape}' for input in inputs)}")
+    log.info(f"{len(inputs)} {word} detected: {', '.join(input.any_name for input in inputs)}")
 
 def print_output_ops(output_ops: list):
     layers = 'layers' if len(output_ops) > 1 else 'layer'
