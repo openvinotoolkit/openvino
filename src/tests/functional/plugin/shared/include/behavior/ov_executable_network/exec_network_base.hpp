@@ -39,7 +39,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
     }
 
     void TearDown() override {

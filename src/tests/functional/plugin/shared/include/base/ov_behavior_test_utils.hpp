@@ -20,6 +20,15 @@ namespace ov {
 namespace test {
 namespace behavior {
 
+inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::string targetDevice,
+                                                                              std::vector<size_t> inputShape = {1, 1, 32, 32},
+                                                                              ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
+    // auto-batching (which now relies on the dim tracking) needs a ngraph function without reshapes in that
+    if (targetDevice.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos)
+        return ngraph::builder::subgraph::makeConvPoolReluNoReshapes(inputShape, ngPrc);
+    else  // for compatibility with the GNA that fails on any other ngraph function
+        return ngraph::builder::subgraph::makeConvPoolRelu(inputShape, ngPrc);
+}
 
 typedef std::tuple<
         std::string,            // Device name
@@ -49,7 +58,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
         ov::AnyMap params;
         for (auto&& v : configuration) {
             params.emplace(v.first, v.second);

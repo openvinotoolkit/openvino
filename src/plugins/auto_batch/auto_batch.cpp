@@ -345,23 +345,27 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
         };
         AutoBatchAsyncInferRequest* _this = nullptr;
     };
-    _pipeline = {{/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this, needPerfCounters] {
-                      if (this->_inferRequest->_exceptionPtr)  // if the exception happened in the batch1 fallback
-                          std::rethrow_exception(this->_inferRequest->_exceptionPtr);
-                      auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
-                      if (batchReq._exceptionPtr)  // when the batchN execution failed
-                          std::rethrow_exception(batchReq._exceptionPtr);
-                      // in the case of non-batched execution the blobs were set explicitly
-                      if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-                          this->_inferRequest->_wasBatchedRequestUsed)
-                          this->_inferRequest->CopyOutputsIfNeeded();
-                      if (needPerfCounters) {
-                          try {
-                              this->_inferRequest->_perfMap = batchReq._inferRequestBatched->GetPerformanceCounts();
-                          } catch (...) {
-                          }
-                      }
-                  }}};
+    _pipeline = {
+        {/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this, needPerfCounters] {
+             if (this->_inferRequest->_exceptionPtr)  // if the exception happened in the batch1 fallback
+                 std::rethrow_exception(this->_inferRequest->_exceptionPtr);
+             auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
+             if (batchReq._exceptionPtr)  // when the batchN execution failed
+                 std::rethrow_exception(batchReq._exceptionPtr);
+             // in the case of non-batched execution the blobs were set explicitly
+             if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED == this->_inferRequest->_wasBatchedRequestUsed)
+                 this->_inferRequest->CopyOutputsIfNeeded();
+             if (needPerfCounters) {
+                 try {
+                     if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
+                         this->_inferRequest->_wasBatchedRequestUsed)
+                         this->_inferRequest->_perfMap = batchReq._inferRequestBatched->GetPerformanceCounts();
+                     else
+                         this->_inferRequest->_perfMap = this->_inferRequestWithoutBatch->GetPerformanceCounts();
+                 } catch (...) {
+                 }
+             }
+         }}};
 }
 
 void AutoBatchAsyncInferRequest::Infer_ThreadUnsafe() {

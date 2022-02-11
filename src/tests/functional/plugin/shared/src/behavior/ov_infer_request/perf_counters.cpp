@@ -17,7 +17,7 @@ std::string OVInferRequestPerfCountersTest::getTestCaseName(const testing::TestP
 void OVInferRequestPerfCountersTest::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(targetDevice, configuration) = this->GetParam();
-    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
     configuration.insert(ov::enable_profiling(true));
     execNet = core->compile_model(function, targetDevice, configuration);
     req = execNet.create_infer_request();
