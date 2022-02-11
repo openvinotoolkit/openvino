@@ -1,6 +1,6 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Linux* Using APT Repository {#openvino_docs_install_guides_installing_openvino_apt}
+# Install Intel® Distribution of OpenVINO™ toolkit for Linux Using APT Repository {#openvino_docs_install_guides_installing_openvino_apt}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit Runtime for Linux* distributed through the APT repository.
+This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit Runtime for Linux distributed through the APT repository.
 
 From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Model Development Tools](installing-model-dev-tools.md) for detailed steps.
 
@@ -122,6 +122,13 @@ Run the following command:
 ```sh
 sudo apt install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 ```
+
+### Step 4 (Optional): Install software dependencies
+
+After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
+
+Refer to <a href="#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+
 
 ## Additional resources
 
