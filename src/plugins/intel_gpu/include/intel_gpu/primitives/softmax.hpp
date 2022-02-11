@@ -52,9 +52,10 @@ struct softmax : public primitive_base<softmax> {
     /// Specific behaviour is determined by this parameter, as follows:
     /// - when set to @link softmax::dimension_t softmax::normalize_x @endlink each input row is normalized independently,
     /// - when set to @link softmax::dimension_t softmax::normalize_y @endlink each input column is normalized independently,
+    /// - when set to @link softmax::dimension_t softmax::normalize_z @endlink each input z-coordinate is normalized independently,
     /// - when set to @link softmax::dimension_t softmax::normalize_f @endlink each in-depth vector of input is normalized independently,
     /// - when set to @link softmax::dimension_t softmax::normalize_fyx @endlink each 3d image within input is normalized independently,
-    /// - when set to @link softmax::dimension_t softmax::normalize_bfyx @endlink everything is normalized,
+    /// - when set to @link softmax::dimension_t softmax::normalize_all @endlink everything is normalized,
     dimension_t dimension;
 };
 /// @}
