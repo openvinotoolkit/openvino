@@ -67,8 +67,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
 
 const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
         {ov::hint::model_priority(ov::hint::Priority::HIGH)},
-        {ov::hint::model_priority(ov::hint::Priority::HIGH)},
-        {ov::hint::model_priority(ov::hint::Priority::HIGH)},
+        {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+        {ov::hint::model_priority(ov::hint::Priority::LOW)},
         {ov::hint::model_priority(ov::hint::Priority::DEFAULT)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
