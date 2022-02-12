@@ -126,6 +126,14 @@ def create_input_add_pattern():
 
 
 @registry_ignore_patterns('inputs')
+def create_input_subtract_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Subtract', 'subtract')
+    return pattern.set_name('input_subtract').pattern
+
+
+@registry_ignore_patterns('inputs')
 def create_input_transpose_add_pattern():
     pattern = PatternBuilder()
     pattern.append_single_op('Parameter', 'input')
