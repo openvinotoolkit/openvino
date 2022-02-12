@@ -1503,7 +1503,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (format::is_blocked(node.get_output_layout().format)) {
             return impl_types::onednn;
         }
-    } else if (node.is_type<fully_connected>()) {
+    // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
+    } else if (node.is_type<fully_connected>()/* || node.is_type<gemm>()*/) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
@@ -1653,7 +1654,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                     format expected_conv_fmt = get_expected_layout(conv_output_layout, conv, weights_layout).format;
                     if (expected == format::bfyx && expected_conv_fmt == format::bs_fs_yx_bsv32_fsv32 && layout.size.feature[0] % 32 == 0)
                         expected = expected_conv_fmt;
-                    }
                 }
             } else if (layout.size.feature[0] > 8) {
                 expected = format::b_fs_yx_fsv16;
