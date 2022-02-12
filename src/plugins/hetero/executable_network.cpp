@@ -316,14 +316,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         ngraph::pass::VisualizeTree{
             "hetero_subgraphs_" + _name + ".dot",
             [&](const ngraph::Node& node, std::vector<std::string>& attributes) {
-                attributes.push_back(std::string{"fillcolor="} + colors[map_id.at(node.get_friendly_name()) % colors.size()] +
-                                        " style=filled");
-                auto itLabel =
-                    std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
-                        return str.find("label") != std::string::npos;
-                    });
-                auto label = "\\nsubgraph=" + std::to_string(map_id.at(node.get_friendly_name())) + "\\n" + "device=" +
-                                queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
+                attributes.push_back(std::string{"fillcolor="} +
+                                     colors[map_id.at(node.get_friendly_name()) % colors.size()] + " style=filled");
+                auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
+                    return str.find("label") != std::string::npos;
+                });
+                auto label = "\\nsubgraph=" + std::to_string(map_id.at(node.get_friendly_name())) + "\\n" +
+                             "device=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
                 IE_ASSERT(itLabel != attributes.end());
                 itLabel->pop_back();
                 (*itLabel) += label;
