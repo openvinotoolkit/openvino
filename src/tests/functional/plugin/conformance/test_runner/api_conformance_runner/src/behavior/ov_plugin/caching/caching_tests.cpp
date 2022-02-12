@@ -8,7 +8,7 @@
 #include "conformance.hpp"
 
 namespace {
-using namespace LayerTestsDefinitions;
+using namespace ov::test::behavior;
 using namespace ngraph;
 
 static const std::vector<ov::element::Type> precisionsTemplate = {
