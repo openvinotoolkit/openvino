@@ -931,15 +931,6 @@ TEST_P(concat_implicit_gpu_4d_i8, input_order_opt_b_fs_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv32));
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                        concat_implicit_gpu_4d_i8,
-                        ::testing::Values(
-                            TestParamType_concat(1, { 32, 32 }, 2, 2),
-                            TestParamType_concat(1, { 32, 8 }, 2, 2),
-                            TestParamType_concat(1, { 8, 32 }, 2, 2)
-                        ),
-                        concat_gpu::PrintToStringParamName);
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(concat_gpu_onednn, basic_input_types) {
     auto& engine = get_onednn_test_engine();
