@@ -6,7 +6,7 @@
 
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
-#include "openvino/frontend/extension/extension_holder.hpp"
+#include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"

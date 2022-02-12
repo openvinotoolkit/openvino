@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/frontend/extension/progress_reporter.hpp"
+
 #include "gtest/gtest.h"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/extension/progress_reporter_extension.hpp"
 
 using namespace ov::frontend;
 

@@ -8,7 +8,7 @@
 #include <fstream>
 #include <openvino/frontend/input_model.hpp>
 
-#include "openvino/frontend/extension/extension_holder.hpp"
+#include "openvino/frontend/extension/holder.hpp"
 
 namespace ov {
 namespace frontend {
