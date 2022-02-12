@@ -41,7 +41,7 @@ enum class AttributeSource {
 template <typename AttributeType, typename OperationType = ngraph::pattern::op::Label>
 class ngraph::pass::low_precision::CreateAttribute : public ngraph::pass::low_precision::BaseMatcherPass {
 public:
-    CreateAttribute(const AttributeSource source = AttributeSource::Node) {
+    CreateAttribute(const AttributeParameters& params = AttributeParameters(), const AttributeSource source = AttributeSource::Node) : BaseMatcherPass(params) {
         assert((source == AttributeSource::Node) || (source == AttributeSource::OutputPort));
         auto operation = std::is_same<OperationType, pattern::op::Label>::value ?
             pattern::any_input() :
@@ -54,7 +54,7 @@ public:
             }
             {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "CreateAttribute");
-                const auto attribute = AttributeType::create(op, params);
+                const auto attribute = AttributeType::create(op, this->params);
                 if (attribute.empty()) {
                     return false;
                 }

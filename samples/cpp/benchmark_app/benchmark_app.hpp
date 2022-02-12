@@ -191,8 +191,8 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadNetwork."
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
-// @brief message for quantization bits
-static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
+// @brief message for inference_precision
+static const char inference_precision_message[] = "Optional. Inference precission";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 
@@ -270,13 +270,10 @@ DEFINE_uint32(nireq, 0, infer_requests_count_message);
 DEFINE_uint32(nthreads, 0, infer_num_threads_message);
 
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
-DEFINE_string(nstreams, "", infer_num_streams_message);
+DEFINE_string(nstreams, "AUTO", infer_num_streams_message);
 
 /// @brief The percentile which will be reported in latency metric
 DEFINE_uint32(latency_percentile, 50, infer_latency_percentile_message);
-
-/// @brief Enforces bf16 execution with bfloat16 precision on systems having this capability
-DEFINE_bool(enforcebf16, false, enforce_bf16_message);
 
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
@@ -329,8 +326,8 @@ DEFINE_string(data_shape, "", data_shape_message);
 /// @brief Define flag for layout shape <br>
 DEFINE_string(layout, "", layout_message);
 
-/// @brief Define flag for quantization bits (default 16)
-DEFINE_int32(qb, 16, gna_qb_message);
+/// @brief Define flag for inference precision
+DEFINE_string(infer_precision, "f32", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
@@ -391,7 +388,6 @@ static void show_usage() {
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -enforcebf16=<true/false>     " << enforce_bf16_message << std::endl;
     std::cout << "    -pin \"YES\"/\"HYBRID_AWARE\"/\"NO\"/\"NUMA\"   " << infer_threads_pinning_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
@@ -405,7 +401,7 @@ static void show_usage() {
     std::cout << "    -pcseq                    " << pcseq_message << std::endl;
     std::cout << "    -dump_config              " << dump_config_message << std::endl;
     std::cout << "    -load_config              " << load_config_message << std::endl;
-    std::cout << "    -qb                       " << gna_qb_message << std::endl;
+    std::cout << "    -infer_precision \"<element type>\"" << inference_precision_message << std::endl;
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;

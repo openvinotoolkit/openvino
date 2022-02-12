@@ -544,7 +544,7 @@ public:
             deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
         } else {
             // check whether the Auto-Batching is disabled explicitly
-            const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
                 // virtual plugins like AUTO/MULTI will need the config
@@ -1094,12 +1094,13 @@ public:
         for (auto&& config : configs) {
             auto parsed = parseDeviceNameIntoConfig(config.first);
             if (deviceName.find(parsed._deviceName) != std::string::npos) {
-                std::string key, value;
                 std::stringstream strm(config.second);
-                while (strm >> key >> value) {
+                std::map<std::string, std::string> device_configs;
+                util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
+                for (auto&& device_config : device_configs) {
                     if (supportedConfigKeys.end() !=
-                        std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), key)) {
-                        supportedConfig[key] = value;
+                        std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), device_config.first)) {
+                        supportedConfig[device_config.first] = device_config.second;
                     }
                 }
                 for (auto&& config : parsed._config) {
@@ -1755,13 +1756,6 @@ Any Core::get_property(const std::string& deviceName, const std::string& name, c
         auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
         return _impl->GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     });
-}
-
-void Core::get_property(const std::string& deviceName,
-                        const std::string& name,
-                        const AnyMap& arguments,
-                        ov::Any& to) const {
-    any_lexical_cast(get_property(deviceName, name, arguments), to);
 }
 
 std::vector<std::string> Core::get_available_devices() const {
