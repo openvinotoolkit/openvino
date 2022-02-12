@@ -69,7 +69,6 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT core_dev)
 
-
 # Shutdown protobuf library
 if(Protobuf_IN_FRONTEND AND BUILD_SHARED_LIBS)
     add_subdirectory(shutdown_protobuf)
