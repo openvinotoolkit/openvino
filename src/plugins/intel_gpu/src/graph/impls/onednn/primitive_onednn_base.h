@@ -209,7 +209,7 @@ protected:
         if (profiling) {
             stream.finish();
             event->set();
-        } 
+        }
         // null event for perf
         // else {
         //    // Create and set user event as complete
