@@ -31,6 +31,19 @@ using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::cpu::x64;
 using namespace Xbyak;
 
+namespace {
+std::vector<size_t> prependWithOnes(const std::vector<size_t>& dims, size_t rank) {
+    if (rank <= dims.size())
+        return dims;
+    VectorDims result(rank, 1);
+    std::copy(dims.begin(), dims.end(), &result[rank - dims.size()]);
+    return result;
+}
+Shape prependWithOnes(const Shape& dims, size_t rank) {
+    return Shape(prependWithOnes(dims.getMinDims(), rank));
+}
+} // namespace
+
 MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common) ?
@@ -60,20 +73,12 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
 
     const Precision supportedPrecision = Precision::FP32;
 
-    bool dimRanksAreEqual = true;
-    for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
-        for (size_t j = 0; dimRanksAreEqual && j < outputShapes.size(); j++) {
-            if (inputShapes[i].getRank() != outputShapes[j].getRank())
-                dimRanksAreEqual = false;
-        }
-    }
-
     const size_t ndims = outputShapes[0].getRank();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 4, 5) && dimRanksAreEqual;
+    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 4, 5);
     // Todo: Snippets currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
-    const bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual;
+    const bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5);
     enum LayoutType {
         Planar,
         ChannelsFirst,
@@ -122,15 +127,18 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         NodeConfig config;
         config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
+        const size_t maxInputRank = std::max_element(inputShapes.begin(), inputShapes.end(),
+                                                            [](const Shape& lhs, const Shape& rhs) {return lhs.getRank() < rhs.getRank();})->getRank();
         for (size_t i = 0; i < inputShapes.size(); i++) {
             BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace((!i && canBeInPlace()) ? 0 : -1);
             portConfig.constant(false);
-            if (inputShapes[i].getDims()[0] == 1) {
+            auto normalizedInputShape = prependWithOnes(inputShapes[i], maxInputRank);
+            if (normalizedInputShape.getDims()[0] == 1) {
                 inputMask.reset(0); // accepts any stride on batch axis
             }
-            portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset), inputMask);
+            portConfig.setMemDesc(createMemoryDesc(normalizedInputShape, supportedPrecision, offset), inputMask);
             config.inConfs[i] = portConfig;
         }
         config.outConfs.resize(outputShapes.size());
@@ -268,13 +276,6 @@ void MKLDNNSnippetNode::define_schedule() {
         ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
         return ngraph::snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
     };
-    auto prependWithOnes = [this](const std::vector<size_t>& dims) {
-        if (tensorRank <= dims.size())
-            return dims;
-        VectorDims result(tensorRank, 1);
-        std::copy(dims.begin(), dims.end(), &result[tensorRank - dims.size()]);
-        return result;
-    };
     ngraph::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
     for (size_t i = 0; i < inputShapes.size(); i++)
         input_blocked_shapes.push_back(edgeToBlockedShape(getParentEdgesAtPort(i)[0]));
@@ -287,14 +288,14 @@ void MKLDNNSnippetNode::define_schedule() {
     tensorRank = std::max(static_cast<size_t>(rank6D), exec_domain.size());
     // Canonicalization broadcasts inputs and outputs to max input rank, which can be smaller than tensorRank
     // prepend to enable 6D scheduler
-    exec_domain = prependWithOnes(exec_domain);
+    exec_domain = prependWithOnes(exec_domain, tensorRank);
     const auto &body = snippet->get_body();
     for (const auto& p : body->get_parameters()) {
-        dims_in.emplace_back(prependWithOnes(p->get_shape()));
+        dims_in.emplace_back(prependWithOnes(p->get_shape(), tensorRank));
     }
 
     for (size_t i = 0; i < body->get_output_size(); i++) {
-        dims_out.push_back(prependWithOnes(body->get_output_shape(i)));
+        dims_out.push_back(prependWithOnes(body->get_output_shape(i), tensorRank));
     }
 
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
