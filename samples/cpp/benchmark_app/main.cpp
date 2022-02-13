@@ -288,7 +288,6 @@ int main(int argc, char* argv[]) {
                 auto it_device_nstreams = device_nstreams.find(device);
                 if (it_device_nstreams != device_nstreams.end()) {
                     // set to user defined value
-                    auto supported_properties = core.get_property(device, ov::supported_properties);
                     if (supported(key)) {
                         device_config[key] = it_device_nstreams->second;
                     } else if (supported(ov::num_streams.name())) {

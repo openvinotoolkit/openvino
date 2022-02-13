@@ -388,7 +388,8 @@ static void show_usage() {
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -pin \"YES\"/\"HYBRID_AWARE\"/\"NO\"/\"NUMA\"   " << infer_threads_pinning_message << std::endl;
+    std::cout << "    -pin (\"YES\"|\"CORE\")/\"HYBRID_AWARE\"/(\"NO\"|\"NONE\")/\"NUMA\"   "
+              << infer_threads_pinning_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif
