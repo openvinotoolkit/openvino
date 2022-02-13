@@ -31,17 +31,14 @@ Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto) : m_model_
     // for each domain. An exception UnknownDomain() will raise if the domain is
     // unknown or invalid.
     for (const auto& id : m_model_proto->opset_import()) {
-        auto domain = id.has_domain() ? id.domain() : "";
-        if (domain == "ai.onnx") {
-            domain = "";
-        }
-        m_opset.emplace(domain, OperatorsBridge::get_operator_set(domain, id.version()));
+        const auto domain = id.has_domain() ? id.domain() == "ai.onnx" ? "" : id.domain() : "";
+        m_opset[domain] = OperatorsBridge::get_operator_set(domain, id.version());
     }
     // onnx.proto(.3): the empty string ("") for domain or absence of opset_import field
     // implies the operator set that is defined as part of the ONNX specification.
     const auto dm = m_opset.find("");
     if (dm == std::end(m_opset)) {
-        m_opset.emplace("", OperatorsBridge::get_operator_set("", ONNX_OPSET_VERSION));
+        m_opset[""] = OperatorsBridge::get_operator_set("", ONNX_OPSET_VERSION);
     }
 }
 
