@@ -27,10 +27,18 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
 }
 
 Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto) : m_model_proto{model_proto} {
-    // Walk through the elements of opset_import field and register operator sets
-    // for each domain. An exception UnknownDomain() will raise if the domain is
-    // unknown or invalid.
-    for (const auto& id : m_model_proto->opset_import()) {
+    // copy the opset imports from the ONNX model and sort them by their version in ascending order
+    // this will make sure that multiple opset imports for the same domain will cause the largest
+    // version to be used for this model, for example:
+    // [{domain:"", version:11}, {domain:"", version:1} {domain:"", version:13}] ==> {domain:"", version:13}
+    auto opset_imports = m_model_proto->opset_import();
+    const auto sort_by_version_ascending = [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs,
+                                              const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
+        return lhs.version() < rhs.version();
+    };
+    std::sort(std::begin(opset_imports), std::end(opset_imports), sort_by_version_ascending);
+
+    for (const auto& id : opset_imports) {
         const auto domain = id.has_domain() ? id.domain() == "ai.onnx" ? "" : id.domain() : "";
         m_opset[domain] = OperatorsBridge::get_operator_set(domain, id.version());
     }
