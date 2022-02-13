@@ -14,6 +14,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 modules = {
     "protobuf": "google.protobuf",
     "test-generator": "generator",
+    "openvino-telemetry": "openvino_telemetry"
 }
 critical_modules = ["networkx", "defusedxml", "numpy"]
 
