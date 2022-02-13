@@ -127,14 +127,6 @@ void CNNNetwork::reshape(const ICNNNetwork::InputShapes& inputShapes) {
     CALL_STATUS_FNC(reshape, inputShapes);
 }
 
-void CNNNetwork::reshape(const std::initializer_list<ICNNNetwork::InputShapes::value_type>& inputShapes) {
-    return reshape(ICNNNetwork::InputShapes(inputShapes));
-}
-
-void CNNNetwork::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
-    CALL_STATUS_FNC(reshape, inputShapes);
-}
-
 void CNNNetwork::serialize(const std::string& xmlPath, const std::string& binPath) const {
     CALL_STATUS_FNC(serialize, xmlPath, binPath);
 }

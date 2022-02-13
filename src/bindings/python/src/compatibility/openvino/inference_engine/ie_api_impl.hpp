@@ -62,7 +62,7 @@ struct IENetwork {
 
     const std::map<std::string, InferenceEngine::DataPtr> getOutputs();
 
-    void reshape(const std::map<std::string, std::vector<std::vector<int64_t>>>& input_shapes);
+    void reshape(const std::map<std::string, std::vector<size_t>>& input_shapes);
 
     void serialize(const std::string& path_to_xml, const std::string& path_to_bin);
 
@@ -210,8 +210,6 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 std::string get_version();
 
 InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
-
-PyObject* getPartialShape_capsule(InferenceEngine::CDataPtr data);
 
 const size_t product(const InferenceEngine::SizeVector& dims);
 

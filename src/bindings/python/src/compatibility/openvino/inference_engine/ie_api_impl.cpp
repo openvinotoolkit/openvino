@@ -5,7 +5,6 @@
 #include "ie_api_impl.hpp"
 
 #include "ie_plugin_config.hpp"
-#include "ngraph/partial_shape.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
@@ -215,26 +214,6 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-PyObject* InferenceEnginePython::getPartialShape_capsule(InferenceEngine::CDataPtr data) {
-    const char* py_capsule_name = "ngraph_partial_shape";
-    IE_SUPPRESS_DEPRECATED_START
-    auto ngraph_pShape_ptr = std::make_shared<ngraph::PartialShape>(data->getPartialShape());
-    IE_SUPPRESS_DEPRECATED_END
-    auto* sp_copy = new std::shared_ptr<const ngraph::PartialShape>(ngraph_pShape_ptr);
-    auto sp_deleter = [](PyObject* capsule) {
-        auto* capsule_ptr = PyCapsule_GetPointer(capsule, "ngraph_partial_shape");
-        auto* function_sp = static_cast<std::shared_ptr<ngraph::PartialShape>*>(capsule_ptr);
-        if (function_sp) {
-            delete function_sp;
-        }
-    };
-    if (ngraph_pShape_ptr) {
-        return PyCapsule_New(sp_copy, py_capsule_name, sp_deleter);
-    } else {
-        return nullptr;
-    }
-}
-
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network)
     : actual(cnn_network) {
     if (actual == nullptr)
@@ -318,21 +297,8 @@ size_t InferenceEnginePython::IENetwork::getBatch() {
     return actual->getBatchSize();
 }
 
-void InferenceEnginePython::IENetwork::reshape(
-    const std::map<std::string, std::vector<std::vector<int64_t>>>& input_shapes) {
-    std::map<std::string, ngraph::PartialShape> inputShapes;
-    for (auto const& input : input_shapes) {
-        using ngraph::Dimension;
-        std::vector<Dimension> dims;
-        for (auto const& d : input.second) {
-            if (d.size() == 1)
-                dims.push_back(Dimension(d[0]));
-            else if (d.size() == 2)
-                dims.push_back(Dimension(d[0], d[1]));
-        }
-        inputShapes[input.first] = ngraph::PartialShape(dims);
-    }
-    actual->reshape(inputShapes);
+void InferenceEnginePython::IENetwork::reshape(const std::map<std::string, std::vector<size_t>>& input_shapes) {
+    actual->reshape(input_shapes);
 }
 
 InferenceEnginePython::IEExecNetwork::IEExecNetwork(const std::string& name, size_t num_requests)

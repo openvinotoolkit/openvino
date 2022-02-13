@@ -16,8 +16,11 @@ public:
         const InferenceEngine::CNNNetwork&, const std::string&, const std::map<std::string, std::string>&));
     MOCK_METHOD3(LoadNetwork, InferenceEngine::SoExecutableNetworkInternal(
         const InferenceEngine::CNNNetwork&, const std::shared_ptr<InferenceEngine::RemoteContext> &, const std::map<std::string, std::string>&));
-    MOCK_METHOD3(LoadNetwork, InferenceEngine::SoExecutableNetworkInternal(
-        const std::string &, const std::string &, const std::map<std::string, std::string>&));
+    MOCK_METHOD4(LoadNetwork, InferenceEngine::SoExecutableNetworkInternal(
+            const std::string &,
+            const std::string &,
+            const std::map<std::string, std::string> &,
+            const std::function<void(const InferenceEngine::CNNNetwork&)> &));
 
     MOCK_METHOD3(ImportNetwork, InferenceEngine::SoExecutableNetworkInternal(
         std::istream&, const std::string&, const std::map<std::string, std::string>&));
