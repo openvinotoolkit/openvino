@@ -57,7 +57,7 @@ public:
 
 protected:
     AttrPtr initPrimitiveAttr() override;
-    AttrPtr initPrimitiveAttr(const VectorDims& dims);
+    AttrPtr makePrimitiveAttr(const VectorDims& dims);
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;

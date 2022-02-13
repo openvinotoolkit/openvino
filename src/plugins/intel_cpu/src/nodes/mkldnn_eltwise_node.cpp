@@ -2082,10 +2082,17 @@ void MKLDNNEltwiseNode::appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDim
             depthwiseData.insert(depthwiseData.end(), scales.begin(), scales.end());
             if (scales.size() == 1) {
                 depthwiseData.resize(postOpDims[chIdx], depthwiseData.back());
+            } else if (scales.size() != postOpDims[chIdx]) {
+                IE_THROW() << errorPrefix << "failed due to scales data size inconsistency";
             }
             depthwiseData.insert(depthwiseData.end(), shifts.begin(), shifts.end());
-            if (shifts.size() == 1) {
+            if (shifts.empty()) {
+                // in case of Prelu algorithm scales data is always empty
+                depthwiseData.resize(2 * postOpDims[chIdx], 0);
+            } else if (shifts.size() == 1) {
                 depthwiseData.resize(2 * postOpDims[chIdx], depthwiseData.back());
+            } else if (shifts.size() != postOpDims[chIdx]) {
+                IE_THROW() << errorPrefix << "failed due to shifts data size inconsistency";
             }
             depthwiseDataSize = 2 * postOpDims[chIdx];
 

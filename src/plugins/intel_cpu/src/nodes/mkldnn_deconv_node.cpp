@@ -557,7 +557,7 @@ void MKLDNNDeconvolutionNode::createDeconvPrim(std::shared_ptr<MKLDNNDescriptor>
     IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
 }
 
-MKLDNNNode::AttrPtr MKLDNNDeconvolutionNode::initPrimitiveAttr(const VectorDims &dims) {
+MKLDNNNode::AttrPtr MKLDNNDeconvolutionNode::makePrimitiveAttr(const VectorDims &dims) {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
     setPostOps(*attr, dims);
@@ -589,7 +589,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
     AttrPtr pAttrLocal;
     if (isDynamicNode()) {
         if (!pAttr) {
-            pAttr = initPrimitiveAttr(dstMemPtr->getStaticDims());
+            pAttr = makePrimitiveAttr(dstMemPtr->getStaticDims());
         }
         pAttrLocal = pAttr;
         if (autoPad || externOutShape) {
@@ -598,7 +598,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
         }
         initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());
     } else {
-        pAttrLocal = initPrimitiveAttr(dstMemPtr->getStaticDims());
+        pAttrLocal = makePrimitiveAttr(dstMemPtr->getStaticDims());
     }
 
     const auto in_candidate = inMemoryDesc->getDnnlDesc();
