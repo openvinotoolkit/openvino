@@ -27,7 +27,6 @@ runtime proposal numbers.
     * **Description**: The *min_size* attribute specifies minimum box width and height.
     * **Range of values**: non-negative floating-point number
     * **Type**: float
-    * **Default value**: None
     * **Required**: *yes*
 
 * *nms_threshold*
@@ -35,7 +34,6 @@ runtime proposal numbers.
     * **Description**: The *nms_threshold* attribute specifies threshold to be used in the NMS stage.
     * **Range of values**: non-negative floating-point number
     * **Type**: float
-    * **Default value**: None
     * **Required**: *yes*
 
 * *pre_nms_count*
@@ -43,7 +41,6 @@ runtime proposal numbers.
     * **Description**: The *pre_nms_count* attribute specifies number of top-n proposals before NMS.
     * **Range of values**: non-negative integer number
     * **Type**: int
-    * **Default value**: None
     * **Required**: *yes*
 
 * *post_nms_count*
@@ -51,7 +48,6 @@ runtime proposal numbers.
     * **Description**: The *post_nms_count* attribute specifies number of top-n proposals after NMS.
     * **Range of values**: non-negative integer number
     * **Type**: int
-    * **Default value**: None
     * **Required**: *yes*
 
 * *normalized*
