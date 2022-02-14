@@ -12,7 +12,7 @@ Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for quick
 
 **If you have already finished your model development and want to deploy your applications on various devices, install OpenVINO Runtime**, which contains the Inference Engine to run deep learning models. Inference Engine includes a set of libraries for an easy inference integration into your applications.
 
-**If you want to develop or optimize your models with OpenVINO and deploy your applications after that**, [install OpenVINO Model Development Tools](installing-model-dev-tools.md) additionally, which provides the following tools:
+**If you want to develop or optimize your models with OpenVINO and deploy your applications after that**, [install OpenVINO Development Tools](installing-model-dev-tools.md) additionally, which provides the following tools:
 
   * Model Optimizer
   * Benchmark Tool
@@ -23,7 +23,7 @@ Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for quick
 
 ### <a name="choose-installation-method"></a>Choose your installation method
 
-For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Runtime and Model Development Tools and less steps. 
+For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Runtime and Development Tools and less steps. 
 
 For C++ developers, you may choose one of the following installation options to install OpenVINO Runtime on your specific operating system:
 
@@ -32,6 +32,6 @@ For C++ developers, you may choose one of the following installation options to 
 * macOS: You can install OpenVINO Runtime using an [Installer](installing-openvino-macos.md) or [Anaconda Cloud](installing-openvino-conda.md).
 * [Raspbian OS](installing-openvino-raspbian.md).
 
-> **NOTE**: From 2022.1 release, the OpenVINO Model Development Tools can **only** be installed via PyPI. See [Install OpenVINO Model Development Tools](installing-model-dev-tools.md) for detailed steps.
+> **NOTE**: From 2022.1 release, the OpenVINO Development Tools can **only** be installed via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 Besides, the open source version is also available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode). You can build it for supported platforms using the Inference Engine Build Instructions.
