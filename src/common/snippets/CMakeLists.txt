@@ -38,10 +38,10 @@ macro(finalize_libs)
         endif()
 
         target_link_libraries(${lib} PUBLIC openvino::runtime
-                                        PRIVATE ngraph_reference openvino::runtime::dev)
+                                     PRIVATE ngraph_reference openvino::runtime::dev)
 
         target_include_directories(${lib} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
         add_cpplint_target(${lib}_cpplint FOR_TARGETS ${lib})
 
