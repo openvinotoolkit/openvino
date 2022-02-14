@@ -14,8 +14,10 @@ void shape_infer(const ov::op::v0::MatMul* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
 
     auto arg0_shape = input_shapes[0], arg1_shape = input_shapes[1];
-    if (arg0_shape.rank().is_dynamic() || arg1_shape.rank().is_dynamic())
+    if (arg0_shape.rank().is_dynamic() || arg1_shape.rank().is_dynamic()) {
         output_shapes[0] = ov::PartialShape::dynamic();
+        return;
+    }
     // ranks are known
     const bool transpose_a = op->get_transpose_a();
     const bool transpose_b = op->get_transpose_b();
