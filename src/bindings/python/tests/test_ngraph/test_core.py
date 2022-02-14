@@ -4,7 +4,7 @@
 import numpy as np
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Dimension, Model, PartialShape, Shape
+from openvino.runtime import Dimension, Model, PartialShape, Shape, Core
 
 
 def test_dimension():
@@ -239,7 +239,10 @@ def test_repr_dynamic_shape():
     model = parameter_a + parameter_b
     function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
-    assert repr(function) == "<Model: 'simple_dyn_shapes_graph' ({?,2})>"
+    assert repr(function) == "<Model: 'simple_dyn_shapes_graph' inputs[<ConstOutput: " + \
+                             "names[A] shape{?,2} type: f32 index: 0>, <ConstOutput: " + \
+                             "names[B] shape{?,2} type: f32 index: 0>] " + \
+                             "outputs[<ConstOutput: names[] shape{?,2} type: f32 index: 0>]>"
 
     ops = function.get_ordered_ops()
     for op in ops:
