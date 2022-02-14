@@ -195,7 +195,6 @@ int main(int argc, char* argv[]) {
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
-        ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
         if (FLAGS_hint.empty()) {
             for (auto& device : devices) {
                 auto supported_properties = core.get_property(device, ov::supported_properties);
@@ -204,7 +203,9 @@ int main(int argc, char* argv[]) {
                     slog::warn << "-hint default value is determined as " << ov::hint::PerformanceMode::THROUGHPUT
                                << " automatically for " << device
                                << " device. For more detailed information look at README." << slog::endl;
-                    ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+                    std::stringstream strm;
+                    strm << ov::hint::PerformanceMode::THROUGHPUT;
+                    FLAGS_hint = strm.str();
                 }
             }
         }
@@ -216,6 +217,7 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
+        ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
         if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
             ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
         else if (FLAGS_hint == "latency")
@@ -316,7 +318,7 @@ int main(int argc, char* argv[]) {
                         } else if (supported(ov::num_streams.name())) {
                             // Use API 2.0 key for streams
                             key = ov::num_streams.name();
-                            device_config[key] = ov::NumStreams(ov::NumStreams::AUTO);
+                            device_config[key] = ov::NumStreams::AUTO;
                         }
                     }
                 }
