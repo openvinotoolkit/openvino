@@ -634,4 +634,28 @@ void regclass_InferRequest(py::module m) {
             :return: Dictionary of results from output tensors with ports as keys.
             :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         )");
+
+    cls.def("__repr__", [](const InferRequestWrapper& self) {
+        std::stringstream inputs_ss, outputs_ss;
+
+        auto inputs = self._inputs;
+
+        for (auto it = inputs.begin(); it != inputs.end(); ++it) {
+            if (it != inputs.begin()) {
+                inputs_ss << ", ";
+            }
+            inputs_ss << py::cast(*it).attr("__repr__")().cast<std::string>();
+        }
+
+        auto outputs = self._outputs;
+
+        for (auto it = outputs.begin(); it != outputs.end(); ++it) {
+            if (it != outputs.begin()) {
+                outputs_ss << ", ";
+            }
+            outputs_ss << py::cast(*it).attr("__repr__")().cast<std::string>();
+        }
+
+        return "<InferRequest: inputs[" + inputs_ss.str() + "] outputs[" + outputs_ss.str() + "]>";
+    });
 }

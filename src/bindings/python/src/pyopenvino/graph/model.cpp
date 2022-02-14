@@ -597,14 +597,28 @@ void regclass_graph_Model(py::module m) {
         )");
     function.def("__repr__", [](const ov::Model& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
-        std::stringstream shapes_ss;
-        for (size_t i = 0; i < self.get_output_size(); ++i) {
-            if (i > 0) {
-                shapes_ss << ", ";
+        std::stringstream inputs_ss, outputs_ss;
+
+        auto inputs = self.inputs();
+
+        for (auto it = inputs.begin(); it != inputs.end(); ++it) {
+            if (it != inputs.begin()) {
+                inputs_ss << ", ";
             }
-            shapes_ss << self.get_output_partial_shape(i);
+            inputs_ss << py::cast(*it).attr("__repr__")().cast<std::string>();
         }
-        return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+
+        auto outputs = self.outputs();
+
+        for (auto it = outputs.begin(); it != outputs.end(); ++it) {
+            if (it != outputs.begin()) {
+                outputs_ss << ", ";
+            }
+            outputs_ss << py::cast(*it).attr("__repr__")().cast<std::string>();
+        }
+
+        return "<" + class_name + ": '" + self.get_friendly_name() + "' inputs[" + inputs_ss.str() + "] outputs[" +
+               outputs_ss.str() + "]>";
     });
     function.def_static("from_capsule", [](py::object* capsule) {
         // get the underlying PyObject* which is a PyCapsule pointer

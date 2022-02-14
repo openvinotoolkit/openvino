@@ -34,8 +34,8 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def(py::self == py::self);
     output.def(py::self != py::self);
 
-    output.def("__hash__", [](ov::Output<VT>& port) {
-        return std::hash<VT*>()(port.get_node()) + port.get_index();
+    output.def("__hash__", [](ov::Output<VT>& self) {
+        return std::hash<VT*>()(self.get_node()) + self.get_index();
     });
 
     output.def("get_node",
@@ -128,6 +128,23 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 :rtype: openvino.runtime.RTMap
              )");
 
+    output.def("__repr__", [typestring](const ov::Output<VT>& self) {
+        std::stringstream names_ss, shape_ss;
+
+        auto names = self.get_names();
+
+        for (auto it = names.begin(); it != names.end(); ++it) {
+            if (it != names.begin()) {
+                names_ss << ", ";
+            }
+            names_ss << *it;
+        }
+
+        shape_ss << self.get_partial_shape() << " type: " << self.get_element_type();
+
+        return "<" + (typestring + "Output: names[" + names_ss.str() + "] shape" + shape_ss.str() +
+                " index: " + std::to_string(self.get_index())) + ">";
+    });
 
     output.def_property_readonly("node", &ov::Output<VT>::get_node_shared_ptr);
     output.def_property_readonly("index", &ov::Output<VT>::get_index);
