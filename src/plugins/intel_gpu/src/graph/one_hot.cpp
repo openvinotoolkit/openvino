@@ -10,21 +10,12 @@
 #include <string>
 #include <vector>
 
+#include "one_hot_shape_inference.hpp"
+
 namespace cldnn {
 primitive_type_id one_hot::type_id() {
     static primitive_type_base<one_hot> instance;
     return &instance;
-}
-
-static bool is_output_bfzyx(const layout& input, int32_t axis) {
-    if (input.format == format::bfzyx)
-        return true;
-    if (axis == 4)
-        return true;
-    auto in_dims = input.get_dims();
-    if (in_dims[3] != 1)
-        return true;
-    return false;
 }
 
 layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
@@ -39,10 +30,38 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
                             "Incorrect parameters configuration: one_hot_axis should be less or equal to 4.");
     }
 
-    if (is_output_bfzyx(input_layout, desc->one_hot_axis))
-        format = format::bfzyx;
+    std::cerr << "one hot out shape ref: " << desc->shape << std::endl;
+    {
+        ov::op::v1::OneHot op;
+        try {
+            // set_axis also calls resolve_axis method which tries to get input0 partial shape
+            // thus wrap this call with try/catch.
+            // it's safe as shape_infer method calls normalize_axis internally
+            op.set_axis(desc->one_hot_axis);
+        } catch (...) {}
 
-    return {dt, format, desc->shape};
+        std::cerr << " axis: " << op.get_axis() << " vs " << desc->one_hot_axis << std::endl;
+        std::vector<ov::PartialShape> output_shapes = { ov::PartialShape::dynamic() };
+        std::vector<ov::PartialShape> input_shapes = {
+            input_layout.size,
+            ov::PartialShape{},
+            ov::PartialShape{},
+            ov::PartialShape{}
+        };
+
+        for (auto& in_shape : input_shapes) {
+            std::cerr << "one hot input shape: " << in_shape << std::endl;
+        }
+        int64_t depth = desc->depth;
+
+        auto depth_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&depth));
+        std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
+            {1, depth_tensor}
+        };
+        ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+        std::cerr << "one hot out shape after infer: " << output_shapes[0] << std::endl;
+        return {dt, layout::get_default_format(output_shapes[0].size()), output_shapes[0]};
+    }
 }
 
 std::string one_hot_inst::to_string(one_hot_node const& node) {
@@ -66,28 +85,28 @@ std::string one_hot_inst::to_string(one_hot_node const& node) {
 }
 
 one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) : parent(network, node) {
-    auto input_layout = node.input().get_output_layout();
+    // auto input_layout = node.input().get_output_layout();
 
-    const auto& output_sizes = argument.shape;
+    // const auto& output_sizes = argument.shape;
+//
+    // std::vector<tensor::value_type> input_dims = input_layout.get_dims();
+    // std::vector<tensor::value_type> output_dims = {output_sizes.batch[0],
+    //                                                output_sizes.feature[0],
+    //                                                output_sizes.spatial[1],
+    //                                                output_sizes.spatial[0]};
 
-    std::vector<tensor::value_type> input_dims = input_layout.get_dims();
-    std::vector<tensor::value_type> output_dims = {output_sizes.batch[0],
-                                                   output_sizes.feature[0],
-                                                   output_sizes.spatial[1],
-                                                   output_sizes.spatial[0]};
+    // if (is_output_bfzyx(input_layout, node.get_primitive()->one_hot_axis)) {
+    //     output_dims.insert(output_dims.begin() + 2, output_sizes.spatial[2]);
+    // }
 
-    if (is_output_bfzyx(input_layout, node.get_primitive()->one_hot_axis)) {
-        output_dims.insert(output_dims.begin() + 2, output_sizes.spatial[2]);
-    }
+    // const auto& one_hot_axis = node.get_primitive()->one_hot_axis;
 
-    const auto& one_hot_axis = node.get_primitive()->one_hot_axis;
-
-    for (size_t i = 0, j = 0; j < output_dims.size() - 1; ++i, ++j) {
-        if (j == one_hot_axis)
-            ++j;
-        if (input_dims[i] != output_dims[j]) {
-            CLDNN_ERROR_MESSAGE(node.id(), "Incorrect parameters configuration: shape does not fit input size.");
-        }
-    }
+    // for (size_t i = 0, j = 0; j < output_dims.size() - 1; ++i, ++j) {
+    //     if (j == one_hot_axis)
+    //         ++j;
+    //     if (input_dims[i] != output_dims[j]) {
+    //         CLDNN_ERROR_MESSAGE(node.id(), "Incorrect parameters configuration: shape does not fit input size.");
+    //     }
+    // }
 }
 }  // namespace cldnn
