@@ -38,7 +38,7 @@ bool MaxPoolTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }
@@ -56,8 +56,8 @@ bool MaxPoolTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
+    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions), false);
     return true;
 }
 
