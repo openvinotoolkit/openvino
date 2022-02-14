@@ -4,7 +4,7 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: Converting and Preparing Models
+   :caption: Importing Models to OpenVINO™ Toolkit
    :hidden:
    
    openvino_docs_importing_models
