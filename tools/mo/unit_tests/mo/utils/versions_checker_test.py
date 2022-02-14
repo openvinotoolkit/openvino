@@ -131,7 +131,6 @@ class TestingVersionsChecker(unittest.TestCase):
             self.assertEqual(v, req_list[i])
 
     def test_append_version_list_sys_python_ver_1(self):
-        # 'or' marker is not supported
         v1 = "mxnet>=1.7.0 ; sys_platform == 'linux' or python_version >= \"3.8\""
         req_list = []
         parse_and_filter_versions_list(v1, req_list, {'python_version': '3.8.1', 'sys_platform': 'linux'})
@@ -140,28 +139,10 @@ class TestingVersionsChecker(unittest.TestCase):
             self.assertEqual(v, req_list[i])
 
     def test_append_version_list_sys_python_ver_2(self):
-        # 'and' marker testing
         v1 = "mxnet>=1.7.0 ; sys_platform == 'linux' and python_version >= \"3.8\""
         req_list = []
-        parse_and_filter_versions_list(v1, req_list, {'python_version': '3.9.1', 'sys_platform': 'linux'})
-        ref_list = [('mxnet', '>=', '1.7.0')]
-        for i, v in enumerate(ref_list):
-            self.assertEqual(v, req_list[i])
-
-    def test_append_version_list_sys_python_ver_3(self):
-        # changed order of python_version and sys_platform
-        v1 = "mxnet>=1.7.0 ; python_version >= \"3.8\" and sys_platform == 'linux'"
-        req_list = []
-        parse_and_filter_versions_list(v1, req_list, {'python_version': '3.9.1', 'sys_platform': 'linux'})
-        ref_list = [('mxnet', '>=', '1.7.0')]
-        for i, v in enumerate(ref_list):
-            self.assertEqual(v, req_list[i])
-
-    def test_append_version_list_sys_python_ver_4(self):
-        v1 = "mxnet>=1.7.0 ; python_version >= \"3.8\" and sys_platform == \"windows\""
-        req_list = []
         parse_and_filter_versions_list(v1, req_list, {'python_version': '3.7.1', 'sys_platform': 'linux'})
-        ref_list = []  # requirements not satisfied
+        ref_list = []
         for i, v in enumerate(ref_list):
             self.assertEqual(v, req_list[i])
 
