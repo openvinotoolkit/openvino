@@ -136,6 +136,58 @@ std::shared_ptr<ov::Model> generateEmbeddingBagPackedBase(const std::shared_ptr<
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(EmbeddingBagPackedSumNode)};
     return std::make_shared<ngraph::Function>(results, params, "EmbeddingBagPackedBaseGraph");
 }
+
+std::shared_ptr<ov::Model> generateFFTBase(const std::shared_ptr<ov::op::Op> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 10, 10, 2}});
+    const auto axes = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {1}, {2});
+
+    std::shared_ptr<ov::Node> FFTBaseNode;
+    if (ov::is_type<ov::op::v7::DFT>(node)) {
+        FFTBaseNode = std::make_shared<ov::op::v7::DFT>(params[0], axes);
+    } else if (ov::is_type<ov::op::v7::IDFT>(node)) {
+        FFTBaseNode = std::make_shared<ov::op::v7::IDFT>(params[0], axes);
+    } else {
+        return nullptr;
+    }
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(FFTBaseNode)};
+    return std::make_shared<ngraph::Function>(results, params, "FFTBaseGraph");
+}
+
+std::shared_ptr<ov::Model> generateGatherBase(const std::shared_ptr<ov::op::Op> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::i32, {{2, 2, 3, 3}, {2}});
+    const auto axis = ngraph::builder::makeConstant<int64_t>(ov::element::i64, ov::Shape(), std::vector<int64_t>{2});
+
+    std::shared_ptr<ov::Node> GatherBaseNode;
+    if (ov::is_type<ov::op::v1::Gather>(node)) {
+        GatherBaseNode = std::make_shared<ov::op::v1::Gather>(params[0], params[1], axis);
+    } else if (ov::is_type<ov::op::v7::Gather>(node)) {
+        GatherBaseNode = std::make_shared<ov::op::v7::Gather>(params[0], params[1], axis);
+    } else if (ov::is_type<ov::op::v8::Gather>(node)) {
+        GatherBaseNode = std::make_shared<ov::op::v8::Gather>(params[0], params[1], axis);
+    } else {
+        return nullptr;
+    }
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(GatherBaseNode)};
+    return std::make_shared<ngraph::Function>(results, params, "GatherBaseGraph");
+}
+
+std::shared_ptr<ov::Model> generateGatherNDBase(const std::shared_ptr<ov::op::Op> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::i32, {{2, 3, 4, 2}, {2, 3, 3, 2}});
+
+    std::shared_ptr<ov::Node> GatherNDBaseNode;
+    if (ov::is_type<ov::op::v5::GatherND>(node)) {
+        GatherNDBaseNode = std::make_shared<ov::op::v5::GatherND>(params[0], params[1]);
+    } else if (ov::is_type<ov::op::v8::GatherND>(node)) {
+        GatherNDBaseNode = std::make_shared<ov::op::v8::GatherND>(params[0], params[1]);
+    } else {
+        return nullptr;
+    }
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(GatherNDBaseNode)};
+    return std::make_shared<ngraph::Function>(results, params, "GatherNDBaseGraph");
+}
 } // namespace
 
 template <typename T>
@@ -151,6 +203,12 @@ std::shared_ptr<ov::Model> generateGraph() {
         return generateEmbeddingBagOffsetsBase(node);
     } else if (ov::is_type<ov::op::util::EmbeddingBagPackedBase>(node)) {
         return generateEmbeddingBagPackedBase(node);
+    } else if (ov::is_type<ov::op::util::FFTBase>(node)) {
+        return generateFFTBase(node);
+    } else if (ov::is_type<ov::op::util::GatherBase>(node)) {
+        return generateGatherBase(node);
+    } else if (ov::is_type<ov::op::util::GatherNDBase>(node)) {
+        return generateGatherNDBase(node);
     }
     return generate(node);
 }
