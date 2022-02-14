@@ -41,10 +41,7 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
 namespace matmul {
 namespace {
 template <element::Type_t ET>
-bool evaluate(const op::MatMul* op,
-              const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& output) {
+bool evaluate(const op::MatMul* op, const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& output) {
     using T = typename element_type_traits<ET>::value_type;
 
     ov::Shape arg0_shape = arg0->get_shape();
