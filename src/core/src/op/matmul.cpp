@@ -5,12 +5,10 @@
 #include "ngraph/op/matmul.hpp"
 
 #include <memory>
-#include <numeric>
 
 #include "itt.hpp"
 #include "matmul_shape_inference.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 
 using namespace std;
