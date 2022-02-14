@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ops/util/util.hpp"
 #include "pwl_approximation.hpp"
 #include "transformations/utils/utils.hpp"
 #include "ops/pwl.hpp"
@@ -25,14 +26,6 @@ namespace GNAPluginNS {
 
 NGRAPH_RTTI_DEFINITION(PWLApproximation, "PWLApproximation", 0);
 NGRAPH_RTTI_DEFINITION(PWLApproximationWithFq, "PWLApproximationWithFq", 0);
-
-auto supported_types = std::tuple<std::integral_constant<ov::element::Type_t, ov::element::i32>,
-                                  std::integral_constant<ov::element::Type_t, ov::element::i64>,
-                                  std::integral_constant<ov::element::Type_t, ov::element::u32>,
-                                  std::integral_constant<ov::element::Type_t, ov::element::u64>,
-                                  std::integral_constant<ov::element::Type_t, ov::element::f16>,
-                                  std::integral_constant<ov::element::Type_t, ov::element::f32>,
-                                  std::integral_constant<ov::element::Type_t, ov::element::f64>>();
 
 template<typename T>
 double get_break_bound() {
@@ -232,20 +225,6 @@ bool is_negative<ngraph::opset8::Power>(const details::Function<ngraph::opset8::
 }
 
 template<typename T>
-double max_error(const details::Function<T>& activation_function, double allowed_err_pct) {
-    return allowed_err_pct;
-}
-
-template<>
-double max_error<ngraph::opset8::Power>(const details::Function<ngraph::opset8::Power>& activation_function, double allowed_err_pct) {
-    if (activation_function.m_exponent == 0) {
-        return allowed_err_pct;
-    }
-
-    return allowed_err_pct;
-}
-
-template<typename T>
 std::vector<details::Pwl> pwl_search(const details::Function<T>& activation_function,
                                      double lower_bound,
                                      double upper_bound,
@@ -283,13 +262,11 @@ std::vector<details::Pwl> pwl_search(const details::Function<T>& activation_func
     } else {
         int segments_number = 1;
         bool negative = is_negative<T>(activation_function, upper_bound);
-        auto err = pivot_search<T>(activation_function, pwl, segments_number, lower_bound, upper_bound, negative,
-            max_error<T>(activation_function, allowed_err_pct));
+        auto err = pivot_search<T>(activation_function, pwl, segments_number, lower_bound, upper_bound, negative, allowed_err_pct);
         err_pct = calculate_error_pct<T>(activation_function, pwl, lower_bound, upper_bound, err, negative);
-        while (segments_number < details::max_segments_number<T>() && max_error<T>(activation_function, allowed_err_pct) < err_pct) {
+        while (segments_number < details::max_segments_number<T>() && allowed_err_pct < err_pct) {
             segments_number++;
-            err = pivot_search<T>(activation_function, pwl, segments_number, lower_bound, upper_bound, negative,
-                max_error<T>(activation_function, allowed_err_pct));
+            err = pivot_search<T>(activation_function, pwl, segments_number, lower_bound, upper_bound, negative, allowed_err_pct);
             err_pct = calculate_error_pct<T>(activation_function, pwl, lower_bound, upper_bound, err, negative);
         }
 
@@ -301,33 +278,6 @@ std::vector<details::Pwl> pwl_search(const details::Function<T>& activation_func
     return pwl;
 }
 
-template <typename T>
-bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
-    using A = typename ov::element_type_traits<T::value>::value_type;
-    const auto& values = constant->get_vector<A>();
-    if (values.empty() || values.size() > 1) {
-        throw std::runtime_error("The size of values is more than 1.");
-    }
-
-    value = values[0];
-    return true;
-}
-
-template<typename T>
-bool get_constant_value(const std::tuple<T>& args,
-                  const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
-    return constant->get_element_type() == T::value &&
-           get_constant_value<T>(constant, value);
-}
-
-template<typename T, typename ...Types>
-bool get_constant_value(const std::tuple<T, Types...>&,
-                  const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
-    return constant->get_element_type() == T::value &&
-           get_constant_value<T>(constant, value) ||
-           get_constant_value<Types...>(std::tuple<Types...>(), constant, value);
-}
-
 template<typename T>
 std::pair<double, double> get_bounds(const std::shared_ptr<ngraph::Node>& fake_quantize) {
     auto fq = std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(fake_quantize);
@@ -336,8 +286,8 @@ std::pair<double, double> get_bounds(const std::shared_ptr<ngraph::Node>& fake_q
     if (fq) {
         auto input_low = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(1));
         auto input_high = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(2));
-        if (!get_constant_value(supported_types, input_low, lower_bound) ||
-            !get_constant_value(supported_types, input_high, upper_bound)) {
+        if (!ngraph_util::get_constant_value(input_low, lower_bound) ||
+            !ngraph_util::get_constant_value(input_high, upper_bound)) {
             throw std::runtime_error("The unsupported type of element.");
         }
 
@@ -396,8 +346,8 @@ static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
     if (fq) {
         auto output_low = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(1));
         auto output_high = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(2));
-        if (!get_constant_value(supported_types, output_low, lower_bound) ||
-            !get_constant_value(supported_types, output_high, upper_bound)) {
+        if (!ngraph_util::get_constant_value(output_low, lower_bound) ||
+            !ngraph_util::get_constant_value(output_high, upper_bound)) {
             throw std::runtime_error("The unsupported type of element.");
         }
     }
@@ -438,7 +388,7 @@ bool pwl_search<ngraph::opset8::Power>(const std::shared_ptr<ngraph::opset8::Pow
                                        std::vector<details::Pwl>& segments) {
     auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node->get_input_node_shared_ptr(1));
     double exponent = 0;
-    if (!get_constant_value(supported_types, constant, exponent)) {
+    if (!ngraph_util::get_constant_value(constant, exponent)) {
         throw std::runtime_error("The unsupported type of element.");
     }
 
@@ -456,7 +406,7 @@ bool pwl_search<ngraph::op::PowerIE>(const std::shared_ptr<ngraph::op::PowerIE>&
 }
 
 template<typename T>
-bool transpose_to_pwl(
+bool transform_to_pwl(
     const std::shared_ptr<ngraph::Node>& fake_quantize,
     const std::shared_ptr<T>& node,
     double allowed_err_pct) {
@@ -496,31 +446,31 @@ bool transpose_to_pwl(
 }
 
 template<typename T>
-bool transpose_to_pwl(const std::tuple<T>& args,
+bool transform_to_pwl(const std::tuple<T>& args,
                       const std::shared_ptr<ngraph::Node>& fake_quantize,
                       const std::shared_ptr<ngraph::Node>& node,
                       double allowed_err_pct);
 
 template<typename T, typename ...Types>
-bool transpose_to_pwl(const std::tuple<T, Types...>& args,
+bool transform_to_pwl(const std::tuple<T, Types...>& args,
                       const std::shared_ptr<ngraph::Node>& fake_quantize,
                       const std::shared_ptr<ngraph::Node>& node,
                       double allowed_err_pct) {
     auto op = std::dynamic_pointer_cast<T>(node);
     if (op) {
-        return transpose_to_pwl(fake_quantize, op, allowed_err_pct);
+        return transform_to_pwl(fake_quantize, op, allowed_err_pct);
     }
-    return transpose_to_pwl<Types...>(std::tuple<Types...>(), fake_quantize, node, allowed_err_pct);
+    return transform_to_pwl<Types...>(std::tuple<Types...>(), fake_quantize, node, allowed_err_pct);
 }
 
 template<typename T>
-bool transpose_to_pwl(const std::tuple<T>& args,
+bool transform_to_pwl(const std::tuple<T>& args,
                       const std::shared_ptr<ngraph::Node>& fake_quantize,
                       const std::shared_ptr<ngraph::Node>& node,
                       double allowed_err_pct) {
     auto op = std::dynamic_pointer_cast<T>(node);
     if (op) {
-        return transpose_to_pwl(fake_quantize, op, allowed_err_pct);
+        return transform_to_pwl(fake_quantize, op, allowed_err_pct);
     }
     return false;
 }
@@ -558,7 +508,7 @@ static std::shared_ptr<ngraph::pattern::Matcher> create_matcher(ov::graph_rewrit
             return false;
         }
         auto fake_quantize_iter = pattern_to_output.find(fake_quantize);
-        return transpose_to_pwl(
+        return transform_to_pwl(
             std::tuple<
                 ngraph::opset8::Sigmoid,
                 ngraph::opset8::Tanh,

@@ -121,33 +121,6 @@ class LayerInfo {
         }
     }
 
-    template <typename T>
-    static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
-        using A = typename ov::element_type_traits<T::value>::value_type;
-        const auto& values = constant->get_vector<A>();
-        if (values.empty() || values.size() > 1) {
-            throw std::runtime_error("The size of values is more than 1.");
-        }
-
-        value = values[0];
-        return true;
-    }
-
-    template<typename T>
-    static bool get_constant_value(const std::tuple<T>& args,
-                      const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
-        return constant->get_element_type() == T::value &&
-               get_constant_value<T>(constant, value);
-    }
-
-    template<typename T, typename ...Types>
-    static bool get_constant_value(const std::tuple<T, Types...>&,
-                      const std::shared_ptr<ngraph::opset8::Constant>& constant, double& value) {
-        return constant->get_element_type() == T::value &&
-               get_constant_value<T>(constant, value) ||
-               get_constant_value<Types...>(std::tuple<Types...>(), constant, value);
-    }
-
     bool isActivation() const noexcept {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> activations =
