@@ -1,6 +1,6 @@
 # Overview {#openvino_docs_install_guides_overview}
 
-Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud by:
+Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud by:
 
 * Enabling CNN-based deep learning inference on the edge.
 * Supporting heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
@@ -21,7 +21,7 @@ Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for quick
   * Model Downloader and other Open Model Zoo tools
 
 
-### <a name="choose-installation-method"></a>Choose your installation method
+### Choose your installation method
 
 For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Runtime and Development Tools and less steps. 
 

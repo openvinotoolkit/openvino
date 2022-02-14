@@ -1,6 +1,6 @@
-# Install OpenVINO Development Tools {#openvino_docs_install_guides_install_dev_tools}
+# Install OpenVINO™ Development Tools {#openvino_docs_install_guides_install_dev_tools}
 
-If you are planning to develop your own inference solutions, install OpenVINO Development Tools, which provides the following tools:
+If you are planning to develop your own inference solutions, install OpenVINO™ Development Tools, which provides the following tools:
 
 * Model Optimizer
 * Benchmark Tool
@@ -8,7 +8,7 @@ If you are planning to develop your own inference solutions, install OpenVINO De
 * Post-Training Optimization Tool
 * Model Downloader and other Open Model Zoo tools
 
-From 2022.1 release, the OpenVINO Developer Tools can only be installed via PyPI.
+From 2022.1 release, the OpenVINO Development Tools can only be installed via PyPI.
 
 
 ## For C++ developers
