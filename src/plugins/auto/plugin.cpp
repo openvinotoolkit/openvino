@@ -138,7 +138,12 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         std::string deviceid = parsed.getDeviceID();
         std::vector<std::string> sameTypeDevices;
         // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
-        if (deviceid.empty()) {
+        // Disable AUTO:MYRIAD here because of below test case
+        // MYRIAD/CoreThreadingTests.smoke_QueryNetwork/targetDevice=MULTI_config=MULTI_DEVICE_PRIORITIES:MYRIAD_
+        // faild on windows
+        // the error is
+        // myriadFuncTests-0 INFO: [E:] [BSL] found 0 ioexpander device
+        if (deviceid.empty() && deviceName.find("MYRIAD") == std::string::npos) {
             for (auto&& device : deviceList) {
                 if (device.find(deviceName) != std::string::npos) {
                     sameTypeDevices.push_back(std::move(device));
