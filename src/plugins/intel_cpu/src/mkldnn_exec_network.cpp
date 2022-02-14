@@ -313,10 +313,10 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         return graph.dump()->get_friendly_name();
     } else if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig._streams;
-        return static_cast<uint32_t>(streams); // ov::optimal_number_of_infer_requests has no negative values
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(streams); // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig._streams;
-        return static_cast<int32_t>(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = config.streamExecutorConfig._threadBindingType;
         switch (affinity) {

@@ -5,6 +5,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include <base/ov_behavior_test_utils.hpp>
 
+#include "openvino/core/any.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -17,8 +18,7 @@ namespace {
 //
 // Executable Network GetMetric
 //
-class OVClassConfigTestCPU : public ::testing::Test,
-                             public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, ov::Any>>> {
+class OVClassConfigTestCPU : public ::testing::Test {
 public:
     std::shared_ptr<ngraph::Function> model;
     const std::string deviceName = "CPU";
@@ -55,6 +55,62 @@ TEST_F(OVClassConfigTestCPU, smoke_SetROPropertiesThrow) {
         ASSERT_FALSE(it->is_mutable());
         ASSERT_THROW(compiledModel.set_property({{*it, "DUMMY VALUE"}}), ov::Exception);
     }
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CheckCoreStreamsHasHigherPriorityThanThroughputHint) {
+    ov::Core ie;
+    int32_t streams = 1; // throughput hint should apply higher number of streams
+    int32_t value;
+
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::num_streams(streams)));
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
+
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName);
+    ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
+    ASSERT_EQ(streams, value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CheckCoreStreamsHasHigherPriorityThanLatencyHint) {
+    ov::Core ie;
+    int32_t streams = 4; // latency hint should apply lower number of streams
+    int32_t value;
+
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::num_streams(streams)));
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName);
+    ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
+    ASSERT_EQ(streams, value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CheckModelStreamsHasHigherPriorityThanLatencyHints) {
+    ov::Core ie;
+    int32_t streams = 4; // latency hint should apply lower number of streams
+    int32_t value;
+
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+
+    ov::AnyMap config;
+    config[ov::num_streams.name()] = streams;
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
+
+    ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
+    ASSERT_EQ(streams, value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CheckModelStreamsHasHigherPriorityThanThroughputHint) {
+    ov::Core ie;
+    int32_t streams = 1; // throughput hint should apply higher number of streams
+    int32_t value;
+
+    ov::AnyMap config;
+    config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
+    config[ov::num_streams.name()] = streams;
+
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
+
+    ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
+    ASSERT_EQ(streams, value);
 }
 
 const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {
