@@ -1,12 +1,9 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2021-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/data_types.cl"
-
-DEFINE_SPATIAL_SCALES;
-DEFINE_LEVEL_SIZES;
 
 inline int FUNC(get_pyramid_level_for_roi)(const __global INPUT0_TYPE* current_roi) {
     const INPUT0_TYPE canonical_scale = 224.0;
@@ -42,7 +39,6 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
 
     const int level = FUNC_CALL(get_pyramid_level_for_roi)(current_roi_ptr);
 
-    DEFINE_LEVEL_PTRS;
     const __global INPUT1_TYPE* current_level_ptr = LEVEL_PTRS[level];
 
     INPUT0_TYPE offset = IS_ALIGNED ? TO_INPUT0_TYPE(0.5f) : TO_INPUT0_TYPE(0.0);

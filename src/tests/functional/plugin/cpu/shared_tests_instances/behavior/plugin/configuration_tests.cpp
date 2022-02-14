@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,11 +98,11 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
              {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, InferenceEngine::PluginConfigParams::LOG_TRACE}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "0"}},
+                {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "1"}},
+                {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "2"}}
+                {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
@@ -171,9 +171,9 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                     {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "-1"}},
+                {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, "-1"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "should be int"}},
+                {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, "ABC"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                 {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}}
     };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -611,6 +611,9 @@ private:
             default:
                 assert(!"unknown src_dt");
         }
+
+        if (!isFloatCompatible(src_dt))
+            uni_vcvtdq2ps(vmm_val, vmm_val);
         add(rsp, vlen);
     }
 
@@ -1812,21 +1815,21 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
-    config.inConfs[REDUCE_DATA].constant = false;
-    config.inConfs[REDUCE_INDEXES].constant = false;
-    config.outConfs[0].constant = false;
-    config.inConfs[REDUCE_DATA].inPlace = -1;
-    config.inConfs[REDUCE_INDEXES].inPlace = -1;
-    config.outConfs[0].inPlace = -1;
+    config.inConfs[REDUCE_DATA].constant(false);
+    config.inConfs[REDUCE_INDEXES].constant(false);
+    config.outConfs[0].constant(false);
+    config.inConfs[REDUCE_DATA].inPlace(-1);
+    config.inConfs[REDUCE_INDEXES].inPlace(-1);
+    config.outConfs[0].inPlace(-1);
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
     auto pushDesc = [&](LayoutType inFormat, LayoutType outFormat, InferenceEngine::Precision inPrecision,
             InferenceEngine::Precision outPrecision, impl_desc_type impl_type) {
-        config.inConfs[REDUCE_DATA].desc = creatorsMap.at(inFormat)->createSharedDesc(inPrecision, getInputShapeAtPort(REDUCE_DATA));
-        config.inConfs[REDUCE_INDEXES].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32,
-                                                                                                 getInputShapeAtPort(REDUCE_INDEXES));
-        config.outConfs[0].desc = creatorsMap.at(outFormat)->createSharedDesc(outPrecision, getOutputShapeAtPort(0));
+        config.inConfs[REDUCE_DATA].setMemDesc(creatorsMap.at(inFormat)->createSharedDesc(inPrecision, getInputShapeAtPort(REDUCE_DATA)));
+        config.inConfs[REDUCE_INDEXES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32,
+                                                                                                 getInputShapeAtPort(REDUCE_INDEXES)));
+        config.outConfs[0].setMemDesc(creatorsMap.at(outFormat)->createSharedDesc(outPrecision, getOutputShapeAtPort(0)));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -1866,6 +1869,10 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
 
 bool MKLDNNReduceNode::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
+}
+
+std::vector<VectorDims> MKLDNNReduceNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(REDUCE_INDEXES));
 }
 
 void MKLDNNReduceNode::prepareParams() {
@@ -1926,9 +1933,9 @@ void MKLDNNReduceNode::createPrimitive() {
     }
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocated destination memory.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocate input memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
@@ -1949,8 +1956,8 @@ void MKLDNNReduceNode::createPrimitive() {
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     jcp = jit_reduce_config_params();
-    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].desc->getPrecision());
-    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc->getPrecision());
+    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision());
+    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision());
     jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
     jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
     jcp.layout = layout;
@@ -2366,7 +2373,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.channel_size = layout == ReduceLayoutType::reduce_nspc ? OW : OC; // OW is related to nspc-ncsp dimension reinterpret
             arg.work_amount = OD * OH * OW;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void **>(&postOpsDataPtrs[0]);
+            arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
         });
     } else {
@@ -2379,7 +2386,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.oc_off = ocb * blk_size * sizeof(float);
             arg.work_amount = OD * OH * OW * blk_size;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void **>(&postOpsDataPtrs[0]);
+            arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
         });
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,6 @@ void parseInputFilesArguments(std::vector<std::string>& files) {
     }
 }
 
-namespace {
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
     if (str.empty())
         return {};
@@ -200,8 +199,6 @@ ov::element::Type getType(const std::string& value) {
     return getType(value, supported_types);
 }
 
-}  // namespace
-
 namespace {
 using supported_layouts_t = std::unordered_map<std::string, InferenceEngine::Layout>;
 using matchLayoutToDims_t = std::unordered_map<size_t, size_t>;
@@ -253,15 +250,29 @@ bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
 
 void printInputAndOutputsInfoShort(const ov::Model& network) {
     std::cout << "Network inputs:" << std::endl;
-    for (auto&& param : network.get_parameters()) {
-        auto l = param->get_layout();
-        std::cout << "    " << param->get_friendly_name() << " : " << param->get_element_type() << " / "
-                  << param->get_layout().to_string() << std::endl;
+    for (auto&& input : network.inputs()) {
+        std::cout << "    " << input.get_any_name() << " (node: " << input.get_node()->get_friendly_name()
+                  << ") : " << input.get_element_type() << " / " << ov::layout::get_layout(input).to_string()
+                  << std::endl;
     }
+
     std::cout << "Network outputs:" << std::endl;
-    for (auto&& result : network.get_results()) {
-        std::cout << "    " << result->get_friendly_name() << " : " << result->get_element_type() << " / "
-                  << result->get_layout().to_string() << std::endl;
+    for (auto&& output : network.outputs()) {
+        std::string out_name = "***NO_NAME***";
+        std::string node_name = "***NO_NAME***";
+
+        // Workaround for "tensor has no name" issue
+        try {
+            out_name = output.get_any_name();
+        } catch (const ov::Exception&) {
+        }
+        try {
+            node_name = output.get_node()->get_input_node_ptr(0)->get_friendly_name();
+        } catch (const ov::Exception&) {
+        }
+
+        std::cout << "    " << out_name << " (node: " << node_name << ") : " << output.get_element_type() << " / "
+                  << ov::layout::get_layout(output).to_string() << std::endl;
     }
 }
 
@@ -458,57 +469,4 @@ ov::element::Type getPrecision2(const std::string& value) {
     };
 
     return getPrecision(value, supported_precisions);
-}
-
-void setPrecisions(const ov::Model& network, const std::string& iop) {
-    const auto user_precisions_map = parseArgMap(iop);
-
-    for (auto&& item : user_precisions_map) {
-        const auto& layer_name = item.first;
-        const auto& user_precision = item.second;
-
-        auto& params = network.get_parameters();
-        auto& results = network.get_results();
-
-        const auto input =
-            std::find_if(params.begin(), params.end(), [&item](const std::shared_ptr<ov::op::v0::Parameter>& a) {
-                return a->get_friendly_name() == item.first;
-            });
-        const auto output =
-            std::find_if(results.begin(), results.end(), [&layer_name](const std::shared_ptr<ov::op::v0::Result>& a) {
-                return a->get_friendly_name() == layer_name;
-            });
-
-        if (input != params.end()) {
-            (*input)->set_element_type(getPrecision2(user_precision));
-        } else if (output != results.end()) {
-            for (int i = 0; i < (*output)->get_output_size(); i++) {
-                (*output)->set_output_type(i, getPrecision2(user_precision), (*output)->get_output_shape(i));
-            }
-        } else {
-            throw std::logic_error(layer_name + " is not an input neither output");
-        }
-    }
-}
-
-void processPrecision(const ov::Model& network, const std::string& ip, const std::string& op, const std::string& iop) {
-    if (!ip.empty()) {
-        const auto user_precision = getPrecision2(ip);
-        for (auto&& layer : network.get_parameters()) {
-            layer->set_element_type(user_precision);
-        }
-    }
-
-    if (!op.empty()) {
-        auto user_precision = getPrecision2(op);
-        for (auto&& layer : network.get_results()) {
-            for (int i = 0; i < layer->get_output_size(); i++) {
-                layer->set_output_type(i, user_precision, layer->get_output_shape(i));
-            }
-        }
-    }
-
-    if (!iop.empty()) {
-        setPrecisions(network, iop);
-    }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,7 +118,7 @@ public:
 
 TEST_P(ConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -133,8 +133,8 @@ const std::vector<element::Type> netPrecisions = {
 const std::vector<ngraph::PartialShape> suitablePartialShapes = {
     ngraph::PartialShape({ 1, 3, 72, 48 }),
     ngraph::PartialShape({ 4, 3, 72, 48 }),
-    ngraph::PartialShape({ Dimension::dynamic(), 3, 72, 48 }),
-    ngraph::PartialShape({ 1, 3, Dimension::dynamic(), Dimension::dynamic() }),
+    ngraph::PartialShape({ -1, 3, 72, 48 }),
+    ngraph::PartialShape({ -1, -1, -1, -1 }),
 };
 
 const std::vector<ConvolutionTransformationTestValues> testValues = {
@@ -454,7 +454,6 @@ const std::vector<element::Type> netPrecisions = {
 };
 
 const std::vector<ngraph::PartialShape> unsuitablePartialShapes = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
     ngraph::PartialShape::dynamic()
 };
 

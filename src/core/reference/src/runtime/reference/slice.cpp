@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ void slice(const char* data,
     std::vector<int64_t> aligned_starts(data_rank, 0);
     std::vector<int64_t> aligned_steps(data_rank, 1);
     for (size_t i = 0; i < axes.size(); ++i) {
-        const auto axis = axes[i] >= 0 ? axes[i] : axes[i] + data_rank;
+        const int64_t axis = axes[i] >= 0 ? axes[i] : axes[i] + static_cast<int64_t>(data_rank);
         OPENVINO_ASSERT(axis >= 0 && axis < data_rank, "Slice `axes` arg has out of range value.");
         const auto& dim = data_shape[axis];
         aligned_starts[axis] = starts[i] >= 0 ? std::min<int64_t>(starts[i], steps[i] < 0 ? dim - 1 : dim)

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,7 +18,7 @@ addIeTargetTest(
                 ngraphFunctions
             gmock
             commonTestUtils_s
-            ov_intel_gna_plugin_test_static
+            openvino_intel_gna_plugin_test_static
             engines_test_util
         ADD_CPPLINT
         LABELS

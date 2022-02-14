@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,13 +23,11 @@ namespace low_precision {
 
 constexpr char LayerTransformation::originalLayerPostfix[];
 
-// order defines default precision
-std::vector<ngraph::element::Type> LayerTransformation::defaultPrecisions = precision_set::int8_support;
-std::mutex LayerTransformation::defaultPrecisionsMutex;
-
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
     deqPrecision(params.deqPrecision),
+    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
+    defaultPrecisions(params.defaultPrecisions),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
@@ -40,19 +38,20 @@ void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
     this->updatePrecisions = updatePrecisions;
 }
 
-bool LayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!isQuantized(layer)) {
-        return false;
-    }
+void LayerTransformation::setDefaultPrecisions(const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    this->defaultPrecisions = defaultPrecisions;
+}
 
-    if (NetworkHelper::isDQByDynamicDimension(layer)) {
+bool LayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    if (!isQuantized(layer, defaultPrecisions)) {
         return false;
     }
 
     return canBeTransformedStatic(layer);
 }
 
-bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer) {
+bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) {
     for (const auto& output : layer->outputs()) {
         const auto rank = output.get_partial_shape().rank();
         if (rank.is_dynamic() || rank.get_length() < 2) {
@@ -60,7 +59,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
         }
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(layer);
+    const auto dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (!dequantization.empty()) {
         auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
             if (ngraph::shape_size(constShape) == 1ul) {
@@ -106,11 +105,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 }
 
 bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!isQuantized(layer)) {
-        return false;
-    }
-
-    if (NetworkHelper::isDQByDynamicDimension(layer)) {
+    if (!isQuantized(layer, defaultPrecisions)) {
         return false;
     }
 
@@ -271,6 +266,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     }
 
     element::Type resultPrecision = element::undefined;
+    // if zero point exists then result precision has to be defined by client code
     if (!hasZeroPoint) {
         if (signedPrecision && (!unsignedPrecision)) {
             switch (quantizationLevels) {
@@ -314,65 +310,64 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
     return getPrecisionDetails(quantizationDetails.levels, quantizationDetails.outputLowValues, quantizationDetails.outputHighValues);
 }
 
-bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer) {
+bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) {
     const auto nonConstNode = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
-    const auto dequantization = NetworkHelper::getDequantization(nonConstNode);
+    const auto dequantization = NetworkHelper::getDequantization(nonConstNode, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }
     return dequantization.subtract != nullptr;
 }
 
-bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
+bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer, const std::vector<ngraph::element::Type>& defaultPrecisions) const {
     return true;
 }
 
 DataPrecision LayerTransformation::getDataPrecision(
         const std::shared_ptr<Node>& layer,
         const QuantizationDetails& quantizationDetails,
-        const std::vector<element::Type>& precisions) {
+        const std::vector<element::Type>& requiredPrecisions) {
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(layer);
 #endif
-    std::vector<element::Type> resultPrecisions = precisions;
-    std::vector<element::Type> FQPrecisions;
-    switch (quantizationDetails.levels) {
-        case levels::int8:
-        case levels::int8_narrow_range:
-            FQPrecisions = {element::u8, element::i8};
-            break;
-        case levels::int16:
-        case levels::int16_narrow_range:
-            FQPrecisions = {element::u16, element::i16};
-            break;
-        case levels::int32:
-        case levels::int32_narrow_range:
-            FQPrecisions = {element::u32, element::i32};
-    }
-    resultPrecisions = NetworkHelper::precisionIntersection(precisions, FQPrecisions);
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
 
     if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
-        // if supportedPrecisions is empty then use the first available, not supported layer will be in original precision
-        if (!precisions.empty()) {
-            const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
-            const element::Type resultPrecision = foundIt != precisions.end() ?
+        // FakeQuantize optimal precision not deined
+        if (!requiredPrecisions.empty()) {
+            const auto foundIt = std::find(requiredPrecisions.begin(), requiredPrecisions.end(), precisionDetailsAtOutputIntervals.precision);
+            const element::Type resultPrecision = foundIt != requiredPrecisions.end() ?
                 precisionDetailsAtOutputIntervals.precision :
-                *precisions.begin();
+                *requiredPrecisions.begin();
 
-            const DataPrecision dataPrecision(
+            return DataPrecision(
                 resultPrecision,
                 DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
                 DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
-                foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
-
-            return dataPrecision;
+                foundIt != requiredPrecisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+        }
+    } else {
+        // FakeQuantize optimal precision is not deined
+        if (!requiredPrecisions.empty()) {
+            const element::Type resultPrecision = *requiredPrecisions.begin();
+            return DataPrecision(
+                resultPrecision,
+                DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
+                DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
+                true);
+        } else {
+            // required precisions are not defined, not possible to get precision from FakeQuantize: something wrong
+            // return not valid value
+            return DataPrecision();
         }
     }
+
+    // if required precisions is empty then use FakeQuantize optimal precision
     return DataPrecision(
         precisionDetailsAtOutputIntervals.precision,
-        0.f,
-        0.f,
+        DataPrecision::getMinValue(precisionDetailsAtOutputIntervals.precision, quantizationDetails.levels),
+        DataPrecision::getMaxValue(precisionDetailsAtOutputIntervals.precision, quantizationDetails.levels),
         precisionDetailsAtOutputIntervals.hasZeroPoint);
 }
 
@@ -382,7 +377,11 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision,
     const bool moveSubtract) const {
-    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision, moveSubtract);
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation,
+        dequantization,
+        updatePrecision,
+        moveSubtract,
+        defaultPrecisions);
     updateOutput(context, result.lastDequantization, result.newOperation);
     return result.newOperation;
 }
@@ -393,7 +392,10 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationBefore(
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision,
     const bool moveSubtract) const {
-    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation, dequantization, updatePrecision, moveSubtract);
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation,
+        dequantization,
+        updatePrecision,
+        moveSubtract);
     updateOutput(context, result.newOperation, result.lastDequantization);
     return result.newOperation;
 }
@@ -451,16 +453,6 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
     NGRAPH_SUPPRESS_DEPRECATED_START
     pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END
-}
-
-void LayerTransformation::setDefaultPrecisions(const std::vector<ngraph::element::Type>& precisions) {
-    std::lock_guard<std::mutex> lock(defaultPrecisionsMutex);
-    defaultPrecisions = precisions;
-}
-
-std::vector<ngraph::element::Type> LayerTransformation::getDefaultPrecisions() {
-    std::lock_guard<std::mutex> lock(defaultPrecisionsMutex);
-    return defaultPrecisions;
 }
 
 }  // namespace low_precision

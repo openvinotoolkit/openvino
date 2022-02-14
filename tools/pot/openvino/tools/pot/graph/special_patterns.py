@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from .pattern_builder import PatternBuilder
@@ -99,6 +99,25 @@ def create_input_scaleshift_pattern():
 
 
 @registry_ignore_patterns('inputs')
+def create_input_transpose_scaleshift_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_scaleshift()
+    return pattern.set_name('input_transpose_scale_shift').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_scaleshift_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_scaleshift()
+    return pattern.set_name('input_convert_transpose_scale_shift').pattern
+
+
+@registry_ignore_patterns('inputs')
 def create_input_add_pattern():
     pattern = PatternBuilder()
     pattern.append_single_op('Parameter', 'input')
@@ -107,11 +126,57 @@ def create_input_add_pattern():
 
 
 @registry_ignore_patterns('inputs')
+def create_input_subtract_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Subtract', 'subtract')
+    return pattern.set_name('input_subtract').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_transpose_add_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_add_const()
+    return pattern.set_name('input_transpose_add').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_add_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_add_const()
+    return pattern.set_name('input_convert_transpose_add').pattern
+
+
+@registry_ignore_patterns('inputs')
 def create_input_mul_pattern():
     pattern = PatternBuilder()
     pattern.append_single_op('Parameter', 'input')
     pattern.append_single_op('Multiply', 'multiply')
     return pattern.set_name('input_multiply').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_transpose_mul_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.append_single_op('Multiply', 'multiply')
+    return pattern.set_name('input_transpose_multiply').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_mul_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.append_single_op('Multiply', 'multiply')
+    return pattern.set_name('input_convert_transpose_multiply').pattern
 
 
 @registry_ignore_patterns('inputs')
@@ -125,6 +190,29 @@ def create_input_reverse_input_channel_scaleshift_pattern():
 
 
 @registry_ignore_patterns('inputs')
+def create_input_transpose_reverse_input_channel_scaleshift_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_split()
+    pattern.append_single_op('Concat', 'concat')
+    pattern.insert_scaleshift()
+    return pattern.set_name('input_transpose_reverse_input_channels_scale_shift').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_reverse_input_channel_scaleshift_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_split()
+    pattern.append_single_op('Concat', 'concat')
+    pattern.insert_scaleshift()
+    return pattern.set_name('input_convert_transpose_reverse_input_channels_scale_shift').pattern
+
+
+@registry_ignore_patterns('inputs')
 def create_input_reverse_input_channel_add_pattern():
     pattern = PatternBuilder()
     pattern.append_single_op('Parameter', 'input')
@@ -132,6 +220,29 @@ def create_input_reverse_input_channel_add_pattern():
     pattern.append_single_op('Concat', 'concat')
     pattern.insert_add_const()
     return pattern.set_name('input_reverse_input_channels_add').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_transpose_reverse_input_channel_add_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_split()
+    pattern.append_single_op('Concat', 'concat')
+    pattern.insert_add_const()
+    return pattern.set_name('input_transpose_reverse_input_channels_add').pattern
+
+
+@registry_ignore_patterns('inputs')
+def create_input_convert_transpose_reverse_input_channel_add_pattern():
+    pattern = PatternBuilder()
+    pattern.append_single_op('Parameter', 'input')
+    pattern.append_single_op('Convert', 'convert')
+    pattern.append_single_op('Transpose', 'transpose')
+    pattern.insert_split()
+    pattern.append_single_op('Concat', 'concat')
+    pattern.insert_add_const()
+    return pattern.set_name('input_convert_transpose_reverse_input_channels_add').pattern
 
 
 @registry_ignore_patterns('blocks')
@@ -142,6 +253,15 @@ def create_softmax_pattern():
     power_out = pattern.append_op_const('Power', 'power').get_last_node()
     pattern.insert_single_op([exp_out, power_out], None, 'Multiply', 'mul')
     return pattern.set_name('softmax').pattern
+
+
+@registry_ignore_patterns('blocks')
+def create_softmax_div_pattern():
+    pattern = PatternBuilder()
+    exp_out = pattern.append_single_op('Exp', 'exp').get_last_node()
+    reduce_out = pattern.append_op_const('ReduceSum', 'reduce').get_last_node()
+    pattern.insert_single_op([exp_out, reduce_out], None, 'Divide', 'div')
+    return pattern.set_name('softmax_div').pattern
 
 
 @registry_ignore_patterns('blocks')

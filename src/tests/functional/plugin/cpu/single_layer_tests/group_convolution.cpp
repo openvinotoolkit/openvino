@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ public:
 protected:
     bool isBias = false;
 
-    void checkBiasFusing(ov::runtime::CompiledModel &execNet) const {
+    void checkBiasFusing(ov::CompiledModel &execNet) const {
         auto execGraph = execNet.get_runtime_model();
         ASSERT_NE(nullptr, execGraph);
 
@@ -151,7 +151,7 @@ protected:
         init_input_shapes({inputShape});
 
         if (configuration.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
-            PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16]) {
+            PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16].as<std::string>()) {
             selectedType += "_BF16";
             rel_threshold = 1e-2f;
         } else {
@@ -570,6 +570,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
                                         ::testing::Values(ElementType::undefined),
                                         ::testing::Values(ElementType::undefined),
                                         ::testing::ValuesIn(inputShapes2d),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
+                        GroupConvolutionLayerCPUTest::getTestCaseName);
+
+std::vector<InputShape> inputShapes2d_dynBatch = {
+    {
+        //dynamic shapes
+        { {1, 10}, 64, 7, 7},
+        { //target static shapes
+            { 2, 64, 7, 7 },
+            { 1, 64, 9, 9 },
+            { 3, 64, 9, 9 }
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_2D,
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes2d_dynBatch),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
                                 ::testing::ValuesIn(fusingParamsSet),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     case InferenceEngine::Precision::I16:
     case InferenceEngine::Precision::U16:
     case InferenceEngine::Precision::FP32:
+    case InferenceEngine::Precision::FP64:
         return cldnn::data_types::f32;
     case InferenceEngine::Precision::FP16:
         return cldnn::data_types::f16;
@@ -42,6 +43,8 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     case InferenceEngine::Precision::I8:
         return cldnn::data_types::i8;
     case InferenceEngine::Precision::I32:
+    case InferenceEngine::Precision::U32:
+    case InferenceEngine::Precision::U64:
         return cldnn::data_types::i32;
     case InferenceEngine::Precision::I64:
         return cldnn::data_types::i64;
@@ -60,6 +63,7 @@ inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
     case ngraph::element::Type_t::i16:
     case ngraph::element::Type_t::u16:
     case ngraph::element::Type_t::f32:
+    case ngraph::element::Type_t::f64:
         return cldnn::data_types::f32;
     case ngraph::element::Type_t::f16:
         return cldnn::data_types::f16;
@@ -68,6 +72,8 @@ inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
     case ngraph::element::Type_t::i8:
         return cldnn::data_types::i8;
     case ngraph::element::Type_t::i32:
+    case ngraph::element::Type_t::u32:
+    case ngraph::element::Type_t::u64:
         return cldnn::data_types::i32;
     case ngraph::element::Type_t::i64:
         return cldnn::data_types::i64;

@@ -3,123 +3,86 @@ from pathlib import Path
 from utils import (
     create_content,
     add_content_below,
-    load_secret,
     process_notebook_name,
-    find_latest_artifact,
     verify_notebook_name,
-    generate_artifact_link,
-    remove_existing,
     split_notebooks_into_sections,
 )
 from consts import (
+    artifacts_link,
     binder_template,
-    no_binder_template,
-    rst_template,
-    notebooks_path,
-    repo_owner,
-    repo_name,
-    repo_directory,
+    blacklisted_extensions,
     notebooks_docs,
-    section_names
+    notebooks_path,
+    no_binder_template,
+    repo_directory,
+    repo_name,
+    repo_owner,
+    rst_template,
+    section_names,
 )
 from notebook import Notebook
 from section import Section
-from io import BytesIO
 from glob import glob
+from lxml import html
 from jinja2 import Template
+from urllib.request import urlretrieve
 from requests import get
-from zipfile import ZipFile
 import os
 
 
-class NbDownloader:
-    """Class responsible for downloading and extracting notebooks"""
+class NbTravisDownloader:
+    @staticmethod
+    def download_from_jenkins(path: str = notebooks_path, artifact_link: str = artifacts_link):
+        """Function for downloading files from jenkins artifacts
 
-    def __init__(self, secret_path: str) -> None:
-        self.secret = load_secret(secret_path)
-        self.headers = {
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": f"token {self.secret}",
-        }
-        self.artifact_link = generate_artifact_link(repo_owner, repo_name)
-
-    def default_pipeline(self, path: str = notebooks_path) -> bool:
-        """Default pipeline for fetching, downloading and extracting rst files
-
-        :param path: Path to folder that will contain notebooks. Defaults to notebooks_path.
-        :type path: str
-        :returns: Returns if status is sucessful
-        :rtype: bool
-
+        :param path: path where notebooks files will be placed, defaults to notebooks_path
+        :type path: str, optional
+        :param artifact_link: link of notebooks artifacts rst files, defaults to artifacts_link
+        :type artifact_link: str, optional
         """
-        artifacts = self.fetch_artifacts()
-        latest_artifact = find_latest_artifact(artifacts)
-        download_link = self.generate_artifact_download_link(latest_artifact)
-        zipfile = self.download_rst_files(download_link)
-        if zipfile.testzip() is None:
-            remove_existing(path)
-        return self.extract_artifacts(zipfile, path=path)
+        def is_directory(path: str) -> bool:
+            """Helper fuction for checking whether path leads to subdirectory
 
-    def fetch_artifacts(self) -> dict:
-        """Fetching artifcats from github actions
+            :param path: Path to traversed file or directory
+            :type path: str
+            :return: Returns True if path leads to directory, otherwise False
+            :rtype: bool
+            """
+            return path[-1] == '/' and path != '../'
 
-        :returns: Artifacts in repo
-        :rtype: dict
+        def traverse(path: Path, link: str, blacklisted_extensions: list = blacklisted_extensions):
+            """Traverse recursively to download all directories with their subfolders, within given link.
 
-        """
-        return get(self.artifact_link, headers=self.headers).json()
+            :param path: Path to directory that file will be saved to.
+            :type path: Path
+            :param link: Link to hosted resources
+            :type link: str
+            """
+            path.mkdir(exist_ok=True)
+            page = get(link, verify=False).content
+            tree = html.fromstring(page)
+            # retrieve all links on page returning their content
+            tree = tree.xpath('//a[@*]/@href')
+            files = map(str, tree)
+            for file in files:
+                if is_directory(file):
+                    traverse(path.joinpath(file), link + file)
+                elif len(Path(file).suffix) > 0 and Path(file).suffix not in blacklisted_extensions:
+                    urlretrieve(link + file, path.joinpath(file))
 
-    def generate_artifact_download_link(self, artifact_id: int) -> str:
-        """Generate link based on link and latest artifact id containing rst files
-
-        :param artifact_id: Latest artifact id containing rst files
-        :type artifact_id: int
-        :returns: Link to download rst files
-        :rtype: str
-
-        """
-        return f"{self.artifact_link}/{artifact_id}/zip"
-
-    def download_rst_files(self, artifact_download_link: str) -> ZipFile:
-        """Downloading rst files
-
-        :param artifact_download_link: Generated link for downloading rst
-        :type artifact_download_link: str
-        :returns: Zipped archive of rst files
-        :rtype: ZipFile
-
-        """
-        artifact = get(artifact_download_link, headers=self.headers)
-        return ZipFile(BytesIO(artifact.content))
-
-    def extract_artifacts(self, zipfile: ZipFile, path: str) -> bool:
-        """Extracting all artifacts from zipped archive
-
-        :param zipfile: zipped rst files
-        :type zipfile: ZipFile
-        :param path: path to extract files to
-        :type path: str
-        :returns: Returns if status is sucessful
-        :rtype: bool
-
-        """
-        try:
-            zipfile.extractall(path=path)
-            return True
-        except ValueError:
-            return False
+        traverse(Path(path), artifact_link)
 
 
 class NbProcessor:
     def __init__(self, nb_path: str = notebooks_path):
         self.nb_path = nb_path
         notebooks = [
-                Notebook(
-                    name=process_notebook_name(notebook),
-                    path=notebook,
-                )
-                for notebook in os.listdir(self.nb_path)
-                if verify_notebook_name(notebook)
+            Notebook(
+                name=process_notebook_name(notebook),
+                path=notebook,
+            )
+            for notebook in os.listdir(self.nb_path)
+            if verify_notebook_name(notebook)
         ]
         notebooks = split_notebooks_into_sections(notebooks)
         self.rst_data = {
@@ -127,7 +90,7 @@ class NbProcessor:
                 Section(name=section_name, notebooks=section_notebooks)
                 for section_name, section_notebooks in zip(section_names, notebooks)
             ]
-            
+
         }
         self.binder_data = {
             "owner": repo_owner,
@@ -167,11 +130,13 @@ class NbProcessor:
             nb for nb in os.listdir(self.nb_path) if verify_notebook_name(nb)
         ]:
             if '-'.join(notebook.split('-')[:-2]) in buttons_list:
-                button_text = create_content(template_with_binder, self.binder_data, notebook)
+                button_text = create_content(
+                    template_with_binder, self.binder_data, notebook)
                 if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
                     raise FileNotFoundError("Unable to modify file")
             else:
-                button_text = create_content(template_without_binder, self.binder_data, notebook)
+                button_text = create_content(
+                    template_without_binder, self.binder_data, notebook)
                 if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
                     raise FileNotFoundError("Unable to modify file")
 
@@ -190,19 +155,12 @@ class NbProcessor:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('secret', type=Path)
     parser.add_argument('outdir', type=Path)
     args = parser.parse_args()
-    secret = args.secret
     outdir = args.outdir
     outdir.mkdir(parents=True, exist_ok=True)
-    # Step 1. Create secret file
-    # link: https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token
-    # For this notebooks purpose only repo -> public_repo box is required
-    nbd = NbDownloader(secret)
     # Step 2. Run default pipeline for downloading
-    if not nbd.default_pipeline(outdir):
-        raise FileExistsError("Files not downloaded")
+    NbTravisDownloader.download_from_jenkins(outdir)
     # Step 3. Run processing on downloaded file
     nbp = NbProcessor(outdir)
     buttons_list = nbp.fetch_binder_list('txt')

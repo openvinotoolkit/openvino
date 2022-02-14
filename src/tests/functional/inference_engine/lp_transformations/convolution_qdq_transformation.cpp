@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,7 +99,7 @@ public:
 
 TEST_P(ConvolutionQDqTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -109,8 +109,8 @@ namespace testValues1 {
 const std::vector<ngraph::PartialShape> suitablePartialShapes = {
     ngraph::PartialShape({ 1, 3, 72, 48 }),
     ngraph::PartialShape({ 4, 3, 72, 48 }),
-    ngraph::PartialShape({ Dimension::dynamic(), 3, 72, 48 }),
-    ngraph::PartialShape({ 1, 3, Dimension::dynamic(), Dimension::dynamic() }),
+    ngraph::PartialShape({ -1, 3, 72, 48 }),
+    ngraph::PartialShape({ -1, -1, -1, -1 }),
 };
 
 const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
@@ -175,7 +175,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {
                 {},
                 { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
-                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
+                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 {}
             },
             { std::vector<float>{ 100.f }, ngraph::element::i8},
@@ -351,7 +351,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {
                 {},
                 { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
-                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
+                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 {}
             },
             { std::vector<float>{ 2.f }, ngraph::element::i8},
@@ -420,7 +420,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {
                 {},
                 { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
-                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
+                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 {}
             },
             { std::vector<float>{ 2.f }, ngraph::element::i8},
@@ -514,7 +514,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> unsuitablePartialShapes = {
-    ngraph::PartialShape({ Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }),
     PartialShape::dynamic(),
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
         ie = PluginCache::get().ie(targetDevice);
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
         cnnNet = InferenceEngine::CNNNetwork(function);
         configuration.insert({ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES });
         // Load CNNNetwork to target plugins

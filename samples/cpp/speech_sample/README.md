@@ -9,13 +9,13 @@ Automatic Speech Recognition C++ sample application demonstrates how to use the 
 | Feature    | API  | Description |
 |:---     |:--- |:---
 |OpenVINO Runtime Version| `ov::get_openvino_versio` | Get Openvino API version
-|Available Devices|`ov::runtime::Core::get_available_devices`| Get version information of the devices for inference
+|Available Devices|`ov::Core::get_available_devices`| Get version information of the devices for inference
 | Model Operations | `ov::set_batch`, `ov::get_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count.
 |Model Operations|`ov::Model::add_output`| Change names of output layers in the model
-|Import Model|`ov::runtime::CompiledModel::export_model`,`ov::runtime::Core::import_model`| Creates a CompiledModel from a previously exported model
-|Asynchronous Infer| `ov::runtime::InferRequest::start_async`, `ov::runtime::InferRequest::wait`| Do asynchronous inference and waits until inference result becomes available
-|InferRequest Operations|`ov::runtime::InferRequest::query_state`, `ov::runtime::VariableState::reset`| Gets and resets state control interface for given CompiledModel
-|InferRequest Operations|`ov::runtime::InferRequest::get_profiling_info`| Get profiling info for infer request
+|Import Model|`ov::CompiledModel::export_model`,`ov::Core::import_model`| Creates a CompiledModel from a previously exported model
+|Asynchronous Infer| `ov::InferRequest::start_async`, `ov::InferRequest::wait`| Do asynchronous inference and waits until inference result becomes available
+|InferRequest Operations|`ov::InferRequest::query_state`, `ov::VariableState::reset`| Gets and resets state control interface for given CompiledModel
+|InferRequest Operations|`ov::InferRequest::get_profiling_info`| Get profiling info for infer request
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
@@ -23,7 +23,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 |:---                              |:---
 | Validated Models                 | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation) section)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin)
-| Supported devices                | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices                | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 
 ## How It Works
 
@@ -32,7 +32,7 @@ frames according to the `-bs` parameter.  Batching across utterances is not supp
 statistics are provided for each speech utterance as shown above.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ### GNA-specific details
 
@@ -80,7 +80,7 @@ In addition to performing inference directly from a GNA model file, these combin
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 ## Running
 
@@ -241,7 +241,7 @@ All of mentioned files can be downloaded from [https://storage.openvinotoolkit.o
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

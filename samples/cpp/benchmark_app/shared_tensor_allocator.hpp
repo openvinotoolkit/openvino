@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "openvino/runtime/allocator.hpp"
 
-class SharedTensorAllocator : public ov::runtime::AllocatorImpl {
+class SharedTensorAllocator : public ov::AllocatorImpl {
 public:
     SharedTensorAllocator(size_t sizeBytes) : size(sizeBytes) {
         data = new char[size];
@@ -28,11 +28,11 @@ public:
     }
 
     bool is_equal(const AllocatorImpl& other) const override {
-        auto other_blob_allocator = dynamic_cast<const SharedTensorAllocator*>(&other);
-        return other_blob_allocator != nullptr && other_blob_allocator == this;
+        auto other_tensor_allocator = dynamic_cast<const SharedTensorAllocator*>(&other);
+        return other_tensor_allocator != nullptr && other_tensor_allocator == this;
     }
 
-    char* getBuffer() {
+    char* get_buffer() {
         return data;
     }
 

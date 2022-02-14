@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.clamp import AttributedClamp
 from openvino.tools.mo.ops.op import Op
@@ -24,6 +25,7 @@ class Activation(Op):
             'operation': self.operation,
             'version': self.version,
             'infer': self.infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)

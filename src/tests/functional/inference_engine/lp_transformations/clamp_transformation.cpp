@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,7 +96,7 @@ public:
 
 TEST_P(ClampTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -105,7 +105,7 @@ TEST_P(ClampTransformation, CompareFunctions) {
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> inputShapes = {
     ngraph::PartialShape({ 1, 3, 224, 224 }),
-    ngraph::PartialShape({ Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }),
+    ngraph::PartialShape({ -1, -1, -1, -1 }),
 };
 
 const std::vector<ClampTransformationTestValues> testValues = {
@@ -475,61 +475,6 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
-    ngraph::PartialShape({ Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }),
-};
-
-const std::vector<ClampTransformationTestValues> testValues = {
-    // U8 per tensor quantization
-    {
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {3.f}}
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {128.f}, {3.f}}
-        }
-    },
-    // U8 per channel quantization with the same values
-     {
-         LayerTransformation::createParamsU8I8(),
-         {
-             ngraph::element::u8,
-             {
-                 {ngraph::element::f32},
-                 {{128.f, 128.f, 128.f}},
-                 {{3.f, 3.f, 3.f}}
-             }
-         },
-         {
-             ngraph::element::u8,
-             {
-                 {ngraph::element::f32},
-                 {{128.f, 128.f, 128.f}},
-                 {{3.f, 3.f, 3.f}}
-             },
-             ngraph::element::f32,
-             {},
-         }
-     },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ClampTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapesWithDynamicChannels),
-        ::testing::ValuesIn(testValues)),
-    ClampTransformation::getTestCaseName);
-} // namespace testValues3
-
-namespace testValues4 {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
     PartialShape::dynamic()
 };
@@ -560,5 +505,5 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapesWithDynamicRank),
         ::testing::ValuesIn(testValues)),
     ClampTransformation::getTestCaseName);
-} // namespace testValues4
+} // namespace testValues3
 } // namespace

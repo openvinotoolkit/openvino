@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,11 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
-#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/node_config.h"
 #include "cache/multi_cache.h"
+
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -61,41 +64,6 @@ private:
         }
         return creators.at(blockedDescType);
     }
-};
-
-struct PortConfig {
-    PortConfig() = default;
-
-    PortConfig(const PortConfig& rhs) {
-        this->constant = rhs.constant;
-        this->inPlace = rhs.inPlace;
-        if (rhs.desc) {
-            this->desc = rhs.desc;
-        }
-    }
-
-    PortConfig& operator=(const PortConfig& rhs) {
-        this->constant = rhs.constant;
-        this->inPlace = rhs.inPlace;
-        if (rhs.desc) {
-            this->desc = rhs.desc;
-        }
-        return *this;
-    }
-
-    PortConfig(PortConfig&& rhs) = default;
-    PortConfig& operator=(PortConfig&& rhs) = default;
-
-    // TODO [DS]: better to make private and const
-    bool constant = false;
-    int inPlace = -1;
-    MemoryDescPtr desc;
-};
-
-struct NodeConfig {
-    bool dynBatchSupport = false;
-    std::vector<PortConfig> inConfs;
-    std::vector<PortConfig> outConfs;
 };
 
 class NodeDesc {
@@ -404,7 +372,7 @@ public:
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                if (!srcDescs[i]->isCompatible(*selectedDescs[i].desc))
+                if (!srcDescs[i]->isCompatible(*selectedDescs[i].getMemDesc()))
                     return false;
             }
             return true;
@@ -576,6 +544,10 @@ public:
         return outputShapes[port];
     }
 
+    const std::vector<InferenceEngine::Blob::Ptr>& getInternalBlobs() const {
+        return internalBlobs;
+    }
+
     /**
     * @brief Return scales and shift if nodes can be executed as ScaleShift, else raise exception
     * If node has only scale or shift value, fill missing value with default values
@@ -609,8 +581,8 @@ protected:
     virtual size_t getMaxBatch() const;
 
 
-    virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
+    virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
+    virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
     virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
     virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
@@ -668,7 +640,6 @@ protected:
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;
     friend class MKLDNNGraphOptimizer;
-    friend class NodeDumper;
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     bool isConfigDefined(const NodeConfig &config) const;
@@ -705,9 +676,9 @@ protected:
                 return false;
 
             PortConfig portConfig;
-            portConfig.inPlace = portConfigurator.inPlace;
-            portConfig.constant = portConfigurator.constant;
-            portConfig.desc = portConfigurator.blockedDescCreator->createSharedDesc(prc, shape);
+            portConfig.inPlace(portConfigurator.inPlace);
+            portConfig.constant(portConfigurator.constant);
+            portConfig.setMemDesc(portConfigurator.blockedDescCreator->createSharedDesc(prc, shape));
 
             port.push_back(std::move(portConfig));
 
@@ -750,7 +721,8 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims, uint32_t value_port_mask = 0) const;
+    std::vector<VectorDims> shapeInferGeneric(uint32_t value_port_mask = 0) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(mkldnn::stream strm) {
@@ -770,7 +742,7 @@ protected:
 
     std::vector<VectorDims> lastInputDims = {};
 
-    std::shared_ptr<ngraph::Node> opToShapeInfer;
+    std::shared_ptr<IShapeInfer> shapeInference;
 
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
@@ -797,8 +769,6 @@ private:
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
-    void createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op);
-
     template <class PD, class D, typename FPD>
     typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
     createPd(MKLDNNDescriptor desc) {
@@ -817,10 +787,22 @@ private:
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<ov::StaticShape>& input_shapes,
+                                              uint32_t input_value_port_mask) const;
+
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;
 #endif
 };
+
+constexpr uint64_t PortMask(int n) {
+    return static_cast<uint64_t>(1) << n;
+}
+
+template <class... T>
+constexpr uint64_t PortMask(int n, T... rest) {
+    return PortMask(rest...) | (1 << n);
+}
 
 class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
                                             MKLDNNNode*(const std::shared_ptr<ngraph::Node>& op,

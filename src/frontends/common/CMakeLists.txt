@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -49,7 +49,7 @@ set_property(SOURCE
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
-                    INCLUDE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
+                    SOURCE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -72,8 +72,7 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT core_dev)
 
-
 # Shutdown protobuf library
-if(ENABLE_SHUTDOWN_PROTOBUF)
+if(Protobuf_IN_FRONTEND AND BUILD_SHARED_LIBS)
     add_subdirectory(shutdown_protobuf)
 endif()

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -277,10 +277,6 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         return false;
     }
 
-    if (NetworkHelper::isFQByDynamicDimension(layer)) {
-        return false;
-    }
-
     layer = NetworkHelper::fuseConvert(layer);
     if (NetworkHelper::isConstantPath(layer)) {
         return false;
@@ -304,7 +300,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             return false;
         }
 
-        layer = NetworkHelper::composeFakeQuantize(layer);
+        layer = NetworkHelper::composeFakeQuantize(layer, defaultPrecisions);
         if (layer == nullptr) {
             return false;
         }
@@ -320,7 +316,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     DataPrecision dataPrecision = fq_decomposition::getDataPrecisionByOutputPort(layer);
 
-    PrecisionsAttribute precisionsAttribute(getDefaultPrecisions());
+    PrecisionsAttribute precisionsAttribute(defaultPrecisions);
     {
         // TODO: LPT: return attribute (not wrapper)
         auto attributeWrapper = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));

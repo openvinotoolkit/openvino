@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,11 +84,11 @@ void MKLDNNGatherNDNode::prepareParams() {
     auto& srcMemPtr = getParentEdgeAt(GATHERND_DATA)->getMemoryPtr();
     auto& idxMemPtr = getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input memory of 'data'.";
-    if (!idxMemPtr || !idxMemPtr->GetPrimitivePtr())
+    if (!idxMemPtr || !idxMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input memory of 'indices'.";
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << " has not allocated output memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << " has unidentified preferable primitive descriptor.";

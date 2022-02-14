@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ bool ReduceSumTransformation::canBeTransformed(const TransformationContext& cont
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(reduce);
+    const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     if (dequantization.subtract) {
         const auto reductionAxes = reduceSum->get_reduction_axes();
         const auto inputPShape = dequantization.data.get_partial_shape();

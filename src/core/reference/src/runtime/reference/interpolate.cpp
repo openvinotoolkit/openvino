@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -197,8 +197,7 @@ InterpolateEvalHelper::LinearModeInnerIterationResult InterpolateEvalHelper::inn
 
     bool condition = true;
     for (int64_t axis : m_axes) {
-        condition =
-            condition && (inner_coords_vector[axis] >= 0) && (inner_coords_vector[axis] < m_input_data_shape[axis]);
+        condition = condition && (inner_coords_vector[axis] < m_input_data_shape[axis]);
     }
 
     result.condition = condition;

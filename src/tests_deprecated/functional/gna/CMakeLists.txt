@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,14 +13,14 @@ file(GLOB TEST_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/single_layer_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/backward_compatibility/*.cpp)
 
-list(APPEND DEPENDENCIES ov_intel_gna_plugin)
+list(APPEND DEPENDENCIES openvino_intel_gna_plugin)
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES ov_hetero_plugin)
+    list(APPEND DEPENDENCIES openvino_hetero_plugin)
 endif()
 
 if(ENABLE_INTEL_CPU)
-    list(APPEND DEPENDENCIES ov_intel_cpu_plugin)
+    list(APPEND DEPENDENCIES openvino_intel_cpu_plugin)
 endif()
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})

@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import OrderedDict
@@ -55,7 +55,7 @@ class RangeOptimization(OptimizationAlgorithm):
 
     def _get_parameter_values(self, model):
         """ returns activation ranges from FakeQuantize nodes
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         :return dictionary with FQ names as keys and ranges as values
         """
         out = OrderedDict()

@@ -1,6 +1,6 @@
 # nGraph Function Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a network that uses weights from LeNet classification network, which is known to work well on digit classification tasks. So you don't need an XML file, the model will be created from the source code on the fly.  
+This sample demonstrates how to execute an inference using [OpenVINO Model feature](../../../docs/OV_Runtime_UG/model_representation.md) to create a network that uses weights from LeNet classification network, which is known to work well on digit classification tasks. So you don't need an XML file, the model will be created from the source code on the fly.  
 
 In addition to regular grayscale images with a digit, the sample also supports single-channel `ubyte` images as an input.
 
@@ -18,15 +18,15 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Validated Models           | LeNet |
 | Model Format               | Network weights file (\*.bin) |
 | Validated images           | The sample uses OpenCV\* to [read input grayscale image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png) or single-channel `ubyte` image |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/ngraph_function_creation_sample/README.md) |
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, creates a network using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) and passed weights file, loads the network and image(s) to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, creates a network using [OpenVINO Model feature](../../../docs/OV_Runtime_UG/model_representation.md) and passed weights file, loads the network and image(s) to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
@@ -109,32 +109,32 @@ The sample application logs each step in a standard output stream and outputs to
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-[IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
-[IENetwork]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html
-[IENetwork.batch_size]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#a79a647cb1b49645616eaeb2ca255ef2e
-[IENetwork.input_info]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
-[IENetwork.outputs]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
-[InputInfoPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
-[DataPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1DataPtr.html#data_fields
-[IECore.load_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc
-[InputInfoPtr.input_data.shape]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
-[ExecutableNetwork.infer]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1ExecutableNetwork.html#aea96e8e534c8e23d8b257bad11063519
+[IECore]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html
+[IENetwork]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IENetwork.html
+[IENetwork.batch_size]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IENetwork.html#a79a647cb1b49645616eaeb2ca255ef2e
+[IENetwork.input_info]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
+[IENetwork.outputs]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
+[InputInfoPtr.precision]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
+[DataPtr.precision]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1DataPtr.html#data_fields
+[IECore.load_network]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc
+[InputInfoPtr.input_data.shape]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
+[ExecutableNetwork.infer]:https://docs.openvino.ai/latest/ie_python_api/classie__api_1_1ExecutableNetwork.html#aea96e8e534c8e23d8b257bad11063519
 
 <!-- TODO: Replace the link by another one pointing to the Python API, if available -->
-[ngraph.impl.Function]:https://docs.openvinotoolkit.org/latest/ngraph_cpp_api/classngraph_1_1Function.html
+[ngraph.impl.Function]:https://docs.openvino.ai/latest/ngraph_cpp_api/classngraph_1_1Function.html
 <!-- [ngraph.impl.Function.to_capsule]: -->
-[ngraph.parameter]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a709acd09288f5a76ed8d07492efc3d13
-[ngraph.constant]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a5b6c4e416026e007a4107b3f510d0c27
-[ngraph.convolution]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a3143ff55f68428afc1b6c802ee9381e8
-[ngraph.add]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#abfa0373c10ced1b1f129594d9bd8a159
-[ngraph.max_pool]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#ac60b4459ad23b296086925abce6acd2d
-[ngraph.reshape]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a38e1ead9435c4b75c1d891ba2dd6a62e
-[ngraph.matmul]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a403b5e10e1f75aeb7569024237e85071
-[ngraph.relu]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a70b9b3faf58d85e43d27fef5028117e3
-[ngraph.softmax]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a632cc9a31ecaefa2a982d039ecad8d26
-[ngraph.result]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a94f8bf6ab8910dfd461d09cb6c6edd11
+[ngraph.parameter]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a709acd09288f5a76ed8d07492efc3d13
+[ngraph.constant]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a5b6c4e416026e007a4107b3f510d0c27
+[ngraph.convolution]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a3143ff55f68428afc1b6c802ee9381e8
+[ngraph.add]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#abfa0373c10ced1b1f129594d9bd8a159
+[ngraph.max_pool]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#ac60b4459ad23b296086925abce6acd2d
+[ngraph.reshape]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a38e1ead9435c4b75c1d891ba2dd6a62e
+[ngraph.matmul]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a403b5e10e1f75aeb7569024237e85071
+[ngraph.relu]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a70b9b3faf58d85e43d27fef5028117e3
+[ngraph.softmax]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a632cc9a31ecaefa2a982d039ecad8d26
+[ngraph.result]:https://docs.openvino.ai/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a94f8bf6ab8910dfd461d09cb6c6edd11

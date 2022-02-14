@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,8 @@ using namespace ::tests;
 
 TEST(gemm_gpu, basic_bfyx_t1) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 4 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 4 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 4 } });
 
     std::vector<float> input_data = {
         1.f, -2.f,  3.f,
@@ -66,8 +66,8 @@ TEST(gemm_gpu, basic_bfyx_t1) {
 }
 TEST(gemm_gpu, basic_bfyx_t2) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 3 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 1 } });
 
     std::vector<float> input_data = {
         1.f, -2.f,  3.f, -4.f,
@@ -113,8 +113,8 @@ TEST(gemm_gpu, basic_bfyx_t2) {
 
 TEST(gemm_gpu, basic_bfyx_t1t2) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 1, 3, 4 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 1, 4, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 3, 4 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 4, 1 } });
 
     std::vector<float> input_data = {
         1.f, -2.f,  3.f,
@@ -169,9 +169,9 @@ TEST(gemm_gpu, basic_bfyx_t1t2) {
 
 TEST(gemm_gpu, basic_input3) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 3 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 3 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
     float alpha = 2.f;
     float beta = 10.f;
 
@@ -232,9 +232,9 @@ TEST(gemm_gpu, basic_input3) {
 
 TEST(gemm_gpu, basic_input3_t1t2) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 3 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 2 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 4 } });
     float alpha = 2.f;
     float beta = 3.f;
 
@@ -298,9 +298,9 @@ TEST(gemm_gpu, basic_input3_t1t2) {
 }
 TEST(gemm_gpu, basic_input3_1) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 4 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 3 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 4 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 3 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 4 } });
     float alpha = 2.f;
     float beta = 3.f;
 
@@ -368,9 +368,9 @@ TEST(gemm_gpu, basic_input3_1) {
 
 TEST(gemm_gpu, basic_input3_t2) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 4 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 2 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 4 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 4 } });
     float alpha = 2.f;
     float beta = 3.f;
 
@@ -436,9 +436,9 @@ TEST(gemm_gpu, basic_input3_t2) {
 
 TEST(gemm_gpu, basic_input3_t1) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 3 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 3 } });
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 3 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 4 } });
     float alpha = 2.f;
     float beta = 3.f;
 
@@ -504,8 +504,8 @@ TEST(gemm_gpu, basic_input3_t1) {
 
 TEST(gemm_gpu, basic_bfyx) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 1, 4, 3 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 1, 1, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 4, 3 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 1, 4 } });
 
     std::vector<float> input_data = {
         1.f, -2.f,  3.f,  -4.f,
@@ -562,8 +562,8 @@ TEST(gemm_gpu, basic_bfyx) {
 
 TEST(gemm_gpu, basic3_bfyx) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 5, 1, 500, 9 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 5, 1, 1, 500 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 5, 1, 500, 9 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 5, 1, 1, 500 } });
 
     std::vector<float> input_data = {
         -0.000449777f, -0.000137405f, -0.0762075f, 0.000949166f, 0.0346124f, -0.0111424f, 0.0108357f, 0.0121679f, 0.0242749f, 0.052692f, -0.0017713f, 0.0053728f, 0.0128862f, -0.0162366f, 0.0125041f, -0.00602398f, 0.0107778f, -0.00323086f, -0.00914208f, -0.013884f, 0.00755173f, -0.0175622f, 0.00473339f, -0.015003f, -0.0238219f, 0.004502f, 0.00187154f, 0.0041163f, -9.36184e-05f, 0.00873372f, 0.0121869f, -0.020973f, -0.006006f, -0.0038208f, 0.00210471f, 0.00255549f, -0.0251856f, -0.0626372f, -0.0059258f, -0.0058662f, -0.0946306f, 0.00197436f, 0.00105865f, -0.0033595f, 0.0158977f, -0.0036025f, -0.00568902f, -0.0202577f, -0.000251319f, -0.0117895f, -0.0144239f, -0.0144024f, -0.0150431f, -0.0354826f, -0.0135123f, -0.000422157f, 0.0286438f, -0.000884989f, -0.00675718f, 0.013241f, -0.0118388f, 0.0321394f, -0.000803071f, 0.11408f, -0.00806301f, -0.00831608f, 0.0165189f, 0.016094f, -0.000449332f, -0.00695901f, 0.0437514f, -0.00172117f, 0.00180391f, -0.000859933f, -0.0144826f, 0.0262613f, -0.00194352f, -1.98829e-05f, -0.00902827f, -0.00400867f, -0.00600827f, 0.0120846f, -0.0162493f, 0.0418596f, 0.00131911f, -0.00631566f, 0.00270484f, -0.0950513f, 0.00726431f, -0.0169798f, -0.000554365f, -0.00256903f, -0.00885843f, 0.0104025f, 0.00590779f, -0.00175832f, 0.0168603f, 0.00964353f, -0.0180614f, 0.0213157f, 0.0209548f, -0.0231143f, -0.00121617f, -0.0129815f, -0.0199287f, 0.00863336f, -0.00464991f, 0.0162288f, -0.340115f, -0.011018f, -0.0593997f, 0.00644821f, 0.0416332f, 0.0394596f, 0.0172296f, 0.00494231f, 0.0143805f, -0.00819845f, 0.00196982f, 0.00393258f, 0.0246168f, -0.0235927f, 0.0131416f, -0.0190432f, -0.0237865f, -0.0155627f, 0.0265165f, 0.0162884f, 0.00321098f, 0.0136674f, -0.000966112f, -0.0100813f, -0.00604589f, 0.00889466f, 0.0113945f, 0.0264707f, 0.00371883f, -0.00843358f, 0.0145675f, 0.0048638f, 0.00110399f, -0.00130233f, 0.00740726f, -0.00393368f, -0.0242178f, 0.00341681f, 0.00115369f, -0.00297881f, -0.0844071f, 0.0537151f, -0.00209399f, 0.0310295f, 0.0383914f, 0.00456459f, 0.0188114f, -0.0177144f, 0.0133258f, 0.0584683f, -0.00640495f, 0.0175946f, 0.0186782f, 0.00213311f, 0.00393403f, 0.00382759f, 0.00267507f, 0.00493673f, -0.00856695f, -0.00627955f, -0.0103436f, -0.000671664f, -0.110419f, 0.0307264f, 0.0042176f, 0.0031638f, 0.0154172f, 0.00265482f, 0.0410853f, 0.00833895f, -0.0183989f, -0.000717906f, -0.0090387f, -0.00404523f, -0.00976238f, -0.0137555f, 0.000157289f, -0.00341186f, -0.0214878f, 0.0142639f, 0.00624623f, 0.000537292f, -0.0520912f, -0.0432221f, -0.00330415f, 0.0263942f, -0.00150974f, 0.00172088f, -0.0815726f, -0.0201155f, -0.00986346f, 0.0121252f, 0.00198959f, -0.0349936f, -0.00608366f, -0.00399543f, 0.0192487f, -0.0123156f, 0.0072797f, 0.000507143f, 0.0334805f, 0.000609379f, 0.00961966f, -0.00697663f, 0.00201967f, -0.0207349f, -0.0103385f, -0.00343849f, -0.00330492f, 0.035106f, -0.00456996f, 0.00197528f, 0.016148f, 0.0142903f, 0.0616483f, 0.0093118f, -0.0596028f, 0.00945764f, -0.00659242f, 0.118389f, -0.00259384f, -0.00285344f, 0.00567036f, 0.0195813f, -0.00461807f, -0.0608699f, 0.00380259f, 0.00143385f, -0.00466997f, 0.0194046f, -0.0198423f, -0.00334569f, -0.014399f, 0.0130021f, -0.0141619f, -0.00859914f, 0.00997122f, -0.0198446f, -0.0094162f, -0.0116609f, -0.0111888f, -0.00903524f, 0.00937981f, 0.01772f, -0.00236374f, -0.00870162f, 0.000141193f, -0.0343695f, -0.00997931f, 0.0073531f, -0.100394f, -0.00367661f, -0.00124499f, 0.00318026f, 0.0554203f, -0.00342582f, -0.0104147f, -0.0577869f, -0.0126485f, -0.0332496f, 0.0346141f, 0.0307962f, -0.0174745f, -0.0387339f, 0.0167707f, -0.0363424f, 0.0154902f, -0.0118644f, -4.63543e-06f, -0.0683506f, -0.0344076f, -0.00104884f, -0.00883997f, -0.00305185f, -0.0150299f, -0.0186403f, 0.0110238f, 0.00779224f, -0.0102231f, 0.0087488f, -0.0138988f, -0.0229105f, -0.0244903f, -0.0202919f, 0.00135903f, -0.00574432f, 0.00254918f, 0.0340209f, -0.046428f, -0.00670622f, 0.000925543f, -0.0249251f, -0.00275456f, 0.0199177f, 0.000210993f, 0.027762f, -0.0228046f, 0.0484813f, 0.00538959f, 0.0136714f, -0.00690097f, -0.0448533f, -0.00815204f, 0.00734891f, 0.0173959f, -0.0379109f, 0.0594617f, -0.00722084f, 0.0415935f, 0.014792f, -0.0170252f, -0.0139396f, 0.00146415f, 0.00117702f, 0.0685559f, 0.00727832f, -0.107566f, -0.0112505f, 0.033853f, 0.0046957f, -0.0242369f, 0.0148181f, -0.0723487f, -0.00961667f, 0.0304085f, -0.00520772f, -0.0316467f, 0.0327801f, -0.00755137f, 0.0166041f, -0.0557288f, -0.0227759f, -0.00314548f, 0.0152585f, 0.020071f, -0.0377076f, 0.00687613f, -0.0273935f, -0.00647955f, 0.0105047f, -0.0137238f, 0.023264f, -0.0455722f, -0.00221414f, -0.0258535f, -0.0236395f, 0.0593407f, 0.00448763f, 0.0150777f, 0.00437925f, 0.0295782f, -0.0344752f, 0.00365267f, 0.140464f, -0.0479012f, 0.025726f, 0.119063f, 0.000301925f, -0.00810565f, -0.354073f, -0.0723185f, -0.0046123f, 0.033882f, -0.044552f, -0.0138361f, 0.00384129f, 0.0139111f, -0.01667f, -0.0821503f, 0.0029974f, -0.0306725f, 0.0160366f, 0.0334754f, 0.0192693f, -0.00616713f, -0.00232275f, 0.0107987f, 0.00437057f, 0.0017298f, 0.0196916f, -0.0417255f, -0.00911193f, 0.00876709f, -0.00172422f, -0.00105248f, -0.0191631f, -0.00387423f, -0.0102766f, -0.025317f, -0.0416204f, -0.0319611f, -0.00359193f, 0.00424064f, -0.00575092f, -0.0282402f, 0.0745899f, -0.0126492f, -0.0162564f, -0.261967f, -0.705265f, -0.0403731f, -0.00209634f, -0.694297f, 0.00956909f, 0.0158826f, 0.0130207f, 0.003825f, -0.000300812f, -0.0121346f, 0.00642053f, -0.012902f, 0.0309272f, 0.0609192f, -0.00654145f, -0.0937578f, -0.00432024f, -0.00767539f, 0.0461248f, 0.00701077f, -0.0174477f, 0.00563833f, -0.0107107f, -0.0255275f, 0.00892488f, -0.00166062f, 0.039829f, -0.00150394f, 0.00742194f, -0.00885529f, -0.0103532f, 0.0777858f, 0.0885367f, -0.00425715f, 0.0423651f, -0.0446651f, -0.635069f, -0.00919329f, -0.00356176f, 0.00988705f, 0.0116529f, -0.0401253f, 0.00260105f, 0.00573955f, -0.0667439f, 0.101175f, 0.0765288f, -0.0120077f, 0.00322599f, -0.0192768f, 0.0382749f, -0.222119f, -0.0452036f, 0.0424303f, 0.0890699f, 0.0117557f, 0.0315167f, 0.0284256f, 0.00541845f, -0.250147f, 0.00420668f, -0.0189724f, -0.00416381f, -0.00162803f, -0.0108763f, -0.00970892f, 0.0134476f, -0.0254931f, 0.0307225f, 0.00128596f, 0.0171106f, 0.00467854f, -0.0124376f, 0.0183396f, 0.0021754f, 0.00170886f, -0.0226898f, 0.0250111f, -0.0533301f, -0.0163268f, 0.00618995f, 0.0416378f, 0.0475397f, 0.0105684f, -0.00440933f, 0.0496722f, -0.0215733f, -0.0256361f, -0.0285091f, -0.0276881f, -0.00102202f, -0.0720219f, -0.0296656f,
@@ -3165,8 +3165,8 @@ TEST(gemm_gpu, basic3_bfyx) {
 
 TEST(gemm_gpu, basic_smarcink2) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 1, 3, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 1, 2, 3 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 3, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 2, 3 } });
 
     std::vector<float> input_data = {
         1.0f, 2.0f, 3.0f,
@@ -3247,156 +3247,316 @@ struct gemm_base_test_params {
     std::string kernel_name;
 };
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+
+#define CASE_GEMM_INT8_ONEDNN_1 1, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_ONEDNN_2 64, 1, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_ONEDNN_3 1, 1, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_ONEDNN_4 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_UINT8_ONEDNN_1 1, 64, 64, 2, 2, 2, 2, 2, 2, 2, 2, false, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_ONEDNN_2 64, 1, 64, 2, 2, 2, 2, 2, 2, 2, 2, false, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_ONEDNN_3 1, 1, 64, 2, 2, 2, 2, 2, 2, 2, 2, false, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_ONEDNN_4 64, 64, 64, 2, 2, 2, 2, 2, 2, 2, 2, false, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_FP16_ONEDNN_1 1, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_ONEDNN_2 64, 1, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_ONEDNN_3 1, 1, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_ONEDNN_4 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+
+#define CASE_GEMM_FP32_ONEDNN_1 1, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_ONEDNN_2 64, 1, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_ONEDNN_3 1, 1, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_ONEDNN_4 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_INT8_NN_TRANSPOSITION_ONEDNN 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_NT_TRANSPOSITION_ONEDNN 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_TN_TRANSPOSITION_ONEDNN 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_TT_TRANSPOSITION_ONEDNN 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_INT8_NN_TRANSPOSITION_LEFTOVERS_ONEDNN 13, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_NT_TRANSPOSITION_LEFTOVERS_ONEDNN 13, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_TN_TRANSPOSITION_LEFTOVERS_ONEDNN 13, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_TT_TRANSPOSITION_LEFTOVERS_ONEDNN 13, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
+1.0f, 0.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_UINT8_NN_TRANSPOSITION_ONEDNN 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_NT_TRANSPOSITION_ONEDNN 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_TN_TRANSPOSITION_ONEDNN 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_TT_TRANSPOSITION_ONEDNN 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_UINT8_NN_TRANSPOSITION_LEFTOVERS_ONEDNN 13, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_NT_TRANSPOSITION_LEFTOVERS_ONEDNN 13, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_TN_TRANSPOSITION_LEFTOVERS_ONEDNN 13, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_TT_TRANSPOSITION_LEFTOVERS_ONEDNN 13, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_FP16_NN_TRANSPOSITION_ONEDNN 32, 16, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_NT_TRANSPOSITION_ONEDNN 16, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
+1.0f, 1.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_TN_TRANSPOSITION_ONEDNN 32, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
+1.0f, 1.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_TT_TRANSPOSITION_ONEDNN 32, 64, 96, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
+1.0f, 1.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+
+#define CASE_GEMM_FP32_NN_TRANSPOSITION_ONEDNN 32, 16, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32,  { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_NT_TRANSPOSITION_ONEDNN 16, 64, 128, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32,  { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_TN_TRANSPOSITION_ONEDNN 32, 64, 96, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32,  { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_TT_TRANSPOSITION_ONEDNN 32, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32,  { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_INT8_BROADCASTING_ONEDNN_1 32, 32, 64, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
+1.0f, 1.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_BROADCASTING_ONEDNN_2 32, 32, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, false, \
+1.0f, 1.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_BROADCASTING_ONEDNN_3 64, 32, 64, 1, 2, 1, 1, 1, 2, 1, 2, false, false, \
+1.0f, 1.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_BROADCASTING_ONEDNN_4 32, 64, 64, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
+1.0f, 1.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_FP16_BROADCASTING_ONEDNN_1 32, 32, 64, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
+1.0f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_BROADCASTING_ONEDNN_2 32, 32, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, false, \
+1.0f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_BROADCASTING_ONEDNN_3 64, 32, 64, 1, 2, 1, 1, 1, 2, 1, 2, false, false, \
+1.0f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_BROADCASTING_ONEDNN_4 32, 64, 64, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
+1.0f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+
+#define CASE_GEMM_FP32_BROADCASTING_ONEDNN_1 32, 32, 64, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_BROADCASTING_ONEDNN_2 32, 32, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_BROADCASTING_ONEDNN_3 64, 32, 64, 1, 2, 1, 1, 1, 2, 1, 2, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_BROADCASTING_ONEDNN_4 32, 64, 64, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_INT8_COMBO_ONEDNN_1 5, 18, 99, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
+1.0f, 1.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_COMBO_ONEDNN_2 1, 32, 65, 2, 1, 1, 1, 1, 1, 2, 1, false, true, \
+1.0f, 1.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_COMBO_ONEDNN_3 13, 4, 64, 1, 2, 1, 1, 1, 2, 1, 2, true, false, \
+1.0f, 1.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_INT8_COMBO_ONEDNN_4 128, 126, 127, 1, 1, 2, 2, 2, 2, 2, 2, true, true, \
+1.0f, 1.0f, data_types::i8, data_types::i8, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#define CASE_GEMM_UINT8_COMBO_ONEDNN_1 11, 16, 65, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_COMBO_ONEDNN_2 13, 14, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, true, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_COMBO_ONEDNN_3 16, 16, 99, 1, 2, 1, 2, 1, 2, 1, 2, true, false, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_UINT8_COMBO_ONEDNN_4 3, 1, 77, 1, 1, 2, 2, 2, 2, 2, 2, true, true, \
+1.0f, 1.0f, data_types::u8, data_types::i8, data_types::f32, data_types::f32, { 0, 255, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+// Currently broadcasting support wasn't implemented for f16 cases with biases
+#define CASE_GEMM_FP16_COMBO_ONEDNN_1 5, 7, 65, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
+1.0f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_COMBO_ONEDNN_2 32, 8, 128, 2, 1, 1, 1, 1, 1, 2, 1, false, true, \
+1.0f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_COMBO_ONEDNN_3 14, 2, 69, 1, 2, 1, 1, 1, 2, 1, 2, true, false, \
+1.0f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+#define CASE_GEMM_FP16_COMBO_ONEDNN_4 1, 1, 64, 1, 1, 2, 2, 2, 2, 2, 2, true, true, \
+1.0f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+
+#define CASE_GEMM_FP32_COMBO_ONEDNN_1 7, 17, 64, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_COMBO_ONEDNN_2 26, 22, 79, 2, 1, 1, 1, 1, 1, 2, 1, false, true, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_COMBO_ONEDNN_3 5, 7, 81, 1, 2, 1, 1, 1, 2, 1, 2, true, false, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_COMBO_ONEDNN_4 61, 1, 99, 1, 1, 2, 2, 2, 2, 2, 2, true, true, \
+1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
+
+#else // ENABLE_ONEDNN_FOR_GPU
+
 #define CASE_GEMM_INT8_NN_TRANSPOSITION 64, 64, 64, 1, 2, 1, 2, 1, 2, 1, 2, false, false, \
-1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_NT_TRANSPOSITION 32, 64, 32, 2, 1, 2, 1, 2, 1, 2, 1, false, true, \
-1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_TN_TRANSPOSITION 128, 64, 32, 2, 2, 2, 2, 2, 2, 2, 2, true, false, \
-1.0f, 0.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.0f, 0.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_TT_TRANSPOSITION 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.2f, 0.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.2f, 0.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 
 #define CASE_GEMM_INT8_BROADCAST_1 32, 32, 32, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
-1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_BROADCAST_2 32, 32, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, false, \
-1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_BROADCAST_3 64, 32, 32, 1, 2, 2, 1, 1, 2, 2, 2, false, false, \
-1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_BROADCAST_4 32, 64, 32, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
-1.2f, 0.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.2f, 0.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 
 #define CASE_GEMM_INT8_LEFTOVERS_1 13, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_2 13, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.6f, 1.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.6f, 1.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_3 13, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_4 13, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_5 32, 13, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_6 32, 13, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.6f, 1.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.6f, 1.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_7 32, 13, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_8 32, 13, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_9 32, 32, 13, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_10 32, 32, 13, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.6f, 1.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.6f, 1.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_11 32, 32, 13, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_LEFTOVERS_12 32, 32, 13, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.7f, 1.3f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 
 #define CASE_GEMM_INT8_COMBO_1 8, 8, 32, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
-1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_COMBO_2 16, 16, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, true, \
-1.7f, 0.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.7f, 0.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_COMBO_3 11, 31, 21, 7, 15, 7, 15, 7, 15, 7, 15, true, false, \
-1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_COMBO_4 32, 32, 32, 3, 6, 3, 6, 3, 6, 3, 6, true, true, \
-1.2f, 4.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.2f, 4.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 
 #define CASE_GEMM_INT8_SLM_COMBO_1 64, 64, 64, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
-1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_SLM_COMBO_2 384, 384, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, false, \
-1.7f, 0.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.7f, 0.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_SLM_COMBO_3 128, 128, 64, 2, 3, 2, 3, 2, 3, 2, 3, false, false, \
-1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.0f, 1.5f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 #define CASE_GEMM_INT8_SLM_COMBO_4 256, 64, 64, 3, 6, 3, 6, 3, 6, 3, 6, false, false, \
-1.2f, 4.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, {-128, 127, 1}, {0, 255, 1}, {-10, 10, 8}
+1.2f, 4.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 
 #define CASE_GEMM_FP32_TILED_NN_1 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NN_2 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NN_3 31, 47, 65, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NN_4 65, 31, 47, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
 #define CASE_GEMM_FP32_TILED_NT_1 16, 16, 16, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NT_2 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NT_3 64, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NT_4 16, 128, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
 #define CASE_GEMM_FP32_TILED_TN_1 16, 16, 16, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_TN_2 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_TN_3 64, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_TN_4 16, 128, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
 #define CASE_GEMM_FP32_TILED_TT_1 16, 16, 16, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_TT_2 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_TT_3 64, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_TT_4 16, 128, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
 #define CASE_GEMM_FP32_TILED_NN_BROADCAST_1 64, 96, 32, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
-1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NN_BROADCAST_2 32, 16, 16, 2, 1, 1, 1, 1, 1, 2, 1, false, false, \
-1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.7f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NN_BROADCAST_3 5, 1, 3, 1, 2, 2, 1, 1, 2, 2, 2, false, false, \
-1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 1.5f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NN_BROADCAST_4 64, 1, 2, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
-1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, {-10, 10, 8}, {-10, 10, 8}, {-10, 10, 8}
+1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
 #define CASE_GEMM_FP16_TILED_NN_1 64, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_2 128, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_3 131, 17, 15, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_4 33, 17, 17, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
-1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 
 #define CASE_GEMM_FP16_TILED_NT_1 16, 16, 16, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NT_2 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NT_3 64, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NT_4 16, 128, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, true, \
-1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 
 #define CASE_GEMM_FP16_TILED_TN_1 16, 16, 16, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_TN_2 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_TN_3 64, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_TN_4 16, 128, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, false, \
-1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 
 #define CASE_GEMM_FP16_TILED_TT_1 16, 16, 16, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_TT_2 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_TT_3 64, 32, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_TT_4 16, 128, 64, 1, 1, 1, 1, 1, 1, 1, 1, true, true, \
-1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 
 #define CASE_GEMM_FP16_TILED_NN_BROADCAST_1 64, 96, 128, 1, 2, 1, 1, 1, 1, 1, 2, false, false, \
-1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_BROADCAST_2 64, 16, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, false, \
-1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.7f, 0.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_BROADCAST_3 1, 2, 3, 1, 2, 2, 1, 1, 2, 2, 2, false, false, \
-1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 1.5f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_BROADCAST_4 8, 8, 8, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
-1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, {-1, 1, 1}, {-1, 1, 1}, {-1, 1, 1}
+1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
+
+#endif // ENABLE_ONEDNN_FOR_GPU
 
 template <typename gemm_params, typename input0_type, typename input1_type, typename input2_type, typename output_type, typename accumulator_type>
 class GemmBaseTest : public ::testing::TestWithParam<gemm_params> {
@@ -3408,8 +3568,13 @@ public:
     }
 
     void execute(gemm_params& p) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        auto& engine = get_onednn_test_engine();
+        if (!engine.get_device_info().supports_imad)
+            return;
+#else
         auto& engine = get_test_engine();
-
+#endif
         auto y0_size = p.m_size;
         auto y0_pitch = p.k_size;
         auto x0_size = p.k_size;
@@ -3486,13 +3651,13 @@ public:
                             k * p.transpose_input0, f, b, x0_size, y0_size, p.f0_num, p.b0_num, x0_pitch, y0_pitch, f0_pitch, b0_pitch);
                             size_t input1_data_index = getGemmIndex(x * (!p.transpose_input1) + k * p.transpose_input1, k * (!p.transpose_input1) +
                             x * p.transpose_input1, f, b, x1_size, y1_size, p.f1_num, p.b1_num, x1_pitch, y1_pitch, f1_pitch, b1_pitch);
-
                             acc += (accumulator_type)input0_data_bfyx[input0_data_index] * (accumulator_type)input1_data_bfyx[input1_data_index];
                         }
 
                         out_data[out_data_index] = (output_type)acc;
                         out_data[out_data_index] *= (output_type)p.alpha;
-                        out_data[out_data_index] += (output_type)p.beta * (output_type)input2_data_bfyx[input2_data_index];
+                        if (p.beta)
+                            out_data[out_data_index] += (output_type)p.beta * (output_type)input2_data_bfyx[input2_data_index];
                     }
                 }
             }
@@ -3501,193 +3666,373 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_mem->get_layout()));
         topology.add(input_layout("input1", input1_mem->get_layout()));
-        topology.add(input_layout("input2", input2_mem->get_layout()));
-        topology.add(gemm("gemm_bfyx", { "input0", "input1", "input2" }, p.output_type, p.transpose_input0, p.transpose_input1, p.alpha, p.beta));
+        if (p.beta != 0) {
+            topology.add(input_layout("input2", input2_mem->get_layout()));
+            topology.add(gemm("gemm_bfyx", { "input0", "input1", "input2" }, p.output_type, p.transpose_input0, p.transpose_input1, p.alpha, p.beta));
+        } else {
+            topology.add(gemm("gemm_bfyx", { "input0", "input1" }, p.output_type, p.transpose_input0, p.transpose_input1, p.alpha, p.beta));
+        }
         topology.add(reorder("reorder_bfyx", "gemm_bfyx", format::bfyx, data_types::f32));
 
         build_options options;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        implementation_desc gemm_impl = { format::bfyx, "", impl_types::onednn };
+#else
         implementation_desc gemm_impl = { format::bfyx, p.kernel_name };
+#endif
         options.set_option(build_option::force_implementations({ {"gemm_bfyx", gemm_impl} }));
 
         network network(engine, topology, options);
         network.set_input_data("input0", input0_mem);
         network.set_input_data("input1", input1_mem);
-        network.set_input_data("input2", input2_mem);
+        if (p.beta != 0) {
+            network.set_input_data("input2", input2_mem);
+        }
         auto outputs = network.execute();
         auto output = outputs.at("reorder_bfyx").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
+        const float threshold_int8 = 1.f;
+        const float threshold_fp16 = 1e-1;
+        const float threshold_fp32 = 3e-4;
+
         EXPECT_EQ(output_ptr.size(), (size_t)(p.b_out_num * p.f_out_num * p.m_size * p.n_size));
         if (sizeof(input0_type) == 1) {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), 1e-1) << "index = " << i;
+                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_int8) << "index = " << i;
             }
         } else if (sizeof(input0_type) == 2) {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), 1e-1) << "index = " << i;
+                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp16) << "index = " << i;
             }
         } else {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), 3e-4) << "index = " << i;
+                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp32) << "index = " << i;
             }
         }
     }
 };
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+
+class gemm_int8_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
+TEST_P(gemm_int8_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_INT8_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_ONEDNN_4, "" },
+}));
+
+class gemm_uint8_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
+TEST_P(gemm_uint8_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_UINT8_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_ONEDNN_4, "" },
+}));
+
+class gemm_fp16_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+TEST_P(gemm_fp16_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP16_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_ONEDNN_4, "" },
+}));
+
+class gemm_fp32_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
+TEST_P(gemm_fp32_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP32_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_ONEDNN_4, "" },
+}));
+
+class gemm_int8_transposition_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
+TEST_P(gemm_int8_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_INT8_NN_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_NT_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_TN_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_TT_TRANSPOSITION_ONEDNN, "" },
+
+    gemm_base_test_params{ CASE_GEMM_INT8_NN_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_NT_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_TN_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_TT_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
+}));
+
+class gemm_uint8_transposition_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
+TEST_P(gemm_uint8_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_UINT8_NN_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_NT_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_TN_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_TT_TRANSPOSITION_ONEDNN, "" },
+
+    gemm_base_test_params{ CASE_GEMM_UINT8_NN_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_NT_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_TN_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_TT_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
+}));
+
+class gemm_fp16_transposition_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+TEST_P(gemm_fp16_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP16_NN_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_NT_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TN_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TT_TRANSPOSITION_ONEDNN, "" },
+}));
+
+class gemm_fp32_transposition_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
+TEST_P(gemm_fp32_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP32_NN_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_NT_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TN_TRANSPOSITION_ONEDNN, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TT_TRANSPOSITION_ONEDNN, "" },
+}));
+
+class gemm_int8_broadcasting_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
+TEST_P(gemm_int8_broadcasting_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_broadcasting_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_INT8_BROADCASTING_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_BROADCASTING_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_BROADCASTING_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_BROADCASTING_ONEDNN_4, "" },
+}));
+
+class gemm_fp16_broadcasting_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+TEST_P(gemm_fp16_broadcasting_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_broadcasting_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP16_BROADCASTING_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_BROADCASTING_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_BROADCASTING_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_BROADCASTING_ONEDNN_4, "" },
+}));
+
+class gemm_fp32_broadcasting_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, int32_t> {};
+TEST_P(gemm_fp32_broadcasting_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_broadcasting_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP32_BROADCASTING_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_BROADCASTING_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_BROADCASTING_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_BROADCASTING_ONEDNN_4, "" },
+}));
+
+class gemm_int8_combo_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
+TEST_P(gemm_int8_combo_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_combo_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_4, "" },
+}));
+
+class gemm_uint8_combo_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
+TEST_P(gemm_uint8_combo_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_combo_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_UINT8_COMBO_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_COMBO_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_COMBO_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_UINT8_COMBO_ONEDNN_4, "" },
+}));
+
+class gemm_fp16_combo_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+TEST_P(gemm_fp16_combo_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_combo_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP16_COMBO_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_COMBO_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_COMBO_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_FP16_COMBO_ONEDNN_4, "" },
+}));
+
+class gemm_fp32_combo_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
+TEST_P(gemm_fp32_combo_tests_onednn, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_combo_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP32_COMBO_ONEDNN_1, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_COMBO_ONEDNN_2, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_COMBO_ONEDNN_3, "" },
+    gemm_base_test_params{ CASE_GEMM_FP32_COMBO_ONEDNN_4, "" },
+}));
+
+#else // ENABLE_ONEDNN_FOR_GPU
+
 class gemm_int8_transposition_tests : public ::GemmBaseTest<gemm_base_test_params, int8_t, uint8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_transposition_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_transposition_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_INT8_NN_TRANSPOSITION, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_NT_TRANSPOSITION, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_TN_TRANSPOSITION, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_TT_TRANSPOSITION, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_NN_TRANSPOSITION, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_NT_TRANSPOSITION, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_TN_TRANSPOSITION, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_TT_TRANSPOSITION, "gemm_mmad_int8" },
 }));
 
 class gemm_int8_broadcast_tests : public ::GemmBaseTest<gemm_base_test_params, int8_t, uint8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_broadcast_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_broadcast_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_INT8_BROADCAST_1, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_BROADCAST_2, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_BROADCAST_3, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_BROADCAST_4, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_BROADCAST_1, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_BROADCAST_2, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_BROADCAST_3, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_BROADCAST_4, "gemm_mmad_int8" },
 }));
 
 class gemm_int8_leftovers_tests : public ::GemmBaseTest<gemm_base_test_params, int8_t, uint8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_leftovers_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_leftovers_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_1, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_2, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_3, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_4, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_5, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_6, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_7, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_8, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_9, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_10, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_11, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_12, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_1, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_2, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_3, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_4, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_5, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_6, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_7, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_8, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_9, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_10, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_11, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_LEFTOVERS_12, "gemm_mmad_int8" },
 }));
 
 class gemm_int8_combo_tests : public ::GemmBaseTest<gemm_base_test_params, int8_t, uint8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_combo_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_combo_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_INT8_COMBO_1, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_COMBO_2, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_COMBO_3, "gemm_mmad_int8" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_COMBO_4, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_COMBO_1, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_COMBO_2, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_COMBO_3, "gemm_mmad_int8" },
+    gemm_base_test_params{ CASE_GEMM_INT8_COMBO_4, "gemm_mmad_int8" },
 }));
 
 class gemm_int8_slm_combo_tests : public ::GemmBaseTest<gemm_base_test_params, int8_t, uint8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_slm_combo_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_slm_combo_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_INT8_SLM_COMBO_1, "gemm_mmad_int8_slm" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_SLM_COMBO_2, "gemm_mmad_int8_slm" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_SLM_COMBO_3, "gemm_mmad_int8_slm" },
-                        gemm_base_test_params{ CASE_GEMM_INT8_SLM_COMBO_4, "gemm_mmad_int8_slm" },
+    gemm_base_test_params{ CASE_GEMM_INT8_SLM_COMBO_1, "gemm_mmad_int8_slm" },
+    gemm_base_test_params{ CASE_GEMM_INT8_SLM_COMBO_2, "gemm_mmad_int8_slm" },
+    gemm_base_test_params{ CASE_GEMM_INT8_SLM_COMBO_3, "gemm_mmad_int8_slm" },
+    gemm_base_test_params{ CASE_GEMM_INT8_SLM_COMBO_4, "gemm_mmad_int8_slm" },
 }));
 
 class gemm_fp32_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
 TEST_P(gemm_fp32_tiled_nn_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp32_tiled_nt_tests : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
 TEST_P(gemm_fp32_tiled_nt_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nt_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NT_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NT_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NT_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NT_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NT_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NT_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NT_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NT_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp32_tiled_tn_tests : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
 TEST_P(gemm_fp32_tiled_tn_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_tn_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_TN_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_TN_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_TN_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_TN_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_TN_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_TN_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_TN_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_TN_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp32_tiled_tt_tests : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
 TEST_P(gemm_fp32_tiled_tt_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_tt_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_TT_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_TT_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_TT_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_TT_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_TT_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_TT_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_TT_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_TT_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp32_tiled_nn_broadcast_tests : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
 TEST_P(gemm_fp32_tiled_nn_broadcast_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_broadcast_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp16_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
 TEST_P(gemm_fp16_tiled_nn_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp16_tiled_nt_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
 TEST_P(gemm_fp16_tiled_nt_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nt_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp16_tiled_tn_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
 TEST_P(gemm_fp16_tiled_tn_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tn_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp16_tiled_tt_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
 TEST_P(gemm_fp16_tiled_tt_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tt_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp16_tiled_nn_broadcast_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
 TEST_P(gemm_fp16_tiled_nn_broadcast_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_broadcast_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_1, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_2, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_3, "gemm_tiled_opt" },
-                        gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_1, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_2, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_3, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
 }));
+
+#endif // ENABLE_ONEDNN_FOR_GPU

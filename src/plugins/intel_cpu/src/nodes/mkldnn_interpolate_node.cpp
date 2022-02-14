@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1881,6 +1881,12 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
                 interpAttrs.padEnd[i] = static_cast<int>(interpAttr.pads_end[i]);
         }
 
+        const auto scalesNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(SCALES_ID));
+        if (scalesNode) {
+            scales = scalesNode->cast_vector<float>();
+            isScaleConstant = true;
+        }
+
         if (isAxesSpecified) {
             axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID))->cast_vector<int>();
         } else {
@@ -1974,14 +1980,14 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail) {
-        config.inConfs[DATA_ID].desc = creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID));
-        config.inConfs[TARGET_SHAPE_ID].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(TARGET_SHAPE_ID));
-        config.inConfs[SCALES_ID].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(scalesType, getInputShapeAtPort(SCALES_ID));
+        config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
+        config.inConfs[TARGET_SHAPE_ID].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(TARGET_SHAPE_ID)));
+        config.inConfs[SCALES_ID].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(scalesType, getInputShapeAtPort(SCALES_ID)));
 
         if (isAxesSpecified)
-            config.inConfs[AXES_ID].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(AXES_ID));
+            config.inConfs[AXES_ID].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(AXES_ID)));
 
-        config.outConfs[0].desc = creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
+        config.outConfs[0].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
         supportedPrimitiveDescriptors.push_back({config, implDetail});
     };
 
@@ -2044,33 +2050,8 @@ bool MKLDNNInterpolateNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
-    std::vector<ov::StaticShape> input_shapes = {
-            getParentEdgesAtPort(DATA_ID)[0]->getMemory().GetShape().getStaticDims(),
-            getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().GetShape().getStaticDims(),
-            getParentEdgesAtPort(SCALES_ID)[0]->getMemory().GetShape().getStaticDims()
-    };
-
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
-    const auto &memory = getParentEdgesAtPort(port)[0]->getMemory();
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values = {
-            {port, std::make_shared<ngraph::runtime::HostTensor>(InferenceEngine::details::convertPrecision(memory.getDesc().getPrecision()),
-                                                                 memory.getStaticDims(), memory.GetPtr())}
-    };
-
-    if (getParentEdges().size() > AXES_ID) {
-        const auto &memory = getParentEdgesAtPort(AXES_ID)[0]->getMemory();
-        input_shapes.push_back(memory.getStaticDims());
-        input_values.insert({3, std::make_shared<ngraph::runtime::HostTensor>(InferenceEngine::details::convertPrecision(memory.getDesc().getPrecision()),
-                                                                              memory.getStaticDims(), memory.GetPtr())});
-    }
-
-    std::vector<ov::StaticShape> output_shapes = {{}};
-    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
-
-    std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s){ return s.to_shape(); });
-
-    return result;
+    return shapeInferGeneric(PortMask(port, AXES_ID));
 }
 
 void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {
@@ -2102,16 +2083,16 @@ void MKLDNNInterpolateNode::prepareParams() {
     auto& scaleMemPtr = getParentEdgeAt(SCALES_ID)->getMemoryPtr();
     if (getParentEdges().size() > 3) {
         auto &axesMemPtr = getParentEdgeAt(AXES_ID)->getMemoryPtr();
-        if (!axesMemPtr || !axesMemPtr->GetPrimitivePtr())
+        if (!axesMemPtr || !axesMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate axes memory";
     }
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
-    if (!tsMemPtr || !tsMemPtr->GetPrimitivePtr())
+    if (!tsMemPtr || !tsMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate target shape memory";
-    if (!scaleMemPtr || !scaleMemPtr->GetPrimitivePtr())
+    if (!scaleMemPtr || !scaleMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate scales memory";
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
@@ -2119,6 +2100,12 @@ void MKLDNNInterpolateNode::prepareParams() {
 
     const auto &srcDims = srcMemPtr->getStaticDims();
     const auto &dstDims = dstMemPtr->getStaticDims();
+
+    if (!isScaleConstant) {
+        const auto& scalesMem = getParentEdgesAtPort(SCALES_ID)[0]->getMemory();
+        const float* scalesData = reinterpret_cast<const float *>(scalesMem.GetPtr());
+        scales.assign(scalesData, scalesData + scalesMem.getStaticDims()[0]);
+    }
 
     std::vector<float> dataScales = getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
@@ -2176,9 +2163,9 @@ void MKLDNNInterpolateNode::prepareParams() {
 void MKLDNNInterpolateNode::createPrimitive() {
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
@@ -2247,7 +2234,6 @@ SizeVector MKLDNNInterpolateNode::getPaddedInputShape(const VectorDims &srcDims,
 // scales is a required input, but should not use input scales when "size" case, which may added eps that lead to inaccurate result, recalculate scales instead.
 std::vector<float> MKLDNNInterpolateNode::getScales(const VectorDims &srcDimPad, const VectorDims &dstDim) {
     const size_t dataRank = getInputShapeAtPort(DATA_ID).getRank();
-    const float *scales = reinterpret_cast<const float *>(getParentEdgesAtPort(SCALES_ID)[0]->getMemory().GetPtr());
     std::vector<float> fullScales(dataRank, 1.f);
     const size_t axesRank = axes.size();
     for (size_t i = 0; i < axesRank; i++) {
@@ -2341,7 +2327,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         src_data = src_data_origin;
     }
 
-    execPtr->exec(src_data, dst_data, static_cast<const void*>(&postOpsDataPtrs[0]));
+    execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
 }
 
 // for ndhwc and nCdhw8c[16c]

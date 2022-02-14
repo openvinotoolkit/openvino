@@ -1,36 +1,34 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <shared_test_classes/single_layer/proposal.hpp>
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "shared_test_classes/single_layer/psroi_pooling.hpp"
-#include "shared_test_classes/single_layer/roi_pooling.hpp"
-#include "shared_test_classes/single_layer/roi_align.hpp"
+#pragma once
 
-namespace LayerTestsDefinitions {
+#include "shared_test_classes/base/ov_subgraph.hpp"
+
+namespace ov {
+namespace test {
+namespace subgraph {
 
 using ReadIRParams = std::tuple<
         std::string,                         // IR path
         std::string,                         // Target Device
-        std::map<std::string, std::string>>; // Plugin Config
+        ov::AnyMap>;                         // Plugin Config
 
 class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
-                   virtual public LayerTestsUtils::LayerTestsCommon {
+                   virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
-    void QueryNetwork() override;
+    void query_model() override;
 
 protected:
     void SetUp() override;
-    void GenerateInputs() override;
-    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
-                 const std::vector<InferenceEngine::Blob::Ptr> &actual) override;
-    std::vector<InferenceEngine::Blob::Ptr> GetOutputs() override;
 
 private:
     std::string pathToModel;
     std::string sourceModel;
     std::vector<std::pair<std::string, size_t>> ocuranceInModels;
 };
-} // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov

@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <dimension_tracker.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -100,4 +102,36 @@ TEST(type_prop, shape_of_output_type_v3) {
 
     ASSERT_EQ(so->get_output_element_type(0), element::i32);
     ASSERT_EQ(so->get_shape(), Shape{4});
+}
+
+TEST(type_prop, shape_of_1_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, shape_0);
+    ASSERT_EQ(bc->get_shape(), (Shape{3, 4}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+}
+
+TEST(type_prop, shape_of_3_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::v3::ShapeOf>(param_0);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, shape_0);
+    ASSERT_EQ(bc->get_shape(), (Shape{3, 4}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }

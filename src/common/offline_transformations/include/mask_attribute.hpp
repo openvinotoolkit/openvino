@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,11 @@ public:
 
     explicit Mask(const size_t & size)
             : std::vector<value_type>(size) {
+    }
+
+    explicit Mask(const size_t & size, const bool adjust_value)
+            : std::vector<value_type>(size),
+              m_adjust_value(adjust_value) {
     }
 
     Mask(std::initializer_list<std::initializer_list<uint64_t>> list)
@@ -149,19 +154,24 @@ public:
         m_dependencies.push_back(mask.get());
     }
 
+    /* Modify state of this mask by corresponding callback,
+    which returns modifying success status (bool) and then
+    modify all dependent masks by their corresponding callbacks*/
     bool apply_callback(Mask::Ptr mask) {
         // TODO: in case if callback returns false we need to propagate original value
         const auto & ref_state = Mask(*this);
+        // Modify this mask by recived mask
         if (!m_callbacks.at(mask.get())(shared_from_this())) {
             return false;
         }
-
+        // In case this mask already visited and didn't change by
+        // callback call - stop recursion
         if (!m_need_initialization && *this == ref_state) {
             return true;
         }
-
+        // Mark mask as visited
         m_need_initialization = false;
-
+        // recursively apply callbacks for each dependent mask
         for (const auto & m_dependency : m_dependencies) {
             if (!m_dependency->apply_callback(shared_from_this())) {
                 return false;
@@ -185,13 +195,33 @@ public:
         }
     }
 
+    /* Ask mask to update ther dependencies
+    even if mask value wasn't changed on callback*/
+    void initialize_dependencies() {
+        m_need_initialization = true;
+    }
+
+    bool adjust_value() const {
+        return m_adjust_value;
+    }
+
 private:
     bool m_is_shape_like{false};
+    // Flag is true if this mask should be interpretated in special way:
+    // Each value of the constant at index i decreasing by a number
+    // of elements in i'th mask dimension during weights shrinking pass.
+    // Only a 1D constants could be pruned in this way and
+    // the number of mask dimensions should be equal to the number of elements
+    // in the constant. The constant is typically interpetated as a shape
+    // of some operation.
+    bool m_adjust_value{false};
 
+    // Masks dependent on this mask vs methods, specifying how
+    // this mask will be modifed by correspondent dependent mask
     std::map<Mask *, std::function<bool(Mask::Ptr)>> m_callbacks;
-
+    // Vector of all dependent masks
     std::vector<Mask *> m_dependencies;
-
+    // Param used like visiting label (visited or not) during mask applying call
     bool m_need_initialization{true};
 };
 
@@ -202,5 +232,15 @@ Mask::Ptr getMask(const Output<const Node> & output);
 Mask::Ptr getMask(const Output<Node> & output);
 
 void setMask(Output<Node> output, const Mask::Ptr & mask);
+
+void setMask(Input<Node> node, const Mask::Ptr & mask);
+
+#ifdef ENABLE_OPENVINO_DEBUG
+/* Get mask which was defined on InitMasks matcher pass*/
+Mask::Ptr getInitMask(const Output<Node> & output);
+
+/* Set mask which was defined on InitMasks matcher pass*/
+void setInitMask(Output<Node> output, const Mask::Ptr & mask);
+#endif
 
 }  // namespace ngraph

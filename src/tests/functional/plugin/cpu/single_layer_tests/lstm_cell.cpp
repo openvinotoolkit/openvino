@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,7 +167,19 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
       { { {1, 20}, {8, 12} },              // Dynamic shape 1
         { {2, 10}, {5, 10}, {8, 10} } },   // Target shapes
       { { {1, 20}, -1 },                   // Dynamic shape 2
-        { {2, 10}, {5, 10}, {8, 10} } } }  // Target shapes
+        { {2, 10}, {5, 10}, {8, 10} } } }, // Target shapes
+    { { { {1, 20}, {28, 32} },             // Dynamic shape 0
+        { {2, 30}, {5, 30}, {8, 30}, {2, 30}, {5, 30}, {8, 30} } },   // Target shapes
+      { { {1, 20}, {8, 12} },              // Dynamic shape 1
+        { {2, 10}, {5, 10}, {8, 10}, {2, 10}, {5, 10}, {8, 10} } },   // Target shapes
+      { { {1, 20}, -1 },                   // Dynamic shape 2
+        { {2, 10}, {5, 10}, {8, 10}, {2, 10}, {5, 10}, {8, 10} } } }, // Target shapes
+    { { { -1, -1 },                         // Dynamic shape 0
+        { {37, 512}, {15, 512} } },         // Target shapes
+      { { -1, 128 },                        // Dynamic shape 1
+        { {37, 128}, {15, 128} } },         // Target shapes
+      { { -1, 128 },                        // Dynamic shape 2
+        { {37, 128}, {15, 128} } } },       // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMCellLayerCPUTest,

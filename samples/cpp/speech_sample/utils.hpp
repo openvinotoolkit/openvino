@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ struct ScoreErrorT {
  * @brief struct to store infer request data per frame
  */
 struct InferRequestStruct {
-    ov::runtime::InferRequest inferRequest;
+    ov::InferRequest inferRequest;
     int frameIndex;
     uint32_t numFramesThisBatch;
 };
@@ -211,7 +211,7 @@ inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx
  * @brief Get GNA module frequency
  * @return GNA module frequency in MHz
  */
-float get_gna_frequency_mHz() {
+float get_gna_frequency_mhz() {
     uint32_t eax = 1;
     uint32_t ebx = 0;
     uint32_t ecx = 0;
@@ -223,7 +223,8 @@ float get_gna_frequency_mHz() {
     const uint8_t gemini_lake_model = 122;
     const uint8_t ice_lake_model = 126;
     const uint8_t tgl_model = 140;
-    const uint8_t next_model = 151;
+    const uint8_t adl_s_model = 151;
+    const uint8_t adl_p_model = 154;
 
     native_cpuid(&eax, &ebx, &ecx, &edx);
     family = (eax >> 8) & 0xF;
@@ -242,7 +243,8 @@ float get_gna_frequency_mHz() {
         case cannon_lake_model:
         case ice_lake_model:
         case tgl_model:
-        case next_model:
+        case adl_s_model:
+        case adl_p_model:
             return 400;
         case gemini_lake_model:
             return 200;
@@ -282,7 +284,7 @@ void print_reference_compare_results(ScoreErrorT const& totalError, size_t frame
  * @param FLAGS_d flag of device
  * @return none.
  */
-void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo> const& utterancePerfMap,
+void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& utterancePerfMap,
                                 size_t numberOfFrames,
                                 std::ostream& stream,
                                 std::string fullDeviceName,
@@ -301,7 +303,7 @@ void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo
     stream << std::endl;
     // if GNA HW counters
     // get frequency of GNA module
-    float freq = get_gna_frequency_mHz();
+    float freq = get_gna_frequency_mhz();
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
         float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
@@ -331,8 +333,7 @@ void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo
  * @param perfCounters reference to a map to save performance counters
  * @return none.
  */
-void get_performance_counters(ov::runtime::InferRequest& request,
-                              std::map<std::string, ov::runtime::ProfilingInfo>& perfCounters) {
+void get_performance_counters(ov::InferRequest& request, std::map<std::string, ov::ProfilingInfo>& perfCounters) {
     auto retPerfCounters = request.get_profiling_info();
 
     for (const auto& element : retPerfCounters) {
@@ -347,8 +348,8 @@ void get_performance_counters(ov::runtime::InferRequest& request,
  * @param totalRunsOnHw reference to a total number of frames computed on GNA HW
  * @return none.
  */
-void sum_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo> const& perfCounters,
-                              std::map<std::string, ov::runtime::ProfilingInfo>& totalPerfCounters,
+void sum_performance_counters(std::map<std::string, ov::ProfilingInfo> const& perfCounters,
+                              std::map<std::string, ov::ProfilingInfo>& totalPerfCounters,
                               uint64_t& totalRunsOnHw) {
     auto runOnHw = false;
     for (const auto& pair : perfCounters) {

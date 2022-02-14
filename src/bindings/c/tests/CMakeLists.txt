@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,7 +13,7 @@ endif()
 
 add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_c_api ${OpenCV_LIBRARIES}
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c ${OpenCV_LIBRARIES}
                                              commonTestUtils gtest_main)
 
 target_compile_definitions(${TARGET_NAME}
@@ -23,19 +23,19 @@ target_compile_definitions(${TARGET_NAME}
         MODELS_PATH=\"${MODELS_PATH}\" )
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
-    add_dependencies(${TARGET_NAME} ov_auto_plugin)
+    add_dependencies(${TARGET_NAME} openvino_auto_plugin)
 endif()
 
 if(ENABLE_AUTO_BATCH)
-    add_dependencies(${TARGET_NAME} ov_auto_batch_plugin)
+    add_dependencies(${TARGET_NAME} openvino_auto_batch_plugin)
 endif()
 
 if(ENABLE_INTEL_CPU)
-    add_dependencies(${TARGET_NAME} ov_intel_cpu_plugin)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
 
 if(ENABLE_INTEL_GPU)
-    add_dependencies(${TARGET_NAME} ov_intel_gpu_plugin)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
 endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

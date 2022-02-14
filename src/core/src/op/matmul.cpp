@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/matmul.hpp"
 
+#include <dimension_tracker.hpp>
 #include <memory>
 #include <numeric>
 
@@ -151,6 +152,17 @@ ov::PartialShape validate_matmul_output_shape(const ov::PartialShape& arg0_shape
                                                                       : arg0_shape_tmp[i].get_max_length();
             }
             output_shape[i] = Dimension(lower_bound, upper_bound);
+            // label setting
+            size_t out_label = 0;
+            size_t label_0 = ov::DimensionTracker::get_label(arg0_shape_tmp[i]);
+            size_t label_1 = ov::DimensionTracker::get_label(arg1_shape_tmp[i]);
+            if (label_0 == label_1 || label_1 == 0)
+                out_label = label_0;
+            else if (label_0 == 0)
+                out_label = label_1;
+            output_shape[i] = Dimension(lower_bound, upper_bound);
+            if (out_label)
+                ov::DimensionTracker::set_label(output_shape[i], out_label);
         }
     }
 

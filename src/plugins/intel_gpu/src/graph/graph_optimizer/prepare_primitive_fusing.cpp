@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -255,7 +255,8 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                     input.add_fused_activation(node.get_fused_activations_funcs()[i],
                                                node.get_fused_activations_params()[i]);
                 }
-                input.set_output_padding(node.get_output_layout().data_padding);
+                auto outputPadding = node.get_output_layout().data_padding;
+                input.set_output_padding(outputPadding);
                 p.extract_and_remove(node);
             } else {
                 // If node already has any fused node using new mechanism,
@@ -284,7 +285,20 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (!is_bias)
             continue;
 
+        auto is_3d_fully_connected = [](program_node& node) {
+            if (!node.is_type<fully_connected>())
+                return false;
+
+            return node.as<fully_connected>().get_primitive()->input_size == 3;
+        };
+
         size_t out_features = static_cast<size_t>(node->get_output_layout().size.feature[0]);
+
+        // Change out_features value to proper dimension for 3D FC case
+        if (is_3d_fully_connected(node->get_dependency(0)))
+            out_features = static_cast<size_t>(node->get_dependency(0).get_output_layout().size.spatial[1]);
+        else if (is_3d_fully_connected(node->get_dependency(1)))
+            out_features = static_cast<size_t>(node->get_dependency(1).get_output_layout().size.spatial[1]);
 
         int bias_idx = -1;
         for (size_t i = 0; i < eltw_node.get_dependencies().size(); i++) {
@@ -447,7 +461,10 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->input[0],
                                                                        desc->weights,
                                                                        bias_name,
-                                                                       fc.get_output_layout().data_type);
+                                                                       fc.get_output_layout().data_type,
+                                                                       desc->ext_prim_id,
+                                                                       desc->output_padding,
+                                                                       desc->input_size);
 
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);

@@ -53,9 +53,11 @@
 | Symbol Name in MXNet\*| Limitations|
 | :----------| :----------|
 | _Plus |  |
+| _contrib_arange_like |  |
 | _contrib_box_nms |  |
 | _contrib_DeformableConvolution |  |
 | _contrib_DeformablePSROIPooling |  |
+| _contrib_div_sqrt_dim |  |
 | _contrib_MultiBoxDetection | "force_suppress" = 1 is not supported, non-default variances are not supported |
 | _contrib_MultiBoxPrior |  |
 | _contrib_Proposal |  |
@@ -77,6 +79,7 @@
 | arccosh |  |
 | arcsinh |  |
 | arctanh |  |
+| batch_dot |  |
 | broadcast_add |  |
 | broadcast_div |  |
 | broadcast_mul |  |
@@ -94,6 +97,7 @@
 | max |  |
 | minus_scalar |  |
 | null | Not needed for inference |
+| LayerNorm | "output_mean_var" = True is not supported |
 | repeat |  |
 | rnn |  |
 | rnn_param_concat |  |
@@ -195,6 +199,7 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | DepthwiseConv2dNative|  |
 | Einsum | Supported only with equation that does not contain repeated labels within a subscript |
 | Elu |  |
+| EmptyTensorList | Supported only when it is part of a sub-graph of the special form |
 | Enter | Supported only when it is fused to the TensorIterator layer |
 | Equal |  |
 | Erf |  |
@@ -332,6 +337,7 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | TensorArraySizeV3 | Supported only when it is fused to the TensorIterator layer |
 | TensorArrayV3 | Supported only when it is fused to the TensorIterator layer |
 | TensorArrayWriteV3 | Supported only when it is fused to the TensorIterator layer |
+| TensorListPushBack | Supported only when it is part of a sub-graph of the special form |
 | Tile |  |
 | TopkV2 |  |
 | Transpose |  |

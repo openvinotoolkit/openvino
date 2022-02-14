@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME inference_engine_c_api)
+set(TARGET_NAME openvino_c)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${InferenceEngine_C_API_SOURCE_DIR}/include/*.h)
@@ -12,7 +12,7 @@ file(GLOB HEADERS ${InferenceEngine_C_API_SOURCE_DIR}/include/*.h)
 add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
 add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE ov_runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino)
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${InferenceEngine_C_API_SOURCE_DIR}/include>)
@@ -30,9 +30,10 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 # export
 
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c
-                                                SOVERSION ${OpenVINO_VERSION_MAJOR}
-                                                VERSION ${OpenVINO_VERSION})
+set_target_properties(${TARGET_NAME} PROPERTIES
+    EXPORT_NAME runtime::c
+    SOVERSION ${OpenVINO_VERSION_MAJOR}
+    VERSION ${OpenVINO_VERSION})
 
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

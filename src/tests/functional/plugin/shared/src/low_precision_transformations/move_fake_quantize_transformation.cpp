@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,42 +23,48 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
     std::vector<ngraph::PartialShape> inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
+    bool oneInputWithSplit;
     MoveFakeQuantizeTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, oneInputWithSplit, param) = obj.param;
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape[0], targetDevice, params) <<
-        param.operation << param.fakeQuantizeAfter << param.dequantizationAfter;
+        "SPLIT:" << oneInputWithSplit << "_" <<
+        "OP:" << param.operation << "_" <<
+        "FQ:" << param.fakeQuantizeAfter << "_" <<
+        "DQ:" << param.dequantizationAfter;
     return result.str();
 }
 
 void MoveFakeQuantizeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    std::vector<ngraph::PartialShape> inputShape;
+    std::vector<ngraph::PartialShape> inputShapes;
     ngraph::pass::low_precision::LayerTransformation::Params params;
+    bool oneInputWithSplit;
     MoveFakeQuantizeTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+    std::tie(netPrecision, inputShapes, targetDevice, params, oneInputWithSplit, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::MoveFakeQuantize::get(
         netPrecision,
-        inputShape,
-        param.number_of_operations,
-        param.fakeQuantizeBefore,
-        param.convertBefore,
-        param.dequantizationBefore,
+        inputShapes,
+        param.concatInputsCount,
+        {},
+        {},
+        {},
         param.operation,
         param.fakeQuantizeAfter,
         param.convertAfter,
         param.dequantizationAfter,
         {},
         {},
-        param.axis);
+        param.axis,
+        oneInputWithSplit);
 }
 
 void MoveFakeQuantizeTransformation::Run() {
     LayerTestsCommon::Run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<5>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
     if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {

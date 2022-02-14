@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <fstream>
 #include <openvino/frontend/input_model.hpp>
 
-#include "common/extension_holder.hpp"
+#include "openvino/frontend/extension/holder.hpp"
 
 namespace ov {
 namespace frontend {

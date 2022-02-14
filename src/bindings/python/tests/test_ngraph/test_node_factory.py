@@ -1,11 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import openvino.runtime.opset8 as ov
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.utils.node_factory import NodeFactory
-from _pyngraph import NodeFactory as _NodeFactory
 
 
 def test_node_factory_add():
@@ -14,7 +13,7 @@ def test_node_factory_add():
     parameter_a = ov.parameter(shape, dtype=dtype, name="A")
     parameter_b = ov.parameter(shape, dtype=dtype, name="B")
 
-    factory = _NodeFactory("opset1")
+    factory = NodeFactory("opset1")
     arguments = NodeFactory._arguments_as_outputs([parameter_a, parameter_b])
     node = factory.create("Add", arguments, {})
 
@@ -41,7 +40,7 @@ def test_node_factory_topk():
     dtype = np.int32
     data = ov.parameter([2, 10], dtype=dtype, name="A")
     k = ov.constant(3, dtype=dtype, name="B")
-    factory = _NodeFactory("opset1")
+    factory = NodeFactory("opset1")
     arguments = NodeFactory._arguments_as_outputs([data, k])
     node = factory.create(
         "TopK", arguments, {"axis": 1, "mode": "max", "sort": "value"}

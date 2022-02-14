@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,18 +61,11 @@ TEST_P(myriadIncorrectModelsConfigsTests_nightly, LoadNetworkWithIncorrectConfig
 static const std::vector<config_t> myriadCorrectPackageTypeConfigValues = {
     // Please do not use other types of DDR in tests with a real device, because it may hang.
     {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO}},
-
-    // Deprecated
-    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}}
 };
 
 static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
     {{InferenceEngine::MYRIAD_DDR_TYPE, "-1"}},
     {{InferenceEngine::MYRIAD_DDR_TYPE, "-MICRON_1GB"}},
-
-    // Deprecated
-    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}},
-    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-MICRON_1GB"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(MyriadPackageConfigs, myriadCorrectModelsConfigsTests_nightly,

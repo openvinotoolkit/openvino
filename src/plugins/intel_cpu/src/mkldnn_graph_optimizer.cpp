@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1119,10 +1119,21 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             isSuitableParent2 = isSuitableParent2 && canFuseSum(binConvNode2, graphNode);
         }
 
+        auto checkFusedWithSum = [](MKLDNNConvolutionNode* conv) -> bool {
+            for (const auto& node : conv->getFusedWith()) {
+                const auto eltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(node);
+                if (eltwise && eltwise->isSpecialConvolutionAddFusing())
+                    return true;
+            }
+            return false;
+        };
+
         auto* convNode1 = dynamic_cast<MKLDNNConvolutionNode *>(parent1.get());
         if (convNode1) {
             if (!convNode1->canBeExecutedInInt8()) {
                 isSuitableParent1 = isSuitableParent1 && convNode1->getFusedWith().empty();
+            } else {
+                isSuitableParent1 = isSuitableParent1 && !checkFusedWithSum(convNode1);
             }
         }
 
@@ -1130,6 +1141,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         if (convNode2) {
             if (!convNode2->canBeExecutedInInt8()) {
                 isSuitableParent2 = isSuitableParent2 && convNode2->getFusedWith().empty();
+            } else {
+                isSuitableParent2 = isSuitableParent2 && !checkFusedWithSum(convNode2);
             }
         }
 
@@ -1160,8 +1173,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
                 peerNode = isBranch2Quantized && parent1CanBeMerged ? parent2 : parent1;
             } else {
                 // original FP32
-                mergedConv = isSuitableParent1 ? parent1 : parent2;
-                peerNode = isSuitableParent1 ? parent2 : parent1;
+                mergedConv = parent1;
+                peerNode = parent2;
             }
         } else {
             mergedConv = isSuitableParent1 ? parent1 : parent2;
@@ -1855,11 +1868,15 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Transpose && node->getChildEdges().size() == 1;
+        return node->getType() == Transpose
+                && node->getChildEdges().size() == 1
+                && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
     };
 
     auto isSuitableChildNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Reorder && node->getChildEdges().size() == 1;
+        return node->getType() == Reorder
+                && node->getChildEdges().size() == 1
+                && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
     };
 
     // Method checkAscendingSummaryOrder() checks that after the sequential execution of Transpose and Reorder nodes,
@@ -1872,10 +1889,10 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
         }
 
         auto& transposeOrder = transposeNode->getOrder();
-        auto layoutOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->as<BlockedMemoryDesc>()->getOrder();
+        auto layoutOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
 
-        auto inBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->as<BlockedMemoryDesc>();
-        auto outBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->as<BlockedMemoryDesc>();
+        auto inBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
+        auto outBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
 
         auto& inOrder = inBlockedDesc->getOrder();
         auto& outOrder = outBlockedDesc->getOrder();
@@ -1954,8 +1971,8 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
         graph.DropNode(parentNode);
         graph.DropNode(childNode);
 
-        auto& inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
-        auto& outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
+        auto inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
+        auto outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
 
         auto inPrec = inDesc->getPrecision();
         auto outPrec = outDesc->getPrecision();
@@ -2014,7 +2031,8 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         if (node->type != RNNSeq)
             return false;
         auto rnnNode = std::dynamic_pointer_cast<MKLDNNRNN>(node);
-        return rnnNode && !rnnNode->hasNativeOrder() && node->outputShapes[0].getRank() == 4 && node->outputShapes[0].getDims()[1] == 1;
+        return rnnNode && (!rnnNode->hasNativeOrder() || node->isDynamicNode()) && node->outputShapes[0].getRank() == 4 &&
+                node->outputShapes[0].getDims()[1] == 1;
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {

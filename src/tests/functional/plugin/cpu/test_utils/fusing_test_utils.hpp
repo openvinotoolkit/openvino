@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -361,5 +361,12 @@ const auto fusingPRelu1D = fusingSpecificParams{std::make_shared<postNodesMgr>(s
         auto data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(newShape));
         return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::LeakyRelu, newShape, data);
     }, "PRelu1D"}}), {"PRelu"}};
+
+const auto fusingBias = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                size_t last_dim = inpNode->get_output_partial_shape(0).rbegin()->get_length();
+                auto bias = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{last_dim}, std::vector<float>{}, true);
+                return std::make_shared<ngraph::opset1::Add>(inpNode, bias);
+            }, "fusingBias"}}), {"Add"}};
 
 } // namespace CPUTestUtils

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,16 +37,16 @@ public:
 
     static bool checkElementwise(const std::shared_ptr<ngraph::Node>& elementwise);
 
-    static bool checkShape(const std::shared_ptr<ngraph::Node>& elementwise) noexcept;
+    static bool checkShape(const std::shared_ptr<ngraph::Node>& elementwise);
 
     static int fillDequantizationParams(
         const std::shared_ptr<ngraph::Node>& elementwise,
         std::shared_ptr<ngraph::opset1::Convert>& convert,
-        std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept;
+        std::shared_ptr<ngraph::opset1::Constant>& constant);
 
     static int fillDequantizationParams(
         const std::shared_ptr<ngraph::Node>& elementwise,
-        std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept;
+        std::shared_ptr<ngraph::opset1::Constant>& constant);
 
     Output<Node> data;
     std::shared_ptr<opset1::Convert> convert;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,8 @@ struct FakeQuantizeParams {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    runtime::Tensor m_input_data;
-    runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     std::shared_ptr<op::v0::Constant> m_input_low;
     std::shared_ptr<op::v0::Constant> m_input_high;
     std::shared_ptr<op::v0::Constant> m_output_low;

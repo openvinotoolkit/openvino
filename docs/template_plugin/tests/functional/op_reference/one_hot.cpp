@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,19 +14,19 @@ using namespace ov;
 namespace {
 struct OneHotParams {
     OneHotParams(
-        const Tensor& dataTensor, const int32_t axis,
-        const Tensor& depthTensor, const Tensor& onValueTensor, const Tensor& offValueTensor,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const int32_t axis,
+        const reference_tests::Tensor& depthTensor, const reference_tests::Tensor& onValueTensor, const reference_tests::Tensor& offValueTensor,
+        const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
         dataTensor(dataTensor), axis(axis),
         depthTensor(depthTensor), onValueTensor(onValueTensor), offValueTensor(offValueTensor),
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
+    reference_tests::Tensor dataTensor;
     int32_t axis;
-    Tensor depthTensor;
-    Tensor onValueTensor;
-    Tensor offValueTensor;
-    Tensor expectedTensor;
+    reference_tests::Tensor depthTensor;
+    reference_tests::Tensor onValueTensor;
+    reference_tests::Tensor offValueTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -97,75 +97,75 @@ std::vector<OneHotParams> generateParams() {
     using T2 = typename element_type_traits<ET2>::value_type;
     std::vector<OneHotParams> params {
         OneHotParams(
-            Tensor(ET1, {}, std::vector<T1>{2}),
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{2}),
             0,
-            Tensor(ET1, {}, std::vector<T1>{3}),
-            Tensor(ET2, {}, std::vector<T2>{1}),
-            Tensor(ET2, {}, std::vector<T2>{0}),
-            Tensor(ET2, {3}, std::vector<T2>{0, 0, 1}),
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{3}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{1}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{0}),
+            reference_tests::Tensor(ET2, {3}, std::vector<T2>{0, 0, 1}),
             "one_hot_scalar_2_in_3"),
         OneHotParams(
-            Tensor(ET1, {}, std::vector<T1>{1}),
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{1}),
             0,
-            Tensor(ET1, {}, std::vector<T1>{3}),
-            Tensor(ET2, {}, std::vector<T2>{1}),
-            Tensor(ET2, {}, std::vector<T2>{0}),
-            Tensor(ET2, {3}, std::vector<T2>{0, 1, 0}),
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{3}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{1}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{0}),
+            reference_tests::Tensor(ET2, {3}, std::vector<T2>{0, 1, 0}),
             "one_hot_scalar_1_in_3"),
         OneHotParams(
-            Tensor(ET1, {}, std::vector<T1>{0}),
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{0}),
             0,
-            Tensor(ET1, {}, std::vector<T1>{3}),
-            Tensor(ET2, {}, std::vector<T2>{1}),
-            Tensor(ET2, {}, std::vector<T2>{0}),
-            Tensor(ET2, {3}, std::vector<T2>{1, 0, 0}),
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{3}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{1}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{0}),
+            reference_tests::Tensor(ET2, {3}, std::vector<T2>{1, 0, 0}),
             "one_hot_scalar_0_in_3"),
         OneHotParams(
-            Tensor(ET1, {8}, std::vector<T1>{2, 1, 0, 0, 2, 2, 1, 0}),
+            reference_tests::Tensor(ET1, {8}, std::vector<T1>{2, 1, 0, 0, 2, 2, 1, 0}),
             0,
-            Tensor(ET1, {}, std::vector<T1>{3}),
-            Tensor(ET2, {}, std::vector<T2>{1}),
-            Tensor(ET2, {}, std::vector<T2>{0}),
-            Tensor(ET2, {3, 8}, std::vector<T2>{0, 0, 1, 1, 0, 0, 0, 1,
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{3}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{1}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{0}),
+            reference_tests::Tensor(ET2, {3, 8}, std::vector<T2>{0, 0, 1, 1, 0, 0, 0, 1,
                                                 0, 1, 0, 0, 0, 0, 1, 0,
                                                 1, 0, 0, 0, 1, 1, 0, 0}),
             "one_hot_vector_0"),
         OneHotParams(
-            Tensor(ET1, {8}, std::vector<T1>{2, 1, 0, 0, 2, 2, 1, 0}),
+            reference_tests::Tensor(ET1, {8}, std::vector<T1>{2, 1, 0, 0, 2, 2, 1, 0}),
             1,
-            Tensor(ET1, {}, std::vector<T1>{3}),
-            Tensor(ET2, {}, std::vector<T2>{1}),
-            Tensor(ET2, {}, std::vector<T2>{0}),
-            Tensor(ET2, {8, 3}, std::vector<T2>{0, 0, 1, 0, 1, 0, 1, 0,
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{3}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{1}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{0}),
+            reference_tests::Tensor(ET2, {8, 3}, std::vector<T2>{0, 0, 1, 0, 1, 0, 1, 0,
                                                 0, 1, 0, 0, 0, 0, 1, 0,
                                                 0, 1, 0, 1, 0, 1, 0, 0}),
             "one_hot_vector_1"),
         OneHotParams(
-            Tensor(ET1, {8}, std::vector<T1>{2, 1, 0, 0, 3, 2, 1, 0}),
+            reference_tests::Tensor(ET1, {8}, std::vector<T1>{2, 1, 0, 0, 3, 2, 1, 0}),
             1,
-            Tensor(ET1, {}, std::vector<T1>{3}),
-            Tensor(ET2, {}, std::vector<T2>{1}),
-            Tensor(ET2, {}, std::vector<T2>{0}),
-            Tensor(ET2, {8, 3}, std::vector<T2>{0, 0, 1, 0, 1, 0, 1, 0,
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{3}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{1}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{0}),
+            reference_tests::Tensor(ET2, {8, 3}, std::vector<T2>{0, 0, 1, 0, 1, 0, 1, 0,
                                                 0, 1, 0, 0, 0, 0, 0, 0,
                                                 0, 1, 0, 1, 0, 1, 0, 0}),
             "one_hot_vector_1_barely_oob"),
         OneHotParams(
-            Tensor(ET1, {3, 3}, std::vector<T1>{0, 1, 1, 2, 1, 0, 0, 2, 1}),
+            reference_tests::Tensor(ET1, {3, 3}, std::vector<T1>{0, 1, 1, 2, 1, 0, 0, 2, 1}),
             0,
-            Tensor(ET1, {}, std::vector<T1>{3}),
-            Tensor(ET2, {}, std::vector<T2>{1}),
-            Tensor(ET2, {}, std::vector<T2>{0}),
-            Tensor(ET2, {3, 3, 3}, std::vector<T2>{1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1,
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{3}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{1}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{0}),
+            reference_tests::Tensor(ET2, {3, 3, 3}, std::vector<T2>{1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1,
                                                    0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0}),
             "one_hot_matrix_0"),
         OneHotParams(
-            Tensor(ET1, {6}, std::vector<T1>{0, 11, 101, 1001, 10001, 19999}),
+            reference_tests::Tensor(ET1, {6}, std::vector<T1>{0, 11, 101, 1001, 10001, 19999}),
             1,
-            Tensor(ET1, {}, std::vector<T1>{20000}),
-            Tensor(ET2, {}, std::vector<T2>{1}),
-            Tensor(ET2, {}, std::vector<T2>{0}),
-            Tensor(ET2, {6, 20000}, generateExpectedValues({6, 20000},
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{20000}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{1}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{0}),
+            reference_tests::Tensor(ET2, {6, 20000}, generateExpectedValues({6, 20000},
                                                            std::vector<T2>{0, 11, 101, 1001, 10001, 19999},
                                                            20000)),
             "one_hot_vector_many_categories"),
@@ -179,12 +179,12 @@ std::vector<OneHotParams> generateParamsFloat() {
     using T2 = typename element_type_traits<ET2>::value_type;
     std::vector<OneHotParams> params {
         OneHotParams(
-            Tensor(ET1, {3, 3}, std::vector<T1>{0, 1, 1, 2, 1, 0, 0, 2, 1}),
+            reference_tests::Tensor(ET1, {3, 3}, std::vector<T1>{0, 1, 1, 2, 1, 0, 0, 2, 1}),
             0,
-            Tensor(ET1, {}, std::vector<T1>{3}),
-            Tensor(ET2, {}, std::vector<T2>{2.5}),
-            Tensor(ET2, {}, std::vector<T2>{0.5}),
-            Tensor(ET2, {3, 3, 3}, std::vector<T2>{
+            reference_tests::Tensor(ET1, {}, std::vector<T1>{3}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{2.5}),
+            reference_tests::Tensor(ET2, {}, std::vector<T2>{0.5}),
+            reference_tests::Tensor(ET2, {3, 3, 3}, std::vector<T2>{
                 2.5, 0.5, 0.5, 0.5, 0.5, 2.5, 2.5, 0.5, 0.5, 0.5, 2.5, 2.5, 0.5, 2.5,
                 0.5, 0.5, 0.5, 2.5, 0.5, 0.5, 0.5, 2.5, 0.5, 0.5, 0.5, 2.5, 0.5}),
             "one_hot_on_off_float"),

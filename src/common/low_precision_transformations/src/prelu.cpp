@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,8 +40,8 @@ bool PReluTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    prelu = NetworkHelper::separateInStandaloneBranch(prelu);
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, 0);
+    prelu = NetworkHelper::separateInStandaloneBranch(prelu, defaultPrecisions);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, defaultPrecisions, 0);
     moveDequantizationAfter(context, prelu, dequantization, false, false);
     return true;
 }
@@ -55,7 +55,7 @@ bool PReluTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, defaultPrecisions, 0);
     if (dequantization.empty() || (dequantization.subtract != nullptr)) {
         return false;
     }

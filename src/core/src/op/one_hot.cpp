@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,7 +115,7 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostT
     const auto& out_Pshape = output_values[0]->get_partial_shape();
     NGRAPH_CHECK(ind_Pshape.is_static() && out_Pshape.is_static(), "Only static input/output shapes are supported");
     const auto out_shape = out_Pshape.get_shape();
-    const size_t axis = get_axis();
+    const int64_t axis = get_axis();
     NGRAPH_CHECK(axis >= 0 && axis < out_shape.size(), "Invalid axis value.");
     const auto depth = std::make_shared<op::v0::Constant>(input_values[1])->cast_vector<int64_t>()[0];
     const auto ind_shape = ind_Pshape.get_shape();

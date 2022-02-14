@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,10 @@ NGRAPH_OP(FakeQuantize, op::v0)
 NGRAPH_OP(Gelu, op::v0)
 NGRAPH_OP(GRN, op::v0)
 NGRAPH_OP(HardSigmoid, op::v0)
+NGRAPH_OP(Interpolate, op::v0)
 NGRAPH_OP(LRN, ngraph::op::v0)
 NGRAPH_OP(LSTMCell, op::v0)
+NGRAPH_OP(LSTMSequence, op::v0)
 NGRAPH_OP(MVN, ngraph::op::v0)
 NGRAPH_OP(NormalizeL2, op::v0)
 NGRAPH_OP(PriorBox, ngraph::op::v0)
@@ -115,9 +117,12 @@ NGRAPH_OP(GatherND, op::v8)
 NGRAPH_OP(DetectionOutput, op::v8)
 NGRAPH_OP(NV12toRGB, op::v8)
 NGRAPH_OP(NV12toBGR, op::v8)
+NGRAPH_OP(I420toRGB, op::v8)
+NGRAPH_OP(I420toBGR, op::v8)
 
 NGRAPH_OP(Sigmoid, op::v0)
 NGRAPH_OP(Tanh, op::v0)
 NGRAPH_OP(Exp, op::v0)
 NGRAPH_OP(Log, op::v0)
 NGRAPH_OP(PriorBox, ngraph::op::v8)
+NGRAPH_OP(PRelu, op::v0)

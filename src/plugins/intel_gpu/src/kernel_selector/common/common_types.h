@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,6 +76,7 @@ enum class KernelType {
     NON_MAX_SUPPRESSION,
     DETECTION_OUTPUT,
     EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR,
+    EXPERIMENTAL_DETECTRON_TOPK_ROIS,
     CONVERT_COLOR,
     RANDOM_UNIFORM
 };
@@ -156,6 +157,7 @@ enum class ActivationFunction {
     HSWISH,
     MISH,
     GELU,
+    GELU_TANH,
     ROUND_HALF_TO_EVEN,
     ROUND_HALF_AWAY_FROM_ZERO
 };

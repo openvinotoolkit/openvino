@@ -6,6 +6,7 @@
    :maxdepth: 1
    :hidden:
    
+   openvino_docs_MO_DG_IR_and_opsets
    openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
    openvino_docs_MO_DG_Additional_Optimization_Use_Cases
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
@@ -19,7 +20,7 @@
 
 Model Optimizer is a cross-platform command-line tool that facilitates the transition between the training and deployment environment, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-Model Optimizer process assumes you have a network model trained using supported deep learning frameworks: Caffe*, TensorFlow*, Kaldi*, MXNet* or converted to the ONNX* format. Model Optimizer produces an Intermediate Representation (IR) of the network, which can be inferred with the [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
+Model Optimizer process assumes you have a network model trained using supported deep learning frameworks: Caffe*, TensorFlow*, Kaldi*, MXNet* or converted to the ONNX* format. Model Optimizer produces an Intermediate Representation (IR) of the network, which can be inferred with the [Inference Engine](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md).
 
 > **NOTE**: Model Optimizer does not infer models. Model Optimizer is an offline tool that runs before the inference takes place.
 
@@ -33,8 +34,8 @@ The IR is a pair of files describing the model:
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-> **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) (DL Workbench).
-> [DL Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) is a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
+> **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) (DL Workbench).
+> [DL Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) is a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
 
 ## Install Model Optimizer Pre-Requisites
 
@@ -636,15 +637,15 @@ mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 
 You need to have have write permissions for an output directory.
 
-> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](Converting_Model.md).
+> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md).
 
-To adjust the conversion process, you may use general parameters defined in the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) and 
+To adjust the conversion process, you may use general parameters defined in the [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md) and 
 framework-specific parameters for:
-* [Caffe](Convert_Model_From_Caffe.md)
-* [TensorFlow](Convert_Model_From_TensorFlow.md)
-* [MXNet](Convert_Model_From_MxNet.md)
-* [ONNX](Convert_Model_From_ONNX.md)
-* [Kaldi](Convert_Model_From_Kaldi.md)
+* [Caffe](prepare_model/convert_model/Convert_Model_From_Caffe.md)
+* [TensorFlow](prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+* [MXNet](prepare_model/convert_model/Convert_Model_From_MxNet.md)
+* [ONNX](prepare_model/convert_model/Convert_Model_From_ONNX.md)
+* [Kaldi](prepare_model/convert_model/Convert_Model_From_Kaldi.md)
 
 ## Videos
 

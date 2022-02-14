@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,14 +31,14 @@ PluginCache &PluginCache::get() {
     return instance;
 }
 
-std::shared_ptr<ov::runtime::Core> PluginCache::core(const std::string &deviceToCheck) {
+std::shared_ptr<ov::Core> PluginCache::core(const std::string &deviceToCheck) {
     std::lock_guard<std::mutex> lock(g_mtx);
     if (std::getenv("DISABLE_PLUGIN_CACHE") != nullptr) {
 #ifndef NDEBUG
         std::cout << "'DISABLE_PLUGIN_CACHE' environment variable is set. New Core object will be created!"
                   << std::endl;
 #endif
-        return std::make_shared<ov::runtime::Core>();
+        return std::make_shared<ov::Core>();
     }
 #ifndef NDEBUG
     std::cout << "Access PluginCache ov core. OV Core use count: " << ov_core.use_count() << std::endl;
@@ -48,24 +48,24 @@ std::shared_ptr<ov::runtime::Core> PluginCache::core(const std::string &deviceTo
 #ifndef NDEBUG
         std::cout << "Created ov core." << std::endl;
 #endif
-        ov_core = std::make_shared<ov::runtime::Core>();
+        ov_core = std::make_shared<ov::Core>();
     }
     assert(0 != ov_core.use_count());
 
     // register template plugin if it is needed
     try {
-        std::string pluginName = "ov_template_plugin";
+        std::string pluginName = "openvino_template_plugin";
         pluginName += IE_BUILD_POSTFIX;
         ov_core->register_plugin(pluginName, "TEMPLATE");
     } catch (...) {
     }
 
     if (!deviceToCheck.empty()) {
-        std::vector<std::string> metrics = ov_core->get_metric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS));
+        auto properties = ov_core->get_property(deviceToCheck, ov::supported_properties);
 
-        if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(AVAILABLE_DEVICES)) != metrics.end()) {
-            std::vector<std::string> availableDevices =
-                    ov_core->get_metric(deviceToCheck, METRIC_KEY(AVAILABLE_DEVICES));
+        if (std::find(properties.begin(), properties.end(), ov::available_devices) != properties.end()) {
+            auto availableDevices =
+                    ov_core->get_property(deviceToCheck, ov::available_devices);
 
             if (availableDevices.empty()) {
                 std::cerr << "No available devices for " << deviceToCheck << std::endl;

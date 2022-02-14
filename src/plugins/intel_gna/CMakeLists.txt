@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ov_intel_gna_plugin")
+set(TARGET_NAME "openvino_intel_gna_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
@@ -57,7 +57,7 @@ target_compile_definitions(${TARGET_NAME}_test_static
             INTEGER_LOW_P
             USE_STATIC_IE)
 
-target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s inference_engine_preproc_s inference_engine_transformations libGNA::API)
+target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s openvino_gapi_preproc_s inference_engine_transformations libGNA::API)
 target_include_directories(${TARGET_NAME}_test_static
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -75,7 +75,7 @@ file(GLOB_RECURSE gna_libraries "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_L
 set(gna_library_installed OFF)
 
 foreach(lib IN LISTS gna_libraries)
-    if(lib MATCHES "^.*${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$")
+    if(lib MATCHES "^.*${CMAKE_SHARED_LIBRARY_SUFFIX}\(\.[0-9]+\)?$")
         install(FILES ${lib}
                 DESTINATION ${IE_CPACK_RUNTIME_PATH}
                 COMPONENT gna)
@@ -85,4 +85,20 @@ endforeach()
 
 if(NOT gna_library_installed)
     message(FATAL_ERROR "Failed to install GNA library (available libraries: ${gna_libraries})")
+endif()
+
+# additional install rules for case of shared libraries
+
+if(NOT BUILD_SHARED_LIBS)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${CMAKE_BINARY_DIR} COPYONLY)
+    install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
+            DESTINATION runtime/cmake
+            COMPONENT gna)
+
+    if(WIN32)
+        file(GLOB_RECURSE gna_libraries "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        install(FILES ${gna_libraries}
+                DESTINATION ${IE_CPACK_LIBRARY_PATH}
+                COMPONENT gna)
+    endif()
 endif()
