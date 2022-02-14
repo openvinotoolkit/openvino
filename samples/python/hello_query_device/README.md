@@ -1,8 +1,8 @@
 # Hello Query Device Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README}
 
-This sample demonstrates how to show Inference Engine devices and prints their metrics and default configuration values using [Query Device API feature](../../../docs/OV_Runtime_UG/InferenceEngine_QueryAPI.md).
+This sample demonstrates how to show OpenVINO™ Runtime devices and prints their metrics and default configuration values using [Query Device API feature](../../../docs/OV_Runtime_UG/InferenceEngine_QueryAPI.md).
 
-The following Inference Engine Python API is used in the application:
+The following Python API is used in the application:
 
 | Feature      | API                                                                                                               | Description           |
 | :----------- | :---------------------------------------------------------------------------------------------------------------- | :-------------------- |
@@ -16,7 +16,7 @@ The following Inference Engine Python API is used in the application:
 
 ## How It Works
 
-The sample queries all available Inference Engine devices and prints their supported metrics and plugin configuration parameters.
+The sample queries all available OpenVINO™ Runtime devices and prints their supported metrics and plugin configuration parameters.
 
 ## Running
 

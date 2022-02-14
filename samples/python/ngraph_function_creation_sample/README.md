@@ -2,7 +2,7 @@
 
 This sample demonstrates how to run inference using a [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.  
 
-The following Inference Engine Python API is used in the application:
+The following Python API is used in the application:
 
 | Feature          | API                                                                                                                                                                                                                                                                                                               | Description                                             |
 | :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ |
@@ -23,12 +23,12 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample
 At startup, the sample application does the following:
 - Reads command line parameters
 - [Build a Model](../../../docs/OV_Runtime_UG/model_representation.md) and passed weights file
-- Loads the model and input data to the Inference Engine plugin
+- Loads the model and input data to the OpenVINO™ Runtime plugin
 - Performs synchronous inference and processes output data, logging each step in a standard output stream
 
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the OpenVINO™ Runtime with Your Application" guide.
 
 ## Running
 
@@ -127,7 +127,7 @@ The sample application logs each step in a standard output stream and outputs 10
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
