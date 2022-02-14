@@ -46,9 +46,10 @@ struct reshape : public primitive_base<reshape> {
     reshape(const primitive_id& id,
             const primitive_id& input,
             const primitive_id& shape_id,
+            const ov::PartialShape& output_shape,
             const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input, shape_id}, ext_prim_id, output_padding) {}
+        : primitive_base(id, {input, shape_id}, ext_prim_id, output_padding), output_shape(output_shape) {}
 
     /// @brief Requested memory shape.
     ov::PartialShape output_shape = {};

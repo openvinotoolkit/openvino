@@ -594,7 +594,7 @@ TEST(reshape_gpu_f32, basic_runtime_static_shape) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(shape_of("shape_of_input", "input", data_types::i32));
     topology.add(reduce("reduced_shape", "shape_of_input", reduce_mode::prod, {0}, true));
-    topology.add(reshape("reshape", "input", "reduced_shape"));
+    topology.add(reshape("reshape", "input", "reduced_shape", {}));
 
     // clang-format off
     std::vector<float> input_data = {
@@ -619,6 +619,105 @@ TEST(reshape_gpu_f32, basic_runtime_static_shape) {
 
     EXPECT_TRUE(output->get_layout().data_type == input->get_layout().data_type);
     EXPECT_TRUE(output->get_layout().format == input->get_layout().format);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), input_data.size());
+
+    for (size_t i = 0; i < input_data.size(); i++) {
+        EXPECT_TRUE(are_equal(input_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
+    // input:  bfwzyx, (3, 3, 2, 2, 1, 1)
+    // reshape: (1, 1, 2, 2, 3, 3), pad (0, 0, 0, 0, 0, 1)
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory(layout{data_types::f32, format::bfwzyx, tensor{batch(3), feature(3), spatial(1, 1, 2, 2)}});
+
+    topology topology;
+    topology.add(input_layout("input", layout{data_types::f32, format::bfwzyx, ov::PartialShape::dynamic()}));
+    topology.add(shape_of("shape_of_input", "input", data_types::i32));
+    topology.add(reduce("reduced_shape", "shape_of_input", reduce_mode::prod, {0}, true));
+    topology.add(reshape("reshape", "input", "reduced_shape", ov::PartialShape::dynamic()));
+
+    // clang-format off
+    std::vector<float> input_data = {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    };
+
+    // clang-format on
+
+    set_values(input, input_data);
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reshape");
+
+    auto output = outputs.at("reshape").get_memory();
+
+    EXPECT_TRUE(output->get_layout().data_type == input->get_layout().data_type);
+    EXPECT_TRUE(output->get_layout().format == input->get_layout().format);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), input_data.size());
+
+    for (size_t i = 0; i < input_data.size(); i++) {
+        EXPECT_TRUE(are_equal(input_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
+    // input:  bfwzyx, (3, 3, 2, 2, 1, 1)
+    // reshape: (1, 1, 2, 2, 3, 3), pad (0, 0, 0, 0, 0, 1)
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory(layout{data_types::f32, format::bfwzyx, tensor{batch(3), feature(3), spatial(1, 1, 2, 2)}});
+    auto const_shape = engine.allocate_memory({data_types::i32, format::bfyx, ov::PartialShape{2}});
+
+    set_values<int32_t>(const_shape, {-1, 3});
+
+    topology topology;
+    topology.add(input_layout("input", layout{data_types::f32, format::bfwzyx, ov::PartialShape::dynamic()}));
+    topology.add(data("const", const_shape));
+    topology.add(reshape("reshape", "input", "const", ov::PartialShape::dynamic()));
+
+    // clang-format off
+    std::vector<float> input_data = {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    };
+
+    // clang-format on
+
+    set_values(input, input_data);
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reshape");
+
+    auto output = outputs.at("reshape").get_memory();
+
+    EXPECT_TRUE(output->get_layout().data_type == input->get_layout().data_type);
+    EXPECT_TRUE(output->get_layout().format == input->get_layout().format);
+    EXPECT_TRUE(output->get_layout().is_static());
+    std::vector<int32_t> ref_dims = {12, 3, 1, 1, 1, 1};
+    EXPECT_EQ(output->get_layout().get_dims(), ref_dims);
+    ov::PartialShape ref_pshape = {12, 3};
+    EXPECT_EQ(output->get_layout().size, ref_pshape);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());

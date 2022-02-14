@@ -183,6 +183,10 @@ bool layout::is_dynamic() const {
     return size.is_dynamic();
 }
 
+bool layout::is_static() const {
+    return !is_dynamic();
+}
+
 tensor layout::get_buffer_size() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");

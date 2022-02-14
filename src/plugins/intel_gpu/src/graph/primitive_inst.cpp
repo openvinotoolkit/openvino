@@ -9,7 +9,6 @@
 #include "input_layout_inst.h"
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
-#include "reshape_inst.h"
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -84,6 +83,7 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
 }
 
 static bool on_shape_path_for_reshape(const program_node& node) {
+    return true;
     const std::list<const program_node*>& users = node.get_users();
     for (const auto& user : users) {
         if (user->is_type<reshape>() && user->get_dependencies().size() == 2 && &node == &user->get_dependency(1))
@@ -94,36 +94,14 @@ static bool on_shape_path_for_reshape(const program_node& node) {
 
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
-static std::vector<int64_t> read_vector(cldnn::memory::ptr mem, cldnn::stream& stream) {
-    switch (mem->get_layout().data_type) {
-        case data_types::i32: {
-            mem_lock<int32_t, mem_lock_type::read> lock{mem, stream};
-            return std::vector<int64_t>(lock.begin(), lock.end());
-        }
-        case data_types::i64: {
-            mem_lock<int64_t, mem_lock_type::read> lock{mem, stream};
-            return std::vector<int64_t>(lock.begin(), lock.end());
-        }
-        default: IE_THROW() << "read_vector: unsupported data type";
-    }
-}
-
 void primitive_inst::update_shape() {
     // Do nothing for static nodes
     // if (!_node.is_dynamic())
     //     return;
 
-    if (_node.is_type<reshape>() && _node.get_dependencies().size() == 2) {
-        auto shape_mem = _network.get_output_memory(_node.get_dependency(1).id());
-        if (shape_mem->get_allocation_type() == allocation_type::usm_device) {
-            IE_THROW() << " lockable memory is required to update shape for reshape prim\n";
-        }
-        auto reshape_prim = std::static_pointer_cast<reshape>(std::const_pointer_cast<primitive>(_node.get_primitive()));
-        reshape_prim->output_shape = ov::PartialShape(read_vector(shape_mem, _network.get_stream()));
-    }
-
     auto new_layout = _node.type()->calc_output_layout(_node);
     // TODO: Get rid of this const_cast ASAP
+    std::cerr << id() << " update shape: " << new_layout.size << std::endl;
     const_cast<program_node&>(_node).set_output_layout(new_layout);
     reset_shape_change();
 }
@@ -138,7 +116,6 @@ void primitive_inst::realloc_if_needed() {
 }
 
 void primitive_inst::update_impl() {
-    update_shape();
     if (!_node.is_type<data>() && !(_node.is_type<mutable_data>() && _node.get_dependencies().empty())) {
         std::cerr << "update impl for node " << id() << std::endl;
         _impl = std::move(_node.type()->choose_impl(_node));
@@ -208,7 +185,30 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                      "Invalid/unset input",
                      !_has_valid_input,
                      "Cannot execute primitive " + primitive_id + " with invalid/unset input");
+
+    static std::mutex m;
+    {
+        // Lock for program nodes
+        // To be removed once concurrency issue for program node is resolved
+        std::lock_guard<std::mutex> lock(m);
+        update_shape();
+        update_impl();
+        realloc_if_needed();
+    }
+
     on_execute();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        GPU_DEBUG_COUT << "Execute " << id() << ", memory type: "
+                       << output_memory().get_allocation_type() << std::endl;
+    }
+
+    // If a node has mutable input or it's an output, then the input/output buffers might be changed
+    // So we need to set arguments on each execution.
+    // if (has_mutable_input() || is_output() || is_dynamic()) {
+        set_arguments();
+    // }
 
     if (_exec_deps.empty())
         return _impl->execute(events, *this);

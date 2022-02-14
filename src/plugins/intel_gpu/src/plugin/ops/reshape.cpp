@@ -51,7 +51,7 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
         reshapeInputId = reorderId;
     }
 
-    if (out_shape.is_static()) {
+    if (op->get_input_size() == 1 || out_shape.is_static()) {
         auto reshapePrim = cldnn::reshape(layerName,
                                           reshapeInputId,
                                           out_shape,
@@ -63,6 +63,7 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
         auto reshapePrim = cldnn::reshape(layerName,
                                           reshapeInputId,
                                           shape_prim_id,
+                                          out_shape,
                                           op->get_friendly_name());
 
         p.AddPrimitive(reshapePrim);

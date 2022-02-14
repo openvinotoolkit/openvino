@@ -20,6 +20,7 @@ struct typed_program_node<reshape> : public typed_program_node_base<reshape> {
         support_padding_all(true);
     }
 
+    mutable bool _shape_ready = false;
 public:
     using parent::parent;
 
@@ -33,6 +34,10 @@ public:
             return false;
         return (!this->get_output_layout().data_padding && !input().get_output_layout(false).data_padding);
     }
+
+    void set_shape_ready() { _shape_ready = true; }
+    void reset_shape_ready() const { _shape_ready = false; }
+    bool get_shape_ready() const { return _shape_ready; }
 };
 
 using reshape_node = typed_program_node<reshape>;
@@ -45,11 +50,12 @@ public:
     static layout calc_output_layout(reshape_node const& node);
     static std::string to_string(reshape_node const& node);
 
-public:
     typed_primitive_inst(network& network, reshape_node const& node);
 
 private:
     void on_execute() override;
+
+    void update_shape() override;
 
     void reuse_input();
 };

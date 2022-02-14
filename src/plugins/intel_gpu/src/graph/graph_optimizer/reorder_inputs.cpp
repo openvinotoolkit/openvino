@@ -272,7 +272,9 @@ reorder_cnt count_reorders_in_dir(const std::map<program_node*, format::type>& f
                                   travel_direction_wrapper<dir>::first(sel_fmt, next_fmt),
                                   travel_direction_wrapper<dir>::second(sel_fmt, next_fmt)))) {
             cnt += 1;
-            size += travel_direction_wrapper<dir>::first(node, next)->get_output_layout().count();
+            auto l = travel_direction_wrapper<dir>::first(node, next)->get_output_layout();
+            if (l.is_static())
+                size += l.count();
         }
     }
 

@@ -447,6 +447,7 @@ struct layout {
     static cldnn::format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
 
     bool is_dynamic() const;
+    bool is_static() const;
 
     tensor get_tensor() const;
 };
