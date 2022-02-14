@@ -206,7 +206,6 @@ int main(int argc, char* argv[]) {
                     std::stringstream strm;
                     strm << ov::hint::PerformanceMode::THROUGHPUT;
                     FLAGS_hint = strm.str();
-                    dbg(FLAGS_hint);
                 }
             }
         }
