@@ -203,7 +203,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
         emptyFusingSpec,
         // eltwise
         fusingRelu,
-        fusingPRelu1D,
+        fusingPRelu1DScaleShift,
         // depthwise
         fusingReluScaleShift,
         // fake quantize
@@ -221,7 +221,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         // eltwise
         fusingRelu,
         // depthwise
-        fusingReluScaleShift,
+        fusingPRelu1DScaleShift,
         // sum
         fusingSum,
         // bias
