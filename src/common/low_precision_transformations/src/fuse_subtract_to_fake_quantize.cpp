@@ -9,6 +9,7 @@
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -89,6 +90,10 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
     }
 
     if (!FakeQuantizeTransformation::checkElementwise(operation)) {
+        return false;
+    }
+
+    if (!getAttribute<SkipCleanupAttribute>(operation).empty()) {
         return false;
     }
 
