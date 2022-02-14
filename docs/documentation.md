@@ -7,7 +7,7 @@
    :caption: Importing Models to OpenVINO™ Toolkit
    :hidden:
    
-   openvino_docs_importing_models
+   openvino_docs_importing_models_introduction
    openvino_docs_model_inputs_outputs
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
    openvino_docs_HOWTO_Custom_Layers_Guide
