@@ -183,7 +183,7 @@ def main():
     input_file_names = re.split(', |,', args.input)
 
     if len(input_layer_names) != len(input_file_names):
-        log.error(f'Number of network inputs ({len(compiled_model.inputs)}) is not equal '
+        log.error(f'Number of model inputs ({len(compiled_model.inputs)}) is not equal '
                   f'to number of ark files ({len(input_file_names)})')
         sys.exit(-3)
 
@@ -209,14 +209,14 @@ def main():
         output_file_names = re.split(', |,', args.output)
 
         if len(output_layer_names) != len(output_file_names):
-            log.error('The number of output files is not equal to the number of network outputs.')
+            log.error('The number of output files is not equal to the number of model outputs.')
             sys.exit(-6)
 
     if args.reference:
         reference_file_names = re.split(', |,', args.reference)
 
         if len(output_layer_names) != len(reference_file_names):
-            log.error('The number of reference files is not equal to the number of network outputs.')
+            log.error('The number of reference files is not equal to the number of model outputs.')
             sys.exit(-5)
 
         reference_file_data = [read_utterance_file(file_name) for file_name in reference_file_names]

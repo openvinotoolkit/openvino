@@ -64,7 +64,7 @@ def main() -> int:
     core = Core()
 
 # --------------------------- Step 2. Read a model --------------------------------------------------------------------
-    log.info(f'Reading the network: {args.model}')
+    log.info(f'Reading the model: {args.model}')
     # (.xml and .bin files) or (.onnx file)
     model = core.read_model(args.model)
 

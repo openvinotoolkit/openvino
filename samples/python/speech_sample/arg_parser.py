@@ -33,7 +33,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
     args.add_argument('-sf', '--scale_factor', type=str,
                       help='Optional. The user-specified input scale factor for quantization. '
-                      'If the network contains multiple inputs, provide scale factors by separating them with commas.')
+                      'If the model contains multiple inputs, provide scale factors by separating them with commas.')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
     args.add_argument('-we', '--export_embedded_gna_model', type=str,
@@ -59,11 +59,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
                       'Allows to change the order of output layers for -o flag. Example: Output1:port,Output2:port.')
     args.add_argument('-cw_l', '--context_window_left', type=int, default=0,
                       help='Optional. Number of frames for left context windows (default is 0). '
-                      'Works only with context window networks. '
+                      'Works only with context window models. '
                       'If you use the cw_l or cw_r flag, then batch size argument is ignored.')
     args.add_argument('-cw_r', '--context_window_right', type=int, default=0,
                       help='Optional. Number of frames for right context windows (default is 0). '
-                      'Works only with context window networks. '
+                      'Works only with context window models. '
                       'If you use the cw_l or cw_r flag, then batch size argument is ignored.')
     args.add_argument('-pwl_me', type=float, default=1.0,
                       help='Optional. The maximum percent of error for PWL function. '
