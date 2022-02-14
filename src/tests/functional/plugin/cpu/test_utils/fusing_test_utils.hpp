@@ -355,12 +355,29 @@ const auto fusingDividePerChannel = fusingSpecificParams{std::make_shared<postNo
         }, "Divide(PerChannel)"}}), {"Divide"}};
 
 const auto fusingPRelu1D = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-    {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-        auto shape = inpNode->get_output_partial_shape(0);
-        ngraph::Shape newShape({static_cast<size_t>(shape[1].get_length())});
-        auto data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(newShape));
-        return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::LeakyRelu, newShape, data);
-    }, "PRelu1D"}}), {"PRelu"}};
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            auto shape = inpNode->get_output_partial_shape(0);
+            ngraph::Shape newShape({static_cast<size_t>(shape[1].get_length())});
+            auto data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(newShape));
+            return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::LeakyRelu, newShape, data);
+        }, "PRelu1D"}}), {"PRelu"}};
+const auto fusingPRelu1DScaleShift = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            auto shape = inpNode->get_output_partial_shape(0);
+            ngraph::Shape newShape({static_cast<size_t>(shape[1].get_length())});
+            auto data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(newShape));
+            return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::LeakyRelu, newShape, data);
+        }, "PRelu1D"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
+                auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
+                return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+        }, "Multiply(PerChannel)"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
+                auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
+                return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+        }, "Add(PerChannel)"}}), {"Add"} };
 
 const auto fusingBias = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {

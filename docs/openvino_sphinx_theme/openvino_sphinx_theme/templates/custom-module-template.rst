@@ -3,6 +3,7 @@
 .. automodule:: {{ fullname }}
   
 {% block attributes %}
+{% if attributes %}
    .. rubric:: Module Attributes
 
    .. autosummary::
@@ -10,9 +11,11 @@
    {% for attr in attributes %}
       {{ attr }}
    {% endfor %}
+{% endif %}
 {% endblock %}
 
 {% block functions %}
+{% if functions %}
    .. rubric:: Functions
 
    .. autosummary::
@@ -20,9 +23,11 @@
    {% for func in functions %}
       {{ func }}
    {%- endfor %}
+{% endif %}
 {% endblock %}
 
 {% block classes %}
+{% if classes %}
    .. rubric:: Classes
 
    .. autosummary::
@@ -31,9 +36,11 @@
    {% for cl in classes %}
       {{ cl }}
    {%- endfor %}
+{% endif %}
 {% endblock %}
 
 {% block exceptions %}
+{% if exceptions %}
    .. rubric:: Exceptions
 
    .. autosummary::
@@ -41,9 +48,11 @@
    {% for item in exceptions %}
       {{ item }}
    {%- endfor %}
+{% endif %}
 {% endblock %}
 
 {% block modules %}
+{% if modules %}
 .. rubric:: Modules
 
 .. autosummary::
@@ -53,4 +62,5 @@
 {% for mod in modules %}
    {{ mod }}
 {%- endfor %}
+{% endif %}
 {% endblock %}
