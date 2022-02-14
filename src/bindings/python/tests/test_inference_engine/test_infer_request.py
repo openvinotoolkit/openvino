@@ -9,7 +9,8 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, Type
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
+from openvino.runtime import Type, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
 from ..conftest import model_path, read_image
@@ -158,6 +159,67 @@ def test_set_tensors(device):
     request.set_output_tensor(0, tensor4)
     t9 = request.get_tensor(request.model_outputs[0])
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
+
+
+@pytest.mark.dynamic_library
+@pytest.mark.template_extension
+def test_batched_tensors(device):
+    batch = 4
+    one_shape = Shape([1, 2, 2, 2])
+    batch_shape = Shape([batch, 2, 2, 2])
+    one_shape_size = np.prod(one_shape)
+
+    core = Core()
+
+    core.register_plugin("openvino_template_plugin", "TEMPLATE")
+
+    data1 = ops.parameter(batch_shape, np.float32)
+    data1.set_friendly_name("input0")
+    data1.get_output_tensor(0).set_names({"tensor_input0"})
+    data1.set_layout(Layout("N..."))
+
+    constant = ops.constant([1], np.float32)
+
+    op1 = ops.add(data1, constant)
+    op1.set_friendly_name("Add0")
+
+    res1 = ops.result(op1)
+    res1.set_friendly_name("Result0")
+    res1.get_output_tensor(0).set_names({"tensor_output0"})
+
+    model = Model([res1], [data1])
+
+    compiled = core.compile_model(model, "TEMPLATE")
+
+    buffer = np.zeros([one_shape_size * batch * 2], dtype=np.float32)
+
+    req = compiled.create_infer_request()
+
+    tensors = []
+
+    for i in range(0, batch):
+        _start = i * one_shape_size * 2
+        # Use of special constructor for Tensor.
+        # It creates a Tensor from pointer, thus it requires only
+        # one element from original buffer, and shape to "crop".
+        tensor = Tensor(buffer[_start:(_start + 1)], one_shape)
+        tensors.append(tensor)
+
+    req.set_input_tensors(tensors)  # using list overload!
+
+    actual_tensor = req.get_tensor("tensor_output0")
+    actual = actual_tensor.data
+    for test_num in range(0, 5):
+        for i in range(0, batch):
+            tensors[i].data[:] = test_num + 10
+
+        req.infer()  # Adds '1' to each element
+
+        # Reference values for each batch:
+        _tmp = np.array([test_num + 11] * one_shape_size, dtype=np.float32).reshape([2, 2, 2])
+
+        for j in range(0, batch):
+            assert np.array_equal(actual[j], _tmp)
 
 
 def test_inputs_outputs_property(device):
