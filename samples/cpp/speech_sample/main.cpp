@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
         // -------------------------------------
         ov::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
-        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
+        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0 || !FLAGS_bs) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
         std::vector<std::string> outputs;
         std::vector<size_t> ports;
@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
                     std::any_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& i) {
                         return (dynamic_cast<const ov::op::v0::Parameter&>(*i.get_node()).get_layout()).empty();
                     }))
-                    slog::warn << "Layout is not set for any input, so custom batch size is not set." << slog::endl;
+                    slog::err << "Layout is not set for any input, so custom batch size is not set." << slog::endl;
                 else {
                     ov::set_batch(model, batchSize);
                 }
