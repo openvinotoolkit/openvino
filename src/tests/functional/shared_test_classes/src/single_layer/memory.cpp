@@ -36,6 +36,8 @@ namespace LayerTestsDefinitions {
 
     void MemoryTest::SetUp() {
         std::tie(transformation, iteration_count, inputShape, netPrecision, targetDevice) = this->GetParam();
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
         ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         if (transformation == ngraph::helpers::MemoryTransformation::NONE) {

@@ -109,6 +109,9 @@ std::string HeteroSyntheticTest::getTestCaseName(const ::testing::TestParamInfo<
 
 void HeteroSyntheticTest::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Precision netPrecision;
+    outPrc.front() = netPrecision;
+    outPrc.push_back(netPrecision);
     auto& param = GetParam();
     targetDevice = "HETERO:";
     int num = std::get<Plugin>(param).size() - 1;
