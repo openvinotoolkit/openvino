@@ -59,7 +59,7 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size = 0);
+    static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output);
 
 private:
     std::shared_ptr<MemoryDesc> input;
