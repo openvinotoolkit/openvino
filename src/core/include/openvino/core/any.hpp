@@ -685,7 +685,8 @@ public:
                                          " to ",
                                          static_cast<std::string>(T::element_type::get_type_info_static()));
                 }
-                _temp = std::make_shared<decay_t<T>>(std::static_pointer_cast<typename T::element_type>(runtime_attribute));
+                _temp =
+                    std::make_shared<decay_t<T>>(std::static_pointer_cast<typename T::element_type>(runtime_attribute));
                 return *static_cast<decay_t<T>*>(_temp.get());
             }
         }
@@ -697,7 +698,8 @@ public:
      * @return casted object
      */
     template <class T>
-    const typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type& as() const {
+    const typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type& as()
+        const {
         if (_impl == nullptr) {
             _temp = std::make_shared<decay_t<T>>(T{});
             return *static_cast<decay_t<T>*>(_temp.get());
@@ -722,7 +724,8 @@ public:
                                          " to ",
                                          static_cast<std::string>(T::element_type::get_type_info_static()));
                 }
-                _temp = std::make_shared<decay_t<T>>(std::static_pointer_cast<typename T::element_type>(runtime_attribute));
+                _temp =
+                    std::make_shared<decay_t<T>>(std::static_pointer_cast<typename T::element_type>(runtime_attribute));
                 return *static_cast<decay_t<T>*>(_temp.get());
             }
         }
@@ -735,8 +738,7 @@ public:
      */
     template <class T>
     typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value &&
-                                (util::Istreamable<T>::value || util::Readable<T>::value),
+                                !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
                             T>::type&
     as() {
         impl_check();
@@ -763,8 +765,7 @@ public:
      */
     template <class T>
     const typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                      !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value &&
-                                      (util::Istreamable<T>::value || util::Readable<T>::value),
+                                      !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
                                   T>::type&
     as() const {
         impl_check();
@@ -791,9 +792,7 @@ public:
      */
     template <class T>
     typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                !std::is_same<T, std::string>::value &&
-                                (!std::is_default_constructible<T>::value ||
-                                   (!util::Istreamable<T>::value && !util::Readable<T>::value)),
+                                !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
                             T>::type&
     as() {
         impl_check();
@@ -815,9 +814,7 @@ public:
      */
     template <class T>
     const typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                      !std::is_same<T, std::string>::value &&
-                                      (!std::is_default_constructible<T>::value ||
-                                          (!util::Istreamable<T>::value && !util::Readable<T>::value)),
+                                      !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
                                   T>::type&
     as() const {
         impl_check();
