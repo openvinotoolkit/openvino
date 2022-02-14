@@ -1585,8 +1585,8 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
 
 void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
     std::set<MKLDNNNodePtr> processed;
-    int graphNodesSize = graph.GetNodes().size();
-    for (int i = 0; i < graphNodesSize; i++) {
+    std::size_t graphNodesSize = graph.GetNodes().size();
+    for (std::size_t i = 0; i < graphNodesSize; i++) {
         MKLDNNNodePtr& node = graph.GetNodes()[i];
         if (processed.find(node) == processed.end() && node->getType() == Reorder
             && node->getChildEdges().size() == 1
