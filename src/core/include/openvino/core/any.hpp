@@ -735,7 +735,8 @@ public:
      */
     template <class T>
     typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
+                                !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value &&
+                                (util::Istreamable<T>::value || util::Readable<T>::value),
                             T>::type&
     as() {
         impl_check();
@@ -762,7 +763,8 @@ public:
      */
     template <class T>
     const typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                      !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value,
+                                      !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value &&
+                                      (util::Istreamable<T>::value || util::Readable<T>::value),
                                   T>::type&
     as() const {
         impl_check();
@@ -789,7 +791,9 @@ public:
      */
     template <class T>
     typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
+                                !std::is_same<T, std::string>::value &&
+                                (!std::is_default_constructible<T>::value ||
+                                   (!util::Istreamable<T>::value && !util::Readable<T>::value)),
                             T>::type&
     as() {
         impl_check();
@@ -811,7 +815,9 @@ public:
      */
     template <class T>
     const typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                      !std::is_same<T, std::string>::value && !std::is_default_constructible<T>::value,
+                                      !std::is_same<T, std::string>::value &&
+                                      (!std::is_default_constructible<T>::value ||
+                                          (!util::Istreamable<T>::value && !util::Readable<T>::value)),
                                   T>::type&
     as() const {
         impl_check();
@@ -978,6 +984,18 @@ public:
         impl_check();
         return _impl.get();
     }
+
+    /**
+     * @brief Returns addres to internal value if any is not empty and `nullptr` instead
+     * @return address to internal stored value
+     */
+    void* addressof();
+
+    /**
+     * @brief Returns addres to internal value if any is not empty and `nullptr` instead
+     * @return address to internal stored value
+     */
+    const void* addressof() const;
 };
 
 /** @cond INTERNAL */

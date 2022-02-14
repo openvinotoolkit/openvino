@@ -535,3 +535,10 @@ TEST_F(AnyTests, NotIntFromStringThrow) {
     ASSERT_TRUE(p.is<std::string>());
     ASSERT_THROW(p.as<int>(), ov::Exception);
 }
+
+TEST_F(AnyTests, AddressofNoThrow) {
+    Any p;
+    ASSERT_EQ(nullptr, p.addressof());
+    p = 42;
+    ASSERT_NE(nullptr, p.addressof());
+}
