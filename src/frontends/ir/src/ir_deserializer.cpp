@@ -608,6 +608,20 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
     return params;
 }
 
+// Symmetric function to translate type name.
+// See translate_type_name in src/core/src/pass/serialize.cpp.
+static const std::string& translate_type_name(const std::string& name) {
+    static const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Const", "Constant"},
+                                                                                                {"PReLU", "PRelu"},
+                                                                                                {"ReLU", "Relu"},
+                                                                                                {"SoftMax", "Softmax"}};
+    auto found = translate_type_name_translator.find(name);
+    if (found != end(translate_type_name_translator)) {
+        return found->second;
+    }
+    return name;
+}
+
 std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     const std::vector<ngraph::Output<ngraph::Node>>& inputs,
     const pugi::xml_node& node,
@@ -623,8 +637,10 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
                        << " has undefined element type for input with index " << i << "!";
     }
 
+    const std::string& type_name = translate_type_name(params.type);
+
     std::shared_ptr<ngraph::Node> ngraphNode;
-    ov::DiscreteTypeInfo type(params.type.c_str(), 0, params.version.c_str());
+    ov::DiscreteTypeInfo type(type_name.c_str(), 0, params.version.c_str());
     auto extensionIt = m_extensions.find(type);
 
     if (extensionIt != m_extensions.end()) {
@@ -646,17 +662,15 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
         "RNNCell",
         "Proposal"};
 
-    if (experimental_ops_added_to_opset.count(params.type) &&
+    if (experimental_ops_added_to_opset.count(type_name) &&
         (params.version == "experimental" || params.version == "extension")) {
         opsetIt = m_opsets.find("opset6");
     }
 
     if (!ngraphNode && opsetIt != m_opsets.end()) {
-        auto const& type = params.type == "Const" ? "Constant" : params.type;
-
         if (params.version == "opset1") {
             // MVN, ROIPooling and ReorgYolo were missing in opset1
-            if (type == "MVN" || type == "ROIPooling" || type == "ReorgYolo") {
+            if (type_name == "MVN" || type_name == "ROIPooling" || type_name == "ReorgYolo") {
                 opsetIt = m_opsets.find("opset2");
                 if (opsetIt == m_opsets.end()) {
                     IE_THROW() << "Cannot create " << params.type << " layer " << params.name
@@ -667,9 +681,9 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
 
         auto const& opset = opsetIt->second;
 
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type_name));
         if (!ngraphNode) {
-            IE_THROW() << "Opset " << params.version << " doesn't contain the operation with type: " << type;
+            IE_THROW() << "Opset " << params.version << " doesn't contain the operation with type: " << type_name;
         }
         // Share Weights form constant blob
         if (auto constant = std::dynamic_pointer_cast<ngraph::op::Constant>(ngraphNode)) {
