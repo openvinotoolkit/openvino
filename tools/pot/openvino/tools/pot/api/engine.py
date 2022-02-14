@@ -25,6 +25,7 @@ class Engine(ABC):
         self._stat_requests_number = self.config.get('stat_requests_number', None)
         self._eval_requests_number = self.config.get('eval_requests_number', None)
         self.inference_for_shape = False
+        self.calculate_metrics = True
 
     def set_model(self, model):
         """ Set/reset model to instance of engine class
