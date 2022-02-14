@@ -55,6 +55,7 @@ class CompressedModel:
                 self._models.append({'model': load_graph(model_config_, target_device)})
                 if len(model_config.cascade) > 1:
                     self._models[-1]['name'] = model_dict.name
+                    self._models[-1]['model'].name = model_dict.name
         else:
             self._models.append({'model': load_graph(model_config, target_device)})
 
