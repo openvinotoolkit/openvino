@@ -61,6 +61,8 @@ public:
 
     bool isWinograd() const { return isWino; }
 
+    void setDynamicBatchLim(int lim) override;
+
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
@@ -86,7 +88,7 @@ private:
     void execute(mkldnn::stream strm) override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
-    void addZeroPoints(mkldnn::primitive_attr& attr) const;
+    void addZeroPoints(mkldnn::primitive_attr& attr);
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
@@ -104,6 +106,8 @@ private:
                              const mkldnn::memory::desc& outputDesc,
                              mkldnn::algorithm alg);
     void updatePadding();
+
+    void appendZeroPointsArgs();
 
     bool withBiases;
     bool withSum;
@@ -137,6 +141,10 @@ private:
     bool isWino = false;
     AttrPtr pAttr;
     bool autoPadding = false;
+
+    MKLDNNMemoryPtr inputZeroPointsMemPtr;
+    MKLDNNMemoryPtr weightsZeroPointsMemPtr;
+    MKLDNNMemoryPtr outputCompensationMemPtr;
 };
 
 }  // namespace MKLDNNPlugin
