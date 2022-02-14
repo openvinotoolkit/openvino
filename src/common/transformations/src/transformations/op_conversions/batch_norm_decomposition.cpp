@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
 
 using namespace ngraph;
@@ -20,13 +21,21 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormDecomposition, "BatchNormDecomposi
 
 ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
     MATCHER_SCOPE(BatchNormDecomposition);
-    auto bn = pattern::wrap_type<opset1::BatchNormInference, opset5::BatchNormInference>({
+    auto bn_1 = pattern::wrap_type<opset1::BatchNormInference>({
+        pattern::any_input(pattern::has_static_shape()),
+        pattern::any_input(pattern::has_static_shape()),
+        pattern::any_input(pattern::has_static_rank()),
+        pattern::any_input(pattern::has_static_shape()),
+        pattern::any_input(pattern::has_static_shape())
+    });
+    auto bn_5 = pattern::wrap_type<opset5::BatchNormInference>({
         pattern::any_input(pattern::has_static_rank()),
         pattern::any_input(pattern::has_static_shape()),
         pattern::any_input(pattern::has_static_shape()),
         pattern::any_input(pattern::has_static_shape()),
         pattern::any_input(pattern::has_static_shape())
     });
+    auto bn = std::make_shared<ngraph::pattern::op::Or>(OutputVector{bn_1, bn_5});
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
         auto m_bn = m.get_match_root();
