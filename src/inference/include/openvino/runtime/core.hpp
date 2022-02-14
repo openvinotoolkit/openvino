@@ -42,8 +42,6 @@ class OPENVINO_RUNTIME_API Core {
     class Impl;
     std::shared_ptr<Impl> _impl;
 
-    void get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments, Any& to) const;
-
 public:
     /** @brief Constructs an OpenVINO Core instance using the XML configuration file with
      * devices and their plugins description.
@@ -531,9 +529,7 @@ public:
      */
     template <typename T, PropertyMutability M>
     T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
-        auto to = Any::make<T>();
-        get_property(deviceName, property.name(), {}, to);
-        return to.template as<T>();
+        return get_property(deviceName, property.name(), {}).template as<T>();
     }
 
     /**
@@ -551,9 +547,7 @@ public:
      */
     template <typename T, PropertyMutability M>
     T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
-        auto to = Any::make<T>();
-        get_property(deviceName, property.name(), arguments, to);
-        return to.template as<T>();
+        return get_property(deviceName, property.name(), arguments).template as<T>();
     }
 
     /**
@@ -574,9 +568,7 @@ public:
     util::EnableIfAllStringAny<T, Args...> get_property(const std::string& deviceName,
                                                         const ov::Property<T, M>& property,
                                                         Args&&... args) const {
-        auto to = Any::make<T>();
-        get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}, to);
-        return to.template as<T>();
+        return get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
     }
 
     /**
