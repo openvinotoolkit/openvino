@@ -16,8 +16,10 @@ indicates whether the proposal bboxes are normalized or not.
 3.  Sorts all `(proposal, score)` pairs by score from highest to lowest; order of pairs with equal scores is undefined.
 4.  Takes top *pre_nms_count* proposals, if total number of proposals is less than *pre_nms_count* takes all proposals.
 5.  Removes predicted boxes with either height or width < *min_size*.
-6.  Excute nms operation and takes and returns top proposals. The number of returned proposals (output port 1 and output
-port 2) is dynamic. And the max number of proposals is specified by attribute *post_nms_count*.
+6.  Applies non-maximum suppression with *adaptive_nms_threshold*. The initial value of *adaptive_nms_threshold* is
+*nms_threshold*. If `nms_eta < 1` and `adaptive_threshold > 0.5`, update `adaptive_threshold *= nms_eta`.
+7.  Takes and returns top proposals after nms operation. The number of returned proposals (output port 1 and output port
+2) is dynamic. And the max number of proposals is specified by attribute *post_nms_count*.
 
 **Attributes**:
 
@@ -57,6 +59,14 @@ port 2) is dynamic. And the max number of proposals is specified by attribute *p
       * *false* - the bbox coordinates are not normalized.
     * **Type**: boolean
     * **Default value**: True
+    * **Required**: *no*
+
+* *nms_eta*
+
+    * **Description**: eta parameter for adaptive NMS.
+    * **Range of values**: a floating-point number in close range `[0, 1.0]`.
+    * **Type**: float
+    * **Default value**: `1.0`
     * **Required**: *no*
 
 **Inputs**
