@@ -15,7 +15,7 @@
 #include "functional_test_utils/layer_test_utils/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include "shared_test_classes/read_ir/read_ir.hpp"
+#include "read_ir_test/read_ir.hpp"
 
 namespace ov {
 namespace test {
