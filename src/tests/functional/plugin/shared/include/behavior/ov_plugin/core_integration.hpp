@@ -54,6 +54,23 @@ public:
     }
 };
 
+using DevicePriorityParams = std::tuple<
+        std::string,            // Device name
+        ov::AnyMap              // Configuration key and its default value
+>;
+
+class OVClassSetDevicePriorityConfigTest : public ::testing::Test, public ::testing::WithParamInterface<DevicePriorityParams> {
+protected:
+    std::string deviceName;
+    ov::AnyMap configuration;
+
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::tie(deviceName, configuration) = GetParam();
+    }
+};
+
 using OVClassNetworkTestP = OVClassBaseTestP;
 using OVClassQueryNetworkTest = OVClassBaseTestP;
 using OVClassImportExportTestP = OVClassBaseTestP;
@@ -66,6 +83,7 @@ using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_GOPS = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = OVClassBaseTestP;
+using OVClassGetMetricTest_MAX_BATCH_SIZE = OVClassBaseTestP;
 using OVClassGetMetricTest_ThrowUnsupported = OVClassBaseTestP;
 using OVClassGetConfigTest = OVClassBaseTestP;
 using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
@@ -74,6 +92,8 @@ using OVClassGetMetricTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
 using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
+using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
+using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
 
@@ -300,6 +320,8 @@ TEST_P(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
 
 TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     ov::Core ie = createCoreWithTemplate();
+
+    // priority config test
     ov::hint::Priority value;
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
@@ -335,6 +357,53 @@ TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     ASSERT_TRUE(value);
 }
 
+TEST_P(OVClassSetModelPriorityConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    // priority config test
+    ov::hint::Priority value;
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::model_priority(ov::hint::Priority::LOW)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::model_priority));
+    EXPECT_EQ(value, ov::hint::Priority::LOW);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::model_priority));
+    EXPECT_EQ(value, ov::hint::Priority::MEDIUM);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::model_priority(ov::hint::Priority::HIGH)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::model_priority));
+    EXPECT_EQ(value, ov::hint::Priority::HIGH);
+}
+
+TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    std::string devicePriority;
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
+    OV_ASSERT_NO_THROW(devicePriority = ie.get_property(deviceName, ov::device::priorities));
+    ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
+}
+
+TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    // log level
+    ov::log::Level logValue;
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::log::level(ov::log::Level::NO)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(deviceName, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::NO);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::log::level(ov::log::Level::ERR)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(deviceName, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::ERR);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::log::level(ov::log::Level::WARNING)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(deviceName, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::WARNING);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::log::level(ov::log::Level::INFO)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(deviceName, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::INFO);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::log::level(ov::log::Level::DEBUG)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(deviceName, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::DEBUG);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::log::level(ov::log::Level::TRACE)));
+    OV_ASSERT_NO_THROW(logValue = ie.get_property(deviceName, ov::log::level));
+    EXPECT_EQ(logValue, ov::log::Level::TRACE);
+}
 //
 // QueryNetwork
 //
@@ -576,6 +645,17 @@ TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
         std::cout << str << std::endl;
     }
     OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities);
+}
+
+TEST_P(OVClassGetMetricTest_MAX_BATCH_SIZE, GetMetricAndPrintNoThrow) {
+    ov::Core ie;
+    uint32_t max_batch_size;
+
+    ASSERT_NO_THROW(max_batch_size = ie.get_property(deviceName, ov::max_batch_size));
+
+    std::cout << "Max batch size: " << max_batch_size << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::max_batch_size);
 }
 
 TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {

@@ -22,6 +22,9 @@ void copy_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<ngraph::N
 
 NGRAPH_API
 void copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to);
+
+NGRAPH_API
+void copy_output_runtime_info(const ngraph::OutputVector& from, ngraph::OutputVector to);
 }  // namespace ngraph
 
 using ngraph::copy_runtime_info;

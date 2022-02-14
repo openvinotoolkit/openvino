@@ -121,12 +121,6 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
     auto offset_last_element_l2 = l2.get_linear_offset(l2.size - tensor{1});
     if (l1 == l2)
         return {true, true};
-    // If data is actually 1d along f and dense, the layouts are identical
-    if (l1.data_type == l2.data_type && l1.size == l2.size && !l1_pad && !l2_pad && l1.size.batch[0] == 1 &&
-        ((l1.format.spatial_num() == 2 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1) ||
-        ((l1.format.spatial_num() == 3 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1 && l1.size.spatial[2] == 1))) &&
-        (offset_last_element_l1 + 1 == l1.size.feature[0] && offset_last_element_l2 + 1 == l2.size.feature[0]))
-        return {false, true};
     if (l1.data_type != l2.data_type)
         return {false, false};
     // Reorders between bfyx, bfzyx, bfwzyx can pe reinterpeted as reshape when
@@ -153,12 +147,20 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         check_format(format::b_fs_zyx_fsv16) ||
         check_format(format::bs_fs_yx_bsv4_fsv4) ||
         check_format(format::bs_fs_yx_bsv8_fsv4) ||
+        check_format(format::bs_fs_yx_bsv8_fsv2) ||
         check_format(format::bs_fs_yx_bsv4_fsv2) ||
         check_format(format::bs_fs_yx_bsv32_fsv16) ||
         check_format(format::bs_fs_yx_bsv32_fsv32) ||
         check_format(format::bs_fs_yx_bsv16_fsv16) ||
         check_format(format::bs_fs_zyx_bsv16_fsv16))
         return {false, false};
+
+    // If data is actually 1d along f and dense, the layouts are identical
+    if (l1.data_type == l2.data_type && l1.size == l2.size && !l1_pad && !l2_pad && l1.size.batch[0] == 1 &&
+        ((l1.format.spatial_num() == 2 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1) ||
+        ((l1.format.spatial_num() == 3 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1 && l1.size.spatial[2] == 1))) &&
+        (offset_last_element_l1 + 1 == l1.size.feature[0] && offset_last_element_l2 + 1 == l2.size.feature[0]))
+        return {false, true};
 
     auto l1_pitch = l1.get_pitches();
     auto l2_pitch = l2.get_pitches();
@@ -188,5 +190,19 @@ bool program_helpers::are_layouts_identical_for_onednn_sum_post_op(layout input_
 
     return false;
 }
+
+bool program_helpers::needs_onednn_sum_post_op(const eltwise_node& n, layout input_layout) {
+    auto output_layout = n.get_output_layout();
+    if (n.get_primitive()->mode == eltwise_mode::sum &&
+        (input_layout.size.spatial[0] > 1 || input_layout.size.spatial[1] > 1 || input_layout.size.batch[0] > 1)
+        && output_layout.data_type == input_layout.data_type) {
+        return true;
+    }
+
+    return false;
+}
+
+
+
 
 }  // namespace cldnn
