@@ -60,5 +60,5 @@ static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
     return true;
 }
 
-} // namespace ngraph_helper
+} // namespace ngraph_util
 } // namespace GNAPluginNS
