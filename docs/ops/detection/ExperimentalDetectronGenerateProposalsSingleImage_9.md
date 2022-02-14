@@ -9,14 +9,16 @@ based on input data.
 
 **Detailed description**: The operation performs the following steps:
 
-1.  Transposes and reshapes predicted bounding boxes deltas, variances and scores to get them into the same order as the
+1.  Transposes and reshapes predicted bounding boxes deltas and scores to get them into the same dimension order as the
 anchors.
-2.  Transforms anchors into proposals using deltas, variances and clips proposals to an image.
+2.  Transforms anchors and deltas into proposal bboxes and clips proposal bboxes to an image. The attribute *normalized*
+indicates whether the proposal bboxes are normalized or not.
 3.  Sorts all `(proposal, score)` pairs by score from highest to lowest; order of pairs with equal scores is undefined.
 4.  Takes top *pre_nms_count* proposals, if total number of proposals is less than *pre_nms_count* takes all proposals.
 5.  Removes predicted boxes with either height or width < *min_size*.
-6.  Excute nms operation and takes and returns top proposals. The max number of returned proposals is *post_nms_count*.
-So the shape of proposals (output port 1 and port 2) is dynamic and output port 3 indicate the runtime proposal numbers.
+6.  Excute nms operation and takes and returns top proposals. The number of returned proposals (output port 1 and output
+port 2) is dynamic. And the max number of proposals is specified by attribute *post_nms_count*. Output port 3 indicate the
+runtime proposal numbers.
 
 **Attributes**:
 
@@ -52,14 +54,15 @@ So the shape of proposals (output port 1 and port 2) is dynamic and output port 
     * **Default value**: None
     * **Required**: *yes*
 
-* *coordinates_offset*
+* *normalized*
 
-    * **Description**: The *coordinates_offset* attribute specifies the relationship between ROI location points and ROI width and height. For example if *coordinates_offset* is false, the `width = x_right - x_left`. If *coordinates_offset* is true, the `width = x_right - x_left + 1`.
+    * **Description**: *normalized* is a flag that indicates whether proposal bboxes are normalized or not.
     * **Range of values**: true or false
+      * *true* - the bbox coordinates are normalized.
+      * *false* - the bbox coordinates are not normalized.
     * **Type**: boolean
-    * **Default value**: false
+    * **Default value**: True
     * **Required**: *no*
-
 
 **Inputs**
 
@@ -80,11 +83,13 @@ Height and width for third, fourth and fifth inputs should be equal. **Required.
 
 * **2**: A 1D tensor of type *T* with dynamic shape `[N]` providing ROIs scores. `N` equals to the actual number of proposals.
 
-* **3**: A 1D tensor of type *int32* with shape `[1]` providing the actual number of proposals.
+* **3**: A 1D tensor of type *T_IND* with shape `[1]` providing the actual number of proposals.
 
 **Types**
 
 * *T*: any supported floating-point type.
+
+* *T_IND*: `int64` or `int32`.
 
 **Example**
 
