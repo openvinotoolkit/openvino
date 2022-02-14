@@ -28,7 +28,7 @@ PYBIND11_MAKE_OPAQUE(PyRTMap);
 void regclass_graph_PyRTMap(py::module m) {
     auto py_map = py::class_<PyRTMap>(m, "RTMap");
     py_map.doc() = "openvino.runtime.RTMap makes bindings for std::map<std::string, "
-                   "ov::Any, which can later be used as ov::Node::RTMap";
+                   "ov::Any>, which can later be used as ov::Node::RTMap";
 
     py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const std::string v) {
         m[k] = v;
