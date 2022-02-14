@@ -563,6 +563,90 @@ static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, con
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
+static bool streamsSet(const std::map<std::string, std::string>& config) {
+    return config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
+           config.count(ov::num_streams.name());
+}
+
+void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
+    const bool streamsExplicitlySetForModel = streamsSet(config);
+    // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+    if (streamsExplicitlySetForModel ||
+        streamsExplicitlySetForEngine)
+        return;
+
+    const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+    // the mode may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
+    if (mode == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
+        return;
+    /* performance hints set for network has higher pririty than engine ones.
+     * This applies for all the configuration parameters */
+    const auto mode_name = (mode != config.end()) ?
+        PerfHintsConfig::CheckPerformanceHintValue(mode->second) :
+        engConfig.perfHintsConfig.ovPerfHint;
+
+    if (mode_name == CONFIG_VALUE(LATENCY)) {
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+    } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+        const auto isa = dnnl::get_effective_cpu_isa();
+        float isaSpecificThreshold = 1.0f;
+        switch (isa) {
+        case dnnl::cpu_isa::sse41 :
+            isaSpecificThreshold = 0.5f;
+            break;
+        case dnnl::cpu_isa::avx2:
+        case dnnl::cpu_isa::avx512_core:
+            isaSpecificThreshold = 1.0f;
+            break;
+        case dnnl::cpu_isa::avx512_core_vnni:
+        case dnnl::cpu_isa::avx2_vnni:
+            isaSpecificThreshold = 2.0f;
+            break;
+        case dnnl::cpu_isa::avx512_core_amx:
+            isaSpecificThreshold = 4.0f;
+            break;
+        default:
+            isaSpecificThreshold = 1.0f;
+        }
+        // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
+        const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
+        const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+        ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
+            ngraphFunc,
+            L2_cache_size, memThresholdAssumeLimitedForISA);
+        // num of phys CPU cores (most aggressive value for #streams)
+        const auto num_cores = getNumberOfCPUCores();
+        // less aggressive
+        const auto num_streams_less_aggressive = num_cores / 2;
+        // default #streams value (most conservative)
+        const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+        int num_streams = default_num_streams;
+        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
+                || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
+                // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
+                num_streams = num_cores;
+            }   // otherwise (no recognized layers) falling back to the default value
+        } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
+            // network is below the ISA-specific threshold
+            num_streams = num_cores;
+        } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
+            // network is below general threshold
+            num_streams = std::max(default_num_streams, num_streams_less_aggressive);
+        }
+        auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+        if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
+            auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
+            if (val > 0)
+                num_streams = std::min(num_streams, val);
+        } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  //set thru SetConfig to the plugin, 2nd priority
+            num_streams = std::min(num_streams,
+                                   engConfig.perfHintsConfig.ovPerfHintNumRequests);
+        }
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
+    }
+}
+
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
@@ -607,77 +691,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     auto nGraphFunc = clonedNetwork.getFunction();
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets);
 
-    // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
-    const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
-    // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
-    if (mode != config.end() || !engConfig.perfHintsConfig.ovPerfHint.empty()) {
-        const auto mode_name = (mode != config.end())
-                               ? PerfHintsConfig::CheckPerformanceHintValue(mode->second) : engConfig.perfHintsConfig.ovPerfHint;
-        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
-        if (streams == config.end() && !streamsSet) {
-            if (mode_name == CONFIG_VALUE(LATENCY)) {
-                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
-                const auto isa = dnnl::get_effective_cpu_isa();
-                float isaSpecificThreshold = 1.0f;
-                switch (isa) {
-                    case dnnl::cpu_isa::sse41 :
-                        isaSpecificThreshold = 0.5f;
-                        break;
-                    case dnnl::cpu_isa::avx2:
-                    case dnnl::cpu_isa::avx512_core:
-                        isaSpecificThreshold = 1.0f;
-                        break;
-                    case dnnl::cpu_isa::avx512_core_vnni:
-                    case dnnl::cpu_isa::avx2_vnni:
-                        isaSpecificThreshold = 2.0f;
-                        break;
-                    case dnnl::cpu_isa::avx512_core_amx:
-                        isaSpecificThreshold = 4.0f;
-                        break;
-                    default:
-                        isaSpecificThreshold = 1.0f;
-                }
-                // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
-                const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
-                const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
-                ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
-                        clonedNetwork.getFunction(),
-                        L2_cache_size, memThresholdAssumeLimitedForISA);
-                // num of phys CPU cores (most aggressive value for #streams)
-                const auto num_cores = getNumberOfCPUCores();
-                // less aggressive
-                const auto num_streams_less_aggressive = num_cores / 2;
-                // default #streams value (most conservative)
-                const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
-                int num_streams = default_num_streams;
-                if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-                    if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
-                        || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
-                        // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                        num_streams = num_cores;
-                    }   // otherwise (no recognized layers) falling back to the default value
-                } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
-                    // network is below the ISA-specific threshold
-                    num_streams = num_cores;
-                } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
-                    // network is below general threshold
-                    num_streams = std::max(default_num_streams, num_streams_less_aggressive);
-                }
-                auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-                if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-                    auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
-                    if (val > 0)
-                        num_streams = std::min(num_streams, val);
-                } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  //set thru SetConfig to the plugin, 2nd priority
-                    num_streams = std::min(num_streams,
-                                           engConfig.perfHintsConfig.ovPerfHintNumRequests);
-                }
-                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
-           }
-        }
-    }
+    ApplyPerformanceHints(config, nGraphFunc);
+
     ConvertToCPUSpecificOpset(nGraphFunc);
 
     // update the props after the perf mode translated to configs
@@ -693,7 +708,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
-    streamsSet = (config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != config.end());
+    streamsExplicitlySetForEngine = streamsSet(config);
+
     engConfig.readProperties(config);
 }
 
