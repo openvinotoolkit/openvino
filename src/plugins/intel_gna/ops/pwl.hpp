@@ -9,7 +9,7 @@
 
 namespace GNAPluginNS {
 /// \brief PWL activation function
-class OPENVINO_API Pwl : public ov::op::Op {
+class Pwl : public ov::op::Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
