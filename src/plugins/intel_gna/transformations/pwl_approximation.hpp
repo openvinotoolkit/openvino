@@ -24,13 +24,13 @@ namespace GNAPluginNS {
  * @ingroup ie_transformation_common_api
  * @brief PWLApproximation transformation replaces suitable activation function with pwl
  */
-class TRANSFORMATIONS_API PWLApproximation : public ngraph::pass::MatcherPass {
+class PWLApproximation : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PWLApproximation(double max_error_percent);
 };
 
-class TRANSFORMATIONS_API PWLApproximationWithFq : public ngraph::pass::MatcherPass {
+class PWLApproximationWithFq : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PWLApproximationWithFq(double max_error_percent);
