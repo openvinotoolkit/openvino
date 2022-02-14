@@ -513,7 +513,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest
         ::testing::ValuesIn(Blocked_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx2_2D})),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -533,7 +533,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTe
         ::testing::ValuesIn(Blocked_2D_inputs_nightly),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx2_2D})),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -648,7 +648,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
         ::testing::ValuesIn(Blocked_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1})),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1, conv_avx2_2D_1x1})),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -658,7 +658,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
         ::testing::ValuesIn(Blocked_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1})),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1, conv_avx2_2D_1x1})),
         ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 

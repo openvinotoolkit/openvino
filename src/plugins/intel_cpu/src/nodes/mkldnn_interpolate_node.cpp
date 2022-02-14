@@ -68,7 +68,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
                         this,
-                        post_op.depthwise.alg));
+                        post_op));
             } else if (post_op.is_quantization()) {
                 quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
                         this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
@@ -1581,14 +1581,13 @@ private:
             } else if (post_op.is_depthwise()) {
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
-                post_ops_data_offset += sizeof(float*);
-                mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
-                add(reg_d_bias, reg_oc_off);
-                post_ops_data_offset += sizeof(float*);
 
                 // weight and bias is padded. scalar as vector.
-                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
+                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(
+                        vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_weights, is_broadcast);
+
                 depthwise_inj_idx++;
+                post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || dst_dt == memory::data_type::f32 || i != p.len() - 1;
@@ -2113,25 +2112,7 @@ void MKLDNNInterpolateNode::prepareParams() {
     }
 
     InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, mkldnn::primitive_attr()};
-    setPostOps(key.attr, dstDims, true);
-
-    postOpsDataPtrs.clear();
-    auto &postOps = (*key.attr.get()).post_ops_;
-    for (int i = 0; i < postOps.len(); ++i) {
-        auto &postOp = postOps.entry_[i];
-        if (postOp.is_quantization()) {
-            auto &data = postOp.quantization.data;
-            postOpsDataPtrs.insert(postOpsDataPtrs.end(), std::begin(data), std::end(data));
-            memset(data, 0, sizeof(data));
-        } else if (postOp.is_depthwise()) {
-            auto &weights = postOp.depthwise.weights_data;
-            auto &biases = postOp.depthwise.biases_data;
-            postOpsDataPtrs.push_back(weights);
-            postOpsDataPtrs.push_back(biases);
-            weights = 0;
-            biases = 0;
-        }
-    }
+    setPostOps(key.attr, dstDims);
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutor> {
         std::shared_ptr<InterpolateExecutor> executor;
@@ -2195,19 +2176,20 @@ static inline float triangleCoeff(float x) {
     return (std::max)(0.0f, 1 - std::abs(x));
 }
 
-void MKLDNNInterpolateNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights) {
+void MKLDNNInterpolateNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims) {
     mkldnn::post_ops ops;
 
+    postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, dims);
+            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
             continue;
         }
 

@@ -388,6 +388,8 @@ void MKLDNNPoolingNode::prepareParams() {
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+
+    MKLDNNNode::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 }
 
 void MKLDNNPoolingNode::executeDynamicImpl(mkldnn::stream strm) {
@@ -610,18 +612,18 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
 MKLDNNNode::AttrPtr MKLDNNPoolingNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
-    setPostOps(*attr, true);
+    setPostOps(*attr);
 
     return attr;
 }
 
-void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const {
+void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr) {
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs);
             continue;
         }
 

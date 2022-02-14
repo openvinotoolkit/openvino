@@ -307,7 +307,7 @@ void MKLDNNFullyConnectedNode::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
     }
 
-    appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
+    appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
     auto reshapeMemory = [this](int argType) {
         auto param = primArgs.find(argType);
@@ -393,15 +393,15 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, const Ve
 
     for (auto &node : fusedWith) {
         if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             continue;
         }
 
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-                eltwiseNode->appendPostOps(ops, dims);
+                eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
-                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             }
             continue;
         }
