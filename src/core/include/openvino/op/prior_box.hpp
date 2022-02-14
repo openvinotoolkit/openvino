@@ -75,6 +75,7 @@ namespace v8 {
 class OPENVINO_API PriorBox : public Op {
 public:
     OPENVINO_OP("PriorBox", "opset8");
+    BWDCMP_RTTI_DECLARATION;
     struct Attributes {
         // min_size                    Desired min_size of prior boxes
         // max_size                    Desired max_size of prior boxes
