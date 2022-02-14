@@ -76,7 +76,7 @@ To run the sample, you need specify a model and image:
 >
 > - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
-> - Before running the sample with a trained model, make sure the model is converted to the OpenVINO™ Runtime format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
@@ -94,7 +94,7 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 omz_downloader --name googlenet-v1
 ```
 
-3. If a model is not in the OpenVINO™ Runtime IR or ONNX format, it must be converted. You can do this using the model converter:
+3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
 
 ```
 omz_converter --name googlenet-v1

@@ -151,7 +151,7 @@ Here, the floating point Kaldi-generated reference neural network scores (`dev93
 
 > **NOTES**:
 >
-> - Before running the sample with a trained model, make sure the model is converted to the OpenVINO™ Runtime format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample supports input and output in numpy file format (.npz)
 

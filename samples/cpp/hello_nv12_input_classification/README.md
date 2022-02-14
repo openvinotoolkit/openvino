@@ -62,7 +62,7 @@ ffmpeg -i cat.jpg -pix_fmt nv12 car.yuv
 >   with `--reverse_input_channels` argument specified. For more information about the argument,
 >   refer to **When to Reverse Input Channels** section of
 >   [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
-> - Before running the sample with a trained model, make sure the model is converted to the OpenVINO™ Runtime format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
@@ -79,7 +79,7 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 omz_downloader --name alexnet
 ```
 
-3. If a model is not in the OpenVINO™ Runtime IR or ONNX format, it must be converted. You can do this using the model converter:
+3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
 
 ```
 omz_converter --name alexnet
