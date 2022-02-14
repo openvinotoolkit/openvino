@@ -15,6 +15,7 @@
 #include <type_traits>
 #include <tuple>
 #include <cmath>
+#include "mkldnn/ie_mkldnn.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -467,6 +468,26 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
             || (to == Precision::BOOL && from != to);   // T -> bool
 }
 
+struct MKLDNNCopyContext {
+        const void *srcPtr;
+        void *dstPtr;
+        size_t size;
+        Precision dstPrc;
+        bool converted;
+    };
+
+template<typename ele_t>
+struct CopyElement {
+    void operator()(MKLDNNCopyContext &ctx) {
+        auto src = static_cast<const ele_t *>(ctx.srcPtr);
+        auto dst = static_cast<ele_t *>(ctx.dstPtr);
+        parallel_for(ctx.size, [&](size_t i) {
+            dst[i] = src[i];
+        });
+        ctx.converted = true;
+    }
+};
+
 }   // namespace
 
 #define MKLDNN_CVT(ST, DT) OV_CASE2(Precision::ST, Precision::DT, PrecisionInfo<Precision::ST>::value_type, PrecisionInfo<Precision::DT>::value_type)
@@ -516,6 +537,13 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
     MKLDNN_CVT(FP32, FP32), MKLDNN_CVT(FP16, FP16), MKLDNN_CVT(BF16, BF16), MKLDNN_CVT(FP64, FP64), \
     MKLDNN_CVT(BOOL, BOOL)
 
+#define MKLDNN_COPY(DT) OV_CASE(Precision::DT, PrecisionInfo<Precision::DT>::value_type)
+#define MKLDNN_COPY_LIST \
+    MKLDNN_COPY(U8),    MKLDNN_COPY(I8),     MKLDNN_COPY(U16),   MKLDNN_COPY(I16),   \
+    MKLDNN_COPY(U32),   MKLDNN_COPY(I32),    MKLDNN_COPY(U64),   MKLDNN_COPY(I64),   \
+    MKLDNN_COPY(FP32),  MKLDNN_COPY(FP16),   MKLDNN_COPY(BF16), MKLDNN_COPY(FP64),  \
+    MKLDNN_COPY(BOOL)
+
 void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc, const size_t size) {
     cpu_convert(srcPtr, dstPtr, srcPrc, dstPrc, dstPrc, size);
 }
@@ -530,7 +558,22 @@ void cpu_convert(const void *srcPtr,
         IE_THROW() << "cpu_convert has null data pointer";
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
-        cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
+        const int L3_cache_size = mkldnn::utils::get_cache_size(3, true);
+        if (size * dstPrc.size() >= L3_cache_size) {
+            MKLDNNCopyContext ctx = {
+                    srcPtr,
+                    dstPtr,
+                    size,
+                    dstPrc,
+                    false
+            };
+            OV_SWITCH(MKLDNNPlugin, CopyElement, ctx, srcPrc,
+                MKLDNN_COPY_LIST);
+            if (!ctx.converted)
+                IE_THROW() << "cpu_convert can't copy from: " << srcPrc << " precision to: " << dstPrc;
+        } else {
+            cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
+        }
     } else {
         ConvertContext ctx = {
             srcPtr,
@@ -548,3 +591,5 @@ void cpu_convert(const void *srcPtr,
 
 #undef MKLDNN_CVT
 #undef MKLDNN_CVT_LIST
+#undef MKLDNN_COPY
+#undef MKLDNN_COPY_LIST
