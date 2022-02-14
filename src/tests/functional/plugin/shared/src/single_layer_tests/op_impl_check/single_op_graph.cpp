@@ -43,6 +43,31 @@ std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::O
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwiseNode)};
     return std::make_shared<ngraph::Function>(results, params, "BinaryEltwiseGraph");
 }
+
+std::shared_ptr<ov::Model> generateDeformableConvolutionBase(const std::shared_ptr<ov::op::Op> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2, 4, 4},
+                                                                              {1, 18, 2, 2},
+                                                                              {1, 2, 3, 3}});
+    std::shared_ptr<ov::Node> deformableConvolutionNode;
+    if (ov::is_type<ov::op::v1::DeformableConvolution>(node)) {
+        deformableConvolutionNode = std::make_shared<ov::op::v1::DeformableConvolution>(params[0], params[1], params[2],
+                                                                                        ov::Strides {1, 1},
+                                                                                        ov::CoordinateDiff {0, 0},
+                                                                                        ov::CoordinateDiff {0, 0},
+                                                                                        ov::Strides {1, 1});
+    } else if (ov::is_type<ov::op::v8::DeformableConvolution>(node)) {
+        deformableConvolutionNode = std::make_shared<ov::op::v8::DeformableConvolution>(params[0], params[1], params[2],
+                                                                                        ov::Strides {1, 1},
+                                                                                        ov::CoordinateDiff {0, 0},
+                                                                                        ov::CoordinateDiff {0, 0},
+                                                                                        ov::Strides {1, 1});
+    } else {
+        return nullptr;
+    }
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(deformableConvolutionNode)};
+    return std::make_shared<ngraph::Function>(results, params, "DeformableConvolutionBaseGraph");
+}
 } // namespace
 
 template <typename T>
@@ -50,6 +75,8 @@ std::shared_ptr<ov::Model> generateGraph() {
         std::shared_ptr<T> node = std::shared_ptr<T>(new T);
     if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node)) {
         return generateBinaryEltwise(node);
+    } else if (ov::is_type<ov::op::util::DeformableConvolutionBase>(node)) {
+        return generateDeformableConvolutionBase(node);
     }
     return generate(node);
 }
