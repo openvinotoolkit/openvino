@@ -349,7 +349,11 @@ int main(int argc, char *argv[]) {
     // --------------------------- Step 5. Do inference
     // --------------------------------------------------------
     std::vector<std::vector<uint8_t>> ptrUtterances;
+    std::vector<std::vector<uint8_t>> vectorPtrScores(
+        (outputs.size() == 0) ? 1 : outputs.size());
     std::vector<uint8_t> ptrScores;
+    std::vector<uint16_t> numScoresPerOutput(
+        (outputs.size() == 0) ? 1 : outputs.size());
     std::vector<uint8_t> ptrReferenceScores;
     ScoreErrorT frameError, totalError;
     ptrUtterances.resize(inputFiles.size());
@@ -368,12 +372,7 @@ int main(int argc, char *argv[]) {
       uint32_t numFramesReference(0), numFrameElementsReference(0),
           numBytesPerElementReference(0),
           numBytesReferenceScoreThisUtterance(0);
-      auto dims = executableNet.outputs()[0].get_shape();
-      const auto numScoresPerFrame =
-          std::accumulate(std::begin(dims), std::end(dims), size_t{1},
-                          std::multiplies<size_t>());
-      slog::info << "Number scores per frame : " << numScoresPerFrame
-                 << slog::endl;
+
       /** Get information from input file for current utterance **/
       numFrameElementsInput.resize(numInputFiles);
       for (size_t i = 0; i < inputFiles.size(); i++) {
@@ -408,13 +407,11 @@ int main(int argc, char *argv[]) {
               std::to_string(numFrameElementsInput[i - 1] * batchSize) + ")");
         }
       }
-      ptrScores.resize(numFrames * numScoresPerFrame * sizeof(float));
 
       double totalTime = 0.0;
       std::cout << "Utterance " << utteranceIndex << ": " << std::endl;
       clear_score_error(&totalError);
       totalError.threshold = frameError.threshold = MAX_SCORE_DIFFERENCE;
-      auto outputFrame = &ptrScores.front();
       std::vector<uint8_t *> inputFrame;
       for (auto &ut : ptrUtterances) {
         inputFrame.push_back(&ut.front());
@@ -480,11 +477,22 @@ int main(int argc, char *argv[]) {
             if (inferRequest.frameIndex >= 0)
               for (size_t next_output = 0; next_output < count_file;
                    next_output++) {
+                auto dims =
+                    executableNet.output(outputs[next_output]).get_shape();
+                numScoresPerOutput[next_output] =
+                    std::accumulate(std::begin(dims), std::end(dims), size_t{1},
+                                    std::multiplies<size_t>());
+
+                vectorPtrScores[next_output].resize(
+                    numFramesFile * numScoresPerOutput[next_output] *
+                    sizeof(float));
+
                 if (!FLAGS_o.empty()) {
                   /* Prepare output data for save to file in future */
-                  outputFrame =
-                      &ptrScores.front() + numScoresPerFrame * sizeof(float) *
-                                               (inferRequest.frameIndex);
+                  auto outputFrame = &vectorPtrScores[next_output].front() +
+                                     numScoresPerOutput[next_output] *
+                                         sizeof(float) *
+                                         (inferRequest.frameIndex);
 
                   ov::Tensor outputBlob = inferRequest.inferRequest.get_tensor(
                       executableNet.outputs()[next_output]);
@@ -494,7 +502,8 @@ int main(int argc, char *argv[]) {
                   }
                   // locked memory holder should be alive all time while access
                   // to its buffer happens
-                  auto byteSize = numScoresPerFrame * sizeof(float);
+                  auto byteSize =
+                      numScoresPerOutput[next_output] * sizeof(float);
                   std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
                 }
                 if (!FLAGS_r.empty()) {
@@ -593,8 +602,9 @@ int main(int argc, char *argv[]) {
           /* Save output data to file */
           bool shouldAppend = (utteranceIndex == 0) ? false : true;
           fileOutput->save_file(output_name_files[next_output].c_str(),
-                                shouldAppend, uttName, &ptrScores.front(),
-                                numFramesFile, numScoresPerFrame);
+                                shouldAppend, uttName,
+                                &vectorPtrScores[next_output].front(),
+                                numFramesFile, numScoresPerOutput[next_output]);
         }
       }
       /** Show performance results **/
