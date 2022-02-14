@@ -17,8 +17,7 @@ indicates whether the proposal bboxes are normalized or not.
 4.  Takes top *pre_nms_count* proposals, if total number of proposals is less than *pre_nms_count* takes all proposals.
 5.  Removes predicted boxes with either height or width < *min_size*.
 6.  Excute nms operation and takes and returns top proposals. The number of returned proposals (output port 1 and output
-port 2) is dynamic. And the max number of proposals is specified by attribute *post_nms_count*. Output port 3 indicate the
-runtime proposal numbers.
+port 2) is dynamic. And the max number of proposals is specified by attribute *post_nms_count*.
 
 **Attributes**:
 
@@ -78,13 +77,9 @@ Height and width for third, fourth and fifth inputs should be equal. **Required.
 
 * **2**: A 1D tensor of type *T* with dynamic shape `[N]` providing ROIs scores. `N` equals to the actual number of proposals.
 
-* **3**: A 1D tensor of type *T_IND* with shape `[1]` providing the actual number of proposals.
-
 **Types**
 
 * *T*: any supported floating-point type.
-
-* *T_IND*: `int64` or `int32`.
 
 **Example**
 
@@ -117,9 +112,6 @@ Height and width for third, fourth and fifth inputs should be equal. **Required.
         </port>
         <port id="5" precision="FP32">
             <dim>1000</dim>
-        </port>
-        <port id="6" precision="I32">
-            <dim>1</dim>
         </port>
     </output>
 </layer>
