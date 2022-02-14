@@ -58,7 +58,7 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
 }
 
 Any::~Any() {
-    _temp_impl = {};
+    _temp = {};
     _impl = {};
 }
 
