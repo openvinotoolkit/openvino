@@ -1,6 +1,6 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Windows* from Docker* Image {#openvino_docs_install_guides_installing_openvino_docker_windows}
+# Install Intel® Distribution of OpenVINO™ toolkit for Windows from Docker Image {#openvino_docs_install_guides_installing_openvino_docker_windows}
 
-This guide provides steps for creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Windows* and using the Docker image on different devices.
+This guide provides steps for creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Windows* and using the Docker image on different devices.
 
 There are two options to install OpenVINO with Docker:
 
@@ -44,7 +44,7 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
 ### Step 2: Configure and run the image for different devices
 
-#### Using OpenVINO Docker image on CPU
+#### Using Docker image on CPU
 
 ##### Step 1: Install additional dependencies
 
@@ -66,13 +66,13 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
    --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
    ```   
    
-- **Install Microsoft Visual Studio\* Build Tools**
+- **Install Microsoft Visual Studio Build Tools**
 
    You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
    
-   Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license.
+   Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio license.
    
-   Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
+   Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio and Windows licenses.
 
    To add MSBuild 2019 to the image, add the following commands to the Dockerfile:
    ```bat
@@ -92,7 +92,7 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
    In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
    
 
-##### Step 2: Run OpenVINO Docker* image on CPU
+##### Step 2: Run Docker image on CPU
 
 To start the interactive session, run the following command allows inference on the CPU:
 
@@ -107,26 +107,26 @@ docker run -it --rm <image_name>
 cmd /S /C "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -kO https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python samples\python\hello_classification\hello_classification.py public\googlenet-v1\FP16\googlenet-v1.xml car_1.bmp CPU"
 ```
 
-#### Using OpenVINO Docker* image on GPU
+#### Using Docker image on GPU
 
-GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO toolkit and Docker* requirements:
+GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO and Docker requirements:
 
 - [Windows requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/gpu-acceleration):
   - The container host must be running Windows Server 2019 or Windows 10 of version 1809 or higher.
   - The container base image must be `mcr.microsoft.com/windows:1809` or higher. Windows Server Core and Nano Server container images are not currently supported.
   - The container host must be running Docker Engine 19.03 or higher.
   - The container host must have GPU running display drivers of version WDDM 2.5 or higher.
-- [OpenVINO™ GPU requirement](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows.html#Install-GPU):
+- [GPU requirement for OpenVINO](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows.html#Install-GPU):
   - Intel Graphics Driver for Windows of version 15.65 or higher.
 - [Docker isolation mode requirement](https://docs.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container):
   - Windows host and container version tags must match.
   - [Windows host and container isolation process support](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility)
 
-##### Step 1: Configure OpenVINO Docker* image for your host system
+##### Step 1: Configure Docker image for your host system
 
 1. Reuse one of [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). You can also use your own Dockerfile. 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
-3. Find the appropriate Windows container base image on [DockerHub*](https://hub.docker.com/_/microsoft-windows) and set up your host/container version in the `FROM` Dockerfile instruction.  
+3. Find the appropriate Windows container base image on [DockerHub](https://hub.docker.com/_/microsoft-windows) and set up your host/container version in the `FROM` Dockerfile instruction.  
    For example, in the `openvino_c_dev_<version>.dockerfile`, change:  
    ```bat
    FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS ov_base
@@ -145,7 +145,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    copy C:\Windows\System32\OpenCL.dll C:\tmp
    ```
 
-##### Step 2: Run OpenVINO Docker* image on GPU
+##### Step 2: Run Docker image on GPU
 
 1. To try inference on a GPU, run the image with the following command:
    ```bat

@@ -1,6 +1,6 @@
 # Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image {#openvino_docs_install_guides_installing_openvino_docker_linux}
 
-This guide provides steps on creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Linux* and using the image on different devices. 
+This guide provides steps on creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Linux* and using the image on different devices. 
 
 There are two options to install OpenVINO with Docker:
 
@@ -14,7 +14,7 @@ There are two options to install OpenVINO with Docker:
 
   * Ubuntu\* 18.04 long-term support (LTS), 64-bit
   * Ubuntu\* 20.04 long-term support (LTS), 64-bit
-  * Red Hat\* Enterprise Linux* 8 (64 bit)
+  * Red Hat\* Enterprise Linux 8 (64 bit)
 
 .. tab:: Host Operating Systems
 
@@ -52,7 +52,7 @@ You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tr
 
 ### Step 2: Configure and run the image for different devices
 
-#### Using OpenVINO Docker image on CPU
+#### Using Docker image on CPU
 
 Note the following things:
 
@@ -65,7 +65,7 @@ To use the OpenVINO Docker image on CPU, you don’t need extra configurations. 
 docker run -it --rm <image_name>
 ```
 
-#### Using OpenVINO Docker image on GPU
+#### Using Docker image on GPU
 
 > **NOTE**: Only Intel® integrated graphics are supported.
 
@@ -171,7 +171,7 @@ To make GPU available in the container, attach the GPU to the container using `-
 
 > **NOTE**: If your host system is Ubuntu 20, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
 
-#### Using OpenVINO Docker image on Intel® Neural Compute Stick 2
+#### Using Docker image on Intel® Neural Compute Stick 2
 
 **Known limitations:**
 
@@ -231,7 +231,7 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 > **NOTE**: This option is not recommended, as conflicts with Kubernetes* and other tools that use orchestration and private networks may occur. Please use it with caution and only for troubleshooting purposes.
 
 
-#### Using OpenVINO Docker image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+#### Using Docker image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
 ##### Step 1: Configure the image
 
@@ -241,7 +241,7 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following steps:
 
 1. Set up the environment on the host machine to be used for running Docker*. It is required to execute hddldaemon, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [CConfigurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](configurations-for-vpu-linux.md).
-2. Prepare the Docker* image by adding the following commands to a Dockerfile:
+2. Prepare the Docker image by adding the following commands to a Dockerfile:
    - **Ubuntu 18.04**:
         ```sh
         WORKDIR /tmp
