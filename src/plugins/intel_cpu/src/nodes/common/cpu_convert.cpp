@@ -15,6 +15,7 @@
 #include <type_traits>
 #include <tuple>
 #include <cmath>
+#include "mkldnn/ie_mkldnn.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -557,17 +558,22 @@ void cpu_convert(const void *srcPtr,
         IE_THROW() << "cpu_convert has null data pointer";
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
-        MKLDNNCopyContext ctx = {
-                srcPtr,
-                dstPtr,
-                size,
-                dstPrc,
-                false
-        };
-        OV_SWITCH(MKLDNNPlugin, CopyElement, ctx, srcPrc,
-                  MKLDNN_COPY_LIST);
-        if (!ctx.converted)
-            IE_THROW() << "cpu_convert can't copy from: " << srcPrc << " precision to: " << dstPrc;
+        const int L3_cache_size = mkldnn::utils::get_cache_size(3, true);
+        if (size * dstPrc.size() > L3_cache_size) {
+            MKLDNNCopyContext ctx = {
+                    srcPtr,
+                    dstPtr,
+                    size,
+                    dstPrc,
+                    false
+            };
+            OV_SWITCH(MKLDNNPlugin, CopyElement, ctx, srcPrc,
+                MKLDNN_COPY_LIST);
+            if (!ctx.converted)
+                IE_THROW() << "cpu_convert can't copy from: " << srcPrc << " precision to: " << dstPrc;
+        } else {
+            cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
+        }
     } else {
         ConvertContext ctx = {
             srcPtr,
