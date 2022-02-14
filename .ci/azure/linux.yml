@@ -288,6 +288,10 @@ jobs:
     displayName: 'VPU UT'
     continueOnError: false
 
+  - script: . $(SETUPVARS) && $(INSTALL_DIR)\src\plugins\intel_myriad\third_party\tests\XLinkTests --gtest_output=xml:TEST-XLinkTests.xml
+    displayName: 'XLinkTests'
+    continueOnError: false
+
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
     continueOnError: false
