@@ -820,6 +820,96 @@ TEST(softmax_gpu_bfzyx_f16, normalize_all) {
     ASSERT_NEAR(sum, expected_sum, 0.001);
 }
 
+TEST(softmax_gpu_bfyx_f32, normalize_b) {
+    //  Input  : 3x2x2x2
+    static const int32_t x_size = 2, y_size = 2, feature_num = 2,
+            batch_num = 3, buf_size = x_size*y_size * batch_num * feature_num;
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(softmax("softmax", "input", softmax::normalize_b));
+
+    vector<float> input_vec = {
+        //      y0x0  y0x1   y1x0    y1x1
+        /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
+        /*b0f1*/3.f,  0.5f,  7.f,   12.f,
+
+        /*b1f0*/0.2f, 0.2f,  -10.f, 5.2f,
+        /*b1f1*/4.f,  0.5f,  8.f,   8.2f,
+
+        /*b2f0*/0.2f, 0.2f,  -10.f, 5.2f,
+        /*b2f1*/0.2f, 0.2f,  -10.f, 5.2f
+    };
+    set_values(input, input_vec);
+
+    float expected_max_values[8] = {
+        0.344253346f, //f=0, y=0, x=0
+        0.364854551f, //f=0, y=0, x=1
+
+        0.999963085f, //f=0, y=1, x=0
+        0.493894592f, //f=0, y=1, x=1
+
+        0.719294981f, //f=1, y=0, x=0
+        0.364854551f, //f=1, y=0, x=1
+
+        0.73105857f, //f=1, y=1, x=0
+        0.977054322f //f=1, y=1, x=1
+    };
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    float out_buffer[buf_size];
+    for (uint32_t i = 0; i < buf_size; i++)
+    {
+        out_buffer[i] = output_ptr[i];
+    }
+
+    float temp_max = 0;
+    float expected_sum = 1.0f;
+    int max_value_buffer_index = 0;
+    for (uint32_t i = 0; i < feature_num; i++) //this for loops will sum results in a batch per feature, we expect that: sum = 1.0f
+    {
+        for (uint32_t j = 0; j < y_size; j++)
+        {
+            for (uint32_t k = 0; k < x_size; k++)
+            {
+                float sum = 0.0f;
+                for (uint32_t l = 0; l < batch_num; l++)
+                {
+                    int index = l * feature_num * x_size * y_size +
+                                i * x_size * y_size +
+                                j * x_size +
+                                k;
+
+                    if (out_buffer[index] >= temp_max)
+                    {
+                        temp_max = out_buffer[index];
+                    }
+
+                    sum += out_buffer[index];
+                }
+                EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                temp_max = 0;
+                max_value_buffer_index++;
+
+                EXPECT_EQ(true, are_equal(sum, expected_sum));
+                sum = 0.0f;
+            }
+        }
+    }
+}
+
+
 //////////////////////////////////////////////////////////////////////////////
 //                                                                          //
 //                      Exhaustive Negative Matrix tests                    //
