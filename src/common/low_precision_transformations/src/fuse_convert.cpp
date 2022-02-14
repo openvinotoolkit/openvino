@@ -12,6 +12,7 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -120,6 +121,13 @@ bool FuseConvertTransformation::canBeTransformed(const TransformationContext& co
     const auto destType = convert->get_destination_type();
     if ((destType != element::f16) && (destType != element::f32)) {
         return false;
+    }
+
+    auto skip = getAttribute<SkipCleanupAttribute>(op);
+    if (!skip.empty()) {
+        if (skip.as<SkipCleanupAttribute>().value()) {
+            return false;
+        }
     }
 
     return true;

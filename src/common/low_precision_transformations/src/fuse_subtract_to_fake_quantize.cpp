@@ -8,6 +8,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -115,6 +116,12 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
 
     if (fq->get_output_target_inputs(0).size() != 1) {
         return false;
+    }
+    auto skip = getAttribute<SkipCleanupAttribute>(operation);
+    if (!skip.empty()) {
+        if (skip.as<SkipCleanupAttribute>().value()) {
+            return false;
+        }
     }
 
     return true;

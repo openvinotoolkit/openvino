@@ -69,6 +69,7 @@
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
 #include "low_precision/move_fake_quantize.hpp"
+#include "low_precision/lstm.hpp"
 
 // cleanup transformations
 #include "low_precision/convert.hpp"
@@ -215,6 +216,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     common->add_matcher<ngraph::pass::low_precision::FakeQuantizeTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::InterpolateTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::GroupConvolutionTransformation>(params);
+    common->add_matcher<ngraph::pass::low_precision::LSTMTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::MatMulTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::MaxPoolTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::MultiplyTransformation>(params);
