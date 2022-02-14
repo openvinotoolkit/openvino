@@ -407,6 +407,36 @@ inline std::shared_ptr<ngraph::Function> make2InputSubtract(std::vector<size_t> 
     return fn_ptr;
 }
 
+inline std::shared_ptr<ngraph::Function> makeNestedBranchConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
+                                                                   ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto relu0 = std::make_shared<ngraph::opset1::Relu>(params[0]);
+
+    auto conv1 = ngraph::builder::makeConvolution(relu0, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+                                                  ngraph::op::PadType::EXPLICIT, 5);
+    auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1);
+
+    auto conv2 = ngraph::builder::makeConvolution(relu0, ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
+                                                  ngraph::op::PadType::EXPLICIT, 10);
+    auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2);
+
+    auto conv3 = ngraph::builder::makeConvolution(relu2, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+                                                  ngraph::op::PadType::EXPLICIT, 5);
+    auto relu3 = std::make_shared<ngraph::opset1::Relu>(conv3);
+
+    auto conv4 = ngraph::builder::makeConvolution(relu2, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+                                                  ngraph::op::PadType::EXPLICIT, 5);
+    auto relu4 = std::make_shared<ngraph::opset1::Relu>(conv4);
+
+    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu3->output(0), relu4->output(0)}, 1);
+
+    auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), concat}, 1);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat1)};
+    std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
+    fnPtr->set_friendly_name("NestedBranchConvConcat");
+    return fnPtr;
+}
+
 inline std::shared_ptr<ngraph::Function> makeNestedSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                                    ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
