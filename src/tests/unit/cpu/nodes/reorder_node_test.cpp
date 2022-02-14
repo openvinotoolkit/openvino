@@ -125,6 +125,7 @@ public:
         result << "_IsNspcToNcsp:" << p.isNspc2Ncsp;
         result << "_InputDataType:" << typeid(inputType).name();
         result << "_OutputDataType:" << typeid(outputType).name();
+        result << ")";
 
         return result.str();
     }
@@ -267,7 +268,7 @@ protected:
         const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
         for (size_t i = 0; i < elemNum; ++i)
             inputReorderData[mdInput.off_l(i, false)] = inputType(i);
-
+        // Set all the elements in output memory to be 0.
         elemNum = std::accumulate(dstDims.begin(), dstDims.end(), size_t(1), std::multiplies<size_t>());
         const auto& outputReorder = childEdge->getMemory().GetPrimitive();
         auto outputReorderData = map_memory<outputType>(outputReorder);
@@ -315,27 +316,40 @@ TEST_P(ReorderCustomizedStrideTestS8, NCSP2NSPC) {
 // NSPC to NCSP with from
 const auto NSPC2NCSPparamsFactorIs2 = ::testing::Values(ReorderCustomizedStrideParamF32{{2, 16, 8, 8}, true, 2});
 const auto NSPC2NCSPparamsFactorIs3 = ::testing::Values(ReorderCustomizedStrideParamF32{{2, 16, 8, 8}, true, 3});
+const auto NSPC2NCSPparamsFactorIs1 = ::testing::Values(ReorderCustomizedStrideParamF32{{2, 16, 8, 8}, true, 1});
+
 const auto NCSP2NSPCparamsFactorIs2 = ::testing::Values(ReorderCustomizedStrideParamS8{{2, 8, 4, 4}, false, 2});
 const auto NCSP2NSPCparamsFactorIs5 = ::testing::Values(ReorderCustomizedStrideParamS8{{2, 8, 4, 4}, false, 5});
+const auto NCSP2NSPCparamsFactorIs1 = ::testing::Values(ReorderCustomizedStrideParamS8{{2, 8, 4, 4}, false, 1});
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNSPC2NCSPtrideWithFactor_1,
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNSPC2NCSPtrideWithFactor_2,
                          ReorderCustomizedStrideTestF32,
                          NSPC2NCSPparamsFactorIs2,
                          ReorderCustomizedStrideTestF32::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNSPC2NCSPStrideWithFactor_2,
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNSPC2NCSPStrideWithFactor_3,
                          ReorderCustomizedStrideTestF32,
                          NSPC2NCSPparamsFactorIs3,
                          ReorderCustomizedStrideTestF32::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNCSP2NSPCFactor_1,
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNSPC2NCSPtrideWithFactor_1,
+                         ReorderCustomizedStrideTestF32,
+                         NSPC2NCSPparamsFactorIs1,
+                         ReorderCustomizedStrideTestF32::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNCSP2NSPCFactor_2,
                          ReorderCustomizedStrideTestS8,
                          NCSP2NSPCparamsFactorIs2,
                          ReorderCustomizedStrideTestS8::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNCSP2NSPCFactor_2,
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNCSP2NSPCFactor_5,
                          ReorderCustomizedStrideTestS8,
                          NCSP2NSPCparamsFactorIs5,
+                         ReorderCustomizedStrideTestS8::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNCSP2NSPCFactor_1,
+                         ReorderCustomizedStrideTestS8,
+                         NCSP2NSPCparamsFactorIs1,
                          ReorderCustomizedStrideTestS8::getTestCaseName);
 
 /*
@@ -377,8 +391,6 @@ public:
         result << "_OutputLayoutType:" << static_cast<int>(p.dstLayout) << ".";
         result << "_InputDataType:" << typeid(inputType).name();
         result << "_OutputDataType:" << typeid(outputType).name();
-
-        result.seekp(-1, result.cur);
         result << ")";
         return result.str();
     }
@@ -515,7 +527,6 @@ const auto reorderCpuTestParams_1 = ::testing::Values(ReorderCPUTestParamSetF32{
                                                                                 LayoutType::nspc,
                                                                                 LayoutType::ncsp,
                                                                                 InferenceEngine::Precision::FP32});
-
 const auto reorderCpuTestParams_2 =
     ::testing::Values(ReorderCPUTestParamSetF32{{2, 8, -1, 4},
                                                 {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
