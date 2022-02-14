@@ -115,6 +115,7 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
         return;
     }
 
+    size_t num_of_axes = axes.size();
     for (size_t i = 0; i < num_of_axes; ++i) {
         const int64_t current_axis = axes[i];
         if (signal_size[i] != -1) {

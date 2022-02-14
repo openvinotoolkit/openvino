@@ -17,6 +17,7 @@
 #include "ngraph/op/rdft.hpp"
 
 #include <algorithm>
+#include <fft_base_shape_inference.hpp>
 #include <memory>
 #include <ngraph/validation_util.hpp>
 
