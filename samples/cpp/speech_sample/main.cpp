@@ -138,9 +138,10 @@ int main(int argc, char* argv[]) {
                 if (FLAGS_layout.empty() &&
                     std::any_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& i) {
                         return (dynamic_cast<const ov::op::v0::Parameter&>(*i.get_node()).get_layout()).empty();
-                    }))
+                    })) {
                     slog::err << "Layout is not set for any input, so custom batch size is not set." << slog::endl;
-                else {
+                    batchSize = 1;
+                } else {
                     ov::set_batch(model, batchSize);
                 }
             }
