@@ -60,7 +60,6 @@ void RunTest(const std::shared_ptr<ngraph::Function>& func,
     const float* result_ref_data = result_ref[0].data<float>();
     for (size_t i = 0; i < result[0].get_size(); i++) {
         double delta = std::abs(result_data[i] - result_ref_data[i]);
-        std::cout << "delta: " << delta << ", data: " << data[i] << ", f: " << result_data[i] << ", ref: " << result_ref_data[i] << '\n';
         ASSERT_TRUE(delta <= max_error_percent);
     }
 }
