@@ -352,7 +352,7 @@ void NmsLayerTest::SetUp() {
     element::Type outType;
     std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType,
              targetDevice) = this->GetParam();
-
+    const auto outTypePrc = InferenceEngine::details::convertPrecision(outType);
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
 
@@ -366,6 +366,9 @@ void NmsLayerTest::SetUp() {
     auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
+    outPrc.front() = outTypePrc;
+    outPrc.push_back(paramsPrec);
+    outPrc.push_back(outTypePrc);
     auto nms = builder::makeNms(paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec), convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr,
                                 scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType);
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
