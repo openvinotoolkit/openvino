@@ -14,8 +14,8 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
-#include "openvino/frontend/extension/extension_holder.hpp"
-#include "openvino/frontend/extension/progress_reporter_extension.hpp"
+#include "openvino/frontend/extension/holder.hpp"
+#include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ov {
