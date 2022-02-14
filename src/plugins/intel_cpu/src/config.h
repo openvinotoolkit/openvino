@@ -26,7 +26,7 @@ struct Config {
     bool enableDynamicBatch = false;
     std::string dumpToDot = "";
     int batchLimit = 0;
-    size_t rtCacheCapacity = 100ul;
+    size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
 #if defined(__arm__) || defined(__aarch64__)
@@ -67,6 +67,8 @@ struct Config {
 
     void readDebugCapsProperties();
 #endif
+
+    bool isNewApi = true;
 };
 
 }  // namespace MKLDNNPlugin

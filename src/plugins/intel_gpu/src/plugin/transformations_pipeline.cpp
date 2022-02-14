@@ -110,6 +110,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
     bool use_onednn = false;
+    const auto defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     use_onednn = device_info.supports_immad;
 #endif
@@ -322,12 +323,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
         if (enableInt8) {
-            pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
-                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
+            pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
+                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
             });
 
-            pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
-                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
+            pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
+                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
             });
         }
 
@@ -375,8 +376,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             return false;
         });
-        lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
-            auto fillStaticChannel = [](const ngraph::PartialShape& shape, size_t& channel) -> bool {
+        lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([func, defaultPrecisions](const_node_ptr& node) -> bool {
+            auto fillStaticChannel = [func](const ngraph::PartialShape& shape, size_t& channel) -> bool {
                 const auto rank = shape.rank();
                 if (rank.is_dynamic()) {
                     return false;
@@ -407,7 +408,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return true;
             }
 
-            return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
+            return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions)
+                || WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
         });
 
         if (!use_onednn) {
@@ -419,7 +421,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         lptPassConfig->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
             // disable MultiplyToGroupConvolution if Multiply with Constant can be fused
 
-            const auto dequantization = NetworkHelper::getDequantization(node, 0, true);
+            const auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, 0, true);
             std::shared_ptr<ov::Node> parent = dequantization.empty() ? nullptr : dequantization.data.get_node()->shared_from_this();
             if (parent == nullptr) {
                 const auto constantNode = NetworkHelper::getConstantInput(node);
@@ -448,7 +450,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return false;
         });
 
-        auto params = LayerTransformation::Params(true, element::f32, true);
+        auto params = LayerTransformation::Params(true, element::f32, defaultPrecisions, true);
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
         lptManager.run_passes(func);
     }

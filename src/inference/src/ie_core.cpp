@@ -491,6 +491,28 @@ public:
         return newAPI;
     }
 
+    static std::tuple<bool, std::string> CheckStatic(const ie::CNNNetwork& network) {
+        bool res = true;
+        std::stringstream errMsg;
+        auto model = network.getFunction();
+        if (model) {
+            for (const auto& input : model->inputs()) {
+                if (input.get_partial_shape().is_dynamic()) {
+                    errMsg << "{ input:'";
+                    for (const auto& name : input.get_names()) {
+                        errMsg << name << ",";
+                    }
+                    if (auto node = input.get_node_shared_ptr()) {
+                        errMsg << node->get_friendly_name();
+                    }
+                    errMsg << "', shape=" << input.get_partial_shape() << "} ";
+                    res = false;
+                }
+            }
+        }
+        return {res, errMsg.str()};
+    }
+
     ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override {
         auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ParamMap{});
         return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._ptr;
@@ -544,7 +566,7 @@ public:
             deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
         } else {
             // check whether the Auto-Batching is disabled explicitly
-            const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
                 // virtual plugins like AUTO/MULTI will need the config
@@ -644,7 +666,8 @@ public:
 
     ie::SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
                                                 const std::string& deviceName,
-                                                const std::map<std::string, std::string>& config) override {
+                                                const std::map<std::string, std::string>& config,
+                                                const std::function<void(const CNNNetwork&)>& val = nullptr) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -657,12 +680,19 @@ public:
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache, modelPath);
             if (!loadedFromCache) {
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
+                if (val) {
+                    val(cnnNetwork);
+                }
                 res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
             }
         } else if (cacheManager) {
+            // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
             res = plugin.compile_model(modelPath, parsed._config);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
+            if (val) {
+                val(cnnNetwork);
+            }
             res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
         }
         return {res._ptr, res._so};
@@ -1094,12 +1124,13 @@ public:
         for (auto&& config : configs) {
             auto parsed = parseDeviceNameIntoConfig(config.first);
             if (deviceName.find(parsed._deviceName) != std::string::npos) {
-                std::string key, value;
                 std::stringstream strm(config.second);
-                while (strm >> key >> value) {
+                std::map<std::string, std::string> device_configs;
+                util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
+                for (auto&& device_config : device_configs) {
                     if (supportedConfigKeys.end() !=
-                        std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), key)) {
-                        supportedConfig[key] = value;
+                        std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), device_config.first)) {
+                        supportedConfig[device_config.first] = device_config.second;
                     }
                 }
                 for (auto&& config : parsed._config) {
@@ -1348,6 +1379,11 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::map<st
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
+    auto valid = ov::CoreImpl::CheckStatic(network);
+    OPENVINO_ASSERT(std::get<0>(valid),
+                    "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                    std::get<1>(valid));
     auto exec = _impl->LoadNetwork(network, deviceName, config);
     return {exec._ptr, exec._so};
 }
@@ -1355,6 +1391,11 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
+    auto valid = ov::CoreImpl::CheckStatic(network);
+    OPENVINO_ASSERT(std::get<0>(valid),
+                    "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                    std::get<1>(valid));
     auto exec = _impl->LoadNetwork(network, std::dynamic_pointer_cast<RemoteContext>(context), config);
     return {exec._ptr, exec._so};
 }
@@ -1362,7 +1403,13 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
-    auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
+    auto exec = _impl->LoadNetwork(modelPath, deviceName, config, [](const CNNNetwork& network) {
+        auto valid = ov::CoreImpl::CheckStatic(network);
+        OPENVINO_ASSERT(std::get<0>(valid),
+                        "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                        "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                        std::get<1>(valid));
+    });
     return {exec._ptr, exec._so};
 }
 
@@ -1466,6 +1513,12 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
+    auto valid = ov::CoreImpl::CheckStatic(network);
+    OPENVINO_ASSERT(std::get<0>(valid),
+                    "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
+                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                    std::get<1>(valid));
+
     return _impl->QueryNetwork(network, deviceName, config);
 }
 
@@ -1755,13 +1808,6 @@ Any Core::get_property(const std::string& deviceName, const std::string& name, c
         auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
         return _impl->GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     });
-}
-
-void Core::get_property(const std::string& deviceName,
-                        const std::string& name,
-                        const AnyMap& arguments,
-                        ov::Any& to) const {
-    any_lexical_cast(get_property(deviceName, name, arguments), to);
 }
 
 std::vector<std::string> Core::get_available_devices() const {
