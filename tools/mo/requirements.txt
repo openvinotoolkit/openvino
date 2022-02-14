@@ -11,4 +11,3 @@ urllib3>=1.26.4
 requests>=2.25.1
 fastjsonschema~=2.15.1
 openvino-telemetry>=2022.1.0
-importlib-metadata; python_version < "3.8" and sys_platform == "win32"
