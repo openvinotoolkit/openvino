@@ -122,8 +122,9 @@ static const char input_layer_names_message[] = "Optional. Layer names for input
                                                 "The names are separated with \",\" "
                                                 "Example: Input1,Input2 ";
 /// @brief message for inputs layer names
-static const char layout_message[]            = "Optional. Prompts how network layouts should be treated by application. "
-                                                "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
+static const char layout_message[] =
+    "Optional. Prompts how network layouts should be treated by application. "
+    "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
 ;
 
 /// @brief message for PWL max error percent
