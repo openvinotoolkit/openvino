@@ -1075,7 +1075,6 @@ openvino/tools/mo/utils/ir_reader/extenders/random_uniform_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/range_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/reorg_yolo_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/RNNCell_extender.py
-openvino/tools/mo/utils/ir_reader/extenders/ScatterUpdate_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/shape_of_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/strided_slice_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/tensoriterator_extender.py
