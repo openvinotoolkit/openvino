@@ -89,8 +89,8 @@ auto infer_request2 = compiled_model.create_infer_request();
 for (auto & item : inputs) {
     /** Get input tensor **/
     auto input = infer_request.get_tensor(item.get_any_name());
-    /** Fill input tensor with planes. First b channel, then g and r channels **/
-//     ...
+    // Fill input tensor
+    //  ...
 }
 //! [part7]
 
@@ -114,15 +114,9 @@ infer_request2.set_tensor(input_name, roi_tensor);
 //! [part9]
 
 //! [part10]
-/** Iterate over all input tensors **/
-for (auto & item : inputs) {
-    /** Create input tensor **/
-    ov::Tensor input(item.get_element_type(), item.get_shape());
-    infer_request.set_tensor(item.get_any_name(), input);
-
-    /** Fill input tensor with planes. First b channel, then g and r channels **/
-//     ...
-}
+void * memory;
+ov::Tensor input(inputs[0].get_element_type(), inputs[0].get_shape(), memory);
+infer_request.set_tensor(inputs[0].get_any_name(), input);
 //! [part10]
 
 //! [part11]

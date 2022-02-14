@@ -1,12 +1,6 @@
 # Integrate OpenVINO™ into customer application {#openvino_docs_Integrate_OV_into_customer_application}
 
-## Integrate OpenVINO™ Runtime with Your C++ Application
-
-@sphinxdirective
-.. raw:: html
-
-    <div id="switcher-cpp" class="switcher-anchor">C++</div>
-@endsphinxdirective
+## Integrate OpenVINO™ Runtime with Your Application
 
 The following diagram illustrates usual application development workflow:
 
@@ -35,6 +29,11 @@ For details on how to build a model in OpenVINO™ Runtime, see the [Build a Mod
 
 OpenVINO™ Runtime allows to use tensor names or indexes to work wit model inputs/outpus. To get model input/output ports you can use `ov::Model::input()` or `ov::Model::output()` respectively.
 
+ - C++
+    @snippet snippets/src/main.cpp part2
+ - Python
+    @snippet snippets/src/main.py part2
+
 OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. For data types the `ov::element::Type` is used.
 
 #### Shapes representation
@@ -59,6 +58,7 @@ OpenVINO™ Runtime provides two types for shape representation:
        ├── ...             - Additional folders like includes/
        └── src/            - source folder
            └── main.cpp
+           └── main.py
    build/                  - build directory
        ...      
    ```
@@ -77,11 +77,17 @@ This section provides step-by-step instructions to implement a typical inference
 
 Include next files to work with OpenVINO™ Runtime:
 
-@snippet snippets/src/main.cpp include
+ - C++
+    @snippet snippets/src/main.cpp include
+ - Python
+    @snippet snippets/src/main.py import
 
 Use the following code to create OpenVINO™ Core to manage available devices and read model objects:
 
-@snippet snippets/src/main.cpp part0
+ - C++
+    @snippet snippets/src/main.cpp part0
+ - Python
+    @snippet snippets/src/main.py part0
 
 #### Step 2 (Optional). Configure Input and Output of the Model
 
@@ -105,14 +111,26 @@ Optionally, OpenVINO™ Runtime allows to configure input and output of the mode
 
 Compile the model to the device using `ov::Core::compile_model()`:
 
-   - IR:
-        @snippet snippets/src/main.cpp part4_1
+   - IR: 
+       - C++
+            @snippet snippets/src/main.cpp part4_1
+       - Python
+            @snippet snippets/src/main.py part4_1
    - ONNX:
-        @snippet snippets/src/main.cpp part4_2
+       - C++
+            @snippet snippets/src/main.cpp part4_2
+       - Python
+            @snippet snippets/src/main.py part4_2
    - Paddle:
-        @snippet snippets/src/main.cpp part4_3
+       - C++
+            @snippet snippets/src/main.cpp part4_3
+       - Python
+            @snippet snippets/src/main.py part4_3
    - OpenVINO Model:
-        @snippet snippets/src/main.cpp part4_4
+       - C++
+            @snippet snippets/src/main.cpp part4_4
+       - Python
+            @snippet snippets/src/main.py part4_4
 
 
 It creates a compiled model from a model object. The compiled model is associated with single hardware device.
@@ -121,14 +139,20 @@ It is possible to create as many compiled models as needed and to use them simul
 Third parameter is a configuration for device. It is list of properties which affects device behavior.
 [Supported devices](supported_plugins/Supported_Devices.md) page for more details about supported configuration parameters.
 
-@snippet snippets/src/main.cpp part5
+ - C++
+    @snippet snippets/src/main.cpp part5
+ - Python
+    @snippet snippets/src/main.py part5
 
 #### Step 4. Create an Inference Request
 
 `ov::InferRequest` class provides methods for inference model inside the OpenVINO™ runtime.
 Create an infer request using the following code:
 
-@snippet snippets/src/main.cpp part6
+ - C++
+    @snippet snippets/src/main.cpp part6
+ - Python
+    @snippet snippets/src/main.py part6
 
 #### Step 5. Set Inputs
 
@@ -136,21 +160,33 @@ You can use one of the following options to prepare input:
 
 * **Optimal way for a single model.** Get tensor allocated by an infer request using `ov::InferRequest::get_tensor()` and feed input tensor and the input data to the tensors. Input tensor's shape, element type must match specific input of the model. For cases of dynamic input shapes, read [Working with dynamic shapes].
 
-   @snippet snippets/src/main.cpp part7
+ - C++
+    @snippet snippets/src/main.cpp part7
+ - Python
+    @snippet snippets/src/main.py part7
 
 * **Optimal way for a cascade of models (output of one model is input for another).** Get output tensor from the first request using `ov::InferRequest::get_tensor()` and set it as input for the second request using `ov::InferRequest::set_tensor()`. But be careful, shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
 
-   @snippet snippets/src/main.cpp part8
+ - C++
+    @snippet snippets/src/main.cpp part8
+ - Python
+    @snippet snippets/src/main.py part8
 
 * **Optimal way to handle ROI (a ROI object located inside of input of one model is input for another).** It is possible to re-use shared input by several models. You do not need to allocate separate input tensor for a model if it processes a ROI object located inside of already allocated input of a previous model. For instance, when first model detects objects on a video frame (stored as input tensor) and second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input tensor (used by first model) by second model and just crop ROI without allocation of new memory using `ov::Tensor()` with passing of `ov::Tensor` and `ov::Coordinate` as parameters.
 
-   @snippet snippets/src/main.cpp part9
+ - C++
+    @snippet snippets/src/main.cpp part9
+ - Python
+    @snippet snippets/src/main.py part9
 
    Make sure that shared input is kept valid during execution of each model. Otherwise, ROI tensor may be corrupted if the original input tensor (that ROI is cropped from) has already been rewritten.
 
 * `ov::InferRequest::set_tensor()` is needed to wrap external memory into `ov::Tensor`:
 
-   @snippet snippets/src/main.cpp part10
+ - C++
+    @snippet snippets/src/main.cpp part10
+ - Python
+    @snippet snippets/src/main.py part10
 
 A tensor can be filled before and after `set_tensor()`.
 
@@ -159,7 +195,10 @@ A tensor can be filled before and after `set_tensor()`.
 Start inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while accelerator is busy.
 
 * For asynchronous inference request: 
-   @snippet snippets/src/main.cpp part12
+     - C++
+        @snippet snippets/src/main.cpp part12
+     - Python
+        @snippet snippets/src/main.py part12
   `start_async` returns immediately and starts inference without blocking main thread, `infer` blocks main thread and returns when inference is completed. Call `wait` for waiting result to become available for asynchronous request.
 
   There are two ways to use it:
@@ -167,7 +206,11 @@ Start inference in asynchronous or synchronous mode. Async API usage can improve
       * `ov::InferRequest::wait()` - waits until inference result becomes available
 
 * For synchronous inference request:
-   @snippet snippets/src/main.cpp part11
+
+     - C++
+        @snippet snippets/src/main.cpp part11
+     - Python
+        @snippet snippets/src/main.py part11
 
 Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
 
@@ -180,9 +223,12 @@ the ov::Busy exception that request is busy with computations.
 
 Go over the output tensors and process the inference results.
 
-@snippet snippets/src/main.cpp part13
+ - C++
+    @snippet snippets/src/main.cpp part13
+ - Python
+    @snippet snippets/src/main.py part13
 
-### Build Your Application
+### Build Your C++ Application
 
 For details about building your application, refer to the CMake files for the sample applications.
 All samples source code is located in the `<INSTALL_DIR>/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
@@ -205,171 +251,6 @@ It's allowed to specify additional build options (e.g. to build CMake project on
 To run compiled applications on Microsoft* Windows* OS, make sure that Microsoft* Visual C++ 2017 is installed and
 `<INSTALL_DIR>/bin/intel64/Release/*.dll` files are placed to the
 application folder or accessible via `%PATH%` environment variable.
-
-## Integrate Inference Engine with Your Python Application
-
-@sphinxdirective
-.. raw:: html
-
-    <div id="switcher-python" class="switcher-anchor">Python</div>
-@endsphinxdirective
-
-This document explains how to integrate and use the Inference Engine API with your Python application.   
-
-The following diagram illustrates the typical Inference Engine Python API workflow:
-![ie_api_flow_python] 
-
-Read the sections below to learn about each item.
-
-### Import Inference Module
-
-To make use of the Inference Engine functionality, import IECore to your application: 
-
-```py
-from openvino.inference_engine import IECore
-``` 
- 
-### Use Inference Engine API 
-
-This section provides step-by-step instructions to implement a typical inference pipeline with the Inference Engine API:   
-
-![ie_api_use_python]
-
-#### Step 1. Create Inference Engine Core
-
-Use the following code to create Inference Engine Core to manage available devices and read model objects: 
-```py
-ie = IECore()
-``` 
-#### Step 2 (Optional). Read model. Configure Input and Output of the Model
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="collapsible-section">
-@endsphinxdirective
-
-Optionally, configure input and output of the model using the steps below: 
-
-1. Read model 
-   @sphinxdirective
-      
-   .. tab:: IR
-   
-      .. code-block:: python
-   
-         net = ie.read_network(model="model.xml")
-   
-   .. tab:: ONNX
-      
-      .. code-block:: python
-         
-         net = ie.read_network(model="model.onnx")
-   
-   .. tab:: nGraph
-      
-      .. code-block:: python
-         
-         #Basic example of nGraph model creation
-         param = Parameter(Type.f32, Shape([1, 3, 22, 22]))
-         relu = ng.relu(param)
-         func = Function([relu], [param], 'test')
-         caps = Function.to_capsule(func)
-         net = IENetwork(caps)
-   
-   @endsphinxdirective
-
-2. Request input and output information using input_info, outputs 
-   ```py
-   inputs = net.input_info 
-   input_name = next(iter(net.input_info))  
-
-   outputs = net.outputs 
-   output_name = next(iter(net.outputs)) 
-   ``` 
-   Information for this input layer is stored in input_info. The next cell prints the input layout, precision and shape. 
-   ```py
-   print("Inputs:")
-   for name, info in net.input_info.items():
-       print("\tname: {}".format(name))
-       print("\tshape: {}".format(info.tensor_desc.dims))
-       print("\tlayout: {}".format(info.layout))
-       print("\tprecision: {}\n".format(info.precision))
-   ```
-   This cell output tells us that the model expects inputs with a shape of [1,3,224,224], and that this is in NCHW layout. This means that the model expects input data with a batch size (N) of 1, 3 channels (C), and images of a height (H) and width (W) of 224. The input data is expected to be of FP32 (floating point) precision. 
-    
-   Getting the output layout, precision and shape is similar to getting the input layout, precision and shape. 
-   ```py
-   print("Outputs:")
-   for name, info in net.outputs.items():
-       print("\tname: {}".format(name))
-       print("\tshape: {}".format(info.shape))
-       print("\tlayout: {}".format(info.layout))
-       print("\tprecision: {}\n".format(info.precision))
-   ```
-   This cell output shows that the model returns outputs with a shape of [1, 1001], where 1 is the batch size (N) and 1001 the number of classes (C). The output is returned as 32-bit floating point. 
-
-@sphinxdirective
-.. raw:: html
-
-    </div>
-@endsphinxdirective 
-
-#### Step 3. Load model to the Device 
-
-Load the model to the device using `load_network()`:
-
-@sphinxdirective
-   
-.. tab:: IR
-
-   .. code-block:: python
-
-      exec_net = ie.load_network(network= "model.xml", device_name="CPU") 
-.. tab:: ONNX
-   
-   .. code-block:: python
-      
-      exec_net = ie.load_network(network= "model.onnx", device_name="CPU") 
-
-.. tab:: Model from step 2
-   
-   .. code-block:: python
-   
-      exec_net = ie.load_network(network=net, device_name="CPU")
-
-@endsphinxdirective
-
-This example is designed for CPU device, refer to the [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) page to read about more devices. 
-
-#### Step 4. Prepare input 
-```py
-import cv2 
-import numpy as np 
-
-image = cv2.imread("image.png") 
-
-# Resize with OpenCV your image if needed to match with net input shape 
-# N, C, H, W = net.input_info[input_name].tensor_desc.dims
-# image = cv2.resize(src=image, dsize=(W, H)) 
-
-# Converting image to NCHW format with FP32 type 
-input_data = np.expand_dims(np.transpose(image, (2, 0, 1)), 0).astype(np.float32) 
-```
-
-#### Step 5. Start Inference
-```py
-result = exec_net.infer({input_name: input_data}) 
-``` 
-
-#### Step 6. Process the Inference Results 
-```py
-output = result[output_name] 
-```
-
-### Run Your Application
-
-Congratulations, you have made your first Python application with OpenVINO™ toolkit, now you may run it.
 
 [ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
 [ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg
