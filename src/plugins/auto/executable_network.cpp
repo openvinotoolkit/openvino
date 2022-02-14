@@ -315,19 +315,20 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         if (curDevIsGPU && _loadContext[CPU].isEnabled) {
             // user does not set the compiling threads
             // limit the threads num for compiling
-            unsigned int maxNumThreads = 0;
+            int maxNumThreads = 0;
             try {
-                maxNumThreads = _core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<unsigned int>();
+                maxNumThreads = _core->GetConfig(device, ov::compilation_num_threads.name()).as<int>();
             } catch (...) {
-                LOG_DEBUG("[AUTO PLUGIN]: cannot get MAX_NUM_THREADS from GPU");
+                LOG_DEBUG("[AUTOPLUGIN]: cannot get MAX_NUM_THREADS from GPU");
             }
-            if (maxNumThreads == std::thread::hardware_concurrency()) {
-                unsigned int threadNum = maxNumThreads / 2;
-                deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)] = std::to_string(threadNum).c_str();
-                LOG_DEBUG("[AUTO PLUGIN]:gpu streams number for compiling: %s", deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)].c_str());
+            if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
+                int threadNum = maxNumThreads / 2;
+                deviceConfig[ov::compilation_num_threads.name()] = std::to_string(threadNum).c_str();
+                LOG_DEBUG("[AUTOPLUGIN]:gpu streams number for compiling: %s", deviceConfig[ov::compilation_num_threads.name()].c_str());
             } else {
                 // user set the compiling threads num
                 // use the user's val anyway
+                LOG_DEBUG("[AUTOPLUGIN]:user defined compiling threads: %d", maxNumThreads);
             }
         }
     }
