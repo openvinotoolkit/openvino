@@ -3,7 +3,7 @@
 This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.  
 Models with only one input and output are supported.
 
-The following Inference Engine C++ API is used in the application:
+The following C++ API is used in the application:
 
 | Feature | API | Description |
 | :--- | :--- | :--- |
@@ -23,10 +23,10 @@ The following Inference Engine C++ API is used in the application:
 
 ## How It Works
 
-At startup, the sample application reads command line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin and performs synchronous inference. Then processes output data and write it to a standard output stream.
+At startup, the sample application reads command line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin and performs synchronous inference. Then processes output data and write it to a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 
@@ -47,7 +47,7 @@ To run the sample, you need specify a model and image:
 >
 > - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the OpenVINO™ Runtime format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
@@ -65,7 +65,7 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 omz_downloader --name googlenet-v1
 ```
 
-3. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter:
+3. If a model is not in the OpenVINO™ Runtime IR or ONNX format, it must be converted. You can do this using the model converter:
 
 ```
 omz_converter --name googlenet-v1
@@ -116,7 +116,7 @@ classid probability
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

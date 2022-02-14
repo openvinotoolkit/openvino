@@ -4,7 +4,7 @@ This sample demonstrates how to execute an Asynchronous Inference of acoustic mo
 
 The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
 
-The following Inference Engine C++ API is used in the application:
+The following C++ API is used in the application:
 
 | Feature | API | Description |
 | :--- | :--- | :--- |
@@ -27,17 +27,17 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, loads a specified model and input data to the Inference Engine plugin, performs inference on all speech utterances stored in the input file(s), logging each step in a standard output stream.  
+At startup, the sample application reads command-line parameters, loads a specified model and input data to the OpenVINO™ Runtime plugin, performs inference on all speech utterances stored in the input file(s), logging each step in a standard output stream.  
 If the `-r` option is given, error statistics are provided for each speech utterance as shown above.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the OpenVINO™ Runtime with Your Application" guide.
 
 ### GNA-specific details
 
 #### Quantization
 
-If the GNA device is selected (for example, using the `-d` GNA flag), the GNA Inference Engine plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
+If the GNA device is selected (for example, using the `-d` GNA flag), the GNA OpenVINO™ Runtime plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
 Several parameters control neural network quantization. The `-q` flag determines the quantization mode.
 Three modes are supported:
 
@@ -151,7 +151,7 @@ Here, the floating point Kaldi-generated reference neural network scores (`dev93
 
 > **NOTES**:
 >
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the OpenVINO™ Runtime format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample supports input and output in numpy file format (.npz)
 
@@ -236,7 +236,7 @@ All of mentioned files can be downloaded from [https://storage.openvinotoolkit.o
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

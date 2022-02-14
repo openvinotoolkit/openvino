@@ -4,7 +4,7 @@ This sample demonstrates how to execute an synchronous inference using [model](.
 
 You do not need an XML file to create a model. The API of ngraph::Function allows creating a model on the fly from the source code.
 
-The following Inference Engine C++ API is used in the application:
+The following C++ API is used in the application:
 
 | Feature | API | Description |
 | :--- | :--- | :--- |
@@ -30,10 +30,10 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 At startup, the sample application does the following:
 - Reads command line parameters
 - [Build a Model](../../../docs/OV_Runtime_UG/model_representation.md) and passed weights file
-- Loads the model and input data to the Inference Engine plugin
+- Loads the model and input data to the OpenVINO™ Runtime plugin
 - Performs synchronous inference and processes output data, logging each step in a standard output stream
 
-You can see the explicit description of each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+You can see the explicit description of each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 
@@ -182,6 +182,6 @@ classid probability label
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
