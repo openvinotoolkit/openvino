@@ -33,10 +33,12 @@ static const char model_message[] =
 
 /// @brief message for performance hint
 static const char hint_message[] =
-    "Optional. Performance hint (optimize for latency or throughput)."
-    " The hint allows the OpenVINO device to select the right network-specific settings,"
-    " as opposite to just accepting specific values from the sample command line."
-    " So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
+    "Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.\n"
+    "                               'throughput' or 'tput': device performance mode will be set to THROUGHPUT.\n"
+    "                               'latency': device performance mode will be set to LATENCY.\n"
+    "                               'none': no device performance mode will be set.\n"
+    "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
+    "'none'";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
@@ -374,7 +376,7 @@ static void show_usage() {
     std::cout << "    -l \"<absolute_path>\"      " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -hint \"performance hint (latency or throughput)\"   " << hint_message << std::endl;
+    std::cout << "    -hint \"performance hint (latency or throughput or none)\"   " << hint_message << std::endl;
     std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
