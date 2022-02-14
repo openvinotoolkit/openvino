@@ -89,6 +89,7 @@ OutputVector prior_box_clustered(const Node& node) {
     attrs.variances = node.get_attribute_value<std::vector<float>>("variance", {0.1f});
     attrs.step_heights = node.get_attribute_value<float>("step_h", 0.0f);
     attrs.step_widths = node.get_attribute_value<float>("step_w", 0.0f);
+    attrs.step = node.get_attribute_value<float>("step", 0.0f);
     attrs.offset = node.get_attribute_value<float>("offset", 0.0f);
 
     auto axes = default_opset::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0});
