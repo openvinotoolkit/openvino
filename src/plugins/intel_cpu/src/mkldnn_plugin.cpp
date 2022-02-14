@@ -165,8 +165,8 @@ Engine::~Engine() {
     executorManager()->clear("CPUCallbackExecutor");
 }
 
-static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Function>& nGraphFunc, const bool _enableLPT,
-                                               const bool _enableSnippets) {
+static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
+                                               const bool _enableSnippets, const bool isLegacyApi) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -346,47 +346,23 @@ static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Fun
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(
-            [](const_node_ptr &node) -> bool {
-                for (size_t i = 0; i < node->get_output_size(); i++) {
-                    const auto outputs = node->get_output_target_inputs(i);
-                    for (const auto &out : outputs) {
-                        if (!ngraph::op::is_output(out.get_node())) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
-            });
+    if (!isLegacyApi) {
+        auto nmsCallback = [](const_node_ptr &node) -> bool {
+                               for (size_t i = 0; i < node->get_output_size(); i++) {
+                                   const auto outputs = node->get_output_target_inputs(i);
+                                   for (const auto &out : outputs) {
+                                       if (!ngraph::op::is_output(out.get_node())) {
+                                           return false;
+                                       }
+                                   }
+                               }
+                               return true;
+                           };
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(
-            [](const_node_ptr &node) -> bool {
-                for (size_t i = 0; i < node->get_output_size(); i++) {
-                    const auto outputs = node->get_output_target_inputs(i);
-                    for (const auto &out : outputs) {
-                        if (!ngraph::op::is_output(out.get_node())) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
-            });
-
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(
-            [](const_node_ptr &node) -> bool {
-                for (size_t i = 0; i < node->get_output_size(); i++) {
-                    const auto outputs = node->get_output_target_inputs(i);
-                    for (const auto &out : outputs) {
-                        if (!ngraph::op::is_output(out.get_node())) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
-            });
+        pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(nmsCallback);
+        pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
+        pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
+    }
 
     // List of enabled/disabled transformations
 
@@ -557,9 +533,9 @@ static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Fun
     }
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets) {
+static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets, const bool isLegacyApi) {
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets, isLegacyApi);
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
@@ -605,7 +581,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             || engConfig.enableDynamicBatch;
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets, isLegacyAPI());
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
@@ -913,7 +889,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16 && with_cpu_x86_avx512_core()));
-        Transformation(clonedNetwork, enableLPT, enableSnippets);
+        Transformation(clonedNetwork, enableLPT, enableSnippets, isLegacyAPI());
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
