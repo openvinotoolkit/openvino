@@ -488,9 +488,7 @@ class OPENVINO_API Any {
     };
 
     template <class T>
-    struct Impl<T, typename std::enable_if<
-        !std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value>::type &&
-        !std::is_same<T, std::string>>::type>
+    struct Impl<T, typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value>::type>
         : public Base {
         OPENVINO_RTTI(typeid(T).name());
 
@@ -554,7 +552,7 @@ class OPENVINO_API Any {
 
     void impl_check() const;
 
-    std::shared_ptr<void> _temp;
+    mutable std::shared_ptr<void> _temp;
 
     Base::Ptr _impl;
 
@@ -688,7 +686,7 @@ public:
                                          static_cast<std::string>(T::element_type::get_type_info_static()));
                 }
                 _temp = std::make_shared<decay_t<T>>(std::static_pointer_cast<typename T::element_type>(runtime_attribute));
-                return *static_cast<decay_t<T>*>(_impl->temp.get());
+                return *static_cast<decay_t<T>*>(_temp.get());
             }
         }
     }
@@ -725,7 +723,7 @@ public:
                                          static_cast<std::string>(T::element_type::get_type_info_static()));
                 }
                 _temp = std::make_shared<decay_t<T>>(std::static_pointer_cast<typename T::element_type>(runtime_attribute));
-                return *static_cast<decay_t<T>*>(_impl->temp.get());
+                return *static_cast<decay_t<T>*>(_temp.get());
             }
         }
     }
@@ -744,10 +742,10 @@ public:
         if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<decay_t<T>*>(_impl->addressof());
         } else if (_impl->is(typeid(std::string))) {
-            _temp = std::make_shared<T>();
+            _temp = std::make_shared<decay_t<T>>();
             std::stringstream strm{*static_cast<std::string*>(_impl->addressof())};
-            util::Read<T>(strm, *static_cast<T*>(_temp.get()));
-            return *static_cast<T*>(_temp.get());
+            util::Read<decay_t<T>>{}(strm, *static_cast<decay_t<T>*>(_temp.get()));
+            return *static_cast<decay_t<T>*>(_temp.get());
         }
         for (const auto& type_index : _impl->base_type_info()) {
             if (equal(type_index, typeid(decay_t<T>))) {
@@ -771,10 +769,10 @@ public:
         if (_impl->is(typeid(decay_t<T>))) {
             return *static_cast<const decay_t<T>*>(_impl->addressof());
         } else if (_impl->is(typeid(std::string))) {
-            _temp = std::make_shared<T>();
+            _temp = std::make_shared<decay_t<T>>();
             std::stringstream strm{*static_cast<std::string*>(_impl->addressof())};
-            util::Read<T>(strm, *static_cast<T*>(_temp.get()));
-            return *static_cast<T*>(_temp.get());
+            util::Read<decay_t<T>>{}(strm, *static_cast<decay_t<T>*>(_temp.get()));
+            return *static_cast<decay_t<T>*>(_temp.get());
         }
         for (const auto& type_index : _impl->base_type_info()) {
             if (equal(type_index, typeid(decay_t<T>))) {
