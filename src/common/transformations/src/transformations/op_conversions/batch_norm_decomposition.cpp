@@ -71,14 +71,9 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
         const auto one = op::Constant::create(element::i64, Shape{1}, {1});
         const auto tail_shape_rank = op::Constant::create(element::i64, Shape{1}, {dims_to_add});
         const auto tail_shape = std::make_shared<opset5::Broadcast>(one, tail_shape_rank);
-        // WA: it's necessary to fold m_gamma shape to the constant
-        // to avoid using m_gamma output twice as divide input and shapeOf input
-        // because this will make it impossible to get constant from source
-        // (lower/upper bounds will be invalidated after the first pass through the m_gamma input)
-        const auto C_dim = ngraph::op::util::make_try_fold<opset5::ShapeOf>(m_gamma);
+        const auto C_dim = std::make_shared<opset5::ShapeOf>(m_gamma);
         // create new shape [1, C, 1, 1, ...]
-        const auto new_shape = std::make_shared<opset5::Concat>(
-            OutputVector{one, C_dim, tail_shape}, 0);
+        const auto new_shape = std::make_shared<opset5::Concat>(OutputVector{one, C_dim, tail_shape}, 0);
 
         std::shared_ptr<Node> gamma_div_scale_aligned = std::make_shared<opset5::Reshape>(gamma_div_scale, new_shape, true);
         std::shared_ptr<Node> beta_aligned = std::make_shared<opset5::Reshape>(m_beta, new_shape, true);
