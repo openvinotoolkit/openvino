@@ -69,6 +69,10 @@ protected:
         }
 
         ResultVector results;
+        outPrc.front() = InferenceEngine::Precision::FP32;
+        for (int i = 1; i < numOut; i++) {
+            outPrc.push_back(InferenceEngine::Precision::FP32);
+        }
         for (int i = 0; i < numOut; i++) {
             auto mockNode = std::make_shared<opset5::Multiply>(conv->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
             results.push_back(std::make_shared<opset5::Result>(mockNode));

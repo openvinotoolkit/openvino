@@ -46,13 +46,16 @@ void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type, c
     switch (type) {
         case ConstantSubgraphType::SINGLE_COMPONENT: {
             auto input = builder::makeConstant<float>(ngPrc, inputShape, {}, true);
+            outPrc.front() = inputPrecision;
             results.push_back(std::make_shared<opset3::Result>(input));
             break;
         }
         case ConstantSubgraphType::SEVERAL_COMPONENT: {
             auto input1 = builder::makeConstant<float>(ngPrc, inputShape, {}, true);
+            outPrc.front() = inputPrecision;
             results.push_back(std::make_shared<opset3::Result>(input1));
             auto input2 = builder::makeConstant<float>(ngPrc, inputShape, {}, true);
+            outPrc.push_back(inputPrecision);
             results.push_back(std::make_shared<opset3::Result>(input2));
             break;
         }

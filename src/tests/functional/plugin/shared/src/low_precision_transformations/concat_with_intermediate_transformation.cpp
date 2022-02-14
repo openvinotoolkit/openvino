@@ -65,7 +65,8 @@ void ConcatWithIntermediateTransformation::SetUp() {
     bool transparentIntermediate;
     bool multichannel;
     std::tie(ngPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
-
+    outPrc.front() = InferenceEngine::details::convertPrecision(ngPrecision);
+    outPrc.push_back(InferenceEngine::details::convertPrecision(ngPrecision));
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediate(
         ngPrecision,
         inputShape,

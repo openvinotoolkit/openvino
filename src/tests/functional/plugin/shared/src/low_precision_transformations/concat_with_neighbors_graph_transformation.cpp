@@ -46,7 +46,8 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
     ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(ngPrecision, inputShape, targetDevice, params) = this->GetParam();
-
+    outPrc.front() = InferenceEngine::details::convertPrecision(ngPrecision);
+    outPrc.push_back(InferenceEngine::details::convertPrecision(ngPrecision));
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
         ngPrecision,
         inputShape,

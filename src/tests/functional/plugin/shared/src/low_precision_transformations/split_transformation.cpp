@@ -51,7 +51,10 @@ void SplitTransformation::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
-
+    outPrc.front() = InferenceEngine::details::convertPrecision(precision);
+    for (int i = 1; i < param.numSplit; i++) {
+        outPrc.push_back(InferenceEngine::details::convertPrecision(precision));
+    }
     function = ngraph::builder::subgraph::SplitFunction::getOriginal(
         precision,
         inputShape,

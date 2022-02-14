@@ -44,7 +44,8 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
     ngraph::element::Type precision;
     MultiplyToGroupConvolutionTransformationParam param;
     std::tie(precision, shape, targetDevice, param) = this->GetParam();
-
+    outPrc.front() = InferenceEngine::details::convertPrecision(precision);
+    outPrc.push_back(InferenceEngine::details::convertPrecision(precision));
     function = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
         precision,
         shape,

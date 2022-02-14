@@ -51,7 +51,8 @@ void ConcatWithChildAndOutputTransformation::SetUp() {
     ConcatWithChildAndOutputTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
-
+    outPrc.front() = InferenceEngine::details::convertPrecision(netPrecision);
+    outPrc.push_back(InferenceEngine::details::convertPrecision(netPrecision));
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
 }
