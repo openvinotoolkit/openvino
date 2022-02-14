@@ -3,7 +3,7 @@
 
 """
 Package: openvino
-Low level wrappers for the FrontEnd c++ api.
+Low level wrappers for the FrontEnd C++ API.
 """
 
 # flake8: noqa

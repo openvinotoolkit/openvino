@@ -142,10 +142,8 @@ void regclass_frontend_FrontEnd(py::module m) {
                 Add extension defined by an object inheriting from Extension 
                 used in order to extend capabilities of Frontend.
 
-                Parameters
-                ----------
-                extension : Extension
-                    Provided extension object.
+                :param extension: Provided extension object.
+                :type extension: Extension
             )");
 
     fem.def("add_extension",
@@ -154,10 +152,8 @@ void regclass_frontend_FrontEnd(py::module m) {
                 Add extension defined in external library indicated by a extension_path 
                 used in order to extend capabilities of Frontend.
 
-                Parameters
-                ----------
-                extension_path : str
-                    A path to extension.
+                :param extension_path: A path to extension.
+                :type extension_path: str
             )");
 
     fem.def("__repr__", [](const FrontEnd& self) -> std::string {

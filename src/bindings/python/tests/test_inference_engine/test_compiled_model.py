@@ -238,7 +238,7 @@ def test_inputs_docs(device):
     exec_net = core.compile_model(func, device)
     inputs = exec_net.inputs
     input_0 = inputs[0]
-    expected_string = "openvino.runtime.ConstOutput wraps ov::Output<Const ov::Node >"
+    expected_string = "openvino.runtime.ConstOutput represents port/node output."
     assert input_0.__doc__ == expected_string
 
 
