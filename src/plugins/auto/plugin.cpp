@@ -145,7 +145,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
                 }
             }
         }
-        // it's a virtrul device like HETERO, TEMPLATE
+        // it's a virtual device like HETERO, TEMPLATE
         // or real device with ID like GPU.1
         if (sameTypeDevices.size() == 0) {
             sameTypeDevices.push_back(std::move(deviceName));
