@@ -33,6 +33,10 @@ Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
 
 For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref build_model) section.
 
+OpenVINO™ Runtime allows to use tensor names or indexes to work wit model inputs/outpus. To get model input/output ports you can use `ov::Model::input()` or `ov::Model::output()` respectively.
+
+OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. For data types the `ov::element::Type` is used.
+
 #### Shapes representation
 
 OpenVINO™ Runtime provides two types for shape representation: 
@@ -45,10 +49,6 @@ OpenVINO™ Runtime provides two types for shape representation:
     @snippet example_ngraph_utils.cpp ov:shape
 
   But in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.
-
-#### Element types
-
-`ov::element::Type` class represents 
 
 ### Link with OpenVINO™ Runtime
 
@@ -101,6 +101,8 @@ Optionally, OpenVINO™ Runtime allows to configure input and output of the mode
 
 #### Step 3. Compile the Model
 
+`ov::CompiledModel` class represents device specific compiled model.
+
 Compile the model to the device using `ov::Core::compile_model()`:
 
    - IR:
@@ -123,6 +125,7 @@ Third parameter is a configuration for device. It is list of properties which af
 
 #### Step 4. Create an Inference Request
 
+`ov::InferRequest` class provides methods for inference model inside the OpenVINO™ runtime.
 Create an infer request using the following code:
 
 @snippet snippets/src/main.cpp part6
@@ -145,34 +148,15 @@ You can use one of the following options to prepare input:
 
    Make sure that shared input is kept valid during execution of each model. Otherwise, ROI tensor may be corrupted if the original input tensor (that ROI is cropped from) has already been rewritten.
 
-* Allocate input tensors of the appropriate types and sizes, feed an image and the input data to the tensors, and call `ov::InferRequest::set_tensor()` to set these tensors for an infer request:
+* `ov::InferRequest::set_tensor()` is needed to wrap external memory into `ov::Tensor`:
 
    @snippet snippets/src/main.cpp part10
 
 A tensor can be filled before and after `set_tensor()`.
 
-> **NOTE**:
->
-> * The `set_tensor()` method compares precision and layout of an input tensor with the ones defined in step 3 and
-> throws an exception if they do not match. It also compares a size of the input tensor with input
-> size of the read model. But if input was configured as resizable, you can set an input tensor of
-> any size (for example, any ROI tensor). Input resize will be invoked automatically using resize
-> algorithm configured on step 3. Similarly to the resize, color format conversions allow the color
-> format of an input tensor to differ from the color format of the read model. Color format
-> conversion will be invoked automatically using color format configured on step 3.
->
-> * `get_tensor()` logic is the same for pre-processable and not pre-processable input. Even if it is
-> called with input configured as resizable or as having specific color format, a tensor allocated by
-> an infer request is returned. Its size and color format are already consistent with the
-> corresponding values of the read model. No pre-processing will happen for this tensor. If you
-> call `get_tensor()` after `set_tensor()`, you will get the tensor you set in `set_tensor()`.
-
 #### Step 6. Start Inference
 
 Start inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while accelerator is busy.
-
-* For synchronous inference request:
-   @snippet snippets/src/main.cpp part11
 
 * For asynchronous inference request: 
    @snippet snippets/src/main.cpp part12
@@ -182,6 +166,8 @@ Start inference in asynchronous or synchronous mode. Async API usage can improve
       * `ov::InferRequest::wait_for()` - specify maximum duration in milliseconds to block for. The method is blocked until the specified timeout has elapsed, or the result becomes available, whichever comes first.
       * `ov::InferRequest::wait()` - waits until inference result becomes available
 
+* For synchronous inference request:
+   @snippet snippets/src/main.cpp part11
 
 Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
 
