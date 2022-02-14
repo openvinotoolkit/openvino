@@ -16,10 +16,10 @@
 
 namespace SubgraphTestsDefinitions {
 
-class ReluShapeOfSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::shapeOfParams>,
+class ReluShapeOfSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::shapeOfParamsCommon>,
         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::shapeOfParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::shapeOfParamsCommon>& obj);
 protected:
     void SetUp() override;
 };

@@ -19,6 +19,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(std::vector<size_t>({10, 10, 10})),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(InferenceEngine::Precision::I64)),
                             ShapeOfLayerTest::getTestCaseName);
 }  // namespace
