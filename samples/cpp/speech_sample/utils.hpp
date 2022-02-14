@@ -442,6 +442,11 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
     for (auto& scale_factor_string : scale_factor_strings) {
         auto values = split(scale_factor_string, ':');
         if (values.size() == 1) {
+            if (scale_factor_strings.size() != 1) {
+                throw std::logic_error("Unrecognized scale factor format! "
+                                       "Please specify <input_name1>:<sf1>,<input_name2>:<sf2> or "
+                                       "just <sf> to be applied to all inputs");
+            }
             auto scale_factor = std::stof(values.at(0));
             check_sf(scale_factor);
             for (auto& input : inputs) {
