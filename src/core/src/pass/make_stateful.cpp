@@ -56,13 +56,13 @@ std::tuple<ov::pass::MakeStateful::ParamResPairs, std::vector<std::string>> find
         // In case of several Results connected to one output tensor,
         // We can't determine what result we need to take exactly.
         // But we can take first unused, the order is not important, data is the same.
-        std::shared_ptr<opset8::Result> unused_res;
+        opset8::Result* unused_res = nullptr;
         for (const auto& target_in : (*res)->input_value(0).get_target_inputs()) {
-            auto is_target_res = std::dynamic_pointer_cast<opset8::Result>(target_in.get_node()->shared_from_this());
+            auto is_target_res = ov::as_type<opset8::Result>(target_in.get_node());
             if (!is_target_res) {
                 continue;
             }
-            if (uniq_res.find(is_target_res.get()) == uniq_res.end()) {
+            if (uniq_res.find(is_target_res) == uniq_res.end()) {
                 unused_res = is_target_res;
                 break;
             }
@@ -71,9 +71,10 @@ std::tuple<ov::pass::MakeStateful::ParamResPairs, std::vector<std::string>> find
                      "All Result operations associated with the tensor ",
                      res_name,
                      " are already involved in the transformation.");
-        uniq_res.insert(unused_res.get());
+        uniq_res.insert(unused_res);
 
-        pairs_to_replace.emplace_back(*param, unused_res);
+        if (auto casted = std::dynamic_pointer_cast<opset8::Result>(unused_res->shared_from_this()))
+            pairs_to_replace.emplace_back(*param, casted);
         variable_names.push_back(param_name + res_name);
     }
     return std::make_tuple(pairs_to_replace, variable_names);
