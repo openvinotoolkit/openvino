@@ -317,14 +317,14 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
             // limit the threads num for compiling
             int maxNumThreads = 0;
             try {
-                maxNumThreads = _core->GetConfig(device, ov::compilation_num_threads.name()).as<int>();
+                maxNumThreads = _core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
             } catch (...) {
                 LOG_DEBUG("[AUTOPLUGIN]: cannot get MAX_NUM_THREADS from GPU");
             }
             if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
                 int threadNum = maxNumThreads / 2;
-                deviceConfig[ov::compilation_num_threads.name()] = std::to_string(threadNum).c_str();
-                LOG_DEBUG("[AUTOPLUGIN]:gpu streams number for compiling: %s", deviceConfig[ov::compilation_num_threads.name()].c_str());
+                deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)] = std::to_string(threadNum).c_str();
+                LOG_DEBUG("[AUTO PLUGIN]:gpu streams number for compiling: %s", deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)].c_str());
             } else {
                 // user set the compiling threads num
                 // use the user's val anyway
