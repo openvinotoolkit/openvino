@@ -440,7 +440,8 @@ int main(int argc, char* argv[]) {
                         inferRequest.inferRequest.wait();
                         if (inferRequest.frameIndex >= 0)
                             for (size_t next_output = 0; next_output < count_file; next_output++) {
-                                auto dims = executableNet.output(outputs[next_output]).get_shape();
+                                std::string outputName = (outputs.size() == 0) ? executableNet.output(0).get_any_name() : outputs[next_output];
+                                auto dims = executableNet.output(outputName).get_shape();
                                 numScoresPerOutput[next_output] = std::accumulate(std::begin(dims),
                                                                                   std::end(dims),
                                                                                   size_t{1},
