@@ -55,8 +55,10 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
         if (mask->adjust_value() && !mask->all_dims_are_empty()) {
             std::vector<int64_t> new_const_value;
             auto value = const_node->cast_vector<int64_t>();
-            for (size_t i = 0; i < mask->size(); i++)
-                new_const_value.push_back(value[i] - mask->at(i).size());
+            for (size_t i = 0; i < mask->size(); i++) {
+                const int64_t res = value[i] - mask->at(i).size();
+                new_const_value.push_back((res > 0)? res : value[i]);
+            }
 
             const auto new_const = opset6::Constant::create(const_node->get_element_type(),
                                                             const_node->get_shape(), new_const_value);
