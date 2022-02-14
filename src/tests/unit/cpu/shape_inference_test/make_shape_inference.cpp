@@ -3,7 +3,6 @@
 //
 #include <gtest/gtest.h>
 
-#include <one_hot_shape_inference.hpp>
 #include <openvino/core/coordinate_diff.hpp>
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
@@ -43,16 +42,10 @@ TEST(StaticShapeInferenceTest, MakeShapeInference) {
         if (matMul->get_input_element_type(1) != element::i8) {
             wrongPrcFlag.test_and_set();
         }
-        ngraph::OutputVector new_inputs;
-        auto op = matMul.get();
-        for (size_t i = 0; i < op->get_input_size(); ++i) {
-                new_inputs.push_back(std::make_shared<ov::opset1::Parameter>(op->get_input_element_type(i),
-                                                                             op->get_input_partial_shape(i)));
-        }
-        auto local_op_default = op->clone_with_new_inputs(new_inputs);
+        auto shapeInfer = make_shape_inference(matMul);
     };
 
-    const size_t numThreads = 12;
+    const size_t numThreads = 24;
     std::vector<std::thread> threads(numThreads);
 
     for (auto&& thread : threads)
