@@ -187,6 +187,27 @@ public:
         return *_memory_pool;
     }
 
+    struct variable {
+        memory_ptr memory;
+        bool is_set;
+        variable(memory_ptr mem = nullptr) : memory{mem}, is_set{false} {}
+    };
+
+    /// Returns variables of stateful network
+    std::map<std::string, variable>& get_variables() {
+        return _variables;
+    }
+
+    /// Sets variables of stateful network
+    void set_variables(const std::map<std::string, variable>& variables) {
+        _variables = variables;
+    }
+
+    /// Associates @p memory with variable @p id
+    void add_variable(const std::string& id, memory_ptr memory) {
+        _variables[id] = variable{memory};
+    }
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
@@ -205,6 +226,8 @@ private:
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
+
+    std::map<std::string, variable> _variables;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);

@@ -150,6 +150,10 @@ public:
 
     std::shared_ptr<cldnn::topology> GetTopology() const { return m_topology; }
 
+    cldnn::memory_ptr GetVariableMemory(const std::string& variable_id, const cldnn::layout& layout);
+
+    std::map<std::string, cldnn::network::variable> GetVariables() const;
+
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
@@ -159,6 +163,8 @@ private:
     std::shared_ptr<cldnn::topology> m_topology;
     InferenceEngine::InputsDataMap m_networkInputs;
     InferenceEngine::OutputsDataMap m_networkOutputs;
+
+    std::map<std::string, cldnn::network::variable> m_variables;
 
     bool queryMode;
 

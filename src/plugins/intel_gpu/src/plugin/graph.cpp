@@ -81,10 +81,12 @@ void Graph::Build() {
         int m_bv_sz = m_program->GetMaxBatchSizeForSingleProgram();
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             auto network = BuildNetwork(m_program->GetCompiledProgram(b));
+            network->set_variables(m_program->GetVariables());
             m_networks.insert(m_networks.begin(), network);
         }
     } else {
         auto network = BuildNetwork(m_program->GetCompiledProgram());
+        network->set_variables(m_program->GetVariables());
         m_networks.emplace_back(network);
     }
 

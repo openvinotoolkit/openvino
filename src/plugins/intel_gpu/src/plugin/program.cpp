@@ -334,6 +334,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         options.set_option(cldnn::build_option::partial_build_program(true));
     }
     PrepareBuild(networkInputs, networkOutputs);
+
     for (const auto& op : ops) {
         CreateSingleLayerPrimitive(*m_topology, op);
     }
@@ -480,6 +481,24 @@ void Program::InitProfileInfo(const std::string& layerName,
     perfEntry.cpu_uSec = perfEntry.realTime_uSec = 0;
     perfEntry.isCPU = isCPU;
     perfEntry.parentPrimitive = parentId;
+}
+
+cldnn::memory_ptr Program::GetVariableMemory(const std::string& variable_id, const cldnn::layout& layout) {
+    cldnn::memory_ptr memory;
+
+    const auto var = m_variables.find(variable_id);
+    if (var == m_variables.end()) {
+        memory = m_engine->allocate_memory(layout);
+        m_variables[variable_id] = cldnn::network::variable{memory};
+    } else {
+        memory = var->second.memory;
+    }
+
+    return memory;
+}
+
+std::map<std::string, cldnn::network::variable> Program::GetVariables() const {
+    return m_variables;
 }
 
 // TODO: Does it make sense to add such method to ngraph core?
