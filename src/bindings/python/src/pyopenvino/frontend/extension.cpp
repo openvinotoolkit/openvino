@@ -13,7 +13,7 @@
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/op.hpp"
-#include "openvino/frontend/extension/progress_reporter_extension.hpp"
+#include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "pyopenvino/graph/model.hpp"
 
