@@ -19,8 +19,8 @@ bool TransparentBaseTransformation::transform(TransformationContext& context, ng
         return false;
     }
 
-    op = NetworkHelper::separateInStandaloneBranch(op);
-    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op), true);
+    op = NetworkHelper::separateInStandaloneBranch(op, defaultPrecisions);
+    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions), true);
     return true;
 }
 
