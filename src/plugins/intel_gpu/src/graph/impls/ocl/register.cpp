@@ -14,6 +14,7 @@ namespace ocl {
 void register_implementations() {
     REGISTER_OCL(activation);
     REGISTER_OCL(arg_max_min);
+    REGISTER_OCL(assign);
     REGISTER_OCL(average_unpooling);
     REGISTER_OCL(binary_convolution);
     REGISTER_OCL(border);
@@ -51,6 +52,7 @@ void register_implementations() {
     REGISTER_OCL(quantize);
     REGISTER_OCL(random_uniform);
     REGISTER_OCL(range);
+    REGISTER_OCL(read_value);
     REGISTER_OCL(reduce);
     REGISTER_OCL(region_yolo);
     REGISTER_OCL(reorder);

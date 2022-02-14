@@ -7,6 +7,7 @@
 
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
+#include "intel_gpu/primitives/assign.hpp"
 #include "intel_gpu/primitives/average_unpooling.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
 #include "intel_gpu/primitives/binary_convolution.hpp"
@@ -42,6 +43,7 @@
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/random_uniform.hpp"
 #include "intel_gpu/primitives/range.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/primitives/reduce.hpp"
 #include "intel_gpu/primitives/region_yolo.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -84,6 +86,7 @@ namespace detail {
 
 REGISTER_OCL(activation);
 REGISTER_OCL(arg_max_min);
+REGISTER_OCL(assign);
 REGISTER_OCL(average_unpooling);
 REGISTER_OCL(batch_to_space);
 REGISTER_OCL(binary_convolution);
@@ -123,6 +126,7 @@ REGISTER_OCL(pyramid_roi_align);
 REGISTER_OCL(quantize);
 REGISTER_OCL(random_uniform);
 REGISTER_OCL(range);
+REGISTER_OCL(read_value);
 REGISTER_OCL(reduce);
 REGISTER_OCL(region_yolo);
 REGISTER_OCL(reorder);
