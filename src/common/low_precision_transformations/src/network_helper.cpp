@@ -1982,6 +1982,21 @@ void NetworkHelper::insertDequantizationAfter(
         }
     }
 }
+
+std::shared_ptr<ov::Node> NetworkHelper::fakeQuantizeWraper(
+    const std::shared_ptr<ov::Node> parameter) {
+    const auto input_low = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    const auto input_high = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    const auto output_low = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    const auto output_high = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    return ngraph::pattern::wrap_type<opset1::FakeQuantize>({
+        parameter,
+        input_low,
+        input_high,
+        output_low,
+        output_high});
+}
+
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

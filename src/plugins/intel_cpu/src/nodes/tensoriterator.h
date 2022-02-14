@@ -108,6 +108,13 @@ public:
 
     void setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
+    Graph getSubGraph() const {
+        return sub_graph;
+    }
+    std::shared_ptr<ov::Node> getOriginalOp() const {
+        return ngraphOp;
+    }
+
 protected:
     //  needShapeInfer() should return false
     //  because we cannot resolve the output dimensions before the inference is completed

@@ -253,6 +253,9 @@ public:
         float& updatedOutputLowValue,
         float& updatedOutputHighValue);
 
+    static std::shared_ptr<ov::Node> fakeQuantizeWraper
+        (const std::shared_ptr<ov::Node> parameter);
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(
             const std::shared_ptr<opset1::FakeQuantize>& fq,
