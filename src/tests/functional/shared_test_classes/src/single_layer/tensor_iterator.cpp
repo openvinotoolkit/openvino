@@ -72,6 +72,9 @@ namespace LayerTestsDefinitions {
         std::tie(should_decompose, seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, netPrecision,
                  targetDevice) = this->GetParam();
         std::vector<std::vector<size_t>> inputShapes;
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
+        outPrc.push_back(netPrecision);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
 
