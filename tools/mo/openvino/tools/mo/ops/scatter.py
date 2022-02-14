@@ -96,12 +96,23 @@ class ScatterElementsUpdate(Scatter):
 
         input_value = node.in_port(0).data.get_value()
         indices_value = node.in_port(1).data.get_value()
-        indices_shape = node.in_port(1).data.get_shape()
         updates_value = node.in_port(2).data.get_value()
+
+        input_shape = node.in_port(0).data.get_shape()
+        indices_shape = node.in_port(1).data.get_shape()
+        updates_shape = node.in_port(2).data.get_shape()
+
         axis = node.in_port(3).data.get_value()
         if input_value is not None and indices_value is not None and updates_value is not None and axis is not None:
-            assert axis.size == 1, "The node {} has axis input value size equal to {} but it should be exactly 1.".format(
-                node_name, axis.size)
+            assert axis.size == 1, "The node {} has axis input value size equal to {} but it should be exactly 1.".\
+                format(node_name, axis.size)
+            assert len(input_shape) == len(indices_shape), 'data and indices inputs for node "{}" must be of the ' \
+                                                           'same rank. Instead got {} and {}'.format(node_name,
+                                                                                                     len(input_shape),
+                                                                                                     len(indices_shape))
+            assert compatible_shapes(indices_shape, updates_shape), \
+                'updates and indices shapes for node "{}" must be equal. Instead got {} and {}.' \
+                ''.format(node_name, indices_shape, updates_shape)
             axis = axis.item()
             out_value = input_value.copy()
             for idx in np.ndindex(*indices_shape):
