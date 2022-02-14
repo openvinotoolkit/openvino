@@ -22,7 +22,7 @@ public:
     /// \brief    Constructs Slice operation (default axes).
     ///
     /// \param data             The tensor to be sliced.
-    /// \param start            1D tensor with begin indices of the slice.
+    /// \param start            1D tensor with start indices of the slice.
     /// \param stop             1D tensor with end indices of the slice.
     /// \param step             1D tensor specifies the increment to use in slicing along corresponding axes.
     Slice(const Output<Node>& data, const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step);
@@ -30,7 +30,7 @@ public:
     /// \brief    Constructs Slice operation.
     ///
     /// \param data             The tensor to be sliced.
-    /// \param start            1D tensor with begin indices of the slice.
+    /// \param start            1D tensor with start indices of the slice.
     /// \param stop             1D tensor with end indices of the slice.
     /// \param step             1D tensor specifies the increment to use in slicing along corresponding axes.
     /// \param axes             1D tensor indicating which dimensions the values in the `start` and `stop` apply to.
