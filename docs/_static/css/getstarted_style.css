@@ -24,7 +24,7 @@
 	border-top: solid 1px #fff;
 }
 
-#GSG_introtext a:nth-of-type(2)::after {content: "Linux, Windows, macOS, Raspbian OS";}
+#GSG_introtext a:nth-of-type(2)::after {content: "Linux/Windows/macOS/Raspbian OS";}
 #GSG_introtext a:nth-of-type(3)::after {content: "From PyPI";}
 #GSG_introtext a:nth-of-type(4)::after {content: "GitHub";}
 
