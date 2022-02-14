@@ -114,17 +114,25 @@ int main(int argc, char* argv[]) {
                     output.set_names({outputs[i] + ":" + std::to_string(ports[i])});
                 }
             }
-            check_number_of_inputs(model->inputs().size(), numInputFiles);
+            const auto& inputs = model->inputs();
+            check_number_of_inputs(inputs.size(), numInputFiles);
             ov::preprocess::PrePostProcessor proc(model);
-            for (int i = 0; i < model->inputs().size(); i++) {
+            for (int i = 0; i < inputs.size(); i++) {
                 proc.input(i).tensor().set_element_type(ov::element::f32);
             }
             for (int i = 0; i < model->outputs().size(); i++) {
                 proc.output(i).tensor().set_element_type(ov::element::f32);
             }
             model = proc.build();
-            if (FLAGS_bs)
-                ov::set_batch(model, batchSize);
+            if (FLAGS_bs) {
+                if (std::any_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& i) {
+                        return (dynamic_cast<const ov::op::v0::Parameter&>(*i.get_node()).get_layout()).empty();
+                    }))
+                    slog::err << "Layout is not set for any input, so custom batch size is not set." << slog::endl;
+                else {
+                    ov::set_batch(model, batchSize);
+                }
+            }
         }
         // ------------------------------ Get Available Devices ------------------------------------------------------
         auto isFeature = [&](const std::string xFeature) {
