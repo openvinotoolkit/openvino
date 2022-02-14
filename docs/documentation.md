@@ -51,7 +51,7 @@
    :hidden:
    :caption: Media Processing
 
-   Intel® Deep Learning Streamer (Intel® DL Streamer) <openvino_docs_dlstreamer>
+   Intel® Deep Learning Streamer <openvino_docs_dlstreamer>
    openvino_docs_gapi_gapi_intro
    OpenVX Developer Guide <https://software.intel.com/en-us/openvino-ovx-guide>
    OpenVX API Reference <https://khronos.org/openvx>
