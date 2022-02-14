@@ -191,7 +191,7 @@ int main(int argc, char* argv[]) {
         }
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
             auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE)).as<std::string>();
-            core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
+            core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE),  ext}});
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
@@ -206,6 +206,7 @@ int main(int argc, char* argv[]) {
                     std::stringstream strm;
                     strm << ov::hint::PerformanceMode::THROUGHPUT;
                     FLAGS_hint = strm.str();
+                    dbg(FLAGS_hint);
                 }
             }
         }
@@ -218,10 +219,14 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------
         next_step();
         ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
-        if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
-            ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
-        else if (FLAGS_hint == "latency")
-            ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+        {
+            std::stringstream tstream; tstream << ov::hint::PerformanceMode::THROUGHPUT;
+            std::stringstream lstream; lstream << ov::hint::PerformanceMode::LATENCY;
+            if (FLAGS_hint == "throughput" || FLAGS_hint == "tput" || FLAGS_hint == tstream.str())
+                ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+            else if (FLAGS_hint == "latency" || FLAGS_hint == lstream.str())
+                ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+        }
 
         auto getDeviceTypeFromName = [](std::string device) -> std::string {
             return device.substr(0, device.find_first_of(".("));
