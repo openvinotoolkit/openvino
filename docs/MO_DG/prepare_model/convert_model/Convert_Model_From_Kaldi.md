@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _convert model kaldi:
+
 .. toctree::
    :maxdepth: 1
    :hidden:
