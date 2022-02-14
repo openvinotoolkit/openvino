@@ -1271,7 +1271,7 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper, bool inv
                         should_invalidate |= true;
                     if (tensor.get_upper_value() && shape_size(tensor.get_upper_value()->get_shape()) > 10)
                         should_invalidate |= true;
-                    if (should_invalidate)
+                    if (should_invalidate && input.get_target_inputs().size() == 1)
                         tensor.invalidate_values();
                 }
                 propagate_rt_info(node, output);
