@@ -49,7 +49,7 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Media Processing
+   :caption: Media Processing and Computer Vision Libraries
 
    Intel® Deep Learning Streamer <openvino_docs_dlstreamer>
    openvino_docs_gapi_gapi_intro
