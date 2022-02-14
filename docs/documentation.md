@@ -6,7 +6,9 @@
    :maxdepth: 1
    :caption: Converting and Preparing Models
    :hidden:
-
+   
+   openvino_docs_importing_models
+   openvino_docs_model_inputs_outputs
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
    openvino_docs_HOWTO_Custom_Layers_Guide
    omz_tools_downloader
@@ -90,7 +92,7 @@
 
 This section provides reference documents that guide you through developing your own deep learning applications with the OpenVINO™ toolkit. These documents will most helpful if you have first gone through the [Get Started](get_started.md) guide.
 
-## Converting and Preparing Models
+## Importing Models to OpenVINO™ Toolkit
 With the [Model Downloader](@ref omz_tools_downloader) and [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) guides, you will learn to download pre-trained models and convert them for use with the OpenVINO™ toolkit. You can provide your own model or choose a public or Intel model from a broad selection provided in the [Open Model Zoo](model_zoo.md).
 
 ## Deploying Inference
