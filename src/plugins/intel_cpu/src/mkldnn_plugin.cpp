@@ -174,9 +174,17 @@ static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Fun
     const bool useLpt =
             _enableLPT &&
         ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
+    auto defaultPrecisions = useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
+    bool hasINT16orINT32Levels = false;
     if (useLpt) {
-        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
+        hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
+                nGraphFunc,
+                {ngraph::pass::low_precision::levels::int16, ngraph::pass::low_precision::levels::int16_narrow_range,
+                 ngraph::pass::low_precision::levels::int32, ngraph::pass::low_precision::levels::int32_narrow_range});
+        if (hasINT16orINT32Levels) {
+            defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
+        }
+        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
     }
     auto get_convert_precisions = []() {
         precisions_array array = {
@@ -220,8 +228,7 @@ static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Fun
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     if (useLpt) {
-        manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(
-            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
+        manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
     }
     manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
@@ -423,12 +430,12 @@ static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Fun
             return !MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
         });
 
-        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
-            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
+        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
+            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
         });
 
-        pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
-            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
+        pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
+            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
         });
     }
 
@@ -468,28 +475,26 @@ static void TransformationUpToCPUSpecificOpSet(const std::shared_ptr<ngraph::Fun
 
         // for GNA networks reference execution
         bool updatePrecision = true;
-        bool hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
-                nGraphFunc,
-                {levels::int16, levels::int16_narrow_range,
-                 levels::int32, levels::int32_narrow_range});
         if (hasINT16orINT32Levels) {
             updatePrecision = false;
-            LowPrecision::setDefaultPrecisions(precision_set::int8_int16_int32_support);
-
             supportedPrecisions = std::vector<OperationPrecisionRestriction>({});
         }
 
         ngraph::pass::Manager lptManager;
-        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization,
-                                                                            LayerTransformation::Params(updatePrecision));
+        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(
+            supportedPrecisions,
+            perTensorQuantization,
+            LayerTransformation::Params(updatePrecision, ngraph::element::f32, defaultPrecisions));
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
             }
             return false;
         });
-        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
-            return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
+        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>(
+            [&defaultPrecisions](const_node_ptr& node) -> bool {
+            return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) ||
+                WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
         });
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
             return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
@@ -717,10 +722,10 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig._streams;
-        return static_cast<uint32_t>(streams); // ov::optimal_number_of_infer_requests has no negative values
-    } else if (name == ov::streams::num) {
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(streams); // ov::optimal_number_of_infer_requests has no negative values
+    } else if (name == ov::num_streams) {
         const auto streams = engConfig.streamExecutorConfig._streams;
-        return static_cast<int32_t>(streams); // ov::streams::num has special negative values (AUTO = -1, NUMA = -2)
+        return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
         switch (affinity) {
@@ -736,19 +741,20 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         return ov::Affinity::NONE;
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = engConfig.streamExecutorConfig._threads;
-        return num_threads;
+        return decltype(ov::inference_num_threads)::value_type(num_threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
-        return perfCount ? "YES" : "NO";
+        return decltype(ov::enable_profiling)::value_type(perfCount);
     } else if (name == ov::hint::inference_precision) {
         const auto enforceBF16 = engConfig.enforceBF16;
-        return enforceBF16 ? ov::element::bf16 : ov::element::f32;
+        return decltype(ov::hint::inference_precision)::value_type(
+            enforceBF16 ? ov::element::bf16 : ov::element::f32);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = engConfig.perfHintsConfig.ovPerfHint;
-        return perfHint;
+        return ov::Any{perfHint}.as<decltype(ov::hint::performance_mode)::value_type>();
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
-        return perfHintNumRequests;
+        return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
@@ -836,7 +842,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::device::capabilities.name())
         };
         // the whole config is RW before network is loaded.
-        std::vector<ov::PropertyName> rwProperties {RW_property(ov::streams::num.name()),
+        std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
                                                     RW_property(ov::enable_profiling.name()),

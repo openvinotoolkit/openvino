@@ -4,7 +4,6 @@
 
 #include "openvino/util/env_util.hpp"
 
-#include <map>
 #include <set>
 #include <sstream>
 
@@ -63,56 +62,4 @@ bool ov::util::getenv_bool(const char* env_var, bool default_value) {
         throw std::runtime_error(ss.str());
     }
     return rc;
-}
-
-bool ov::util::getenv_tokens_bool(const char* env_var,
-                                  const std::set<std::string>& enablingTokens,
-                                  const std::set<std::string>& disablingTokens,
-                                  bool default_value) {
-    const std::string env_str(ov::util::getenv_string(env_var));
-    if (env_str.empty())
-        return default_value;
-
-    const auto& tokens = ov::util::split(ov::util::to_lower(env_str), ',', true);
-    bool disabled = true;
-    for (const auto& token : tokens) {
-        if (disablingTokens.find(token) != disablingTokens.end())
-            return false;
-
-        if (disabled && enablingTokens.find(token) != enablingTokens.end())
-            disabled = false;
-    }
-    return !disabled;
-}
-
-bool ov::util::getenv_ov_enable_bool(const std::string& token) {
-    const std::map<std::string, std::pair<std::set<std::string>, std::set<std::string>>> map = {
-        {"all", {{"all"}, {"-all"}}},
-        {"snippets", {{"all", "snippets"}, {"-all", "-snippets"}}}};
-
-    const auto& search = map.find(token);
-    if (search != map.end()) {
-        return getenv_tokens_bool("OV_ENABLE", search->second.first, search->second.second, true);
-    } else {
-        std::stringstream ss;
-        ss << "token '" << token << "' is not supported for environment variable 'OV_ENABLE'.";
-        throw std::runtime_error(ss.str());
-    }
-    return false;
-}
-
-bool ov::util::getenv_ov_dump_ir_bool(const std::string& token) {
-    const std::map<std::string, std::pair<std::set<std::string>, std::set<std::string>>> map = {
-        {"all", {{"all"}, {"-all"}}},
-        {"snippets", {{"all", "snippets"}, {"-all", "-snippets"}}}};
-
-    const auto& search = map.find(token);
-    if (search != map.end()) {
-        return getenv_tokens_bool("OV_DUMP_IR", search->second.first, search->second.second);
-    } else {
-        std::stringstream ss;
-        ss << "token '" << token << "' is not supported for environment variable 'OV_DUMP_IR'.";
-        throw std::runtime_error(ss.str());
-    }
-    return false;
 }
