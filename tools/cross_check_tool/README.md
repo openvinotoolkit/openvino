@@ -26,8 +26,6 @@ Model specific arguments:
                         Path to an input image file or multi-input file to
                         infer. Generates input(s) from normal distribution if
                         empty
-  --batch BATCH, -b BATCH
-                        Overrides batch size. Default is inherited from model
   --model MODEL, -m MODEL
                         Path to an .xml file that represents the first IR of
                         the trained model to infer.
@@ -38,11 +36,11 @@ Model specific arguments:
                         Defines layers to check. Options: all, None - for
                         output layers check, list of comma-separated layer
                         names to check. Default value is None.
-  --mapping MAPPING, -map MAPPING
-                        Model Optimizer provided mapping for --model/-m
-  --reference_mapping REFERENCE_MAPPING, -ref_map REFERENCE_MAPPING
-                        Model Optimizer provided mapping for
-                        --reference_model/-ref_model
+  --ref_layers REFERENCE_LAYERS, -reference_layers REFERENCE_LAYERS
+                        Defines layers to check in reference model. Options: all, None - for
+                        output layers check, list of comma-separated layer
+                        names to check. If not specified the same layers will
+                        be processed as in --layers parameter.
   --num_of_iterations NUM_OF_ITERATIONS, -ni NUM_OF_ITERATIONS
                         Number of iterations to collect all over the net
                         performance
