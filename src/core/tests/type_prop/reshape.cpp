@@ -559,9 +559,11 @@ TEST(type_prop, reshape_to_zero_shape_dynamic) {
 
 TEST(type_prop, reshape_to_zero_shape_incorrect) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{2, 1});
-    ASSERT_THROW(
-        make_shared<op::v1::Reshape>(param, op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}), false),
-        std::exception);
+    ASSERT_THROW(const auto unused =
+                     make_shared<op::v1::Reshape>(param,
+                                                  op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}),
+                                                  false),
+                 std::exception);
 }
 
 TEST(type_prop, reshape_to_zero) {
@@ -590,9 +592,11 @@ TEST(type_prop, reshape_to_scalar_2) {
 
 TEST(type_prop, reshape_to_scalar_3) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    ASSERT_THROW(
-        make_shared<op::v1::Reshape>(param, op::Constant::create(element::i64, {}, std::vector<int64_t>{100}), false),
-        std::exception);
+    ASSERT_THROW(const auto unused =
+                     make_shared<op::v1::Reshape>(param,
+                                                  op::Constant::create(element::i64, {}, std::vector<int64_t>{100}),
+                                                  false),
+                 std::exception);
 }
 
 TEST(type_prop, dynamic_shape_propagation_with_i32_precision) {

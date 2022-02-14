@@ -187,7 +187,7 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
             bool others_are_static = true;
             for (const auto& dim : input_shape)
                 if (ov::DimensionTracker::get_label(dim) == 0)
-                    others_are_static &= dim.is_static();
+                    others_are_static = others_are_static && dim.is_static();
                 else
                     name_stays = true;
             any_input_has_batch |= name_stays && others_are_static;
@@ -199,7 +199,7 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
             bool others_are_static = true;
             for (const auto& dim : output_shape)
                 if (ov::DimensionTracker::get_label(dim) == 0)
-                    others_are_static &= dim.is_static();
+                    others_are_static = others_are_static && dim.is_static();
                 else
                     name_stays = true;
             all_outputs_has_batch &= name_stays;  // && others_are_static;

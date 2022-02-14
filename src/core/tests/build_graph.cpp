@@ -527,10 +527,10 @@ TEST(build_graph, build_graph_unregistred_variables) {
     auto crop = make_shared<Split>(pattern, axis, 3);
     auto res2 = make_shared<Result>(crop);
 
-    EXPECT_ANY_THROW(make_shared<Function>(OutputVector{res, res2},
-                                           SinkVector{assign, assign_2},
-                                           ParameterVector{arg, arg2},
-                                           VariableVector{variable}));
+    EXPECT_ANY_THROW(const auto unused = make_shared<Function>(OutputVector{res, res2},
+                                                               SinkVector{assign, assign_2},
+                                                               ParameterVector{arg, arg2},
+                                                               VariableVector{variable}));
 }
 
 TEST(build_graph, build_graph_with_sinks_compare) {

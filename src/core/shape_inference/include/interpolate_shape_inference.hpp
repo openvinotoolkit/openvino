@@ -141,7 +141,7 @@ void shape_infer(const Interpolate* op,
                               "Axis value should less than input rank.");
 
         // Get padded input shape
-        for (int64_t i = 0; i < input_rank; ++i) {
+        for (size_t i = 0; i < input_rank; ++i) {
             output_shape[i] = DimType(pads_begin[i]) + DimType(pads_end[i]) + input_shape[i];
         }
 
