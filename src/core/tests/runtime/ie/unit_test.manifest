@@ -35,10 +35,6 @@ onnx_model_erf
 onnx_model_addmul_abc
 IE_CPU.interpolate_down_scales_const_linear
 
-# Result mismatch - 77384
-onnx_model_softmax_axis_negative_1_opset11
-onnx_model_softmax_axis_negative_1_opset13
-
 # data [<name>] doesn't exist
 broadcast_trivial
 aliased_output
@@ -913,9 +909,6 @@ roll_negative_axes
 #-------------------------------------------------------------------------------
 
 # Clamp op:
-# Issue 51676: Output mismatch due to wrong conversion of bounds
-IE_CPU.clamp_integral
-IE_CPU.clamp_integral_negative
 # Issue 51679: CI failure on Ubuntu 20. Overflow handling -inf lower bound
 IE_CPU.clamp_int32
 # Precision mismatch

@@ -184,6 +184,17 @@ graph TB
     style input fill:#73C2FB
 ```
 
+---
+
+**Name:** input_subtract<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> subtract(Subtract)
+    subtract_const(Const) --> subtract(Subtract)
+    style input fill:#73C2FB
+```
 
 ---
 

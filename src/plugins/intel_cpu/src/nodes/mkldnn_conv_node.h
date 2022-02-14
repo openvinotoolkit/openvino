@@ -34,8 +34,8 @@ public:
     InferenceEngine::Precision getRuntimePrecision() const override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
-    const mkldnn::memory& getWeights() const;
-    const mkldnn::memory& getBias() const;
+    mkldnn::memory getWeights() const;
+    mkldnn::memory getBias() const;
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
         return getOriginalInputsNumber();
@@ -60,6 +60,8 @@ public:
     }
 
     bool isWinograd() const { return isWino; }
+
+    void setDynamicBatchLim(int lim) override;
 
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
@@ -86,7 +88,7 @@ private:
     void execute(mkldnn::stream strm) override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
-    void addZeroPoints(mkldnn::primitive_attr& attr) const;
+    void addZeroPoints(mkldnn::primitive_attr& attr);
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
@@ -104,6 +106,8 @@ private:
                              const mkldnn::memory::desc& outputDesc,
                              mkldnn::algorithm alg);
     void updatePadding();
+
+    void appendZeroPointsArgs();
 
     bool withBiases;
     bool withSum;
@@ -137,6 +141,10 @@ private:
     bool isWino = false;
     AttrPtr pAttr;
     bool autoPadding = false;
+
+    MKLDNNMemoryPtr inputZeroPointsMemPtr;
+    MKLDNNMemoryPtr weightsZeroPointsMemPtr;
+    MKLDNNMemoryPtr outputCompensationMemPtr;
 };
 
 }  // namespace MKLDNNPlugin
