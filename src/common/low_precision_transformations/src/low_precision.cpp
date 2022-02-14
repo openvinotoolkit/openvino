@@ -54,6 +54,7 @@
 #include "low_precision/normalize_l2.hpp"
 #include "low_precision/pad.hpp"
 #include "low_precision/prelu.hpp"
+#include "low_precision/recurrent_cell.hpp"
 #include "low_precision/reduce_max.hpp"
 #include "low_precision/reduce_mean.hpp"
 #include "low_precision/reduce_min.hpp"
@@ -227,6 +228,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     common->add_matcher<ngraph::pass::low_precision::NormalizeL2Transformation>(params);
     common->add_matcher<ngraph::pass::low_precision::PadTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::PReluTransformation>(params);
+    common->add_matcher<ngraph::pass::low_precision::RecurrentCellTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ReduceMaxTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ReduceMeanTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ReduceMinTransformation>(params);
