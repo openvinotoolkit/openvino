@@ -315,6 +315,7 @@ MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::MKLDNNExperimentalD
         pre_nms_topn_ = proposalAttrs.pre_nms_count;
         post_nms_topn_ = proposalAttrs.post_nms_count;
         dynamic_output = proposalAttrs.dynamic_output;
+        coordinates_offset_ = proposalAttrs.coordinates_offset ? 1.0 : 0;
     } else if (auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op)) {
         auto proposalAttrs = proposalOp->get_attrs();
 
@@ -322,10 +323,9 @@ MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::MKLDNNExperimentalD
         nms_thresh_ = proposalAttrs.nms_threshold;
         pre_nms_topn_ = proposalAttrs.pre_nms_count;
         post_nms_topn_ = proposalAttrs.post_nms_count;
+        coordinates_offset_ = 0;
         dynamic_output = false;
     }
-
-    coordinates_offset = 0.0f;
 
     roi_indices_.resize(post_nms_topn_);
 }
@@ -432,7 +432,7 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
                            bottom_W, img_H, img_W,
                            min_box_H, min_box_W,
                            static_cast<const float>(log(1000. / 16.)),
-                           coordinates_offset);
+                           coordinates_offset_);
             std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
                               [](const ProposalBox &struct1, const ProposalBox &struct2) {
                                   return (struct1.score > struct2.score);
@@ -440,7 +440,7 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
 
             unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
             nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0,
-                    nms_thresh_, post_nms_topn_, coordinates_offset);
+                    nms_thresh_, post_nms_topn_, coordinates_offset_);
 
             // Only supported when batch size = 1
             if (dynamic_output)

@@ -5,19 +5,18 @@ import numpy as np
 from save_model import saveModel
 import sys
 
-def generate_proposals_v2(name: str, ctx: dict):
-    scores_np = np.random.rand(1, 3, 4, 4).astype('float32')
-    bbox_deltas_np = np.random.rand(1, 12, 4, 4).astype('float32')
-    im_shape_np = np.array([[200, 200]]).astype('float32')
-    anchors_np = np.reshape(np.arange(4 * 4 * 3 * 4),
-                            [4, 4, 3, 4]).astype('float32')
-    variances_np = np.ones((4, 4, 3, 4)).astype('float32')
+def generate_proposals_v2(name: str, input_data: dict, attr: dict):
+    scores_np = input_data["scores"]
+    bbox_deltas_np = input_data["bbox_deltas"]
+    im_shape_np = input_data["im_shape"]
+    anchors_np = input_data["anchors"]
+    variances_np = input_data["variances"]
 
-    #scores_np = ctx.scores
-    #bbox_deltas_np = ctx.bbox_deltas
-    #im_shape_np = ctx.im_shape
-    #anchors_np = ctx.anchors
-    #variances_np = ctx.variances
+    pre_nms_top_n = attr["pre_nms_top_n"]
+    post_nms_top_n = attr["post_nms_top_n"]
+    nms_thresh = attr["nms_thresh"]
+    min_size = attr["min_size"]
+    pixel_offset = attr["pixel_offset"]
 
     import paddle
     import ppdet.modeling.ops as ops
@@ -25,28 +24,27 @@ def generate_proposals_v2(name: str, ctx: dict):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         scores = paddle.static.data(
-            name='scores', shape=[1, 3, 4, 4], dtype='float32')         # [N, A, H, W]
+            name='scores', shape=scores_np.shape, dtype='float32')            # [N, A, H, W]
         bbox_deltas = paddle.static.data(
-            name='bbox_deltas', shape=[1, 12, 4, 4], dtype='float32')   # [N, 4 * A, H, W]
+            name='bbox_deltas', shape=bbox_deltas_np.shape, dtype='float32')  # [N, 4 * A, H, W]
         im_shape = paddle.static.data(
-            name='im_shape', shape=[1, 2], dtype='float32')             # [N, 2]
+            name='im_shape', shape=im_shape_np.shape, dtype='float32')        # [N, 2]
         anchors = paddle.static.data(
-            name='anchors', shape=[4, 4, 3, 4], dtype='float32')        # [H, W, A, 4]
+            name='anchors', shape=anchors_np.shape, dtype='float32')          # [H, W, A, 4]
         variances = paddle.static.data(
-            name='var', shape=[4, 4, 3, 4], dtype='float32')            # [H, W, A, 4]
+            name='var', shape=variances_np.shape, dtype='float32')            # [H, W, A, 4]
         rois, roi_probs, rois_num = ops.generate_proposals(
             scores,
             bbox_deltas,
             im_shape,
             anchors,
             variances,
-            pre_nms_top_n=40,
-            post_nms_top_n=35,
-            nms_thresh=0.5,
-            min_size=3,
-            pixel_offset=False,
+            pre_nms_top_n=pre_nms_top_n,
+            post_nms_top_n=post_nms_top_n,
+            nms_thresh=nms_thresh,
+            min_size=min_size,
+            pixel_offset=pixel_offset,
             return_rois_num=True)
-            #min_size=3,
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -85,4 +83,82 @@ def generate_proposals_v2(name: str, ctx: dict):
         #print(np.load("/tmp/generate_proposals_v2/output2.npy"))
 
 if __name__ == "__main__":
-    generate_proposals_v2("generate_proposals_v2", dict())
+    input_data = dict()
+    attr = dict()
+
+    # test case 0
+    input_name = "generate_proposals_v2_0"
+    input_data["scores"] = np.random.rand(1, 3, 4, 4).astype('float32')
+    input_data["bbox_deltas"] = np.random.rand(1, 12, 4, 4).astype('float32')
+    input_data["im_shape"] = np.array([[200, 200]]).astype('float32')
+    input_data["anchors"] = np.reshape(np.arange(4 * 4 * 3 * 4),
+                                        [4, 4, 3, 4]).astype('float32')
+    input_data["variances"] = np.ones((4, 4, 3, 4)).astype('float32')
+
+    attr["pre_nms_top_n"] = 40
+    attr["post_nms_top_n"] = 35
+    attr["nms_thresh"] = 0.5
+    attr["min_size"] = 3
+    attr["pixel_offset"] = False
+
+    generate_proposals_v2(input_name, input_data, attr)
+
+    # test case 1
+    input_name = "generate_proposals_v2_1"
+    attr["min_size"] = 4
+    attr["pixel_offset"] = True
+
+    generate_proposals_v2(input_name, input_data, attr)
+
+    # test case 2
+    input_name = "generate_proposals_v2_2"
+
+    bbox_deltas0 = np.random.rand(1, 12, 1, 4).astype('float32')
+    bbox_deltas1 = np.random.rand(1, 12, 2, 4).astype('float32')
+    input_data["bbox_deltas"] = np.concatenate((bbox_deltas0, bbox_deltas0, bbox_deltas1), axis = 2)
+    #print(bbox_deltas0)
+    #print("----------------------------")
+    #print(bbox_deltas1)
+    #print("----------------------------")
+    #print(input_data["bbox_deltas"])
+
+    anchors0 = np.reshape(np.arange(1 * 4 * 3 * 4),
+                                    [1, 4, 3, 4]).astype('float32')
+    anchors1 = np.reshape(np.arange(3 * 4 * 3 * 4),
+                                    [3, 4, 3, 4]).astype('float32')
+    input_data["anchors"] = np.concatenate((anchors0, anchors1), axis = 0)
+    #print(anchors0)
+    #print("----------------------------")
+    #print(anchors1)
+    #print("----------------------------")
+    #print(input_data["anchors"])
+
+    attr["nms_thresh"] = 0.5
+
+    generate_proposals_v2(input_name, input_data, attr)
+
+    # test case 3
+    input_name = "generate_proposals_v2_3"
+    attr["nms_thresh"] = 0.7
+
+    generate_proposals_v2(input_name, input_data, attr)
+
+    # test case 4
+    input_name = "generate_proposals_v2_4"
+    input_data["variances"] = np.ones((4, 4, 3, 4)).astype('float32') * 0.5
+
+    generate_proposals_v2(input_name, input_data, attr)
+
+    # test case 5
+    input_name = "generate_proposals_v2_5"
+    input_data["scores"] = np.random.rand(1, 6, 10, 8).astype('float32')
+    input_data["bbox_deltas"] = np.random.rand(1, 24, 10, 8).astype('float32')
+    input_data["im_shape"] = np.array([[1000, 1000]]).astype('float32')
+    input_data["anchors"] = np.reshape(np.arange(10 * 8 * 6 * 4),
+                                        [10, 8, 6, 4]).astype('float32')
+    input_data["variances"] = np.ones((10, 8, 6, 4)).astype('float32')
+
+    attr["pre_nms_top_n"] = 100
+    attr["post_nms_top_n"] = 60
+
+    generate_proposals_v2(input_name, input_data, attr)

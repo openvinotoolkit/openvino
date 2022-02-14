@@ -48,7 +48,7 @@ private:
     int pre_nms_topn_;
     int post_nms_topn_;
     float nms_thresh_;
-    float coordinates_offset;
+    float coordinates_offset_;
     bool dynamic_output;
 
     std::vector<int> roi_indices_;

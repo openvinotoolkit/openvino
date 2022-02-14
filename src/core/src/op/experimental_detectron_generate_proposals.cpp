@@ -94,6 +94,7 @@ bool op::v8::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes
     visitor.on_attribute("post_nms_count", m_attrs.post_nms_count);
     visitor.on_attribute("pre_nms_count", m_attrs.pre_nms_count);
     visitor.on_attribute("dynamic_output", m_attrs.dynamic_output);
+    visitor.on_attribute("coordinates_offset", m_attrs.coordinates_offset);
     return true;
 }
 

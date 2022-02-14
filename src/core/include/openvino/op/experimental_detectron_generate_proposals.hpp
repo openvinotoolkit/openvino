@@ -82,6 +82,10 @@ public:
         int64_t pre_nms_count;
         // specifies whether the output is dynamic shape or static shape
         bool dynamic_output = false;
+        // specify the relationship between ROI location points and ROI width and height.
+        // For example if *coordinates_offset* is false, width = x_right - x_left
+        // If *coordinates_offset* is true, width = x_right - x_left + 1.
+        bool coordinates_offset = false;
     };
 
     ExperimentalDetectronGenerateProposalsSingleImage() = default;
