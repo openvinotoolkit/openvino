@@ -10,7 +10,6 @@
    Linux <openvino_docs_configurations_vpu_linux>
    Windows <openvino_docs_configurations_vpu_windows>
    Configurations for IEI Mustang-V100-MX8-R10 card <openvino_docs_install_guides_movidius_setup_guide>
-   Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
         
 @endsphinxdirective
 

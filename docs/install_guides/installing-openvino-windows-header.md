@@ -7,7 +7,8 @@
    :hidden:
 
    Using Installer <openvino_docs_install_guides_installing_openvino_windows>
-   Using Package Managers <openvino_docs_install_guides_install_using_package_managers_win_mac>
+   From PyPI <openvino_docs_install_guides_installing_openvino_pip>
+   From Anaconda Cloud <openvino_docs_install_guides_installing_openvino_conda>
    Using Docker <openvino_docs_install_guides_installing_openvino_docker_windows>
 
 @endsphinxdirective

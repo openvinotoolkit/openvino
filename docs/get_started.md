@@ -52,12 +52,18 @@
 .. raw:: html
     
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
-   <p id="GSG_introtext">To get started with OpenVINO, the first thing to do is to actually install it. You can get an <a href="openvino_docs_install_guides_overview.html" >overview</a> of what installation options we provide and start from there, or choose the installation type that best suits your needs directly if you already have enough information:<br />
+   <p id="GSG_introtext">To get started with OpenVINO, the first thing to do is to actually install it. You can get an <a href="openvino_docs_install_guides_overview.html" >overview</a> of what installation options we provide and start from there, or choose the installation type that best suits your needs from one of the options below if you already have enough information:<br />
      <a href="openvino_docs_install_guides_install_runtime.html" >Install <br />OpenVINO Runtime </a>
      <a href="openvino_docs_install_guides_install_dev_tools.html" >Install OpenVINO <br />Development Tools</a>
      <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode" >Build <br /> from source</a>
    </p>
-   <div style="clear:both;"> </div>   
+   <div style="clear:both;"> </div> 
+   
+   <p>If you are using Intel® Processor Graphics, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs or Intel® Neural Compute Stick 2, please also check the additional configurations for them:<br />
+     <a href="openvino_docs_install_guides_configurations_for_intel_gpu.html" >Configurations for GPU</a>
+     <a href="openvino_docs_install_guides_configurations_for_ncs2.html" >Configurations for NCS2</a>
+     <a href="openvino_docs_install_guides_installing_openvino_ivad_vpu.html" >Configurations for VPU</a>
+   </p>
    
    <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. <br /> Here is a set of hands-on demonstrations of various complexity levels to guide you through the process: from performing sample inference with just one command, to running code samples, demo application or Jupyter notebooks. If you prefer working with GUI, you can also get started with the DL Workbench application. This way you can choose the right level for you.<br /></p>
  
