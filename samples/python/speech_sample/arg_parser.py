@@ -4,8 +4,8 @@
 import argparse
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse and return command line arguments"""
+def build_arg_parser() -> argparse.ArgumentParser:
+    """Create and return argument parser"""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     model = parser.add_mutually_exclusive_group(required=True)
@@ -25,8 +25,10 @@ def parse_args() -> argparse.Namespace:
                       'CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
                       ' as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. '
                       'The sample will look for a suitable plugin for device specified. Default value is CPU.')
-    args.add_argument('-bs', '--batch_size', default=1, type=int, choices=range(1, 9), metavar='[1-8]',
-                      help='Optional. Batch size 1-8 (default 1).')
+    args.add_argument('-bs', '--batch_size', type=int, choices=range(1, 9), metavar='[1-8]',
+                      help='Optional. Batch size 1-8.')
+    args.add_argument('-layout', type=str,
+                      help='Optional. Custom layout in format: "input0[value0],input1[value1]" or "[value]" (applied to all inputs)')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int, choices=(8, 16), metavar='[8, 16]',
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
     args.add_argument('-sf', '--scale_factor', type=str,
@@ -67,6 +69,12 @@ def parse_args() -> argparse.Namespace:
                       help='Optional. The maximum percent of error for PWL function. '
                       'The value must be in <0, 100> range. The default value is 1.0.')
 
+    return parser
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse and validate command-line arguments"""
+    parser = build_arg_parser()
     args = parser.parse_args()
 
     if args.context_window_left < 0:
