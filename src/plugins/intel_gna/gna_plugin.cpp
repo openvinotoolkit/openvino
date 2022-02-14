@@ -88,6 +88,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ops/gna_convolution.hpp>
 #include <legacy/ngraph_ops/convolution_ie.hpp>
+#include "transformations/transpose_sinking/transpose_sinking.hpp"
 
 #include "debug_use_new_pass.hpp"
 
@@ -755,6 +756,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         EMUTEX_DEBUG_SAVE_NGRAPH(manager, "before_transpose_nchw");
         manager.register_pass<TransposeNCHW>();
         EMUTEX_DEBUG_SAVE_NGRAPH(manager, "after_transpose_nchw");
+        manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
         EMUTEX_DEBUG_SAVE_NGRAPH(manager, "after_transpose_sinking");
 #endif // DEBUG_USE_NEW_PASS
