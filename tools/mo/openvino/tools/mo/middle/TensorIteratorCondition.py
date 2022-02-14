@@ -192,15 +192,15 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
     @staticmethod
     def looking_for_iteration_counter(graph: Graph, match: dict):
         types = ['TensorIteratorInput', 'TensorIteratorOutput']
-        candidates = mo_array([match['Identity_1_data'], match['Identity_2_data']])
-        results = mo_array([False for i in range(len(candidates))])
-        for i, candidate in enumerate(candidates):
+        candidates = [match['Identity_1_data'], match['Identity_2_data']]
+        results = []
+        for candidate in candidates:
             for node in candidate.out_nodes():
                 if node['op'] in types:
-                    results[i] = True
-        assert not np.all(results)
-        assert sum(results) == 1
-        return candidates[results == True][0]
+                    results.append(candidate)
+                    break
+        assert len(results) == 1
+        return results[0]
 
     @staticmethod
     def check_dynamic_seq_len(graph: Graph, match: dict):
