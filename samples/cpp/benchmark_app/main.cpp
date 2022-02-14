@@ -318,7 +318,7 @@ int main(int argc, char* argv[]) {
                         } else if (supported(ov::num_streams.name())) {
                             // Use API 2.0 key for streams
                             key = ov::num_streams.name();
-                            device_config[key] = ov::NumStreams::AUTO;
+                            device_config[key] = ov::NumStreams(ov::NumStreams::AUTO);
                         }
                     }
                 }
