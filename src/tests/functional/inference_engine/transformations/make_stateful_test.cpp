@@ -22,51 +22,114 @@ using namespace ngraph;
 using namespace opset8;
 using namespace std;
 
+std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly_names) {
+    std::shared_ptr<ov::Model> model;
+    auto X = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
+
+    if (!use_friendly_names) {
+        X->get_output_tensor(0).add_names({"x"});
+        Y->get_output_tensor(0).add_names({"y"});
+    } else {
+        X->set_friendly_name("x");
+        Y->set_friendly_name("y");
+    }
+
+    // -> Add  -> Squeeze -> Result
+    //         -> Result
+    // or
+    // -> Add -> Result
+    //        -> Result
+    std::shared_ptr<Node> node;
+    node = make_shared<Add>(X, Y);
+    auto result0 = make_shared<Result>(node);
+    if (insert_squeeze)
+        node = make_shared<Squeeze>(node);
+    auto result1 = make_shared<Result>(node);
+
+    if (!use_friendly_names) {
+        result0->get_input_tensor(0).add_names({"res0"});
+        result1->get_input_tensor(0).add_names({"res1"});
+    } else {
+        result0->set_friendly_name("res0");
+        result1->set_friendly_name("res1");
+    }
+
+    model = make_shared<Function>(ResultVector{result0, result1}, ParameterVector{X, Y});
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_names) {
+    std::shared_ptr<ov::Model> model;
+    // create ReadValue for X
+    auto variable_x = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "xres0"});
+    auto const_zero_x = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
+    auto read_val_x = make_shared<ReadValue>(const_zero_x, variable_x);
+
+    // create ReadValue for Y
+    auto variable_y = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "yres1"});
+    auto const_zero_y = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
+    auto read_val_y = make_shared<ReadValue>(const_zero_y, variable_y);
+
+    if (!use_friendly_names) {
+        read_val_x->get_output_tensor(0).add_names({"x"});
+        read_val_y->get_output_tensor(0).add_names({"y"});
+    } else {
+        read_val_x->set_friendly_name("x");
+        read_val_y->set_friendly_name("y");
+    }
+
+    // -> Add  -> Squeeze -> Assign
+    //         -> Assign
+    // or
+    // -> Add -> Assign
+    //        -> Assign
+    shared_ptr<ov::Node> node;
+    node = make_shared<Add>(read_val_x, read_val_y);
+    auto assign_x = make_shared<Assign>(node, variable_x);
+
+    if (!use_friendly_names) {
+        node->get_output_tensor(0).add_names({"res0"});
+    } else {
+        node->set_friendly_name("res0");
+    }
+
+    if (insert_squeeze) {
+        node = make_shared<Squeeze>(node);
+    }
+
+    auto assign_y = make_shared<Assign>(node, variable_y);
+    if (!use_friendly_names) {
+        node->get_output_tensor(0).add_names({"res1"});
+    } else {
+        node->set_friendly_name("res1");
+    }
+
+    assign_x->add_control_dependency(read_val_x);
+    assign_y->add_control_dependency(read_val_y);
+
+    model = make_shared<Function>(ResultVector{}, SinkVector{assign_x, assign_y}, ParameterVector{});
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
 TEST(TransformationTests, make_stateful_by_tensor_name) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto X = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
-        auto Y = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
-        X->get_output_tensor(0).add_names({"x"});
-        Y->get_output_tensor(0).add_names({"y"});
-
-        auto add = make_shared<Add>(X, Y);
-        auto squeeze = make_shared<Squeeze>(add);
-        auto result0 = make_shared<Result>(add);
-        auto result1 = make_shared<Result>(squeeze);
-        result0->get_input_tensor(0).add_names({"res0"});
-        result1->get_input_tensor(0).add_names({"res1"});
-
-        f = make_shared<Function>(ResultVector{result0, result1}, ParameterVector{X, Y});
-        std::map<std::string, std::string> pair_names = {{"x", "res0"}, {"y", "res1"}};
-        f->validate_nodes_and_infer_types();
+        f = get_test_model(true, false);
+        std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::MakeStateful>(pair_names);
+        manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
-        // create ReadValue for X
-        auto variable_x = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "xres0"});
-        auto const_zero_x = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-        auto read_val_x = make_shared<ReadValue>(const_zero_x, variable_x);
-
-        // create ReadValue for Y
-        auto variable_y = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "yres1"});
-        auto const_zero_y = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-        auto read_val_y = make_shared<ReadValue>(const_zero_y, variable_y);
-
-        auto add = make_shared<Add>(read_val_x, read_val_y);
-        auto squeeze = make_shared<Squeeze>(add);
-        auto assign_x = make_shared<Assign>(add, variable_x);
-        auto assign_y = make_shared<Assign>(squeeze, variable_y);
-
-        f_ref = make_shared<Function>(ResultVector{}, SinkVector{assign_x, assign_y}, ParameterVector{});
-        f_ref->validate_nodes_and_infer_types();
+        f_ref = get_ref_model(true, false);
     }
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
@@ -75,47 +138,19 @@ TEST(TransformationTests, make_stateful_by_tensor_name) {
 TEST(TransformationTests, make_stateful_by_param_res) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto X = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
-        auto Y = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
-        X->get_output_tensor(0).add_names({"x"});
-        Y->get_output_tensor(0).add_names({"y"});
-
-        auto add = make_shared<Add>(X, Y);
-        auto result0 = make_shared<Result>(add);
-        auto result1 = make_shared<Result>(add);
-        result0->get_input_tensor(0).add_names({"res0"});
-        result1->get_input_tensor(0).add_names({"res1"});
-
-        f = make_shared<Function>(ResultVector{result0, result1}, ParameterVector{X, Y});
-        std::vector<std::pair<std::string, std::string>> pair_names = {{"x", "res0"}, {"y", "res1"}};
-        f->validate_nodes_and_infer_types();
+        f = get_test_model(true, true);
+        auto pairs = ov::pass::MakeStateful::ParamResPairs{{f->get_parameters()[0], f->get_results()[0]},
+                                                           {f->get_parameters()[1], f->get_results()[1]}};
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::MakeStateful>(ov::pass::MakeStateful::ParamResPairs{{X, result0}, {Y, result1}});
+        manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
-        // create ReadValue for X
-        auto variable_x = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "xres0"});
-        auto const_zero_x = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-        auto read_val_x = make_shared<ReadValue>(const_zero_x, variable_x);
-
-        // create ReadValue for Y
-        auto variable_y = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "yres1"});
-        auto const_zero_y = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-        auto read_val_y = make_shared<ReadValue>(const_zero_y, variable_y);
-
-        auto add = make_shared<Add>(read_val_x, read_val_y);
-        auto assign_x = make_shared<Assign>(add, variable_x);
-        assign_x->add_control_dependency(read_val_x);
-        auto assign_y = make_shared<Assign>(add, variable_y);
-        assign_y->add_control_dependency(read_val_y);
-
-        f_ref = make_shared<Function>(ResultVector{}, SinkVector{assign_x, assign_y}, ParameterVector{});
-        f_ref->validate_nodes_and_infer_types();
+        f_ref = get_ref_model(true, true);
     }
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
@@ -124,6 +159,7 @@ TEST(TransformationTests, make_stateful_by_param_res) {
 TEST(TransformationTests, make_stateful_dynamic_shapes) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
+        // dynamic shapes are not supported
         auto X = make_shared<Parameter>(element::f32, PartialShape::dynamic());
         auto Y = make_shared<Parameter>(element::f32, PartialShape::dynamic());
         X->get_output_tensor(0).add_names({"x"});
@@ -143,54 +179,54 @@ TEST(TransformationTests, make_stateful_dynamic_shapes) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pair_names);
 
-        EXPECT_THROW(manager.run_passes(f), ::ov::AssertFailure);
+        try {
+            manager.run_passes(f);
+        } catch (::ov::AssertFailure ex) {
+            EXPECT_STR_CONTAINS(ex.what(), "MakeStateful transformation doesn't support dynamic shapes.");
+        } catch (...) {
+            FAIL() << "Expected ::ov::AssertFailure";
+        }
     }
 }
 
-TEST(TransformationTests, make_stateful_one_output_to_several_results) {
+TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_names) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto X = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
-        auto Y = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
-        X->get_output_tensor(0).add_names({"x"});
-        Y->get_output_tensor(0).add_names({"y"});
-
-        auto add = make_shared<Add>(X, Y);
-        auto result0 = make_shared<Result>(add);
-        auto result1 = make_shared<Result>(add);
-        result0->get_input_tensor(0).add_names({"res0"});
-        result1->get_input_tensor(0).add_names({"res1"});
-
-        f = make_shared<Function>(ResultVector{result0, result1}, ParameterVector{X, Y});
-        std::map<std::string, std::string> pair_names = {{"x", "res0"}, {"y", "res1"}};
-        f->validate_nodes_and_infer_types();
+        f = get_test_model(false, false);
+        std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::MakeStateful>(pair_names);
+        manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
-        // create ReadValue for X
-        auto variable_x = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "xres0"});
-        auto const_zero_x = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-        auto read_val_x = make_shared<ReadValue>(const_zero_x, variable_x);
-
-        // create ReadValue for Y
-        auto variable_y = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "yres1"});
-        auto const_zero_y = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-        auto read_val_y = make_shared<ReadValue>(const_zero_y, variable_y);
-
-        auto add = make_shared<Add>(read_val_x, read_val_y);
-        auto assign_x = make_shared<Assign>(add, variable_x);
-        auto assign_y = make_shared<Assign>(add, variable_y);
-
-        f_ref = make_shared<Function>(ResultVector{}, SinkVector{assign_x, assign_y}, ParameterVector{});
-        f_ref->validate_nodes_and_infer_types();
+        f_ref = get_ref_model(false, false);
     }
     auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, make_stateful_one_out_to_several_results_by_param_res) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        f = get_test_model(false, true);
+        auto pairs = ov::pass::MakeStateful::ParamResPairs{{f->get_parameters()[0], f->get_results()[0]},
+                                                           {f->get_parameters()[1], f->get_results()[1]}};
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::MakeStateful>(pairs);
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        f_ref = get_ref_model(false, true);
+    }
+    auto res = compare_functions(f, f_ref);
+    EXPECT_TRUE(res.first) << res.second;
 }
