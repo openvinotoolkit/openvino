@@ -101,6 +101,18 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                     Set of names
              )");
 
+    tensor.def("set_names",
+               &ov::descriptor::Tensor::add_names,
+               py::arg("names"),
+               R"(
+                Adds names for tensor.
+
+                Parameters
+                ----------
+                names : set
+                    Set of names
+             )");
+
     tensor.def("get_any_name",
                &ov::descriptor::Tensor::get_any_name,
                R"(
