@@ -380,18 +380,16 @@ void snippets::op::Subgraph::serialize(const std::string& fileNameEnding) const 
  #ifdef ENABLE_OPENVINO_DEBUG
     debug_statistics(fileNameEnding, true);
  #endif // ENABLE_OPENVINO_DEBUG
-    if (ov::util::getenv_ov_dump_ir_bool("snippets")) {
-        std::string path = ov::util::getenv_string("OV_DUMP_IR_DIR");
-        if (!path.empty()) {
-            std::string name = get_friendly_name();
-            ov::util::node_name_to_file_name(name);
-            path.append("/snippet_" + name);
-            if (!fileNameEnding.empty())
-                path.append('_' + fileNameEnding);
-            path.append(".xml");
-            ov::pass::Serialize serializer(path, "", ov::pass::Serialize::Version::IR_V10);
-            serializer.run_on_model(get_body());
-        }
+    static const std::string path = ov::util::getenv_string("OV_SNIPPETS_DUMP_IR_DIR");
+    if (!path.empty()) {
+        std::string name = get_friendly_name();
+        ov::util::node_name_to_file_name(name);
+        name.insert(0, "/snippet_");
+        if (!fileNameEnding.empty())
+            name.append('_' + fileNameEnding);
+        name.append(".xml");
+        ov::pass::Serialize serializer(path + name, "", ov::pass::Serialize::Version::IR_V10);
+        serializer.run_on_model(get_body());
     }
 }
 #endif // DEBUG_CAPS

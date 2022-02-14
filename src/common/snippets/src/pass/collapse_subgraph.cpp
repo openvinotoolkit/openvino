@@ -527,7 +527,8 @@ TokenizeSnippets::TokenizeSnippets() {
 #ifdef DEBUG_CAPS
 void TokenizeSnippets::set_pass_config(const std::shared_ptr<ov::pass::PassConfig>& pass_config) {
     MatcherPass::set_pass_config(pass_config);
-    if (!ov::util::getenv_ov_enable_bool("snippets"))
+    static const bool isDisabled = ov::util::getenv_bool("OV_SNIPPETS_DISABLE");
+    if (isDisabled)
         get_pass_config()->disable<TokenizeSnippets>();
 }
 #endif // DEBUG_CAPS

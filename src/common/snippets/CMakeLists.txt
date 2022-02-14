@@ -6,10 +6,6 @@ set (TARGET_NAME "inference_engine_snippets")
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-if (ENABLE_DEBUG_CAPS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG_CAPS")
-endif()
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/snippets/*.hpp)
 
@@ -32,26 +28,30 @@ add_library(${TARGET_NAME}_static_ie STATIC EXCLUDE_FROM_ALL
 target_compile_definitions(${TARGET_NAME}_static_ie PRIVATE USE_STATIC_IE)
 
 macro(finalize_libs)
-    foreach(target IN ITEMS ${ARGN})
-        ie_faster_build(${target}
+    foreach(lib IN ITEMS ${ARGN})
+        ie_faster_build(${lib}
             UNITY
         )
 
-        target_link_libraries(${target} PUBLIC openvino::runtime
+        if (ENABLE_DEBUG_CAPS)
+            target_compile_definitions(${lib} PRIVATE DEBUG_CAPS)
+        endif()
+
+        target_link_libraries(${lib} PUBLIC openvino::runtime
                                         PRIVATE ngraph_reference openvino::runtime::dev)
 
-        target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+        target_include_directories(${lib} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                              PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-        add_cpplint_target(${target}_cpplint FOR_TARGETS ${target})
+        add_cpplint_target(${lib}_cpplint FOR_TARGETS ${lib})
 
-        ie_mark_target_as_cc(${target})
+        ie_mark_target_as_cc(${lib})
 
         # LTO
-        set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+        set_target_properties(${lib} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
         # install
-        ov_install_static_lib(${target} core)
+        ov_install_static_lib(${lib} core)
     endforeach()
 endmacro()
 

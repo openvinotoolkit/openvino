@@ -12,12 +12,12 @@ Then, it is possible to
 
 * see an additional debug logs,
 
-* disable snippet transformations by means of the environment variable **OV_ENABLE**:
+* disable snippet transformations by means of the environment variable **OV_SNIPPETS_DISABLE**:
 ```sh
-    OV_ENABLE=-snippets binary ...
+    OV_SNIPPETS_DISABLE=ON binary ...
 ```
 
-* serialize each subgraph before and after lowering by means of the environment variables **OV_DUMP_IR** and **OV_DUMP_IR_DIR**:
+* serialize each subgraph before and after lowering by means of the environment variable **OV_SNIPPETS_DUMP_IR_DIR**:
 ```sh
-    OV_DUMP_IR=snippets OV_DUMP_IR_DIR=<path> binary ...
+    OV_SNIPPETS_DUMP_IR_DIR=<path> binary ...
 ```
