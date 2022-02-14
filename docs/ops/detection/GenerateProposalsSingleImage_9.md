@@ -1,10 +1,10 @@
-# ExperimentalDetectronGenerateProposalsSingleImage {#openvino_docs_ops_detection_ExperimentalDetectronGenerateProposalsSingleImage_9}
+# GenerateProposalsSingleImage {#openvino_docs_ops_detection_GenerateProposalsSingleImage_9}
 
-**Versioned name**: *ExperimentalDetectronGenerateProposalsSingleImage-9*
+**Versioned name**: *GenerateProposalsSingleImage-9*
 
 **Category**: *Object detection*
 
-**Short description**: The *ExperimentalDetectronGenerateProposalsSingleImage* operation computes ROIs and their scores
+**Short description**: The *GenerateProposalsSingleImage* operation computes ROIs and their scores
 based on input data.
 
 **Detailed description**: The operation performs the following steps:
@@ -89,7 +89,7 @@ Height and width for third, fourth and fifth inputs should be equal. **Required.
 **Example**
 
 ```xml
-<layer ... type="ExperimentalDetectronGenerateProposalsSingleImage" version="opset9">
+<layer ... type="GenerateProposalsSingleImage" version="opset9">
     <data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000"/>
     <input>
         <port id="0">

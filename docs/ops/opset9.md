@@ -55,7 +55,7 @@ declared in `namespace opset9`.
 * [Erf](arithmetic/Erf_1.md)
 * [Exp](activation/Exp_1.md)
 * [ExperimentalDetectronDetectionOutput_6](detection/ExperimentalDetectronDetectionOutput_6.md)
-* [ExperimentalDetectronGenerateProposalsSingleImage_9](detection/ExperimentalDetectronGenerateProposalsSingleImage_9.md)
+* [GenerateProposalsSingleImage_9](detection/GenerateProposalsSingleImage_9.md)
 * [ExperimentalDetectronPriorGridGenerator_6](detection/ExperimentalDetectronPriorGridGenerator_6.md)
 * [ExperimentalDetectronROIFeatureExtractor_6](detection/ExperimentalDetectronROIFeatureExtractor_6.md)
 * [ExperimentalDetectronTopKROIs_6](sort/ExperimentalDetectronTopKROIs_6.md)
