@@ -67,11 +67,10 @@ image size info. **Required.**
 
 * **2**: A 2D tensor of type *T* with shape `[height * width * number_of_channels, 4]` providing anchors. **Required.**
 
-* **3**: A 3D tensor of type *T* with shape `[number_of_channels * 4, height, width]` providing deltas for anchors.
+* **3**: A 3D tensor of type *T* with shape `[number_of_anchors * 4, height, width]` providing deltas for anchors.
 Height and width for third, fourth and fifth inputs should be equal. **Required.**
 
-* **4**: A 3D tensor of type *T* with shape `[number_of_channels, height, width]` providing proposals scores.
-**Required.**
+* **4**: A 3D tensor of type *T* with shape `[number_of_anchors, height, width]` providing proposals scores.  **Required.**
 
 **Outputs**
 
