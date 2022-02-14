@@ -147,6 +147,7 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         check_format(format::b_fs_zyx_fsv16) ||
         check_format(format::bs_fs_yx_bsv4_fsv4) ||
         check_format(format::bs_fs_yx_bsv8_fsv4) ||
+        check_format(format::bs_fs_yx_bsv8_fsv2) ||
         check_format(format::bs_fs_yx_bsv4_fsv2) ||
         check_format(format::bs_fs_yx_bsv32_fsv16) ||
         check_format(format::bs_fs_yx_bsv32_fsv32) ||
@@ -189,5 +190,19 @@ bool program_helpers::are_layouts_identical_for_onednn_sum_post_op(layout input_
 
     return false;
 }
+
+bool program_helpers::needs_onednn_sum_post_op(const eltwise_node& n, layout input_layout) {
+    auto output_layout = n.get_output_layout();
+    if (n.get_primitive()->mode == eltwise_mode::sum &&
+        (input_layout.size.spatial[0] > 1 || input_layout.size.spatial[1] > 1 || input_layout.size.batch[0] > 1)
+        && output_layout.data_type == input_layout.data_type) {
+        return true;
+    }
+
+    return false;
+}
+
+
+
 
 }  // namespace cldnn

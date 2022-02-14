@@ -41,13 +41,19 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
         auto name = ngraph::op::util::get_ie_output_name(output);
         auto shape = output.get_partial_shape();
         auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
+        SizeVector dims(1, 0);
+        if (shape.is_static()) {
+            dims = output.get_shape();
+        } else if (rank >= 0) {
+            dims = SizeVector(rank, 0);
+        }
         for (const auto& dim : shape) {
             if (dim.is_static() && dim.get_length() == 0)
                 IE_THROW() << name << " has zero dimension which is not allowed";
         }
         const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
         const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
-        return std::make_shared<Data>(name, precision, shape, rankLayout);
+        return std::make_shared<Data>(name, TensorDesc{precision, dims, rankLayout});
     };
     const auto& create_old_input_data =
         [create_old_data](const ov::Output<const ov::Node>& output) -> InferenceEngine::InputInfo::Ptr {
@@ -516,11 +522,6 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             }
             const auto input = findInputByNodeName(name);
             isDynamic = input && input->get_output_partial_shape(0).is_dynamic();
-            // TODO: Remove this after changes in python tests, in python dynamic tests we are using old API
-            IE_SUPPRESS_DEPRECATED_START
-            if (!input)
-                isDynamic = foundInputPair->second->getInputData()->isDynamic();
-            IE_SUPPRESS_DEPRECATED_END
             dims = foundInputPair->second->getTensorDesc().getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         } else {
@@ -534,11 +535,6 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             }
             const auto output = findOutputByNodeName(name);
             isDynamic = output && output->get_output_partial_shape(0).is_dynamic();
-            // TODO: Remove this after changes in python tests, in python dynamic tests we are using old API
-            IE_SUPPRESS_DEPRECATED_START
-            if (!output)
-                isDynamic = foundOutputPair->second->isDynamic();
-            IE_SUPPRESS_DEPRECATED_END
             ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
             if (output && output->get_output_partial_shape(0).compatible(blobPartialShape)) {
                 dims = blob->getTensorDesc().getDims();
