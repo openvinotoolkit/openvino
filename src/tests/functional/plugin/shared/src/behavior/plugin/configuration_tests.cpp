@@ -107,6 +107,16 @@ TEST_P(CorrectConfigTests, CanUseCache) {
     CommonTestUtils::removeDir("./test_cache");
 }
 
+TEST_P(SetAllowAutoBatchingCorrectConfigTestCheck, SetConfigNoThrow) {
+    ie->SetConfig({ {CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)} }, targetDevice);
+    InferenceEngine::Parameter param;
+    ASSERT_NO_THROW(param = ie->GetConfig(targetDevice, CONFIG_KEY(ALLOW_AUTO_BATCHING)));
+    ASSERT_EQ(param, InferenceEngine::Parameter(CONFIG_VALUE(YES)));
+    ie->SetConfig({ {CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(NO)} }, targetDevice);
+    ASSERT_NO_THROW(param = ie->GetConfig(targetDevice, CONFIG_KEY(ALLOW_AUTO_BATCHING)));
+    ASSERT_EQ(param, InferenceEngine::Parameter(CONFIG_VALUE(NO)));
+}
+
 TEST_P(CorrectConfigCheck, canSetConfigAndCheckGetConfig) {
     ie->SetConfig(configuration, targetDevice);
     for (const auto& configItem : configuration) {
