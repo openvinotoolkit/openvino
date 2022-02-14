@@ -162,7 +162,7 @@ protected:
 TEST_P(ROIAlignLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "ROIAlign");
+    CheckPluginRelatedResults(compiledModel, "ROIAlign");
 }
 
 namespace {

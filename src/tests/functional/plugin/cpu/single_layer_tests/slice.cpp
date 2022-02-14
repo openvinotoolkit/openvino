@@ -82,7 +82,7 @@ TEST_P(Slice8LayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Slice8");
+    CheckPluginRelatedResults(compiledModel, "Slice8");
 }
 
 namespace {

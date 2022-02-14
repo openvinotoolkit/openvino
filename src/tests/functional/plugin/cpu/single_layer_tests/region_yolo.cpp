@@ -92,7 +92,7 @@ protected:
 TEST_P(RegionYoloCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "RegionYolo");
+    CheckPluginRelatedResults(compiledModel, "RegionYolo");
 }
 
 namespace {

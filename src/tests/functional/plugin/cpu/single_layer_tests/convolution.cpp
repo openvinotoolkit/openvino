@@ -191,9 +191,9 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     run();
 
     if (isBias) {
-        checkBiasFusing(executableNetwork);
+        checkBiasFusing(compiledModel);
     }
-    CheckPluginRelatedResults(executableNetwork, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 namespace {

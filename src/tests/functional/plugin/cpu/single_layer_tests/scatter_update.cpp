@@ -82,7 +82,7 @@ protected:
 TEST_P(ScatterUpdateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "ScatterUpdate");
+    CheckPluginRelatedResults(compiledModel, "ScatterUpdate");
 }
 
 const std::vector<ScatterUpdateLayerParams> scatterParams = {

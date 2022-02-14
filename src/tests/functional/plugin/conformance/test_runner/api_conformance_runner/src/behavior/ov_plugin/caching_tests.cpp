@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_plugin/caching/caching_tests.hpp"
+#include "behavior/ov_plugin/caching_tests.hpp"
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include <ngraph_ops/nms_static_shape_ie.hpp>
 #include "conformance.hpp"

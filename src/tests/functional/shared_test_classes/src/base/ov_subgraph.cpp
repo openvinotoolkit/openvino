@@ -180,7 +180,7 @@ void SubgraphBaseTest::compile_model() {
     if (functionRefs == nullptr) {
         functionRefs = ov::clone_model(*function);
     }
-    executableNetwork = core->compile_model(function, targetDevice, configuration);
+    compiledModel = core->compile_model(function, targetDevice, configuration);
 }
 
 void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -216,7 +216,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
 }
 
 void SubgraphBaseTest::infer() {
-    inferRequest = executableNetwork.create_infer_request();
+    inferRequest = compiledModel.create_infer_request();
     for (const auto& input : inputs) {
         inferRequest.set_tensor(input.first, input.second);
     }

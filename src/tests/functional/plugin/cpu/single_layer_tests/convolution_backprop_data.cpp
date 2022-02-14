@@ -260,7 +260,7 @@ TEST_P(DeconvolutionLayerCPUTest, CompareWithRefs) {
     }
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Deconvolution");
+    CheckPluginRelatedResults(compiledModel, "Deconvolution");
 }
 
 namespace {

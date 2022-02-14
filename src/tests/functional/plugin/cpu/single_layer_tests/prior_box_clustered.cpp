@@ -141,7 +141,7 @@ protected:
 TEST_P(PriorBoxClusteredLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "PriorBoxClustered");
+    CheckPluginRelatedResults(compiledModel, "PriorBoxClustered");
 }
 
 namespace {

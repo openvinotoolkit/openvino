@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/plugin/caching/caching_tests.hpp"
+#include "behavior/ov_plugin/caching_tests.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov::test::behavior;
 
 namespace {
     static const std::vector<ngraph::element::Type> precisionsGPU = {
@@ -22,11 +22,11 @@ namespace {
             1, 2
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU, LoadNetworkCacheTestBase,
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU, CompileModelCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsGPU),
                                     ::testing::ValuesIn(batchSizesGPU),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                            LoadNetworkCacheTestBase::getTestCaseName);
+                            CompileModelCacheTestBase::getTestCaseName);
 } // namespace

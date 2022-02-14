@@ -89,7 +89,7 @@ protected:
 TEST_P(EmbeddingBagPackedSumLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "embeddingBagPackedSum");
+    CheckPluginRelatedResults(compiledModel, "embeddingBagPackedSum");
 }
 
 namespace {

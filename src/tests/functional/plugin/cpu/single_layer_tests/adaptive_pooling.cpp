@@ -171,7 +171,7 @@ private:
 TEST_P(AdaPoolLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "AdaptivePooling");
+    CheckPluginRelatedResults(compiledModel, "AdaptivePooling");
 }
 
 namespace {

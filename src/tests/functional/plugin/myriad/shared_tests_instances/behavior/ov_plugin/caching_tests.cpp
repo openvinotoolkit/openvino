@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_plugin/caching/caching_tests.hpp"
+#include "behavior/ov_plugin/caching_tests.hpp"
 
 using namespace ov::test::behavior;
 

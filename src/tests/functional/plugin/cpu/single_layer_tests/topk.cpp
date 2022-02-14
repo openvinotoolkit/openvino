@@ -212,7 +212,7 @@ TEST_P(TopKLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "TopK");
+    CheckPluginRelatedResults(compiledModel, "TopK");
 }
 
 namespace {

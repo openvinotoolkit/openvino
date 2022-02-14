@@ -103,7 +103,7 @@ protected:
 TEST_P(EmbeddingSegmentsSumLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "embeddingSegmentsSum");
+    CheckPluginRelatedResults(compiledModel, "embeddingSegmentsSum");
 }
 
 namespace {

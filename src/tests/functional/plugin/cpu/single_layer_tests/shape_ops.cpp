@@ -164,7 +164,7 @@ TEST_P(ShapeOpsCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Reshape");
+    CheckPluginRelatedResults(compiledModel, "Reshape");
 }
 
 namespace reshapeTest {

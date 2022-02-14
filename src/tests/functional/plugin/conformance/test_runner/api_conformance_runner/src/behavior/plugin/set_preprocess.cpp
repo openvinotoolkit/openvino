@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/plugin/preprocessing/set_preprocess.hpp"
+#include "behavior/plugin/set_preprocess.hpp"
 #include "api_conformance_helpers.hpp"
 
 namespace {

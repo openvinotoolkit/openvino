@@ -5,7 +5,7 @@
 
 #include <thread>
 
-#include "behavior/ov_plugin/caching/caching_tests.hpp"
+#include "behavior/ov_plugin/caching_tests.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -116,11 +116,10 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
 }
 
 bool CompileModelCacheTestBase::importExportSupported(ov::Core& core) const {
-    std::vector<std::string> supportedMetricKeys = core.get_property(targetDevice, METRIC_KEY(SUPPORTED_METRICS));
-    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
-                        METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+    auto supportedMetricKeys = core.get_property(targetDevice, ov::supported_properties);
+    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), ov::device::capabilities);
     auto supported = (it != supportedMetricKeys.end()) &&
-                     core.get_property(targetDevice, METRIC_KEY(IMPORT_EXPORT_SUPPORT)).as<bool>();
+                     core.get_property(targetDevice, ov::device::capability::EXPORT_IMPORT).as<bool>();
     return supported;
 }
 
@@ -148,7 +147,7 @@ void CompileModelCacheTestBase::SetUp() {
     auto hash = std::hash<std::string>()(GetTestName());
     ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
     m_cacheFolderName = ss.str();
-    core->set_property({{CONFIG_KEY(CACHE_DIR), {}}});
+    core->set_property(ov::cache_dir());
 }
 
 void CompileModelCacheTestBase::TearDown() {
@@ -175,7 +174,7 @@ void CompileModelCacheTestBase::run() {
     }
     configure_model();
     try {
-        executableNetwork = core->compile_model(function, targetDevice, configuration);
+        compiledModel = core->compile_model(function, targetDevice, configuration);
         generate_inputs(targetStaticShapes.front());
         infer();
     } catch (const Exception &ex) {
@@ -183,17 +182,17 @@ void CompileModelCacheTestBase::run() {
         GTEST_COUT << "Exception [" << ex.what() << "]" << std::endl;
         GTEST_SKIP();
     } catch (...) {
-        GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
+        GTEST_COUT << "Can't compile network without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
         GTEST_SKIP(); // skip caching test if such network is not supported by device at all
     }
     auto originalOutputs = get_plugin_outputs();
 
     for (int i = 0; i < 2; i++) {
         // Step 2: Load with cache. Export or import shall not throw
-        executableNetwork = {}; // Destroy network object
+        compiledModel = {}; // Destroy network object
         {
-            core->set_property({{CONFIG_KEY(CACHE_DIR), m_cacheFolderName}});
-            ASSERT_NO_THROW(executableNetwork = core->compile_model(function, targetDevice, configuration));
+            core->set_property(ov::cache_dir(m_cacheFolderName));
+            ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
             generate_inputs(targetStaticShapes.front());
             ASSERT_NO_THROW(infer());
         }

@@ -175,7 +175,7 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, cpuNodeType);
+    CheckPluginRelatedResults(compiledModel, cpuNodeType);
 }
 
 namespace {

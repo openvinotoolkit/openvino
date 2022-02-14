@@ -102,7 +102,7 @@ TEST_P(RNNCellCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "RNNCell");
+    CheckPluginRelatedResults(compiledModel, "RNNCell");
 }
 
 namespace {

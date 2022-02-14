@@ -75,7 +75,7 @@
 //
 //    Run();
 //
-//    CheckPluginRelatedResults(executableNetwork, "Convert");
+//    CheckPluginRelatedResults(compiledModel, "Convert");
 //}
 //
 //std::vector<convertLayerShapeDefinition> inShapes_4D = {

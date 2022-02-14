@@ -78,7 +78,7 @@ TEST_P(VariadicSplitLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Split");
+    CheckPluginRelatedResults(compiledModel, "Split");
 }
 
 namespace {
