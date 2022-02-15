@@ -175,7 +175,7 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
                 FRONT_END_THROW("Encountered unknown element type " + DataType_Name(dt) + " on an empty tensor_proto");
             }
             if (val_size == 0) {
-                val_i = 0;
+                (*values)[i] = static_cast<T>(0);
             } else if (i < val_size) {
                 (*values)[i] = val_i;
                 val_lastsaved = val_i;
