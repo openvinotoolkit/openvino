@@ -286,4 +286,14 @@ namespace {
                      ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                      ::testing::ValuesIn(auto_batch_configs)),
              CorrectConfigTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                     ::testing::ValuesIn(conf)));
+    // testing that when auto-batching is triggered implicitly (incl the hint tput) the ALLOW_AUTO_BATCHING can be set
+    INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                     ::testing::ValuesIn(conf_gpu)));
 } // namespace

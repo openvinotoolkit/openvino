@@ -191,6 +191,6 @@ using IncorrectConfigSingleOptionTests = BehaviorTestsSingleOption;
 using IncorrectConfigAPITests = CorrectConfigTests;
 using CorrectConfigCheck = CorrectConfigTests;
 using DefaultValuesConfigTests = CorrectConfigTests;
-using SetAllowAutoBatchingCorrectConfigTestCheck = BehaviorTestsEmptyConfig;
+using SetAllowAutoBatchingCorrectConfigTestCheck = CorrectConfigTests;
 
 } // namespace BehaviorTestsDefinitions
