@@ -186,7 +186,7 @@ macro(ov_add_frontend)
     target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
 
-    # library version: 202202
+    # TODO: define proper library version, currently SOVERSION 2022
     set_target_properties(${TARGET_NAME} PROPERTIES
         SOVERSION ${OpenVINO_VERSION_MAJOR}
         VERSION ${OpenVINO_VERSION})

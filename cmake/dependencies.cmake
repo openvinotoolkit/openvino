@@ -88,7 +88,7 @@ if(THREADING STREQUAL "OMP")
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list}
-            DESTINATION runtime/3rdparty/omp/lib
+            DESTINATION ${IE_CPACK_RUNTIME_PATH}
             COMPONENT omp)
 endif()
 
