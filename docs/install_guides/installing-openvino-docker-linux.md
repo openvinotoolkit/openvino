@@ -7,14 +7,21 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 @sphinxdirective
 .. tab:: Target Operating Systems
 
-  * Ubuntu\* 18.04 long-term support (LTS), 64-bit
-  * Ubuntu\* 20.04 long-term support (LTS), 64-bit
-  * Red Hat\* Enterprise Linux 8, 64-bit
+  * Ubuntu 18.04 long-term support (LTS), 64-bit
+  * Ubuntu 20.04 long-term support (LTS), 64-bit
+  * Red Hat Enterprise Linux 8, 64-bit
 
 .. tab:: Host Operating Systems
+
   * Linux
   * Windows Subsystem for Linux 2 on CPU or GPU
   * macOS on CPU only
+  
+  To launch a Linux image on Windows Subsystem for Linux 2, note the following things:
+
+  - Only Windows 10 with 21H2 update or above installed and Windows 11 are supported.
+  - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see [this article](https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434) for more details.
+  - From 2022.1 release, the Docker images contain preinstalled recommended version of OpenCL Runtime with WSL2 support.
 
 @endsphinxdirective
 
@@ -22,10 +29,10 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 
 There are two ways to install OpenVINO with Docker. You can choose either of them according to your needs:
 * Use a prebuilt image. Do the following steps:
-  1. <a href="#get-prebuilt-image">Get a prebuilt image from provided sources</a>
+  1. <a href="#get-prebuilt-image">Get a prebuilt image from provided sources</a>.
   2. <a href="#run-image">Run the image on different devices</a>.
   3. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
-* Build a Docker image manually. Do the following steps:
+* If you want to customize your image, you can also build a Docker image manually by using the following steps:
   1. <a href="#create-dockerfile">Create a Dockerfile</a>.
   2. <a href="#configure-image">Configure the Docker image</a>.
   3. <a href="#run-image">Run the image on different devices</a>.
@@ -36,8 +43,8 @@ There are two ways to install OpenVINO with Docker. You can choose either of the
 You can find prebuilt images on:
 
 - [Docker Hub](https://hub.docker.com/u/openvino)
-- [Red Hat* Quay.io](https://quay.io/organization/openvino)
-- [Red Hat* Ecosystem Catalog](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
+- [Red Hat Quay.io](https://quay.io/organization/openvino)
+- [Red Hat Ecosystem Catalog](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
 - [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino)
 
 ## <a name="create-dockerfile"></a>Creating a Dockerfile
@@ -47,28 +54,11 @@ You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tr
 
 ## <a name="configure-image"></a>Configuring the Image for Different Devices
 
-If you want to run inferences on a CPU or Intel® Neural Compute Stick 2, no extra configuration is needed. Go to <a href="#run-image">Running the image on different devices</a> for next step.
+If you want to run inferences on a CPU or Intel® Neural Compute Stick 2, no extra configuration is needed. Go to <a href="#run-image">Running the image on different devices</a> for the next step.
 
 ### Configuring Docker image for GPU
 
-> **NOTE**: Only Intel® integrated graphics are supported.
-
-#### Prerequisites
-
-- GPU is not available in container by default, you must attach it to the container.
-- Kernel driver must be installed on the host.
-- Intel® OpenCL™ runtime package must be included into the container.
-- In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md).
-
-To launch a Linux image on Windows Subsystem for Linux 2, note the following things:
-
-- Only Windows 10 with 21H2 update or above installed and Windows 11 are supported.
-- Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see [this article](https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434) for more details.
-- The Docker images for 2022.1 release contain preinstalled recommended version of OpenCL Runtime with WSL2 support.
-
-#### Configuration Examples
-
-If you have installed your custom version of GPU driver and want to build an image, see the following examples for your Dockerfile:
+By default, the distributed Docker image for OpenVINO has the the recommended version of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL Driver for the operating system installed inside. If you want to build an image with a custom version of OpenCL Runtime included, you need to modify the Dockerfile using the lines below (the 19.41.14441 version is used as an example) and build the image manually:
 
 **Ubuntu 18.04/20.04**:
 
@@ -138,10 +128,19 @@ Note the following things:
 
 - Kernel reports the same information for all containers as for native application, for example, CPU, memory information.
 - All instructions that are available to host process available for process in container, including, for example, AVX2, AVX512. No restrictions.
-- Docker\* does not use virtualization or emulation. The process in Docker is just a regular Linux process, but it is isolated from external world on kernel level. Performance loss is minor.
+- Docker does not use virtualization or emulation. The process in Docker is just a regular Linux process, but it is isolated from external world on kernel level. Performance loss is minor.
 
 
 ### Running the Image on GPU
+
+> **NOTE**: Only Intel® integrated graphics are supported.
+
+Note the following things:
+
+- GPU is not available in the container by default. You must attach it to the container.
+- Kernel driver must be installed on the host.
+- Intel® OpenCL™ Runtime package must be included in the container.
+- In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md).
 
 To make GPU available in the container, attach the GPU to the container using `--device /dev/dri` option and run the container:
 

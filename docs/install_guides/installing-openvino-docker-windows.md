@@ -38,7 +38,7 @@ There are two ways to install OpenVINO with Docker. You can choose either of the
 * Use a prebuilt image. Do the following steps:
   1. Get a prebuilt image from [Docker Hub](https://hub.docker.com/u/openvino).
   2. <a href="#run-image">Run the image on different devices</a>.
-* Build a Docker image manually. Do the following steps:
+* If you want to customize your image, you can also build a Docker image manually by using the following steps:
   1. <a href="#create-dockerfile">Create a Dockerfile</a>.
   2. <a href="#configure-image">Configure the Docker image</a>.
   3. <a href="#run-image">Run the image on different devices</a>.
