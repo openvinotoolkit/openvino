@@ -11,7 +11,6 @@ from openvino.tools.mo.middle.RemoveRedundantReshapes import RemoveRedundantResh
 from openvino.tools.mo.middle.pass_separator import PostMiddleStart
 from openvino.tools.mo.middle.quantize_fuses import MarkNodesToFuseUpToFakeQuantize, FakeQuantizeFuse
 from openvino.tools.mo.graph.graph import Graph
-from openvino.tools.mo.middle.passes.conv import fuse_pad
 from openvino.tools.mo.middle.passes.fusing.decomposition import convert_scale_shift_to_mul_add, convert_batch_norm
 from openvino.tools.mo.middle.passes.fusing.fuse_grouped_conv import grouped_convolutions_fusing
 from openvino.tools.mo.middle.passes.fusing.fuse_linear_ops import fuse_linear_ops
@@ -41,9 +40,6 @@ class Fusing(MiddleReplacementPattern):
         fw = graph.graph['fw']
         argv = graph.graph['cmd_params']
         layout = graph.graph['layout']
-
-        for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
-        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         # Mark nodes with attr 'can_be_fused': False to disable fusing for specified nodes
         for_graph_and_each_sub_graph_recursively(graph, lambda graph: mark_unfused_nodes(graph, argv.finegrain_fusing))
@@ -93,9 +89,6 @@ class Fusing(MiddleReplacementPattern):
             AddFakeQuantizeFuse().find_and_replace_pattern(graph)
             MulFakeQuantizeFuse().find_and_replace_pattern(graph)
             for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
-
-        for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
-        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         if layout != 'NHWC' and not argv.disable_resnet_optimization:
             stride_optimization(graph)

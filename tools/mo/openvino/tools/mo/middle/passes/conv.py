@@ -5,66 +5,11 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.layout import get_batch_dim, get_features_dim
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.front.extractor import add_attrs_props
-from openvino.tools.mo.front.extractor import update_ie_fields
+from openvino.tools.mo.front.extractor import add_attrs_props, update_ie_fields
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.fusing.helpers import get_value_id, get_tensor_id
 from openvino.tools.mo.middle.pattern_match import apply_pattern
-
-
-def pad_op_transform(graph: Graph, match: dict):
-    op = match['op']
-    pad_op = match['pad_op']
-    input_data = pad_op.in_node(0)
-
-    if pad_op.mode != 'constant':
-        log.info('The pad node "{}" with pad mode "{}" cannot be fused.'.format(pad_op.soft_get('name'), pad_op.mode))
-        return
-
-    if op.type == 'Pooling' and op.pool_method == 'max':
-        return
-
-    if pad_op.mode == 'constant':
-        fill_value = pad_op.in_port(3).data.get_value()
-        if fill_value is None or fill_value != 0.0:
-            log.info('The pad node "{}" with non-zero fill value cannot be fused.'.format(pad_op.soft_get('name')))
-            return
-
-    input_tensor_dims = len(match['pad_output'].shape)
-    for in_port in [1, 2]:
-        pads = pad_op.in_port(in_port).data.get_value()
-        if pads[get_features_dim(op.graph.graph['layout'], input_tensor_dims)] != 0 or \
-                pads[get_batch_dim(op.graph.graph['layout'], input_tensor_dims)] != 0:
-            log.info('The pad node "{}" with padding over feature/batch dimension cannot be fused.'.format(
-                pad_op.soft_get('name')))
-            return
-
-    op.pad += np.concatenate([pad_op.in_port(1).data.get_value().reshape([-1, 1]),
-                              pad_op.in_port(2).data.get_value().reshape([-1, 1])], axis=1)
-    op.pad_spatial_shape = op.pad[op.spatial_dims]
-    op['auto_pad'] = None
-    if op.type == 'Pooling':
-        op['exclude_pad'] = False
-    assert (graph[match['pad_output'].node][match['op'].node][0]['in'] == 0)
-    edge_attrs = graph.get_edge_data(match['pad_output'].id, match['op'].id)[0]
-    graph.remove_edge(match['pad_output'].id, match['op'].id)
-    graph.add_edge(input_data.id, match['op'].id, **{'in': 0, **edge_attrs})
-
-
-def fuse_pad(graph: Graph):
-    for op_type in ['Convolution', 'Pooling', 'Deconvolution']:
-        apply_pattern(
-            graph,
-            nodes=[
-                ('pad_op', dict(kind='op', op='Pad')),
-                ('pad_output', dict(kind='data')),
-                ('op', dict(kind='op', type=op_type))],
-            edges=[('pad_op', 'pad_output'),
-                   ('pad_output', 'op', {'in': 0})],
-            action=pad_op_transform
-        )
 
 
 def muladd_to_scaleshift_action(graph: Graph, match: dict):
