@@ -1071,8 +1071,9 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
     };
 
     for (auto &graphNode : graphNodes) {
+        const auto eltwiseNode = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(graphNode);
         if (graphNode->getType() != Eltwise || graphNode->getAlgorithm() != EltwiseAdd ||
-                std::dynamic_pointer_cast<MKLDNNEltwiseNode>(graphNode)->isWithBroadcast())
+            !eltwiseNode || eltwiseNode->isWithBroadcast())
             continue;
 
         // TODO: Enlarge to several inputs

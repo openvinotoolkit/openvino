@@ -138,27 +138,25 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
         }
     }
 
-    if (op != nullptr) {
-        std::string inputMemoryFormats = ngraph::getMKLDNNInputMemoryFormats(op);
-        if (!inputMemoryFormats.empty()) {
-            std::istringstream stream(inputMemoryFormats);
-            std::string str;
-            while (getline(stream, str, ',')) {
-                if (str.substr(0, 4) != "cpu:")
-                    continue;
-                inputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
-            }
+    std::string inputMemoryFormats = ngraph::getMKLDNNInputMemoryFormats(op);
+    if (!inputMemoryFormats.empty()) {
+        std::istringstream stream(inputMemoryFormats);
+        std::string str;
+        while (getline(stream, str, ',')) {
+            if (str.substr(0, 4) != "cpu:")
+                continue;
+            inputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
+    }
 
-        std::string outputMemoryFormats = ngraph::getMKLDNNOutputMemoryFormats(op);
-        if (!outputMemoryFormats.empty()) {
-            std::istringstream stream(outputMemoryFormats);
-            std::string str;
-            while (getline(stream, str, ',')) {
-                if (str.substr(0, 4) != "cpu:")
-                    continue;
-                outputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
-            }
+    std::string outputMemoryFormats = ngraph::getMKLDNNOutputMemoryFormats(op);
+    if (!outputMemoryFormats.empty()) {
+        std::istringstream stream(outputMemoryFormats);
+        std::string str;
+        while (getline(stream, str, ',')) {
+            if (str.substr(0, 4) != "cpu:")
+                continue;
+            outputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 

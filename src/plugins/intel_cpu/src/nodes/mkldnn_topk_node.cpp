@@ -2076,6 +2076,8 @@ void MKLDNNTopKNode::createPrimitive() {
         jcp.bubble_inplace = bubble_inplace;
         jcp.sort_stride = static_cast<int>(I);
         jcp.work_amount = static_cast<int>(I);
+        jcp.bitonic_idx_cnt = 0;
+        jcp.bitonic_k_idx_cnt = 0;
 
         if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
             auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
