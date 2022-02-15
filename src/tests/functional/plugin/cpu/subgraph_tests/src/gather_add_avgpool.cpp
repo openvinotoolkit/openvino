@@ -30,7 +30,7 @@ protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
         inPrc = InferenceEngine::Precision::U8;
-        outPrc = InferenceEngine::Precision::FP32;
+        outPrc.front() = InferenceEngine::Precision::FP32;
         auto type = element::f32;
         auto param = std::make_shared<opset8::Parameter>(type, Shape{1, 3, 64, 64});
         auto gather = std::make_shared<opset8::Gather>(param,
