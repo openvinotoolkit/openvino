@@ -214,7 +214,9 @@ class FastBiasCorrection(Algorithm):
             calculate_input_shape[input_node.fullname] = {'shape_node': lambda x: x.shape}
         calculate_metrics = self._engine.calculate_metrics
         self._engine.calculate_metrics = False
+        self._engine.inference_for_shape = True
         _, inputs_shape = self._engine.predict(calculate_input_shape, sampler)
+        self._engine.inference_for_shape = False
         self._engine.calculate_metrics = calculate_metrics
         for node_name, shape_node in inputs_shape.items():
             inputs_shape[node_name] = shape_node['shape_node'][0]
