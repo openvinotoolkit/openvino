@@ -62,6 +62,7 @@ protected:
 
     // Fused ops
     virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
+    Datatype GetAccumulatorType(const fully_connected_params& params) const;
     Datatype GetActivationType(const fully_connected_params& params) const;
     // --Fused ops
 

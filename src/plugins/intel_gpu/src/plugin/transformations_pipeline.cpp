@@ -109,12 +109,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
-    bool use_onednn = false;
     const auto defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    use_onednn = device_info.supports_immad;
-#endif
-
     bool enableInt8;
     {
         ngraph::pass::Manager manager;
@@ -411,12 +406,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions)
                 || WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
         });
-
-        if (!use_onednn) {
-            lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
-                return MatMulTransformation::is3DTensorOnActivations(node);
-            });
-        }
 
         lptPassConfig->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
             // disable MultiplyToGroupConvolution if Multiply with Constant can be fused

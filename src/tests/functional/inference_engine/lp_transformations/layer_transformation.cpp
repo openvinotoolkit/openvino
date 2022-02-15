@@ -17,7 +17,6 @@ TestTransformationParams::TestTransformationParams(
     std::vector<element::Type> precisionsOnWeights,
     bool supportAsymmetricQuantization,
     element::Type deqPrecision,
-    bool support3DTensorOnActivations,
     bool deconvolutionSpecificChannelsRatio,
     const std::vector<ngraph::element::Type> defaultPrecisions) :
     updatePrecisions(updatePrecisions),
@@ -25,7 +24,6 @@ TestTransformationParams::TestTransformationParams(
     precisionsOnWeights(precisionsOnWeights),
     supportAsymmetricQuantization(supportAsymmetricQuantization),
     deqPrecision(deqPrecision),
-    support3DTensorOnActivations(support3DTensorOnActivations),
     deconvolutionSpecificChannelsRatio(deconvolutionSpecificChannelsRatio),
     defaultPrecisions(defaultPrecisions) {
     if (precisionsOnActivations.size() == 0ul) {
@@ -54,11 +52,6 @@ TestTransformationParams& TestTransformationParams::setPrecisionsOnActivations(c
 
 TestTransformationParams& TestTransformationParams::setPrecisionsOnWeights(const std::vector<element::Type>& precisionsOnWeights) {
     this->precisionsOnWeights = precisionsOnWeights;
-    return *this;
-}
-
-TestTransformationParams& TestTransformationParams::setSupport3DTensorOnActivations(const bool support3DTensorOnActivations) {
-    this->support3DTensorOnActivations = support3DTensorOnActivations;
     return *this;
 }
 

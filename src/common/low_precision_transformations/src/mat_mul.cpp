@@ -182,11 +182,6 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
     return false;
 }
 
-bool MatMulTransformation::is3DTensorOnActivations(const std::shared_ptr<const Node>& node) {
-    const auto inputDataRank = node->get_input_partial_shape(0).rank();
-    return inputDataRank.is_dynamic() || inputDataRank.get_length() == 3;
-}
-
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!LayerTransformation::canBeTransformedSpatialDimension(context, layer)) {
         return false;
