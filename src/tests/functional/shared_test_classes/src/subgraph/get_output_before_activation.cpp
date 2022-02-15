@@ -42,6 +42,8 @@ void OutputBeforeActivation::SetUp() {
     midOutputType outputType;
     std::tie(targetDevice, netPrecision, inputSize, outputType, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
+    outPrc.front() = netPrecision;
+    outPrc.push_back(netPrecision);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     std::vector<size_t> input_dims { 1, inputSize };
