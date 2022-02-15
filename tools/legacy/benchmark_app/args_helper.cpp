@@ -204,33 +204,6 @@ void processPrecision(InferenceEngine::CNNNetwork& network, const std::string& i
     }
 }
 
-namespace {
-using supported_layouts_t = std::unordered_map<std::string, InferenceEngine::Layout>;
-using matchLayoutToDims_t = std::unordered_map<size_t, size_t>;
-
-InferenceEngine::Layout getLayout(std::string value, const supported_layouts_t& supported_layouts) {
-    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
-
-    const auto layout = supported_layouts.find(value);
-    if (layout == supported_layouts.end()) {
-        throw std::logic_error("\"" + value + "\"" + " is not a valid layout");
-    }
-
-    return layout->second;
-}
-
-InferenceEngine::Layout getLayout(const std::string& value) {
-    static const supported_layouts_t supported_layouts = {
-        {"NCDHW", InferenceEngine::Layout::NCDHW}, {"NDHWC", InferenceEngine::Layout::NDHWC}, {"NCHW", InferenceEngine::Layout::NCHW},
-        {"NHWC", InferenceEngine::Layout::NHWC},   {"CHW", InferenceEngine::Layout::CHW},     {"HWC", InferenceEngine::Layout::HWC},
-        {"NC", InferenceEngine::Layout::NC},       {"C", InferenceEngine::Layout::C},
-    };
-
-    return getLayout(value, supported_layouts);
-}
-
-}  // namespace
-
 void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network) {
     std::cout << "Network inputs:" << std::endl;
     for (auto&& layer : network.getInputsInfo()) {

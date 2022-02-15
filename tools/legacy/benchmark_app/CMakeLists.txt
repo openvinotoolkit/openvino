@@ -31,9 +31,3 @@ else()
     target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core openvino::runtime format_reader gflags)
 endif()
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-
-install(TARGETS ${TARGERT_NAME}
-        RUNTIME DESTINATION tools/legacy/benchmark_app
-        COMPONENT core_tools)
