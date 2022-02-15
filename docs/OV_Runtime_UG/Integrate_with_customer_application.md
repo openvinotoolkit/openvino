@@ -29,10 +29,17 @@ For details on how to build a model in OpenVINO™ Runtime, see the [Build a Mod
 
 OpenVINO™ Runtime allows to use tensor names or indexes to work wit model inputs/outpus. To get model input/output ports you can use `ov::Model::input()` or `ov::Model::output()` respectively.
 
- - C++
-    @snippet snippets/src/main.cpp part2
- - Python
-    @snippet snippets/src/main.py part2
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part2]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [part2]
+@endsphinxdirective
 
 OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. For data types the `ov::element::Type` is used.
 
@@ -77,17 +84,31 @@ This section provides step-by-step instructions to implement a typical inference
 
 Include next files to work with OpenVINO™ Runtime:
 
- - C++
-    @snippet snippets/src/main.cpp include
- - Python
-    @snippet snippets/src/main.py import
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [include]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [import]
+@endsphinxdirective
 
 Use the following code to create OpenVINO™ Core to manage available devices and read model objects:
 
- - C++
-    @snippet snippets/src/main.cpp part0
- - Python
-    @snippet snippets/src/main.py part0
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part0]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [part0]
+@endsphinxdirective
 
 #### Step 2 (Optional). Configure Input and Output of the Model
 
@@ -111,27 +132,44 @@ Optionally, OpenVINO™ Runtime allows to configure input and output of the mode
 
 Compile the model to the device using `ov::Core::compile_model()`:
 
-   - IR: 
-       - C++
-            @snippet snippets/src/main.cpp part4_1
-       - Python
-            @snippet snippets/src/main.py part4_1
-   - ONNX:
-       - C++
-            @snippet snippets/src/main.cpp part4_2
-       - Python
-            @snippet snippets/src/main.py part4_2
-   - Paddle:
-       - C++
-            @snippet snippets/src/main.cpp part4_3
-       - Python
-            @snippet snippets/src/main.py part4_3
-   - OpenVINO Model:
-       - C++
-            @snippet snippets/src/main.cpp part4_4
-       - Python
-            @snippet snippets/src/main.py part4_4
 
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. tab:: IR
+            .. doxygensnippet:: docs/snippets/src/main.cpp
+               :language: cpp
+               :fragment: [part4_1]
+        .. tab:: ONNX
+            .. doxygensnippet:: docs/snippets/src/main.cpp
+               :language: cpp
+               :fragment: [part4_2]
+        .. tab:: Paddle
+            .. doxygensnippet:: docs/snippets/src/main.cpp
+               :language: cpp
+               :fragment: [part4_3]
+        .. tab:: OpenVINO™ Model
+            .. doxygensnippet:: docs/snippets/src/main.cpp
+               :language: cpp
+               :fragment: [part4_4]
+    .. group-tab:: Python
+        .. tab:: IR
+            .. doxygensnippet:: docs/snippets/src/main.py
+               :language: python
+               :fragment: [part4_1]
+        .. tab:: ONNX
+            .. doxygensnippet:: docs/snippets/src/main.py
+               :language: python
+               :fragment: [part4_2]
+        .. tab:: Paddle
+            .. doxygensnippet:: docs/snippets/src/main.py
+               :language: python
+               :fragment: [part4_3]
+        .. tab:: OpenVINO™ Model
+            .. doxygensnippet:: docs/snippets/src/main.py
+               :language: python
+               :fragment: [part4_4]
+@endsphinxdirective
 
 It creates a compiled model from a model object. The compiled model is associated with single hardware device.
 It is possible to create as many compiled models as needed and to use them simultaneously (up to the limitation of the hardware resources).
@@ -139,20 +177,34 @@ It is possible to create as many compiled models as needed and to use them simul
 Third parameter is a configuration for device. It is list of properties which affects device behavior.
 [Supported devices](supported_plugins/Supported_Devices.md) page for more details about supported configuration parameters.
 
- - C++
-    @snippet snippets/src/main.cpp part5
- - Python
-    @snippet snippets/src/main.py part5
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part5]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [part5]
+@endsphinxdirective
 
 #### Step 4. Create an Inference Request
 
 `ov::InferRequest` class provides methods for inference model inside the OpenVINO™ runtime.
 Create an infer request using the following code:
 
- - C++
-    @snippet snippets/src/main.cpp part6
- - Python
-    @snippet snippets/src/main.py part6
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part6]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [part6]
+@endsphinxdirective
 
 #### Step 5. Set Inputs
 
@@ -160,33 +212,61 @@ You can use one of the following options to prepare input:
 
 * **Optimal way for a single model.** Get tensor allocated by an infer request using `ov::InferRequest::get_tensor()` and feed input tensor and the input data to the tensors. Input tensor's shape, element type must match specific input of the model. For cases of dynamic input shapes, read [Working with dynamic shapes].
 
- - C++
-    @snippet snippets/src/main.cpp part7
- - Python
-    @snippet snippets/src/main.py part7
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part7]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [part7]
+@endsphinxdirective
 
 * **Optimal way for a cascade of models (output of one model is input for another).** Get output tensor from the first request using `ov::InferRequest::get_tensor()` and set it as input for the second request using `ov::InferRequest::set_tensor()`. But be careful, shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
 
- - C++
-    @snippet snippets/src/main.cpp part8
- - Python
-    @snippet snippets/src/main.py part8
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part8]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [part8]
+@endsphinxdirective
 
 * **Optimal way to handle ROI (a ROI object located inside of input of one model is input for another).** It is possible to re-use shared input by several models. You do not need to allocate separate input tensor for a model if it processes a ROI object located inside of already allocated input of a previous model. For instance, when first model detects objects on a video frame (stored as input tensor) and second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input tensor (used by first model) by second model and just crop ROI without allocation of new memory using `ov::Tensor()` with passing of `ov::Tensor` and `ov::Coordinate` as parameters.
 
- - C++
-    @snippet snippets/src/main.cpp part9
- - Python
-    @snippet snippets/src/main.py part9
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part9]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [part9]
+@endsphinxdirective
 
    Make sure that shared input is kept valid during execution of each model. Otherwise, ROI tensor may be corrupted if the original input tensor (that ROI is cropped from) has already been rewritten.
 
 * `ov::InferRequest::set_tensor()` is needed to wrap external memory into `ov::Tensor`:
 
- - C++
-    @snippet snippets/src/main.cpp part10
- - Python
-    @snippet snippets/src/main.py part10
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part10]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [part10]
+@endsphinxdirective
 
 A tensor can be filled before and after `set_tensor()`.
 
@@ -195,10 +275,17 @@ A tensor can be filled before and after `set_tensor()`.
 Start inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while accelerator is busy.
 
 * For asynchronous inference request: 
-     - C++
-        @snippet snippets/src/main.cpp part12
-     - Python
-        @snippet snippets/src/main.py part12
+    @sphinxdirective
+    .. tabs::
+        .. group-tab:: C++
+            .. doxygensnippet:: docs/snippets/src/main.cpp
+               :language: cpp
+               :fragment: [part12]
+        .. group-tab:: Python
+            .. doxygensnippet:: docs/snippets/src/main.python
+               :language: python
+               :fragment: [part12]
+    @endsphinxdirective
   `start_async` returns immediately and starts inference without blocking main thread, `infer` blocks main thread and returns when inference is completed. Call `wait` for waiting result to become available for asynchronous request.
 
   There are two ways to use it:
@@ -207,10 +294,17 @@ Start inference in asynchronous or synchronous mode. Async API usage can improve
 
 * For synchronous inference request:
 
-     - C++
-        @snippet snippets/src/main.cpp part11
-     - Python
-        @snippet snippets/src/main.py part11
+    @sphinxdirective
+    .. tabs::
+        .. group-tab:: C++
+            .. doxygensnippet:: docs/snippets/src/main.cpp
+               :language: cpp
+               :fragment: [part11]
+        .. group-tab:: Python
+            .. doxygensnippet:: docs/snippets/src/main.python
+               :language: python
+               :fragment: [part11]
+    @endsphinxdirective
 
 Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
 
@@ -223,10 +317,17 @@ the ov::Busy exception that request is busy with computations.
 
 Go over the output tensors and process the inference results.
 
- - C++
-    @snippet snippets/src/main.cpp part13
- - Python
-    @snippet snippets/src/main.py part13
+@sphinxdirective
+.. tabs::
+    .. group-tab:: C++
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part13]
+    .. group-tab:: Python
+        .. doxygensnippet:: docs/snippets/src/main.python
+           :language: python
+           :fragment: [part13]
+@endsphinxdirective
 
 ### Build Your C++ Application
 
