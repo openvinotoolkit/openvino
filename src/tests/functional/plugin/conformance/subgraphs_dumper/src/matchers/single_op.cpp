@@ -85,10 +85,8 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
                            ref->get_input_tensor(i).get_partial_shape().rank();
         bool elemTypeIsEqual = node->get_input_tensor(i).get_element_type() ==
                                ref->get_input_tensor(i).get_element_type();
-        bool dynamismIsEqual = node->get_input_node_ptr(i)->is_dynamic() ==
-                               ref->get_input_node_ptr(i)->is_dynamic();
-        if (ref->get_input_node_ptr(i)->is_dynamic())
-            std::cout << "[ DEBUG ] " << ref->get_friendly_name() << std::endl;
+        bool dynamismIsEqual = node->get_input_partial_shape(i).is_dynamic() ==
+                               ref->get_input_partial_shape(i).is_dynamic();
         if (!rankIsEqual || !elemTypeIsEqual || !dynamismIsEqual) {
             return false;
         }
@@ -104,10 +102,18 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node,
     if (node->get_output_size() != ref->get_output_size()) {
         return false;
     }
-    // Match output element type
+    // Match output element type, shape rank & dynamism
     for (size_t i = 0; i < node->get_output_size(); ++i) {
         if (node->get_output_tensor(i).get_element_type() !=
             ref->get_output_tensor(i).get_element_type()) {
+            return false;
+        }
+        if (node->get_output_tensor(i).get_partial_shape().is_dynamic() !=
+            ref->get_output_tensor(i).get_partial_shape().is_dynamic()) {
+            return false;
+        }
+        if (node->get_output_tensor(i).get_partial_shape().rank()!=
+            ref->get_output_tensor(i).get_partial_shape().rank()) {
             return false;
         }
     }
