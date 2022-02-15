@@ -669,7 +669,7 @@ static constexpr Num NUMA{
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const Num& num) {
-    switch (num) {
+    switch (num.num) {
     case Num::AUTO:
         return os << "AUTO";
     case Num::NUMA:
