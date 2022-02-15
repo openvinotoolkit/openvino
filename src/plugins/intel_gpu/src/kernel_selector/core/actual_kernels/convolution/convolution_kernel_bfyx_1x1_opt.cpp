@@ -108,6 +108,10 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_p
     if (cp.padding.x != 0 || cp.padding.y != 0)
         return false;
 
+    if (cp.inputs[0].Feature().v % 2 != 0) {
+        return false;
+    }
+
     // if block sizes are 1x1, then this algorithm is probably not the best
     auto block = get_out_block_size(cp);
     if (block.out_width == 1 && block.out_height == 1)

@@ -28,7 +28,7 @@ int tmain(int argc, tchar* argv[]) {
 
         // -------- Parsing and validation of input arguments --------
         if (argc != 4) {
-            slog::info << "Usage : " << argc << " <path_to_model> <path_to_image> <device_name>" << slog::endl;
+            slog::info << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << slog::endl;
             return EXIT_FAILURE;
         }
 
