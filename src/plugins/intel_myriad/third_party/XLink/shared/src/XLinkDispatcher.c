@@ -1136,6 +1136,7 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
             if (res == 0 && event->packet.header.flags.bitField.localServe == 0) {
 #ifdef __PC__
                 if (toSend->header.type == XLINK_RESET_REQ) {
+                    curr->resetXLink = 1;
                     mvLog(MVLOG_DEBUG,"Send XLINK_RESET_REQ, stopping sendEvents thread.");
                     if(toSend->deviceHandle.protocol == X_LINK_PCIE) {
                         toSend->header.type = XLINK_PING_REQ;
@@ -1160,7 +1161,6 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
 #ifndef __PC__
                 // Stop scheduler thread after XLINK_RESET_RESP was successfully sent to host
                 if (toSend->header.type == XLINK_RESET_RESP) {
-                    curr->resetXLink = 1;
                     mvLog(MVLOG_DEBUG, "Stop scheduler thread.");
                 }
 #endif
