@@ -78,7 +78,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetAllowAutoBatchingConfigTest, OVClassSetAllowAutoBatchingConfigTest,
-        ::testing::Values("MULTI", "AUTO", "BATCH"));
+        ::testing::Values("MULTI", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,

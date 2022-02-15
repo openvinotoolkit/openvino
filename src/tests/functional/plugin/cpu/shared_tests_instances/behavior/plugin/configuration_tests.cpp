@@ -248,5 +248,5 @@ namespace {
                              CorrectConfigCheck::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
-                             ::testing::Values(CommonTestUtils::DEVICE_MULTI, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH));
+                             ::testing::Values(CommonTestUtils::DEVICE_MULTI, CommonTestUtils::DEVICE_AUTO));
 } // namespace
