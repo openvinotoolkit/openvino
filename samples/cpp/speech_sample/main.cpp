@@ -121,8 +121,8 @@ int main(int argc, char* argv[]) {
             if (!FLAGS_layout.empty()) {
                 custom_layouts = parse_input_layouts(FLAGS_layout, inputs);
             }
-            for (auto iter = inputs.begin(); iter != inputs.end(); ++iter) {
-                const auto& item_name = iter->get_any_name();
+            for (const auto& input : inputs) {
+                const auto& item_name = input.get_any_name();
                 auto& in = proc.input(item_name);
                 in.tensor().set_element_type(ov::element::f32);
                 // Explicitly set inputs layout
@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
             if (FLAGS_bs) {
                 if (FLAGS_layout.empty() &&
                     std::any_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& i) {
-                        return (dynamic_cast<const ov::op::v0::Parameter&>(*i.get_node()).get_layout()).empty();
+                        return ov::layout::get_layout(i).empty();
                     })) {
                     slog::err << "Layout is not set for any input, so custom batch size is not set." << slog::endl;
                     batchSize = 1;
@@ -256,7 +256,20 @@ int main(int argc, char* argv[]) {
             }
             executableNet = core.import_model(streamrq, deviceStr, genericPluginConfig);
             // loading batch from exported model
-            batchSize = (uint32_t)executableNet.input(0).get_shape()[0];
+            const auto& imported_inputs = executableNet.inputs();
+            if (std::any_of(imported_inputs.begin(), imported_inputs.end(), [](const ov::Output<const ov::Node>& i) {
+                    return ov::layout::get_layout(i).empty();
+                })) {
+                batchSize = 1;
+            } else {
+                for (auto& info : imported_inputs) {
+                    auto imported_layout = ov::layout::get_layout(info);
+                    if (ov::layout::has_batch(imported_layout)) {
+                        batchSize = (uint32_t)info.get_shape()[ov::layout::batch_idx(imported_layout)];
+                        break;
+                    }
+                }
+            }
         }
         // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
@@ -273,7 +286,8 @@ int main(int argc, char* argv[]) {
             return 0;
         }
         // ---------------------------------------------------------------------------------------------------------
-        // --------------------------- Step 3. Create infer request --------------------------------------------------
+        // --------------------------- Step 3. Create infer request
+        // --------------------------------------------------
         std::vector<InferRequestStruct> inferRequests(1);
 
         for (auto& inferRequest : inferRequests) {
@@ -455,7 +469,8 @@ int main(int argc, char* argv[]) {
                                         outputBlob =
                                             inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
                                     }
-                                    // locked memory holder should be alive all time while access to its buffer happens
+                                    // locked memory holder should be alive all time while access to its buffer
+                                    // happens
                                     auto byteSize = numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
                                 }
