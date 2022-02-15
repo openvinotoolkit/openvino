@@ -11,5 +11,5 @@ namespace opset9 {
 #define _OPENVINO_OP_REG(a, b) using b::a;
 #include "openvino/opsets/opset9_tbl.hpp"
 #undef _OPENVINO_OP_REG
-}  // namespace opset8
+}  // namespace opset9
 }  // namespace ov
