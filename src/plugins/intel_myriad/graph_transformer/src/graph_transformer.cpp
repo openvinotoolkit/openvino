@@ -235,7 +235,7 @@ CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const Plugin
     const auto& env = CompileEnv::get();
 
     auto prevConfig = env.config;
-    AutoScope autoRecover([prevConfig]() {
+    AutoScope autoRecover([&prevConfig]() {
         CompileEnv::updateConfig(prevConfig);
     });
 

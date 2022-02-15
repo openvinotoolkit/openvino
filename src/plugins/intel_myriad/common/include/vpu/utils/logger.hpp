@@ -78,38 +78,38 @@ public:
     }
 
     template <typename... Args>
-    inline void fatal(const char* format, const Args&... args) const noexcept {
+    inline void fatal(const char* format, const Args&... args) const {
         addEntry(LogLevel::Fatal, format, args...);
     }
 
     template <typename... Args>
-    inline void error(const char* format, const Args&... args) const noexcept {
+    inline void error(const char* format, const Args&... args) const {
         addEntry(LogLevel::Error, format, args...);
     }
 
     template <typename... Args>
-    inline void warning(const char* format, const Args&... args) const noexcept {
+    inline void warning(const char* format, const Args&... args) const {
         addEntry(LogLevel::Warning, format, args...);
     }
 
     template <typename... Args>
-    inline void info(const char* format, const Args&... args) const noexcept {
+    inline void info(const char* format, const Args&... args) const {
         addEntry(LogLevel::Info, format, args...);
     }
 
     template <typename... Args>
-    inline void debug(const char* format, const Args&... args) const noexcept {
+    inline void debug(const char* format, const Args&... args) const {
         addEntry(LogLevel::Debug, format, args...);
     }
 
     template <typename... Args>
-    inline void trace(const char* format, const Args&... args) const noexcept {
+    inline void trace(const char* format, const Args&... args) const {
         addEntry(LogLevel::Trace, format, args...);
     }
 
 private:
     template <typename... Args>
-    void addEntry(LogLevel msgLevel, const char* format, const Args&... args) const noexcept {
+    void addEntry(LogLevel msgLevel, const char* format, const Args&... args) const {
         if (!isActive(msgLevel)) {
             return;
         }
@@ -124,8 +124,8 @@ private:
         _out->get().flush();
     }
 
-    void printHeader(LogLevel msgLevel) const noexcept;
-    void printFooter() const noexcept;
+    void printHeader(LogLevel msgLevel) const;
+    void printFooter() const;
 
 private:
     std::string _name;

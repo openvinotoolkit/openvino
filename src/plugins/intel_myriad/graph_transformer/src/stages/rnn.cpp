@@ -177,7 +177,7 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     IE_ASSERT(stateSize * ngates == biasesSize);
 
     /* weights repacking */
-    const auto generator = [&weights, stateSize, inputSize, ngates, outputs](const ie::Blob::Ptr& blob) {
+    const auto generator = [&weights, stateSize, inputSize, ngates](const ie::Blob::Ptr& blob) {
         auto newWeightsPtr = blob->buffer().as<fp16_t*>();
 
         auto content = weights->content();
