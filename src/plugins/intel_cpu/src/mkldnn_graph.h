@@ -50,6 +50,11 @@ public:
                      const MKLDNNExtensionManager::Ptr& extMgr,
                      MKLDNNWeightsSharing::Ptr &w_cache);
 
+    void CreateGraph(const std::vector<MKLDNNNodePtr> &graphNodes,
+                     const std::vector<MKLDNNEdgePtr> &graphEdges,
+                     MKLDNNWeightsSharing::Ptr &w_cache,
+                     std::string name);
+
     bool hasMeanImageFor(const std::string& name) {
         return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }

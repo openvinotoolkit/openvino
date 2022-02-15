@@ -16,6 +16,8 @@ public:
     MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     MKLDNNInputNode(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
                     const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNInputNode(MemoryDescPtr memDesc, const std::string &name, const std::string &type, const mkldnn::engine& eng,
+                    MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -35,10 +37,13 @@ public:
 
 private:
     void cloneBlobIfRequired();
+    void initSupportedPdDefault();
+    void initSupportedPdFromMemDesc();
 
 private:
     std::shared_ptr<ngraph::op::Constant> constOp;
     MKLDNNMemoryCPtr memoryPtr;
+    MemoryDescPtr extMemDesc = nullptr;
     bool isMeanImage = false;
 };
 

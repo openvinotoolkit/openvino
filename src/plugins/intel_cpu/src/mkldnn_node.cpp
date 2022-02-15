@@ -1546,3 +1546,7 @@ bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
     }
     return false;
 }
+
+void MKLDNNNode::addFusedNode(const MKLDNNNodePtr &fusingNode) {
+    fusedWith.push_back(fusingNode);
+}
