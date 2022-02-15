@@ -190,4 +190,5 @@ _OPENVINO_OP_REG(If, ov::op::v8)
 _OPENVINO_OP_REG(PriorBox, ov::op::v8)
 
 // New operations added in opset9
+_OPENVINO_OP_REG(IRDFT, ov::op::v9)
 _OPENVINO_OP_REG(RDFT, ov::op::v9)

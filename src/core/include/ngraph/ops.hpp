@@ -79,6 +79,7 @@
 #include "ngraph/op/idft.hpp"
 #include "ngraph/op/if.hpp"
 #include "ngraph/op/interpolate.hpp"
+#include "ngraph/op/irdft.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/op/log.hpp"
