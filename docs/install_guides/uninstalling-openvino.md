@@ -66,13 +66,13 @@
    
   .. code-block:: sh
   
-    /home/<user>/intel/openvino/installer/installer
+    /home/<user>/intel/openvino_installer/installer
 
   or in a case of administrative installation:
 
   .. code-block:: sh
 
-    /opt/intel/openvino/installer/installer
+    /opt/intel/openvino_installer/installer
 
   2. Follow the uninstallation wizard instructions.
   
@@ -82,7 +82,7 @@
    
   .. code-block:: sh
   
-    open /opt/intel/openvino/installer/installer.app
+    open /opt/intel/openvino_installer/installer.app
 
   2. Follow the uninstallation wizard instructions.
 

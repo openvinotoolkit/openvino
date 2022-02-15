@@ -66,10 +66,9 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
    By default, the Intel® Distribution of OpenVINO™ is installed in the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
 
-   * For root or administrator: `/opt/intel/openvino_<version>/`
-   * For regular users: `~/intel/openvino_<version>/`
+   `/opt/intel/openvino_<version>/`
 
-   For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/` or `~/intel/openvino_2022/`.
+   For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/`.
 
 To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 

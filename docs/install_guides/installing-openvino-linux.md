@@ -9,7 +9,6 @@
 
   * Ubuntu 18.04.x long-term support (LTS), 64-bit
   * Ubuntu 20.04.x long-term support (LTS), 64-bit
-  * Red Hat Enterprise Linux 8.x, 64-bit
 
   .. note::
      Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is not longer supported.
