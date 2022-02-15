@@ -4,8 +4,8 @@
 
 find_package(PythonInterp 3 REQUIRED)
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-set(WHEEL_VERSION "${IE_VERSION}" CACHE STRING "Version of this release" FORCE)
-set(WHEEL_BUILD "${IE_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+set(WHEEL_VERSION "${OpenVINO_VERSION}" CACHE STRING "Version of this release" FORCE)
+set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
 set(PYTHON_BRIDGE_CPACK_PATH "python")
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)

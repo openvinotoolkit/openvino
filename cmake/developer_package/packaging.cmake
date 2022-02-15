@@ -69,7 +69,6 @@ set(OV_COMP_PYTHON_NGRAPH "pyngraph")
 set(OV_COMP_PYTHON_OPENVINO "pyopenvino")
 set(OV_COMP_DEV_REQ_FILES "openvino_dev_req_files")
 set(OV_COMP_LICENSING "licensing")
-set(OV_COMP_INSTALL_DEPENDENCIES "install_dependencies")
 
 # override cpack components name for DEB cpack generator
 if(CPACK_GENERATOR STREQUAL "DEB")
@@ -89,8 +88,6 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     set(OV_COMP_CORE_TOOLS "${OV_COMP_CORE_DEV}")
     # move licensing to core
     set(OV_COMP_LICENSING "${OV_COMP_CORE}")
-    # move install_dependencies to core as well
-    set(OV_COMP_INSTALL_DEPENDENCIES "${OV_COMP_CORE}")
 endif()
 
 macro(ie_cpack)

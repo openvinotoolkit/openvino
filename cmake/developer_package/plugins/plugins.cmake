@@ -88,9 +88,9 @@ function(ie_add_plugin)
         endif()
 
         # new OpenVINO Developer Package
-        # if(TARGET openvino::runtime::dev)
+        if(TARGET openvino::runtime::dev)
             target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
-        # endif()
+        endif()
 
         if(WIN32)
             set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_PLUGIN_NAME})
@@ -147,8 +147,6 @@ function(ie_add_plugin)
             ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
 
             if(BUILD_SHARED_LIBS)
-                # TODO: install for openvino<ver> folder for side by side installation
-                # since the plugins (CMake MODULEs) cannot be versioned
                 install(TARGETS ${IE_PLUGIN_NAME}
                         LIBRARY DESTINATION ${IE_CPACK_PLUGIN_PATH}
                         COMPONENT ${install_component})

@@ -26,41 +26,40 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
 # cpack
 #
 
+if(CPACK_GENERATOR STREQUAL "DEB")
+    # Note: skip all dependencies scripts in Debian package mode
+    # This is not native for Debian and we have thoughts to convert
+    # such scripts to documentation "Post-Install steps" / "Configure devices"
+    return()
+endif()
+
 # install setupvars
 
-if(NOT CPACK_GENERATOR STREQUAL "DEB")
-    ie_cpack_add_component(setupvars REQUIRED)
+ie_cpack_add_component(setupvars REQUIRED)
 
-    if(UNIX)
-        set(_setupvars_file setupvars/setupvars.sh)
-    elseif(WIN32)
-        set(_setupvars_file setupvars/setupvars.bat)
-        if (USE_BUILD_TYPE_SUBFOLDER AND CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE EQUAL "Debug")
-            # Patch primary configuration in setupvars.bat which is "Release" by default.
-            # Note setupvars secondary configuration is always "Debug".
-            file(READ "${_setupvars_file}" _setupvars_content)
-            string(REPLACE "Release" ${CMAKE_BUILD_TYPE} _setupvars_content "${_setupvars_content}")
-            set(_setupvars_file "${CMAKE_BINARY_DIR}/${_setupvars_file}")
-            file(WRITE "${_setupvars_file}" "${_setupvars_content}")
-        endif()
+if(UNIX)
+    set(_setupvars_file setupvars/setupvars.sh)
+elseif(WIN32)
+    set(_setupvars_file setupvars/setupvars.bat)
+    if (USE_BUILD_TYPE_SUBFOLDER AND CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE EQUAL "Debug")
+        # Patch primary configuration in setupvars.bat which is "Release" by default.
+        # Note setupvars secondary configuration is always "Debug".
+        file(READ "${_setupvars_file}" _setupvars_content)
+        string(REPLACE "Release" ${CMAKE_BUILD_TYPE} _setupvars_content "${_setupvars_content}")
+        set(_setupvars_file "${CMAKE_BINARY_DIR}/${_setupvars_file}")
+        file(WRITE "${_setupvars_file}" "${_setupvars_content}")
     endif()
-
-    install(PROGRAMS "${_setupvars_file}"
-            DESTINATION .
-            COMPONENT setupvars)
 endif()
+install(PROGRAMS "${_setupvars_file}"
+        DESTINATION .
+        COMPONENT setupvars)
 
 # install install_dependencies
 
 if(UNIX)
-    if(CPACK_GENERATOR STREQUAL "DEB")
-        set(deb_exclude PATTERN "install_dependencies/install_openvino_dependencies.sh" EXCLUDE)
-    endif()
-
-    ie_cpack_add_component(${OV_COMP_INSTALL_DEPENDENCIES} REQUIRED)
+    ie_cpack_add_component(install_dependencies REQUIRED)
     install(DIRECTORY install_dependencies/
-            DESTINATION share/openvino${OpenVINO_VERSION}/install_dependencies
-            USE_SOURCE_PERMISSIONS
-            COMPONENT ${OV_COMP_INSTALL_DEPENDENCIES}
-            ${deb_exclude})
+            DESTINATION install_dependencies
+            COMPONENT install_dependencies
+            USE_SOURCE_PERMISSIONS)
 endif()

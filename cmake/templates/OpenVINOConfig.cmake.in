@@ -146,15 +146,26 @@ endfunction()
 set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
 set(THREADING "@THREADING@")
-if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND AND OFF)
+# TODO: find system TBB instead of custom one
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND)
     set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
-    _ov_find_dependency(TBB
-                        COMPONENTS tbb tbbmalloc
-                        CONFIG
-                        PATHS ${TBBROOT}/cmake
-                              ${_tbb_dir}
-                        NO_CMAKE_FIND_ROOT_PATH
-                        NO_DEFAULT_PATH)
+    if(_tbb_dir)
+        # TBB is located in OpenVINO package
+        _ov_find_dependency(TBB
+                            COMPONENTS tbb tbbmalloc
+                            CONFIG
+                            PATHS
+                                # TBB is specified via TBBROOT CMake variable
+                                ${TBBROOT}/cmake
+                                # TBB is searched in OV Package location
+                                ${_tbb_dir}
+                            NO_CMAKE_FIND_ROOT_PATH
+                            NO_DEFAULT_PATH)
+    else()
+        # OpenVINO is built against system TBB
+        _ov_find_dependency(TBB
+                            COMPONENTS tbb tbbmalloc)
+    endif()
 
     set(install_tbbbind "@install_tbbbind@")
     if(install_tbbbind)
