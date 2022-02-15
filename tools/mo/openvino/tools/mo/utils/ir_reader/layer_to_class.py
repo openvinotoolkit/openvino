@@ -317,6 +317,7 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     new_graph = Graph()
     new_graph.stage = 'back'
     new_graph.graph = graph.graph
+    new_graph.inputs_order = graph.inputs_order
 
     node_connections = dict()
     mapping_of_old_idx_into_new = dict()
