@@ -15,25 +15,33 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::Op> &node) {
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::GRUSequence> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 5, 3}, {2, 1, 3},
-                                                                                {1, 9, 3}, {1, 9, 3}, {1, 9}});
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 5, 3}, {2, 1, 3}});
     const auto params_seqLength = ngraph::builder::makeDynamicParams(ov::element::i64, {{2}});
+    const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 9, 3}, {}, true);
+    const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 9, 3}, {}, true);
+    const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 9}, {}, true);
     auto RNNCellBaseNode = std::make_shared<ov::op::v5::GRUSequence>(params[0], params[1], params_seqLength[0],
-                                                                params[2], params[3], params[4], 3, ov::op::RecurrentSequenceDirection::FORWARD);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode)};
-    return std::make_shared<ngraph::Function>(results, ParameterVector{params[0], params[1], params_seqLength[0],
-                                                                params[2], params[3], params[4]}, "RNNCellBaseGraph");
+                                                                     W, R, B, 3, ov::op::RecurrentSequenceDirection::FORWARD);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
+                                 std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1))};
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], params[1], params_seqLength[0]}, "RNNCellBaseGraph");
 }
-/*
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::LSTMSequence> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{5, 10, 10}, {5, 1, 10}, {5, 1, 10}, {5},
-                                                                                {1, 40, 10}, {1, 40, 10}, {1, 40}});
-    auto RNNCellBaseNode = std::make_shared<ov::op::v0::LSTMSequence>(params[0], params[1], params[2], params[3],
-                                                                      params[4], params[5], params[6], 10, ov::op::RecurrentSequenceDirection::FORWARD);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode)};
-    return std::make_shared<ngraph::Function>(results, params, "RNNCellBaseGraph");
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{5, 10, 10}, {5, 1, 10}, {5, 1, 10}});
+    const auto params_seqLength = ngraph::builder::makeDynamicParams(ov::element::i64, {{5}});
+    const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
+    const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
+    const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40}, {}, true);
+    const auto P = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 30}, {}, true);
+    auto RNNCellBaseNode = std::make_shared<ov::op::v0::LSTMSequence>(params[0], params[1], params[2], params_seqLength[0],
+                                                                      W, R, B, P, 10, ov::op::RecurrentSequenceDirection::FORWARD);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
+                                 std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1)),
+                                 std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(2))};
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], params[1], params[2], params_seqLength[0]}, "RNNCellBaseGraph");
 }
-*/
+
 std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::Op> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2},
                                                                               {1, 2}});
@@ -212,54 +220,67 @@ std::shared_ptr<ov::Model> generateGatherNDBase(const std::shared_ptr<ov::op::Op
 std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op> &node) {
     std::shared_ptr<ov::Node> RNNCellBaseNode;
     if (ov::is_type<ov::op::v3::GRUCell>(node)) {
-        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3},
-                                                                                  {9, 3}, {9, 3}, {9}});
+        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3}});
+        const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {9, 3}, {}, true);
+        const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {9, 3}, {}, true);
+        const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {9}, {}, true);
         RNNCellBaseNode = std::make_shared<ov::op::v3::GRUCell>(params[0], params[1],
-                                                                params[2], params[3], params[4], 3);
+                                                                W, R, B, 3);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode)};
         return std::make_shared<ngraph::Function>(results, params, "RNNCellBaseGraph");
     } else if (ov::is_type<ov::op::v0::LSTMCell>(node)) {
-        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3}, {2, 3},
-                                                                                  {12, 3}, {12, 3}, {12}});
+        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3}, {2, 3}});
+        const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {12, 3}, {}, true);
+        const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {12, 3}, {}, true);
+        const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {12}, {}, true);
+        const auto P = ngraph::builder::makeConstant<float>(ov::element::f32, {9}, {}, true);
         RNNCellBaseNode = std::make_shared<ov::op::v0::LSTMCell>(params[0], params[1], params[2],
-                                                                params[3], params[4], params[5], 3);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode)};
+                                                                 W, R, B, P, 3);
+        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
+                                     std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1))};
         return std::make_shared<ngraph::Function>(results, params, "RNNCellBaseGraph");
     } else if (ov::is_type<ov::op::v4::LSTMCell>(node)) {
-        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3}, {2, 3},
-                                                                                  {12, 3}, {12, 3}, {12}});
+        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3}, {2, 3}});
+        const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {12, 3}, {}, true);
+        const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {12, 3}, {}, true);
+        const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {12}, {}, true);
         RNNCellBaseNode = std::make_shared<ov::op::v4::LSTMCell>(params[0], params[1], params[2],
-                                                                params[3], params[4], params[5], 3);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode)};
+                                                                 W, R, B, 3);
+        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
+                                     std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1))};;
         return std::make_shared<ngraph::Function>(results, params, "RNNCellBaseGraph");
     } else if (ov::is_type<ov::op::v5::LSTMSequence>(node)) {
-        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{5, 10, 10}, {5, 1, 10}, {5, 1, 10},
-                                                                                  {1, 40, 10}, {1, 40, 10}, {1, 40}});
+        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{5, 10, 10}, {5, 1, 10}, {5, 1, 10}});
+        const auto params_seqLength = ngraph::builder::makeDynamicParams(ov::element::i64, {{5}});
         const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
         const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
         const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40}, {}, true);
-        const auto params_seqLength = ngraph::builder::makeDynamicParams(ov::element::i64, {{5}});
         RNNCellBaseNode = std::make_shared<ov::op::v5::LSTMSequence>(params[0], params[1], params[2], params_seqLength[0],
                                                                      W, R, B, 10, ov::op::RecurrentSequenceDirection::FORWARD);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1)),
                                      std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(2))};
-        return std::make_shared<ngraph::Function>(results, ParameterVector{params[0], params[1], params[2], params_seqLength[0]}, "RNNCellBaseGraph");
+        return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], params[1], params[2], params_seqLength[0]}, "RNNCellBaseGraph");
     } else if (ov::is_type<ov::op::v0::RNNCell>(node)) {
-        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3},
-                                                                                  {3, 3}, {3, 3}, {3}});
+        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3}});
+        const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {3, 3}, {}, true);
+        const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {3, 3}, {}, true);
+        const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {3}, {}, true);
         RNNCellBaseNode = std::make_shared<ov::op::v0::RNNCell>(params[0], params[1],
-                                                                params[2], params[3], params[4], 3);
+                                                                W, R, B, 3);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode)};
         return std::make_shared<ngraph::Function>(results, params, "RNNCellBaseGraph");
     } else if (ov::is_type<ov::op::v5::RNNSequence>(node)) {
-        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 5, 3}, {2, 1, 3}, {2},
-                                                                                  {1, 3, 3}, {1, 3, 3}, {1, 3}});
-        RNNCellBaseNode = std::make_shared<ov::op::v5::RNNSequence>(params[0], params[1], params[2],
-                                                                    params[3], params[4], params[5], 3, ov::op::RecurrentSequenceDirection::FORWARD);
+        const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 5, 3}, {2, 1, 3}});
+        const auto params_seqLength = ngraph::builder::makeDynamicParams(ov::element::i64, {{2}});
+        const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 3, 3}, {}, true);
+        const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 3, 3}, {}, true);
+        const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 3}, {}, true);
+        RNNCellBaseNode = std::make_shared<ov::op::v5::RNNSequence>(params[0], params[1], params_seqLength[0],
+                                                                    W, R, B, 3, ov::op::RecurrentSequenceDirection::FORWARD);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1))};
-        return std::make_shared<ngraph::Function>(results, params, "RNNCellBaseGraph");
+        return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], params[1], params_seqLength[0]}, "RNNCellBaseGraph");
     } else {
         return nullptr;
     }
