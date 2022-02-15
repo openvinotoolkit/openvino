@@ -18,7 +18,8 @@ protected:
         auto ngPrc = element::f32;
         auto inputParams = builder::makeParams(ngPrc, {{1, 3, 12, 9}});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
-
+        outPrc.front() = InferenceEngine::Precision::FP32;
+        outPrc.push_back(InferenceEngine::Precision::FP32);
         auto tile = ngraph::builder::makeTile(paramOuts[0], std::vector<int64_t>{1, 2, 1, 1});
 
         const auto const1 = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 6, 1, 1}, std::vector<float>{}, true);

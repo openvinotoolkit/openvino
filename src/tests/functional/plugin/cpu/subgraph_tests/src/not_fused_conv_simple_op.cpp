@@ -17,7 +17,8 @@ protected:
 
         auto inputParams = builder::makeParams(element::f32, {{1, 3, 12, 9}, {1, 16, 12, 9}});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
-
+        outPrc.front() = InferenceEngine::Precision::FP32;
+        outPrc.push_back(InferenceEngine::Precision::FP32);
         std::shared_ptr<Node> conv;
         {
             const std::vector<size_t> kernelSize = {3, 3};
