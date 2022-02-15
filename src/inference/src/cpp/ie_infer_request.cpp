@@ -79,9 +79,9 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     Blob::Ptr blobPtr;
     INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
     std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
-    const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (blobPtr == nullptr)
         IE_THROW() << error;
+    const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (!remoteBlobPassed && blobPtr->buffer() == nullptr)
         IE_THROW() << error;
     return blobPtr;
