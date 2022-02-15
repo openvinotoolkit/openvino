@@ -58,8 +58,8 @@ public:
      * @return An executable network reference
      */
     virtual ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
-                                                    const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config = {}) = 0;
+                                                        const std::string& deviceName,
+                                                        const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -74,8 +74,8 @@ public:
      * @return An executable network reference
      */
     virtual ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
-                                                    const ie::RemoteContext::Ptr& remoteCtx,
-                                                    const std::map<std::string, std::string>& config = {}) = 0;
+                                                        const ie::RemoteContext::Ptr& remoteCtx,
+                                                        const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Creates an executable network from a model file.
@@ -90,10 +90,11 @@ public:
      * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
      */
-    virtual ie::SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
-                                                    const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config,
-                                                    const std::function<void(const ie::CNNNetwork&)>& val = nullptr) = 0;
+    virtual ie::SoExecutableNetworkInternal LoadNetwork(
+        const std::string& modelPath,
+        const std::string& deviceName,
+        const std::map<std::string, std::string>& config,
+        const std::function<void(const ie::CNNNetwork&)>& val = nullptr) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -104,8 +105,8 @@ public:
      * @return An executable network reference
      */
     virtual ie::SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
-                                                      const std::string& deviceName = {},
-                                                      const std::map<std::string, std::string>& config = {}) = 0;
+                                                          const std::string& deviceName = {},
+                                                          const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration
@@ -116,8 +117,8 @@ public:
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
     virtual ie::QueryNetworkResult QueryNetwork(const ie::CNNNetwork& network,
-                                            const std::string& deviceName,
-                                            const std::map<std::string, std::string>& config) const = 0;
+                                                const std::string& deviceName,
+                                                const std::map<std::string, std::string>& config) const = 0;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
@@ -129,9 +130,7 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    virtual Any GetMetric(const std::string& deviceName,
-                                const std::string& name,
-                                const AnyMap& options = {}) const = 0;
+    virtual Any GetMetric(const std::string& deviceName, const std::string& name, const AnyMap& options = {}) const = 0;
 
     /**
      * @brief Gets configuration dedicated to device behaviour.
@@ -168,8 +167,7 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    virtual InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
-                                                              const AnyMap&) = 0;
+    virtual InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName, const AnyMap&) = 0;
 
     /**
      * @brief Get only configs that are suppored by device
@@ -220,7 +218,9 @@ public:
      * @param arguments  Additional arguments to get a property.
      * @return Value of a property corresponding to the property name.
      */
-    virtual Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const = 0;
+    virtual Any get_property(const std::string& device_name,
+                             const std::string& name,
+                             const AnyMap& arguments) const = 0;
 
     /**
      * @brief Gets properties related to device behaviour.

@@ -1151,8 +1151,9 @@ public:
                     supportedConfigKeys.emplace_back(std::move(property));
                 }
             }
-        } catch(const ov::Exception&) {
-            supportedConfigKeys = GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+        } catch (const ov::Exception&) {
+            supportedConfigKeys =
+                GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
         }
         std::map<std::string, std::string> supportedConfig;
         for (auto&& key : supportedConfigKeys) {
