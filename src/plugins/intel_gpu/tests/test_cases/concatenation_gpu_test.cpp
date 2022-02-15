@@ -852,7 +852,7 @@ public:
         topology.add(data("weights" , weights_mem));
         topology.add(convolution("conv", "concat", { "weights" }));
         topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1, 1, 1}, {1, 1, 1, 1}));
-        topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {batch_num, output_f, input_y, input_x})));
+        topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
         network concat_network(engine, topology, options);
         for (size_t i = 0; i < in_features.size(); i++) {
@@ -1071,7 +1071,7 @@ public:
         topology.add(data("weights" , weights_mem));
         topology.add(convolution("conv", "concat", { "weights" }));
         topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1, 1, 1}, {1, 1, 1, 1}));
-        topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {batch_num, output_f, input_y, input_x})));
+        topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
         network concat_network(engine, topology, options);
         for (size_t i = 0; i < in_features.size(); i++) {
