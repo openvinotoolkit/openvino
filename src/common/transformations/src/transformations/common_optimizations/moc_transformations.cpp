@@ -176,6 +176,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     multiply_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
     multiply_fusions->add_matcher<ngraph::pass::MatMulMultiplyFusion>();
     multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
 
