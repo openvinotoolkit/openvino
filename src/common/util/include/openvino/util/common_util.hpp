@@ -34,7 +34,10 @@ struct ValueTyped {
 template <typename, typename>
 struct Read;
 
-template <typename T, typename std::enable_if<ValueTyped<T>::value && Readable<typename T::value_type>::value && !Istreamable<typename T::value_type>::value, bool>::type = true>
+template <typename T,
+          typename std::enable_if<ValueTyped<T>::value && Readable<typename T::value_type>::value &&
+                                      !Istreamable<typename T::value_type>::value,
+                                  bool>::type = true>
 inline typename T::value_type from_string(const std::string& val, const T&) {
     std::stringstream ss(val);
     typename T::value_type value;
@@ -42,8 +45,10 @@ inline typename T::value_type from_string(const std::string& val, const T&) {
     return value;
 }
 
-
-template <typename T, typename std::enable_if<ValueTyped<T>::value && !Readable<typename T::value_type>::value && Istreamable<typename T::value_type>::value, bool>::type = true>
+template <typename T,
+          typename std::enable_if<ValueTyped<T>::value && !Readable<typename T::value_type>::value &&
+                                      Istreamable<typename T::value_type>::value,
+                                  bool>::type = true>
 inline typename T::value_type from_string(const std::string& val, const T&) {
     std::stringstream ss(val);
     typename T::value_type value;
