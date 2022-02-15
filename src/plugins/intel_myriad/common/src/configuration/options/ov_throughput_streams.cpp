@@ -9,6 +9,7 @@
 #include <openvino/runtime/properties.hpp>
 #include <sstream>
 #include <vpu/myriad_config.hpp>
+#include <openvino/util/common_util.hpp>
 
 namespace vpu {
 
@@ -45,9 +46,7 @@ details::Category OvThroughputStreamsOption::category() {
 }
 
 std::string OvThroughputStreamsOption::defaultValue() {
-    std::stringstream ss;
-    ss << ov::NumStreams(ov::NumStreams::AUTO);
-    return ss.str();
+    return ov::util::to_string(ov::streams::AUTO);
 }
 
 OvThroughputStreamsOption::value_type OvThroughputStreamsOption::parse(const std::string& value) {
