@@ -19,5 +19,3 @@ addIeTargetTest(
         LABELS
             API_CONFORMANCE
 )
-
-ie_faster_build(${TARGET_NAME} UNITY)
