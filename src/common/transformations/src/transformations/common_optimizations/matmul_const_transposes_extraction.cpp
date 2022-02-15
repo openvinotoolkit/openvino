@@ -1,0 +1,46 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
+
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::MatMulConstTransposesExtraction, "MatMulConstTransposesExtraction", 0);
+
+ngraph::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
+    auto data_pattern = pattern::any_input();
+    auto weights_pattern = pattern::wrap_type<opset8::Constant,
+                                              opset8::FakeQuantize>([](Output<Node> node) -> bool {
+                                                                        const auto& rank = node.get_partial_shape().rank();
+                                                                        return rank.is_static() && rank.get_length() >= 2;
+                                                                   });
+    auto matmul_pattern = pattern::wrap_type<opset8::MatMul>({data_pattern, weights_pattern});
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        auto matmul = as_type<opset8::MatMul>(node.get());
+        if (!matmul)
+            return false;
+        if (matmul->get_transpose_b())
+            return false;
+
+        const auto& pattern_value_map = m.get_pattern_value_map();
+        const auto& weights = pattern_value_map.at(weights_pattern);
+
+        std::vector<int> transpose_order(weights.get_partial_shape().size());
+        std::iota(transpose_order.begin(), transpose_order.end(), 0);
+        std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
+        auto transpose = std::make_shared<opset8::Transpose>(weights, op::Constant::create(element::i32, {transpose_order.size()}, transpose_order));
+        auto new_matmul = std::make_shared<opset8::MatMul>(pattern_value_map.at(data_pattern), transpose, matmul->get_transpose_a(), true);
+        new_matmul->set_friendly_name(matmul->get_friendly_name());
+        copy_runtime_info(weights.get_node_shared_ptr(), transpose);
+        copy_runtime_info(node, new_matmul);
+        replace_node(node, new_matmul);
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(matmul_pattern, "MatMulConstTransposesExtraction");
+    this->register_matcher(m, callback);
+}
