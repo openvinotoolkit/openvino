@@ -17,8 +17,9 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/runtime/properties.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 
 /**
  * @interface ICore
@@ -33,7 +34,7 @@ public:
      * @param weights shared pointer to constant blob with weights
      * @return CNNNetwork
      */
-    virtual CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const = 0;
+    virtual ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const = 0;
 
     /**
      * @brief Reads IR xml and bin files
@@ -42,7 +43,7 @@ public:
      * if bin file with the same name was not found, will load IR without weights.
      * @return CNNNetwork
      */
-    virtual CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const = 0;
+    virtual ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const = 0;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -56,7 +57,7 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+    virtual ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
                                                     const std::string& deviceName,
                                                     const std::map<std::string, std::string>& config = {}) = 0;
 
@@ -72,8 +73,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
-                                                    const RemoteContext::Ptr& remoteCtx,
+    virtual ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
+                                                    const ie::RemoteContext::Ptr& remoteCtx,
                                                     const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -89,10 +90,10 @@ public:
      * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
+    virtual ie::SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
                                                     const std::string& deviceName,
                                                     const std::map<std::string, std::string>& config,
-                                                    const std::function<void(const CNNNetwork&)>& val = nullptr) = 0;
+                                                    const std::function<void(const ie::CNNNetwork&)>& val = nullptr) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -102,7 +103,7 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
+    virtual ie::SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
                                                       const std::string& deviceName = {},
                                                       const std::map<std::string, std::string>& config = {}) = 0;
 
@@ -114,7 +115,7 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+    virtual ie::QueryNetworkResult QueryNetwork(const ie::CNNNetwork& network,
                                             const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) const = 0;
 
@@ -128,9 +129,9 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    virtual Parameter GetMetric(const std::string& deviceName,
+    virtual Any GetMetric(const std::string& deviceName,
                                 const std::string& name,
-                                const ParamMap& options = {}) const = 0;
+                                const AnyMap& options = {}) const = 0;
 
     /**
      * @brief Gets configuration dedicated to device behaviour.
@@ -141,7 +142,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    virtual Parameter GetConfig(const std::string& deviceName, const std::string& name) const = 0;
+    virtual Any GetConfig(const std::string& deviceName, const std::string& name) const = 0;
 
     /**
      * @brief Returns devices available for neural networks inference
@@ -168,7 +169,7 @@ public:
      * @return A shared pointer to a created remote context.
      */
     virtual InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
-                                                              const InferenceEngine::ParamMap&) = 0;
+                                                              const AnyMap&) = 0;
 
     /**
      * @brief Get only configs that are suppored by device
@@ -186,14 +187,79 @@ public:
      * @param deviceName  - A name of a device to get create shared context from.
      * @return A shared pointer to a default remote context.
      */
-    virtual RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) = 0;
+    virtual ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) = 0;
+
+    /**
+     * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
+     *
+     * @param device_name Name of a device.
+     *
+     * @param properties Map of pairs: (property name, property value).
+     */
+    virtual void set_property(const std::string& device_name, const AnyMap& properties) = 0;
+
+    /**
+     * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
+     *
+     * @tparam Properties Should be the pack of `std::pair<std::string, Any>` types.
+     * @param device_name Name of a device.
+     * @param properties Optional pack of pairs: (property name, property value).
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<void, Properties...> set_property(const std::string& device_name,
+                                                                 Properties&&... properties) {
+        set_property(device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Gets properties related to device behaviour.
+     *
+     *
+     * @param device_name  Name of a device to get a property value.
+     * @param name  Property name.
+     * @param arguments  Additional arguments to get a property.
+     * @return Value of a property corresponding to the property name.
+     */
+    virtual Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const = 0;
+
+    /**
+     * @brief Gets properties related to device behaviour.
+     *
+     * @tparam T Type of a returned value.
+     * @tparam M Property mutability.
+     * @param deviceName  Name of a device to get a property value.
+     * @param property  Property object.
+     * @return Property value.
+     */
+    template <typename T, PropertyMutability M>
+    T get_property(const std::string& device_name, const Property<T, M>& property) const {
+        return get_property(device_name, property.name(), {}).template as<T>();
+    }
+
+    /**
+     * @brief Gets properties related to device behaviour.
+     *
+     * @tparam T Type of a returned value.
+     * @tparam M Property mutability.
+     * @param deviceName  Name of a device to get a property value.
+     * @param property  Property object.
+     * @param arguments  Additional arguments to get a property.
+     * @return Property value.
+     */
+    template <typename T, PropertyMutability M>
+    T get_property(const std::string& device_name, const Property<T, M>& property, const AnyMap& arguments) const {
+        return get_property(device_name, property.name(), arguments).template as<T>();
+    }
 
     /**
      * @brief Default virtual destructor
      */
     virtual ~ICore() = default;
 };
+}  // namespace ov
 
+namespace InferenceEngine {
+using ICore = ov::ICore;
 /**
  * @private
  */
