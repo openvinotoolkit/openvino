@@ -140,7 +140,7 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
     if (throwException) {
         ASSERT_ANY_THROW(plugin->ParseMetaDevices(priorityDevices, {}));
     } else {
-       auto result = plugin->ParseMetaDevices(priorityDevices, {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, priorityDevices}});
+       auto result = plugin->ParseMetaDevices(priorityDevices, {{ov::device::priorities.name(), priorityDevices}});
        compare(result, metaDevices);
        compareDevicePriority(result, metaDevices);
     }

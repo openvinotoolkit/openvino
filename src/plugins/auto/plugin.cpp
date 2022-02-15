@@ -116,7 +116,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     };
 
     unsigned int devicePriority = 0;
-    auto prioritiesIter = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    auto prioritiesIter = config.find(ov::device::priorities.name());
     bool enableDevicePriority = (prioritiesIter != config.end());
     auto deviceList = GetCore()->GetAvailableDevices();
     for (auto && d : devicesWithRequests) {
