@@ -29,7 +29,7 @@ JitConstants FullyConnected_yxfb_ref::GetJitConstants(const fully_connected_para
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "result", input_dt, 1 };
+        FusedOpsConfiguration conf = { "", { "batch_id", "neuronIdx", "0", "0" }, "result", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
     return jit;
