@@ -13,10 +13,10 @@ from ..utils.utils import convert_output_key
 logger = get_logger(__name__)
 
 
-def append_stats(accumulated_layer_stats, stats_layout, value, dataset_index):
+def append_stats(accumulated_layer_stats, stats_layout, value, dataset_index, inference_for_shape):
     inplace_stats_mapping = get_inplace_stats_mapping(stats_layout)
     if isinstance(value, list):
-        value = parse_sequential_stats(value, stats_layout)
+        value = parse_sequential_stats(value, stats_layout, inference_for_shape)
     else:
         value = process_raw_output(value)
     for layer, stats in stats_layout.items():
@@ -29,7 +29,7 @@ def append_stats(accumulated_layer_stats, stats_layout, value, dataset_index):
                     (dataset_index, compute_statistic(stat_fn, value, layer_stat_name)))
 
 
-def parse_sequential_stats(value_sequential, stats_layout):
+def parse_sequential_stats(value_sequential, stats_layout, inference_for_shape):
     stat_names_by_layer, old_names_mapping = get_per_layer_stat_mapping(stats_layout)
     activation_seq = defaultdict(lambda: [])
     for value in value_sequential:
@@ -40,6 +40,9 @@ def parse_sequential_stats(value_sequential, stats_layout):
 
     for layer, act_seq in activation_seq.items():
         seq_len = len(act_seq[0].shape)
+        if inference_for_shape:
+            activation_seq[layer] = act_seq[0]
+            continue
         if not isinstance(stat_names_by_layer[layer], Statistic) or \
                 not stat_names_by_layer[layer].kwargs.get('inplace_statistics', False):
             axis = 1 if seq_len == 2 else 2
@@ -103,7 +106,8 @@ def get_sequential_activations(activations, layer, activation_seq, stats_layout,
     elif old_names_mapping.get(layer, None) in stats_layout and hasattr(stat_names_by_layer[layer], 'kwargs') \
             and not stat_names_by_layer[layer].kwargs.get('inplace_statistics', False):
         activation_seq[layer].append(activations)
-    elif old_names_mapping.get(layer, None) in stats_layout and callable(stat_names_by_layer[layer]):
+    elif old_names_mapping.get(layer, None) in stats_layout and (callable(stat_names_by_layer[layer]) \
+            or callable(stats_layout[layer][stat_names_by_layer[layer]])):
         activation_seq[layer].append(activations)
 
 
