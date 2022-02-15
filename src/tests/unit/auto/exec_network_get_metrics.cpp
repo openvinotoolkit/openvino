@@ -202,6 +202,9 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         ON_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS))))
             .WillByDefault(Return(std::to_string(gpuPerfHintNum)));
         EXPECT_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)))).Times(AnyNumber());
+        ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS))))
+           .WillByDefault(Return(8));
+        EXPECT_CALL(*core.get(), GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS)))).Times(AnyNumber());
     } else {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {}, actualCustomerNum, ""});

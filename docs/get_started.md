@@ -27,9 +27,7 @@
    
    Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux Setup Guide <openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
    Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Windows Setup Guide <openvino_docs_install_guides_installing_openvino_windows_ivad_vpu>
-   Intel® Movidius™ VPUs Setup Guide <openvino_docs_install_guides_movidius_setup_guide>
-   Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
-   Intel® Movidius™ VPUs Demos <openvino_docs_install_guides_movidius_demos>
+   IEI Mustang-V100-MX8-R10 Card Setup Guide <openvino_docs_install_guides_movidius_setup_guide>
    Intel® GPU Setup Guide <openvino_docs_install_guides_gpu_setup_guide>
    Intel® Neural Compute Stick 2 Setup Guide <openvino_docs_install_guides_ncs2_setup_guide>
    
