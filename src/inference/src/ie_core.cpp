@@ -1143,17 +1143,12 @@ public:
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override {
-        std::vector<std::string> supportedConfigKeys;
-        try {
-            auto supported_properties = ICore::get_property(deviceName, ov::supported_properties);
-            for (auto&& property : supported_properties) {
-                if (property.is_mutable()) {
-                    supportedConfigKeys.emplace_back(std::move(property));
-                }
+        auto supportedConfigKeys =
+            GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+        for (auto&& property : ICore::get_property(deviceName, ov::supported_properties)) {
+            if (property.is_mutable()) {
+                supportedConfigKeys.emplace_back(std::move(property));
             }
-        } catch (const ov::Exception&) {
-            supportedConfigKeys =
-                GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
         }
         std::map<std::string, std::string> supportedConfig;
         for (auto&& key : supportedConfigKeys) {

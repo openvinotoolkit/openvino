@@ -43,19 +43,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelPropertiesIn
                                 ::testing::ValuesIn(hetero_inproperties)),
                         OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Multi_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                 ::testing::ValuesIn(multi_inproperties)),
                         OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Auto_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(auto_inproperties)),
                         OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AutoBatch_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                 ::testing::ValuesIn(auto_batch_inproperties)),
@@ -106,13 +106,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelPropertiesTe
                 ::testing::ValuesIn(hetero_properties)),
         OVCompiledModelPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Multi_BehaviorTests, OVCompiledModelPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVCompiledModelPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                 ::testing::ValuesIn(multi_properties)),
         OVCompiledModelPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AutoBatch_BehaviorTests, OVCompiledModelPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVCompiledModelPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                 ::testing::ValuesIn(auto_batch_properties)),
