@@ -168,6 +168,13 @@ public:
     Dimension operator&(const Dimension& dim) const;
     /// \brief Intersection of dimensions
     Dimension& operator&=(const Dimension& dim);
+    /// \brief Swap of dimensions
+    friend void swap(Dimension& a, Dimension& b) {
+        using std::swap;
+        swap(a.m_dimension, b.m_dimension);
+        swap(a.m_label, b.m_label);
+        swap(a.m_table_of_equivalence, b.m_table_of_equivalence);
+    }
 
 private:
     Dimension(const Interval& interval) : m_dimension(interval) {}

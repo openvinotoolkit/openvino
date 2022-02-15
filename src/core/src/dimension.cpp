@@ -110,15 +110,27 @@ bool Dimension::merge(Dimension& dst, const Dimension& d1, const Dimension& d2) 
 }
 
 bool Dimension::broadcast_merge(Dimension& dst, const Dimension& d1, const Dimension& d2) {
-    if (d1 == 1) {
+    bool d1_has_1 = d1.m_dimension.contains(1);
+    bool d2_has_1 = d2.m_dimension.contains(1);
+    if (d1_has_1 && d2_has_1) {
+        auto result = ov::Interval(std::min(d1.m_dimension.get_min_val(), d2.m_dimension.get_min_val()),
+                                   std::max(d1.m_dimension.get_max_val(), d2.m_dimension.get_max_val()));
+        if (result.empty())
+            return false;
+        dst = Dimension(result);
+        if (d1.m_label == d2.m_label || d2.m_label == 0)
+            dst.m_label = d1.m_label;
+        else if (d1.m_label == 0)
+            dst.m_label = d2.m_label;
+        return true;
+    } else if (d1_has_1) {
         dst = d2;
-        return true;
-    }
-    if (d2 == 1) {
+    } else if (d2_has_1) {
         dst = d1;
-        return true;
+    } else {
+        return merge(dst, d1, d2);
     }
-    return merge(dst, d1, d2);
+    return true;
 }
 
 Dimension::value_type Dimension::get_length() const {
