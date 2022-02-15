@@ -13,8 +13,8 @@
 
 #include "openvino/core/dimension.hpp"  // ov::Dimension
 #include "openvino/core/shape.hpp"      // ov::Shape
-#include "pyopenvino/graph/partial_shape.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/graph/partial_shape.hpp"
 
 namespace py = pybind11;
 

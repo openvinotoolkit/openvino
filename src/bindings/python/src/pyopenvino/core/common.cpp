@@ -91,14 +91,15 @@ ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
 ov::PartialShape partial_shape_from_list(const py::list& shape) {
     using value_type = ov::Dimension::value_type;
     std::vector<ov::Dimension> dims;
-    for (py::handle dim: shape) {
+    for (py::handle dim : shape) {
         if (py::isinstance<py::int_>(dim)) {
             dims.push_back(ov::Dimension(dim.cast<value_type>()));
         } else if (py::isinstance<ov::Dimension>(dim)) {
             dims.push_back(dim.cast<ov::Dimension>());
         } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
             py::list bounded_dim = dim.cast<py::list>();
-            py::type_error error("Incorrect values in shape. Can't create bounded dimension from " + std::string(dim.str()) + ".");
+            py::type_error error("Incorrect values in shape. Can't create bounded dimension from " +
+                                 std::string(dim.str()) + ".");
             if (bounded_dim.size() != 2) {
                 throw error;
             }
@@ -107,9 +108,11 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
             }
             dims.push_back(ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
         } else if (py::isinstance(dim, py::module::import("builtins").attr("range"))) {
-            dims.push_back(ov::Dimension(dim.attr("start").cast<value_type>(), dim.attr("stop").cast<value_type>() - 1));
+            dims.push_back(
+                ov::Dimension(dim.attr("start").cast<value_type>(), dim.attr("stop").cast<value_type>() - 1));
         } else {
-            throw py::type_error("Incorrect values in shape. Can't create dimension from " + std::string(dim.str()) + ".");
+            throw py::type_error("Incorrect values in shape. Can't create dimension from " + std::string(dim.str()) +
+                                 ".");
         }
     }
     return ov::PartialShape(dims);
