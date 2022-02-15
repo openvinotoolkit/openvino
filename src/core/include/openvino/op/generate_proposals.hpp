@@ -84,6 +84,8 @@ public:
         // For example if *normalized* is true, width = x_right - x_left
         // If *normalized* is false, width = x_right - x_left + 1.
         bool normalized = true;
+        // specify eta parameter for adaptive NMS in generate proposals
+        float nms_eta = 1.0;
     };
 
     GenerateProposalsSingleImage() = default;

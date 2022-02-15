@@ -54,8 +54,8 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     attrs.nms_threshold = node.get_attribute<float>("nms_thresh", 0.5);
     attrs.pre_nms_count = node.get_attribute<int>("pre_nms_topN", 6000);
     attrs.post_nms_count = node.get_attribute<int>("post_nms_topN", 1000);
-    float eta = node.get_attribute<float>("eta", 1.0);
-    PADDLE_OP_CHECK(node, (eta == 1.0), "Only support case of eta == 1.0 currently");
+    attrs.nms_eta = node.get_attribute<float>("eta", 1.0);
+    PADDLE_OP_CHECK(node, (attrs.nms_eta == 1.0), "Only support case of eta == 1.0 currently");
     attrs.normalized = not node.get_attribute<bool>("pixel_offset", true);
 
     // reshape anchors from [H, W, A, 4] to [H * W * A, 4]

@@ -32,10 +32,10 @@ shared_ptr<Node> op::v6::GenerateProposalsSingleImage::clone_with_new_inputs(
     NGRAPH_OP_SCOPE(v6_GenerateProposalsSingleImage_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v6::GenerateProposalsSingleImage>(new_args.at(0),
-                                                                                  new_args.at(1),
-                                                                                  new_args.at(2),
-                                                                                  new_args.at(3),
-                                                                                  m_attrs);
+                                                             new_args.at(1),
+                                                             new_args.at(2),
+                                                             new_args.at(3),
+                                                             m_attrs);
 }
 
 bool op::v6::GenerateProposalsSingleImage::visit_attributes(AttributeVisitor& visitor) {
@@ -81,10 +81,10 @@ shared_ptr<Node> op::v9::GenerateProposalsSingleImage::clone_with_new_inputs(
     NGRAPH_OP_SCOPE(v9_GenerateProposalsSingleImage_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v9::GenerateProposalsSingleImage>(new_args.at(0),
-                                                                                  new_args.at(1),
-                                                                                  new_args.at(2),
-                                                                                  new_args.at(3),
-                                                                                  m_attrs);
+                                                             new_args.at(1),
+                                                             new_args.at(2),
+                                                             new_args.at(3),
+                                                             m_attrs);
 }
 
 bool op::v9::GenerateProposalsSingleImage::visit_attributes(AttributeVisitor& visitor) {
@@ -94,11 +94,15 @@ bool op::v9::GenerateProposalsSingleImage::visit_attributes(AttributeVisitor& vi
     visitor.on_attribute("post_nms_count", m_attrs.post_nms_count);
     visitor.on_attribute("pre_nms_count", m_attrs.pre_nms_count);
     visitor.on_attribute("normalized", m_attrs.normalized);
+    visitor.on_attribute("nms_eta", m_attrs.nms_eta);
     return true;
 }
 
 void op::v9::GenerateProposalsSingleImage::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v9_GenerateProposalsSingleImage_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this, m_attrs.pre_nms_count > 0, "Attribute pre_nms_count must be larger than 0.");
+    NODE_VALIDATION_CHECK(this, m_attrs.post_nms_count > 0, "Attribute post_nms_count must be larger than 0.");
+    NODE_VALIDATION_CHECK(this, m_attrs.nms_eta == 1.0, "Attribute min_size must be 1.0.");
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{},
                                                    ov::PartialShape{}};

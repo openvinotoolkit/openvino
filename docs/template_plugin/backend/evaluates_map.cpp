@@ -3050,23 +3050,23 @@ bool evaluate(const shared_ptr<op::v6::GenerateProposalsSingleImage>& op,
     outputs[1]->set_shape(output_scores_shape);
 
     runtime::reference::generate_proposals_single_image(im_info_data.data(),
-                                                                      anchors_data.data(),
-                                                                      deltas_data.data(),
-                                                                      scores_data.data(),
-                                                                      attrs,
-                                                                      im_info_shape,
-                                                                      anchors_shape,
-                                                                      deltas_shape,
-                                                                      scores_shape,
-                                                                      output_rois.data(),
-                                                                      output_scores.data());
+                                                        anchors_data.data(),
+                                                        deltas_data.data(),
+                                                        scores_data.data(),
+                                                        attrs,
+                                                        im_info_shape,
+                                                        anchors_shape,
+                                                        deltas_shape,
+                                                        scores_shape,
+                                                        output_rois.data(),
+                                                        output_scores.data());
     runtime::reference::generate_proposals_single_image_postprocessing(outputs[0]->get_data_ptr(),
-                                                                                     outputs[1]->get_data_ptr(),
-                                                                                     output_type,
-                                                                                     output_rois,
-                                                                                     output_scores,
-                                                                                     output_rois_shape,
-                                                                                     output_scores_shape);
+                                                                       outputs[1]->get_data_ptr(),
+                                                                       output_type,
+                                                                       output_rois,
+                                                                       output_scores,
+                                                                       output_rois_shape,
+                                                                       output_scores_shape);
 
     return true;
 }
@@ -3103,17 +3103,17 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
     std::vector<int64_t> output_num;
 
     runtime::reference::generate_proposals_single_image_v9(im_info_data.data(),
-                                                                         anchors_data.data(),
-                                                                         deltas_data.data(),
-                                                                         scores_data.data(),
-                                                                         attrs,
-                                                                         im_info_shape,
-                                                                         anchors_shape,
-                                                                         deltas_shape,
-                                                                         scores_shape,
-                                                                         output_rois,
-                                                                         output_scores,
-                                                                         output_num);
+                                                           anchors_data.data(),
+                                                           deltas_data.data(),
+                                                           scores_data.data(),
+                                                           attrs,
+                                                           im_info_shape,
+                                                           anchors_shape,
+                                                           deltas_shape,
+                                                           scores_shape,
+                                                           output_rois,
+                                                           output_scores,
+                                                           output_num);
 
     uint64_t num_selected = static_cast<uint64_t>(output_num[0]);
 

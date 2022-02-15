@@ -147,7 +147,7 @@ void nms_cpu(const int num_boxes, int is_dead[],
             continue;
 
         index_out[count++] = base_index + box;
-        if (count == max_num_out)
+        if (count >= max_num_out)
             break;
 
         int tail = box + 1;
