@@ -215,9 +215,9 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
     m_last_explicit_layout = layout;
     m_last_explicit_layout_set = true;
     m_actions.emplace_back(
-        [&layout](const std::vector<Output<Node>>& nodes,
-                  const std::shared_ptr<Model>& function,
-                  PreprocessingContext& context) {
+        [layout](const std::vector<Output<Node>>& nodes,
+                 const std::shared_ptr<Model>& function,
+                 PreprocessingContext& context) {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't convert layout for multi-plane input. Suggesting to convert current image to "
@@ -542,7 +542,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
 
 void PostStepsList::add_convert_layout_impl(const Layout& layout) {
     m_actions.emplace_back(
-        [&layout](const Output<Node>& node, PostprocessingContext& context) {
+        [layout](const Output<Node>& node, PostprocessingContext& context) {
             Layout dst_layout = layout.empty() ? context.target_layout() : layout;
             auto permutation = layout::utils::find_permutation(context.layout(), node.get_partial_shape(), dst_layout);
             if (permutation.empty()) {
