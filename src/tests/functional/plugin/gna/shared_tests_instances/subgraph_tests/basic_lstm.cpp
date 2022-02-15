@@ -19,6 +19,10 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_SCALE_FACTOR_0", "1638.4"}
+    },
+        {
+        {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
+        {"GNA_SCALE_FACTOR_0", "1638.4"}
     }
 };
 

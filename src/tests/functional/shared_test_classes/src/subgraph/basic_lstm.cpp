@@ -145,12 +145,18 @@ void Basic_LSTM_S::Run() {
     Infer();
 
     const auto& actualOutputs = GetOutputs();
-    auto referenceOutputs = CalculateRefs();
+    auto gna_mode = configuration.find("GNA_DEVICE_MODE");
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> referenceOutputs;
+    if (gna_mode != configuration.end() && gna_mode->second != "GNA_SW_EXACT") {
+        referenceOutputs = CalculateRefs();
+    } else {
+        referenceOutputs = CalculateRefsExact();
+    }
 
     Compare(referenceOutputs, actualOutputs);
 }
 
-std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> Basic_LSTM_S::CalculateRefs() {
+std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> Basic_LSTM_S::CalculateRefsExact() {
     //For now TensorIterator is not implemented in ngraph interpreter so it is needed to validate with another reference
     auto reference_model = ngraph::clone_function(*function);
     ngraph::pass::Manager manager;
