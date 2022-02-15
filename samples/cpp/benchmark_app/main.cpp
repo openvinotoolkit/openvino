@@ -1069,9 +1069,8 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
-            statistics->add_parameters(
-                    StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("throughput", "throughput", fps)});
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {StatisticsVariant("throughput", "throughput", fps)});
         }
         progressBar.finish();
 
