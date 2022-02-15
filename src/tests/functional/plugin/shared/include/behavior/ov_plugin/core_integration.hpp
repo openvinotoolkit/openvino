@@ -96,6 +96,8 @@ using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
+using OVClassSetPerformanceHintConfigTest = OVClassBaseTestP;
+using OVClassSetPerformanceHintNumRequestsConfigTest = OVClassBaseTestP;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
@@ -403,6 +405,42 @@ TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::log::level(ov::log::Level::TRACE)));
     OV_ASSERT_NO_THROW(logValue = ie.get_property(deviceName, ov::log::level));
     EXPECT_EQ(logValue, ov::log::Level::TRACE);
+}
+
+TEST_P(OVClassSetPerformanceHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::hint::PerformanceMode value;
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::performance_mode));
+    EXPECT_EQ(value, ov::hint::PerformanceMode::UNDEFINED);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::performance_mode));
+    EXPECT_EQ(value, ov::hint::PerformanceMode::LATENCY);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::performance_mode));
+    EXPECT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
+}
+
+TEST_P(OVClassSetPerformanceHintNumRequestsConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    uint32_t value;
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::num_requests(1)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::num_requests));
+    EXPECT_EQ(value, 1);
+
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::num_requests(8)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::num_requests));
+    ASSERT_EQ(8, value);
+
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::num_requests(0)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::num_requests));
+    ASSERT_EQ(1, value); //minimum value
+
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::num_requests(1000)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::num_requests));
+    ASSERT_EQ(127, value); //maximum value
+
+    ASSERT_ANY_THROW(ie.set_property(deviceName, ov::hint::num_requests(-1)));
 }
 //
 // QueryNetwork
