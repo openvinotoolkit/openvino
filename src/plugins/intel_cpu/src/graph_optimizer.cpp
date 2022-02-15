@@ -1238,7 +1238,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             // Merged with DW_conv. Shape may change
             mergedConv->inputShapes.push_back(mergedConv->fusedWith[0]->getOutputShapeAtPort(0));
         } else {
-            mergedConv->inputShapes.push_back(sum->getInputShapeAtPort(1));
+            size_t secondTermPort = sum->getFusingPort() == 0 ? 1 : 0;
+            mergedConv->inputShapes.push_back(sum->getInputShapeAtPort(secondTermPort));
         }
 
         size_t childIdx = 0lu;
