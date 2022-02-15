@@ -144,6 +144,40 @@ inline auto from_string(const std::string& val) ->
     return value;
 }
 
+template <class T>
+struct ValueTyped {
+    template <class U>
+    static auto test(U*) -> decltype(std::declval<typename U::value_type&>(), std::true_type()) {
+        return {};
+    }
+    template <typename>
+    static auto test(...) -> std::false_type {
+        return {};
+    }
+    constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
+};
+
+template <typename T,
+          typename std::enable_if<ValueTyped<T>::value && Readable<typename T::value_type>::value,
+                                  bool>::type = true>
+inline typename T::value_type from_string(const std::string& val, const T&) {
+    std::stringstream ss(val);
+    typename T::value_type value;
+    Read<typename T::value_type, void>{}(ss, value);
+    return value;
+}
+
+template <typename T,
+          typename std::enable_if<ValueTyped<T>::value && !Readable<typename T::value_type>::value &&
+                                      Istreamable<typename T::value_type>::value,
+                                  bool>::type = true>
+inline typename T::value_type from_string(const std::string& val, const T&) {
+    std::stringstream ss(val);
+    typename T::value_type value;
+    ss >> value;
+    return value;
+}
+
 template <typename T>
 inline auto from_string(const std::string& val) ->
     typename std::enable_if<!Readable<T>::value && !Istreamable<T>::value, T>::type {
@@ -307,61 +341,6 @@ class OPENVINO_API Any {
 
     template <typename T>
     using decay_t = typename std::decay<T>::type;
-
-    template <class T>
-    struct Readable {
-        template <class U>
-        static auto test(U*)
-            -> decltype(std::declval<util::Read<U>>()(std::declval<std::istream&>(), std::declval<U&>()),
-                        std::true_type()) {
-            return {};
-        }
-        template <typename>
-        static auto test(...) -> std::false_type {
-            return {};
-        }
-        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
-    };
-    template <class T>
-    struct Istreamable {
-        template <class U>
-        static auto test(U*) -> decltype(std::declval<std::istream&>() >> std::declval<U&>(), std::true_type()) {
-            return {};
-        }
-        template <typename>
-        static auto test(...) -> std::false_type {
-            return {};
-        }
-        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
-    };
-
-    template <class T>
-    struct Ostreamable {
-        template <class U>
-        static auto test(U*) -> decltype(std::declval<std::ostream&>() << std::declval<U>(), std::true_type()) {
-            return {};
-        }
-        template <typename>
-        static auto test(...) -> std::false_type {
-            return {};
-        }
-        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
-    };
-
-    template <class T>
-    struct Writable {
-        template <class U>
-        static auto test(U*)
-            -> decltype(std::declval<util::Write<U>>()(std::declval<std::ostream&>(), std::declval<const U&>()),
-                        std::true_type()) {
-            return {};
-        }
-        template <typename>
-        static auto test(...) -> std::false_type {
-            return {};
-        }
-        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
-    };
 
     template <typename T>
     struct EqualityComparable {
@@ -589,18 +568,18 @@ class OPENVINO_API Any {
         }
 
         template <typename U>
-        static typename std::enable_if<Writable<U>::value>::type print_impl(std::ostream& os, const U& value) {
+        static typename std::enable_if<util::Writable<U>::value>::type print_impl(std::ostream& os, const U& value) {
             util::Write<U>{}(os, value);
         }
 
         template <typename U>
-        static typename std::enable_if<!Writable<U>::value && Ostreamable<U>::value>::type print_impl(std::ostream& os,
+        static typename std::enable_if<!util::Writable<U>::value && util::Ostreamable<U>::value>::type print_impl(std::ostream& os,
                                                                                                       const U& value) {
             os << value;
         }
 
         template <typename U>
-        static typename std::enable_if<!Writable<U>::value && !Ostreamable<U>::value>::type print_impl(std::ostream&,
+        static typename std::enable_if<!util::Writable<U>::value && !util::Ostreamable<U>::value>::type print_impl(std::ostream&,
                                                                                                        const U&) {}
 
         void print(std::ostream& os) const override {
@@ -608,18 +587,18 @@ class OPENVINO_API Any {
         }
 
         template <typename U>
-        static typename std::enable_if<Readable<U>::value>::type read_impl(std::istream& is, U& value) {
+        static typename std::enable_if<util::Readable<U>::value>::type read_impl(std::istream& is, U& value) {
             util::Read<U>{}(is, value);
         }
 
         template <typename U>
-        static typename std::enable_if<!Readable<U>::value && Istreamable<U>::value>::type read_impl(std::istream& is,
+        static typename std::enable_if<!util::Readable<U>::value && util::Istreamable<U>::value>::type read_impl(std::istream& is,
                                                                                                      U& value) {
             is >> value;
         }
 
         template <typename U>
-        static typename std::enable_if<!Readable<U>::value && !Istreamable<U>::value>::type read_impl(std::istream&,
+        static typename std::enable_if<!util::Readable<U>::value && !util::Istreamable<U>::value>::type read_impl(std::istream&,
                                                                                                       U&) {
             OPENVINO_UNREACHABLE("Could read type without std::istream& operator>>(std::istream&, T)",
                                  " defined or ov::util::Read<T> class specialization, T: ",
@@ -793,7 +772,7 @@ public:
     template <class T>
     typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
                                 !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value &&
-                                (Istreamable<T>::value || Readable<T>::value),
+                                (util::Istreamable<T>::value || util::Readable<T>::value),
                             T>::type&
     as() {
         impl_check();
@@ -820,7 +799,7 @@ public:
     template <class T>
     typename std::enable_if<
         !std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value && !std::is_same<T, std::string>::value &&
-            (!std::is_default_constructible<T>::value || (!Istreamable<T>::value && !Readable<T>::value)),
+            (!std::is_default_constructible<T>::value || (!util::Istreamable<T>::value && !util::Readable<T>::value)),
         T>::type&
     as() {
         impl_check();
