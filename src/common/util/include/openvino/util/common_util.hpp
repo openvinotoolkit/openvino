@@ -14,6 +14,11 @@ namespace ov {
 namespace util {
 
 template <class T>
+struct Readable;
+template <class T>
+struct Istreamable;
+
+template <class T>
 struct ValueTyped {
     template <class U>
     static auto test(U*) -> decltype(std::declval<typename U::value_type&>(), std::true_type()) {
@@ -29,7 +34,7 @@ struct ValueTyped {
 template <typename, typename>
 struct Read;
 
-template <typename T, typename std::enable_if<ValueTyped<T>::value, bool>::type = true>
+template <typename T, typename std::enable_if<ValueTyped<T>::value && Readable<typename T::value_type>::value && !Istreamable<typename T::value_type>::value, bool>::type = true>
 inline typename T::value_type from_string(const std::string& val, const T&) {
     std::stringstream ss(val);
     typename T::value_type value;
@@ -37,14 +42,13 @@ inline typename T::value_type from_string(const std::string& val, const T&) {
     return value;
 }
 
-template <typename>
-struct Write;
 
-template <typename T>
-inline std::string to_string(const T& value) {
-    std::stringstream ss;
-    Write<T>{}(ss, value);
-    return ss.str();
+template <typename T, typename std::enable_if<ValueTyped<T>::value && !Readable<typename T::value_type>::value && Istreamable<typename T::value_type>::value, bool>::type = true>
+inline typename T::value_type from_string(const std::string& val, const T&) {
+    std::stringstream ss(val);
+    typename T::value_type value;
+    ss >> value;
+    return value;
 }
 
 template <typename T>

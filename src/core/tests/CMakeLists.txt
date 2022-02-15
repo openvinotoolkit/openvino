@@ -72,7 +72,6 @@ set(SRC
     opset1.cpp
     ov_default_allocator_test.cpp
     ov_tensor_test.cpp
-    any.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp

@@ -57,6 +57,16 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
     return const_cast<Any::Base*>(this)->visit_attributes(visitor);
 }
 
+void Any::Base::read_to(Base& other) const {
+    std::stringstream strm;
+    print(strm);
+    if (other.is<std::string>()) {
+        *static_cast<std::string*>(other.addressof()) = strm.str();
+    } else {
+        other.read(strm);
+    }
+}
+
 Any::~Any() {
     _temp = {};
     _impl = {};
@@ -146,7 +156,7 @@ void Read<bool>::operator()(std::istream& is, bool& value) const {
 template <typename F>
 static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const std::string&>())) {
     std::string str;
-    Read<std::string>{}(is, str);
+    is >> str;
     try {
         return f(str);
     } catch (std::exception& e) {
