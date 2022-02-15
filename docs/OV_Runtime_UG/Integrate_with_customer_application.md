@@ -39,7 +39,7 @@ OpenVINO™ Runtime allows to use tensor names or indexes to work wit model inpu
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [part2]
 
@@ -98,7 +98,7 @@ Include next files to work with OpenVINO™ Runtime:
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [import]
 
@@ -116,7 +116,7 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [part0]
 
@@ -217,7 +217,7 @@ Third parameter is a configuration for device. It is list of properties which af
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [part5]
 
@@ -238,7 +238,7 @@ Create an infer request using the following code:
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [part6]
 
@@ -260,7 +260,7 @@ You can use one of the following options to prepare input:
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [part7]
 
@@ -278,7 +278,7 @@ You can use one of the following options to prepare input:
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [part8]
 
@@ -296,7 +296,7 @@ You can use one of the following options to prepare input:
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [part9]
 
@@ -316,7 +316,7 @@ You can use one of the following options to prepare input:
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [part10]
 
@@ -339,7 +339,7 @@ Start inference in asynchronous or synchronous mode. Async API usage can improve
 
     .. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/src/main.python
+        .. doxygensnippet:: docs/snippets/src/main.py
            :language: python
            :fragment: [part12]
 
@@ -362,7 +362,7 @@ Start inference in asynchronous or synchronous mode. Async API usage can improve
 
     .. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/src/main.python
+        .. doxygensnippet:: docs/snippets/src/main.py
            :language: python
            :fragment: [part11]
 
@@ -389,7 +389,7 @@ Go over the output tensors and process the inference results.
 
 .. tab:: Python
 
-    .. doxygensnippet:: docs/snippets/src/main.python
+    .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
        :fragment: [part13]
 
