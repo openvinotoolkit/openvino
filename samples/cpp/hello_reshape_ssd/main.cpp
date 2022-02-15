@@ -46,8 +46,8 @@ int main(int argc, char* argv[]) {
         printInputAndOutputsInfo(*model);
 
         // Step 3. Validate model inputs and outputs
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
+        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
 
         // SSD has an additional post-processing DetectionOutput layer that simplifies output filtering,
         // try to find it.
