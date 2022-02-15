@@ -235,14 +235,16 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
     } else if (ov::is_type<ov::op::v5::LSTMSequence>(node)) {
         const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{5, 10, 10}, {5, 1, 10}, {5, 1, 10},
                                                                                   {1, 40, 10}, {1, 40, 10}, {1, 40}});
+        const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
+        const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
+        const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40}, {}, true);
         const auto params_seqLength = ngraph::builder::makeDynamicParams(ov::element::i64, {{5}});
         RNNCellBaseNode = std::make_shared<ov::op::v5::LSTMSequence>(params[0], params[1], params[2], params_seqLength[0],
-                                                                     params[3], params[4], params[5], 10, ov::op::RecurrentSequenceDirection::FORWARD);
+                                                                     W, R, B, 10, ov::op::RecurrentSequenceDirection::FORWARD);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1)),
                                      std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(2))};
-        return std::make_shared<ngraph::Function>(results, ParameterVector{params[0], params[1], params[2], params_seqLength[0],
-                                                                           params[3], params[4], params[5]}, "RNNCellBaseGraph");
+        return std::make_shared<ngraph::Function>(results, ParameterVector{params[0], params[1], params[2], params_seqLength[0]}, "RNNCellBaseGraph");
     } else if (ov::is_type<ov::op::v0::RNNCell>(node)) {
         const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3},
                                                                                   {3, 3}, {3, 3}, {3}});
