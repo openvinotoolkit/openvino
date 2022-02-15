@@ -49,17 +49,16 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     check_rank(node, anchors, 4);
 
     // attribute
-    ov::op::v8::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attrs;
+    ov::op::v9::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attrs;
     attrs.min_size = node.get_attribute<float>("min_size", 0.1);
     attrs.nms_threshold = node.get_attribute<float>("nms_thresh", 0.5);
     attrs.pre_nms_count = node.get_attribute<int>("pre_nms_topN", 6000);
     attrs.post_nms_count = node.get_attribute<int>("post_nms_topN", 1000);
-    attrs.dynamic_output = true;
     float eta = node.get_attribute<float>("eta", 1.0);
     PADDLE_OP_CHECK(node, (eta == 1.0), "Only support case of eta == 1.0 currently");
-    attrs.coordinates_offset = node.get_attribute<bool>("pixel_offset", true);
+    attrs.normalized = not node.get_attribute<bool>("pixel_offset", true);
 
-    // reshape H, W, A to H * W * A
+    // reshape anchors from [H, W, A, 4] to [H * W * A, 4]
     auto anchors_shape = default_opset::Constant::create<int64_t>(ov::element::i64, {2}, {-1, 4});
     auto reshaped_anchors = std::make_shared<default_opset::Reshape>(anchors, anchors_shape, true);
 
@@ -74,7 +73,7 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
         variances_bbox_deltas = std::make_shared<default_opset::Multiply>(single_bbox_deltas, transposed_variances);
     }
 
-    // im_info
+    // generate im_info from im_scale
     auto im_scale = default_opset::Constant::create(ov::element::f32, {1}, {1.0});
     auto im_info = std::make_shared<default_opset::Concat>(OutputVector{single_im_shape, im_scale}, 0);
 
@@ -85,18 +84,20 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     //  4. scores: [A, H, W]
     // output:
     //  1. rois: [proposals_num, 4]
-    //  2. scores: [proposals_num, 1]
-    //  2. proposals_num: [1]
-    auto proposal = std::make_shared<ov::op::v8::ExperimentalDetectronGenerateProposalsSingleImage>(im_info, reshaped_anchors, variances_bbox_deltas, single_scores, attrs);
+    //  2. scores: [proposals_num]
+    auto proposal = std::make_shared<ov::op::v9::ExperimentalDetectronGenerateProposalsSingleImage>(im_info, reshaped_anchors, variances_bbox_deltas, single_scores, attrs);
 
     auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i64, {}, {1});
     auto probs = std::make_shared<default_opset::Unsqueeze>(proposal->output(1), unsqueeze_scalar);
+
+    // generate proposal number
+    auto proposal_number = std::make_shared<default_opset::ShapeOf>(proposal->output(1), ov::element::i32);
 
     // output
     NamedOutputs named_outputs;
     named_outputs["RpnRois"] = OutputVector{proposal->output(0)};
     named_outputs["RpnRoiProbs"] = OutputVector{probs->output(0)};
-    named_outputs["RpnRoisNum"] = OutputVector{proposal->output(2)};
+    named_outputs["RpnRoisNum"] = OutputVector{proposal_number->output(0)};
 
     // TODO: experimental generate proposal testcase
     return named_outputs;

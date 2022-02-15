@@ -62,12 +62,12 @@ private:
 };
 }  // namespace v6
 
-namespace v8 {
+namespace v9 {
 /// \brief An operation ExperimentalDetectronGenerateProposalsSingleImage
 /// computes ROIs and their scores based on input data.
 class OPENVINO_API ExperimentalDetectronGenerateProposalsSingleImage : public Op {
 public:
-    OPENVINO_OP("ExperimentalDetectronGenerateProposalsSingleImage", "opset8", op::Op, 8);
+    OPENVINO_OP("ExperimentalDetectronGenerateProposalsSingleImage", "opset9", op::Op, 9);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation
@@ -80,12 +80,10 @@ public:
         int64_t post_nms_count;
         // number of top-n proposals before NMS
         int64_t pre_nms_count;
-        // specifies whether the output is dynamic shape or static shape
-        bool dynamic_output = false;
-        // specify the relationship between ROI location points and ROI width and height.
-        // For example if *coordinates_offset* is false, width = x_right - x_left
-        // If *coordinates_offset* is true, width = x_right - x_left + 1.
-        bool coordinates_offset = false;
+        // specify whether the bbox is normalized or not.
+        // For example if *normalized* is true, width = x_right - x_left
+        // If *normalized* is false, width = x_right - x_left + 1.
+        bool normalized = true;
     };
 
     ExperimentalDetectronGenerateProposalsSingleImage() = default;
@@ -115,6 +113,6 @@ public:
 private:
     Attributes m_attrs;
 };
-}  // namespace v8
+}  // namespace v9
 }  // namespace op
 }  // namespace ov

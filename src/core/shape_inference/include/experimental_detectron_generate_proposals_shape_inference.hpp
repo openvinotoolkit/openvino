@@ -82,20 +82,18 @@ void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
 }
 }  // namespace v6
 
-namespace v8 {
+namespace v9 {
 template <class T>
 void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 3);
-    auto post_nms_count = static_cast<size_t>(op->get_attrs().post_nms_count);
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 2);
 
     const auto& im_info_shape = input_shapes[0];
     const auto& anchors_shape = input_shapes[1];
     const auto& deltas_shape = input_shapes[2];
     const auto& scores_shape = input_shapes[3];
     const auto im_info_shape_rank = im_info_shape.rank();
-    const auto& dynamic_output = op->get_attrs().dynamic_output;
     NODE_VALIDATION_CHECK(op,
                           im_info_shape_rank.compatible(1),
                           "The 'input_im_info' input is expected to be a 1D. Got: ",
@@ -146,23 +144,10 @@ void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
                               scores_shape[2]);
     }
 
-    if (!dynamic_output) {
-        auto& rois_shape = output_shapes[0];
-        auto& rois_scores_shape = output_shapes[1];
-
-        rois_shape.resize(2);
-        rois_scores_shape.resize(1);
-        rois_shape[0] = post_nms_count;
-        rois_shape[1] = 4;
-        rois_scores_shape[0] = post_nms_count;
-    } else {
-        output_shapes[0] = ov::PartialShape({Dimension::dynamic(), 4});
-        output_shapes[1] = ov::PartialShape::dynamic(1);
-    }
-        
-    output_shapes[2] = ov::PartialShape({1});
+    output_shapes[0] = ov::PartialShape({Dimension::dynamic(), 4});
+    output_shapes[1] = ov::PartialShape::dynamic(1);
 }
 
-}  // namespace v8
+}  // namespace v9
 }  // namespace op
 }  // namespace ov
