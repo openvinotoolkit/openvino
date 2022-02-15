@@ -53,7 +53,7 @@ TEST_MODELS = [
 
     ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.8, 'map': 0.7445},
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.6638},
      {'use_fast_bias': False}, 'CPU')
 ]
 CASCADE_MAP = Dict({
