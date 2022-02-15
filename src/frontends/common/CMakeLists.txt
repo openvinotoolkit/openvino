@@ -38,6 +38,8 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util ov_core_dev)
+set_target_properties(${TARGET_NAME}_obj PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 set_property(SOURCE
             ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp
