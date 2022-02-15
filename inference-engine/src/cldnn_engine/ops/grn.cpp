@@ -19,7 +19,8 @@ void CreateGRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::GRN>& op) {
     auto primitive = cldnn::grn(layerName,
                                 inputPrimitives[0],
                                 op->get_bias(),
-                                DataTypeFromPrecision(op->get_output_element_type(0)));
+                                DataTypeFromPrecision(op->get_output_element_type(0)),
+                                op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

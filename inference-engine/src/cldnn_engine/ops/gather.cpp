@@ -120,7 +120,10 @@ void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gather>& o
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32);
+                                                 cldnn::data_types::i32,
+                                                 std::vector<float>(),
+                                                 cldnn::reorder_mean_mode::subtract,
+                                                 op->get_friendly_name());
             p.AddPrimitive(preprocessPrim);
             p.AddInnerPrimitiveToProfiler(reorderPrimName, layerName, op);
             reorderedInputs[portIndex] = reorderPrimName;
@@ -136,7 +139,8 @@ void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gather>& o
                                     GetGatherAxis(axis, DefaultFormatForDims(op->get_input_shape(0).size())),
                                     outLayout,
                                     CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                    op->get_batch_dims());
+                                    op->get_batch_dims(),
+                                    op->get_friendly_name());
 
     p.AddPrimitive(gatherPrim);
     p.AddPrimitiveToProfiler(op);

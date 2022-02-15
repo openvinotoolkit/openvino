@@ -85,8 +85,9 @@ struct lstm : public primitive_base<lstm> {
          const std::vector<activation_additional_params> activation_params = {},
          const lstm_output_selection output_selection = lstm_output_selection::sequence,
          const lstm_weights_order offset_order = lstm_weights_order::iofz,
+         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-        : primitive_base(id, input, output_padding),
+        : primitive_base(id, input, ext_prim_id, output_padding),
           weights(weights),
           recurrent(recurrent),
           bias(bias),
@@ -166,8 +167,9 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
               const primitive_id& bias = "",
               const primitive_id& hidden = "",
               const uint32_t direction = 0,
+              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           weights(weights),
           recurrent(recurrent),
           bias(bias),
@@ -222,8 +224,9 @@ struct lstm_elt : public primitive_base<lstm_elt> {
              const std::vector<activation_additional_params> activation_params = {},
              const lstm_weights_order offset_order = lstm_weights_order::iofz,
              const uint32_t direction = 0,
+             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           cell(cell),
           clip(clip),
           input_forget(input_forget),

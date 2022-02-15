@@ -75,8 +75,9 @@ struct broadcast : public primitive_base<broadcast> {
               const primitive_id& input,
               const tensor& broadcast_sizes,
               const std::vector<uint16_t>& broadcast_axes = {},
+              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           broadcast_sizes(broadcast_sizes),
           broadcast_axes(broadcast_axes) {}
 

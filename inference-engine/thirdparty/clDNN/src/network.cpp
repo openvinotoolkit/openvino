@@ -92,6 +92,10 @@ std::vector<primitive_id> network::get_all_primitive_org_ids() const {
     return _impl->get_all_primitive_org_ids();
 }
 
+std::map<primitive_id, primitive_id> network::get_ext_id_mapping() const {
+    return _impl->get_ext_id_mapping();
+}
+
 std::vector<primitive_id> network::get_input_ids() const {
     return _impl->get_input_ids();
 }
@@ -638,6 +642,21 @@ const program_impl::primitives_info& network_impl::get_primitives_info() const {
 
 const program_impl::graph_optimizer_info& network_impl::get_optimizer_passes_info() const {
     return _program->get_optimizer_passes_info();
+}
+
+std::map<primitive_id, primitive_id> network_impl::get_ext_id_mapping() const {
+    std::map<primitive_id, primitive_id> result;
+    for (auto& prim : _primitives) {
+        result.emplace(prim.first, prim.second->get_ext_prim_id());
+    }
+    for (auto& opt_id : _program->get_optimized_out()) {
+        std::string ext_id = opt_id;
+        if (opt_id.find(":") != std::string::npos) {
+            ext_id = opt_id.substr(opt_id.find(":") + 1, opt_id.length());
+        }
+        result.emplace(opt_id, ext_id);
+    }
+    return result;
 }
 
 std::shared_ptr<primitive_inst> network_impl::get_primitive(const primitive_id& id) {

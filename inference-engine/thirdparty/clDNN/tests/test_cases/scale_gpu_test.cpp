@@ -1285,7 +1285,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_yxfb_bfyx_same_size_padding) {
         topology.add(input_layout("input", input.get_layout()));
         topology.add(reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })));
         topology.add(input_layout("scale_input", scale_input.get_layout()));
-        topology.add(scale("scale", "reorder", "scale_input", {}, padding( { 0, 0, 2, 2 }, 0 )));
+        topology.add(scale("scale", "reorder", "scale_input", {}, "", padding( { 0, 0, 2, 2 }, 0 )));
 
         std::vector<float> input_vec = { 1.f, 2.f, 3.f, 4.f };
         set_values(input, input_vec);
