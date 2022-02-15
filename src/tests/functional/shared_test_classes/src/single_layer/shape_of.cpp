@@ -11,10 +11,11 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision inputPrecision;
         InferenceEngine::Precision outputPrecision;
         std::string targetDevice;
-        std::tie(inputPrecision, inputShapes, targetDevice, outputPrecision) = obj.param;
+        std::tie(inputPrecision, outputPrecision, inputShapes, targetDevice) = obj.param;
         std::ostringstream result;
         result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
         result << "Precision=" << inputPrecision.name() << "_";
+        result << "Output Precision=" << outputPrecision.name() << "_";
         result << "TargetDevice=" << targetDevice;
         return result.str();
     }
@@ -22,10 +23,9 @@ namespace LayerTestsDefinitions {
     void ShapeOfLayerTest::SetUp() {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
-        InferenceEngine::Precision outputPrecision;
-        std::tie(inputPrecision, inputShapes, targetDevice, outputPrecision) = this->GetParam();
+        std::tie(inputPrecision, outPrc, inputShapes, targetDevice) = this->GetParam();
         auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-        auto outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outputPrecision);
+        auto outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
         auto param = ngraph::builder::makeParams(inType, {inputShapes});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(param));
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], outType);

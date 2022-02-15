@@ -18,8 +18,8 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Check, ShapeOfLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InferenceEngine::Precision::I64),
                                     ::testing::Values(std::vector<size_t>({10, 10, 10})),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                    ::testing::Values(InferenceEngine::Precision::I64)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ShapeOfLayerTest::getTestCaseName);
 }  // namespace

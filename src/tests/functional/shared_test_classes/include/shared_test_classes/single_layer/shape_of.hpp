@@ -22,9 +22,9 @@ typedef std::tuple<
 
 typedef std::tuple<
         InferenceEngine::Precision,         // Network precision
+        InferenceEngine::Precision,          // Output precision
         std::vector<size_t>,                // Input shapes
-        std::string,                        // Device name
-        InferenceEngine::Precision          // Output precision
+        std::string                        // Device name
 > shapeOfParams;
 
 class ShapeOfLayerTest : public testing::WithParamInterface<shapeOfParams>,
