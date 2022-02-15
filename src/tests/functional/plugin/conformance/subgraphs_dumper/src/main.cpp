@@ -97,7 +97,9 @@ int main(int argc, char *argv[]) {
     auto models = findModelsInDirs(dirs);
 
     auto cache = SubgraphsDumper::OPCache::make_cache();
-//    cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
+    if (!FLAGS_local_cache.empty()) {
+        cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
+    }
     cacheModels(cache, ret_code, models, FLAGS_extract_body);
     cache->serialize_cached_ops(FLAGS_output_folder);
 
