@@ -68,8 +68,8 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
 
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
-    if (getChildEdges().size() != (algorithm == AdaptivePoolingMax ? 2 : 1))
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getParentEdges().size();
+    if (getChildEdges().size() < (algorithm == AdaptivePoolingMax ? 2 : 1))
+        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
     auto srcRank = getInputShapeAtPort(0).getRank();
     if (!one_of(spatialDimsCount, 1, 2, 3)) {
