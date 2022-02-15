@@ -11,7 +11,7 @@ namespace {
 using namespace ov::test::behavior;
 using namespace ngraph;
 
-static const std::vector<ov::element::Type> precisionsTemplate = {
+static const std::vector<ov::element::Type> ovElemTypesTemplate = {
         ov::element::f64,
         ov::element::f32,
         ov::element::f16,
@@ -26,15 +26,15 @@ static const std::vector<ov::element::Type> precisionsTemplate = {
         ov::element::boolean,
 };
 
-static const std::vector<std::size_t> batchSizesTemplate = {
+static const std::vector<std::size_t> ovBatchSizesTemplate = {
         1, 2
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_CachingSupportCase, CompileModelCacheTestBase,
                          ::testing::Combine(
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
-                                 ::testing::ValuesIn(precisionsTemplate),
-                                 ::testing::ValuesIn(batchSizesTemplate),
+                                 ::testing::ValuesIn(ovElemTypesTemplate),
+                                 ::testing::ValuesIn(ovBatchSizesTemplate),
                                  ::testing::Values(ov::test::conformance::targetDevice)),
                          CompileModelCacheTestBase::getTestCaseName);
 } // namespace
