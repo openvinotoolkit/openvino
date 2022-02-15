@@ -431,11 +431,18 @@ bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
  * @return map of scale factors per input
  */
 std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs, const std::string& values_string) {
-    auto check_sf = [&](float sf, const std::string& input_name = "") {
+    auto get_sf = [&](const std::string& sf_string, const std::string& input_name = "") -> float {
+        float sf;
+        try {
+            sf = std::stof(sf_string);
+        } catch (...) {
+            throw std::logic_error("Can't get float scale factor from: " + sf_string);
+        }
         if (sf <= 0.0f) {
             throw std::logic_error("Scale factor for input '" + input_name +
                                    "' (counting from zero) is out of range (must be positive).");
         }
+        return sf;
     };
     std::map<std::string, float> result;
     auto scale_factor_strings = split(values_string, ',');
@@ -447,19 +454,17 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
                                        "Please specify <input_name1>:<sf1>,<input_name2>:<sf2> or "
                                        "just <sf> to be applied to all inputs");
             }
-            auto scale_factor = std::stof(values.at(0));
-            check_sf(scale_factor);
+            auto scale_factor = get_sf(values.at(0));
             for (auto& input : inputs) {
                 result[input.get_any_name()] = scale_factor;
             }
-        } else {
-            auto scale_factor = std::stof(values.back());
+        } else if (values.size() > 0) {
+            auto sf_sting = values.back();
             values.pop_back();
             // input name can contain port, concat back
             auto input_name = concat(values, ':');
             check_name(inputs, input_name);
-            check_sf(scale_factor, input_name);
-            result[input_name] = scale_factor;
+            result[input_name] = get_sf(sf_sting, input_name);
         }
     }
     return result;
