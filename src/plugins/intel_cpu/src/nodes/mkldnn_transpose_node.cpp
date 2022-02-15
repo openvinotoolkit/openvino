@@ -80,7 +80,19 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     const auto& outputDataShape = getOutputShapeAtPort(0);
     if (inputDataShape.getRank() == 4 || inputDataShape.getRank() == 5) {
         config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape));
-        config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape));
+        auto parentNode = getParentEdgeAt(INPUT_DATA_IDX)->getParent();
+        auto childNode = getChildEdgeAt(0)->getChild();
+        if (parentNode && childNode && parentNode->getType() == Input && childNode->getType() == FakeQuantize) {
+            // To avoid waste Reorder in case 'Input -> Transpose -> FQ',
+            // there is a Fake Transpose between Input node and FakeQuantize.
+            // The follow by this Transpose, FakeQuantize should have 'nspc' input layout
+            config.outConfs[0].inPlace(0);
+            config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape));
+            skipToExec = true;
+        } else {
+            config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape));
+        }
+
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
         const auto& srcDims = inputDataShape.getDims();
@@ -176,6 +188,7 @@ void MKLDNNTransposeNode::createPrimitive() {
 
 template <typename T>
 static void transpose_to_0312(const int MB, const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    return;
     const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
 
@@ -277,6 +290,8 @@ void MKLDNNTransposeNode::optimizedExecute(const int MB, const MKLDNNMemoryPtr& 
 
 void MKLDNNTransposeNode::execute(mkldnn::stream strm) {
     if (execPtr) {
+        if (skipToExec)
+            return;
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto &srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
 

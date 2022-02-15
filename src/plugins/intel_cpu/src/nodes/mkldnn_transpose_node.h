@@ -64,6 +64,7 @@ private:
     InferenceEngine::SizeVector order;
     InferenceEngine::Precision prec;
     bool isOptimized = false;
+    bool skipToExec = false;
 
     const std::vector<std::vector<size_t>> optimizedOrders = {
             std::vector<size_t>{0, 3, 1, 2},

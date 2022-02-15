@@ -1166,7 +1166,15 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
 std::vector<LayoutType> MKLDNNFakeQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
     const auto &dims = getInputShapeAtPort(0).getDims();
-    if (dims[getAxis()] == 3) {
+    auto parentNode = getParentEdgeAt(0)->getParent();
+    // To avoid waste Reorder in case 'Input -> Transpose -> FQ'
+    // The follow by this Transpose, FakeQuantize should have 'nspc' input layout
+    if (parentNode && parentNode->getType() == Transpose) {
+        // Take parentParentNode here using MKLDNNTransposeNode::INPUT_DATA_IDX on Transpose node
+        auto parentParentNode = parentNode->getParentEdgeAt(0)->getParent();
+        if (parentParentNode && parentParentNode->getType() == Input)
+            return {LayoutType::nspc};
+    } else if (dims[getAxis()] == 3) {
         return { LayoutType::ncsp };
     } else {
         if (isBinarization()) {
