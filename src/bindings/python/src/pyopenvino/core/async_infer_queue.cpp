@@ -314,4 +314,8 @@ void regclass_AsyncInferQueue(py::module m) {
         :return: List of all passed userdata. None if the data wasn't passed yet.
         :rtype: List[Any]
     )");
+
+    cls.def("__repr__", [](const AsyncInferQueue& self) {
+        return "<AsyncInferQueue: " + std::to_string(self._requests.size()) + " jobs>";
+    });
 }
