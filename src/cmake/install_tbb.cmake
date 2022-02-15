@@ -50,7 +50,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
 
     set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
-                "${TBB}/cmake/TBBConfigVersion.cmake"
+                  "${TBB}/cmake/TBBConfigVersion.cmake"
             DESTINATION runtime/${IE_TBB_DIR_INSTALL}
             COMPONENT tbb_dev)
     install(DIRECTORY "${TBB}/include"
