@@ -175,8 +175,9 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
                 FRONT_END_THROW("Encountered unknown element type " + DataType_Name(dt) + " on an empty tensor_proto");
             }
             TENSORFLOW_OP_VALIDATION(node, val_size != 0, "Empty values vector");
-
-            if (i < val_size) {
+            if (val_size == 0) {
+                val_i = 0;
+            } else if (i < val_size) {
                 (*values)[i] = val_i;
                 val_lastsaved = val_i;
             } else {
