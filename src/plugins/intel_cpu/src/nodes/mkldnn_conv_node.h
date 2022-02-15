@@ -65,8 +65,12 @@ public:
 
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
+    void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
+    void addFusedNode(const MKLDNNNodePtr &fusingNode) override;
 
 private:
+    class FusedSubgraph;
+    using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
 
@@ -91,6 +95,8 @@ private:
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
+    MemoryDescPtr getSumMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it);
+    MKLDNNMemoryPtr getOutputMemory() const;
 
     void appendZeroPointsArgs();
 
@@ -99,6 +105,7 @@ private:
     bool withDWConv;
     bool isGrouped;
     bool isPrimitivesPriorityDefined = false;
+    bool withSumBroadcast = false;
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
@@ -126,6 +133,8 @@ private:
     bool isWino = false;
     AttrPtr pAttr;
     bool autoPadding = false;
+    FusedSubgraphPtr subgraph;
+    std::unordered_map<MKLDNNNodePtr, std::vector<MKLDNNNodePtr>> fusedConstNodes;
 
     MKLDNNMemoryPtr inputZeroPointsMemPtr;
     MKLDNNMemoryPtr weightsZeroPointsMemPtr;
