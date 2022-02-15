@@ -23,13 +23,13 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 There are two ways to install OpenVINO with Docker. You can choose either of them according to your needs:
 * Use a prebuilt image. Do the following steps:
   1. <a href="#get-prebuilt-image">Get a prebuilt image from provided sources</a>
-  2. <a href="#run-image">Run the image on different devices</a>
-  3. <a href="#run-samples">(Optional) Run samples in the Docker image</a>
+  2. <a href="#run-image">Run the image on different devices</a>.
+  3. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
 * Build a Docker image manually. Do the following steps:
-  1. <a href="#create-dockerfile">Create a Dockerfile</a>
-  2. <a href="#configure-image">Configure the Docker image</a>
-  3. <a href="#run-image">Run the image on different devices</a>
-  4. <a href="#run-samples">(Optional) Run samples in the Docker image</a>
+  1. <a href="#create-dockerfile">Create a Dockerfile</a>.
+  2. <a href="#configure-image">Configure the Docker image</a>.
+  3. <a href="#run-image">Run the image on different devices</a>.
+  4. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
 
 ## <a name="get-prebuilt-image"></a>Getting a Prebuilt Image from Provided Sources
 
@@ -172,7 +172,7 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 
 > **NOTE**: This option is not recommended, as conflicts with Kubernetes and other tools that use orchestration and private networks may occur. Please use it with caution and only for troubleshooting purposes.
 
-#### Known limitations
+#### Known Limitations
 
 - Intel® Neural Compute Stick 2 device changes its VendorID and DeviceID during execution and each time looks for a host system as a brand new device. It means it cannot be mounted as usual.
 - UDEV events are not forwarded to the container by default, and it does not know about the device reconnection. From the 2022.1 release, the prebuilt Docker images and provided Dockerfiles include `libusb` rebuilt without UDEV support.
@@ -200,7 +200,7 @@ docker run -it --rm --net=host -v /var/tmp:/var/tmp –-ipc=host <image_name>
 If that still does not solve the issue, try starting `hddldaemon` with the root user on host. However, this approach is not recommended. Please use with caution.
 
 
-## <a name="run-samples"></a>Running samples in Docker image
+## <a name="run-samples"></a>Running Samples in Docker Image
 
 To run the `Hello Classification Sample` on a specific inference device, run the following commands:
 
