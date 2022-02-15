@@ -338,8 +338,16 @@ void GNAConvolution::validate_and_infer_types() {
 }
 
 std::shared_ptr<ngraph::Node> GNAConvolution::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
-    return std::make_shared<GNAConvolution>(new_args.at(0),
+    if (new_args.size() == 2) {
+        return std::make_shared<GNAConvolution>(new_args.at(0),
+                                            new_args.at(1),
+                                            m_strides,
+                                            m_pads_begin,
+                                            m_pads_end,
+                                            m_dilations,
+                                            m_auto_pad);
+    } else if (new_args.size() == 3) {
+        return std::make_shared<GNAConvolution>(new_args.at(0),
                                             new_args.at(1),
                                             new_args.at(2),
                                             m_strides,
@@ -347,6 +355,9 @@ std::shared_ptr<ngraph::Node> GNAConvolution::clone_with_new_inputs(const ngraph
                                             m_pads_end,
                                             m_dilations,
                                             m_auto_pad);
+    }
+
+    throw ngraph::ngraph_error("Unsupported number of arguments for GNAConvolution operation");
 }
 } // namespace Op
 } // namespace GNAPluginNS

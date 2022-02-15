@@ -89,6 +89,8 @@
 #include <ops/gna_convolution.hpp>
 #include <legacy/ngraph_ops/convolution_ie.hpp>
 #include "transformations/transpose_sinking/transpose_sinking.hpp"
+#include "transformations/conv_bias_fusion.hpp"
+#include <ngraph/pass/constant_folding.hpp>
 
 #include "debug_use_new_pass.hpp"
 
@@ -731,6 +733,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             manager.register_pass<ConvertMatmulWithBiasToPointWiseConvolution>();
             manager.register_pass<ConvertMatmulToPointWiseConvolution>();
         }
+
         manager.register_pass<SplitConvolutionWithFq>();
         manager.register_pass<SplitConvolutionWithBias>();
         manager.register_pass<SplitConvolution>();
@@ -759,11 +762,16 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
         EMUTEX_DEBUG_SAVE_NGRAPH(manager, "after_transpose_sinking");
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        EMUTEX_DEBUG_SAVE_NGRAPH(manager, "before_conv_fusion");
+        manager.register_pass<ConvFusion>();
+        EMUTEX_DEBUG_SAVE_NGRAPH(manager, "after_conv_fusion");
 #endif // DEBUG_USE_NEW_PASS
 
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+
         manager.register_pass<RemoveExtraReshapes>();
         /*
           Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
