@@ -178,7 +178,7 @@ struct Function<ngraph::opset8::Log> {
 }; // struct Function<ngraph::opset8::Log>
 
 template<>
-struct Function<SoftSign> {
+struct Function<ov::intel_gna::op::SoftSign> {
     static const char* name() {
         return "softsign";
     }
@@ -206,7 +206,7 @@ struct Function<SoftSign> {
     static double max_value() {
         return 1;
     }
-}; // struct Function<SoftSign>
+}; // struct Function<ov::intel_gna::op::SoftSign>
 
 template<>
 struct Function<ngraph::op::PowerIE> {
@@ -263,7 +263,7 @@ double lower_bound() {
         std::is_same<T, ngraph::opset8::Exp>::value ||
         std::is_same<T, ngraph::opset8::Tanh>::value ||
         std::is_same<T, ngraph::opset8::Sigmoid>::value ||
-        std::is_same<T, SoftSign>::value>());
+        std::is_same<T, ov::intel_gna::op::SoftSign>::value>());
 }
 
 template<typename T>
@@ -302,7 +302,7 @@ double upper_bound() {
         std::is_same<T, ngraph::opset8::Power>::value ||
         std::is_same<T, ngraph::op::PowerIE>::value ||
         std::is_same<T, ngraph::opset8::Sigmoid>::value ||
-        std::is_same<T, SoftSign>::value>());
+        std::is_same<T, ov::intel_gna::op::SoftSign>::value>());
 }
 
 template<typename T>
@@ -324,7 +324,7 @@ const char* name() {
         std::is_same<T, ngraph::opset8::Power>::value ||
         std::is_same<T, ngraph::op::PowerIE>::value ||
         std::is_same<T, ngraph::opset8::Log>::value ||
-        std::is_same<T, SoftSign>::value>());
+        std::is_same<T, ov::intel_gna::op::SoftSign>::value>());
 }
 
 template<typename T>

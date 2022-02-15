@@ -145,14 +145,6 @@ class LayerInfo {
         if (isOfType("power")) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
             return powerLayer != nullptr && powerLayer->power != 1.0f;
-        } else {
-            std::shared_ptr<Pwl> pwl_node;
-            if (layer->getNode() && (pwl_node = std::dynamic_pointer_cast<Pwl>(layer->getNode()))) {
-                auto powerEI = std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node());
-                if (powerEI) {
-                    return powerEI->power != 1.0;
-                }
-            }
         }
 
         return activations.find(layer->type) != activations.end();
@@ -184,8 +176,8 @@ class LayerInfo {
         if (isOfType("power")) {
             return true;
         }
-        std::shared_ptr<Pwl> pwl_node;
-        if (!layer->getNode() || !(pwl_node = std::dynamic_pointer_cast<Pwl>(layer->getNode()))) {
+        std::shared_ptr<ov::intel_gna::op::Pwl> pwl_node;
+        if (!layer->getNode() || !(pwl_node = std::dynamic_pointer_cast<ov::intel_gna::op::Pwl>(layer->getNode()))) {
             return false;
         }
         return std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node()) ||

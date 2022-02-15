@@ -345,18 +345,18 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             double offset = 0;
             auto powerLayer = dynamic_cast<InferenceEngine::PowerLayer const*>(cnnLayer);
             if (!powerLayer) {
-                std::shared_ptr<Pwl> pwl_node;
+                std::shared_ptr<ov::intel_gna::op::Pwl> pwl_node;
                 if (!cnnLayer->getNode() ||
-                    !(pwl_node = std::dynamic_pointer_cast<Pwl>(cnnLayer->getNode()))) {
+                    !(pwl_node = std::dynamic_pointer_cast<ov::intel_gna::op::Pwl>(cnnLayer->getNode()))) {
                     IE_THROW() << "Incorrect Power Layer pointer \n";
                 } else {
-                    auto powerEI = std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node());
-                    if (!powerEI) {
+                    auto powerIE = std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node());
+                    if (!powerIE) {
                         IE_THROW() << "Incorrect Power Layer pointer \n";
                     } else {
-                        exponent = powerEI->power;
-                        scale = powerEI->scale;
-                        offset = powerEI->shift;
+                        exponent = powerIE->power;
+                        scale = powerIE->scale;
+                        offset = powerIE->shift;
                     }
                 }
             } else {

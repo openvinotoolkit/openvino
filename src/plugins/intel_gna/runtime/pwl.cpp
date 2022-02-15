@@ -42,16 +42,9 @@ void PwlDesignOpt(const DnnActivation& activation_type,
                     std::vector<gna_pwl_segment_t> &ptr_segment,
                     const float scale_in,
                     const float scale_out,
-                    const float pwlMaxErrorPercent,
                     const bool low_precision,
                     const std::shared_ptr<ngraph::Node>& node) {
     std::vector<pwl_t> pwl;
-    auto minInputStats = 0.0f;
-    auto maxInputStats = 0.0f;
-    if (activation_type.srcFQParams.set) {
-        minInputStats = std::min(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high) * 1.25f;
-        maxInputStats = std::max(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high) * 1.25f;
-    }
     switch (activation_type) {
         case kActPwl: {
             make_gna_pwl(node, scale_in, scale_out, low_precision, ptr_segment);

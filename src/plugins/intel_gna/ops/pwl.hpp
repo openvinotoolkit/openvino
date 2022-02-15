@@ -7,11 +7,13 @@
 #include "ngraph/node.hpp"
 #include "openvino/op/op.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace op {
 /// \brief PWL activation function
 class Pwl : public ov::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Pwl", "intel_gna", ov::op::Op);
 
     Pwl() = default;
     /// \brief Constructs a Pwl node.
@@ -28,7 +30,9 @@ public:
     void validate_and_infer_types() override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
+    bool evaluate(ov::TensorVector& outputs,
+                  const ov::TensorVector& inputs,
+                  const ov::EvaluationContext& evaluation_context) const override;
     bool has_evaluate() const override;
     void set_base_node(const std::shared_ptr<ngraph::Node>& base_node);
     std::shared_ptr<ngraph::Node> get_base_node();
@@ -78,5 +82,7 @@ private:
                   const ov::TensorVector& inputs) const;
 
     std::shared_ptr<ngraph::Node> m_base_node;
-}; // class OPENVINO_API Pwl
-}  // namespace GNAPluginNS
+}; // class Pwl
+} // namespace op
+} // namespace intel_gna
+} // namespace ov

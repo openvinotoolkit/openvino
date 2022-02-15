@@ -2013,7 +2013,6 @@ case name:\
                 ptr_pwl_segments,
                 input_pwl_scale_factor,
                 output_pwl_scale_factor,
-                gnaFlags->pwlMaxErrorPercent,
                 gnaFlags->input_low_precision,
                 layer->getNode());
         }

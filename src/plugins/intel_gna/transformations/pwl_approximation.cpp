@@ -45,7 +45,7 @@ bool split_search(double lower_bound, double upper_bound) {
     double break_bound = get_break_bound<T>();
     if (std::is_same<T, ngraph::opset8::Sigmoid>::value ||
         std::is_same<T, ngraph::opset8::Tanh>::value ||
-        std::is_same<T, SoftSign>::value ||
+        std::is_same<T, ov::intel_gna::op::SoftSign>::value ||
         std::is_same<T, ngraph::opset8::Exp>::value ||
         std::is_same<T, ngraph::opset8::Power>::value) {
         return lower_bound < break_bound && upper_bound > break_bound;
@@ -208,7 +208,7 @@ template<typename T>
 bool is_negative(const details::Function<T>& activation_function, double upper_bound) {
     if (std::is_same<T, ngraph::opset8::Sigmoid>::value ||
         std::is_same<T, ngraph::opset8::Tanh>::value ||
-        std::is_same<T, SoftSign>::value) {
+        std::is_same<T, ov::intel_gna::op::SoftSign>::value) {
         return upper_bound == 0;
     }
 
@@ -428,14 +428,14 @@ bool transform_to_pwl(
 
     auto m_constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::f64,
         ngraph::Shape{segments.size() - 1}, m);
-    m_constant->set_friendly_name("PWL slope");
+    m_constant->set_friendly_name(node->get_friendly_name() + "/pwl_slope");
     auto b_constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::f64,
         ngraph::Shape{segments.size() - 1}, b);
-    b_constant->set_friendly_name("PWL offset");
+    b_constant->set_friendly_name(node->get_friendly_name() + "/pwl_offset");
     auto alpha_constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::f64,
         ngraph::Shape{segments.size()}, alpha);
-    alpha_constant->set_friendly_name("PWL alpha");
-    auto pwl = std::make_shared<Pwl>(
+    alpha_constant->set_friendly_name(node->get_friendly_name() + "/pwl_alpha");
+    auto pwl = std::make_shared<ov::intel_gna::op::Pwl>(
         fake_quantize ? fake_quantize : node->input_value(0),
         m_constant, b_constant, alpha_constant);
     pwl->set_base_node(node);
@@ -491,7 +491,7 @@ static std::shared_ptr<ngraph::pattern::Matcher> create_matcher(ov::graph_rewrit
         ngraph::pattern::any_input(), ngraph::pattern::any_input() });
     auto powerIE = ngraph::pattern::wrap_type<ngraph::op::PowerIE>({activation_input});
     auto log = ngraph::pattern::wrap_type<ngraph::opset8::Log>({activation_input});
-    auto softsign = ngraph::pattern::wrap_type<SoftSign>({activation_input});
+    auto softsign = ngraph::pattern::wrap_type<ov::intel_gna::op::SoftSign>({activation_input});
     auto activation_function =
         std::make_shared<ngraph::pattern::op::Or>(ov::OutputVector{ sigmoid, tanh, exp, power, powerIE, log, softsign });
 
@@ -516,7 +516,7 @@ static std::shared_ptr<ngraph::pattern::Matcher> create_matcher(ov::graph_rewrit
                 ngraph::opset8::Power,
                 ngraph::op::PowerIE,
                 ngraph::opset8::Log,
-                SoftSign>(),
+                ov::intel_gna::op::SoftSign>(),
             fake_quantize_iter != pattern_to_output.end() ?
                 fake_quantize_iter->second.get_node_shared_ptr() : std::shared_ptr<ngraph::Node>(),
             iter->second.get_node_shared_ptr(),

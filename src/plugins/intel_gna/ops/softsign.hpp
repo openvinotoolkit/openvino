@@ -8,7 +8,9 @@
 #include "ngraph/node.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace op {
 /// \brief Neural Activation Function
 /// f(x) =  x/(1.0 + |x|)
 ///
@@ -27,4 +29,6 @@ public:
                   const ov::EvaluationContext & evaluation_context) const override;
     bool has_evaluate() const override;
 };
-}  // namespace GNAPluginNS
+} // namespace op
+} // namespace intel_gna
+} // namespace ov

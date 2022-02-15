@@ -8,8 +8,9 @@
 #include <cstddef>
 #include <iostream>
 
-namespace GNAPluginNS {
-namespace runtime {
+namespace ov {
+namespace intel_gna {
+namespace op {
 namespace reference {
 template <typename T, typename A>
 size_t range_search(const T& arg, const A* knots, size_t knots_number) {
@@ -50,6 +51,7 @@ void pwl(const T* args,
         out[i] = m[segment_index] * args[i] + b[segment_index];
     }
 }
-}  // namespace reference
-}  // namespace runtime
-}  // namespace GNAPluginNS
+} // namespace reference
+} // namespace op
+} // namespace intel_gna
+} // namespace ov

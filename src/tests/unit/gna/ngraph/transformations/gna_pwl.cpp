@@ -8,10 +8,6 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/serialize.hpp>
 #include <transformations/init_node_info.hpp>
 
 namespace pwl_test {
@@ -26,7 +22,7 @@ std::shared_ptr<ngraph::Function> CreateActivationFunction(const ngraph::Shape& 
 template<typename T>
 std::shared_ptr<ngraph::Function> CreateActivationFunction(const ngraph::Shape& input_shape, double exp) {
     auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
-    auto exponents = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {exp});
+    auto exponents = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {exp});
     auto f = std::make_shared<T>(input_params, exponents);
     auto result = std::make_shared<ngraph::opset8::Result>(f);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
@@ -91,8 +87,8 @@ TEST(GnaPwlTest, Exp) {
 
 TEST(GnaPwlTest, SoftSign) {
     RunTest(
-        pwl_test::CreateActivationFunction<GNAPluginNS::SoftSign>({1, 32}),
-        pwl_test::CreateActivationFunction<GNAPluginNS::SoftSign>({1, 32}),
+        pwl_test::CreateActivationFunction<ov::intel_gna::op::SoftSign>({1, 32}),
+        pwl_test::CreateActivationFunction<ov::intel_gna::op::SoftSign>({1, 32}),
         -10,
         10);
 }

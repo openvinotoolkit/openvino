@@ -143,32 +143,11 @@ void make_gna_pwl(const DnnActivation&  fun,
     pwl_gna_slope_scale_t s;
     const int16_t y_min = low_precision ? INT8_MIN : INT16_MIN;
     const int16_t y_max = low_precision ? INT8_MAX : INT16_MAX;
-    uint32_t pwl_size = static_cast<int32_t>(pwl.size());
     gnalog() << "make_gna_pwl\n";
     gnalog() << "   in_scale  " << in_scale << "\n";
     gnalog() << "   out_scale " << out_scale << "\n";
     print_segments_header(fun);
     switch (fun) {
-        case kActSoftSign: {
-            // insert extra segment for x values < l_bound
-            double min_y_val = fun.fqParams.set ? pwl[0].beta : -1.0;
-            double min_x_val = (-1.0 - pwl[0].b) / pwl[0].m;
-            double max_y_val = fun.fqParams.set ? pwl.back().beta : 1.0;
-            double max_x_val = fun.srcFQParams.set ? u_bound : (1.0 - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
-            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, true);
-            break;
-        }
-        case kActNegLog:
-        case kActNegHalfLog: {
-            double min_x_val = 1 + ~XBASEMASK;
-            double max_x_val = INT32_MAX / in_scale;
-            double min_y_val = y_max / out_scale;
-            double max_y_val = y_min / out_scale;
-            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, false);
-            break;
-        }
         case kActRelu:
         case kActLeakyRelu: {
             auto n_segments = 2;
@@ -347,7 +326,7 @@ void make_gna_pwl(const DnnActivation&  fun,
 }
 
 template<typename T>
-static T from_with_overflow_check(double v, bool round = true) {
+static T cast_check_overflow(double v, bool round = true) {
     if (v == std::numeric_limits<double>::infinity() || v > std::numeric_limits<T>::max()) {
         return std::numeric_limits<T>::max();
     }
@@ -365,6 +344,8 @@ static T from_with_overflow_check(double v, bool round = true) {
  * @param b - array of offset of a function
  * @param alpha - array x-the value of the beginning of a segments
  * @param count - number of PWL segments
+ * @param in_scale - input scale factor
+ * @param out_scale - output scale factor
  */
 template<typename T>
 static void make_gna_pwl(const T* m,
@@ -374,7 +355,7 @@ static void make_gna_pwl(const T* m,
                          double in_scale,
                          double out_scale,
                          std::vector<gna_pwl_segment_t> &gna_pwl) {
-    auto multiplication_with_overflow_check = [](double a, double b) -> double {
+    auto mul_check_overflow = [](double a, double b) -> double {
         if (a == 0 || b == 0) {
             return 0;
         }
@@ -395,7 +376,7 @@ static void make_gna_pwl(const T* m,
         return a * b;
     };
 
-    auto addition_with_overflow_check = [](double a, double b) -> double {
+    auto add_check_overflow = [](double a, double b) -> double {
         if ((a > 0 && b > 0 || a < 0 && b < 0) && std::fabs(a) > std::numeric_limits<double>::max() - std::fabs(b)) {
             return a > 0 && b > 0 ?
                 std::numeric_limits<double>::infinity() :
@@ -413,19 +394,19 @@ static void make_gna_pwl(const T* m,
     for (size_t i = 0; i < count; i++) {
         auto s = gna_slope(m[i], in_scale, out_scale);
         int32_t xbase =
-            (from_with_overflow_check<int32_t>(multiplication_with_overflow_check(in_scale, alpha[i]), false) & XBASEMASK) | s.slope_scale_index;
-        int16_t ybase = from_with_overflow_check<int16_t>(
-                multiplication_with_overflow_check(
-                    addition_with_overflow_check(
-                        multiplication_with_overflow_check(m[i], alpha[i]),
+            (cast_check_overflow<int32_t>(mul_check_overflow(in_scale, alpha[i]), false) & XBASEMASK) | s.slope_scale_index;
+        int16_t ybase = cast_check_overflow<int16_t>(
+                mul_check_overflow(
+                    add_check_overflow(
+                        mul_check_overflow(m[i], alpha[i]),
                         b[i]),
                     out_scale));
-        int16_t slope = from_with_overflow_check<int16_t>(multiplication_with_overflow_check(s.slope, s.slope_scale));
+        int16_t slope = cast_check_overflow<int16_t>(mul_check_overflow(s.slope, s.slope_scale));
         gna_pwl.push_back({xbase, ybase, slope});
         print_segment(
             alpha[i],
-                addition_with_overflow_check(
-                    multiplication_with_overflow_check(m[i], alpha[i]),
+                add_check_overflow(
+                    mul_check_overflow(m[i], alpha[i]),
                     b[i]),
             m[i]);
     }

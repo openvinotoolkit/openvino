@@ -7,9 +7,9 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "reference/pwl.hpp"
 
-NGRAPH_RTTI_DEFINITION(GNAPluginNS::Pwl, "Pwl", 0);
-
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace op {
 
 Pwl::Pwl(const ngraph::Output<ngraph::Node>& data,
          const ngraph::Output<ngraph::Node>& m,
@@ -37,18 +37,19 @@ bool Pwl::evaluate(ov::TensorVector& outputs,
                    const ov::TensorVector& inputs) const {
     using A1 = typename ov::element_type_traits<T1::value>::value_type;
     using A2 = typename ov::element_type_traits<T2::value>::value_type;
-    GNAPluginNS::runtime::reference::pwl(inputs[0].data<A2>(),
-                                         outputs[0].data<A2>(),
-                                         shape_size(get_input_shape(0)),
-                                         inputs[1].data<A1>(),
-                                         inputs[2].data<A1>(),
-                                         inputs[3].data<A1>(),
-                                         shape_size(get_input_shape(1)));
+    ov::intel_gna::op::reference::pwl(inputs[0].data<A2>(),
+                                      outputs[0].data<A2>(),
+                                      shape_size(get_input_shape(0)),
+                                      inputs[1].data<A1>(),
+                                      inputs[2].data<A1>(),
+                                      inputs[3].data<A1>(),
+                                      shape_size(get_input_shape(1)));
     return true;
 }
 
 bool Pwl::evaluate(ov::TensorVector& outputs,
-                   const ov::TensorVector& inputs) const {
+                   const ov::TensorVector& inputs,
+                   const ov::EvaluationContext& evaluation_context) const {
     return evaluate_pwl(std::tuple<std::integral_constant<ov::element::Type_t, ov::element::f32>,
                                    std::integral_constant<ov::element::Type_t, ov::element::f64>>(),
                         std::tuple<std::integral_constant<ov::element::Type_t, ov::element::i32>,
@@ -85,4 +86,6 @@ std::shared_ptr<ngraph::Node> Pwl::get_base_node() {
     return m_base_node;
 }
 
-} // namespace GNAPluginNS
+} // namespace op
+} // namespace intel_gna
+} // namespace ov
