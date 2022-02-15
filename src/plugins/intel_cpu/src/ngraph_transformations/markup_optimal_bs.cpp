@@ -26,7 +26,7 @@ size_t get_hueristic_optimal_batch(const std::shared_ptr<ov::Node>& node) {
     //                             "SECOND_COMPONENT",
     //                             ""
     //};
-    std::set<std::string> batch2{""};
+    std::set<std::string> batch2{"resnet_model/conv2d_6/Conv2D",};
 
     std::set<std::string> batch1{"resnet_model/conv2d_5/Conv2D",
                                 "resnet_model/conv2d_9/Conv2D"};

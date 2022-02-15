@@ -26,48 +26,6 @@ void serialize(const std::shared_ptr<ngraph::Function> func, std::string name) {
     ngraph::pass::Serialize(path + ".xml", path + ".bin").run_on_function(func);
 }
 
-void fillCandidatesOutsToConcatenateFromOriginalFunc(const std::shared_ptr<ngraph::Function>& main_function,
-                                     const NodeMap& cloned_nodes,
-                                     std::map<Output<Node>, OutputVector>& candidates_to_concatenate,
-                                     const size_t num_splits) {
-    for (const auto& node : main_function->get_ops()) {
-        if (ov::is_type<opset1::Parameter>(node) || ov::is_type<opset1::Constant>(node))
-            continue;
-
-        auto outputs = node->outputs();
-        for (const auto& output : outputs) {
-            auto target_inputs = output.get_target_inputs();
-            if (std::any_of(target_inputs.begin(), target_inputs.end(), [&](const ov::Input<Node>& input) {
-                    return cloned_nodes.count(input.get_node()) == 0;
-                })) {
-                candidates_to_concatenate[output] = OutputVector(num_splits);
-                break;
-            }
-        }
-    }
-}
-
-std::map<Output<Node>, OutputVector> createConcatenateMap(const OutputVector& original_outputs, const size_t num_splits) {
-    std::map<Output<Node>, OutputVector> res;
-    for (const auto& original_out : original_outputs) {
-        res[original_out] = OutputVector(num_splits);
-    }
-    return res;
-}
-
-void addCurOutToConcatenateMap(const NodeMap& cloned_nodes,
-                         std::map<Output<Node>, OutputVector>& concatenate_map,
-                         const size_t idx) {
-    for (auto& elem : concatenate_map) {
-        const auto& orig_out = elem.first;
-        const auto& candidate = cloned_nodes.find(orig_out.get_node());
-        // TODO: exception if not found
-
-        auto cloned_out = (*candidate).second->output(orig_out.get_index());
-        elem.second[idx] = cloned_out;
-    }
-}
-
 void setBatch(const std::shared_ptr<ngraph::Function> func, size_t batch) {
     for (auto&& param : func->get_parameters()) {
         auto param_shape = param->get_partial_shape();
@@ -94,7 +52,8 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
     start_splits.reserve(starts.size());
     main_params.reserve(starts.size());
 
-    // insert split by batch in the original function and create parameters to extract graph component from original function
+    // insert split by batch in the original function and
+    // create parameters to extract graph component from original function
     for (const auto& start : starts) {
         // TODO: in general, batch could be nonzero dimension
         const size_t axis_value = 0;
@@ -115,7 +74,6 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
 
     // create a function from a graph component
     const auto subgraph = std::make_shared<ngraph::Function>(result_vec, main_params);
-    serialize(subgraph, "main_func");
     NodeMap constants;
     if (share_constants) {
         for (const auto& op : subgraph->get_ordered_ops()) {
@@ -125,14 +83,16 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         }
     }
 
-    // [original end] = (splitted_end_to_concatenate_1, ..., splitted_end_to_concatenate_n)
-    auto concatenate_map = createConcatenateMap(result_vec, num_splits);
+    // map to match the old output and new outputs with optimal batch from the subgraph
+    std::map<Output<Node>, OutputVector> concatenate_map;
+    for (const auto& original_out : result_vec) {
+        concatenate_map[original_out] = OutputVector(num_splits);
+    }
 
     for (size_t batch_idx = 0; batch_idx < num_splits; ++batch_idx) {
         auto cloned_nodes = constants;
         const auto subgraph_with_opt_batch = ngraph::clone_function(*subgraph, cloned_nodes);
         setBatch(subgraph_with_opt_batch, optimal_bs);
-        serialize(subgraph_with_opt_batch, "cur_func");
 
         // starts processing
         for (size_t start_idx = 0; start_idx < start_splits.size(); ++start_idx) {
@@ -143,26 +103,21 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         // ends processing
         for (auto& elem : concatenate_map) {
             const auto& orig_out = elem.first;
-            const auto& candidate = cloned_nodes.find(orig_out.get_node());
+            const auto& clone_with_opt_batch = cloned_nodes.find(orig_out.get_node());
             // TODO: exception if not found
 
-            auto cloned_out = (*candidate).second->output(orig_out.get_index());
-            elem.second[batch_idx] = cloned_out;
+            elem.second[batch_idx] = clone_with_opt_batch->second->output(orig_out.get_index());
         }
-
-        //addCurOutToConcatenateMap(cloned_nodes, concatenate_map, batch_idx);
     }
 
     // concatenate per-batch graphs
     for (const auto& elem : concatenate_map) {
         // TODO: batch dimension could be non-zero
         const size_t concat_axis = 0;
-
         const auto concat = std::make_shared<ngraph::opset1::Concat>(elem.second, concat_axis);
         replace_output_update_name(elem.first, concat->output(0));
         copy_runtime_info(elem.first.get_node_shared_ptr(), concat);
     }
-    serialize(orig_f, "orig_after");
     return true;
 }
 
@@ -203,33 +158,27 @@ bool MKLDNNPlugin::SwitchAffinity::run_on_function(std::shared_ptr<ngraph::Funct
             continue;
 
         const size_t opt_bs = get_optimal_bs(node);
-        const auto inputs = node->inputs();
-        for (const auto& input : inputs) {
-            const auto input_node = input.get_source_output().get_node_shared_ptr();
-            if (ov::is_type<ngraph::opset1::Constant>(input_node))
-                continue;
+        if (opt_bs == 0)
+            continue;
 
-            if (!optimal_bs_is_equal(input_node, opt_bs)) {
+        for (const auto& input : node->inputs()) {
+            const auto node = input.get_source_output().get_node_shared_ptr();
+
+            if (!ov::is_type<ngraph::opset1::Constant>(node) && !optimal_bs_is_equal(node, opt_bs))
                 add_start(input, opt_bs);
-            }
         }
 
         for (const auto& output : node->outputs()) {
             for (const auto& target_input : output.get_target_inputs()) {
-                const auto target_input_node = target_input.get_node()->shared_from_this();
-                if (ov::is_type<ngraph::opset1::Constant>(target_input_node))
-                    continue;
+                const auto node = target_input.get_node()->shared_from_this();
 
-                if (!optimal_bs_is_equal(target_input_node, opt_bs)) {
+                if (!ov::is_type<ngraph::opset1::Constant>(node) && !optimal_bs_is_equal(node, opt_bs))
                     add_end(output, opt_bs);
-                }
             }
         }
     }
 
     for (const auto& subgraph : subgraphs) {
-        if (subgraph.first == 0 || subgraph.first == 2)
-            continue;
         std::cout << "SUBGRAPH" << std::endl;
         std::cout << "Batch size: " << subgraph.first << std::endl;
         std::cout << "Starts: " << std::endl;
@@ -244,15 +193,6 @@ bool MKLDNNPlugin::SwitchAffinity::run_on_function(std::shared_ptr<ngraph::Funct
         switchToImageAffinity(subgraph.second.starts, subgraph.second.ends, subgraph.first, share_constants, f);
     }
 
-    //for (const auto& node : f->get_ordered_ops()) {
-    //    if (MKLDNNPlugin::has_graph_component(node)) {
-    //        const auto graph_component = MKLDNNPlugin::get_graph_component(node);
-    //        if (switched_subgraphs.count(graph_component) == 0) {
-    //            rewritten |= switchToImageAffinity(graph_component->get_starts(), graph_component->get_ends(), share_constants);
-    //            switched_subgraphs.insert(graph_component);
-    //        }
-    //    }
-    //}
     return rewritten;
 }
 
