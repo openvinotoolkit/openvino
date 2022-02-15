@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,15 @@ using namespace ov;
 namespace {
 struct GatherNDParams {
     GatherNDParams(
-        const Tensor& dataTensor, const Tensor& indicesTensor, int64_t batchDims,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& indicesTensor, int64_t batchDims,
+        const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
         dataTensor(dataTensor), indicesTensor(indicesTensor), batchDims(batchDims),
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor indicesTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor indicesTensor;
     int32_t batchDims;
-    Tensor expectedTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -79,102 +79,102 @@ std::vector<GatherNDParams> generateParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<GatherNDParams> params {
         GatherNDParams(
-            Tensor(IN_ET, {3, 3}, std::vector<T>{10, 11, 12, 13, 14, 15, 16, 17, 18}),
-            Tensor(element::i32, {2}, std::vector<int32_t>{1, 2}),
+            reference_tests::Tensor(IN_ET, {3, 3}, std::vector<T>{10, 11, 12, 13, 14, 15, 16, 17, 18}),
+            reference_tests::Tensor(element::i32, {2}, std::vector<int32_t>{1, 2}),
             0,
-            Tensor(IN_ET, {}, std::vector<T>{15}),
+            reference_tests::Tensor(IN_ET, {}, std::vector<T>{15}),
             "gather_nd_single_indices"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
-            Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 0, 1, 1}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
+            reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 0, 1, 1}),
             0,
-            Tensor(IN_ET, {2}, std::vector<T>{10, 13}),
+            reference_tests::Tensor(IN_ET, {2}, std::vector<T>{10, 13}),
             "gather_nd_scalar_from_2d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
-            Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
+            reference_tests::Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
             0,
-            Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 10, 11}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 10, 11}),
             "gather_nd_1d_from_2d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-            Tensor(element::i32, {2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1}),
+            reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+            reference_tests::Tensor(element::i32, {2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1}),
             0,
-            Tensor(IN_ET, {2}, std::vector<T>{11, 21}),
+            reference_tests::Tensor(IN_ET, {2}, std::vector<T>{11, 21}),
             "gather_nd_scalar_from_3d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-            Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 1, 0}),
+            reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+            reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 1, 0}),
             0,
-            Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 20, 21}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 20, 21}),
             "gather_nd_1d_from_3d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-            Tensor(element::i32, {1, 1}, std::vector<int32_t>{1}),
+            reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+            reference_tests::Tensor(element::i32, {1, 1}, std::vector<int32_t>{1}),
             0,
-            Tensor(IN_ET, {1, 2, 2}, std::vector<T>{20, 21, 22, 23}),
+            reference_tests::Tensor(IN_ET, {1, 2, 2}, std::vector<T>{20, 21, 22, 23}),
             "gather_nd_2d_from_3d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
-            Tensor(element::i32, {2, 1, 2}, std::vector<int32_t>{0, 0, 0, 1}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
+            reference_tests::Tensor(element::i32, {2, 1, 2}, std::vector<int32_t>{0, 0, 0, 1}),
             0,
-            Tensor(IN_ET, {2, 1}, std::vector<T>{10, 11}),
+            reference_tests::Tensor(IN_ET, {2, 1}, std::vector<T>{10, 11}),
             "gather_nd_batch_scalar_from_2d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
-            Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
+            reference_tests::Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
             0,
-            Tensor(IN_ET, {2, 1, 2}, std::vector<T>{12, 13, 10, 11}),
+            reference_tests::Tensor(IN_ET, {2, 1, 2}, std::vector<T>{12, 13, 10, 11}),
             "gather_nd_batch_1d_from_2d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-            Tensor(element::i32, {2, 2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0}),
+            reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+            reference_tests::Tensor(element::i32, {2, 2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0}),
             0,
-            Tensor(IN_ET, {2, 2}, std::vector<T>{11, 21, 13, 22}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{11, 21, 13, 22}),
             "gather_nd_batch_scalar_from_3d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-            Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, 1, 1, 0, 0, 0, 1, 1}),
+            reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+            reference_tests::Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, 1, 1, 0, 0, 0, 1, 1}),
             0,
-            Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
+            reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
             "gather_nd_batch_1d_from_3d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-            Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, -1, -1, 0, 0, 0, 1, 1}),
+            reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+            reference_tests::Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, -1, -1, 0, 0, 0, 1, 1}),
             0,
-            Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
+            reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
             "gather_nd_batch_1d_from_3d_negative"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-            Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
+            reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+            reference_tests::Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
             0,
-            Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{20, 21, 22, 23, 10, 11, 12, 13}),
+            reference_tests::Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{20, 21, 22, 23, 10, 11, 12, 13}),
             "gather_nd_batch_2d_from_3d"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                     13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-            Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
+            reference_tests::Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
             1,
-            Tensor(IN_ET, {2, 4}, std::vector<T>{5, 6, 7, 8, 13, 14, 15, 16}),
+            reference_tests::Tensor(IN_ET, {2, 4}, std::vector<T>{5, 6, 7, 8, 13, 14, 15, 16}),
             "gather_nd_batch_dims1"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 3, 4, 2}, std::vector<T>{
+            reference_tests::Tensor(IN_ET, {2, 3, 4, 2}, std::vector<T>{
                 1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
                 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
                 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48}),
-            Tensor(element::i32, {2, 3, 3, 2}, std::vector<int32_t>{
+            reference_tests::Tensor(element::i32, {2, 3, 3, 2}, std::vector<int32_t>{
                 1, 0, 3, 1, 2, 1, 0, 1, 1, 1, 2, 0, 3, 0, 3, 1, 2, 1,
                 2, 0, 1, 1, 3, 1, 1, 1, 2, 0, 2, 0, 0, 0, 3, 1, 3, 1}),
             2,
-            Tensor(IN_ET, {6, 3}, std::vector<T>{
+            reference_tests::Tensor(IN_ET, {6, 3}, std::vector<T>{
                 3, 8, 6, 10, 12, 13, 23, 24, 22, 29, 28, 32, 36, 37, 37, 41, 48, 48}),
             "gather_nd_batch_dims2"),
         GatherNDParams(
-            Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                     13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-            Tensor(element::i32, {2, 3, 1, 1}, std::vector<int32_t>{1, 0, 2, 0, 2, 2}),
+            reference_tests::Tensor(element::i32, {2, 3, 1, 1}, std::vector<int32_t>{1, 0, 2, 0, 2, 2}),
             2,
-            Tensor(IN_ET, {6, 1}, std::vector<T>{2, 5, 11, 13, 19, 23}),
+            reference_tests::Tensor(IN_ET, {6, 1}, std::vector<T>{2, 5, 11, 13, 19, 23}),
             "gather_nd_batch_dims2_lead_dims"),
     };
     return params;
@@ -261,105 +261,105 @@ std::vector<GatherNDParams> generateParams_v8() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<GatherNDParams> params {
             GatherNDParams(
-                    Tensor(IN_ET, {3, 3}, std::vector<T>{10, 11, 12, 13, 14, 15, 16, 17, 18}),
-                    Tensor(element::i32, {2}, std::vector<int32_t>{1, 2}),
+                    reference_tests::Tensor(IN_ET, {3, 3}, std::vector<T>{10, 11, 12, 13, 14, 15, 16, 17, 18}),
+                    reference_tests::Tensor(element::i32, {2}, std::vector<int32_t>{1, 2}),
                     0,
-                    Tensor(IN_ET, {}, std::vector<T>{15}),
+                    reference_tests::Tensor(IN_ET, {}, std::vector<T>{15}),
                     "gather_nd_8_single_indices"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
-                    Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 0, 1, 1}),
+                    reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
+                    reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 0, 1, 1}),
                     0,
-                    Tensor(IN_ET, {2}, std::vector<T>{10, 13}),
+                    reference_tests::Tensor(IN_ET, {2}, std::vector<T>{10, 13}),
                     "gather_nd_8_scalar_from_2d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
-                    Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
+                    reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
+                    reference_tests::Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
                     0,
-                    Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 10, 11}),
+                    reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 10, 11}),
                     "gather_nd_8_1d_from_2d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-                    Tensor(element::i32, {2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1}),
+                    reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+                    reference_tests::Tensor(element::i32, {2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1}),
                     0,
-                    Tensor(IN_ET, {2}, std::vector<T>{11, 21}),
+                    reference_tests::Tensor(IN_ET, {2}, std::vector<T>{11, 21}),
                     "gather_nd_8_scalar_from_3d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-                    Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 1, 0}),
+                    reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+                    reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 1, 0}),
                     0,
-                    Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 20, 21}),
+                    reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 20, 21}),
                     "gather_nd_8_1d_from_3d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-                    Tensor(element::i32, {1, 1}, std::vector<int32_t>{1}),
+                    reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+                    reference_tests::Tensor(element::i32, {1, 1}, std::vector<int32_t>{1}),
                     0,
-                    Tensor(IN_ET, {1, 2, 2}, std::vector<T>{20, 21, 22, 23}),
+                    reference_tests::Tensor(IN_ET, {1, 2, 2}, std::vector<T>{20, 21, 22, 23}),
                     "gather_nd_8_2d_from_3d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
-                    Tensor(element::i32, {2, 1, 2}, std::vector<int32_t>{0, 0, 0, 1}),
+                    reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
+                    reference_tests::Tensor(element::i32, {2, 1, 2}, std::vector<int32_t>{0, 0, 0, 1}),
                     0,
-                    Tensor(IN_ET, {2, 1}, std::vector<T>{10, 11}),
+                    reference_tests::Tensor(IN_ET, {2, 1}, std::vector<T>{10, 11}),
                     "gather_nd_8_batch_scalar_from_2d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
-                    Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
+                    reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
+                    reference_tests::Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
                     0,
-                    Tensor(IN_ET, {2, 1, 2}, std::vector<T>{12, 13, 10, 11}),
+                    reference_tests::Tensor(IN_ET, {2, 1, 2}, std::vector<T>{12, 13, 10, 11}),
                     "gather_nd_8_batch_1d_from_2d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-                    Tensor(element::i32, {2, 2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0}),
+                    reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+                    reference_tests::Tensor(element::i32, {2, 2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0}),
                     0,
-                    Tensor(IN_ET, {2, 2}, std::vector<T>{11, 21, 13, 22}),
+                    reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{11, 21, 13, 22}),
                     "gather_nd_8_batch_scalar_from_3d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-                    Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, 1, 1, 0, 0, 0, 1, 1}),
+                    reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+                    reference_tests::Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, 1, 1, 0, 0, 0, 1, 1}),
                     0,
-                    Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
+                    reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
                     "gather_nd_8_batch_1d_from_3d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-                    Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, -1, -1, 0, 0, 0, 1, 1}),
+                    reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+                    reference_tests::Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, -1, -1, 0, 0, 0, 1, 1}),
                     0,
-                    Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
+                    reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
                     "gather_nd_8_batch_1d_from_3d_negative"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
-                    Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
+                    reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
+                    reference_tests::Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
                     0,
-                    Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{20, 21, 22, 23, 10, 11, 12, 13}),
+                    reference_tests::Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{20, 21, 22, 23, 10, 11, 12, 13}),
                     "gather_nd_8_batch_2d_from_3d"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                    reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                             13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                    Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
+                    reference_tests::Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
                     1,
-                    Tensor(IN_ET, {2, 4}, std::vector<T>{5, 6, 7, 8, 13, 14, 15, 16}),
+                    reference_tests::Tensor(IN_ET, {2, 4}, std::vector<T>{5, 6, 7, 8, 13, 14, 15, 16}),
                     "gather_nd_8_batch_dims1"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 3, 4, 2}, std::vector<T>{
+                    reference_tests::Tensor(IN_ET, {2, 3, 4, 2}, std::vector<T>{
                             1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
                             17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
                             33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48}),
-                    Tensor(element::i32, {2, 3, 3, 2}, std::vector<int32_t>{
+                    reference_tests::Tensor(element::i32, {2, 3, 3, 2}, std::vector<int32_t>{
                             1, 0, 3, 1, 2, 1, 0, 1, 1, 1, 2, 0, 3, 0, 3, 1, 2, 1,
                             2, 0, 1, 1, 3, 1, 1, 1, 2, 0, 2, 0, 0, 0, 3, 1, 3, 1}),
                     2,
-                    Tensor(IN_ET, {2, 3, 3}, std::vector<T>{
+                    reference_tests::Tensor(IN_ET, {2, 3, 3}, std::vector<T>{
                             3, 8, 6, 10, 12, 13, 23, 24, 22, 29, 28, 32, 36, 37, 37, 41, 48, 48}),
                     "gather_8_nd_batch_dims2"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                    reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                             13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                    Tensor(element::i32, {2, 3, 1, 1}, std::vector<int32_t>{1, 0, 2, 0, 2, 2}),
+                    reference_tests::Tensor(element::i32, {2, 3, 1, 1}, std::vector<int32_t>{1, 0, 2, 0, 2, 2}),
                     2,
-                    Tensor(IN_ET, {2, 3, 1}, std::vector<T>{2, 5, 11, 13, 19, 23}),
+                    reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{2, 5, 11, 13, 19, 23}),
                     "gather_8_nd_batch_dims2_lead_dims"),
             GatherNDParams(
-                    Tensor(IN_ET, {2, 3, 4, 5}, std::vector<T>{
+                    reference_tests::Tensor(IN_ET, {2, 3, 4, 5}, std::vector<T>{
                             1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
                             17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
                             33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
@@ -368,10 +368,10 @@ std::vector<GatherNDParams> generateParams_v8() {
                             81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96,
                             97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
                             111, 112, 113, 114, 115, 116, 117, 118, 119, 120}),
-                    Tensor(element::i32, {2, 3, 2, 1}, std::vector<int32_t>{
+                    reference_tests::Tensor(element::i32, {2, 3, 2, 1}, std::vector<int32_t>{
                             1, 0, 2, 0, 2, 0, 1, 0, 2, 0, 2, 0}),
                     2,
-                    Tensor(IN_ET, {2, 3, 2, 5}, std::vector<T>{
+                    reference_tests::Tensor(IN_ET, {2, 3, 2, 5}, std::vector<T>{
                             6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 31, 32, 33, 34, 35, 21, 22, 23,
                             24, 25, 51, 52, 53, 54, 55, 41, 42, 43, 44, 45, 66, 67, 68, 69,
                             70, 61, 62, 63, 64, 65, 91, 92, 93, 94, 95, 81, 82, 83, 84, 85,

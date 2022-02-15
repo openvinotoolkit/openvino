@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -157,15 +157,6 @@ struct eltwise : public primitive_base<eltwise> {
         if (mode != eltwise_mode::sum && !coefficients.empty()) {
             throw std::invalid_argument("Only eltwise sum operation supports blob-wise coefficients");
         }
-    }
-
-    bool needs_onednn_sum_post_op(layout input_layout) const {
-        if (mode == eltwise_mode::sum &&
-            (input_layout.size.spatial[0] > 1 || input_layout.size.spatial[1] > 1 || input_layout.size.batch[0] > 1)) {
-            return true;
-        }
-
-        return false;
     }
 
     /// @param mode Eltwise mode.

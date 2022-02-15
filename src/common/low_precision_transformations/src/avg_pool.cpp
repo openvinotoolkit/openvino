@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,9 +38,9 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
+    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
     const bool updatePrecision = isPrecisionPreserved(pooling);
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), updatePrecision);
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions), updatePrecision);
     return true;
 }
 
@@ -49,7 +49,7 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    auto dequantization = NetworkHelper::getDequantization(operation);
+    auto dequantization = NetworkHelper::getDequantization(operation, defaultPrecisions);
 
     return !dequantization.empty();
 }

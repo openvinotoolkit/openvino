@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,8 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const auto split = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    const auto dequantization = NetworkHelper::getDequantization(split);
+    const auto split = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const auto dequantization = NetworkHelper::getDequantization(split, defaultPrecisions);
 
     OutputVector inputs = split->input_values();
     inputs[0] = dequantization.data;
@@ -153,7 +153,7 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 }
 
 bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer).empty()) {
+    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) {
         return false;
     }
 

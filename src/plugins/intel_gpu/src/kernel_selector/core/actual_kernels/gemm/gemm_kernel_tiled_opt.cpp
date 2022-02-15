@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,17 +60,14 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
     auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
     tuning_data.simd_size = 8;
 
-    if (n_size >= 8) {
-        tuning_data.tile_n_size = tuning_data.simd_size;
-
-        while (tuning_data.tile_n_size < 64 && n_size / (tuning_data.tile_n_size * 2) >= 1) {
-            tuning_data.tile_n_size *= 2;
-        }
+    tuning_data.tile_n_size = tuning_data.simd_size;
+    while (tuning_data.tile_n_size < 64 && n_size / (tuning_data.tile_n_size * 2) >= 1) {
+        tuning_data.tile_n_size *= 2;
     }
 
     // tuning_data.tile_k_size must be the same as simd_size when k % tile_k != 0
     tuning_data.tile_k_size = tuning_data.simd_size;
-    tuning_data.tile_m_size = 8;
+    tuning_data.tile_m_size = tuning_data.simd_size;
 
     bool leftovers = m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
 
@@ -78,7 +75,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.simd_size = 16;
         tuning_data.tile_n_size = tuning_data.simd_size;
         tuning_data.tile_k_size = tuning_data.simd_size;
-        tuning_data.tile_m_size = 16;
+        tuning_data.tile_m_size = tuning_data.simd_size;
     }
 
     return tuning_data;

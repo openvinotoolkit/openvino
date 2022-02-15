@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ public:
                       "Use 'cmake -DENABLE_GAPI_PREPROCESSING=ON ...'";
 #   endif // ENABLE_GAPI_PREPROCESSING
 #else
-        ov::util::FilePath libraryName = ov::util::to_file_path(std::string("inference_engine_preproc") + std::string(IE_BUILD_POSTFIX));
+        ov::util::FilePath libraryName = ov::util::to_file_path(std::string("openvino_gapi_preproc") + std::string(IE_BUILD_POSTFIX));
         ov::util::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
         if (!FileUtils::fileExist(preprocLibraryPath)) {

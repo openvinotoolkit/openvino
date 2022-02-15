@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,5 +30,19 @@ protected:
                  FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE };
     }
+
+    struct FullyConnectedTuningData {
+        const size_t pack_size = 4;
+        size_t sub_group_size = 8;
+        size_t tile_ofm = 1;
+        size_t tile_batch = 1;
+        size_t slm_div_factor = 1;
+        size_t work_group_size = 1;
+        size_t in_f_blocks_number;
+        size_t work_groups_number;
+    };
+
+    FullyConnectedTuningData GetTuningParams(const fully_connected_params& params) const;
+    float EstimateOccupancy(const fully_connected_params& params, size_t tile_ofm, size_t tile_batch, size_t slm_div_factor = 1) const;
 };
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,7 +119,7 @@ public:
 
 TEST_P(StridedSliceTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -134,6 +134,17 @@ StridedSliceTransformationTestValues::LayerParams channelSlice = {
     {}, // newAxisMask
     {}, // shrinkAxisMask
     {} // elipsisMask
+};
+
+StridedSliceTransformationTestValues::LayerParams channelSlice2D = {
+    {0, 0},  // begin
+    {0, 2},  // end
+    {1, 1},  // strided
+    {1, 0},  // beginMask
+    {1, 0},  // endMask
+    {0, 0},  // newAxisMask
+    {0, 0},  // shrinkAxisMask
+    {0, 0}   // elipsisMask
 };
 
 StridedSliceTransformationTestValues::LayerParams spatialDimensionSlice = {
@@ -183,7 +194,7 @@ StridedSliceTransformationTestValues::LayerParams sliceWithAdditionalAxis = {
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> inputShapes = {
     {1, 3, 24, 24},
-    {Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}
+    {-1, -1, -1, -1}
 };
 
 const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformationTestValues = {
@@ -221,6 +232,21 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
     {
         LayerTransformation::createParamsU8I8(),
         channelSlice,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{ 128.f, 64.f }}, {{ 0.1f, 0.01f }}}
+        }
+    },
+    // U8: channel slice, per-channel quantization with different values
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice2D,
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
@@ -504,7 +530,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> inputShapes = {
-    { Dimension::dynamic(), Dimension::dynamic(), 4, Dimension::dynamic() },
+    { -1, -1, -1, -1 },
     { 1, 3, 4, 4 }
 };
 
@@ -545,7 +571,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues3 {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
-    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
     PartialShape::dynamic()
 };
 

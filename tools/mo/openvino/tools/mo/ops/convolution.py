@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -7,7 +7,6 @@ import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mark_input_bins, assign_dims_to_weights, \
     tf_window_op_pad_infer, dynamic_dimension_value, shape_array, is_fully_defined, undefined_shape_of_rank
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
@@ -115,8 +114,12 @@ class Convolution(Op):
                     'group') and node.has_valid('kernel_spatial')):
                 log.error('Cannot reshape kernel due to not all required attrs was set to {} node'.format(node.id))
                 return
+
+            # since item() unmasks values, result should be masked back
+            num_in_channels = shape_array(input_shape[node.channel_dims].item())
+
             # layout for Convolution weights is OIHW
-            kernel_shape = shape_array([node.output, input_shape[node.channel_dims].item() / node.group,
+            kernel_shape = shape_array([node.output, num_in_channels / node.group,
                                        *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]])
             if node.type == 'Deconvolution':  # layout for Deconvolution weights is IOHW
                 kernel_shape[[0, 1]] = kernel_shape[[1, 0]]

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ public:
         size_t simd_size = 8;
         size_t tile_m_size = 1;
         size_t tile_k_size = 1;
-        size_t tile_n_size = 1;
+        size_t tile_n_size = 8;
     };
 
     GemmKernelTiledOpt() : GemmKernelBase("gemm_tiled_opt") {}

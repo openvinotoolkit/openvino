@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,17 +13,19 @@ namespace test {
 std::string OVRemoteTest::getTestCaseName(testing::TestParamInfo<RemoteTensorParams> obj) {
     ov::element::Type element_type;
     std::string target_device;
-    runtime::ConfigMap config;
-    std::pair<runtime::ParamMap, runtime::ParamMap> param_pair;
+    ov::AnyMap config;
+    std::pair<ov::AnyMap, ov::AnyMap> param_pair;
     std::tie(element_type, target_device, config, param_pair) = obj.param;
-    runtime::ParamMap context_parameters;
-    runtime::ParamMap tensor_parameters;
+    ov::AnyMap context_parameters;
+    ov::AnyMap tensor_parameters;
     std::tie(context_parameters, tensor_parameters) = param_pair;
     std::ostringstream result;
     result << "element_type=" << element_type;
     result << "targetDevice=" << target_device;
     for (auto& configItem : config) {
-        result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+        result << "configItem=" << configItem.first << "_";
+        configItem.second.print(result);
+        result << "_";
     }
     result << "__context_parameters=";
     for (auto& param : context_parameters) {
@@ -40,7 +42,7 @@ std::string OVRemoteTest::getTestCaseName(testing::TestParamInfo<RemoteTensorPar
 
 void OVRemoteTest::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::pair<runtime::ParamMap, runtime::ParamMap> param_pair;
+    std::pair<ov::AnyMap, ov::AnyMap> param_pair;
     std::tie(element_type, target_device, config, param_pair) = GetParam();
     std::tie(context_parameters, tensor_parameters) = param_pair;
     function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, element_type);
@@ -59,7 +61,7 @@ TEST_P(OVRemoteTest, canCreateRemote) {
         ? core.get_default_context(target_device)
         : core.create_context(target_device, context_parameters);
 
-    runtime::ParamMap params;
+    ov::AnyMap params;
     std::string device;
 
     ASSERT_NO_THROW(params = context.get_params());
@@ -68,7 +70,7 @@ TEST_P(OVRemoteTest, canCreateRemote) {
         ASSERT_NE(params.find(param.first), params.end());
     }
     ASSERT_EQ(target_device, device);
-    runtime::RemoteTensor remote_tensor;
+    ov::RemoteTensor remote_tensor;
     ASSERT_NO_THROW(remote_tensor = context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters));
 
     ASSERT_NO_THROW(params = remote_tensor.get_params());
@@ -86,7 +88,7 @@ TEST_P(OVRemoteTest, remoteTensorAsTensor) {
 
     auto remote_tensor = context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters);
 
-    runtime::Tensor tensor;
+    ov::Tensor tensor;
     ASSERT_NO_THROW(tensor = remote_tensor);
     ASSERT_THROW(tensor.data(), ov::Exception);
     ASSERT_NO_THROW(tensor.get_element_type());
@@ -107,7 +109,7 @@ TEST_P(OVRemoteTest, inferWithRemoteNoThrow) {
     }
     auto output = function->get_results().front();
     {// Host accessable output if input is remote by default
-        runtime::Tensor tensor;
+        ov::Tensor tensor;
         ASSERT_NO_THROW(tensor = infer_request.get_tensor(
             ngraph::op::util::create_ie_output_name(output->input_value(0))));
         ASSERT_NO_THROW(tensor.data());

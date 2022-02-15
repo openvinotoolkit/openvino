@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,12 @@
 
 #include <algorithm>
 #include <string>
+#include "mkldnn_extension_utils.h"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-
 
 bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -67,41 +68,41 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = true;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
-    config.inConfs[INPUT_DATA_IDX].inPlace = -1;
-    config.inConfs[INPUT_DATA_IDX].constant = false;
-    config.inConfs[INPUT_ORDER_IDX].constant = isInputOrderConst;
-    config.inConfs[INPUT_ORDER_IDX].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            Precision::I32, getInputShapeAtPort(INPUT_ORDER_IDX));
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
+    config.inConfs[INPUT_DATA_IDX].inPlace(-1);
+    config.inConfs[INPUT_DATA_IDX].constant(false);
+    config.inConfs[INPUT_ORDER_IDX].constant(isInputOrderConst);
+    config.inConfs[INPUT_ORDER_IDX].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            Precision::I32, getInputShapeAtPort(INPUT_ORDER_IDX)));
+    config.outConfs[0].inPlace(-1);
+    config.outConfs[0].constant(false);
 
     const auto& inputDataShape = getInputShapeAtPort(INPUT_DATA_IDX);
     const auto& outputDataShape = getOutputShapeAtPort(0);
     if (inputDataShape.getRank() == 4 || inputDataShape.getRank() == 5) {
-        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape);
-        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape);
+        config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape));
+        config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
         const auto& srcDims = inputDataShape.getDims();
         if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 8 == 0) {
-            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp8c)->createSharedDesc(prec, inputDataShape);
+            config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nCsp8c)->createSharedDesc(prec, inputDataShape));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 16 == 0) {
-            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, inputDataShape);
+            config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, inputDataShape));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
-            config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape);
-            config.outConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape);
+            config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape));
+            config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
     } else {
         // general plain case
-        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape);
-        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape);
+        config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape));
+        config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
 }
@@ -127,15 +128,27 @@ void MKLDNNTransposeNode::prepareParams() {
         params.order.assign(orderPtr, orderPtr + orderLen);
     }
 
-    execPtr = std::make_shared<TransposeJitExecutor>(params);
+    auto engine = getEngine();
+    auto builder = [&engine](const PermuteParams& key) -> std::shared_ptr<TransposeJitExecutor> {
+        return std::make_shared<TransposeJitExecutor>(key);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(params, builder);
+
+    if (!result.first) {
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    execPtr = result.first;
 }
 
 void MKLDNNTransposeNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory was not allocated.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory was not allocated.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor was not set.";
@@ -147,7 +160,7 @@ void MKLDNNTransposeNode::createPrimitive() {
         return;
     }
 
-    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
+    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
     if (isInputOrderConst)
         params.order = order;
     auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();

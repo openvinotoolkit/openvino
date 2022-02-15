@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,22 +57,22 @@ TEST(type_prop, gelu_tanh_mode_inference_f16) {
 
 TEST(type_prop, gelu_incompatible_input_type_boolean) {
     auto param = make_shared<op::Parameter>(element::boolean, Shape{1, 32, 32});
-    ASSERT_THROW(std::make_shared<op::v7::Gelu>(param), ngraph::NodeValidationFailure);
+    ASSERT_THROW(const auto unused = std::make_shared<op::v7::Gelu>(param), ngraph::NodeValidationFailure);
 }
 
 TEST(type_prop, gelu_incompatible_input_type_u16) {
     auto param = make_shared<op::Parameter>(element::u16, Shape{1, 32, 32});
-    ASSERT_THROW(std::make_shared<op::v7::Gelu>(param), ngraph::NodeValidationFailure);
+    ASSERT_THROW(const auto unused = std::make_shared<op::v7::Gelu>(param), ngraph::NodeValidationFailure);
 }
 
 TEST(type_prop, gelu_incompatible_input_type_i32) {
     auto param = make_shared<op::Parameter>(element::i32, Shape{1, 32, 32});
-    ASSERT_THROW(std::make_shared<op::v7::Gelu>(param), ngraph::NodeValidationFailure);
+    ASSERT_THROW(const auto unused = std::make_shared<op::v7::Gelu>(param), ngraph::NodeValidationFailure);
 }
 
 TEST(type_prop, gelu_incompatible_input_type_i16) {
     auto param = make_shared<op::Parameter>(element::i16, Shape{1, 32, 32});
-    ASSERT_THROW(std::make_shared<op::v7::Gelu>(param), ngraph::NodeValidationFailure);
+    ASSERT_THROW(const auto unused = std::make_shared<op::v7::Gelu>(param), ngraph::NodeValidationFailure);
 }
 
 TEST(type_prop, gelu_dynamic_rank_input_shape_2D) {

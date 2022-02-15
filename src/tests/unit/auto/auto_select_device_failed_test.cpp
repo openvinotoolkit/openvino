@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,7 @@ using ::testing::Eq;
 using ::testing::ReturnRef;
 using ::testing::AtLeast;
 using ::testing::AnyNumber;
+using ::testing::ContainsRegex;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
@@ -60,7 +61,7 @@ public:
 
     //mock exeNetwork
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
     MockIInferencePlugin*                           mockIPlugin;
     InferenceEngine::InferencePlugin                mockPlugin;
     // config for Auto device
@@ -148,10 +149,20 @@ public:
        IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, optimalNum, 2);
        ON_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
+       IE_SET_METRIC(OPTIMAL_BATCH_SIZE, optimalBatchSize, 8);
+       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
+           .WillByDefault(Return(optimalBatchSize));
+       EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _)).Times(AnyNumber());
+       IE_SET_METRIC(RANGE_FOR_STREAMS, rangeStreamsSize, {1u, 2u});
+       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
+           .WillByDefault(Return(rangeStreamsSize));
+       EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _)).Times(AnyNumber());
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(Return(supportConfigs));
        EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).Times(AnyNumber());
+       ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS))))
+           .WillByDefault(Return(12));
     }
 };
 

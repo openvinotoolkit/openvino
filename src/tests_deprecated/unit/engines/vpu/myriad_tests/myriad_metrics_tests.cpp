@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,10 @@
 #include "myriad_test_case.h"
 #include <memory>
 
-#include "vpu/vpu_plugin_config.hpp"
 #include "vpu/myriad_config.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
-using namespace InferenceEngine::VPUConfigParams;
 
 using str_vector = std::vector<std::string>;
 

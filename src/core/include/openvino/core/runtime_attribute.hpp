@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,7 @@ public:
     virtual bool is_copyable() const;
     virtual Any init(const std::shared_ptr<Node>& node) const;
     virtual Any merge(const ov::NodeVector& nodes) const;
+    virtual Any merge(const ov::OutputVector& outputs) const;
     virtual std::string to_string() const;
     virtual bool visit_attributes(AttributeVisitor&);
     bool visit_attributes(AttributeVisitor& visitor) const {

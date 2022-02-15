@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ static void release_order_test(std::vector<std::size_t> order, const std::string
                                std::shared_ptr<ngraph::Function> function) {
     ov::AnyVector objects;
     {
-        runtime::Core core = createCoreWithTemplate();
+        ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, deviceName);
         auto request = compiled_model.create_infer_request();
 
@@ -61,9 +61,9 @@ TEST_P(OVHoldersTest, Orders) {
 }
 
 TEST_P(OVHoldersTest, LoadedState) {
-    std::vector<runtime::VariableState> states;
+    std::vector<ov::VariableState> states;
     {
-        runtime::Core core = createCoreWithTemplate();
+        ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);
         auto request = compiled_model.create_infer_request();
         try {
@@ -73,9 +73,9 @@ TEST_P(OVHoldersTest, LoadedState) {
 }
 
 TEST_P(OVHoldersTest, LoadedTensor) {
-    runtime::Tensor tensor;
+    ov::Tensor tensor;
     {
-        runtime::Core core = createCoreWithTemplate();
+        ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);
         auto request = compiled_model.create_infer_request();
         tensor = request.get_input_tensor();
@@ -85,16 +85,16 @@ TEST_P(OVHoldersTest, LoadedTensor) {
 TEST_P(OVHoldersTest, LoadedAny) {
     ov::Any any;
     {
-        runtime::Core core = createCoreWithTemplate();
+        ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);
-        any = compiled_model.get_metric(METRIC_KEY(SUPPORTED_METRICS));
+        any = compiled_model.get_property(ov::supported_properties.name());
     }
 }
 
 TEST_P(OVHoldersTest, LoadedRemoteContext) {
-    runtime::RemoteContext ctx;
+    ov::RemoteContext ctx;
     {
-        runtime::Core core = createCoreWithTemplate();
+        ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);
         try {
             ctx = compiled_model.get_context();
@@ -121,15 +121,27 @@ void OVHoldersTestOnImportedNetwork::TearDown() {
     ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
 }
 
-TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
-    runtime::Core core = createCoreWithTemplate();
+TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
+    ov::Core core = createCoreWithTemplate();
     std::stringstream stream;
     {
         auto compiled_model = core.compile_model(function, targetDevice);
         compiled_model.export_model(stream);
     }
     auto compiled_model = core.import_model(stream, targetDevice);
-    core = runtime::Core{};
+    auto request = compiled_model.create_infer_request();
+    ov::Tensor tensor = request.get_input_tensor();
+}
+
+TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
+    ov::Core core = createCoreWithTemplate();
+    std::stringstream stream;
+    {
+        auto compiled_model = core.compile_model(function, targetDevice);
+        compiled_model.export_model(stream);
+    }
+    auto compiled_model = core.import_model(stream, targetDevice);
+    core = ov::Core{};
     auto request = compiled_model.create_infer_request();
 }
 }  // namespace behavior

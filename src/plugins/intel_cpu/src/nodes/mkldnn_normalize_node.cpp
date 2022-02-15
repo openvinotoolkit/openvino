@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -35,6 +36,44 @@ using namespace Xbyak;
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
 
 #define THROW_ERROR IE_THROW() << "NormalizeL2 layer with name '" << getName() << "' "
+
+namespace {
+struct NormalizeKey {
+    MKLDNNNormalizeL2Node::NormalizeL2Attrs attrs;
+    mkldnn::primitive_attr kernel_attrs;
+    VectorDims dims;
+
+    size_t hash() const;
+    bool operator==(const NormalizeKey& rhs) const;
+};
+
+size_t NormalizeKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, attrs.epsMode);
+    seed = hash_combine(seed, attrs.across_spatial);
+    seed = hash_combine(seed, attrs.cornerCase);
+    seed = hash_combine(seed, attrs.eps);
+    seed = hash_combine(seed, attrs.layout);
+    seed = hash_combine(seed, attrs.input_prec.getPrecVal());
+    seed = hash_combine(seed, attrs.output_prec.getPrecVal());
+
+    seed = hash_combine(seed, get_attr_hash(*kernel_attrs.get()));
+    seed = get_vector_hash(seed, dims);
+    return seed;
+}
+
+bool NormalizeKey::operator==(const NormalizeKey& rhs) const {
+    return (attrs.epsMode == rhs.attrs.epsMode) && (attrs.across_spatial == rhs.attrs.across_spatial) &&
+           (attrs.cornerCase == rhs.attrs.cornerCase) && (attrs.eps == rhs.attrs.eps) &&
+           (attrs.layout == rhs.attrs.layout) && (attrs.input_prec == rhs.attrs.input_prec) &&
+           (attrs.output_prec == rhs.attrs.output_prec) && (*kernel_attrs.get() == *(rhs.kernel_attrs.get())) &&
+           (dims == rhs.dims);
+}
+
+}  // namespace
 
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type;
@@ -181,7 +220,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
                         this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
-                        this, post_op.depthwise.alg));
+                        this, post_op));
             } else if (post_op.is_quantization()) {
                 quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
                         this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
@@ -197,8 +236,10 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         mov(reg_fused_factor, ptr[reg_params + GET_OFF(fused_factor)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-        if (attr_.post_ops_.len() != 0)
+        if (attr_.post_ops_.len() != 0) {
+            mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
+        }
         if (isa == avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
@@ -234,7 +275,8 @@ private:
     Reg64 reg_tmp_64 = r14;
 
     Xbyak::Reg64 reg_oc_off = rax;
-    Xbyak::Reg64 reg_d_weights = rbx;
+    Xbyak::Reg64 reg_post_ops_data = rbx;
+    Xbyak::Reg64 reg_d_weights = reg_tmp_64;
     Xbyak::Reg64 reg_d_bias = rdx;
 
     Vmm vmm_val = Vmm(0);
@@ -602,6 +644,7 @@ private:
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
+        int post_ops_data_offset = 0;
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
@@ -614,12 +657,14 @@ private:
                 if (depthwise_injectors.size() <= depthwise_inj_idx
                         || depthwise_injectors[depthwise_inj_idx] == nullptr)
                     assert(!"Invalid depthwise injectors.");
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
+                mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
-                add(reg_d_bias, reg_oc_off);
+
                 // weight and bias is padding. scalar as vector.
-                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
+                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(
+                        vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_weights, is_broadcast);
+
+                post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 if (quantization_injectors.size() <= quantization_inj_idx
@@ -630,17 +675,19 @@ private:
 
                 int s_idx = vmm_val.getIdx();
 
-                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
+                const Xbyak::RegExp quant_arg_base = reg_post_ops_data + post_ops_data_offset;
+                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(quant_arg_base, reg_oc_off);
                 quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0, 0, is_broadcast);
 
-                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(quant_arg_base, reg_oc_off);
                 quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding, 0, is_broadcast);
 
                 if (do_dequantization) {
-                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(quant_arg_base, reg_oc_off);
                     quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0, 0, is_broadcast);
                 }
 
+                post_ops_data_offset += quantization_injectors[quantization_inj_idx]->memoryStep();
                 quantization_inj_idx++;
             }
         }
@@ -766,16 +813,16 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
-    config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
+    config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
         auto a = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA));
-        config.inConfs[0].desc = std::move(a);
+        config.inConfs[0].setMemDesc(std::move(a));
         a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(AXES));
-        config.inConfs[1].desc = std::move(a);
+        config.inConfs[1].setMemDesc(std::move(a));
         a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
-        config.outConfs[0].desc = std::move(a);
+        config.outConfs[0].setMemDesc(std::move(a));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -793,7 +840,7 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
         }
     }
     if (canBeInplace)
-        config.inConfs[0].inPlace = 0;
+        config.inConfs[0].inPlace(0);
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
@@ -804,16 +851,17 @@ bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
 void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights) {
     mkldnn::post_ops ops;
 
+    postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, dims);
+            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
             continue;
         }
 
@@ -826,21 +874,22 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, con
 void MKLDNNNormalizeL2Node::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "can't get destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         THROW_ERROR << "can't get input memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has nullable preferable primitive descriptor";
 
     if (!attrs.cornerCase) {
         if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
-            attrs.is_nchw = true;
-        } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c) ||
-                   srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c)) {
-            attrs.is_blk = true;
+            attrs.layout = LayoutType::ncsp;
+        } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c)) {
+            attrs.layout = LayoutType::nCsp8c;
+        } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)) {
+            attrs.layout = LayoutType::nCsp16c;
         } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
-            attrs.is_nhwc = true;
+            attrs.layout = LayoutType::nspc;
         } else {
             THROW_ERROR << "has selected layout which is not supported";
         }
@@ -859,8 +908,24 @@ bool MKLDNNNormalizeL2Node::isExecutable() const {
 
 void MKLDNNNormalizeL2Node::prepareParams() {
     const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
+
     setPostOps(kernel_attrs, dims, true);
-    execPtr = NormalizeL2Executor::getNormalizeL2Executor(attrs, kernel_attrs, dims);
+
+    NormalizeKey key = {attrs, kernel_attrs, dims};
+
+    auto engine = getEngine();
+    auto builder = [&engine](const NormalizeKey& key) -> std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> {
+        return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+
+    if (!result.first) {
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    execPtr = result.first;
 }
 
 void MKLDNNNormalizeL2Node::executeDynamicImpl(mkldnn::stream strm) {
@@ -873,7 +938,7 @@ void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
 
     const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->GetPtr());
     uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->GetPtr());
-    execPtr->exec(src_ptr, dst_ptr);
+    execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 
 std::vector<VectorDims> MKLDNNNormalizeL2Node::shapeInfer() const {
@@ -889,7 +954,7 @@ public:
         workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
     }
 
-    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) override {
+    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void **post_ops_data) override {
         normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
     }
 private:
@@ -909,8 +974,12 @@ private:
 template <typename in_data_t, typename out_data_t>
 class MKLDNNNormalizeL2Node::NormalizeL2JitExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
 public:
-    NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) : attrs(attrs_) {
-        if (!attrs.is_nchw && !attrs.is_nhwc && !attrs.is_blk) {
+    NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_,
+                           const mkldnn::primitive_attr& kernel_attrs,
+                           const VectorDims& dims)
+        : attrs(attrs_) {
+        if (attrs.layout != LayoutType::ncsp && attrs.layout != LayoutType::nspc &&
+            attrs.layout != LayoutType::nCsp8c && attrs.layout != LayoutType::nCsp16c) {
             IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
 
@@ -920,9 +989,9 @@ public:
         jcp.dst_data_size = attrs.output_prec.size();
         jcp.across_spatial = attrs.across_spatial;
 
-        jcp.is_nchw = attrs.is_nchw;
-        jcp.is_nhwc = attrs.is_nhwc;
-        jcp.is_blk = attrs.is_blk;
+        jcp.is_nchw = (attrs.layout == LayoutType::ncsp);
+        jcp.is_nhwc = (attrs.layout == LayoutType::nspc);
+        jcp.is_blk = (attrs.layout == LayoutType::nCsp8c || attrs.layout == LayoutType::nCsp16c);
 
         size_t dims_size = dims.size();
         jcp.n = dims[0];
@@ -956,18 +1025,18 @@ public:
             normalize_modulo_kernel->create_ker();
     }
 
-    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) override {
+    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void **post_ops_data) override {
         if (jcp.is_nchw) {
-            normalize_nchw(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
+            normalize_nchw(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr), post_ops_data);
         } else if (jcp.is_nhwc) {
-            normalize_nhwc(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
+            normalize_nhwc(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr), post_ops_data);
         } else if (jcp.is_blk) {
-            normalize_blk(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
+            normalize_blk(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr), post_ops_data);
         }
     }
 
 private:
-    void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data) {
+    void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const void **post_ops_data) {
         const size_t spatial_dims = jcp.h * jcp.w;
         for (size_t b = 0lu; b < jcp.n; b++) {
             const in_data_t *src_data_b = src_data + b * jcp.c * spatial_dims;
@@ -1011,6 +1080,7 @@ private:
                     arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
                     arg.oc_off = ic * sizeof(float);
                     arg.work_amount = static_cast<size_t>(spatial_dims);
+                    arg.post_op_data = post_ops_data;
                     (*normalize_kernel)(&arg);
                 });
             } else {  // across_spatial: false
@@ -1051,13 +1121,14 @@ private:
                     arg.fused_factor = static_cast<float*>(&moduloM[0]);  // ld dynamic
                     arg.oc_off = ic * sizeof(float);
                     arg.work_amount = static_cast<size_t>(spatial_dims);
+                    arg.post_op_data = post_ops_data;
                     (*normalize_kernel)(&arg);
                 });
             }
         }
     }
 
-    void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data) {
+    void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const void **post_ops_data) {
         const size_t spatial_dims = jcp.h * jcp.w;
         const size_t c_w_dims = jcp.c * jcp.w;
         for (size_t b = 0lu; b < jcp.n; b++) {
@@ -1101,6 +1172,7 @@ private:
                     arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
                     arg.oc_off = 0;
                     arg.work_amount = static_cast<size_t>(jcp.c);
+                    arg.post_op_data = post_ops_data;
                     (*normalize_kernel)(&arg);
                 });
             } else {  // for across_spatial=false
@@ -1131,13 +1203,14 @@ private:
                     arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
                     arg.work_amount = jcp.c;
                     arg.oc_off = 0;
+                    arg.post_op_data = post_ops_data;
                     (*normalize_kernel)(&arg);
                 });
             }
         }
     }
 
-    void normalize_blk(const in_data_t* src_data, out_data_t* dst_data) {
+    void normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const void **post_ops_data) {
         const size_t CB = div_up(jcp.c, blk_size);
         const size_t spatial_dims = jcp.h * jcp.w;
         const size_t w_blk_dims = jcp.w * blk_size;
@@ -1184,6 +1257,7 @@ private:
                     arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
                     arg.work_amount = static_cast<size_t>(jcp.w);
                     arg.oc_off = cb * blk_size * sizeof(float);
+                    arg.post_op_data = post_ops_data;
                     (*normalize_kernel)(&arg);
                 });
             } else {  // across_spatial: false
@@ -1216,6 +1290,7 @@ private:
                     arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast
                     arg.work_amount = CB;
                     arg.oc_off = 0;
+                    arg.post_op_data = post_ops_data;
                     (*normalize_kernel)(&arg);
                 });
             }
@@ -1239,7 +1314,7 @@ class MKLDNNNormalizeL2Node::NormalizeL2ReferenceExecutor : public MKLDNNNormali
 public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) :
         attrs(attrs), kernel_attrs(kernel_attrs), dims(dims) {
-        if (!attrs.is_nchw) {
+        if (attrs.layout != LayoutType::ncsp) {
             IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
         }
 
@@ -1255,12 +1330,12 @@ public:
         }
     }
 
-    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) override {
-        normalize_nchw_ref(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
+    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void **post_ops_data) override {
+        normalize_nchw_ref(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr), post_ops_data);
     }
 
 private:
-    void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data) {
+    void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const void **post_ops_data) {
         size_t dims_size = dims.size();
         const size_t N = dims[0];
         const size_t C = dims[1];
@@ -1292,7 +1367,7 @@ private:
                     out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
                     for (size_t m = 0; m < spatial_dims; m++) {
                         float dst_value = src_data_bc[m] * modulo_inv;
-                        apply_post_ops_scalar(dst_value, ic);
+                        apply_post_ops_scalar(dst_value, ic, post_ops_data);
                         if (attrs.output_prec == Precision::U8) {
                             dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
                         } else {
@@ -1324,7 +1399,7 @@ private:
                     out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
                     for (size_t m = 0; m < spatial_dims; m++) {
                         float dst_value = src_data_bc[m] * moduloM[m];
-                        apply_post_ops_scalar(dst_value, ic);
+                        apply_post_ops_scalar(dst_value, ic, post_ops_data);
                         if (attrs.output_prec == Precision::U8) {
                             dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
                         } else {
@@ -1336,20 +1411,26 @@ private:
         }
     }
 
-    inline void apply_post_ops_scalar(float &dst_value, int index_c) {
+    inline void apply_post_ops_scalar(float &dst_value, int index_c, const void **post_ops_data_) {
         const auto &p = (*kernel_attrs.get()).post_ops_;
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
+        // reinterpret cast from (pointer to const void) to (pointer to const pointer to const float)
+        const float** post_ops_data = reinterpret_cast<const float**>(post_ops_data_);
         for (int i = 0; i < p.len(); i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 dst_value = eltwise_injectors_ref[eltwise_inj_idx]->compute_scalar(dst_value);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
-                auto depthwise_weights = post_op.depthwise.weights_data + index_c;
-                auto depthwise_bias = post_op.depthwise.biases_data + index_c;
+                auto depthwise_base = *post_ops_data;
+                auto depthwise_weights = depthwise_base + post_op.depthwise.offset[post_op.depthwise.scales] + index_c;
+                auto depthwise_bias = depthwise_base + post_op.depthwise.offset[post_op.depthwise.shifts] + index_c;
+
                 dst_value = depthwise_injectors_ref[depthwise_inj_idx]->compute_scalar(dst_value, depthwise_weights, depthwise_bias);
+
                 depthwise_inj_idx++;
+                post_ops_data++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || attrs.output_prec == Precision::FP32 || i != p.len() - 1;
@@ -1357,9 +1438,10 @@ private:
                 auto quant = post_op.quantization;
 
                 using quantization_fields = post_ops_t::entry_t::quantization_t::quantization_fields;
-                auto dataVal = [&](const quantization_fields& field) {
+                auto dataVal = [&](const quantization_fields& field) -> float {
+                    auto dataPtr = *post_ops_data + post_op.quantization.offset[field];
                     const int channelIdx = quant.per_channel[field] ? index_c : 0;
-                    return quant.data[field][channelIdx];
+                    return dataPtr[channelIdx];
                 };
 
                 float crop_low = dataVal(quant.crop_low);
@@ -1379,6 +1461,8 @@ private:
                     float output_shift = dataVal(quant.output_shift);
                     dst_value = dst_value * output_scale + output_shift;
                 }
+
+                post_ops_data++;
             }
         }
     }
@@ -1419,7 +1503,7 @@ std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Nod
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
     else if (mayiuse(cpu::x64::sse41))
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
-    else if (attrs.is_nchw)
+    else if (attrs.layout == LayoutType::ncsp)
         return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
     else
         IE_THROW() << "'NormalizeL2' cannot create Executor";

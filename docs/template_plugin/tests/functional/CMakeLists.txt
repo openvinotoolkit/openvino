@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,19 +9,19 @@ ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            ov_template_plugin
+            openvino_template_plugin
         LINK_LIBRARIES
             openvino::funcSharedTests
         INCLUDES
             "${TEMPLATE_PLUGIN_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
-        ADD_CPPLINT
+        # ADD_CPPLINT
         LABELS
             TEMPLATE
 )
 
 if(ENABLE_HETERO)
-    add_dependencies(${TARGET_NAME} ov_hetero_plugin)
+    add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
 endif()
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)

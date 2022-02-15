@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -207,9 +207,11 @@ REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
 REGISTER_FACTORY(v6, MVN);
 REGISTER_FACTORY(v6, GatherElements);
 REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
+REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
 
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, Gather);
+REGISTER_FACTORY(v7, Gelu);
 
 // ------------------------------ Supported v8 ops ------------------------------ //
 REGISTER_FACTORY(v8, Slice);

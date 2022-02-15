@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,6 +129,33 @@ std::vector<memory::format_tag> MKLDNNFullyConnectedNode::getAvailableFormatsFor
     return {memory::format_tag::any};
 }
 
+VectorDims MKLDNNFullyConnectedNode::makeDummyInputDims() const {
+    const auto& inShape = getInputShapeAtPort(DATA_ID);
+    const auto& weightDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
+
+    auto inMinDims = inShape.getMinDims();
+    auto inMaxDims = inShape.getMaxDims();
+
+    if (inMinDims.size() == 3) {
+        inMinDims.back() = weightDims.back();
+        inMaxDims.back() = weightDims.back();
+    } else {
+        for (size_t i = 1; i < inMinDims.size(); i++) {
+            inMinDims[i] = weightDims[i];
+            inMaxDims[i] = weightDims[i];
+        }
+    }
+    return MemoryDescUtils::makeDummyShape(Shape(inMinDims, inMaxDims)).getStaticDims();
+}
+
+VectorDims MKLDNNFullyConnectedNode::makeDummyOutputDims(const VectorDims& inDims) const {
+    std::vector<Shape> inShapes = {Shape(inDims), getInputShapeAtPort(WEIGHTS_ID)};
+    if (inputShapes.size() > 2) {
+        inShapes.emplace_back(getInputShapeAtPort(BIAS_ID));
+    }
+    return shapeInferGeneric(inShapes).front();
+}
+
 void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3)
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
@@ -163,32 +190,8 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         outputDataType = memory::data_type::bf16;
     }
 
-    const auto& inShape = getInputShapeAtPort(DATA_ID);
-    inDims = inShape.getDims();
-    const auto& weightDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
-    outDims = getOutputShapeAtPort(0).getDims();
-
-    if (isDynamicNode()) {
-        auto inMinDims = inShape.getMinDims();
-        auto inMaxDims = inShape.getMaxDims();
-
-        if (inMinDims.size() == 3) {
-            inMinDims.back() = weightDims.back();
-            inMaxDims.back() = weightDims.back();
-        } else {
-            for (size_t i = 1; i < inMinDims.size(); i++) {
-                inMinDims[i] = weightDims[i];
-                inMaxDims[i] = weightDims[i];
-            }
-        }
-        inDims = MemoryDescUtils::makeDummyShape(Shape(inMinDims, inMaxDims)).getStaticDims();
-
-        std::vector<Shape> inShapes = {Shape(inDims), Shape(weightDims)};
-        if (inputShapes.size() > 2) {
-            inShapes.emplace_back(getInputShapeAtPort(BIAS_ID));
-        }
-        outDims = shapeInferGeneric(inShapes).front();
-    }
+    inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
+    outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
 
     for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
         auto in_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
@@ -202,16 +205,16 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory hasn't been allocated.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory hasn't been allocated.";
-    if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
+    if (!wghMemPtr || !wghMemPtr->isAllocated())
         IE_THROW() << "Weight memory hasn't been allocated.";
     MKLDNNMemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
-        if (!biasMemPtr || !biasMemPtr->GetPrimitivePtr())
+        if (!biasMemPtr || !biasMemPtr->isAllocated())
             IE_THROW() << "Input memory hasn't been allocated.";
     }
 
@@ -219,14 +222,8 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    auto initPrimitiveAttr = [&]() {
-        mkldnn::primitive_attr attr;
-        setPostOps(attr, dstMemPtr->getStaticDims());
-
-        return std::make_shared<mkldnn::primitive_attr>(std::move(attr));
-    };
-
-    AttrPtr attr = initPrimitiveAttr();
+    AttrPtr attr = std::make_shared<mkldnn::primitive_attr>();
+    setPostOps(*attr, dstMemPtr->getStaticDims());
 
     DnnlMemoryDescCPtr weightDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
     DnnlMemoryDescCPtr biasDesc = nullptr;
@@ -310,7 +307,7 @@ void MKLDNNFullyConnectedNode::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
     }
 
-    appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
+    appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
     auto reshapeMemory = [this](int argType) {
         auto param = primArgs.find(argType);
@@ -327,6 +324,27 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     };
     reshapeMemory(DNNL_ARG_SRC);
     reshapeMemory(DNNL_ARG_DST);
+}
+
+void MKLDNNFullyConnectedNode::setDynamicBatchLim(int lim) {
+    dynBatchLim = lim;
+
+    auto setBatchPrimArgs = [this](int argType, const mkldnn::memory& oldMem) {
+        mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+        newMemDesc.data.dims[0] = batchToProcess();
+        newMemDesc.data.padded_dims[0] = batchToProcess();
+        auto dims = newMemDesc.dims();
+
+        if (dims.size() == 3) {
+            std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
+            newMemDesc = newMemDesc.reshape(normalizedDims);
+        }
+
+        primArgs.at(argType) = mkldnn::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+    };
+
+    setBatchPrimArgs(DNNL_ARG_SRC, getParentEdgesAtPort(0)[0]->getMemory().GetPrimitive());
+    setBatchPrimArgs(DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemory().GetPrimitive());
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
@@ -375,15 +393,15 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, const Ve
 
     for (auto &node : fusedWith) {
         if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             continue;
         }
 
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-                eltwiseNode->appendPostOps(ops, dims);
+                eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
-                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             }
             continue;
         }
@@ -517,6 +535,55 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<MemoryDescPtr>
     }
     createDescriptorInternal(MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc)->getDnnlDesc(),
                              MemoryDescUtils::convertToDnnlMemoryDesc(outDesc)->getDnnlDesc());
+}
+
+void MKLDNNFullyConnectedNode::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
+
+    for (auto& desc : descs) {
+        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine());
+        while (static_cast<bool>(itpd)) {
+            // 3D FC requires implicit reshape so strides should be defined
+            auto supportsUndefStridesAndOffset = [&]() {
+                return getOutputShapeAtPort(0).getRank() == 2;
+            };
+
+            NodeConfig config;
+            config.dynBatchSupport = true;
+            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+                PortConfig portConfig;
+                portConfig.inPlace(-1);
+                portConfig.constant(false);
+                auto desc = getSrcMemDesc(itpd, i);
+                if (supportsUndefStridesAndOffset()) {
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
+                } else {
+                    portConfig.setMemDesc(desc);
+                }
+                config.inConfs.push_back(portConfig);
+            }
+
+            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+                PortConfig portConfig;
+                portConfig.inPlace(canBeInPlace() ? 0 : -1);
+                portConfig.constant(false);
+                auto desc = getDstMemDesc(itpd, i);
+                if (supportsUndefStridesAndOffset()) {
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
+                } else {
+                    portConfig.setMemDesc(desc);
+                }
+                config.outConfs.push_back(portConfig);
+            }
+
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+            if (!itpd.next_impl())
+                break;
+        }
+    }
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {

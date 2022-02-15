@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,7 +115,7 @@ public:
 
 TEST_P(PadTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -124,7 +124,7 @@ TEST_P(PadTransformation, CompareFunctions) {
 const std::vector<ngraph::PartialShape> inputShapes = {
     {1, 3, 6, 6},
     {4, 3, 6, 6},
-    {Dimension::dynamic(), 3, 6, Dimension::dynamic()}
+    {-1, 3, 6, -1}
 };
 
 const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsBySpatialDimensions = {
@@ -136,6 +136,11 @@ const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsBySpatialDimen
 // (per-tensor & per-channel quantizations without subtracts, pads by spatial dimensions)
 // and test-case without dequantization
 namespace commonTestCases {
+const std::vector<ngraph::PartialShape> commonInputShapes = {
+    {4, 3, 6, 6},
+    {-1, -1, -1, -1}
+};
+
 std::vector<ngraph::op::PadMode> allModes = {
     ngraph::op::PadMode::EDGE,
     ngraph::op::PadMode::REFLECT,
@@ -241,7 +246,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     PadTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(commonInputShapes),
         ::testing::Values(padsBySpatialDimensions),
         ::testing::ValuesIn(allModes),
         ::testing::Values(0.f),
@@ -686,59 +691,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValuesForSymetricMode)),
     PadTransformation::getTestCaseName);
 } // namespace testCasesForSymetricMode
-
-namespace testCasesWithDynamicChannels {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
-    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
-};
-
-std::vector<ngraph::op::PadMode> allModes = {
-    ngraph::op::PadMode::EDGE,
-    ngraph::op::PadMode::REFLECT,
-    ngraph::op::PadMode::SYMMETRIC,
-    ngraph::op::PadMode::CONSTANT,
-};
-
-const std::vector<PadTransformationTestValues> testValuesForDynamicChannels = {
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}}
-        },
-        {
-            ngraph::element::i8,
-            {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}}
-        }
-    },
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
-        },
-        {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}},
-            ngraph::element::f32,
-            {{}, {}, {}},
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    PadTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapesWithDynamicChannels),
-        ::testing::Values(padsBySpatialDimensions),
-        ::testing::ValuesIn(allModes),
-        ::testing::Values(0.f),
-        ::testing::ValuesIn(testValuesForDynamicChannels)),
-    PadTransformation::getTestCaseName);
-} // namespace testCasesWithDynamicChannels
 
 namespace testCasesWithDynamicRank {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {

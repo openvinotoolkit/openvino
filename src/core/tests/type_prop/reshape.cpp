@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <dimension_tracker.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -557,9 +559,11 @@ TEST(type_prop, reshape_to_zero_shape_dynamic) {
 
 TEST(type_prop, reshape_to_zero_shape_incorrect) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{2, 1});
-    ASSERT_THROW(
-        make_shared<op::v1::Reshape>(param, op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}), false),
-        std::exception);
+    ASSERT_THROW(const auto unused =
+                     make_shared<op::v1::Reshape>(param,
+                                                  op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}),
+                                                  false),
+                 std::exception);
 }
 
 TEST(type_prop, reshape_to_zero) {
@@ -588,9 +592,11 @@ TEST(type_prop, reshape_to_scalar_2) {
 
 TEST(type_prop, reshape_to_scalar_3) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    ASSERT_THROW(
-        make_shared<op::v1::Reshape>(param, op::Constant::create(element::i64, {}, std::vector<int64_t>{100}), false),
-        std::exception);
+    ASSERT_THROW(const auto unused =
+                     make_shared<op::v1::Reshape>(param,
+                                                  op::Constant::create(element::i64, {}, std::vector<int64_t>{100}),
+                                                  false),
+                 std::exception);
 }
 
 TEST(type_prop, dynamic_shape_propagation_with_i32_precision) {
@@ -605,4 +611,46 @@ TEST(type_prop, dynamic_shape_propagation_with_i32_precision) {
 
     ASSERT_EQ(reshape->get_element_type(), element::f32);
     ASSERT_EQ(reshape->get_output_partial_shape(0), (PartialShape{-1, -1, 1}));
+}
+
+TEST(type_prop, reshape_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> zero{0};
+    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto gather = std::make_shared<op::v7::Gather>(shape_0, indices, axis);
+
+    const auto output_pattern = std::make_shared<op::v0::Constant>(et, Shape{1}, std::vector<int64_t>{-1});
+    const auto unsqueeze = std::make_shared<op::v1::Reshape>(gather, output_pattern, false);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
+    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+}
+
+TEST(type_prop, reshape_label_shape_propagation_minus_one) {
+    Dimension marked_0 = Dimension(-1);
+    ov::DimensionTracker::set_label(marked_0, 10);
+
+    PartialShape initial_shape = PartialShape{marked_0, 4, 3, 1};
+
+    auto input = std::make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = std::make_shared<op::Constant>(element::i64, Shape{2}, std::vector<int64_t>{-1, 12});
+
+    const auto reshape = std::make_shared<op::v1::Reshape>(input, output_pattern, false);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    ASSERT_EQ(output_shape, PartialShape({-1, 12}));
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[1]), 0);
 }

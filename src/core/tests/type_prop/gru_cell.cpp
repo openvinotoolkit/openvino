@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,31 +138,36 @@ TEST(type_prop, gru_cell_invalid_input_rank0) {
 
     // Invalid rank0 for W tensor.
     auto W = make_shared<op::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size), ngraph::NodeValidationFailure)
+    ASSERT_THROW(const auto unused = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
 
     // Invalid rank0 for X tensor.
     W = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
     X = make_shared<op::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size), ngraph::NodeValidationFailure)
+    ASSERT_THROW(const auto unused = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
 
     // Invalid rank0 for H_t tensor.
     X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
     H_t = make_shared<op::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size), ngraph::NodeValidationFailure)
+    ASSERT_THROW(const auto unused = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
 
     // Invalid rank0 for R tensor.
     H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     R = make_shared<op::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size), ngraph::NodeValidationFailure)
+    ASSERT_THROW(const auto unused = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
 
     // Invalid rank0 for B tensor.
     R = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
     auto B = make_shared<op::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size), ngraph::NodeValidationFailure)
+    ASSERT_THROW(const auto unused = make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size),
+                 ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size = 0);
+    static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output);
 
 private:
     std::shared_ptr<MemoryDesc> input;

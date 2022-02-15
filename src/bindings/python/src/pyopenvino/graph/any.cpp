@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,10 @@ namespace py = pybind11;
 
 void regclass_graph_Any(py::module m) {
     py::class_<PyAny, std::shared_ptr<PyAny>> ov_any(m, "OVAny", py::module_local());
-    ov_any.doc() = "openvino.runtime.OVAny wraps ov::Any";
+    ov_any.doc() = "openvino.runtime.OVAny provides object wrapper for OpenVINO"
+                   "ov::Any class. It allows to pass different types of objects"
+                   "into C++ based core of the project.";
+
     ov_any.def(py::init<py::object>());
 
     ov_any.def("__repr__", [](const PyAny& self) {
@@ -36,10 +39,8 @@ void regclass_graph_Any(py::module m) {
             return self.as<py::object>();
         },
         R"(
-            Returns
-            ----------
-            get : Any
-                Value of ov::Any.
+            :return: Value of this OVAny.
+            :rtype: Any
         )");
     ov_any.def(
         "set",
@@ -47,13 +48,16 @@ void regclass_graph_Any(py::module m) {
             self = PyAny(value);
         },
         R"(
-            Parameters
-            ----------
-            set : Any
-                Value to be set in ov::Any.
-
+            :param: Value to be set in OVAny.
+            :type: Any
     )");
-    ov_any.def_property_readonly("value", [](const PyAny& self) {
-        return self.as<py::object>();
-    });
+    ov_any.def_property_readonly(
+        "value",
+        [](const PyAny& self) {
+            return self.as<py::object>();
+        },
+        R"(
+            :return: Value of this OVAny.
+            :rtype: Any
+    )");
 }

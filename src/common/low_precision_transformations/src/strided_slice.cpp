@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,6 +55,9 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
     auto beginMask = stridedSlice->get_begin_mask();
     auto endMask = stridedSlice->get_end_mask();
     for (size_t i = 0; i < constantShape.size(); ++i) {
+        if ((beginMask.size() <= i) && (endMask.size() <= i)) {
+            break;
+        }
         // don't slice constant if current dimension is 1
         if (constantShape[i] == 1ul) {
             beginMask[i] = 1ul;
@@ -98,8 +101,8 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
         return false;
     }
 
-    const auto stridedSlice = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    auto dequantization = NetworkHelper::getDequantization(stridedSlice);
+    const auto stridedSlice = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    auto dequantization = NetworkHelper::getDequantization(stridedSlice, defaultPrecisions);
 
     if (dequantization.subtract) {
         const auto newSubConst = stridedSliceDeqConstant(stridedSlice, dequantization.subtractConstant);
@@ -111,16 +114,27 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
     replace_node(dequantization.multiplyConstant, newMulConst);
     dequantization.multiplyConstant = newMulConst;
 
-    moveDequantizationAfter(context, stridedSlice, NetworkHelper::getDequantization(stridedSlice), false);
+    moveDequantizationAfter(context, stridedSlice, NetworkHelper::getDequantization(stridedSlice, defaultPrecisions), false);
     return true;
 }
 
 bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!ov::is_type<ngraph::opset1::StridedSlice>(operation) || NetworkHelper::isDQByDynamicDimension(operation)) {
+    if (!ov::is_type<ngraph::opset1::StridedSlice>(operation)) {
         return false;
     }
 
-    return !NetworkHelper::getDequantization(operation).empty();
+    const auto dequantization = NetworkHelper::getDequantization(operation);
+    if (dequantization.empty()) {
+        return false;
+    }
+
+    if (operation->get_input_partial_shape(0).rank().is_dynamic() &&
+        ((dequantization.subtract && ngraph::shape_size(dequantization.subtractConstant->get_shape()) > 1) ||
+         (dequantization.multiply && ngraph::shape_size(dequantization.multiplyConstant->get_shape()) > 1))) {
+        return false;
+    }
+
+    return true;
 }
 
 bool StridedSliceTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

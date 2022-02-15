@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,6 +55,12 @@ template <typename T>
 py::array _cast_vector(const ov::op::v0::Constant& self) {
     auto vec = self.cast_vector<T>();
     return py::array(vec.size(), vec.data());
+}
+
+template <>
+py::array _cast_vector<ov::float16>(const ov::op::v0::Constant& self) {
+    auto vec = self.cast_vector<ov::float16>();
+    return py::array(py::dtype("float16"), vec.size(), vec.data());
 }
 
 void regclass_graph_op_Constant(py::module m) {

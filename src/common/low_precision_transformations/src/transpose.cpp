@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,8 @@ TransposeTransformation::TransposeTransformation(const Params& params) : LayerTr
 
 namespace {
 
-void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(transpose);
+void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(transpose, defaultPrecisions);
 
     const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtractConstant->get_shape();
     const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiplyConstant->get_shape();
@@ -89,9 +89,9 @@ bool TransposeTransformation::transform(TransformationContext& context, ngraph::
         return false;
     }
 
-    transpose = NetworkHelper::separateInStandaloneBranch(transpose);
-    transposeDequantizationConstant(transpose);
-    moveDequantizationAfter(context, transpose, NetworkHelper::getDequantization(transpose, 0), false);
+    transpose = NetworkHelper::separateInStandaloneBranch(transpose, defaultPrecisions);
+    transposeDequantizationConstant(transpose, defaultPrecisions);
+    moveDequantizationAfter(context, transpose, NetworkHelper::getDequantization(transpose, defaultPrecisions, 0), false);
     return true;
 }
 
@@ -109,7 +109,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     const bool isPerTensor = [&] {
         if (dequantization.subtractConstant != nullptr) {
             if (!NetworkHelper::isScalarLike(dequantization.subtractConstant)) {

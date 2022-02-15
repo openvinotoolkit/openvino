@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -307,7 +307,7 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
       { {1, 1, 10},                                 // Dynamic shape 2
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
-      { {1},                                        // Dynamic shape 3
+      { {-1},                                       // Dynamic shape 3
         { {1}, {1}, {1} } } },                      // Target shapes
     { { {-1, -1, -1},                               // #5. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes
@@ -319,14 +319,22 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
         { {1}, {1}, {1} } } },                      // Target shapes
     { { {3, -1, {0, 12}},                           // #6. Dynamic shape 0
         { {3, 2, 10}, {3, 4, 10}, {3, 5, 10} } },   // Target shapes
-      { {3, -1, {0, 12}},                                // Dynamic shape 1
-        { {3, 1, 10}, {3, 1, 10}, {3, 1, 10} } },  // Target shapes
-      { {3, -1, {0, 12}},                                // Dynamic shape 2
-        { {3, 1, 10}, {3, 1, 10}, {3, 1, 10} } } } // Target shapes
+      { {3, -1, {0, 12}},                           // Dynamic shape 1
+        { {3, 1, 10}, {3, 1, 10}, {3, 1, 10} } },   // Target shapes
+      { {3, -1, {0, 12}},                           // Dynamic shape 2
+        { {3, 1, 10}, {3, 1, 10}, {3, 1, 10} } } }, // Target shapes
+    { { {{0, 11}, -1, {5, 15}},                     // #7. Dynamic shape 0
+        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10}, {10, 2, 10}, {5, 5, 10} } },  // Target shapes
+      { {-1, 1, -1},                                // Dynamic shape 1
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10}, {10, 1, 10}, {5, 1, 10} } },  // Target shapes
+      { {-1, 1, -1},                                // Dynamic shape 2
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10}, {10, 1, 10}, {5, 1, 10} } },  // Target shapes
+      { {-1},                                       // Dynamic shape 3
+        { {10}, {3}, {5}, {10}, {5} } } }           // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
@@ -337,18 +345,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMSequenceCPUTest,
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, LSTMSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[4]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[4]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParamsBatchSizeOne),
+                               ::testing::Values(CPUSpecificParams{{tnc}, {tnc}, {"ref_any"}, "ref_any"}),
                                ::testing::Values(std::map<std::string, std::string>{})),
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic, LSTMSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[5]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[5], dynamicShapes[7]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
@@ -359,7 +367,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic, LSTMSequenceCPUTest,
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, LSTMSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[6]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[6]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),

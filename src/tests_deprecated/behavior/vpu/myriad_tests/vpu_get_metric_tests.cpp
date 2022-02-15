@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <inference_engine.hpp>
-#include <vpu/vpu_plugin_config.hpp>
 #include "behavior_test_plugin.h"
 
 class VPUGetMetric : public testing::Test {

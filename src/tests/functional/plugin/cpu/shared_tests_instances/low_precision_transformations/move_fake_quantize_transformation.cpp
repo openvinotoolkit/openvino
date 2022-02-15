@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,9 +24,6 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
     // without operation
     {
         3,
-        {},
-        {},
-        {},
         "",
         { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
         {},
@@ -38,9 +35,6 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
     // with ReLU operation
     {
         3,
-        {},
-        {},
-        {},
         "relu",
         { 256ul, {}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
         {},
@@ -52,9 +46,6 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
     // Q/DQ
     {
         3,
-        {},
-        {},
-        {},
         "",
         { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
         { ngraph::element::u8 },
@@ -70,9 +61,6 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
     // Q/DQ with ReLU
     {
         3,
-        {},
-        {},
-        {},
         "relu",
         { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
         { ngraph::element::u8 },
@@ -88,9 +76,6 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
     // multi-chanels
     {
         3,
-        {},
-        {},
-        {},
         "relu",
         {
            256ul,
@@ -109,9 +94,6 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
     // Q/DQ with multi-channels multiply
     {
        3,
-       {},
-       {},
-       {},
        "",
        {
            256ul,
@@ -134,9 +116,6 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
     // Q/DQ with multi-channels subtract
     {
        3,
-       {},
-       {},
-       {},
        "",
        {
            256ul,
@@ -159,7 +138,8 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
 };
 
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {
-    {{ 1, 1, 16, 16 }, { 1, 2, 16, 16 }, { 1, 3, 16, 16 }}
+    {{ 1, 1, 16, 16 }, { 1, 2, 16, 16 }, { 1, 3, 16, 16 }},
+    {{ 4, 1, 16, 16 }, { 4, 2, 16, 16 }, { 4, 3, 16, 16 }}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
@@ -168,6 +148,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
         ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn({false, true}),
         ::testing::ValuesIn(params)),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues1
@@ -178,9 +159,6 @@ namespace testValues2 {
         // negative axis
         {
             3,
-            {},
-            {},
-            {},
             "",
             {256ul, {},  {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
             {},
@@ -191,7 +169,8 @@ namespace testValues2 {
         },
     };
     const std::vector<std::vector<ngraph::PartialShape>> shapes = {
-        {{ 1, 1, 16, 16 }}
+        {{ 1, 1, 16, 16 }, { 1, 1, 16, 16 }, { 1, 1, 16, 16 }},
+        {{ 4, 1, 16, 16 }, { 4, 1, 16, 16 }, { 4, 1, 16, 16 }}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
@@ -200,6 +179,7 @@ namespace testValues2 {
             ::testing::ValuesIn(shapes),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::ValuesIn(trasformationParamValues),
+            ::testing::ValuesIn({false}),
             ::testing::ValuesIn(params)),
         MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues2

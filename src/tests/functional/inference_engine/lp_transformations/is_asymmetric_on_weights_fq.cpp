@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,9 @@ TEST_P(IsAsymmetricOnWeightsFakeQuantizeTransformation, CompareFunctions) {
     const auto convolutions = LayerTransformation::get<opset1::Convolution>(actualFunction);
     ASSERT_TRUE(convolutions.size() == 1ul) << "convolution was not found";
 
-    const auto isAsymmetricOnWeights = ngraph::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolutions[0]);
+    auto defaultPrecisions = std::get<2>(GetParam()).params.defaultPrecisions;
+    const auto isAsymmetricOnWeights = ngraph::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolutions[0],
+        defaultPrecisions);
     std::pair<std::vector<bool>, bool> transposeAndIsAsymmetricOnWeights = std::get<3>(GetParam());
     ASSERT_EQ(transposeAndIsAsymmetricOnWeights.second, isAsymmetricOnWeights);
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ngraph module namespace, exposing factory functions for all ops and other classes."""
@@ -17,7 +17,6 @@ from ngraph.impl import Node
 from ngraph.impl import PartialShape
 from ngraph.helpers import function_from_cnn
 from ngraph.helpers import function_to_cnn
-from ngraph.helpers import partial_shape_from_data
 from ngraph.opset8 import absolute
 from ngraph.opset8 import absolute as abs
 from ngraph.opset8 import acos

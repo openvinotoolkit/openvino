@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,8 @@ VVVVF<T> fully_connected_reference(VVVVF<T> &input, VVVVF<T> &weights, VF<T> &bi
     size_t input_f = input[0].size();
     size_t input_y = input[0][0].size();
     size_t input_x = input[0][0][0].size();
-    size_t output_b = input.size();        // input is assumed to be bfyx
-    size_t output_f = weights.size();    // weights is assumed to be bfyx
+    size_t output_b = input.size();         // input is assumed to be bfyx
+    size_t output_f = weights.size();       // weights are assumed to be bfyx
     VVVVF<T> output(output_b, VVVF<T>(1, VVF<T>(1, VF<T>(output_f))));
     float res;
     for (size_t b = 0; b < output_b; ++b) {
@@ -61,7 +61,8 @@ VVVVF<T> fully_connected_reference(VVVVF<T> &input, VVVVF<T> &weights, VF<T> &bi
 }
 
 template <typename T>
-void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format test_weights_fmt, int input_b, int f, int y, int x, int output_f, bool relu, T slope = 0) {
+void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format test_weights_fmt,
+                                  int input_b, int f, int y, int x, int output_f, bool relu, T slope = 0) {
     int min_random = -2, max_random = 2;
     VVVVF<T> input_rnd = generate_random_4d<T>(input_b, f, y, x, min_random, max_random);
     VVVVF<T> weights_rnd = generate_random_4d<T>(output_f, f, y, x, min_random, max_random);
@@ -74,7 +75,7 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
     tensor weights_tensor(output_f, f, x, y);
     auto input = engine.allocate_memory({ type_to_data_type<T>::value, test_input_fmt, input_tensor });
     auto weights = engine.allocate_memory({ type_to_data_type<T>::value, test_weights_fmt, weights_tensor });
-    auto bias = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1,1,output_f,1 } });
+    auto bias = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, 1, output_f, 1 } });
     set_values(input, input_rnd_vec);
     set_values(weights, weights_rnd_vec);
     set_values(bias, bias_rnd_vec);
@@ -141,13 +142,13 @@ TEST(DISABLED_fully_connected_gpu, generic_random_short) {
     VF<bool> relu = { true, false };
     std::vector<int> batches = { 1, 2, 4, 8, 16 };
     std::vector<int> features = { 1, 2 };
-    std::vector<std::pair<int, int>> input_sizes = { {28, 28}, {64, 64}, {100, 100}, {227, 227}, {1000, 1}, {1, 4096} };
+    std::vector<std::pair<int, int>> input_sizes = { { 28, 28 }, { 64, 64 }, { 100, 100 }, { 227, 227 }, { 1000, 1 }, { 1, 4096 } };
     VF<int> outputs_x = { 5, 16 };
 
     auto& engine = get_test_engine();
     bool f16_supported = !!engine.get_device_info().supports_fp16;
     if (!f16_supported) {
-        std::cout << "[ SKIPPED  ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        std::cout << "[ SKIPPED ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
     }
 
     for (cldnn::format test_input_fmt : test_input_fmts) {
@@ -157,9 +158,11 @@ TEST(DISABLED_fully_connected_gpu, generic_random_short) {
                     for (const auto& sizes : input_sizes) {
                         for (int output_f : outputs_x) {
                             for (bool relu_activated : relu) {
-                                    generic_fully_connected_test<float>(test_input_fmt, test_weights_fmt, b, f, sizes.second, sizes.first, output_f, relu_activated);
-                                    if (!f16_supported) continue;
-                                    generic_fully_connected_test<FLOAT16>(test_input_fmt, test_weights_fmt, b, f, sizes.second, sizes.first, output_f, relu_activated);
+                                generic_fully_connected_test<float>(test_input_fmt, test_weights_fmt,
+                                                                    b, f, sizes.second, sizes.first, output_f, relu_activated);
+                                if (!f16_supported) continue;
+                                generic_fully_connected_test<FLOAT16>(test_input_fmt, test_weights_fmt,
+                                                                      b, f, sizes.second, sizes.first, output_f, relu_activated);
                             }
                         }
                     }
@@ -190,20 +193,20 @@ TEST(fully_connected_gpu, no_biases) {
     //  Output:
     //   2.5    2.75    0.75   7
 
-    const int32_t input_x = 3, input_b = 1,  // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t input_x = 3, input_b = 1,    // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;  // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb,{ input_b, 1, input_x, 1} });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto fc = fully_connected("full_con_prim", "input", "weights");
+    auto fc = fully_connected("fc_prim", "input", "weights");
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -214,7 +217,7 @@ TEST(fully_connected_gpu, no_biases) {
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+    EXPECT_EQ(outputs.begin()->first, "fc_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -247,22 +250,22 @@ TEST(fully_connected_gpu, no_biases_int8) {
     //  Output:
     //  18    -32    12   -52
 
-    const int32_t input_x = 3, input_b = 1,  // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t input_x = 3, input_b = 1,    // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;  // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::i8,format::bfyx,{ weight_b, 1, weight_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, 1, input_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_b, 1, weight_x, 1 } });
 
     set_values(input_prim, { 8.4f, 2.3f, -4.49f });
     set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8,format::bfyx,{ input_b, 1, input_x, 1 } });
-    auto fc = fully_connected("full_con_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32,format::bfyx,{ input_b, 1, 4, 1 } });
+    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, 1, input_x, 1 } });
+    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights");
+    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, 1, 4, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -307,15 +310,15 @@ TEST(fully_connected_gpu, xb_f32_batch_1) {
     //  Output:
     //   2.5    2.75    0.75   7
 
-    const int32_t output_f = 4,  // size of whole output buffer
-        input_x = 3, input_b = 1,  // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t output_f = 4,                 // size of the whole output buffer
+                  input_x = 3, input_b = 1,     // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
     auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx, { 1,1,output_f, 1} });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1} });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -325,7 +328,7 @@ TEST(fully_connected_gpu, xb_f32_batch_1) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("full_con_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", "input", "weights", "bias")
     );
 
     network network(engine, topology);
@@ -333,7 +336,7 @@ TEST(fully_connected_gpu, xb_f32_batch_1) {
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+    EXPECT_EQ(outputs.begin()->first, "fc_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -367,15 +370,15 @@ TEST(fully_connected_gpu, xb_f32_batch_2) {
     //   2.5    2.75     0.75   7
     //   4      1        2.75   5
 
-    const int32_t output_f = 4,  // size of whole output buffer
-        input_x = 3, input_b = 2,  // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t output_f = 4,                 // size of the whole output buffer
+                  input_x = 3, input_b = 2,     // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb,{ input_b,1,input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b,1, input_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 1.0f, 2.0f, 1.5f, 0.5f, 0.0f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -385,7 +388,7 @@ TEST(fully_connected_gpu, xb_f32_batch_2) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("full_con_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", "input", "weights", "bias")
     );
 
     network network(engine, topology);
@@ -393,7 +396,7 @@ TEST(fully_connected_gpu, xb_f32_batch_2) {
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+    EXPECT_EQ(outputs.begin()->first, "fc_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -428,16 +431,16 @@ TEST(fully_connected_gpu, x_f32) {
     //  Output:
     //   2.5    2.75    0.75   7
 
-    const int32_t output_f = 4,                 // size of whole output buffer
-        input_x = 3,                 // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t output_f = 4,                // size of the whole output buffer
+                  input_x = 3,                 // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;  // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx, { 1,1,input_x,1 } });
-    //auto output_prim = memory::allocate({ memory::format::xb_f32,{ output_b,{ { output_f } },{ 1 } } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, input_x, 1 } });
+    //auto output_prim = memory::allocate({ memory::format::xb_f32, { output_b, { { output_f } }, { 1 } } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -447,7 +450,7 @@ TEST(fully_connected_gpu, x_f32) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("full_con_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", "input", "weights", "bias")
     );
 
     network network(engine, topology);
@@ -455,7 +458,7 @@ TEST(fully_connected_gpu, x_f32) {
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+    EXPECT_EQ(outputs.begin()->first, "fc_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -491,7 +494,7 @@ TEST(fully_connected_gpu, yxfn_f32) {
     auto& engine = get_test_engine();
 
     auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 2, 2, 1 } });
-    //auto output_prim = memory::allocate({ memory::format::xb_f32,{ 2 ,{ { 1 } }, 1 } });
+    //auto output_prim = memory::allocate({ memory::format::xb_f32, { 2 , { { 1 } }, 1 } });
     auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
     auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 1 } });
 
@@ -503,7 +506,7 @@ TEST(fully_connected_gpu, yxfn_f32) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("full_con_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", "input", "weights", "bias")
     );
 
     network network(engine, topology);
@@ -511,7 +514,7 @@ TEST(fully_connected_gpu, yxfn_f32) {
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+    EXPECT_EQ(outputs.begin()->first, "fc_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -542,16 +545,16 @@ TEST(fully_connected_gpu, xb_f32_batch_1_relu) {
     //  Output:
     //   2.5   0      0.75  0
 
-    const int32_t output_f = 4,  // size of whole output buffer
-        input_x = 3, input_b = 1,  // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t output_f = 4,                 // size of the whole output buffer
+                  input_x = 3, input_b = 1,     // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb,{ input_b, 1, input_x, 1 } });
-    //auto output_prim = memory::allocate({ memory::format::xb_f32,{ output_b,{ { output_f } },{ 1 } } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1 } });
+    //auto output_prim = memory::allocate({ memory::format::xb_f32, { output_b, { { output_f } }, { 1 } } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -561,8 +564,8 @@ TEST(fully_connected_gpu, xb_f32_batch_1_relu) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("full_con_prim", "input", "weights", "bias"),
-        activation("out", "full_con_prim", activation_func::relu)
+        fully_connected("fc_prim", "input", "weights", "bias"),
+        activation("out", "fc_prim", activation_func::relu)
     );
 
     network network(engine, topology);
@@ -604,16 +607,16 @@ TEST(fully_connected_gpu, xb_f32_batch_2_relu) {
     //   2.5    0   0.75   0
     //   4      0   2.75   0
 
-    const int32_t output_f = 4,  // size of whole output buffer
-        input_x = 3, input_b = 2,  // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t output_f = 4,                 // size of the whole output buffer
+                  input_x = 3, input_b = 2,     // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::yxfb,{ input_b, 1, input_x, 1 } });
-    //auto output_prim = memory::allocate({ memory::format::xb_f32,{ output_b,{ { output_f } },{ 1 } } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1 } });
+    //auto output_prim = memory::allocate({ memory::format::xb_f32, { output_b, { { output_f } }, { 1 } } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 1.0f, 2.0f, 1.5f, 0.5f, 0.0f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -623,8 +626,8 @@ TEST(fully_connected_gpu, xb_f32_batch_2_relu) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("full_con_prim", "input", "weights", "bias"),
-        activation("out", "full_con_prim", activation_func::relu)
+        fully_connected("fc_prim", "input", "weights", "bias"),
+        activation("out", "fc_prim", activation_func::relu)
     );
 
     network network(engine, topology);
@@ -667,16 +670,16 @@ TEST(fully_connected_gpu, x_f32_relu) {
     //  Output:
     //   2.5   0    0.75  0
 
-    const int32_t output_f = 4,                 // size of whole output buffer
-        input_x = 3,                 // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t output_f = 4,                 // size of the whole output buffer
+                  input_x = 3,                  // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,input_x,1 } });
-    //auto output_prim = memory::allocate({ memory::format::x_f32,{ 1       ,{ { output_f } }, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, input_x, 1 } });
+    //auto output_prim = memory::allocate({ memory::format::x_f32, { 1       , { { output_f } }, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -686,8 +689,8 @@ TEST(fully_connected_gpu, x_f32_relu) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("full_con_prim", "input", "weights", "bias"),
-        activation("out", "full_con_prim", activation_func::relu)
+        fully_connected("fc_prim", "input", "weights", "bias"),
+        activation("out", "fc_prim", activation_func::relu)
     );
 
     network network(engine, topology);
@@ -727,16 +730,16 @@ TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
     //  Output:
     //   2.5   -0.125    0.75  -0.1
 
-    const int32_t output_f = 4,                 // size of whole output buffer
-        input_x = 3,                 // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t output_f = 4,                 // size of the whole output buffer
+                  input_x = 3,                  // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,input_x,1 } });
-    //auto output_prim = memory::allocate({ memory::format::x_f32,{ 1       ,{ { output_f } }, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ weight_b, 1, weight_x, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1,1,output_f,1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, input_x, 1 } });
+    //auto output_prim = memory::allocate({ memory::format::x_f32, { 1       , { { output_f } }, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -746,8 +749,8 @@ TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("full_con_prim", "input", "weights", "bias"),
-        activation("out", "full_con_prim", activation_func::relu_negative_slope, { 0.1f })
+        fully_connected("fc_prim", "input", "weights", "bias"),
+        activation("out", "fc_prim", activation_func::relu_negative_slope, { 0.1f })
     );
 
     network network(engine, topology);
@@ -782,10 +785,10 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     const int W_X = in_X;
 
     // Input data
-    std::vector<char> Data(in_F * in_B); // in_X=in_Y=1
+    std::vector<char> Data(in_F * in_B); // in_X = in_Y = 1
     int i = 0;
     std::generate(Data.begin(), Data.end(), [i]() mutable { return i++ % 9; });
-    auto input = engine.allocate_memory({data_types::i8, format::bfyx, {in_B, in_F, in_X, in_Y}});
+    auto input = engine.allocate_memory({ data_types::i8, format::bfyx, { in_B, in_F, in_X, in_Y } });
     set_values(input, std::move(Data));
 
     // Create a topology
@@ -794,7 +797,7 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     // Reorder
     topology.add(reorder("reorder_in",
                          "input",
-                         layout(data_types::i8, format::b_fs_yx_fsv4, {in_B, in_F, in_X, in_Y})));
+                         layout(data_types::i8, format::b_fs_yx_fsv4, { in_B, in_F, in_X, in_Y })));
 
     // Weights
     std::vector<char> Weights(W_B * W_F);
@@ -803,15 +806,15 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
         return i % 2 ? -(i++) / W_F - 1 : (i++) / W_F + 1;
     });
     auto weights_gold =
-        engine.allocate_memory({data_types::i8, format::bfyx, {W_B, W_F, W_X, W_Y}});
+        engine.allocate_memory({ data_types::i8, format::bfyx, { W_B, W_F, W_X, W_Y } });
     auto weights_imad =
-        engine.allocate_memory({data_types::i8, format::bfyx, {W_B, W_F, W_X, W_Y}});
+        engine.allocate_memory({ data_types::i8, format::bfyx, { W_B, W_F, W_X, W_Y } });
     set_values(weights_gold, Weights);
     set_values(weights_imad, std::move(Weights));
     topology.add(data("weights_gold", weights_gold), data("weights_imad", weights_imad));
 
-    auto bias_gold = engine.allocate_memory({data_types::f32, format::bfyx, {1, in_F, 1, 1}});
-    auto bias_imad = engine.allocate_memory({data_types::f32, format::bfyx, {1, in_F, 1, 1}});
+    auto bias_gold = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, in_F, 1, 1 } });
+    auto bias_imad = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, in_F, 1, 1 } });
 
     std::vector<float> bias_data(in_F, 0);
     set_values(bias_gold, bias_data);
@@ -828,14 +831,14 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     topology.add(fullc_gold, fullc_imad);
 
 
-    auto input_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, {1, W_B, 1, 1} });
-    auto input_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, {1, W_B, 1, 1} });
-    auto output_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, {1, 1, 1, 1} });
-    auto output_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, {1, 1, 1, 1} });
+    auto input_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, W_B, 1, 1 } });
+    auto input_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, W_B, 1, 1 } });
+    auto output_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto output_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
     set_values(input_low_mem,  generate_random_1d<float>(W_B, -200, 0));
     set_values(input_high_mem, generate_random_1d<float>(W_B, 1, 200));
-    set_values(output_low_mem,  {-127.0f});
-    set_values(output_high_mem, {127.0f});
+    set_values(output_low_mem, { -127.0f });
+    set_values(output_high_mem, { 127.0f });
 
     topology.add(data("in_lo", input_low_mem),
         data("in_hi", input_high_mem),
@@ -847,9 +850,9 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
 
     // Output reorder
     auto reorder_gold =
-        reorder("reorder_gold", "quant_gold", layout(data_types::i8, format::bfyx, {in_B, W_B, 1, 1}));
+        reorder("reorder_gold", "quant_gold", layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
     auto reorder_imad =
-        reorder("reorder_imad", "quant_imad", layout(data_types::i8, format::bfyx, {in_B, W_B, 1, 1}));
+        reorder("reorder_imad", "quant_imad", layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
     topology.add(reorder_gold, reorder_imad);
 
     // Network build
@@ -893,8 +896,8 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
 
     // Allocate memory
     auto input_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { batch_num, input_f, input_y, input_x } });
-    auto weights_prim = engine.allocate_memory({ data_types::f16,format::bfyx,{ output_f, input_f, input_y, input_x } });
-    auto bias_prim = engine.allocate_memory({ data_types::f16,format::bfyx,{ 1, 1, output_f, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { output_f, input_f, input_y, input_x } });
+    auto bias_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, output_f, 1 } });
 
     // Generate random input data and set values
     auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
@@ -916,9 +919,9 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        reorder("input_fsv", "input", {data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
-        fully_connected("fc", "input_fsv", "weights", "bias"),
-        activation("out", "fc", activation_func::relu)
+        reorder("input_fsv", "input", { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
+        fully_connected("fc_prim", "input_fsv", "weights", "bias"),
+        activation("out", "fc_prim", activation_func::relu)
     );
 
     // Set data optimization to allow weights reordering to optimal format
@@ -969,8 +972,8 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
 
     // Allocate memory
     auto input_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { batch_num, input_f, input_y, input_x } });
-    auto weights_prim = engine.allocate_memory({ data_types::f16,format::bfyx,{ output_f, input_f, input_y, input_x } });
-    auto bias_prim = engine.allocate_memory({ data_types::f16,format::bfyx,{ 1, 1, output_f, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { output_f, input_f, input_y, input_x } });
+    auto bias_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, output_f, 1 } });
 
     // Generate random input data and set values
     auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
@@ -993,8 +996,8 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
         data("weights", weights_prim),
         data("bias", bias_prim),
         reorder("input_fsv", "input", { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
-        fully_connected("fc", "input_fsv", "weights", "bias"),
-        activation("out", "fc", activation_func::relu)
+        fully_connected("fc_prim", "input_fsv", "weights", "bias"),
+        activation("out", "fc_prim", activation_func::relu)
     );
 
     // Set data optimization to allow weights reordering to optimal format
@@ -1055,7 +1058,7 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         auto input = net.add_input_layout<InputT, 4>("input", input_format, std::move(input_data));
         auto weights = net.add_data<WeightsT, 4>("weights", format::oiyx, std::move(weights_data));
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
-        auto fc = net.add_fully_connected<OutputT>("fc", input, weights, bias, implementation_desc{ output_format, kernel });
+        auto fc = net.add_fully_connected<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel });
 
         net.run(build_options(build_option::optimize_data(true)));
     }
@@ -1068,71 +1071,81 @@ TEST_P(fully_connected_random_test_f32, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                        fully_connected_random_test_f32,
-                        ::testing::Combine(
-                            ::testing::Values(1, 2),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(format::bfyx, format::yxfb),
-                            ::testing::Values(format::any),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    fully_connected_random_test_f32,
+    ::testing::Combine(
+        ::testing::Values(1, 2),
+        ::testing::Values(3, 32),
+        ::testing::Values(1, 3),
+        ::testing::Values(1, 3),
+        ::testing::Values(3, 32),
+        ::testing::Values(format::bfyx, format::yxfb),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
 
-INSTANTIATE_TEST_SUITE_P(smoke_bfyx_batched,
-                        fully_connected_random_test_f32,
-                        ::testing::Combine(
-                            ::testing::Values(2, 8),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_bfyx_batched,
+    fully_connected_random_test_f32,
+    ::testing::Combine(
+        ::testing::Values(2, 8),
+        ::testing::Values(3, 32),
+        ::testing::Values(1, 3),
+        ::testing::Values(1, 3),
+        ::testing::Values(3, 32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(""))
+);
 
 TEST_P(fully_connected_random_test_f16, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_bfyx_b2,
-                        fully_connected_random_test_f16,
-                        ::testing::Combine(
-                            // Batch 1 is disabled due to sporadic failures in `fully_connected_gpu_bs_f_bsv16_b1`
-                            // - there are nans in output.
-                            ::testing::Values(2),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values(format::any),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_bfyx_b2,
+    fully_connected_random_test_f16,
+    ::testing::Combine(
+        // Batch 1 is disabled due to sporadic failures in `fully_connected_gpu_bs_f_bsv16_b1`
+        // - there are nans in output.
+        ::testing::Values(2),
+        ::testing::Values(3, 32),
+        ::testing::Values(1, 3),
+        ::testing::Values(1, 3),
+        ::testing::Values(3, 32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                        fully_connected_random_test_f16,
-                        ::testing::Combine(
-                            ::testing::Values(1, 2),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(format::yxfb),
-                            ::testing::Values(format::any),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    fully_connected_random_test_f16,
+    ::testing::Combine(
+        ::testing::Values(1, 2),
+        ::testing::Values(3, 32),
+        ::testing::Values(1, 3),
+        ::testing::Values(1, 3),
+        ::testing::Values(3, 32),
+        ::testing::Values(format::yxfb),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
 
-INSTANTIATE_TEST_SUITE_P(smoke_bfyx_batched,
-                        fully_connected_random_test_f16,
-                        ::testing::Combine(
-                            ::testing::Values(2, 8),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(3, 32),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_bfyx_batched,
+    fully_connected_random_test_f16,
+    ::testing::Combine(
+        ::testing::Values(2, 8),
+        ::testing::Values(3, 32),
+        ::testing::Values(1, 3),
+        ::testing::Values(1, 3),
+        ::testing::Values(3, 32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(""))
+);
 
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
@@ -1153,7 +1166,7 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
         auto input = net.add_input_layout<InputT, 4>("input", input_format, std::move(input_data));
         auto weights = net.add_data<WeightsT, 4>("weights", format::oiyx, std::move(weights_data));
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
-        auto fc = net.add_fully_connected_3d<OutputT>("fc", input, weights, bias, implementation_desc{ output_format, kernel }, 3);
+        auto fc = net.add_fully_connected_3d<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel }, 3);
 
         net.run(build_options(build_option::optimize_data(true)));
     }
@@ -1168,73 +1181,111 @@ TEST_P(fully_connected_random_test_f32_3d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                        fully_connected_random_test_f32_3d,
-                        ::testing::Combine(
-                            ::testing::Values(1,3),
-                            ::testing::Values(1,3),
-                            ::testing::Values(1),
-                            ::testing::Values(1,3,16),
-                            ::testing::Values(1,3,16),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values(format::any),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    fully_connected_random_test_f32_3d,
+    ::testing::Combine(
+        ::testing::Values(1, 3),
+        ::testing::Values(1, 3),
+        ::testing::Values(1),
+        ::testing::Values(1, 3, 16),
+        ::testing::Values(1, 3, 16),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
 
-INSTANTIATE_TEST_SUITE_P(smoke_big,
-                        fully_connected_random_test_f32_3d,
-                        ::testing::Combine(
-                            ::testing::Values(3),
-                            ::testing::Values(16, 17, 32),
-                            ::testing::Values(1),
-                            ::testing::Values(17, 32),
-                            ::testing::Values(17, 32),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values(format::any),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_tiled,
+    fully_connected_random_test_f32_3d,
+    ::testing::Combine(
+        ::testing::Values(1, 2),
+        ::testing::Values(64, 65),
+        ::testing::Values(1),
+        ::testing::Values(64, 65, 128),
+        ::testing::Values(1, 32, 64),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_big,
+    fully_connected_random_test_f32_3d,
+    ::testing::Combine(
+        ::testing::Values(3),
+        ::testing::Values(16, 17, 32),
+        ::testing::Values(1),
+        ::testing::Values(17, 32),
+        ::testing::Values(17, 32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
 
 TEST_P(fully_connected_random_test_f16_3d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                        fully_connected_random_test_f16_3d,
-                        ::testing::Combine(
-                            ::testing::Values(1,3),
-                            ::testing::Values(1,3),
-                            ::testing::Values(1),
-                            ::testing::Values(1,3,16),
-                            ::testing::Values(1,3,16),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values(format::any),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    fully_connected_random_test_f16_3d,
+    ::testing::Combine(
+        ::testing::Values(1, 3),
+        ::testing::Values(1, 3),
+        ::testing::Values(1),
+        ::testing::Values(1, 3, 16),
+        ::testing::Values(1, 3, 16),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
 
 TEST_P(fully_connected_random_test_i8_3d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                        fully_connected_random_test_i8_3d,
-                        ::testing::Combine(
-                            ::testing::Values(1,3),
-                            ::testing::Values(1,3),
-                            ::testing::Values(1),
-                            ::testing::Values(1,3,16),
-                            ::testing::Values(1,3,16),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values(format::any),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    fully_connected_random_test_i8_3d,
+    ::testing::Combine(
+        ::testing::Values(1, 3),
+        ::testing::Values(1, 3),
+        ::testing::Values(1),
+        ::testing::Values(1, 3, 16),
+        ::testing::Values(1, 3, 16),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
 
-INSTANTIATE_TEST_SUITE_P(smoke_big,
-                        fully_connected_random_test_i8_3d,
-                        ::testing::Combine(
-                            ::testing::Values(1,3),
-                            ::testing::Values(16,17),
-                            ::testing::Values(1),
-                            ::testing::Values(17, 32),
-                            ::testing::Values(17, 32),
-                            ::testing::Values(format::bfyx),
-                            ::testing::Values(format::any),
-                            ::testing::Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_imad,
+    fully_connected_random_test_i8_3d,
+    ::testing::Combine(
+        ::testing::Values(1, 2),
+        ::testing::Values(64, 65),
+        ::testing::Values(1),
+        ::testing::Values(64, 65, 128),
+        ::testing::Values(1, 32, 64),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_big,
+    fully_connected_random_test_i8_3d,
+    ::testing::Combine(
+        ::testing::Values(1, 3),
+        ::testing::Values(16, 17),
+        ::testing::Values(1),
+        ::testing::Values(17, 32),
+        ::testing::Values(17, 32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::any),
+        ::testing::Values(""))
+);
 
 
 struct quantization_t {
@@ -1342,7 +1393,7 @@ public:
         topo.add(data("bias", bias_prim));
 
         topo.add(input_layout("input", input_prim->get_layout()));
-        auto fc_prim = fully_connected("fc", "input", "weights", "bias");
+        auto fc_prim = fully_connected("fc_prim", "input", "weights", "bias");
         fc_prim.output_data_type = type_to_data_type<OutputT>::value;
         topo.add(fc_prim);
 
@@ -1351,7 +1402,7 @@ public:
         topo.add(data("quant_output_low", quantization_output_low));
         topo.add(data("quant_output_high", quantization_output_high));
         topo.add(quantize("quantization_prim",
-            "fc",
+            "fc_prim",
             "quant_input_low",
             "quant_input_high",
             "quant_output_low",
@@ -1430,13 +1481,13 @@ VVF<OutputT> ref_fully_connected(
             if (std::is_same<OutputT, float>::value) {
                 output[bi][fi] = static_cast<OutputT>(
                     std::round((acc - input_low) / (input_high - input_low) * (levels - 1))
-                        *  (1 / (levels - 1) * (output_high - output_low))
+                        * (1 / (levels - 1) * (output_high - output_low))
                         + output_low);
             }
             else {
                 output[bi][fi] = static_cast<OutputT>(std::round(
                     std::round((acc - input_low) / (input_high - input_low) * (levels - 1))
-                        *  (1 / (levels - 1) * (output_high - output_low))
+                        * (1 / (levels - 1) * (output_high - output_low))
                         + output_low));
             }
         }
@@ -1528,11 +1579,25 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_i8_i8_test,
     testing::Combine(
         testing::Values(1, 2),
-        testing::Values(3, 32),
+        testing::Values(3, 64),
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
+    ),
+    fully_connected_i8_i8_test::PrintToStringParamName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    imad,
+    fully_connected_i8_i8_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(64, 128),
+        testing::Values(1),
+        testing::Values(1),
+        testing::Values(1, 31, 64, 65),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_i8_test::PrintToStringParamName
 );
@@ -1542,11 +1607,11 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_i8_u8_test,
     testing::Combine(
         testing::Values(1, 2),
-        testing::Values(3, 32),
+        testing::Values(3, 64),
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_u8_test::PrintToStringParamName
 );
@@ -1613,8 +1678,8 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     //  Output : 4x1
     //  Weights: 4x3
 
-    const int32_t input_x = 3, input_b = 1,  // size of whole input buffer
-        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+    const int32_t input_x = 3, input_b = 1,     // size of the whole input buffer
+                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
 
     auto& engine = get_onednn_test_engine();
 
@@ -1628,8 +1693,8 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
     auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, 1, input_x, 1 } });
-    auto fc = fully_connected("full_con_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32, format::bfyx, { input_b, 1, 4, 1 } });
+    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights");
+    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, 1, 4, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -1639,7 +1704,7 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
 
     cldnn::build_options force_options;
     implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
-    force_options.set_option(build_option::force_implementations({ {"full_con_prim", fc_impl} }));
+    force_options.set_option(build_option::force_implementations({ {"fc_prim", fc_impl} }));
 
     network network(engine, topology, force_options);
     network.set_input_data("input", input_prim);
@@ -1663,8 +1728,8 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     //  Output : 2x4
     //  Weights: 4x3
 
-    const int32_t input_y = 3, input_f = 2, input_b = 1,  // size of whole input buffer
-                  weight_o = 4, weight_i = 3,  // size of whole weights buffer
+    const int32_t input_y = 3, input_f = 2, input_b = 1,  // size of the whole input buffer
+                  weight_o = 4, weight_i = 3,             // size of the whole weights buffer
                   output_b = 2, output_f = 4;
 
     auto& engine = get_onednn_test_engine();
@@ -1678,8 +1743,8 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
     auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, input_y } });
-    auto fc = fully_connected("full_con_prim", "reorder_to_int", "weights", "", "", padding(), 3);
-    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
+    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights", "", "", padding(), 3);
+    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -1689,7 +1754,7 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
 
     cldnn::build_options force_options;
     implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
-    force_options.set_option(build_option::force_implementations({ {"full_con_prim", fc_impl} }));
+    force_options.set_option(build_option::force_implementations({ { "fc_prim", fc_impl } }));
 
     network network(engine, topology, force_options);
     network.set_input_data("input", input_prim);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ KERNEL (fully_connected_gpu_xb_bx_b8)(
     float8 _data = 0.f;
     const uint sub_group_id = get_local_id(0);
 
-    for(uint _i = 0; _i < INPUT0_ELEMENTS_COUNT/8; _i++)
+    for (uint _i = 0; _i < INPUT0_ELEMENTS_COUNT/8; _i++)
     {
         uint i = _i * 8;
         const float weight_val = weight[weight_offset];
@@ -45,7 +45,7 @@ KERNEL (fully_connected_gpu_xb_bx_b8)(
         _data.s7 = fma(_input.s7, intel_sub_group_shuffle(weight_val, 7), _data.s7);
         weight_offset += 8;
     }
-    for(uint i = INPUT0_ELEMENTS_COUNT - (INPUT0_ELEMENTS_COUNT % 8); i < INPUT0_ELEMENTS_COUNT; i++)
+    for (uint i = INPUT0_ELEMENTS_COUNT - (INPUT0_ELEMENTS_COUNT % 8); i < INPUT0_ELEMENTS_COUNT; i++)
     {
         result += input[i * INPUT0_BATCH_NUM + batch_id] * weight[weight_offset++];
     }

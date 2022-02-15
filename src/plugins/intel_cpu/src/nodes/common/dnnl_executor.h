@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@ class DnnlExecutor {
 
     public:
         void exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn::stream strm);
+        bool needReordering() const;
         virtual ~DnnlExecutor() = default;
 
     protected:

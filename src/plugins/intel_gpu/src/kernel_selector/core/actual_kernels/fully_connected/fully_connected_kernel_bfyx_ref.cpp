@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,6 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableAllInputLayout();
     k.EnableDifferentInputWeightsTypes();
     k.EnableDifferentTypes();
-    k.EnableInputLayout(DataLayout::bf);
-    k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::fb);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -43,9 +41,10 @@ FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const 
                                                                           int) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    std::vector<size_t> global = {params.output.Feature().v, params.output.Batch().v, 1};
-    if (params.output.GetLayout() == DataLayout::bfyx)
-        global = {params.output.Feature().v * params.output.Y().v, params.output.Batch().v, 1};
+    std::vector<size_t> global = { params.output.Feature().v, params.output.Batch().v, 1 };
+    if (params.output.GetLayout() == DataLayout::bfyx) {
+        global = { params.output.Feature().v, params.output.Y().v, params.output.Batch().v };
+    }
 
     dispatchData.gws = global;
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -60,16 +59,8 @@ KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& /*para
 JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_params& params,
     const FullyConnectedKernelBase::DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
-    Datatype accumulator_dt;
-    Datatype activation_dt;
-
-    if (params.quantization != QuantizationType::NONE) {
-        accumulator_dt = Datatype::INT32;
-        activation_dt = Datatype::F32;
-    } else {
-        accumulator_dt = Datatype::F32;
-        activation_dt = Datatype::F32;
-    }
+    Datatype accumulator_dt = GetAccumulatorType(params);
+    Datatype activation_dt = GetActivationType(params);
     if (params.output.GetLayout() == DataLayout::bfyx)
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
@@ -77,19 +68,23 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf = { "", {"b", "ofm", "oym", "0"}, "dequantized", activation_dt, 1 };
+        std::vector<std::string> idx_order = { "b", "ofm", "0", "0" };
+        if (params.output.GetLayout() == DataLayout::bfyx)
+            idx_order = { "b", "ofm", "oym", "0" };
+        FusedOpsConfiguration conf = { "", idx_order, "dequantized", activation_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
     return jit;
 }
 
 KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const optional_params& options) const {
+    auto& fc_params = static_cast<const fully_connected_params&>(params);
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(
             params,
             options,
-            DataLayout::bfyx,
+            fc_params.inputs[0].GetLayout(),
             WeightsLayout::oiyx,
             static_cast<int>(i));
         if (!kd.empty()) {

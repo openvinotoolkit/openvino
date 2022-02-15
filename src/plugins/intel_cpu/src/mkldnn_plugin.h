@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,10 +41,21 @@ public:
                                                      const std::map<std::string, std::string>& config) override;
 
 private:
+    bool isLegacyAPI() const;
+
+    InferenceEngine::Parameter GetMetricLegacy(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const;
+
+    InferenceEngine::Parameter GetConfigLegacy(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const;
+
+    void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
+
     Config engConfig;
     NumaNodesWeights weightsSharing;
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
-    bool streamsSet = false;
+    /* Explicily configured streams have higher priority even than performance hints.
+       So track if streams is set explicitly (not auto-configured) */
+    bool streamsExplicitlySetForEngine = false;
+    const std::string deviceFullName;
 };
 
 }  // namespace MKLDNNPlugin

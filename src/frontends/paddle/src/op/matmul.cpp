@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -10,8 +9,8 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs matmul(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
-    auto y = node.get_ng_input("Y");
+    auto x = node.get_input("X");
+    auto y = node.get_input("Y");
     auto alpha = node.get_attribute<float>("alpha", 1);
     auto transpose_a = node.get_attribute<bool>("transpose_X", false);
     auto transpose_b = node.get_attribute<bool>("transpose_Y", false);

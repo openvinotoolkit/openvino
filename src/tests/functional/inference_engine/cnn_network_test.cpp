@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include "cpp/ie_cnn_network.h"
+#include "inference_engine.hpp"
+#include "openvino/opsets/opset.hpp"
+#include "openvino/pass/serialize.hpp"
+#include <common_test_utils/file_utils.hpp>
 
 using namespace InferenceEngine;
 
@@ -71,4 +75,105 @@ TEST_F(CNNNetworkTests, throwsOnConstUninitializedBegin) {
 TEST_F(CNNNetworkTests, throwsOnConstUninitializedGetInputShapes) {
     CNNNetwork network;
     ASSERT_THROW(network.getInputShapes(), InferenceEngine::Exception);
+}
+
+static std::shared_ptr<ov::Model> CNNNetworkTests_create_model() {
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    param1->set_friendly_name("p1_friendly");
+    param1->output(0).set_names({"p1_1", "p1_2"});
+    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape {-1, 3, 224, 224});
+    param2->set_friendly_name("p2_friendly");
+    param2->output(0).set_names({"p2_1", "p2_2"});
+    auto param3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape {1, 3, 224, 224});
+    param3->set_friendly_name("p3_friendly");
+    param3->output(0).set_names({"p3_1", "p3_2"});
+    return std::make_shared<ov::Model>(ov::OutputVector {param1, param2, param3},
+                                       ov::ParameterVector{param1, param2, param3});
+}
+
+TEST_F(CNNNetworkTests, throwsHasDynamicInputs) {
+    auto model = CNNNetworkTests_create_model();
+    CNNNetwork network(model);
+    InferenceEngine::Core core;
+    try {
+        core.LoadNetwork(network);
+        FAIL() << "LoadNetwork with dynamic inputs shall throw";
+    } catch (const ov::AssertFailure& e) {
+        EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_1") == std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
+    }
+}
+
+TEST_F(CNNNetworkTests, throwsHasDynamicInputs_remoteContext) {
+    auto model = CNNNetworkTests_create_model();
+    CNNNetwork network(model);
+    InferenceEngine::Core core;
+    try {
+        core.LoadNetwork(network, InferenceEngine::RemoteContext::Ptr());
+        FAIL() << "LoadNetwork with dynamic inputs shall throw";
+    } catch (const ov::AssertFailure& e) {
+        EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_1") == std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
+    }
+}
+
+TEST_F(CNNNetworkTests, throwsHasDynamicInputs_queryNetwork) {
+    auto model = CNNNetworkTests_create_model();
+    CNNNetwork network(model);
+    InferenceEngine::Core core;
+    try {
+        core.QueryNetwork(network, "mock");
+        FAIL() << "QueryNetwork with dynamic inputs shall throw";
+    } catch (const ov::AssertFailure& e) {
+        EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::QueryNetwork") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_1") == std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
+    }
+}
+
+class CNNNetworkTests_LoadFromFileTest : public ::testing::Test {
+protected:
+    std::string modelName = "CNNNetworkTests_LoadFromFileTest.xml";
+    std::string weightsName = "CNNNetworkTests_LoadFromFileTest.bin";
+    InferenceEngine::Core core;
+public:
+    void SetUp() override {
+        std::shared_ptr<ov::Model> model = CNNNetworkTests_create_model();
+        ov::pass::Serialize(modelName, weightsName).run_on_model(model);
+        core.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, "mock");
+    }
+
+    void TearDown() override {
+        CommonTestUtils::removeIRFiles(modelName, weightsName);
+        core.UnregisterPlugin("mock");
+    }
+};
+
+TEST_F(CNNNetworkTests_LoadFromFileTest, throwsHasDynamicInputs_fromPath) {
+    try {
+        core.LoadNetwork(modelName, "mock");
+        FAIL() << "LoadNetwork with dynamic inputs shall throw";
+    } catch (const ov::AssertFailure& e) {
+        EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_1") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p2_2") != std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_1") == std::string::npos) << e.what();
+        EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
+    }
 }

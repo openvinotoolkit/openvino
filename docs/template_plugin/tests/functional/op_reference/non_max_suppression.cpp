@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,16 +15,16 @@ using namespace ov;
 
 namespace {
 struct NonMaxSuppressionParams {
-    Tensor boxes;
-    Tensor scores;
-    Tensor maxOutputBoxesPerClass;
-    Tensor iouThreshold;
-    Tensor scoreThreshold;
-    Tensor softNmsSigma;
+    reference_tests::Tensor boxes;
+    reference_tests::Tensor scores;
+    reference_tests::Tensor maxOutputBoxesPerClass;
+    reference_tests::Tensor iouThreshold;
+    reference_tests::Tensor scoreThreshold;
+    reference_tests::Tensor softNmsSigma;
     opset5::NonMaxSuppression::BoxEncodingType boxEncoding;
-    Tensor expectedSelectedIndices;
-    Tensor expectedSelectedScores;
-    Tensor expectedValidOutputs;
+    reference_tests::Tensor expectedSelectedIndices;
+    reference_tests::Tensor expectedSelectedScores;
+    reference_tests::Tensor expectedValidOutputs;
     std::string testcaseName;
 };
 
@@ -91,7 +91,8 @@ private:
                                                                      score_threshold,
                                                                      soft_nms_sigma,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
@@ -128,7 +129,8 @@ private:
                                                                      score_threshold,
                                                                      soft_nms_sigma,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(),
                                                ParameterVector{boxes, scores, max_output_boxes_per_class,
                                                                iou_threshold, score_threshold, soft_nms_sigma});
@@ -153,257 +155,257 @@ std::vector<NonMaxSuppressionParams> generateParams() {
     std::vector<NonMaxSuppressionParams> params {
         Builder {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.5, 0.5,  1.0, 1.0, 0.5, 0.6,  1.0, 1.0, 0.5, 0.4,   1.0, 1.0,
                 0.5, 10.5, 1.0, 1.0, 0.5, 10.6, 1.0, 1.0, 0.5, 100.5, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .softNmsSigma(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CENTER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {3, 3}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {3, 3}, std::vector<T_TH>{
                 0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
         .testcaseName(
             "nonmaxsuppression_center_point_box_format"),
 
         Builder {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 1.0, 1.0,  0.0, 0.0,  0.0, 0.1,  1.0, 1.1,  0.0, 0.9,   1.0, -0.1,
                 0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .softNmsSigma(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {3, 3}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {3, 3}, std::vector<T_TH>{
                 0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
         .testcaseName(
             "nonmaxsuppression_flipped_coordinates"),
 
         Builder {}
         .boxes(
-            Tensor(ET, {1, 10, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 10, 4}, std::vector<T>{
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
                 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 10}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 10}, std::vector<T>{
                 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .softNmsSigma(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.9}))
+            reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.9}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
         .testcaseName(
             "nonmaxsuppression_identical_boxes"),
 
         Builder {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .softNmsSigma(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {2, 3}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {2, 3}, std::vector<T_TH>{
                 0.0, 0.0, 0.95, 0.0, 0.0, 0.9}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{2}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{2}))
         .testcaseName(
             "nonmaxsuppression_limit_output_size"),
 
         Builder {}
         .boxes(
-            Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}))
+            reference_tests::Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 1}, std::vector<T>{0.9}))
+            reference_tests::Tensor(ET, {1, 1, 1}, std::vector<T>{0.9}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .softNmsSigma(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.9}))
+            reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0, 0.0, 0.9}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
         .testcaseName(
             "nonmaxsuppression_single_box"),
 
         Builder {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .softNmsSigma(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {3, 3}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {3, 3}, std::vector<T_TH>{
                 0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU"),
 
         Builder {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
         .softNmsSigma(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {2, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {2, 3}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {2, 3}, std::vector<T_TH>{
                 0.0, 0.0, 0.95, 0.0, 0.0, 0.9}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{2}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{2}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU_and_scores"),
 
         Builder {}
         .boxes(
-            Tensor(ET, {2, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {2, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .softNmsSigma(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 1, 0, 3, 1, 0, 0}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {4, 3}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {4, 3}, std::vector<T_TH>{
                 0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 1.0, 0.0, 0.95, 1.0, 0.0, 0.9}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{4}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{4}))
         .testcaseName(
             "nonmaxsuppression_two_batches"),
 
         Builder {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 2, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 2, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .softNmsSigma(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 1, 3, 0, 1, 0}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {4, 3}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {4, 3}, std::vector<T_TH>{
                 0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 1.0, 0.95, 0.0, 1.0, 0.9}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{4}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{4}))
         .testcaseName(
             "nonmaxsuppression_two_classes"),
     };
@@ -436,28 +438,28 @@ std::vector<NonMaxSuppressionParams> generateParamsWithoutConstants() {
     std::vector<NonMaxSuppressionParams> params {
         Builder {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0f, 0.0f,  1.0f, 1.0f,  0.0f, 0.1f,  1.0f, 1.1f,  0.0f, -0.1f,  1.0f, 0.9f,
                 0.0f, 10.0f, 1.0f, 11.0f, 0.0f, 10.1f, 1.0f, 11.1f, 0.0f, 100.0f, 1.0f, 101.0f}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {1}, std::vector<T_BOX>{1}))
+            reference_tests::Tensor(ET_BOX, {1}, std::vector<T_BOX>{1}))
         .iouThreshold(
-            Tensor(ET_TH, {1}, std::vector<T_TH>{0.4f}))
+            reference_tests::Tensor(ET_TH, {1}, std::vector<T_TH>{0.4f}))
         .scoreThreshold(
-            Tensor(ET_TH, {1}, std::vector<T_TH>{0.2f}))
+            reference_tests::Tensor(ET_TH, {1}, std::vector<T_TH>{0.2f}))
         .softNmsSigma(
-            Tensor(ET_TH, {1}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {1}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset5::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 3}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 3}))
         .expectedSelectedScores(
-            Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0f, 0.0f, 0.95f}))
+            reference_tests::Tensor(ET_TH, {1, 3}, std::vector<T_TH>{0.0f, 0.0f, 0.95f}))
         .expectedValidOutputs(
-            Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU_and_scores_without_constants"),
     };
@@ -488,13 +490,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_NonMaxSuppression_With_Hardcoded_Refs, ReferenceN
 
 
 struct NonMaxSuppression4Params {
-    Tensor boxes;
-    Tensor scores;
-    Tensor maxOutputBoxesPerClass;
-    Tensor iouThreshold;
-    Tensor scoreThreshold;
+    reference_tests::Tensor boxes;
+    reference_tests::Tensor scores;
+    reference_tests::Tensor maxOutputBoxesPerClass;
+    reference_tests::Tensor iouThreshold;
+    reference_tests::Tensor scoreThreshold;
     opset4::NonMaxSuppression::BoxEncodingType boxEncoding;
-    Tensor expectedSelectedIndices;
+    reference_tests::Tensor expectedSelectedIndices;
     std::string testcaseName;
 };
 
@@ -549,7 +551,8 @@ private:
                                                                      iou_threshold,
                                                                      score_threshold,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
@@ -581,7 +584,8 @@ private:
                                                                      iou_threshold,
                                                                      score_threshold,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(),
                                                ParameterVector{boxes, scores, max_output_boxes_per_class,
                                                                iou_threshold, score_threshold});
@@ -606,195 +610,195 @@ std::vector<NonMaxSuppression4Params> generateParams4() {
     std::vector<NonMaxSuppression4Params> params {
         Builder4 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.5, 0.5,  1.0, 1.0, 0.5, 0.6,  1.0, 1.0, 0.5, 0.4,   1.0, 1.0,
                 0.5, 10.5, 1.0, 1.0, 0.5, 10.6, 1.0, 1.0, 0.5, 100.5, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CENTER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .testcaseName(
             "nonmaxsuppression_center_point_box_format"),
 
         Builder4 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 1.0, 1.0,  0.0, 0.0,  0.0, 0.1,  1.0, 1.1,  0.0, 0.9,   1.0, -0.1,
                 0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .testcaseName(
             "nonmaxsuppression_flipped_coordinates"),
 
         Builder4 {}
         .boxes(
-            Tensor(ET, {1, 10, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 10, 4}, std::vector<T>{
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
                 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 10}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 10}, std::vector<T>{
                 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_identical_boxes"),
 
         Builder4 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_limit_output_size"),
 
         Builder4 {}
         .boxes(
-            Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}))
+            reference_tests::Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 1}, std::vector<T>{0.9}))
+            reference_tests::Tensor(ET, {1, 1, 1}, std::vector<T>{0.9}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_single_box"),
 
         Builder4 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU"),
 
         Builder4 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {2, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU_and_scores"),
 
         Builder4 {}
         .boxes(
-            Tensor(ET, {2, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {2, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 1, 0, 3, 1, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_two_batches"),
 
         Builder4 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 2, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 2, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 1, 3, 0, 1, 0}))
         .testcaseName(
             "nonmaxsuppression_two_classes"),
@@ -828,22 +832,22 @@ std::vector<NonMaxSuppression4Params> generateParams4WithoutConstants() {
     std::vector<NonMaxSuppression4Params> params {
         Builder4 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0f, 0.0f,  1.0f, 1.0f,  0.0f, 0.1f,  1.0f, 1.1f,  0.0f, -0.1f,  1.0f, 0.9f,
                 0.0f, 10.0f, 1.0f, 11.0f, 0.0f, 10.1f, 1.0f, 11.1f, 0.0f, 100.0f, 1.0f, 101.0f}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.2f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.2f}))
         .boxEncoding(
             opset4::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 3}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 3}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU_and_scores_without_constants"),
     };
@@ -874,13 +878,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_NonMaxSuppression_With_Hardcoded_Refs, ReferenceN
 
 
 struct NonMaxSuppression3Params {
-    Tensor boxes;
-    Tensor scores;
-    Tensor maxOutputBoxesPerClass;
-    Tensor iouThreshold;
-    Tensor scoreThreshold;
+    reference_tests::Tensor boxes;
+    reference_tests::Tensor scores;
+    reference_tests::Tensor maxOutputBoxesPerClass;
+    reference_tests::Tensor iouThreshold;
+    reference_tests::Tensor scoreThreshold;
     opset3::NonMaxSuppression::BoxEncodingType boxEncoding;
-    Tensor expectedSelectedIndices;
+    reference_tests::Tensor expectedSelectedIndices;
     std::string testcaseName;
 };
 
@@ -935,7 +939,8 @@ private:
                                                                      iou_threshold,
                                                                      score_threshold,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
@@ -967,7 +972,8 @@ private:
                                                                      iou_threshold,
                                                                      score_threshold,
                                                                      params.boxEncoding,
-                                                                     false);
+                                                                     false,
+                                                                     params.expectedSelectedIndices.type);
         const auto f = std::make_shared<Model>(nms->outputs(),
                                                ParameterVector{boxes, scores, max_output_boxes_per_class,
                                                                iou_threshold, score_threshold});
@@ -992,171 +998,171 @@ std::vector<NonMaxSuppression3Params> generateParams3() {
     std::vector<NonMaxSuppression3Params> params {
         Builder3 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.5, 0.5,  1.0, 1.0, 0.5, 0.6,  1.0, 1.0, 0.5, 0.4,   1.0, 1.0,
                 0.5, 10.5, 1.0, 1.0, 0.5, 10.6, 1.0, 1.0, 0.5, 100.5, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset3::NonMaxSuppression::BoxEncodingType::CENTER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .testcaseName(
             "nonmaxsuppression_center_point_box_format"),
 
         Builder3 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 1.0, 1.0,  0.0, 0.0,  0.0, 0.1,  1.0, 1.1,  0.0, 0.9,   1.0, -0.1,
                 0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset3::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .testcaseName(
             "nonmaxsuppression_flipped_coordinates"),
 
         Builder3 {}
         .boxes(
-            Tensor(ET, {1, 10, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 10, 4}, std::vector<T>{
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
                 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 10}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 10}, std::vector<T>{
                 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset3::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_identical_boxes"),
 
         Builder3 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset3::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_limit_output_size"),
 
         Builder3 {}
         .boxes(
-            Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}))
+            reference_tests::Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 1}, std::vector<T>{0.9}))
+            reference_tests::Tensor(ET, {1, 1, 1}, std::vector<T>{0.9}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset3::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_single_box"),
 
         Builder3 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset3::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU"),
 
         Builder3 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
         .boxEncoding(
             opset3::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {2, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU_and_scores"),
 
         Builder3 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 2, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 2, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset3::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 1, 3, 0, 1, 0}))
         .testcaseName(
             "nonmaxsuppression_two_classes"),
@@ -1190,22 +1196,22 @@ std::vector<NonMaxSuppression3Params> generateParams3WithoutConstants() {
     std::vector<NonMaxSuppression3Params> params {
         Builder3 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0f, 0.0f,  1.0f, 1.0f,  0.0f, 0.1f,  1.0f, 1.1f,  0.0f, -0.1f,  1.0f, 0.9f,
                 0.0f, 10.0f, 1.0f, 11.0f, 0.0f, 10.1f, 1.0f, 11.1f, 0.0f, 100.0f, 1.0f, 101.0f}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.2f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.2f}))
         .boxEncoding(
             opset3::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 3}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 3}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU_and_scores_without_constants"),
     };
@@ -1236,13 +1242,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_NonMaxSuppression_With_Hardcoded_Refs, ReferenceN
 
 
 struct NonMaxSuppression1Params {
-    Tensor boxes;
-    Tensor scores;
-    Tensor maxOutputBoxesPerClass;
-    Tensor iouThreshold;
-    Tensor scoreThreshold;
+    reference_tests::Tensor boxes;
+    reference_tests::Tensor scores;
+    reference_tests::Tensor maxOutputBoxesPerClass;
+    reference_tests::Tensor iouThreshold;
+    reference_tests::Tensor scoreThreshold;
     opset1::NonMaxSuppression::BoxEncodingType boxEncoding;
-    Tensor expectedSelectedIndices;
+    reference_tests::Tensor expectedSelectedIndices;
     std::string testcaseName;
 };
 
@@ -1354,171 +1360,171 @@ std::vector<NonMaxSuppression1Params> generateParams1() {
     std::vector<NonMaxSuppression1Params> params {
         Builder1 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.5, 0.5,  1.0, 1.0, 0.5, 0.6,  1.0, 1.0, 0.5, 0.4,   1.0, 1.0,
                 0.5, 10.5, 1.0, 1.0, 0.5, 10.6, 1.0, 1.0, 0.5, 100.5, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset1::NonMaxSuppression::BoxEncodingType::CENTER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .testcaseName(
             "nonmaxsuppression_center_point_box_format"),
 
         Builder1 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 1.0, 1.0,  0.0, 0.0,  0.0, 0.1,  1.0, 1.1,  0.0, 0.9,   1.0, -0.1,
                 0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset1::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .testcaseName(
             "nonmaxsuppression_flipped_coordinates"),
 
         Builder1 {}
         .boxes(
-            Tensor(ET, {1, 10, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 10, 4}, std::vector<T>{
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
                 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 10}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 10}, std::vector<T>{
                 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset1::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_identical_boxes"),
 
         Builder1 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset1::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{0, 0, 3, 0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_limit_output_size"),
 
         Builder1 {}
         .boxes(
-            Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}))
+            reference_tests::Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}))
         .scores(
-            Tensor(ET, {1, 1, 1}, std::vector<T>{0.9}))
+            reference_tests::Tensor(ET, {1, 1, 1}, std::vector<T>{0.9}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset1::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_single_box"),
 
         Builder1 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{3}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset1::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {3, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 0, 5}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU"),
 
         Builder1 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
         .boxEncoding(
             opset1::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {2, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {2, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU_and_scores"),
 
         Builder1 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}))
         .scores(
-            Tensor(ET, {1, 2, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 2, 6}, std::vector<T>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{2}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
         .boxEncoding(
             opset1::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
+            reference_tests::Tensor(ET_IND, {4, 3}, std::vector<T_IND>{
                 0, 0, 3, 0, 0, 0, 0, 1, 3, 0, 1, 0}))
         .testcaseName(
             "nonmaxsuppression_two_classes"),
@@ -1528,9 +1534,6 @@ std::vector<NonMaxSuppression1Params> generateParams1() {
 
 std::vector<NonMaxSuppression1Params> generateCombinedParams1() {
     const std::vector<std::vector<NonMaxSuppression1Params>> generatedParams {
-        generateParams1<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams1<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams1<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
         generateParams1<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
         generateParams1<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
         generateParams1<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
@@ -1552,22 +1555,22 @@ std::vector<NonMaxSuppression1Params> generateParams1WithoutConstants() {
     std::vector<NonMaxSuppression1Params> params {
         Builder1 {}
         .boxes(
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0f, 0.0f,  1.0f, 1.0f,  0.0f, 0.1f,  1.0f, 1.1f,  0.0f, -0.1f,  1.0f, 0.9f,
                 0.0f, 10.0f, 1.0f, 11.0f, 0.0f, 10.1f, 1.0f, 11.1f, 0.0f, 100.0f, 1.0f, 101.0f}))
         .scores(
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 1, 6}, std::vector<T>{
                 0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f}))
         .maxOutputBoxesPerClass(
-            Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
+            reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{1}))
         .iouThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.4f}))
         .scoreThreshold(
-            Tensor(ET_TH, {}, std::vector<T_TH>{0.2f}))
+            reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.2f}))
         .boxEncoding(
             opset1::NonMaxSuppression::BoxEncodingType::CORNER)
         .expectedSelectedIndices(
-            Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 3}))
+            reference_tests::Tensor(ET_IND, {1, 3}, std::vector<T_IND>{0, 0, 3}))
         .testcaseName(
             "nonmaxsuppression_suppress_by_IOU_and_scores_without_constants"),
     };
@@ -1576,9 +1579,6 @@ std::vector<NonMaxSuppression1Params> generateParams1WithoutConstants() {
 
 std::vector<NonMaxSuppression1Params> generateCombinedParams1WithoutConstants() {
     const std::vector<std::vector<NonMaxSuppression1Params>> generatedParams {
-        generateParams1WithoutConstants<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams1WithoutConstants<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams1WithoutConstants<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
         generateParams1WithoutConstants<element::Type_t::bf16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
         generateParams1WithoutConstants<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
         generateParams1WithoutConstants<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),

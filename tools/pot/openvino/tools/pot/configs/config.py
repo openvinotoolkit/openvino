@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
@@ -20,6 +20,7 @@ DEFAULT_TARGET_DEVICE = 'ANY'
 DEFAULT_PRESET = 'performance'
 
 
+# pylint: disable=W0212
 class Config(Dict):
     """ Tool configuration containing model, engine, and algorithms' parameters
     """
@@ -62,6 +63,19 @@ class Config(Dict):
         self.model['output_dir'] = args.output_dir
         self.model['direct_dump'] = args.direct_dump
         self.engine['evaluate'] = args.evaluate
+        if self.engine.type == 'data_free':
+            if 'data_type' not in self.engine:
+                self.engine['data_type'] = args.data_type
+            if 'generate_data' not in self.engine:
+                self.engine['generate_data'] = args.generate_data
+            if 'shape' not in self.engine:
+                self.engine['shape'] = args.shape
+            if self.engine['generate_data']:
+                subset_size = 0
+                for algo in self.compression['algorithms']:
+                    subset_size = max(subset_size, algo.get('stat_subset_size', 300))
+                self.engine['subset_size'] = subset_size
+
         self.model['keep_uncompressed_weights'] = args.keep_uncompressed_weights
         if 'optimizer' in self:
             self.optimizer.params['keep_uncompressed_weights'] = args.keep_uncompressed_weights
@@ -184,6 +198,7 @@ class Config(Dict):
                 'range_estimator': range_estimator_parameters,
                 'weights': weights_params,
                 'activations': activations_params,
+                'saturation_fix': None
             },
             'FastBiasCorrection': bias_correction_params,
             'BiasCorrection': bias_correction_params,
@@ -294,9 +309,9 @@ class Config(Dict):
         if 'type' not in engine or engine.type == 'accuracy_checker':
             self._configure_ac_params()
             self.engine.type = 'accuracy_checker'
-        elif engine.type == 'simplified':
-            if 'data_source' not in engine:
-                raise KeyError('Missed data dir for sample engine')
+        elif engine.type == 'simplified' or engine.type == 'data_free':
+            if engine.data_source is None:
+                raise KeyError(f'Missed data dir for {engine.type} engine')
             self.engine.device = engine.device if engine.device else 'CPU'
             engine.data_source = Path(engine.data_source)
         else:
@@ -305,8 +320,9 @@ class Config(Dict):
     def _configure_ac_params(self):
         """ Converts engine config into accuracy checker config
         """
+        filtering_params = {'target_devices': ['CPU'], 'target_framework': 'openvino', 'use_new_api': True}
         if 'config' in self.engine:
-            ac_conf, mode = ConfigReader.merge(self.engine)
+            ac_conf, mode = ConfigReader.merge(Dict({**self.engine, **filtering_params}))
             ac_conf = Dict(ac_conf)
         else:
             mode = 'evaluations' if self.engine.module else 'models'
@@ -324,25 +340,9 @@ class Config(Dict):
                         logger.debug('Local preprocessing configuration is used for {} dataset'.format(dataset_name))
             ConfigReader.check_local_config(ac_conf)
             ac_conf = ConfigReader.convert_paths(ac_conf)
-
-        # use only dlsdk configs
-        dlsdk_models = list()
-        for model in ac_conf[mode]:
-            launcher_conf = model.launchers[0] if mode == 'models' \
-                else model.module_config.launchers[0]
-            if launcher_conf.framework != 'dlsdk':
-                continue
-            if launcher_conf.cpu_extensions:
-                del launcher_conf.cpu_extensions
-            launcher_conf.device = 'CPU'
-
-            if 'model' in launcher_conf:
-                launcher_conf['model'] = Path(launcher_conf['model'])
-            if 'weights' in launcher_conf:
-                launcher_conf['weights'] = Path(launcher_conf['weights'])
-            dlsdk_models.append(model)
-        ac_conf[mode] = dlsdk_models
-
+            ConfigReader._filter_launchers(
+                ac_conf, filtering_params, mode=mode
+            )
         for req_num in ['stat_requests_number', 'eval_requests_number']:
             ac_conf[req_num] = self.engine[req_num] if req_num in self.engine else None
 

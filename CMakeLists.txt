@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -91,11 +91,8 @@ endfunction()
 include(cmake/test_model_zoo.cmake)
 
 add_subdirectory(thirdparty)
-add_subdirectory(inference-engine/thirdparty)
-add_subdirectory(inference-engine/src)
 add_subdirectory(src)
 add_subdirectory(samples)
-add_subdirectory(inference-engine)
 
 # Enable interpreter backend
 if (ENABLE_TESTS OR ENABLE_TEMPLATE)

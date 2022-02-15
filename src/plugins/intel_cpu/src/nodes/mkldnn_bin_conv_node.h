@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,7 @@ struct jit_bin_conv_call_args {
     size_t t_overflow;
     size_t b_overflow;
     size_t oc_off;
+    const void** post_op_data;
 };
 
 struct jit_uni_bin_conv_kernel {
@@ -108,6 +109,7 @@ private:
     std::shared_ptr<jit_uni_bin_conv_kernel> bin_conv_kernel = nullptr;
 
     mkldnn::primitive_attr attr;
+    std::vector<const void*> postOpsDataPtrs;
 
     impl_desc_type implType = impl_desc_type::ref;
 

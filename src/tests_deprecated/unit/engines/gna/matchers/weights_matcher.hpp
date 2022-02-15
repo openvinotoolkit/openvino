@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ class WeightsMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*
             return false;
         iterator.reset();
 
-        for(int i = 0; i < foo->nLayers; i++) {
+        for (uint32_t i = 0; i < foo->nLayers; i++) {
             if (foo->pLayers[i].nLayerKind != INTEL_AFFINE &&
                 foo->pLayers[i].nLayerKind != INTEL_AFFINE_DIAGONAL) continue;
 
@@ -156,7 +156,7 @@ class WeightsSizeMatcher : public ::testing::MatcherInterface<const gna_nnet_typ
 
         size_t sizeTotal = 0;
         std::stringstream ss;
-        for(int i = 0; i < foo->nLayers; i++) {
+        for(uint32_t i = 0; i < foo->nLayers; i++) {
             if (foo->pLayers[i].nLayerKind != INTEL_AFFINE && eMatchKind == eEqAffine) continue;
 
             auto affineWeightsSize = foo->pLayers[i].nOutputRows *
@@ -190,7 +190,7 @@ class WeightsSaver: public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     bool MatchAndExplain(const gna_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
             return false;
-        for(int i = 0; i < foo->nLayers; i++) {
+        for (uint32_t i = 0; i < foo->nLayers; i++) {
             if (foo->pLayers[i].nLayerKind != INTEL_AFFINE) continue;
 
             auto affine = (gna_affine_func_t*)foo->pLayers[i].pLayerStruct;

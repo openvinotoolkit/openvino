@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,7 @@ public:
 
 TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -478,6 +478,36 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             {},
             element::u8,
             { {element::f32}, { {-128, -128, -128} }, { {0.01f, 0.f, 0.01f} } },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // non per-channel operation
+    {
+        {1, 3, 4},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
+            element::u8,
+            {
+                {element::f32},
+                {{-128, -128, -128, -128}, ngraph::element::f32, {1, 1, 4}},
+                {{0.01f, 0.02f, 0.03f, 0.04f}, ngraph::element::f32, {1, 1, 4}}
+            },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::u8,
+            {
+                {element::f32},
+                {{-128, -128, -128, -128}, ngraph::element::f32, {1, 1, 4}},
+                {{0.01f, 0.02f, 0.03f, 0.04f}, ngraph::element::f32, {1, 1, 4}}
+            },
             element::f32,
             element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }

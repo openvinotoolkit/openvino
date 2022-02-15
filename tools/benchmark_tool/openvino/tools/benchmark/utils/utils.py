@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
@@ -86,27 +86,35 @@ def pre_post_processing(model: Model, app_inputs_info, input_precision: str, out
             pre_post_processor.output(i).tensor().set_element_type(element_type)
     user_precision_map = {}
     if input_output_precision:
-        user_precision_map = _parse_arg_map(input_output_precision)
+        user_precision_map = parse_input_output_precision(input_output_precision)
         input_names = get_input_output_names(model.inputs)
+        input_node_names = get_node_names(model.inputs)
         output_names = get_input_output_names(model.outputs)
+        output_node_names = get_node_names(model.outputs)
         for node_name, precision in user_precision_map.items():
             user_precision_map[node_name] = get_element_type(precision)
         for name, element_type in user_precision_map.items():
-            if name in input_names:
-                port = input_names.index(name)
-                app_inputs_info[port].element_type = element_type
-                pre_post_processor.input(name).tensor().set_element_type(element_type)
-            elif name in output_names:
-                pre_post_processor.output(name).tensor().set_element_type(element_type)
+            if name in input_names or name in input_node_names:
+                input_index = input_names.index(name) if name in input_names else input_node_names.index(name)
+                app_inputs_info[input_index].element_type = element_type
+                pre_post_processor.input(input_index).tensor().set_element_type(element_type)
+            elif name in output_names or name in output_node_names:
+                if name in output_names:
+                    pre_post_processor.output(name).tensor().set_element_type(element_type)
+                else:
+                    pre_post_processor.output(output_node_names.index(name)).tensor().set_element_type(element_type)
             else:
-                raise Exception(f"Node '{name}' does not exist in network")
+                raise Exception(f"Node '{name}' does not exist in model")
 
     # update app_inputs_info
     if not input_precision:
         inputs = model.inputs
+        input_node_names = get_node_names(model.inputs)
         for i in range(len(inputs)):
-            if app_inputs_info[i].name in user_precision_map.keys():
+            if app_inputs_info[i].name in user_precision_map:
                 app_inputs_info[i].element_type = user_precision_map[app_inputs_info[i].name]
+            elif input_node_names[i] in user_precision_map:
+                app_inputs_info[i].element_type = user_precision_map[input_node_names[i]]
             elif app_inputs_info[i].is_image:
                 app_inputs_info[i].element_type = Type.u8
                 pre_post_processor.input(i).tensor().set_element_type(Type.u8)
@@ -118,14 +126,19 @@ def pre_post_processing(model: Model, app_inputs_info, input_precision: str, out
     model = pre_post_processor.build()
 
 
-def _parse_arg_map(arg_map: str):
+def parse_input_output_precision(arg_map: str):
     arg_map = arg_map.replace(" ", "")
     pairs = [x.strip() for x in arg_map.split(',')]
 
     parsed_map = {}
     for pair in pairs:
         key_value = [x.strip() for x in pair.split(':')]
-        parsed_map.update({key_value[0]:key_value[1]})
+        name, precision = key_value[0], key_value[1]
+        # input's name can contain ':'
+        if len(key_value) == 3:
+            name = key_value[0] + ':' + key_value[1]
+            precision = key_value[2]
+        parsed_map.update({name:precision})
 
     return parsed_map
 
@@ -346,6 +359,8 @@ def get_command_line_arguments(argv):
 def get_input_output_names(ports):
     return [port.any_name for port in ports]
 
+def get_node_names(ports):
+    return [port.node.friendly_name for port in ports]
 
 def get_data_shapes_map(data_shape_string, input_names):
     # Parse parameter string like "input0[shape1][shape2],input1[shape1]" or "[shape1][shape2]" (applied to all inputs)
@@ -419,9 +434,10 @@ class AppInputInfo:
         self.original_shape = None
         self.partial_shape = None
         self.data_shapes = []
-        self.scale = []
-        self.mean = []
+        self.scale = np.empty([0])
+        self.mean = np.empty([0])
         self.name = None
+        self.node_name = None
 
     @property
     def is_image(self):
@@ -433,7 +449,7 @@ class AppInputInfo:
     def is_image_info(self):
         if str(self.layout) != "[N,C]":
             return False
-        return self.channels.relaxes(Dimension(2))
+        return len(self.channels) >= 2 if self.channels.is_static else self.channels.relaxes(Dimension(2))
 
     def getDimentionByLayout(self, character):
         if self.layout.has_name(character):
@@ -528,6 +544,7 @@ def parse_batch_size(batch_size_str):
 
 def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, scale_string, mean_string, inputs):
     input_names = get_input_output_names(inputs)
+    input_node_names = get_node_names(inputs)
     shape_map = parse_input_parameters(shape_string, input_names)
     data_shape_map = get_data_shapes_map(data_shape_string, input_names)
     layout_map = parse_input_parameters(layout_string, input_names)
@@ -539,19 +556,26 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         info = AppInputInfo()
         # Input name
         info.name = input_names[i]
+        # Input node name
+        info.node_name = input_node_names[i]
         # Input precision
         info.element_type = inputs[i].element_type
         # Shape
         info.original_shape = inputs[i].partial_shape
-        if info.name in shape_map.keys():
+        if info.name in shape_map:
             info.partial_shape = parse_partial_shape(shape_map[info.name])
+            reshape = True
+        elif info.node_name in shape_map:
+            info.partial_shape = parse_partial_shape(shape_map[info.node_name])
             reshape = True
         else:
             info.partial_shape = inputs[i].partial_shape
 
         # Layout
-        if info.name in layout_map.keys():
+        if info.name in layout_map:
             info.layout = Layout(layout_map[info.name])
+        elif info.node_name in layout_map:
+            info.layout = Layout(layout_map[info.node_name])
         elif inputs[i].node.layout != Layout():
             info.layout = inputs[i].node.layout
         else:
@@ -592,8 +616,9 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                     raise Exception(f"Batch dimension is not specified for this model!")
 
         # Data shape
-        if info.name in data_shape_map.keys() and info.is_dynamic:
-            for p_shape in data_shape_map[info.name]:
+        if (info.name in data_shape_map or info.node_name in data_shape_map) and info.is_dynamic:
+            used_name = info.name if info.name in data_shape_map else info.node_name
+            for p_shape in data_shape_map[used_name]:
                 if p_shape.is_dynamic:
                     raise Exception(f"Data shape always should be static, {str(p_shape)} is dynamic.")
                 elif info.partial_shape.compatible(p_shape):
@@ -601,7 +626,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                 else:
                     raise Exception(f"Data shape '{str(p_shape)}' provided for input '{info.name}' "
                                     f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
-        elif info.name in data_shape_map.keys():
+        elif info.name in data_shape_map or input_node_names[i] in data_shape_map:
             logger.warning(f"Input '{info.name}' has static shape. Provided data shapes for this input will be ignored.")
 
         input_info.append(info)
@@ -612,9 +637,13 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
 
     for input in input_info:
         if input.name in scale_map:
-                input.scale = scale_map[input.name]
+            input.scale = scale_map[input.name]
+        elif input.node_name in scale_map:
+            input.scale = scale_map[input.node_name]
         if input.name in mean_map:
             input.mean = mean_map[input.name]
+        elif input.node_name in mean_map:
+            input.mean = mean_map[input.node_name]
 
     return input_info, reshape
 

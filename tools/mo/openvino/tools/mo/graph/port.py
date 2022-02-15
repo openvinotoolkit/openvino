@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -274,6 +274,33 @@ class Port:
                     tensor_names_list.append(tensor_name.replace(',', '\\,'))
         return sorted(tensor_names_list)
 
+    def add_tensor_names(self, tensor_names: list, port_renumber: bool = False):
+        """
+        Sets tensor names list.
+        :param tensor_names: list of tensor names.
+        :param port_renumber: defines whether data node index should be calculated considering port renumbering.
+        """
+
+        if len(tensor_names) == 0:
+            return
+
+        new_debug_items = []
+        op_name = self.node.soft_get('name', self.node.id)
+        for tensor_name in tensor_names:
+            assert isinstance(tensor_name, str), "Tensor names elements should be strings."
+            new_debug_items.append((op_name, tensor_name))
+
+        tensor_debug_info = self.get_tensor_debug_info(port_renumber)
+        tensor_debug_info += new_debug_items
+        self.set_tensor_debug_info(tensor_debug_info, port_renumber)
+
+    def remove_tensor_names(self, port_renumber: bool = False):
+        """
+        Removes tensor names.
+        :param port_renumber: defines whether data node index should be calculated considering port renumbering.
+        """
+        self.remove_debug_info(port_renumber=port_renumber)
+
     def get_tensor_debug_info(self, port_renumber: bool = False):
         """
         Gets tensor debug info attribute.
@@ -306,6 +333,58 @@ class Port:
                 fw_debug_info += get_tensor_debug_info_from_attrs(out_node.attrs())
         return fw_debug_info
 
+    def set_tensor_debug_info(self, tensor_info: list, port_renumber: bool = False):
+        """
+        Gets tensor debug info attribute.
+        :param tensor_info: new tensor debug info value.
+        :param port_renumber: defines whether data node index should be calculated considering port renumbering.
+        """
+
+        assert self.type != 'in', "Can't get tensor debug info for input port at {} node".format(self.node.name)
+
+        if self.node.graph.stage == 'front':
+            if self.idx in self.node.out_edges():
+                out_edge = self.node.out_edge(self.idx)
+                out_edge['fw_tensor_debug_info'] = tensor_info
+        else:
+            # before port renumbering we use sequential numbering
+            node_idx = self.idx
+            if port_renumber:
+                if self.node.type != 'Const':
+                    # after port renumbering port indices start from zero,
+                    # but data node indices remain the same
+                    node_idx = self.idx + len(self.node.in_nodes())
+
+            if node_idx in self.node.out_nodes():
+                out_node = self.node.out_node(node_idx)
+                out_node['fw_tensor_debug_info'] = tensor_info
+
+    def remove_debug_info(self, port_renumber: bool = False):
+        """
+        Removes tensor debug info attribute.
+        :param port_renumber: defines whether data node index should be calculated considering port renumbering.
+        """
+
+        assert self.type != 'in', "Tensor debug info is not defined for input port at {} node".format(self.node.name)
+
+        if self.node.graph.stage == 'front':
+            if self.idx in self.node.out_edges():
+                out_edge = self.node.out_edge(self.idx)
+                if 'fw_tensor_debug_info' in out_edge:
+                    del out_edge['fw_tensor_debug_info']
+        else:
+            # before port renumbering we use sequential numbering
+            node_idx = self.idx
+            if port_renumber:
+                if self.node.type != 'Const':
+                    # after port renumbering port indices start from zero,
+                    # but data node indices remain the same
+                    node_idx = self.idx + len(self.node.in_nodes())
+
+            if node_idx in self.node.out_nodes():
+                out_node = self.node.out_node(node_idx)
+                if 'fw_tensor_debug_info' in out_node:
+                    del out_node['fw_tensor_debug_info']
 
     def disconnect(self):
         if self.type == 'out':
@@ -416,3 +495,12 @@ class Port:
             raise Error('Trying to override data type for output port {} of operation {}: from {} to {}'.format(
                 self.idx, node.name, node._out_port_data_type[self.idx], data_type))
         node._out_port_data_type[self.idx] = data_type
+
+    def get_default_tensor_name(self):
+        """
+        Gets default_tensor_name
+        :return: tensor name
+        """
+        if self.type == 'in':
+            return None
+        return self.node.soft_get('name', self.node.id) + ":" + str(self.idx)

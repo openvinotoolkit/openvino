@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,13 @@ public:
     NGRAPH_RTTI_DECLARATION;
     GroupConvolutionTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
-    bool isQuantized(const std::shared_ptr<const Node>& layer) const override;
-    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
+    bool isQuantized(const std::shared_ptr<const Node>& layer,
+        const std::vector<ngraph::element::Type>& defaultPrecisions) const override;
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer,
+        const std::vector<ngraph::element::Type>& defaultPrecisions);
+
+protected:
+    size_t getInputChannels(const std::shared_ptr<ngraph::Node> conv) const override;
 };
 
 } // namespace low_precision

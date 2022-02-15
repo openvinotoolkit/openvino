@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,7 +118,7 @@ TEST(type_prop, cum_sum_op_element_types) {
             auto axis = std::make_shared<op::Parameter>(element::i32, PartialShape{});
             auto A = std::make_shared<op::Parameter>(et, data_shape);
 
-            EXPECT_NO_THROW(std::make_shared<op::v0::CumSum>(A, axis));
+            EXPECT_NO_THROW(const auto unused = std::make_shared<op::v0::CumSum>(A, axis));
         } catch (...) {
             FAIL() << "Data input element type validation check failed for unexpected reason";
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,6 +53,12 @@ public:
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
 
+    void setDynamicBatchLim(int lim) override;
+
+protected:
+    AttrPtr initPrimitiveAttr() override;
+    AttrPtr makePrimitiveAttr(const VectorDims& dims);
+
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
@@ -96,7 +102,7 @@ private:
 
     AttrPtr pAttr;
 
-    mkldnn::primitive_attr attr;
+    std::shared_ptr<mkldnn::primitive_attr> attr;
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims);
 
     VectorDims shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const;

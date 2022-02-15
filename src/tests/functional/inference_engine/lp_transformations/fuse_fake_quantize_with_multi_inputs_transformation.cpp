@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ public:
 
 TEST_P(FuseFakeQuantizeWithMultiInputsTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, false, true);
+    auto res = compare_functions(actualFunction, referenceFunction, false, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ protected:
         const auto outputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
         const auto matMul = builder::makeMatMul(outputNodes[0], outputNodes[1], false, false);
 
-        selectedType = makeSelectedTypeStr("jit_gemm", ngPrec);
+        selectedType = makeSelectedTypeStr(with_cpu_x86_avx512_core() ? "brgemm_avx512" : "jit_gemm", ngPrec);
 
         function = makeNgraphFunction(ngPrec, inputParams, matMul, "AlignMatMulInputRanks");
     }
@@ -70,7 +70,7 @@ TEST_P(AlignMatMulInputRanksTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckNodeOfTypeCount(executableNetwork, "Reshape", expectedNumOfReshapes); // Squeeze / Unsqueeze turns into Reshape
+    CheckNumberOfNodesWithType(executableNetwork, "Reshape", expectedNumOfReshapes); // Squeeze / Unsqueeze turns into Reshape
     CheckPluginRelatedResults(executableNetwork, "MatMul");
 }
 

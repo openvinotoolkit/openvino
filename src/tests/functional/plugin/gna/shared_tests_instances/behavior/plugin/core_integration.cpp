@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassBasicTestP, IEClassBasicTestP,
-        ::testing::Values(std::make_pair("ov_intel_gna_plugin", "GNA")));
+        ::testing::Values(std::make_pair("openvino_intel_gna_plugin", "GNA")));
 
 // TODO
 INSTANTIATE_TEST_SUITE_P(

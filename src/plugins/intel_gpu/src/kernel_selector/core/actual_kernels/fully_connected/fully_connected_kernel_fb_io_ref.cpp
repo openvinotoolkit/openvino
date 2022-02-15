@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ JitConstants FullyConnected_fb_io_ref::GetJitConstants(const fully_connected_par
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "result", input_dt, 1 };
+        FusedOpsConfiguration conf = { "", { "batch_id", "outXIdx", "0", "0" }, "result", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
     return jit;

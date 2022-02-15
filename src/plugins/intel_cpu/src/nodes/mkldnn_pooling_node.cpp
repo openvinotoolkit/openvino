@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -263,7 +263,21 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     if ((inputRank < 3) || (inputRank > 5))
         IE_THROW() << "Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.";
 
-    initEffectiveAttributes(MemoryDescUtils::makeDummyShape(parentShape),
+    inShape = MemoryDescUtils::makeDummyShape(parentShape);
+    if (isDynamicNode()) {
+        const auto& origDims = parentShape.getDims();
+        const auto& origMaxDims = parentShape.getMaxDims();
+
+        auto inDims = inShape.getStaticDims();
+        for (size_t i = 0; i < inDims.size() - 2; i++) {
+            if (origDims[i + 2] == Shape::UNDEFINED_DIM) {
+                inDims[i + 2] = std::min<Dim>(origMaxDims[i + 2], std::max<Dim>(inDims[i + 2], kernel[i]));
+            }
+        }
+        inShape = Shape(inDims);
+    }
+
+    initEffectiveAttributes(inShape,
                             MemoryDescUtils::makeDummyShape(childShape));
 
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
@@ -297,32 +311,6 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     }
 }
 
-std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> MKLDNNPoolingNode::getPaddingFromNode(std::shared_ptr<ov::Node> node) const {
-    const auto convertPadding = [](const VectorDims &newPads) {
-        std::vector<ptrdiff_t> pads(newPads.size());
-        for (int i = 0; i < newPads.size(); i++) {
-            pads[i] = static_cast<ptrdiff_t>(newPads[i]);
-        }
-        return pads;
-    };
-
-    VectorDims padsBegin, padsEnd;
-    if (isMaxPool8) {
-        const auto pool = ov::as_type_ptr<const ov::op::v8::MaxPool>(opToShapeInfer);
-        padsBegin = pool->get_pads_begin();
-        padsEnd = pool->get_pads_end();
-    } else if (getAlgorithm() == PoolingMax) {
-        const auto pool = ov::as_type_ptr<const ov::op::v1::MaxPool>(opToShapeInfer);
-        padsBegin = pool->get_pads_begin();
-        padsEnd = pool->get_pads_end();
-    } else if (getAlgorithm() == PoolingAvg) {
-        const auto pool = ov::as_type_ptr<const ov::op::v1::AvgPool>(opToShapeInfer);
-        padsBegin = pool->get_pads_begin();
-        padsEnd = pool->get_pads_end();
-    }
-    return {convertPadding(padsBegin), convertPadding(padsEnd)};
-}
-
 void MKLDNNPoolingNode::prepareParams() {
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
@@ -343,7 +331,8 @@ void MKLDNNPoolingNode::prepareParams() {
 
     if (isDynamicNode()) {
         if (auto_pad) {
-            std::tie(data_pad_begin, data_pad_end) = getPaddingFromNode(opToShapeInfer);
+            data_pad_begin = shapeInference->get_pads_begin();
+            data_pad_end = shapeInference->get_pads_end();
         }
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
@@ -399,6 +388,8 @@ void MKLDNNPoolingNode::prepareParams() {
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+
+    MKLDNNNode::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 }
 
 void MKLDNNPoolingNode::executeDynamicImpl(mkldnn::stream strm) {
@@ -453,7 +444,7 @@ std::shared_ptr<pooling_v2_forward::desc> MKLDNNPoolingNode::createDescriptorInt
 
 void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                          const std::vector<MemoryDescPtr> &outputDesc) {
-    auto inDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
+    auto inDesc = inputDesc[0]->isDefined() ? inputDesc[0] : inputDesc[0]->cloneWithNewDims(inShape.getStaticDims());
     auto dnnlInDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inDesc);
     auto in_candidate = dnnlInDesc->getDnnlDesc();
 
@@ -462,7 +453,8 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &input
         auto outDims = shapeInferGeneric({Shape(inDesc->getShape().getStaticDims())});
         outDesc = outDesc->cloneWithNewDims(outDims[0]);
         if (auto_pad) {
-            std::tie(data_pad_begin, data_pad_end) = getPaddingFromNode(opToShapeInfer);
+            data_pad_begin = shapeInference->get_pads_begin();
+            data_pad_end = shapeInference->get_pads_end();
         }
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
@@ -487,18 +479,18 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(itpd, i);
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
 
                 config.inConfs.push_back(dataConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(itpd, i);
+                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
 
                 config.outConfs.push_back(dataConfig);
             }
@@ -507,9 +499,10 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
             if (isMaxPool8) {
                 auto& creatorsMap = BlockedDescCreator::getCommonCreators();
                 PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(config.outConfs.front().desc->getPrecision(), getOutputShapeAtPort(1));
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(config.outConfs.front().getMemDesc()->getPrecision(),
+                                                                                         getOutputShapeAtPort(1)));
 
                 config.outConfs.push_back(dataConfig);
             }
@@ -530,10 +523,10 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
     }
     std::vector<MemoryDescPtr> inDescs;
     for (const auto& inConf : config.inConfs)
-        inDescs.push_back(inConf.desc);
+        inDescs.push_back(inConf.getMemDesc());
     std::vector<MemoryDescPtr> outDescs;
     for (const auto& outConf : config.outConfs)
-        outDescs.push_back(outConf.desc);
+        outDescs.push_back(outConf.getMemDesc());
     createDescriptor(inDescs, outDescs);
 
     mkldnn::primitive_attr attr;
@@ -552,17 +545,17 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
             cfg.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(itpd, i);
+                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
                 cfg.inConfs.push_back(dataConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(itpd, i);
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
                 cfg.outConfs.push_back(dataConfig);
             }
 
@@ -570,9 +563,10 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
             if (isMaxPool8) {
                 auto& creatorsMap = BlockedDescCreator::getCommonCreators();
                 PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(cfg.outConfs.front().desc->getPrecision(), getOutputShapeAtPort(1));
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(cfg.outConfs.front().getMemDesc()->getPrecision(),
+                                                                                         getOutputShapeAtPort(1)));
 
                 cfg.outConfs.push_back(dataConfig);
             }
@@ -601,12 +595,12 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
             return;
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
-            if (!selectedConfig.inConfs[i].desc->isCompatible(*config.inConfs[i].desc))
+            if (!selectedConfig.inConfs[i].getPortDesc()->isCompatible(*config.inConfs[i].getPortDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
-            if (!selectedConfig.outConfs[i].desc->isCompatible(*config.outConfs[i].desc))
+            if (!selectedConfig.outConfs[i].getPortDesc()->isCompatible(*config.outConfs[i].getPortDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
         rightConfig = config;
@@ -618,18 +612,18 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
 MKLDNNNode::AttrPtr MKLDNNPoolingNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
-    setPostOps(*attr, true);
+    setPostOps(*attr);
 
     return attr;
 }
 
-void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const {
+void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr) {
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs);
             continue;
         }
 

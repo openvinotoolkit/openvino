@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import namedtuple
@@ -62,7 +62,7 @@ class Connection:
     def get_destinations(self):
         return self.destinations
 
-    def set_source(self, port, attributes_save_mode: str = "merge"):
+    def set_source(self, port, attributes_save_mode=None):
         # In this method we are changing source for a connection with given port.
         # See detailed example below.
         #
@@ -98,6 +98,16 @@ class Connection:
 
         if self.control_flow is True:
             raise Error("Cannot operate with connection with control_flow=True")
+
+        if attributes_save_mode is None:
+            attributes_save_mode = "merge"
+            if self.source is not None:
+                scr_node = self.source.node
+
+                # Force "source" mode for "Parameter" source node, which preserves tensor names for
+                # source node in connection.
+                if scr_node.soft_get("type") == "Parameter":
+                    attributes_save_mode = "source"
 
         if self.graph.stage == 'front':
             scr_node = port.node
@@ -161,7 +171,7 @@ class Connection:
                 else:
                     self.graph.add_edge(port_out_data.id, dst_port.node.id, **{'in': dst_port.idx})
 
-    def set_destination(self, port, attributes_save_mode: str = "merge"):
+    def set_destination(self, port, attributes_save_mode=None):
         # In this method we are changing destination for a connection with given port with type 'in'.
         # This method requires exactly one destination or empty destinations list.
         # See detailed example below.
@@ -211,6 +221,16 @@ class Connection:
 
         if self.control_flow is True:
             raise Error("Cannot operate with connection with control_flow=True")
+
+        if attributes_save_mode is None:
+            attributes_save_mode = "merge"
+            if self.source is not None:
+                scr_node = self.source.node
+
+                # Force "source" mode for "Parameter" source node, which preserves tensor names for
+                # source node in connection.
+                if scr_node.soft_get("type") == "Parameter":
+                    attributes_save_mode = "source"
 
         if self.graph.stage == 'front':
             if self.source is not None:

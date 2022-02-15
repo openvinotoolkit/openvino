@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,4 +42,8 @@ void DnnlExecutor::exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn
     for (auto &outReorder : outputReorders) {
         outReorder.second.exec(primArgs[outReorder.first], outputMem[outReorder.first], strm);
     }
+}
+
+bool DnnlExecutor::needReordering() const {
+    return !inputReorders.empty() || !outputReorders.empty();
 }

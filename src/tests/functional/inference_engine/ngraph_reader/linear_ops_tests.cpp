@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -937,6 +937,8 @@ TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
         <layer id="14" name="broadcast1_data" precision="FP32" type="Const">
             <output>
                 <port id="1">
+                    <dim>1</dim>
+                    <dim>1</dim>
                     <dim>112</dim>
                     <dim>1</dim>
                 </port>
@@ -955,6 +957,8 @@ TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
                     <dim>112</dim>
                 </port>
                 <port id="1">
+                    <dim>1</dim>
+                    <dim>1</dim>
                     <dim>112</dim>
                     <dim>1</dim>
                 </port>
@@ -1058,6 +1062,8 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
         <layer id="14" name="broadcast1_data" precision="FP32" type="Const">
             <output>
                 <port id="1">
+                    <dim>1</dim>
+                    <dim>1</dim>
                     <dim>112</dim>
                     <dim>1</dim>
                 </port>
@@ -1076,6 +1082,8 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
                     <dim>112</dim>
                 </port>
                 <port id="1">
+                    <dim>1</dim>
+                    <dim>1</dim>
                     <dim>112</dim>
                     <dim>1</dim>
                 </port>
@@ -1788,222 +1796,6 @@ TEST_F(NGraphReaderTests, RemoveAdd2) {
     });
 }
 
-TEST_F(NGraphReaderTests, RemoveAdd3) {
-    std::string model = R"V0G0N(
-<net name="Network" version="10">
-    <layers>
-        <layer id="0" name="data" type="Parameter" version="opset1">
-            <data element_type="f32" shape="1,64,112,112"/>
-            <output>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="4" name="relu" type="ReLU" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </input>
-            <output>
-                <port id="1" precision="FP32">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data element_type="f32" offset="0" shape="1,1,1" size="4"/>
-            <output>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>1</dim>
-                    <dim>1</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="2" name="add" type="Add" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-                <port id="1" precision="FP32">
-                    <dim>1</dim>
-                    <dim>1</dim>
-                    <dim>1</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="6" name="broadcast2_data" type="Const" version="opset1">
-            <data element_type="f32" offset="4" shape="1,1,1" size="4"/>
-            <output>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>1</dim>
-                    <dim>1</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="5" name="add2" type="Add" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-                <port id="1" precision="FP32">
-                    <dim>1</dim>
-                    <dim>1</dim>
-                    <dim>1</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="3" name="output1" type="Result" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </input>
-        </layer>
-        <layer id="7" name="output2" type="Result" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </input>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
-        <edge from-layer="4" from-port="1" to-layer="2" to-port="0"/>
-        <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
-        <edge from-layer="4" from-port="1" to-layer="5" to-port="0"/>
-        <edge from-layer="6" from-port="0" to-layer="5" to-port="1"/>
-        <edge from-layer="5" from-port="2" to-layer="3" to-port="0"/>
-        <edge from-layer="2" from-port="2" to-layer="7" to-port="0"/>
-    </edges>
-</net>
-)V0G0N";
-    std::string modelV5 = R"V0G0N(
-<net name="Network" version="5" precision="FP32" batch="1">
-    <layers>
-        <layer id="0" name="data" precision="FP32" type="Input">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="3" name="relu" precision="FP32" type="ReLU">
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </input>
-            <output>
-                <port id="1">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="4" name="add" precision="FP32" type="Power">
-            <data power="1.000000" scale="1.000000" shift="0.000000"/>
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </input>
-            <output>
-                <port id="3">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="5" name="add2" precision="FP32" type="Power">
-            <data power="1.000000" scale="1.000000" shift="0.000000"/>
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </input>
-            <output>
-                <port id="3">
-                    <dim>1</dim>
-                    <dim>64</dim>
-                    <dim>112</dim>
-                    <dim>112</dim>
-                </port>
-            </output>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="3" to-port="0"/>
-        <edge from-layer="3" from-port="1" to-layer="4" to-port="0"/>
-        <edge from-layer="3" from-port="1" to-layer="5" to-port="0"/>
-    </edges>
-</net>
-)V0G0N";
-    compareIRs(model, modelV5, 10, [](Blob::Ptr& weights) {
-        // Set scale/shift constants
-        auto* scale = reinterpret_cast<float *>(weights->buffer().as<int8_t*>() + 0);
-        scale[0] = 0;
-        scale[1] = 0;
-    });
-}
-
 TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
@@ -2089,6 +1881,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
                     <dim>1</dim>
                     <dim>1</dim>
                     <dim>1</dim>
+                    <dim>1</dim>
                 </port>
             </output>
             <blobs>
@@ -2105,6 +1898,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
                     <dim>112</dim>
                 </port>
                 <port id="1">
+                    <dim>1</dim>
                     <dim>1</dim>
                     <dim>1</dim>
                     <dim>1</dim>

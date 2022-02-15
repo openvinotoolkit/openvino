@@ -1,108 +1,148 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ie_common.h"
 #include <ie_common.h>
 #include <mkldnn_node.h>
+#include <string>
+#include <memory>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
+enum TopKLayoutType {
+    topk_ncsp,
+    topk_nspc,
+    topk_blocked
+};
+
+enum TopKAlgorithm {
+    topk_bubble_sort,
+    topk_bitonic_sort,
+    topk_heap_sort
+};
+
+struct jit_topk_config_params {
+    bool mode_max;           // which of the two elements to select. ture: max; false: min
+    bool sort_index;         // sort by value or index. true: index; false: value
+    bool topk_innermost;     // if topk sorting is applied on innermost dimension or other dimension
+    bool bubble_inplace;     // all the elements in sorting is right in the register, no need to load and store for each comparison
+    TopKLayoutType layout;   // memory layout
+    TopKAlgorithm algorithm; // topk sorting algorithm
+    InferenceEngine::Precision precision; // precision
+    int data_size;           // data size
+    int blk_size;            // block size
+    int top_k;               // number of the output elements in the sorting dimension
+    int work_amount;         // how many elements are processed when call jit kernel once
+    int axis_dim;            // size of topk axis
+    int sort_stride;         // memory stride of adjacent elements in sorting
+    int bitonic_idx_cnt;     // the repeatedly counted total number of elements in sorting, which equal the total number of comparison x 2
+    int bitonic_k_idx_cnt;   // the counterpart of bitonic_idx_cnt, when sort_index == true
+};
+
+struct jit_topk_call_args {
+    const void *src;
+    void *process;
+    void *process_index;
+    void *dst;
+    void *index;
+    const int *bitonic_idx_buf;
+    const int *bitonic_k_idx_buf;
+    const int *idx_block_buf;// original idx sequence, repeated by block (eg. 00000000,11111111,...,77777777), only used in bubble sort
+    const int *idx_seq_buf;  // original idx sequence (eg. 01234567), only used in bubble sort and heap sort
+    size_t axis_dim;         // point to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
+    size_t top_k;
+    size_t work_amount;
+    size_t sort_stride;
+};
+
+struct jit_uni_topk_kernel {
+    void (*ker_)(const jit_topk_call_args *);
+
+    void operator()(const jit_topk_call_args *args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    explicit jit_uni_topk_kernel(jit_topk_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
+    virtual ~jit_uni_topk_kernel() {}
+
+    virtual void create_ker() = 0;
+
+    jit_topk_config_params jcp_;
+};
+
 class MKLDNNTopKNode : public MKLDNNNode {
 public:
-    MKLDNNTopKNode(const std::shared_ptr<ngraph::Node> &op, const mkldnn::engine &eng,
-                   MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    ~MKLDNNTopKNode() override = default;
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
-    bool created() const override;
-
-    bool needPrepareParams() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+    void createPrimitive() override;
+    bool created() const override;
+    void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    bool canBeInPlace() const override {
+        return false;
+    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node> &op, std::string &errorMessage) noexcept;
 
-#if defined(HAVE_AVX512F)
-    const int block_size = 16;
-    typedef __m512 vec_type_f;
-    typedef __m512i vec_type_i;
-    typedef __mmask16 vmask_type;
-#elif defined(HAVE_AVX2)
-    const int block_size = 8;
-    typedef __m256 vec_type_f;
-    typedef __m256i vec_type_i;
-    typedef __m256 vmask_type;
-#elif defined(HAVE_SSE)
-    const int block_size = 4;
-    typedef __m128 vec_type_f;
-    typedef __m128i vec_type_i;
-    typedef __m128 vmask_type;
-#else
-    typedef float vec_type_f;
-    typedef int vmask_type;
-#endif
-
-    struct cmpgt_ps {
-        static inline vmask_type cmp_ps(const vec_type_f _Left, const vec_type_f _Right) {
-#if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-            return _mm_uni_cmpgt_ps(_Left, _Right);
-#else
-            return _Left > _Right ? _Left : _Right;
-#endif
-        }
-    };
-
-    struct cmplt_ps {
-        static inline vmask_type cmp_ps(const vec_type_f _Left, const vec_type_f _Right) {
-#if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-            return _mm_uni_cmpgt_ps(_Right, _Left);
-#else
-            return _Right > _Left ? _Right : _Left;
-#endif
-        }
-    };
-
-    template<class Compare1, template<typename> class Compare2>
-    void top1_axis(const float *src_data, float *dst_data, int *dst_idx, InferenceEngine::SizeVector in_dims);
-
-    template<template<typename> class Compare>
-    void top1(const float *src_data, float *dst_data, int *dst_idx, InferenceEngine::SizeVector in_dims);
-
-    template<class Compare1, template<typename> class Compare2>
-    void topk_axis(const float *src_data, float *dst_data, int *dst_idx, InferenceEngine::SizeVector in_dims);
-
-    template<template<typename> class Compare>
-    void topk(const float *src_data, float *dst_data, int *dst_idx, InferenceEngine::SizeVector in_dims);
-
 private:
-    const size_t TOPK_DATA = 0;
-    const size_t TOPK_K = 1;
-    const size_t TOPK_VALUE = 0;
-    const size_t TOPK_INDEX = 1;
+    void topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *dst_idx);
+    void topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx);
+    inline void topk_kernel_process(const uint8_t *in_p, uint8_t *out_p, uint8_t *src_idx,
+                                    uint8_t *process_p, uint8_t *process_idx_p, size_t work_amount);
+    inline static int count(InferenceEngine::SizeVector dims, size_t start_ind, size_t end_ind);
+    inline static int count(InferenceEngine::SizeVector dims, size_t start_ind = 0);
+    inline void bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val = true);
+    void calc_bitonic_idx(size_t n, int &cnt, bool cmp_val);
+    void calc_dims_size(const InferenceEngine::SizeVector &layout_dims);
+    void topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx,
+                   const InferenceEngine::SizeVector &in_dims, std::function<float(float, float)> compare) const;
+    void preset_params();
+    void prepare_original_idx();
 
-    size_t axis;
-    int src_k = 1;
+    bool topk_innermost;
+    bool jit_mode;
+    bool sort_index;
+    bool mode_max;
+    int axis;
+    static const size_t TOPK_DATA = 0;
+    static const size_t TOPK_K = 1;
+    static const size_t TOPK_INDEX = 1;
+    size_t O, A, I;
+    size_t blk_size;
+    size_t data_size;
+    size_t axis_dim;
+    int top_k;
+    int dim, before_num;
+    bool bubble_inplace;
+    bool preset_params_done;
 
-    bool sort_value = false;
-    bool mode_max = true;
+    InferenceEngine::SizeVector src_dims, dst_dims;
+    TopKLayoutType layout;
+    TopKAlgorithm algorithm;
 
-    int dim = 0;
-    int before_num = 0;
+    std::vector<int> vec_bitonic_idx;
+    std::vector<int> vec_bitonic_k_idx;
 
-#if defined(HAVE_AVX512F)
-    const int count_vec = 32;
-#elif defined(HAVE_SSE) || defined(HAVE_AVX2)
-    const int count_vec = 16;
-#endif
+    std::vector<int> vec_idx_seq;
+    std::vector<int> vec_idx_block;
 
-    inline int count(InferenceEngine::SizeVector dims, size_t start_ind, size_t end_ind);
+    std::vector<uint8_t> vec_process_ptr;
+    std::vector<uint8_t> vec_process_idx_ptr;
 
-    inline int count(InferenceEngine::SizeVector dims, size_t start_ind = 0);
+    std::shared_ptr<jit_uni_topk_kernel> topk_kernel;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

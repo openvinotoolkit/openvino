@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "tests_utils.h"
 #include "../common/tests_utils.h"
+#include "../common/infer_api/infer_api.h"
 #include "common_utils.h"
 #include "../common/managers/thread_manager.h"
 #include "tests_pipelines/tests_pipelines.h"
@@ -11,8 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <inference_engine.hpp>
-
-using namespace InferenceEngine;
+#include <openvino/runtime/core.hpp>
 
 
 class MemCheckTestSuite : public ::testing::TestWithParam<TestCase> {
@@ -21,11 +21,10 @@ public:
     TestReferences test_refs;
 
     void SetUp() override {
-        const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+        const ::testing::TestInfo *const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
         test_name = std::string(test_info->name()).substr(0, std::string(test_info->name()).find('/'));
-        //const std::string full_test_name = std::string(test_info->test_case_name()) + "." + std::string(test_info->name());
 
-        const auto& test_params = GetParam();
+        const auto &test_params = GetParam();
         model = test_params.model;
         model_name = test_params.model_name;
         device = test_params.device;
@@ -33,13 +32,13 @@ public:
 
         test_refs.collect_vm_values_for_test(test_name, test_params);
         EXPECT_GT(test_refs.references[VMSIZE], 0) << "Reference value of VmSize is less than 0. Value: "
-                                           << test_refs.references[VMSIZE];
+                                                   << test_refs.references[VMSIZE];
         EXPECT_GT(test_refs.references[VMPEAK], 0) << "Reference value of VmPeak is less than 0. Value: "
-                                           << test_refs.references[VMPEAK];
+                                                   << test_refs.references[VMPEAK];
         EXPECT_GT(test_refs.references[VMRSS], 0) << "Reference value of VmRSS is less than 0. Value: "
-                                          << test_refs.references[VMRSS];
+                                                  << test_refs.references[VMRSS];
         EXPECT_GT(test_refs.references[VMHWM], 0) << "Reference value of VmHWM is less than 0. Value: "
-                                          << test_refs.references[VMHWM];
+                                                  << test_refs.references[VMHWM];
     }
 };
 
@@ -48,17 +47,15 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
     log_info("Create ExecutableNetwork from network: \"" << model
                                                          << "\" with precision: \"" << precision
                                                          << "\" for device: \"" << device << "\"");
-    auto test_pipeline = [&]{
-        MemCheckPipeline memCheckPipeline;
-
-        Core ie;
-        ie.GetVersions(device);
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
-
+    auto test_params = GetParam();
+    MemCheckPipeline memCheckPipeline;
+    auto test_pipeline = [&] {
+        auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
+        ie_api_wrapper->load_plugin(device);
+        ie_api_wrapper->read_network(model);
+        ie_api_wrapper->load_network(device);
         log_info("Memory consumption after LoadNetwork:");
         memCheckPipeline.record_measures(test_name);
-
         log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
         return memCheckPipeline.measure();
     };
@@ -71,25 +68,16 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
     log_info("Inference of InferRequest from network: \"" << model
                                                           << "\" with precision: \"" << precision
                                                           << "\" for device: \"" << device << "\"");
-    auto test_pipeline = [&]{
-        MemCheckPipeline memCheckPipeline;
-
-        Core ie;
-        ie.GetVersions(device);
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
-        InferRequest inferRequest = exeNetwork.CreateInferRequest();
-
-        auto batchSize = cnnNetwork.getBatchSize();
-        batchSize = batchSize != 0 ? batchSize : 1;
-        const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-        fillBlobs(inferRequest, inputsInfo, batchSize);
-
-        inferRequest.Infer();
-        OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
-        for (auto &output : output_info)
-            Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
-
+    auto test_params = GetParam();
+    MemCheckPipeline memCheckPipeline;
+    auto test_pipeline = [&] {
+        auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
+        ie_api_wrapper->load_plugin(device);
+        ie_api_wrapper->read_network(model);
+        ie_api_wrapper->load_network(device);
+        ie_api_wrapper->create_infer_request();
+        ie_api_wrapper->prepare_input();
+        ie_api_wrapper->infer();
         log_info("Memory consumption after Inference:");
         memCheckPipeline.record_measures(test_name);
 
@@ -103,11 +91,12 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
 // tests_pipelines/tests_pipelines.cpp
 
 INSTANTIATE_TEST_SUITE_P(MemCheckTests, MemCheckTestSuite,
-                        ::testing::ValuesIn(
-                                generateTestsParams({"devices", "models"})),
-                        getTestCaseName);
+                         ::testing::ValuesIn(
+                                 generateTestsParams({"devices", "models"})),
+                         getTestCaseName);
 
 TEST_P(MemCheckTestSuite, inference_with_streams) {
+    auto test_params = GetParam();
     const auto nstreams = 2;
     log_info("Inference of InferRequest from network: \"" << model
                                                           << "\" with precision: \"" << precision
@@ -118,37 +107,23 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
 
     auto test_pipeline = [&] {
         MemCheckPipeline memCheckPipeline;
-
-        std::map<std::string, std::string> config;
-        const std::string key = device + "_THROUGHPUT_STREAMS";
-        config[device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
-
-        Core ie;
-        ie.GetVersions(device);
-        ie.SetConfig(config, device);
-
-        InferRequest inferRequest;
-
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
-        auto batchSize = cnnNetwork.getBatchSize();
-        batchSize = batchSize != 0 ? batchSize : 1;
-        const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-
         unsigned int nireq = nstreams;
+        auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
+        ie_api_wrapper->load_plugin(device);
+        ie_api_wrapper->set_config(device, "THROUGHPUT_STREAMS", nstreams);
+        ie_api_wrapper->read_network(model);
+        ie_api_wrapper->load_network(device);
         try {
-            nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+            nireq = ie_api_wrapper->get_property(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
         } catch (const std::exception &ex) {
             log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
         }
-        for (int counter = 0; counter < nireq; counter++) {
-            inferRequest = exeNetwork.CreateInferRequest();
-            fillBlobs(inferRequest, inputsInfo, batchSize);
 
-            inferRequest.Infer();
-            OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
-            for (auto &output : output_info)
-                Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+        for (int counter = 0; counter < nireq; counter++) {
+            ie_api_wrapper->create_infer_request();
+            ie_api_wrapper->prepare_input();
+
+            ie_api_wrapper->infer();
         }
 
         log_info("Memory consumption after Inference with streams: \"" << nstreams

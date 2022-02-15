@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <time.h>
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments ---------------------------------
-        if (!ParseAndCheckCommandLine(argc, argv)) {
+        if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
         BaseFile* file;
@@ -81,19 +81,51 @@ int main(int argc, char* argv[]) {
 
         // --------------------------- Step 1. Initialize inference engine core and read model
         // -------------------------------------
-        ov::runtime::Core core;
+        ov::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
-        std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
-        check_number_of_inputs(model->inputs().size(), numInputFiles);
-        const ov::Layout tensor_layout{"NC"};
-        ov::preprocess::PrePostProcessor proc(model);
-        for (int i = 0; i < model->inputs().size(); i++) {
-            proc.input(i).tensor().set_element_type(ov::element::f32).set_layout(tensor_layout);
+        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
+        std::shared_ptr<ov::Model> model;
+        std::vector<std::string> outputs;
+        std::vector<size_t> ports;
+        // --------------------------- Processing custom outputs ---------------------------------------------
+        if (!FLAGS_oname.empty()) {
+            std::vector<std::string> output_names = convert_str_to_vector(FLAGS_oname);
+            for (const auto& output_name : output_names) {
+                auto pos_layer = output_name.rfind(":");
+                if (pos_layer == std::string::npos) {
+                    throw std::logic_error("Output " + output_name + " doesn't have a port");
+                }
+                outputs.push_back(output_name.substr(0, pos_layer));
+                try {
+                    ports.push_back(std::stoi(output_name.substr(pos_layer + 1)));
+                } catch (const std::exception&) {
+                    throw std::logic_error("Ports should have integer type");
+                }
+            }
         }
-        for (int i = 0; i < model->outputs().size(); i++) {
-            proc.output(i).tensor().set_element_type(ov::element::f32);
+        // ------------------------------ Preprocessing ------------------------------------------------------
+        // the preprocessing steps can be done only for loaded network and are not applicable for the imported network
+        // (already compiled)
+        if (!FLAGS_m.empty()) {
+            model = core.read_model(FLAGS_m);
+            if (!outputs.empty()) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    auto output = model->add_output(outputs[i], ports[i]);
+                    output.set_names({outputs[i] + ":" + std::to_string(ports[i])});
+                }
+            }
+            check_number_of_inputs(model->inputs().size(), numInputFiles);
+            const ov::Layout tensor_layout{"NC"};
+            ov::preprocess::PrePostProcessor proc(model);
+            for (int i = 0; i < model->inputs().size(); i++) {
+                proc.input(i).tensor().set_element_type(ov::element::f32).set_layout(tensor_layout);
+            }
+            for (int i = 0; i < model->outputs().size(); i++) {
+                proc.output(i).tensor().set_element_type(ov::element::f32);
+            }
+            model = proc.build();
+            ov::set_batch(model, batchSize);
         }
-        model = proc.build();
         // ------------------------------ Get Available Devices ------------------------------------------------------
         auto isFeature = [&](const std::string xFeature) {
             return FLAGS_d.find(xFeature) != std::string::npos;
@@ -101,13 +133,11 @@ int main(int argc, char* argv[]) {
         bool useGna = isFeature("GNA");
         bool useHetero = isFeature("HETERO");
         std::string deviceStr = useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
-        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
-        ov::set_batch(model, batchSize);
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Set parameters and scale factors -------------------------------------
         /** Setting parameter for per layer metrics **/
-        std::map<std::string, std::string> gnaPluginConfig;
-        std::map<std::string, std::string> genericPluginConfig;
+        ov::AnyMap gnaPluginConfig;
+        ov::AnyMap genericPluginConfig;
         if (useGna) {
             std::string gnaDevice =
                 useHetero ? FLAGS_d.substr(FLAGS_d.find("GNA"), FLAGS_d.find(",") - FLAGS_d.find("GNA")) : FLAGS_d;
@@ -115,8 +145,7 @@ int main(int argc, char* argv[]) {
                 gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
         }
         if (FLAGS_pc) {
-            genericPluginConfig[InferenceEngine::PluginConfigParams::KEY_PERF_COUNT] =
-                InferenceEngine::PluginConfigParams::YES;
+            genericPluginConfig.emplace(ov::enable_profiling(true));
         }
         if (FLAGS_q.compare("user") == 0) {
             if (!FLAGS_rg.empty()) {
@@ -171,15 +200,17 @@ int main(int argc, char* argv[]) {
         }
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
-        gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_LIB_N_THREADS] =
-            std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
+        IE_SUPPRESS_DEPRECATED_START
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
+        IE_SUPPRESS_DEPRECATED_END
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
+            IE_SUPPRESS_DEPRECATED_START
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
+            IE_SUPPRESS_DEPRECATED_END
         }
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 2. Loading model to the device ------------------------------------------
@@ -187,46 +218,26 @@ int main(int argc, char* argv[]) {
             genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
         }
         auto t0 = Time::now();
-        std::vector<std::string> outputs;
-        if (!FLAGS_oname.empty()) {
-            std::vector<std::string> output_names = convert_str_to_vector(FLAGS_oname);
-            std::vector<size_t> ports;
-            for (const auto& outBlobName : output_names) {
-                int pos_layer = outBlobName.rfind(":");
-                if (pos_layer == -1) {
-                    throw std::logic_error(std::string("Output ") + std::string(outBlobName) +
-                                           std::string(" doesn't have a port"));
-                }
-                outputs.push_back(outBlobName.substr(0, pos_layer));
-                try {
-                    ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1)));
-                } catch (const std::exception&) {
-                    throw std::logic_error("Ports should have integer type");
-                }
-            }
-            if (!FLAGS_m.empty()) {
-                for (size_t i = 0; i < outputs.size(); i++) {
-                    model->add_output(outputs[i], ports[i]);
-                }
-            }
-        }
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
-        ov::runtime::CompiledModel executableNet;
+        ov::CompiledModel executableNet;
         if (!FLAGS_m.empty()) {
             slog::info << "Loading model to the device" << slog::endl;
             executableNet = core.compile_model(model, deviceStr, genericPluginConfig);
         } else {
             slog::info << "Importing model to the device" << slog::endl;
-            std::istringstream streamrq(FLAGS_rg);
+            std::ifstream streamrq(FLAGS_rg, std::ios_base::binary | std::ios_base::in);
+            if (!streamrq.is_open()) {
+                throw std::runtime_error("Cannot open model file " + FLAGS_rg);
+            }
             executableNet = core.import_model(streamrq, deviceStr, genericPluginConfig);
         }
         // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
             slog::info << "Writing GNA Model to file " << FLAGS_wg << slog::endl;
             t0 = Time::now();
-            std::ostringstream streamwq(FLAGS_wg);
+            std::ofstream streamwq(FLAGS_wg, std::ios_base::binary | std::ios::out);
             executableNet.export_model(streamwq);
             ms exportTime = std::chrono::duration_cast<ms>(Time::now() - t0);
             slog::info << "Exporting time " << exportTime.count() << " ms" << slog::endl;
@@ -238,14 +249,14 @@ int main(int argc, char* argv[]) {
         }
         // ---------------------------------------------------------------------------------------------------------
         // --------------------------- Step 3. Create infer request --------------------------------------------------
-        std::vector<InferRequestStruct> inferRequests((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
+        std::vector<InferRequestStruct> inferRequests(1);
 
         for (auto& inferRequest : inferRequests) {
             inferRequest = {executableNet.create_infer_request(), -1, batchSize};
         }
         // --------------------------- Step 4. Configure input & output
         // --------------------------------------------------
-        std::vector<ov::runtime::Tensor> ptrInputBlobs;
+        std::vector<ov::Tensor> ptrInputBlobs;
         auto cInputInfo = executableNet.inputs();
         check_number_of_inputs(cInputInfo.size(), numInputFiles);
         if (!FLAGS_iname.empty()) {
@@ -257,7 +268,7 @@ int main(int argc, char* argv[]) {
                 throw std::logic_error(errMessage);
             }
             for (const auto& input : inputNameBlobs) {
-                ov::runtime::Tensor blob = inferRequests.begin()->inferRequest.get_tensor(input);
+                ov::Tensor blob = inferRequests.begin()->inferRequest.get_tensor(input);
                 if (!blob) {
                     std::string errMessage("No blob with name : " + input);
                     throw std::logic_error(errMessage);
@@ -300,7 +311,7 @@ int main(int argc, char* argv[]) {
             }
             /** Work with each utterance **/
             for (uint32_t utteranceIndex = 0; utteranceIndex < numUtterances; ++utteranceIndex) {
-                std::map<std::string, ov::runtime::ProfilingInfo> utterancePerfMap;
+                std::map<std::string, ov::ProfilingInfo> utterancePerfMap;
                 uint64_t totalNumberOfRunsOnHw = 0;
                 std::string uttName;
                 uint32_t numFrames(0), n(0);
@@ -379,7 +390,7 @@ int main(int argc, char* argv[]) {
                 for (auto& ut : ptrUtterances) {
                     inputFrame.push_back(&ut.front());
                 }
-                std::map<std::string, ov::runtime::ProfilingInfo> callPerfMap;
+                std::map<std::string, ov::ProfilingInfo> callPerfMap;
                 size_t frameIndex = 0;
                 uint32_t numFramesFile = numFrames;
                 numFrames += FLAGS_cw_l + FLAGS_cw_r;
@@ -413,22 +424,23 @@ int main(int argc, char* argv[]) {
                                     outputFrame = &ptrScores.front() +
                                                   numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
 
-                                    ov::runtime::Tensor outputBlob =
+                                    ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
-                                    if (!FLAGS_oname.empty())
+                                    if (!outputs.empty()) {
                                         outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
+                                            inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
+                                    }
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
                                 }
                                 if (!FLAGS_r.empty()) {
                                     /** Compare output data with reference scores **/
-                                    ov::runtime::Tensor outputBlob =
+                                    ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
                                     if (!FLAGS_oname.empty())
                                         outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
+                                            inferRequest.inferRequest.get_tensor(executableNet.output(FLAGS_oname));
                                     compare_scores(
                                         outputBlob.data<float>(),
                                         &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
@@ -453,10 +465,10 @@ int main(int argc, char* argv[]) {
                         }
                         // -----------------------------------------------------------------------------------------------------
                         int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);
-                        for (int i = 0; i < model->inputs().size(); i++) {
+                        for (int i = 0; i < executableNet.inputs().size(); i++) {
                             inferRequest.inferRequest.set_input_tensor(
                                 i,
-                                ov::runtime::Tensor(ov::element::f32, model->inputs()[i].get_shape(), inputFrame[0]));
+                                ov::Tensor(ov::element::f32, executableNet.inputs()[i].get_shape(), inputFrame[i]));
                         }
                         /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.start_async();

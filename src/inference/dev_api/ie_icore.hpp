@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
-#include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 
@@ -87,11 +86,13 @@ public:
      * @param deviceName Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
+     * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
      */
     virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
                                                     const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config) = 0;
+                                                    const std::map<std::string, std::string>& config,
+                                                    const std::function<void(const CNNNetwork&)>& val = nullptr) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -169,7 +170,23 @@ public:
     virtual InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
                                                               const InferenceEngine::ParamMap&) = 0;
 
+    /**
+     * @brief Get only configs that are suppored by device
+     * @param deviceName Name of a device
+     * @param config Map of configs that can contains configs that are not supported by device
+     * @return map of configs that are supported by device
+     */
+    virtual std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
+                                                                  const std::map<std::string, std::string>& config) = 0;
+
     virtual bool isNewAPI() const = 0;
+
+    /**
+     * @brief Get a pointer to default shared context object for the specified device.
+     * @param deviceName  - A name of a device to get create shared context from.
+     * @return A shared pointer to a default remote context.
+     */
+    virtual RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) = 0;
 
     /**
      * @brief Default virtual destructor

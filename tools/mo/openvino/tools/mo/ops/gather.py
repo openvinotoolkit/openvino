@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array, is_fully_defined, shape_array, \
+    dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
 from openvino.tools.mo.utils.error import Error
@@ -23,6 +23,7 @@ class Gather(Op):
             'batch_dims': 0,
             'reinterp_shape': True,
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'force_precision_in_ports': {1: 'int32', 2: 'int64'},
             'in_ports_count': 3,
             'out_ports_count': 1,
@@ -89,6 +90,7 @@ class Gather(Op):
         data_value = node.in_port(0).data.get_value()
         indices_value = node.in_port(1).data.get_value()
         if data_value is not None and indices_value is not None and is_fully_defined(indices_value):
+            indices_value = int64_array(indices_value)
             if batch_dims == 0:
                 node.out_port(0).data.set_value(np.ma.take(data_value, indices_value, axis))
             else:
@@ -99,6 +101,43 @@ class Gather(Op):
                 node.out_port(0).data.set_value(out_value)
         else:
             node.out_port(0).data.set_shape(out_shape)
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        out_shape = node.out_port(0).data.get_shape()
+        data_shape = node.in_port(0).data.get_shape()
+        indices_shape = node.in_port(1).data.get_shape()
+        batch_dims = node.batch_dims
+        batch_dims = batch_dims + len(indices_shape) if batch_dims < 0 else batch_dims
+
+        axis = node.in_port(2).data.get_value()
+        # axis of Gather could be accepted as both scalar and 1D tensor
+        if isinstance(axis, np.ndarray):
+            axis = axis.item()
+        assert axis is not None, 'axis input is undefined'
+
+        # we can deduce data or indices partial shapes from output shape calculation formula
+        # out_shape = Concat(data_shape[:axis], indices_shape[batch_dims:batch_dims + indices_rank], data_shape[axis + 1:])
+
+        # data partial shape is unknown
+        if out_shape is not None and data_shape is None and indices_shape is not None:
+            out_rank = len(out_shape)
+            indices_rank = len(indices_shape)
+
+            deduced_data_shape = out_shape.tolist(dynamic_dimension_value)
+            for i in range(indices_rank):
+                deduced_data_shape.pop(axis)
+            deduced_data_shape.insert(axis, dynamic_dimension_value)
+            node.in_port(0).data.set_shape(shape_array(deduced_data_shape))
+
+        # indices partial shape is unknown
+        if out_shape is not None and indices_shape is None and data_shape is not None:
+            out_rank = len(out_shape)
+            data_rank = len(data_shape)
+            indices_rank = out_rank + 1 - data_rank + batch_dims
+
+            indices_shape = out_shape[axis:axis + indices_rank]
+            node.in_port(1).data.set_shape(indices_shape)
 
 
 class AttributedGather(Op):
@@ -113,6 +152,7 @@ class AttributedGather(Op):
             'axis': 0,
             'reinterp_shape': True,
             'infer': self.infer,
+            # reverse_infer is not needed since is replaced by Gather on the front (AttributedGatherNormalizer)
 
             'force_precision_in_ports': {1: 'int32'},
 

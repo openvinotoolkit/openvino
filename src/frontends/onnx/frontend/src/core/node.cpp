@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,8 @@ public:
 
     const std::string& description() const;
     const std::vector<std::reference_wrapper<const std::string>>& get_output_names() const;
+    const std::string& input(int index) const;
+    std::size_t get_inputs_size() const;
     const std::string& output(int index) const;
     std::size_t get_outputs_size() const;
 
@@ -103,6 +105,14 @@ const std::vector<std::reference_wrapper<const std::string>>& Node::Impl::get_ou
     return m_output_names;
 }
 
+const std::string& Node::Impl::input(int index) const {
+    return m_node_proto->input(index);
+}
+
+std::size_t Node::Impl::get_inputs_size() const {
+    return m_node_proto->input_size();
+}
+
 const std::string& Node::Impl::output(int index) const {
     return m_node_proto->output(index);
 }
@@ -110,6 +120,7 @@ const std::string& Node::Impl::output(int index) const {
 std::size_t Node::Impl::get_outputs_size() const {
     return m_output_names.size();
 }
+
 bool Node::Impl::has_attribute(const std::string& name) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
         return attribute.get_name() == name;
@@ -160,6 +171,11 @@ T Node::Impl::get_attribute_value(const std::string& name) const {
 template <>
 Subgraph Node::Impl::get_attribute_value(const std::string& name) const {
     return get_subgraph_from_attribute(name);
+}
+
+template <>
+ov::Any Node::get_attribute_value(const std::string& name) const {
+    return get_attribute(name).get_any();
 }
 
 OutputVector Node::Impl::get_ng_inputs() const {
@@ -218,12 +234,22 @@ const std::vector<std::reference_wrapper<const std::string>>& Node::get_output_n
     return m_pimpl->get_output_names();
 }
 
+const std::string& Node::input(int index) const {
+    return m_pimpl->input(index);
+}
+
+std::size_t Node::get_inputs_size() const {
+    return m_pimpl->get_inputs_size();
+}
+
 const std::string& Node::output(int index) const {
     return m_pimpl->output(index);
 }
+
 std::size_t Node::get_outputs_size() const {
     return m_pimpl->get_outputs_size();
 }
+
 bool Node::has_attribute(const std::string& name) const {
     return m_pimpl->has_attribute(name);
 }
