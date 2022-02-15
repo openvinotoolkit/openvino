@@ -145,22 +145,26 @@ ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 # Install
 #
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-        DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
-        COMPONENT ${OV_COMP_CPP_SAMPLES}
-        USE_SOURCE_PERMISSIONS)
+if(NOT CPACK_GENERATOR STREQUAL "DEB")
+    # These libraries are dependencies for openvino-samples-2022.1 package
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-        DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
-        COMPONENT ${OV_COMP_CPP_SAMPLES}
-        USE_SOURCE_PERMISSIONS)
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
+            DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
+            COMPONENT ${OV_COMP_CPP_SAMPLES}
+            USE_SOURCE_PERMISSIONS)
+
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
+            DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
+            COMPONENT ${OV_COMP_CPP_SAMPLES}
+            USE_SOURCE_PERMISSIONS)
+
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
+            DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
+            COMPONENT ${OV_COMP_CPP_SAMPLES}
+            USE_SOURCE_PERMISSIONS)
+endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
-        COMPONENT ${OV_COMP_CPP_SAMPLES}
-        USE_SOURCE_PERMISSIONS)
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
         DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
         COMPONENT ${OV_COMP_CPP_SAMPLES}
         USE_SOURCE_PERMISSIONS)

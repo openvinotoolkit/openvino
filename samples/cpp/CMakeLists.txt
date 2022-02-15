@@ -106,6 +106,8 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
+# TODO: add find_package calls for gflags, zlib and json
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
     NOT DEFINED OpenVINO_SOURCE_DIR)
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)

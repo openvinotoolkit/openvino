@@ -14,6 +14,7 @@ endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 
+# TODO: this path should be configurable
 set(PYTHON_BRIDGE_CPACK_PATH "${IE_CPACK_PLUGIN_PATH}")
 
 if(UNIX)

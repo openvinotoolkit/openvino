@@ -40,7 +40,7 @@ install(TARGETS compile_tool
         RUNTIME DESTINATION bin
         COMPONENT ${OV_COMP_CORE_TOOLS})
 
-# TODO
+# TODO: convert this README.md to man page
 # install(FILES README.md
 #         DESTINATION share/openvino/tools/compile_tool
 #         COMPONENT ${OV_COMP_CORE_TOOLS})

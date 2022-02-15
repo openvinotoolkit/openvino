@@ -90,6 +90,7 @@ ov_install_static_lib(${TARGET_NAME}_dev core)
 # Install OpenVINO runtime
 
 # TODO: dpkg-shlibdeps does not work otherwise
+# TODO: define proper library version, currently SOVERSION 2022
 # set_target_properties(${TARGET_NAME} PROPERTIES
 #     SOVERSION ${OpenVINO_VERSION_MAJOR}
 #     VERSION ${OpenVINO_VERSION})

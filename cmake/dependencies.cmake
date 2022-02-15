@@ -4,7 +4,7 @@
 
 cmake_policy(SET CMP0054 NEW)
 
-# TODO: fix it
+# TODO: fix it, outside of source dir MO cannot find TBB dependency
 set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
@@ -93,7 +93,7 @@ if(THREADING STREQUAL "OMP")
 endif()
 
 ## TBB package
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYSTEM_TBB)
     reset_deps_cache(TBBROOT TBB_DIR)
 
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
