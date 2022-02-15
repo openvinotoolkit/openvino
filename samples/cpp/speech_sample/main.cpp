@@ -241,6 +241,8 @@ int main(int argc, char* argv[]) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_rg);
             }
             executableNet = core.import_model(streamrq, deviceStr, genericPluginConfig);
+            // loading batch from exported model
+            batchSize = (uint32_t)executableNet.input(0).get_shape()[0];
         }
         // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
