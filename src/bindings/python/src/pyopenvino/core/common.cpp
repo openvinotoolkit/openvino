@@ -47,6 +47,17 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape) {
+    bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
+    auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
+
+    if (is_contiguous) {
+        return ov::Tensor(type, shape, const_cast<void*>(array.data(0)), {});
+    } else {
+        throw ov::Exception("Tensor with shared memory must be C contiguous!");
+    }
+}
+
 ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
     // Check if passed array has C-style contiguous memory layout.
     bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
