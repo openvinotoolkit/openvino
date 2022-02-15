@@ -46,6 +46,27 @@ TEST(GraphComparatorTests, CheckbyDefault) {
     ASSERT_FALSE(res.valid) << res.message;
 }
 
+TEST(GraphComparatorTests, CheckResultsNumber) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{3});
+        auto input2 = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{3});
+        auto add = std::make_shared<ov::opset8::Add>(input, input2);
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input, input2 });
+    }
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{3});
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {3}, {12});
+        auto add = std::make_shared<ov::opset8::Add>(input, constant);
+        auto result1 = std::make_shared<ov::opset8::Result>(constant);
+        auto result2 = std::make_shared<ov::opset8::Result>(add);
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result1, result2 }, ngraph::ParameterVector{ input });
+    }
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << res.message;
+}
+
 TEST(GraphComparatorTests, NamesCheckPositive) {
     FunctionsComparator comparator(FunctionsComparator::no_default());
     std::shared_ptr<ov::Model> function, function_ref;
@@ -283,4 +304,46 @@ TEST(GraphComparatorTests, CheckRTInfoReverse) {
     comparator.enable(FunctionsComparator::RUNTIME_KEYS);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(GraphComparatorTests, CheckRTInfoInput) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{3});
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {3}, {0});
+        auto add = std::make_shared<ov::opset8::Add>(input, constant);
+        add->input(0).get_rt_info()["my_info"] = 42;
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{3});
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {3}, {0});
+        auto add = std::make_shared<ov::opset8::Add>(input, constant);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
+    comparator.enable(FunctionsComparator::RUNTIME_KEYS);
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << res.message;
+}
+
+TEST(GraphComparatorTests, CheckRTInfoOutput) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{3});
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {3}, {0});
+        auto add = std::make_shared<ov::opset8::Add>(input, constant);
+        add->output(0).get_rt_info()["my_info"] = 42;
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{3});
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {3}, {0});
+        auto add = std::make_shared<ov::opset8::Add>(input, constant);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
+    comparator.enable(FunctionsComparator::RUNTIME_KEYS);
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << res.message;
 }
