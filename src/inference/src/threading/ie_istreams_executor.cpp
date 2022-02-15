@@ -122,7 +122,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             OPENVINO_UNREACHABLE("Wrong value for property key ",
                                  ov::num_streams.name(),
                                  ". Expected non negative numbers (#streams) or ",
-                                 "ov::NumStreams::NUMA|ov::NumStreams::AUTO, Got: ",
+                                 "ov::NumStreams(ov::NumStreams::NUMA|ov::NumStreams::AUTO), Got: ",
                                  streams);
         }
     } else if (key == CONFIG_KEY(CPU_THREADS_NUM) || key == ov::inference_num_threads) {

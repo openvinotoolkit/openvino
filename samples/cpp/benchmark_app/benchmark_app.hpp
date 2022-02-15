@@ -272,7 +272,7 @@ DEFINE_uint32(nireq, 0, infer_requests_count_message);
 DEFINE_uint32(nthreads, 0, infer_num_threads_message);
 
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
-DEFINE_string(nstreams, "AUTO", infer_num_streams_message);
+DEFINE_string(nstreams, "", infer_num_streams_message);
 
 /// @brief The percentile which will be reported in latency metric
 DEFINE_uint32(latency_percentile, 50, infer_latency_percentile_message);
