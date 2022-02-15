@@ -158,8 +158,7 @@ struct ValueTyped {
 };
 
 template <typename T,
-          typename std::enable_if<ValueTyped<T>::value && Readable<typename T::value_type>::value,
-                                  bool>::type = true>
+          typename std::enable_if<ValueTyped<T>::value && Readable<typename T::value_type>::value, bool>::type = true>
 inline typename T::value_type from_string(const std::string& val, const T&) {
     std::stringstream ss(val);
     typename T::value_type value;
@@ -573,14 +572,16 @@ class OPENVINO_API Any {
         }
 
         template <typename U>
-        static typename std::enable_if<!util::Writable<U>::value && util::Ostreamable<U>::value>::type print_impl(std::ostream& os,
-                                                                                                      const U& value) {
+        static typename std::enable_if<!util::Writable<U>::value && util::Ostreamable<U>::value>::type print_impl(
+            std::ostream& os,
+            const U& value) {
             os << value;
         }
 
         template <typename U>
-        static typename std::enable_if<!util::Writable<U>::value && !util::Ostreamable<U>::value>::type print_impl(std::ostream&,
-                                                                                                       const U&) {}
+        static typename std::enable_if<!util::Writable<U>::value && !util::Ostreamable<U>::value>::type print_impl(
+            std::ostream&,
+            const U&) {}
 
         void print(std::ostream& os) const override {
             print_impl(os, value);
@@ -592,14 +593,16 @@ class OPENVINO_API Any {
         }
 
         template <typename U>
-        static typename std::enable_if<!util::Readable<U>::value && util::Istreamable<U>::value>::type read_impl(std::istream& is,
-                                                                                                     U& value) {
+        static typename std::enable_if<!util::Readable<U>::value && util::Istreamable<U>::value>::type read_impl(
+            std::istream& is,
+            U& value) {
             is >> value;
         }
 
         template <typename U>
-        static typename std::enable_if<!util::Readable<U>::value && !util::Istreamable<U>::value>::type read_impl(std::istream&,
-                                                                                                      U&) {
+        static typename std::enable_if<!util::Readable<U>::value && !util::Istreamable<U>::value>::type read_impl(
+            std::istream&,
+            U&) {
             OPENVINO_UNREACHABLE("Could read type without std::istream& operator>>(std::istream&, T)",
                                  " defined or ov::util::Read<T> class specialization, T: ",
                                  typeid(T).name());
@@ -707,9 +710,10 @@ public:
     bool empty() const;
 
     /**
-     * @brief check the type of value in any
+     * @brief Check that stored type can be casted to specified type.
+     * If internal type supports Base
      * @tparam T Type of value
-     * @return true if type of value is correct
+     * @return true if type of value is correct. Return false if any is empty
      */
     template <class T>
     bool is() const {
