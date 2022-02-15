@@ -327,9 +327,7 @@ auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
     return paramsVector;
 }
 
-void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount) {
-    InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
-    auto function = execGraphInfo.getFunction();
+void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function, std::string nodeType, size_t expectedCount) {
     ASSERT_NE(nullptr, function);
     size_t actualNodeCount = 0;
     for (const auto &node : function->get_ops()) {
@@ -346,6 +344,18 @@ void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::stri
 
     ASSERT_EQ(expectedCount, actualNodeCount) << "Unexpected count of the node type '" << nodeType << "' ";
 }
+
+void CheckNumberOfNodesWithType(ov::CompiledModel &compiledModel, std::string nodeType, size_t expectedCount) {
+    std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);
+}
+
+void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount) {
+    InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
+    std::shared_ptr<const ov::Model> function = execGraphInfo.getFunction();
+    CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);
+}
+
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
     std::vector<CPUSpecificParams> resCPUParams;
     const int selectedTypeIndex = 3;

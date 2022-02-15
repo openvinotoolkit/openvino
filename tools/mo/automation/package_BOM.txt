@@ -817,7 +817,6 @@ openvino/tools/mo/middle/sparse_reshape.py
 openvino/tools/mo/middle/split_tdnn_memoryoffset.py
 openvino/tools/mo/middle/SplitConcatPairToInterpolate.py
 openvino/tools/mo/middle/StridedSliceNormalizer.py
-openvino/tools/mo/middle/StridedSliceReplacer.py
 openvino/tools/mo/middle/SwapAxesMiddleReplacer.py
 openvino/tools/mo/middle/TensorIterator_utils.py
 openvino/tools/mo/middle/TensorIteratorBackEdge.py
@@ -1027,6 +1026,7 @@ openvino/tools/mo/subprocess_main.py
 openvino/tools/mo/utils/__init__.py
 openvino/tools/mo/utils/broadcasting.py
 openvino/tools/mo/utils/check_ie_bindings.py
+openvino/tools/mo/utils/check_mo_import.py
 openvino/tools/mo/utils/class_registration.py
 openvino/tools/mo/utils/cli_parser.py
 openvino/tools/mo/utils/custom_replacement_config.py
@@ -1058,6 +1058,7 @@ openvino/tools/mo/utils/ir_reader/extenders/experimental_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/fakequantize_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/GRUCell_extender.py
+openvino/tools/mo/utils/ir_reader/extenders/GRUSequence_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/if_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/interpolate_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/loop_extender.py

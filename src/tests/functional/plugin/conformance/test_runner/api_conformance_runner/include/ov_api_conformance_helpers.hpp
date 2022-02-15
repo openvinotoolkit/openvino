@@ -15,17 +15,17 @@ namespace conformance {
 
 inline const std::string get_plugin_lib_name_by_device(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
-            { "AUTO", "ov_auto_plugin" },
-            { "HDDL", "HDDLPlugin" },
-            { "VPUX", "ov_intel_vpux_plugin" },
-            { "AUTO", "ov_auto_plugin" },
-            { "CPU", "ov_intel_cpu_plugin" },
-            { "GNA", "ov_intel_gna_plugin" },
-            { "GPU", "ov_intel_gpu_plugin" },
-            { "HETERO", "ov_hetero_plugin" },
-            { "MULTI", "ov_multi_plugin" },
-            { "MYRIAD", "ov_intel_vpu_plugin" },
-            { "TEMPLATE", "ov_template_plugin" },
+            { "AUTO", "openvino_auto_plugin" },
+            { "HDDL", "intel_hddl_plugin" },
+            { "VPUX", "openvino_intel_vpux_plugin" },
+            { "AUTO", "openvino_auto_plugin" },
+            { "CPU", "openvino_intel_cpu_plugin" },
+            { "GNA", "openvino_intel_gna_plugin" },
+            { "GPU", "openvino_intel_gpu_plugin" },
+            { "HETERO", "openvino_hetero_plugin" },
+            { "MULTI", "openvino_auto_plugin" },
+            { "MYRIAD", "openvino_intel_myriad_plugin" },
+            { "TEMPLATE", "openvino_template_plugin" },
     };
     if (devices.find(deviceName) == devices.end()) {
         throw std::runtime_error("Incorrect device name");
@@ -36,11 +36,11 @@ inline const std::string get_plugin_lib_name_by_device(const std::string& device
 
 inline const std::vector<ov::AnyMap> generate_configs(const std::string& targetDevice,
                                                                          const std::vector<ov::AnyMap>& config = {}) {
-    std::pair<std::string, std::string> defaultConfig;
+    std::pair<std::string, ov::Any> defaultConfig;
     if (targetDevice ==  std::string(CommonTestUtils::DEVICE_MULTI) || targetDevice ==  std::string(CommonTestUtils::DEVICE_AUTO)) {
-        defaultConfig = {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::conformance::targetDevice};;
+        defaultConfig = ov::device::priorities(ov::test::conformance::targetDevice);
     } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
-        defaultConfig = { "TARGET_FALLBACK" , ov::test::conformance::targetDevice };
+        defaultConfig = ov::device::priorities(ov::test::conformance::targetDevice);
     } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
         defaultConfig = { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::conformance::targetDevice)};
     } else {

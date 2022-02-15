@@ -9,7 +9,8 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, Type
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
+from openvino.runtime import Type, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
 from ..conftest import model_path, read_image
@@ -47,7 +48,7 @@ def create_simple_request_and_inputs(device):
 def test_get_profiling_info(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    core.set_config({"PERF_COUNT": "YES"}, device)
+    core.set_property(device, {"PERF_COUNT": "YES"})
     compiled = core.compile_model(model, device)
     img = read_image()
     request = compiled.create_infer_request()
@@ -160,6 +161,67 @@ def test_set_tensors(device):
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
 
 
+@pytest.mark.dynamic_library
+@pytest.mark.template_extension
+def test_batched_tensors(device):
+    batch = 4
+    one_shape = Shape([1, 2, 2, 2])
+    batch_shape = Shape([batch, 2, 2, 2])
+    one_shape_size = np.prod(one_shape)
+
+    core = Core()
+
+    core.register_plugin("openvino_template_plugin", "TEMPLATE")
+
+    data1 = ops.parameter(batch_shape, np.float32)
+    data1.set_friendly_name("input0")
+    data1.get_output_tensor(0).set_names({"tensor_input0"})
+    data1.set_layout(Layout("N..."))
+
+    constant = ops.constant([1], np.float32)
+
+    op1 = ops.add(data1, constant)
+    op1.set_friendly_name("Add0")
+
+    res1 = ops.result(op1)
+    res1.set_friendly_name("Result0")
+    res1.get_output_tensor(0).set_names({"tensor_output0"})
+
+    model = Model([res1], [data1])
+
+    compiled = core.compile_model(model, "TEMPLATE")
+
+    buffer = np.zeros([one_shape_size * batch * 2], dtype=np.float32)
+
+    req = compiled.create_infer_request()
+
+    tensors = []
+
+    for i in range(0, batch):
+        _start = i * one_shape_size * 2
+        # Use of special constructor for Tensor.
+        # It creates a Tensor from pointer, thus it requires only
+        # one element from original buffer, and shape to "crop".
+        tensor = Tensor(buffer[_start:(_start + 1)], one_shape)
+        tensors.append(tensor)
+
+    req.set_input_tensors(tensors)  # using list overload!
+
+    actual_tensor = req.get_tensor("tensor_output0")
+    actual = actual_tensor.data
+    for test_num in range(0, 5):
+        for i in range(0, batch):
+            tensors[i].data[:] = test_num + 10
+
+        req.infer()  # Adds '1' to each element
+
+        # Reference values for each batch:
+        _tmp = np.array([test_num + 11] * one_shape_size, dtype=np.float32).reshape([2, 2, 2])
+
+        for j in range(0, batch):
+            assert np.array_equal(actual[j], _tmp)
+
+
 def test_inputs_outputs_property(device):
     num_inputs = 10
     input_shape = [1]
@@ -248,7 +310,7 @@ def test_infer_list_as_inputs(device):
 def test_infer_mixed_keys(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    core.set_config({"PERF_COUNT": "YES"}, device)
+    core.set_property(device, {"PERF_COUNT": "YES"})
     model = core.compile_model(model, device)
 
     img = read_image()
@@ -277,12 +339,27 @@ def test_infer_queue(device):
 
     img = read_image()
     infer_queue.set_callback(callback)
-    assert infer_queue.is_ready
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()
     assert all(job["finished"] for job in jobs_done)
     assert all(job["latency"] > 0 for job in jobs_done)
+
+
+def test_infer_queue_is_ready(device):
+    core = Core()
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    compiled = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled, 1)
+
+    def callback(request, _):
+        time.sleep(0.001)
+    infer_queue.set_callback(callback)
+    assert infer_queue.is_ready()
+    infer_queue.start_async()
+    assert not infer_queue.is_ready()
+    infer_queue.wait_all()
 
 
 def test_infer_queue_fail_on_cpp_model(device):
@@ -298,7 +375,6 @@ def test_infer_queue_fail_on_cpp_model(device):
 
     img = read_image()
     infer_queue.set_callback(callback)
-    assert infer_queue.is_ready
 
     with pytest.raises(RuntimeError) as e:
         for _ in range(jobs):
@@ -321,7 +397,6 @@ def test_infer_queue_fail_on_py_model(device):
 
     img = read_image()
     infer_queue.set_callback(callback)
-    assert infer_queue.is_ready
 
     with pytest.raises(TypeError) as e:
         for _ in range(jobs):
@@ -329,6 +404,27 @@ def test_infer_queue_fail_on_py_model(device):
         infer_queue.wait_all()
 
     assert "unsupported operand type(s) for +" in str(e.value)
+
+
+def test_infer_queue_get_idle_handle(device):
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    core = Core()
+    compiled = core.compile_model(model, device)
+    queue = AsyncInferQueue(compiled, 2)
+    niter = 10
+
+    for _ in range(len(queue)):
+        queue.start_async()
+    queue.wait_all()
+    for request in queue:
+        assert request.wait_for(0)
+
+    for _ in range(niter):
+        idle_id = queue.get_idle_request_id()
+        assert queue[idle_id].wait_for(0)
+        queue.start_async()
+    queue.wait_all()
 
 
 @pytest.mark.parametrize("data_type",
@@ -345,7 +441,7 @@ def test_infer_queue_fail_on_py_model(device):
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
     if device == "CPU":
-        if core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin")
 
     from openvino.runtime import Tensor
@@ -413,7 +509,6 @@ def test_results_async_infer(device):
 
     img = read_image()
     infer_queue.set_callback(callback)
-    assert infer_queue.is_ready
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()

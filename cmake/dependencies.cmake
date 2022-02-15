@@ -51,8 +51,8 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
     update_deps_cache(SYSTEM_PROTOC "${SYSTEM_PROTOC}" "Path to host protoc for ONNX Importer")
 endif()
 
-if(ENABLE_INTEL_VPU)
-    include(${IE_MAIN_SOURCE_DIR}/cmake/vpu_dependencies.cmake)
+if(ENABLE_INTEL_MYRIAD)
+    include(${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/myriad_dependencies.cmake)
 endif()
 
 ## Intel OMP package
@@ -269,7 +269,7 @@ include(${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake)
 
 if(ENABLE_INTEL_GNA)
     reset_deps_cache(
-            GNA
+            GNA_EXT_DIR
             GNA_PLATFORM_DIR
             GNA_KERNEL_LIB_NAME
             GNA_LIBS_LIST
@@ -286,12 +286,26 @@ if(ENABLE_INTEL_GNA)
             LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
         endif()
 
-        RESOLVE_DEPENDENCY(GNA
+        RESOLVE_DEPENDENCY(GNA_EXT_DIR
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
                 SHA256 ${GNA_HASH})
-    update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
-    debug_message(STATUS "gna=" ${GNA})
+    update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
+    debug_message(STATUS "gna=" ${GNA_EXT_DIR})
+
+    if (WIN32)
+        set(GNA_PLATFORM_DIR win64 CACHE STRING "" FORCE)
+    elseif (UNIX)
+        set(GNA_PLATFORM_DIR linux CACHE STRING "" FORCE)
+    else ()
+        message(FATAL_ERROR "GNA not supported on this platform, only linux, and windows")
+    endif ()
+    set(GNA_LIB_DIR x64 CACHE STRING "" FORCE)
+    set(GNA_PATH ${GNA_EXT_DIR}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR} CACHE STRING "" FORCE)
+
+    if(NOT BUILD_SHARED_LIBS)
+        list(APPEND PATH_VARS "GNA_PATH")
+    endif()
 endif()

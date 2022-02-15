@@ -203,7 +203,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
         emptyFusingSpec,
         // eltwise
         fusingRelu,
-        fusingPRelu1D,
+        fusingPRelu1DScaleShift,
         // depthwise
         fusingReluScaleShift,
         // fake quantize
@@ -221,7 +221,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         // eltwise
         fusingRelu,
         // depthwise
-        fusingReluScaleShift,
+        fusingPRelu1DScaleShift,
         // sum
         fusingSum,
         // bias
@@ -296,6 +296,7 @@ const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1} };
+
 std::vector<InputShape> inputShapes2d = {
         {{}, {{ 1, 64, 7, 7 }}},
         {{}, {{ 1, 67, 7, 7 }}},
@@ -316,6 +317,7 @@ std::vector<InputShape> inputShapes2d = {
             }
         }
 };
+
 std::vector<InputShape> inputShapesPlain2Blocked2d = {
         {{}, {{ 1, 1, 7, 7 }}},
         {{}, {{ 1, 2, 7, 7 }}},
@@ -496,6 +498,19 @@ std::vector<InputShape> inShapesGemm2D = {
         }
 };
 
+std::vector<InputShape> inShapesGemm2D_cache = {
+        {{}, {{ 2, 12, 7, 7 }}},
+        {
+            //dynamic shape
+            { {1, 200}, 12, -1, {1, 200} },
+            { //target static shapes
+                { 1, 12, 5, 5 },
+                { 1, 12, 7, 7 },
+                { 1, 12, 5, 5 }
+            }
+        }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
@@ -503,7 +518,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::f32),
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inShapesGemm2D),
+                                         ::testing::ValuesIn(inShapesGemm2D_cache),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
                                  ::testing::ValuesIn(fusingParamsSet),
@@ -828,6 +843,28 @@ const std::vector<CPUSpecificParams> CPUParams_2D = {
         conv_avx512_2D_nspc
 };
 
+std::vector<InputShape> inputShapes2d_cache = {
+        {{}, {{ 1, 64, 7, 7 }}},
+        {{}, {{ 1, 67, 7, 7 }}},
+        {
+            //dynamic shape
+            { -1, 64, -1, {1, 200} },
+            { //target static shapes
+                { 1, 64, 7, 7 },
+                { 1, 64, 9, 9 },
+                { 1, 64, 7, 7 }
+            }
+        },
+        {
+            //dynamic shape
+            { -1, 67, -1, {1, 200} },
+            { //target static shapes
+                { 1, 67, 7, 7 },
+                { 1, 67, 9, 9}
+            }
+        }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
@@ -835,10 +872,42 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::f32),
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inputShapes2d),
+                                         ::testing::ValuesIn(inputShapes2d_cache),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
                                  ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+std::vector<InputShape> inputShapes2d_dynBatch = {
+        {
+            //dynamic shape
+            { {1, 10}, 64, 7, 7 },
+            { //target static shapes
+                { 2, 64, 7, 7 },
+                { 1, 64, 7, 7 }
+            }
+        },
+};
+
+const std::vector<fusingSpecificParams> fusingParamsSet_dynBatch{
+        emptyFusingSpec,
+        fusingReluScaleShift,
+        fusingSum,
+        fusingAddPerChannel
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32_dynBatch, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_2D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes2d_dynBatch),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
+                                 ::testing::ValuesIn(fusingParamsSet_dynBatch),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
@@ -999,6 +1068,12 @@ std::vector<InputShape> inputShapes_Reorder_2D = {
         }
 };
 
+const std::vector<fusingSpecificParams> fusingParamsSet_reorder{
+        emptyFusingSpec,
+        fusingReluScaleShift,
+        fusingAddPerChannel
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_reorder_Conv_2D, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
@@ -1009,7 +1084,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_reorder_Conv_2D, ConvolutionLayerCPUTest,
                                          ::testing::ValuesIn(inputShapes_Reorder_2D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1})),
-                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::ValuesIn(fusingParamsSet_reorder),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
@@ -1490,7 +1565,8 @@ std::vector<InputShape> inShapesWinograd = {
         //dynamic shape
         { {1, 200}, 16, -1, {1, 200} },
         { //target static shapes
-            { 2, 16, 7, 7 },
+            { 1, 16, 5, 5 },
+            { 1, 16, 7, 7 },
             { 1, 16, 5, 5 }
         }
     }

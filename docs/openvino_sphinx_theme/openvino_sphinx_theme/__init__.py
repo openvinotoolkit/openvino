@@ -1,12 +1,15 @@
 import os
 import sys
+import json
+from json import JSONDecodeError
 from sphinx.errors import ExtensionError
 import jinja2
+from docutils.parsers import rst
 from pathlib import Path
 from bs4 import BeautifulSoup as bs
 from sphinx.util import logging
 from pydata_sphinx_theme import index_toctree
-
+from .directives.code import DoxygenSnippet
 
 SPHINX_LOGGER = logging.getLogger(__name__)
 
@@ -15,7 +18,7 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
     """Add a function that jinja can access for returning the edit URL of a page."""
 
     def has_github_page():
-        doxygen_mapping_file = app.config['doxygen_mapping_file']
+        doxygen_mapping_file = app.config.html_context.get('doxygen_mapping_file')
         name = pagename.rsplit('-')[0]
         if name in doxygen_mapping_file:
             return True
@@ -46,7 +49,7 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
         url_template = '{{ github_url }}/{{ github_user }}/{{ github_repo }}' \
                        '/edit/{{ github_version }}/{{ doc_path }}{{ file_name }}'
 
-        doxygen_mapping_file = app.config['doxygen_mapping_file']
+        doxygen_mapping_file = app.config.html_context.get('doxygen_mapping_file')
         rst_name = pagename.rsplit('-')[0]
         file_name = doxygen_mapping_file[rst_name]
         parent_folder = Path(os.path.dirname(file_name)).parts[0]
@@ -126,9 +129,8 @@ def _add_collapse_checkboxes(soup, open_first=False):
         # (by checking the checkbox)
         if "current" in classes or (open_first and toctree_checkbox_count == 1):
             checkbox.attrs["checked"] = ""
-
-
         element.insert(1, checkbox)
+
 
 def add_toctree_functions(app, pagename, templatename, context, doctree):
 
@@ -208,8 +210,16 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
 
         return out
 
-
     context["generate_sidebar_nav"] = generate_sidebar_nav
+
+
+def read_doxygen_configs(app, env, docnames):
+    if app.config.html_context.get('doxygen_mapping_file'):
+        try:
+            with open(app.config.html_context.get('doxygen_mapping_file'), 'r', encoding='utf-8') as f:
+                app.config.html_context['doxygen_mapping_file'] = json.load(f)
+        except (JSONDecodeError, FileNotFoundError):
+            app.config.html_context['doxygen_mapping_file'] = dict()
 
 
 def setup(app):
@@ -220,5 +230,7 @@ def setup(app):
     app.config.html_static_path.append(static_path)
     app.connect("html-page-context", setup_edit_url, priority=sys.maxsize)
     app.connect("html-page-context", add_toctree_functions)
+    app.connect('env-before-read-docs', read_doxygen_configs)
     app.add_html_theme('openvino_sphinx_theme', theme_path)
+    rst.directives.register_directive('doxygensnippet', DoxygenSnippet)
     return {'parallel_read_safe': True, 'parallel_write_safe': True}

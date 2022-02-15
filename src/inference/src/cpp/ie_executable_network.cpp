@@ -164,7 +164,7 @@ ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) 
                 return param;
             }
         }
-        throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+        throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
     });
 }
 
@@ -196,7 +196,7 @@ ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name)
                 return result;
             }
         }
-        throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+        throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
     });
 }
 
@@ -216,13 +216,24 @@ Any CompiledModel::get_property(const std::string& name) const {
     OV_EXEC_NET_CALL_STATEMENT({
         if (ov::supported_properties == name) {
             try {
-                return {_impl->GetMetric(name), _so};
+                auto supported_properties = _impl->GetMetric(name).as<std::vector<PropertyName>>();
+                supported_properties.erase(std::remove_if(supported_properties.begin(),
+                                                          supported_properties.end(),
+                                                          [](const ov::PropertyName& name) {
+                                                              return name == METRIC_KEY(SUPPORTED_METRICS) ||
+                                                                     name == METRIC_KEY(SUPPORTED_CONFIG_KEYS);
+                                                          }),
+                                           supported_properties.end());
+                return supported_properties;
             } catch (ie::Exception&) {
                 auto ro_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-                auto rw_properties = _impl->GetConfig(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+                auto rw_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                 std::vector<ov::PropertyName> supported_properties;
                 for (auto&& ro_property : ro_properties) {
-                    supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                        supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    }
                 }
                 for (auto&& rw_property : rw_properties) {
                     supported_properties.emplace_back(rw_property, PropertyMutability::RW);
@@ -237,10 +248,6 @@ Any CompiledModel::get_property(const std::string& name) const {
             return {_impl->GetConfig(name), _so};
         }
     });
-}
-
-void CompiledModel::get_property(const std::string& name, Any& to) const {
-    any_lexical_cast(get_property(name), to);
 }
 
 RemoteContext CompiledModel::get_context() const {

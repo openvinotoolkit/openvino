@@ -28,7 +28,7 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
-#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
 #include <utils/shape_inference/static_shape.hpp>
@@ -64,41 +64,6 @@ private:
         }
         return creators.at(blockedDescType);
     }
-};
-
-struct PortConfig {
-    PortConfig() = default;
-
-    PortConfig(const PortConfig& rhs) {
-        this->constant = rhs.constant;
-        this->inPlace = rhs.inPlace;
-        if (rhs.desc) {
-            this->desc = rhs.desc;
-        }
-    }
-
-    PortConfig& operator=(const PortConfig& rhs) {
-        this->constant = rhs.constant;
-        this->inPlace = rhs.inPlace;
-        if (rhs.desc) {
-            this->desc = rhs.desc;
-        }
-        return *this;
-    }
-
-    PortConfig(PortConfig&& rhs) = default;
-    PortConfig& operator=(PortConfig&& rhs) = default;
-
-    // TODO [DS]: better to make private and const
-    bool constant = false;
-    int inPlace = -1;
-    MemoryDescPtr desc;
-};
-
-struct NodeConfig {
-    bool dynBatchSupport = false;
-    std::vector<PortConfig> inConfs;
-    std::vector<PortConfig> outConfs;
 };
 
 class NodeDesc {
@@ -217,7 +182,7 @@ public:
 
     static void appendPostOpArgs(const mkldnn::primitive_attr& attr,
                                  std::unordered_map<int, mkldnn::memory>& primArgs,
-                                 const std::vector<MKLDNNMemoryPtr>& binaryPostOpsArgs);
+                                 const std::vector<MKLDNNMemoryPtr>& postOpsArgs);
 
     bool isFusedWith(Type type) const;
 
@@ -407,7 +372,7 @@ public:
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                if (!srcDescs[i]->isCompatible(*selectedDescs[i].desc))
+                if (!srcDescs[i]->isCompatible(*selectedDescs[i].getMemDesc()))
                     return false;
             }
             return true;
@@ -598,7 +563,8 @@ public:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem);
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem);
 
     virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
 
@@ -616,8 +582,8 @@ protected:
     virtual size_t getMaxBatch() const;
 
 
-    virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
+    virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
+    virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
     virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
     virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
@@ -662,7 +628,7 @@ protected:
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, mkldnn::memory> primArgs;
-    std::vector<MKLDNNMemoryPtr> binaryPostOpsArgs;
+    std::vector<MKLDNNMemoryPtr> postOpsArgs;
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 
@@ -711,9 +677,9 @@ protected:
                 return false;
 
             PortConfig portConfig;
-            portConfig.inPlace = portConfigurator.inPlace;
-            portConfig.constant = portConfigurator.constant;
-            portConfig.desc = portConfigurator.blockedDescCreator->createSharedDesc(prc, shape);
+            portConfig.inPlace(portConfigurator.inPlace);
+            portConfig.constant(portConfigurator.constant);
+            portConfig.setMemDesc(portConfigurator.blockedDescCreator->createSharedDesc(prc, shape));
 
             port.push_back(std::move(portConfig));
 

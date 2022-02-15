@@ -21,7 +21,7 @@ namespace behavior {
 typedef std::tuple<
         ov::element::Type_t,                // Element type
         std::string,                        // Device name
-        ov::AnyMap               // Config
+        ov::AnyMap                          // Config
 > OVExecGraphImportExportTestParams;
 
 class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGraphImportExportTestParams>,
@@ -74,7 +74,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
 
     ov::CompiledModel execNet;
 
-// Create simple function
+    // Create simple function
     {
         auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
@@ -148,6 +148,85 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
     EXPECT_THROW(importedExecNet.input("param2"), ov::Exception);
     EXPECT_THROW(importedExecNet.output("concat_op"), ov::Exception);
     EXPECT_THROW(importedExecNet.output("relu_op"), ov::Exception);
+}
+
+TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
+
+    // Create a simple function
+    {
+        auto param = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param->set_friendly_name("param");
+        param->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(param);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                      ngraph::ParameterVector{param});
+        function->set_friendly_name("ParamResult");
+    }
+
+    auto execNet = core->compile_model(function, targetDevice, configuration);
+    std::stringstream strm;
+    execNet.export_model(strm);
+
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
+    EXPECT_EQ(function->inputs().size(), 1);
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.input());
+    EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
+    EXPECT_THROW(importedCompiledModel.input("param"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output());
+    EXPECT_EQ(function->output(0).get_tensor().get_names(),
+              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+    EXPECT_THROW(importedCompiledModel.output("param"), ov::Exception);
+
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.input("data").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
+}
+
+TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
+
+    // Create a simple function
+    {
+        auto constant = std::make_shared<ov::opset8::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        constant->set_friendly_name("constant");
+        constant->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(constant);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                      ngraph::ParameterVector{});
+        function->set_friendly_name("ConstResult");
+    }
+
+    auto execNet = core->compile_model(function, targetDevice, configuration);
+    std::stringstream strm;
+    execNet.export_model(strm);
+
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
+    EXPECT_EQ(function->inputs().size(), 0);
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
+    EXPECT_THROW(importedCompiledModel.input("data"), ov::Exception);
+    EXPECT_THROW(importedCompiledModel.input("constant"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output());
+    EXPECT_EQ(function->output(0).get_tensor().get_names(),
+              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+    EXPECT_THROW(importedCompiledModel.output("constant"), ov::Exception);
+
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
 }
 
 TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
@@ -275,7 +354,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
         result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});
-        function->set_friendly_name("SingleRuLU");
+        function->set_friendly_name("SingleReLU");
     }
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
 
@@ -312,6 +391,98 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     EXPECT_EQ(outputType, importedExecNet.output("relu_op").get_element_type());
 }
 
+TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) {
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
+
+    std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
+    InferenceEngine::ExecutableNetwork execNet;
+
+    // Create a simple function
+    {
+        auto param = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param->set_friendly_name("param");
+        param->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(param);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                      ngraph::ParameterVector{param});
+        function->set_friendly_name("ParamResult");
+    }
+    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
+
+    std::stringstream strm;
+    execNet.Export(strm);
+
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
+    EXPECT_EQ(function->inputs().size(), 1);
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.input());
+    EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
+    EXPECT_NO_THROW(importedCompiledModel.input("param").get_node());
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output());
+    EXPECT_NE(function->output(0).get_tensor().get_names(),
+              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+    EXPECT_NO_THROW(importedCompiledModel.output("param").get_node());
+
+    const ov::element::Type outputType = elementType == ngraph::element::i32 ||
+        elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
+    const ov::element::Type inputType = elementType ==
+        ngraph::element::f16 ? ngraph::element::Type_t::f32 : elementType;
+
+    EXPECT_EQ(inputType, importedCompiledModel.input("param").get_element_type());
+    EXPECT_EQ(outputType, importedCompiledModel.output("data").get_element_type());
+}
+
+TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
+
+    std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
+    InferenceEngine::ExecutableNetwork execNet;
+
+    // Create a simple function
+    {
+        auto constant = std::make_shared<ov::opset8::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        constant->set_friendly_name("constant");
+        constant->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(constant);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                      ngraph::ParameterVector{});
+        function->set_friendly_name("ConstResult");
+    }
+    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
+
+    std::stringstream strm;
+    execNet.Export(strm);
+
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
+    EXPECT_EQ(function->inputs().size(), 0);
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
+    EXPECT_THROW(importedCompiledModel.input("data"), ov::Exception);
+    EXPECT_THROW(importedCompiledModel.input("constant"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output());
+    EXPECT_NE(function->output(0).get_tensor().get_names(),
+              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+    EXPECT_NO_THROW(importedCompiledModel.output("constant").get_node());
+
+    const auto outputType = elementType == ngraph::element::i32 ||
+                            elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
+    EXPECT_EQ(outputType, importedCompiledModel.output("data").get_element_type());
+}
+
 TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
@@ -340,7 +511,7 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
         result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});
-        function->set_friendly_name("SingleRuLU");
+        function->set_friendly_name("SingleReLU");
     }
     execNet = core->compile_model(function, targetDevice, configuration);
 

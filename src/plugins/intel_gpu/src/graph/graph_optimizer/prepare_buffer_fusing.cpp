@@ -75,7 +75,8 @@ bool concat_noop_optimization::match(concatenation_node& node) {
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
     auto& dep = node.get_dependency(0);
-    dep.merge_output_padding(node.get_output_layout().data_padding);
+    auto outputPadding = node.get_output_layout().data_padding;
+    dep.merge_output_padding(outputPadding);
     prog.extract_and_remove(node);
     // Node has been removed, so no further optimizations.
     return true;
@@ -97,7 +98,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                     auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = input->get_output_layout();
 
-                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                    if (!program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout))
                         continue;
                     if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout))
                         return false;
@@ -222,7 +223,8 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     // Select output padding by propagating all required input paddings.
     auto padd = node.get_output_layout().data_padding;
     for (auto input : node.get_dependencies()) {
-        padd = padding::max(padd, input->get_output_layout().data_padding);
+        auto inputPadding = input->get_output_layout().data_padding;
+        padd = padding::max(padd, inputPadding);
     }
 
     auto lower_padd = padd.lower_size();

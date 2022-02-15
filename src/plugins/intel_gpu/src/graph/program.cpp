@@ -86,6 +86,9 @@
 #include <stdexcept>
 #include <unordered_set>
 
+#ifdef __unix__
+#include <sys/resource.h>
+#endif
 program::program(engine& engine_ref,
                  topology const& topology,
                  build_options const& options,
@@ -223,8 +226,9 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
 
+            auto inputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range =
-                calc_sliding_window_output_range<swor_mode::all>(prim_node.input().get_output_layout().size,
+                calc_sliding_window_output_range<swor_mode::all>(inputSize,
                                                                  filter_size,
                                                                  prim->pad,
                                                                  prim->stride,
@@ -244,8 +248,9 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
 
+            auto primInputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range =
-                calc_sliding_window_output_range<swor_mode::all>(prim_node.input().get_output_layout().size,
+                calc_sliding_window_output_range<swor_mode::all>(primInputSize,
                                                                  filter_size,
                                                                  prim->pad,
                                                                  prim->stride,
@@ -268,7 +273,8 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
 
-            auto calc_output_range = calc_sliding_window_needed_input_range(prim_node.input().get_output_layout().size,
+            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
                                                                             prim->stride,
@@ -290,8 +296,9 @@ bool program::analyze_output_size_handling_need() {
                 1);
 
             // TODO: Check compatibility of output size calculation (with caffe).
+            auto primInputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
-                prim_node.input().get_output_layout().size,
+                primInputSize,
                 prim->size,
                 prim->pad,
                 prim->stride,
@@ -1014,8 +1021,9 @@ void program::fuse_nodes(program_node &fused_node,
         local_desc.activation_params = peer_node.get_fused_activations_params()[0];
     }
 
+    auto fusedPadding = fused_node.get_output_layout().data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fused_node.get_output_layout().data_padding);
+                                                 fusedPadding);
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1444,6 +1452,13 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     memory_pool pool(get_engine());
     int64_t const_sum = 0;
 
+#ifdef __unix__
+    rlimit limit;
+    int64_t cur_vmem = -1;
+    if (getrlimit(RLIMIT_AS, &limit) == 0) {
+        cur_vmem = limit.rlim_cur;
+    }
+#endif
     std::vector<program_node*> nodes_to_allocate{};
     for (auto node : processing_order) {
         nodes_to_allocate.push_back(node);
@@ -1454,15 +1469,33 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
               [](program_node* const& lhs, program_node* const& rhs) {
                   return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
               });
-
+    auto& engine = get_engine();
+    int64_t host_alloc = 0;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     // just to prevent the memories from being freed during allocation
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
         auto out_size = node->get_output_layout().bytes_count();
         if (out_size > max_alloc_size) {
             // to consider: if the base batch size is > 1, should we allow this single output allocation to host?
-            continue; // to be allocated to host
+            host_alloc += out_size;
+            continue;
         }
+        #ifdef __unix__
+        // Check whether the host mem allocation might exceed avialalbe system VRAM
+        int64_t total_host_alloc_size = out_size + host_alloc + engine.get_used_device_memory(allocation_type::usm_host);
+        if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
+            total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
+
+        if (cur_vmem != -1 && total_host_alloc_size > cur_vmem) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Estimated mem usage calculated with default base batch size(16) exceeds the available virtual memory ("
+                    << cur_vmem << ")" << std::endl;
+            }
+            return {-1L, -1L};
+        }
+        #endif
+
         if (node->can_be_optimized())
             continue;
         if (node->is_type<data>() && node->get_users().size() == 1 && node->have_user_with_type<generic_layer>())  {
@@ -1475,7 +1508,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), pool, *node, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, false));
         }
     }
 

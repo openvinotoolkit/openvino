@@ -22,7 +22,6 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     from openvino.tools.mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations, \
         apply_moc_legacy_transformations
 
-    apply_user_transformations(ngraph_function, parse_transform(argv.transform))
     apply_moc_transformations(ngraph_function)
     from openvino.offline_transformations import compress_quantize_weights_transformation
     compress_quantize_weights_transformation(ngraph_function)
@@ -32,6 +31,8 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
         params_with_custom_types = [] if argv.placeholder_data_types is None \
             else list(argv.placeholder_data_types.keys())
         apply_moc_legacy_transformations(ngraph_function, params_with_custom_types)
+
+    apply_user_transformations(ngraph_function, parse_transform(argv.transform))
 
     if argv.compress_fp16:
         from openvino.tools.mo.back.offline_transformations import compress_model
@@ -52,7 +53,8 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     append_ir_info(file=orig_model_name,
                    meta_info=get_meta_info(argv),
                    mean_data=None,
-                   input_names=None)
+                   input_names=None,
+                   legacy_path=False)
 
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))

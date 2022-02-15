@@ -33,7 +33,7 @@ class BlobNormalizer(BackReplacementPattern):
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('conv', dict(type=lambda type: type in ['Convolution', 'Deconvolution', 'FullyConnected']))],
+            nodes=[('conv', dict(type=lambda type: type in ['Convolution', 'Deconvolution', 'FullyConnected', 'DeformableConvolution']))],
             edges=[]
         )
 
