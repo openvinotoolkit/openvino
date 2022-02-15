@@ -119,6 +119,7 @@
 #include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/random_uniform.hpp"
 #include "ngraph/op/range.hpp"
+#include "ngraph/op/rdft.hpp"
 #include "ngraph/op/read_value.hpp"
 #include "ngraph/op/reduce_l1.hpp"
 #include "ngraph/op/reduce_l2.hpp"

@@ -118,6 +118,7 @@
 #include "openvino/op/psroi_pooling.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/rdft.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"

@@ -63,25 +63,7 @@ std::shared_ptr<Node> op::v9::RDFT::clone_with_new_inputs(const OutputVector& ne
 void op::v9::RDFT::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v9_RDFT_validate_and_infer_types);
 
-    size_t num_of_inputs = get_input_size();
-    NODE_VALIDATION_CHECK(this, num_of_inputs == 2 || num_of_inputs == 3, "FFT op must have 2 or 3 inputs.");
-
-    element::Type input_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          input_et == element::f32 || input_et == element::f16 || input_et == element::bf16,
-                          "RFFT op input element type must be f32, f16, or bf16");
-
-    element::Type axes_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          axes_et == element::i64 || axes_et == element::i32,
-                          "RFFT op axes element type must be i32 or i64");
-
-    if (num_of_inputs == 3) {
-        element::Type signal_size_et = get_input_element_type(2);
-        NODE_VALIDATION_CHECK(this,
-                              signal_size_et == element::i64 || signal_size_et == element::i32,
-                              "RFFT op signal_size element type must be i32 or i64");
-    }
+    validate_types();
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes;

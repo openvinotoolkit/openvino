@@ -117,6 +117,17 @@ const ov::OpSet& ov::get_opset8() {
     return opset;
 }
 
+const ov::OpSet& ov::get_opset9() {
+    static OpSet opset;
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#include "openvino/opsets/opset9_tbl.hpp"
+#undef _OPENVINO_OP_REG
+    });
+    return opset;
+}
+
 const ngraph::OpSet& ngraph::get_opset1() {
     static OpSet opset(ov::get_opset1());
     return opset;
@@ -154,5 +165,10 @@ const ngraph::OpSet& ngraph::get_opset7() {
 
 const ngraph::OpSet& ngraph::get_opset8() {
     static OpSet opset(ov::get_opset8());
+    return opset;
+}
+
+const ngraph::OpSet& ngraph::get_opset9() {
+    static OpSet opset(ov::get_opset9());
     return opset;
 }
