@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mkldnn_reorder_node.h"
-
 #include <common/blocked_desc_creator.h>
 #include <cpu_types.h>
 #include <gtest/gtest.h>
@@ -19,6 +17,7 @@
 #include "mkldnn_edge.h"
 #include "mkldnn_input_node.h"
 #include "mkldnn_node.h"
+#include "mkldnn_reorder_node.h"
 
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;
@@ -99,9 +98,11 @@ inline void check_reorder(const dnnl::memory::desc& md_i,
     const dnnl::impl::memory_desc_wrapper mdw_i(md_i.data);
     const dnnl::impl::memory_desc_wrapper mdw_o(md_o.data);
     for (size_t i = 0; i < nelems; ++i) {
-        data_i_t s_raw = src_data[mdw_i.off_l(i, false)];
+        auto src_offset = mdw_i.off_l(i, false);
+        data_i_t s_raw = src_data[src_offset];
         data_o_t s = static_cast<data_o_t>(s_raw);
-        data_o_t d = dst_data[mdw_o.off_l(i, false)];
+        auto dst_offset = mdw_o.off_l(i, false);
+        data_o_t d = dst_data[dst_offset];
         ASSERT_EQ(s, d) << "mismatch at position " << i;
     }
 }
@@ -351,7 +352,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNCSP2NSPCFactor_1,
                          ReorderCustomizedStrideTestS8,
                          NCSP2NSPCparamsFactorIs1,
                          ReorderCustomizedStrideTestS8::getTestCaseName);
-
 /*
  * ReorderCPUTest to test the CPU plugin-in dynamism and RT cache
  */
@@ -405,17 +405,21 @@ public:
 
 protected:
     void generate_inputs(const std::vector<size_t> inputShape) {
-        inputNode->redefineOutputMemory({inputShape});
+        DnnlMemoryDescPtr dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
+
+        auto memDesc = inputDesc.cloneWithNewDims(inputShape);
+        parentEdge->getMemoryPtr()->redefineDesc(memDesc);
         auto elemNum = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
 
         const auto& inputReorder = parentEdge->getMemory().GetPrimitive();
         auto inputReorderData = map_memory<inputType>(inputReorder);
 
-        DnnlMemoryDescPtr dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
-
+        dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
         const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
-        for (size_t i = 0; i < elemNum; ++i)
+
+        for (size_t i = 0; i < elemNum; ++i) {
             inputReorderData[mdInput.off_l(i, false)] = inputType(i);
+        }
     }
     void infer() {
         reorderNode->executeDynamic(stream);
@@ -474,7 +478,7 @@ protected:
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
         auto rtParamsCache = std::make_shared<MKLDNNPlugin::MultiCache>(100);
-        const MKLDNNPlugin::CpuBlockedMemoryDesc inputDesc = srcBlockedDescCreator->createDesc(prec, srcDims);
+        inputDesc = srcBlockedDescCreator->createDesc(prec, srcDims);
 
         const MKLDNNPlugin::CpuBlockedMemoryDesc outputDesc = dstBlockedDescCreator->createDesc(prec, dstDims);
 
@@ -514,6 +518,7 @@ private:
     std::vector<std::vector<size_t>> inputShapes;
     ngraph::PartialShape inputPartialShape;
     BlockedDescCreator::CreatorsMap blockCreatorMap;
+    MKLDNNPlugin::CpuBlockedMemoryDesc inputDesc{InferenceEngine::Precision::FP32, MKLDNNPlugin::Shape{}};
 };
 
 using ReorderCPUTestF32 = ReorderCPUTest<f32_f32>;
@@ -522,11 +527,13 @@ TEST_P(ReorderCPUTestF32, CompareResult) {
     Run();
 }
 
-const auto reorderCpuTestParams_1 = ::testing::Values(ReorderCPUTestParamSetF32{{10, 10, 10, -1},
-                                                                                {{10, 10, 10, 10}, {10, 10, 10, 20}, {10, 10, 10, 10}},
-                                                                                LayoutType::nspc,
-                                                                                LayoutType::ncsp,
-                                                                                InferenceEngine::Precision::FP32});
+const auto reorderCpuTestParams_1 =
+    ::testing::Values(ReorderCPUTestParamSetF32{{2, 16, 8, -1},
+                                                {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                                LayoutType::nspc,
+                                                LayoutType::ncsp,
+                                                InferenceEngine::Precision::FP32});
+
 const auto reorderCpuTestParams_2 =
     ::testing::Values(ReorderCPUTestParamSetF32{{2, 8, -1, 4},
                                                 {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
