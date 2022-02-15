@@ -1,5 +1,11 @@
 # Converting a Caffe* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe}
 
+@sphinxdirective
+
+.. _convert model caffe:
+
+@endsphinxdirective
+
 A summary of the steps for optimizing and deploying a model that was trained with Caffe\*:
 
 1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Caffe\*.

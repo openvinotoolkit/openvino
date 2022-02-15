@@ -309,6 +309,29 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
     auto& deviceConfig = context.deviceInfo.config;
     auto& deviceList = context.metaDevices;
     bool curDevIsCPU = (device.find("CPU") != std::string::npos);
+    bool curDevIsGPU = (device.find("GPU") != std::string::npos);
+    {
+        std::lock_guard<std::mutex> lock(_confMutex);
+        if (curDevIsGPU && _loadContext[CPU].isEnabled) {
+            // user does not set the compiling threads
+            // limit the threads num for compiling
+            int maxNumThreads = 0;
+            try {
+                maxNumThreads = _core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
+            } catch (...) {
+                LOG_DEBUG("[AUTOPLUGIN]: cannot get MAX_NUM_THREADS from GPU");
+            }
+            if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
+                int threadNum = maxNumThreads / 2;
+                deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)] = std::to_string(threadNum).c_str();
+                LOG_DEBUG("[AUTO PLUGIN]:gpu streams number for compiling: %s", deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)].c_str());
+            } else {
+                // user set the compiling threads num
+                // use the user's val anyway
+                LOG_DEBUG("[AUTOPLUGIN]:user defined compiling threads: %d", maxNumThreads);
+            }
+        }
+    }
     try {
         if (!modelPath.empty()) {
             context.executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
