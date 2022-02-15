@@ -7,13 +7,6 @@ trigger:
     exclude:
     - docs/*
 
-pr:
-- master
-- releases/*
-  paths:
-    exclude:
-    - docs/*
-
 jobs:
 - job: LinCC
   # About 150% of total time

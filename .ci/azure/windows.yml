@@ -7,13 +7,6 @@ trigger:
     exclude:
     - docs/*
 
-pr:
-- master
-- releases/*
-  paths:
-    exclude:
-    - docs/*
-
 resources:
   repositories:
   - repository: openvino_contrib
