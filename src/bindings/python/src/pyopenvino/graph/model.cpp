@@ -291,7 +291,7 @@ void regclass_graph_Model(py::module m) {
                 self.reshape(Common::partial_shape_from_list(partial_shapes.cast<py::list>()));
             } else {
                 throw py::type_error("Incorrect type to reshape model. The following argument types are supported:\n"
-                "(self: openvino.runtime.Model, Union[ov.runtime.PartialShape, dict, list])");
+                "(self: openvino.runtime.Model, partial_shapes: Union[ov.runtime.PartialShape, dict, list])");
             }
         },
         py::arg("partial_shapes"),

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import pytest
 
 import openvino.runtime.opset8 as ov
 from openvino.runtime import Dimension, Model, PartialShape, Shape
@@ -31,6 +32,19 @@ def test_dimension():
     assert dim.get_min_length() == 5
     assert dim.get_max_length() == 15
     assert repr(dim) == "<Dimension: 5..15>"
+
+    dim = Dimension(range(5, 25))
+    assert dim.is_dynamic
+    assert dim.get_min_length() == 5
+    assert dim.get_max_length() == 24
+
+    with pytest.raises(TypeError) as e:
+        dim = Dimension([5, 25])
+    assert "Incompatible argument types. The following argument types are supported:\n" \
+           "(self: openvino.runtime.Dimension)\n" \
+           "(self: openvino.runtime.Dimension, dimension: int)\n" \
+           "(self: openvino.runtime.Dimension, min_dimension: int, max_dimension: int)\n" \
+           "(self: openvino.runtime.Dimension, range: range)" in str(e.value)
 
 
 def test_dimension_comparisons():

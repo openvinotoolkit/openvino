@@ -41,6 +41,25 @@ void regclass_graph_Dimension(py::module m) {
                 :type max_dimension: int
             )");
 
+    dim.def(py::init([](const py::handle& range) {
+        if (py::isinstance(range, py::module::import("builtins").attr("range"))) {
+            return ov::Dimension(ov::Dimension(range.attr("start").cast<value_type>(), range.attr("stop").cast<value_type>() - 1));
+        } else {
+            throw py::type_error("Incompatible argument types. The following argument types are supported:\n"
+            "(self: openvino.runtime.Dimension)\n"
+            "(self: openvino.runtime.Dimension, dimension: int)\n"
+            "(self: openvino.runtime.Dimension, min_dimension: int, max_dimension: int)\n"
+            "(self: openvino.runtime.Dimension, range: range)");
+        }
+    }),
+    py::arg("range"),
+    R"(
+        Construct a dynamic dimension with bounded range.
+
+        :param range: The range to bound the dimension.
+        :type range: range
+    )");
+
     dim.def_static("dynamic", &ov::Dimension::dynamic);
 
     dim.def_property_readonly("is_dynamic",
