@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _convert model onnx:
+
 .. toctree::
    :maxdepth: 1
    :hidden:

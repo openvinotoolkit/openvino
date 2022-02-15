@@ -243,7 +243,7 @@ set(SRC
     type_prop/swish.cpp
     type_prop/tan.cpp
     type_prop/tanh.cpp
-    type_prop/ti.cpp
+    type_prop/tensor_iterator.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
     type_prop/transpose.cpp
@@ -406,11 +406,13 @@ set(SRC
     visitors/op/swish.cpp
     visitors/op/tan.cpp
     visitors/op/tanh.cpp
+    visitors/op/tensor_iterator.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp
+    validation_utils.cpp
 )
 
 # For type relaxed types
