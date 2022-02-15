@@ -286,26 +286,9 @@ void regclass_CompiledModel(py::module m) {
             )");
 
     cls.def("__repr__", [](const ov::CompiledModel& self) {
-        std::stringstream inputs_ss, outputs_ss;
+        auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
+        auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");
 
-        auto inputs = self.inputs();
-
-        for (auto it = inputs.begin(); it != inputs.end(); ++it) {
-            if (it != inputs.begin()) {
-                inputs_ss << ", ";
-            }
-            inputs_ss << py::cast(*it).attr("__repr__")().cast<std::string>();
-        }
-
-        auto outputs = self.outputs();
-
-        for (auto it = outputs.begin(); it != outputs.end(); ++it) {
-            if (it != outputs.begin()) {
-                outputs_ss << ", ";
-            }
-            outputs_ss << py::cast(*it).attr("__repr__")().cast<std::string>();
-        }
-
-        return "<CompiledModel: inputs[" + inputs_ss.str() + "] outputs[" + outputs_ss.str() + "]>";
+        return "<CompiledModel:\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str + "\n]>";
     });
 }

@@ -9,6 +9,7 @@
 #include <pybind11/stl.h>
 
 #include "openvino/core/node_output.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -129,21 +130,12 @@ void regclass_graph_Output(py::module m, std::string typestring)
              )");
 
     output.def("__repr__", [typestring](const ov::Output<VT>& self) {
-        std::stringstream names_ss, shape_ss;
+        std::stringstream shape_type_ss;
 
-        auto names = self.get_names();
+        auto names_str = Common::docs::container_to_string(self.get_names(), ", ");
+        shape_type_ss << " shape" << self.get_partial_shape() << " type: " << self.get_element_type();
 
-        for (auto it = names.begin(); it != names.end(); ++it) {
-            if (it != names.begin()) {
-                names_ss << ", ";
-            }
-            names_ss << *it;
-        }
-
-        shape_ss << self.get_partial_shape() << " type: " << self.get_element_type();
-
-        return "<" + (typestring + "Output: names[" + names_ss.str() + "] shape" + shape_ss.str() +
-                " index: " + std::to_string(self.get_index())) + ">";
+        return "<" + typestring + "Output: names[" + names_str + "]" + shape_type_ss.str() + ">";
     });
 
     output.def_property_readonly("node", &ov::Output<VT>::get_node_shared_ptr);
