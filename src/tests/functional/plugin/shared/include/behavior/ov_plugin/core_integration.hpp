@@ -428,18 +428,6 @@ TEST_P(OVClassSetPerformanceHintNumRequestsConfigTest, SetConfigNoThrow) {
     OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::num_requests));
     EXPECT_EQ(value, 1);
 
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::num_requests(8)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::num_requests));
-    ASSERT_EQ(8, value);
-
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::num_requests(0)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::num_requests));
-    ASSERT_EQ(1, value); //minimum value
-
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::num_requests(1000)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::num_requests));
-    ASSERT_EQ(127, value); //maximum value
-
     ASSERT_ANY_THROW(ie.set_property(deviceName, ov::hint::num_requests(-1)));
 }
 //
