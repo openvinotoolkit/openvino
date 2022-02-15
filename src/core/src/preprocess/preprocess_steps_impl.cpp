@@ -216,8 +216,8 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
     m_last_explicit_layout_set = true;
     m_actions.emplace_back(
         [&layout](const std::vector<Output<Node>>& nodes,
-                 const std::shared_ptr<Model>& function,
-                 PreprocessingContext& context) {
+                  const std::shared_ptr<Model>& function,
+                  PreprocessingContext& context) {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't convert layout for multi-plane input. Suggesting to convert current image to "
