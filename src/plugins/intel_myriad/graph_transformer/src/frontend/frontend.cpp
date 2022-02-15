@@ -137,7 +137,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICo
         {"TensorIterator",                                     LAYER_PARSER(parseTensorIterator)},
         {"OneHot",                                             LAYER_PARSER(parseOneHot)},
         {"ExperimentalDetectronPriorGridGenerator",            LAYER_PARSER(parseExpPriorGridGenerator)},
-        {"ExperimentalDetectronGenerateProposalsSingleImage",  LAYER_PARSER(parseExpGenerateProposals)},
+        {"GenerateProposalsSingleImage",                       LAYER_PARSER(parseExpGenerateProposals)},
         {"ScatterUpdate",                                      LAYER_PARSER(parseScatterUpdate)},
         {"ScatterElementsUpdate",                              LAYER_PARSER(parseScatterElementsUpdate)},
         {"ExperimentalDetectronTopKROIs",                      LAYER_PARSER(parseExpTopKROIs)},

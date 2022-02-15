@@ -160,7 +160,7 @@ _OPENVINO_OP_REG(Round, ov::op::v5)
 // New operations added in opset6
 _OPENVINO_OP_REG(CTCGreedyDecoderSeqLen, ov::op::v6)
 _OPENVINO_OP_REG(ExperimentalDetectronDetectionOutput, ov::op::v6)
-_OPENVINO_OP_REG(ExperimentalDetectronGenerateProposalsSingleImage, ov::op::v6)
+_OPENVINO_OP_REG(GenerateProposalsSingleImage, ov::op::v6)
 _OPENVINO_OP_REG(ExperimentalDetectronPriorGridGenerator, ov::op::v6)
 _OPENVINO_OP_REG(ExperimentalDetectronROIFeatureExtractor, ov::op::v6)
 _OPENVINO_OP_REG(ExperimentalDetectronTopKROIs, ov::op::v6)

@@ -4,16 +4,16 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/op/experimental_detectron_generate_proposals.hpp>
+#include <openvino/op/generate_proposals.hpp>
 #include <openvino/op/parameter.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
 #include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
-using ExperimentalProposals = op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
+using GenerateProposals = op::v6::GenerateProposalsSingleImage;
 
 TEST(StaticShapeInferenceTest, ExperimentalProposalsTest) {
-    ExperimentalProposals::Attributes attrs;
+    GenerateProposals::Attributes attrs;
     attrs.min_size = 0.0f;
     attrs.nms_threshold = 0.699999988079071f;
     attrs.post_nms_count = 1000;
@@ -25,7 +25,7 @@ TEST(StaticShapeInferenceTest, ExperimentalProposalsTest) {
     auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
     auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
 
-    auto proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
+    auto proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs);
 
     const std::vector<ov::StaticShape> input_shapes = {ov::StaticShape{3},
                                                        ov::StaticShape{201600, 4},

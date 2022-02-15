@@ -75,7 +75,7 @@
 #include "nodes/cum_sum.h"
 #include "nodes/depth_to_space.h"
 #include "nodes/input.h"
-#include "nodes/experimental_detectron_generate_proposals_single_image.h"
+#include "nodes/generate_proposals_single_image.h"
 #include "nodes/embedding_bag_packed_sum.h"
 #include "nodes/reduce.h"
 #include "nodes/if.h"
@@ -127,7 +127,7 @@ ov::intel_cpu::MKLDNNNode::NodesFactory::NodesFactory()
     MKLDNN_NODE(MKLDNNEmbeddingSegmentsSumNode, EmbeddingSegmentsSum);
     MKLDNN_NODE(MKLDNNSelectNode, Select);
     MKLDNN_NODE(MKLDNNShapeOfNode, ShapeOf);
-    MKLDNN_NODE(MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode, ExperimentalDetectronGenerateProposalsSingleImage);
+    MKLDNN_NODE(MKLDNNGenerateProposalsSingleImageNode, GenerateProposalsSingleImage);
     MKLDNN_NODE(MKLDNNReverseSequenceNode, ReverseSequence);
     MKLDNN_NODE(MKLDNNFakeQuantizeNode, FakeQuantize);
     MKLDNN_NODE(MKLDNNNonMaxSuppressionNode, NonMaxSuppression);

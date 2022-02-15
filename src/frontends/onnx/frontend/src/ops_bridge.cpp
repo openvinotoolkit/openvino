@@ -474,9 +474,9 @@ void OperatorsBridge::_load_initial_state() {
                                   1,
                                   experimental_detectron_detection_output);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
-                                  "ExperimentalDetectronGenerateProposalsSingleImage",
+                                  "GenerateProposalsSingleImage",
                                   1,
-                                  experimental_detectron_generate_proposals);
+                                  generate_proposals);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronGroupNorm", 1, group_norm);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
                                   "ExperimentalDetectronPriorGridGenerator",

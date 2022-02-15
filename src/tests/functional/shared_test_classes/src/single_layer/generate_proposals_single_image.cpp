@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/experimental_detectron_generate_proposals_single_image.hpp"
+#include "shared_test_classes/single_layer/generate_proposals_single_image.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 
@@ -13,7 +13,7 @@ namespace subgraph {
 namespace {
 std::ostream& operator <<(
         std::ostream& ss,
-        const ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes& attributes) {
+        const ov::op::v6::GenerateProposalsSingleImage::Attributes& attributes) {
     ss << "score_threshold=" << attributes.min_size << "_";
     ss << "nms_threshold=" << attributes.nms_threshold << "_";
     ss << "max_delta_log_wh=" << attributes.post_nms_count << "_";
@@ -22,10 +22,10 @@ std::ostream& operator <<(
 }
 } // namespace
 
-std::string ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestCaseName(
-        const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageTestParams>& obj) {
+std::string GenerateProposalsSingleImageLayerTest::getTestCaseName(
+        const testing::TestParamInfo<GenerateProposalsSingleImageTestParams>& obj) {
     std::vector<InputShape> inputShapes;
-    ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attributes;
+    ov::op::v6::GenerateProposalsSingleImage::Attributes attributes;
     std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
@@ -54,9 +54,9 @@ std::string ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestC
     return result.str();
 }
 
-void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
+void GenerateProposalsSingleImageLayerTest::SetUp() {
     std::vector<InputShape> inputShapes;
-    ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attributes;
+    ov::op::v6::GenerateProposalsSingleImage::Attributes attributes;
     std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
@@ -77,18 +77,18 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
 
     auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto experimentalDetectron = std::make_shared<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(
+    auto generateProposals = std::make_shared<ov::op::v6::GenerateProposalsSingleImage>(
         params[0], // im_info
         params[1], // anchors
         params[2], // deltas
         params[3], // scores
         attributes);
     function = std::make_shared<ov::Model>(
-        ov::OutputVector{experimentalDetectron->output(0), experimentalDetectron->output(1)},
-        "ExperimentalDetectronGenerateProposalsSingleImage");
+        ov::OutputVector{generateProposals->output(0), generateProposals->output(1)},
+        "GenerateProposalsSingleImage");
 }
 
-void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void GenerateProposalsSingleImageLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
     auto inputTensors = std::get<5>(GetParam());
 
     inputs.clear();

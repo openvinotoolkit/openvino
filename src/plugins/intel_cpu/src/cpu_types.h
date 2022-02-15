@@ -97,7 +97,7 @@ enum Type {
     ExperimentalDetectronTopKROIs,
     ExperimentalDetectronROIFeatureExtractor,
     ExperimentalDetectronPriorGridGenerator,
-    ExperimentalDetectronGenerateProposalsSingleImage,
+    GenerateProposalsSingleImage,
     ExtractImagePatches,
     NonMaxSuppression,
     MatrixNms,

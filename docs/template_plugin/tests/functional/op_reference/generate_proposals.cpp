@@ -4,18 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/experimental_detectron_generate_proposals.hpp"
+#include "openvino/op/generate_proposals.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
 using namespace ov;
 
-using Attrs = op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes;
+using Attrs = op::v6::GenerateProposalsSingleImage::Attributes;
 
 namespace {
-struct ExperimentalGPParams {
+struct GPParams {
     template <class IT>
-    ExperimentalGPParams(const Attrs& attrs,
+    GPParams(const Attrs& attrs,
                          const size_t number_of_channels, const size_t height, const size_t width,
                          const element::Type& iType,
                          const std::vector<IT>& imageSizeInfoValues, const std::vector<IT>& anchorsValues,
@@ -54,7 +54,7 @@ struct ExperimentalGPParams {
     std::string testcaseName;
 };
 
-class ReferenceExperimentalGPLayerTest : public testing::TestWithParam<ExperimentalGPParams>, public CommonReferenceTest {
+class ReferenceGPLayerTest : public testing::TestWithParam<GPParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -62,7 +62,7 @@ public:
         inputData = {params.imageSizeInfoData, params.anchorsData, params.deltasData, params.scoresData};
         refOutData = {params.refRoisData, params.refScoresData};
     }
-    static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalGPParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GPParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
         result << "imageSizeInfoShape=" << param.imageSizeInfoShape << "_";
@@ -77,30 +77,30 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const ExperimentalGPParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const GPParams& params) {
         const auto im_info = std::make_shared<op::v0::Parameter>(params.inType, params.imageSizeInfoShape);
         const auto anchors = std::make_shared<op::v0::Parameter>(params.inType, params.anchorsShape);
         const auto deltas = std::make_shared<op::v0::Parameter>(params.inType, params.deltasShape);
         const auto scores = std::make_shared<op::v0::Parameter>(params.inType, params.scoresShape);
-        const auto ExperimentalGP = std::make_shared<op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(im_info,
+        const auto GenerateProposal = std::make_shared<op::v6::GenerateProposalsSingleImage>(im_info,
                                                                     anchors,
                                                                     deltas,
                                                                     scores,
                                                                     params.attrs);
-        return std::make_shared<ov::Model>(ExperimentalGP->outputs(), ParameterVector {im_info, anchors, deltas, scores});
+        return std::make_shared<ov::Model>(GenerateProposal->outputs(), ParameterVector {im_info, anchors, deltas, scores});
     }
 };
 
-TEST_P(ReferenceExperimentalGPLayerTest, CompareWithRefs) {
+TEST_P(ReferenceGPLayerTest, CompareWithRefs) {
     Exec();
 }
 
 template <element::Type_t IN_ET>
-std::vector<ExperimentalGPParams> generateExperimentalGPFloatParams() {
+std::vector<GPParams> generateGPFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ExperimentalGPParams> experimentalGPParams {
-        ExperimentalGPParams(Attrs{0, // min_size
+    std::vector<GPParams> generateProposalParams {
+        GPParams(Attrs{0, // min_size
                               0.699999988079071, // nms_threshold
                               6, // post_nms_count
                               1000 // pre_nms_count
@@ -139,7 +139,7 @@ std::vector<ExperimentalGPParams> generateExperimentalGPFloatParams() {
                                              0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
                               std::vector<T>{8.0f, 5.0f, 4.0f, 1.0f, 1.0f, 1.0f},
                               "eval"),
-        ExperimentalGPParams(Attrs{0, // min_size
+        GPParams(Attrs{0, // min_size
                               0.699999988079071, // nms_threshold
                               6, // post_nms_count
                               1000 // pre_nms_count
@@ -188,23 +188,23 @@ std::vector<ExperimentalGPParams> generateExperimentalGPFloatParams() {
                                              0.8842187523841858},
                               "eval_2"),
     };
-    return experimentalGPParams;
+    return generateProposalParams;
 }
 
-std::vector<ExperimentalGPParams> generateExperimentalGPCombinedParams() {
-    const std::vector<std::vector<ExperimentalGPParams>> experimentalGPTypeParams {
-        generateExperimentalGPFloatParams<element::Type_t::f32>(),
-        generateExperimentalGPFloatParams<element::Type_t::f16>(),
-        generateExperimentalGPFloatParams<element::Type_t::bf16>(),
+std::vector<GPParams> generateGPCombinedParams() {
+    const std::vector<std::vector<GPParams>> GPTypeParams {
+        generateGPFloatParams<element::Type_t::f32>(),
+        generateGPFloatParams<element::Type_t::f16>(),
+        generateGPFloatParams<element::Type_t::bf16>(),
         };
-    std::vector<ExperimentalGPParams> combinedParams;
+    std::vector<GPParams> combinedParams;
 
-    for (const auto& params : experimentalGPTypeParams) {
+    for (const auto& params : GPTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronGenerateProposalsSingleImage_With_Hardcoded_Refs, ReferenceExperimentalGPLayerTest,
-    testing::ValuesIn(generateExperimentalGPCombinedParams()), ReferenceExperimentalGPLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GenerateProposalsSingleImage_With_Hardcoded_Refs, ReferenceGPLayerTest,
+    testing::ValuesIn(generateGPCombinedParams()), ReferenceGPLayerTest::getTestCaseName);
 } // namespace

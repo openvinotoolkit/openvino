@@ -189,4 +189,4 @@ _OPENVINO_OP_REG(If, ov::op::v8)
 _OPENVINO_OP_REG(PriorBox, ov::op::v8)
 
 // New operations added in opset9
-_OPENVINO_OP_REG(ExperimentalDetectronGenerateProposalsSingleImage, ov::op::v9)
+_OPENVINO_OP_REG(GenerateProposalsSingleImage, ov::op::v9)

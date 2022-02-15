@@ -15,11 +15,11 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-using ExperimentalProposals = opset6::ExperimentalDetectronGenerateProposalsSingleImage;
-using Attrs = opset6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes;
+using GenerateProposals = opset6::GenerateProposalsSingleImage;
+using Attrs = opset6::GenerateProposalsSingleImage::Attributes;
 
 TEST(attributes, detectron_proposals) {
-    NodeBuilder::get_ops().register_factory<ExperimentalProposals>();
+    NodeBuilder::get_ops().register_factory<GenerateProposals>();
 
     Attrs attrs;
     attrs.min_size = 0.0f;
@@ -32,11 +32,11 @@ TEST(attributes, detectron_proposals) {
     auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{12, 200, 336});
     auto scores = std::make_shared<op::Parameter>(element::f32, Shape{3, 200, 336});
 
-    auto proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
+    auto proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs);
 
     NodeBuilder builder(proposals);
 
-    auto g_proposals = ov::as_type_ptr<ExperimentalProposals>(builder.create());
+    auto g_proposals = ov::as_type_ptr<GenerateProposals>(builder.create());
 
     const auto expected_attr_count = 4;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

@@ -10,8 +10,8 @@
 
 using namespace ngraph;
 
-using ExperimentalProposals = op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
-using Attrs = op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes;
+using GenerateProposals = op::v6::GenerateProposalsSingleImage;
+using Attrs = op::v6::GenerateProposalsSingleImage::Attributes;
 
 TEST(type_prop, detectron_proposals) {
     Attrs attrs;
@@ -27,7 +27,7 @@ TEST(type_prop, detectron_proposals) {
     auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{12, 200, 336});
     auto scores = std::make_shared<op::Parameter>(element::f32, Shape{3, 200, 336});
 
-    auto proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
+    auto proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs);
 
     ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
     ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
@@ -39,7 +39,7 @@ TEST(type_prop, detectron_proposals) {
     deltas = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
     scores = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
 
-    proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
+    proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs);
 
     ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
     ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
@@ -100,7 +100,7 @@ TEST(type_prop, detectron_proposals_dynamic) {
         auto deltas = std::make_shared<op::Parameter>(element::f32, s.deltas_shape);
         auto scores = std::make_shared<op::Parameter>(element::f32, s.scores_shape);
 
-        auto proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
+        auto proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs);
 
         ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
         ASSERT_EQ(proposals->get_output_element_type(1), element::f32);

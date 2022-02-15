@@ -30,7 +30,7 @@
 #include <ngraph/runtime/reference/exp.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
-#include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
+#include <ngraph/runtime/reference/generate_proposal_single_image.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
@@ -3012,7 +3012,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronTopKROIs>& op,
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op,
+bool evaluate(const shared_ptr<op::v6::GenerateProposalsSingleImage>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     const auto attrs = op->get_attrs();
@@ -3020,7 +3020,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronGenerateProposalsSin
     size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
         throw ngraph_error("The attribute post_nms_count of the operation "
-                           "ExperimentalDetectronGenerateProposalsSingleImage must be a "
+                           "GenerateProposalsSingleImage must be a "
                            "nonnegative integer.");
     } else {
         post_nms_count = static_cast<size_t>(attrs.post_nms_count);
@@ -3049,7 +3049,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronGenerateProposalsSin
     outputs[1]->set_element_type(output_type);
     outputs[1]->set_shape(output_scores_shape);
 
-    runtime::reference::experimental_detectron_proposals_single_image(im_info_data.data(),
+    runtime::reference::generate_proposals_single_image(im_info_data.data(),
                                                                       anchors_data.data(),
                                                                       deltas_data.data(),
                                                                       scores_data.data(),
@@ -3060,7 +3060,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronGenerateProposalsSin
                                                                       scores_shape,
                                                                       output_rois.data(),
                                                                       output_scores.data());
-    runtime::reference::experimental_detectron_proposals_single_image_postprocessing(outputs[0]->get_data_ptr(),
+    runtime::reference::generate_proposals_single_image_postprocessing(outputs[0]->get_data_ptr(),
                                                                                      outputs[1]->get_data_ptr(),
                                                                                      output_type,
                                                                                      output_rois,
@@ -3072,7 +3072,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronGenerateProposalsSin
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v9::ExperimentalDetectronGenerateProposalsSingleImage>& op,
+bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     const auto attrs = op->get_attrs();
@@ -3080,7 +3080,7 @@ bool evaluate(const shared_ptr<op::v9::ExperimentalDetectronGenerateProposalsSin
     size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
         throw ngraph_error("The attribute post_nms_count of the operation "
-                           "ExperimentalDetectronGenerateProposalsSingleImage must be a "
+                           "GenerateProposalsSingleImage must be a "
                            "nonnegative integer.");
     } else {
         post_nms_count = static_cast<size_t>(attrs.post_nms_count);
@@ -3102,7 +3102,7 @@ bool evaluate(const shared_ptr<op::v9::ExperimentalDetectronGenerateProposalsSin
     std::vector<float> output_scores;
     std::vector<int64_t> output_num;
 
-    runtime::reference::experimental_detectron_proposals_single_image_v9(im_info_data.data(),
+    runtime::reference::generate_proposals_single_image_v9(im_info_data.data(),
                                                                          anchors_data.data(),
                                                                          deltas_data.data(),
                                                                          scores_data.data(),
@@ -3115,7 +3115,7 @@ bool evaluate(const shared_ptr<op::v9::ExperimentalDetectronGenerateProposalsSin
                                                                          output_scores,
                                                                          output_num);
 
-    int64_t num_selected = output_num[0];
+    uint64_t num_selected = static_cast<uint64_t>(output_num[0]);
 
     Shape output_rois_shape = Shape{num_selected, 4};
     Shape output_scores_shape = Shape{num_selected};
@@ -3126,7 +3126,7 @@ bool evaluate(const shared_ptr<op::v9::ExperimentalDetectronGenerateProposalsSin
     outputs[1]->set_shape(output_scores_shape);
     outputs[2]->set_element_type(element::Type_t::i32);
 
-    runtime::reference::experimental_detectron_proposals_single_image_postprocessing_v9(
+    runtime::reference::generate_proposals_single_image_postprocessing_v9(
             outputs[0]->get_data_ptr(),
             outputs[1]->get_data_ptr(),
             output_type,

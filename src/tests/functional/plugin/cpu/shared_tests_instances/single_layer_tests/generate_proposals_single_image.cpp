@@ -3,7 +3,7 @@
 //
 
 #include <vector>
-#include "single_layer_tests/experimental_detectron_generate_proposals_single_image.hpp"
+#include "single_layer_tests/generate_proposals_single_image.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 
 using namespace ov::test;
@@ -113,8 +113,8 @@ const std::vector<std::vector<InputShape>> dynamicInputShape = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_ExperimentalDetectronGenerateProposalsSingleImageLayerTest,
-    ExperimentalDetectronGenerateProposalsSingleImageLayerTest,
+    smoke_GenerateProposalsSingleImageLayerTest,
+    GenerateProposalsSingleImageLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShape),
         ::testing::ValuesIn(min_size),
@@ -124,5 +124,5 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputTensors),
         ::testing::Values(ov::element::Type_t::f32),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-    ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestCaseName);
+    GenerateProposalsSingleImageLayerTest::getTestCaseName);
 } // namespace

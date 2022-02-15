@@ -19,17 +19,17 @@ typedef std::tuple<
         std::pair<std::string, std::vector<ov::Tensor>>, // input tensors
         ElementType,                            // Network precision
         std::string                             // Device name>;
-> ExperimentalDetectronGenerateProposalsSingleImageTestParams;
+> GenerateProposalsSingleImageTestParams;
 
-class ExperimentalDetectronGenerateProposalsSingleImageLayerTest :
-        public testing::WithParamInterface<ExperimentalDetectronGenerateProposalsSingleImageTestParams>,
+class GenerateProposalsSingleImageLayerTest :
+        public testing::WithParamInterface<GenerateProposalsSingleImageTestParams>,
         virtual public SubgraphBaseTest {
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
 
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageTestParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<GenerateProposalsSingleImageTestParams>& obj);
 };
 } // namespace subgraph
 } // namespace test

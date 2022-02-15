@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
+#include "ngraph/op/generate_proposals.hpp"
 
-#include <experimental_detectron_generate_proposals_shape_inference.hpp>
+#include <generate_proposals_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -14,9 +14,9 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage);
+BWDCMP_RTTI_DEFINITION(op::v6::GenerateProposalsSingleImage);
 
-op::v6::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
+op::v6::GenerateProposalsSingleImage::GenerateProposalsSingleImage(
     const Output<Node>& im_info,
     const Output<Node>& anchors,
     const Output<Node>& deltas,
@@ -27,19 +27,19 @@ op::v6::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectron
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v6::ExperimentalDetectronGenerateProposalsSingleImage::clone_with_new_inputs(
+shared_ptr<Node> op::v6::GenerateProposalsSingleImage::clone_with_new_inputs(
     const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v6_GenerateProposalsSingleImage_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(new_args.at(0),
+    return make_shared<op::v6::GenerateProposalsSingleImage>(new_args.at(0),
                                                                                   new_args.at(1),
                                                                                   new_args.at(2),
                                                                                   new_args.at(3),
                                                                                   m_attrs);
 }
 
-bool op::v6::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_visit_attributes);
+bool op::v6::GenerateProposalsSingleImage::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v6_GenerateProposalsSingleImage_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("nms_threshold", m_attrs.nms_threshold);
     visitor.on_attribute("post_nms_count", m_attrs.post_nms_count);
@@ -47,8 +47,8 @@ bool op::v6::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes
     return true;
 }
 
-void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_validate_and_infer_types);
+void op::v6::GenerateProposalsSingleImage::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v6_GenerateProposalsSingleImage_validate_and_infer_types);
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{},
                                                    ov::PartialShape{}};
@@ -63,9 +63,9 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
     set_output_type(1, input_et, output_shapes[1]);
 }
 
-BWDCMP_RTTI_DEFINITION(op::v9::ExperimentalDetectronGenerateProposalsSingleImage);
+BWDCMP_RTTI_DEFINITION(op::v9::GenerateProposalsSingleImage);
 
-op::v9::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
+op::v9::GenerateProposalsSingleImage::GenerateProposalsSingleImage(
     const Output<Node>& im_info,
     const Output<Node>& anchors,
     const Output<Node>& deltas,
@@ -76,19 +76,19 @@ op::v9::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectron
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v9::ExperimentalDetectronGenerateProposalsSingleImage::clone_with_new_inputs(
+shared_ptr<Node> op::v9::GenerateProposalsSingleImage::clone_with_new_inputs(
     const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v9_ExperimentalDetectronGenerateProposalsSingleImage_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v9_GenerateProposalsSingleImage_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v9::ExperimentalDetectronGenerateProposalsSingleImage>(new_args.at(0),
+    return make_shared<op::v9::GenerateProposalsSingleImage>(new_args.at(0),
                                                                                   new_args.at(1),
                                                                                   new_args.at(2),
                                                                                   new_args.at(3),
                                                                                   m_attrs);
 }
 
-bool op::v9::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v9_ExperimentalDetectronGenerateProposalsSingleImage_visit_attributes);
+bool op::v9::GenerateProposalsSingleImage::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v9_GenerateProposalsSingleImage_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("nms_threshold", m_attrs.nms_threshold);
     visitor.on_attribute("post_nms_count", m_attrs.post_nms_count);
@@ -97,8 +97,8 @@ bool op::v9::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes
     return true;
 }
 
-void op::v9::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v9_ExperimentalDetectronGenerateProposalsSingleImage_validate_and_infer_types);
+void op::v9::GenerateProposalsSingleImage::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v9_GenerateProposalsSingleImage_validate_and_infer_types);
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{},
                                                    ov::PartialShape{}};

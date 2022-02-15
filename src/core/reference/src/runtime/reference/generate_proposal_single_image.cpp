@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp"
+#include "ngraph/runtime/reference/generate_proposal_single_image.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -10,7 +10,7 @@
 #include <cstring>
 #include <utility>
 
-#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
+#include "ngraph/op/generate_proposals.hpp"
 #include "ngraph/shape.hpp"
 
 namespace {
@@ -409,12 +409,12 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 
-void experimental_detectron_proposals_single_image(
+void generate_proposals_single_image(
     const float* im_info,
     const float* anchors,
     const float* deltas,
     const float* scores,
-    const op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes& attrs,
+    const op::v6::GenerateProposalsSingleImage::Attributes& attrs,
     const Shape& im_info_shape,
     const Shape& anchors_shape,
     const Shape& deltas_shape,
@@ -495,12 +495,12 @@ void experimental_detectron_proposals_single_image(
                       post_nms_topn);
 }
 
-void experimental_detectron_proposals_single_image_v9(
+void generate_proposals_single_image_v9(
     const float* im_info,
     const float* anchors,
     const float* deltas,
     const float* scores,
-    const op::v9::ExperimentalDetectronGenerateProposalsSingleImage::Attributes& attrs,
+    const op::v9::GenerateProposalsSingleImage::Attributes& attrs,
     const Shape& im_info_shape,
     const Shape& anchors_shape,
     const Shape& deltas_shape,
@@ -587,7 +587,7 @@ void experimental_detectron_proposals_single_image_v9(
 }
 
 
-void experimental_detectron_proposals_single_image_postprocessing(void* prois,
+void generate_proposals_single_image_postprocessing(void* prois,
                                                                   void* pscores,
                                                                   const ngraph::element::Type output_type,
                                                                   const std::vector<float>& output_rois,
@@ -627,12 +627,12 @@ void experimental_detectron_proposals_single_image_postprocessing(void* prois,
     } break;
     default:;
         throw ngraph_error("Unsupported input data type: "
-                           "ExperimentalDetectronGenerateProposalsSingleImage operation"
+                           "GenerateProposalsSingleImage operation"
                            " supports only fp32, fp16, or bf16 data.");
     }
 }
 
-void experimental_detectron_proposals_single_image_postprocessing_v9(void* prois,
+void generate_proposals_single_image_postprocessing_v9(void* prois,
                                                                      void* pscores,
                                                                      const ngraph::element::Type output_type,
                                                                      const std::vector<float>& output_rois,
@@ -672,7 +672,7 @@ void experimental_detectron_proposals_single_image_postprocessing_v9(void* prois
     } break;
     default:;
         throw ngraph_error("Unsupported input data type: "
-                           "ExperimentalDetectronGenerateProposalsSingleImage operation"
+                           "GenerateProposalsSingleImage operation"
                            " supports only fp32, fp16, or bf16 data.");
     }
 }

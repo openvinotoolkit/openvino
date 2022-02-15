@@ -52,7 +52,7 @@
 #include "ngraph/op/erf.hpp"
 #include "ngraph/op/exp.hpp"
 #include "ngraph/op/experimental_detectron_detection_output.hpp"
-#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
+#include "ngraph/op/generate_proposals.hpp"
 #include "ngraph/op/experimental_detectron_prior_grid_generator.hpp"
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "ngraph/op/experimental_detectron_topkrois.hpp"

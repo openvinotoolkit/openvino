@@ -10,15 +10,15 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "openvino/op/experimental_detectron_generate_proposals.hpp"
+#include "openvino/op/generate_proposals.hpp"
 
 namespace ngraph {
 namespace op {
 namespace v6 {
-using ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
+using ov::op::v6::GenerateProposalsSingleImage;
 }  // namespace v6
 namespace v9 {
-using ov::op::v9::ExperimentalDetectronGenerateProposalsSingleImage;
+using ov::op::v9::GenerateProposalsSingleImage;
 }  // namespace v9
 }  // namespace op
 }  // namespace ngraph

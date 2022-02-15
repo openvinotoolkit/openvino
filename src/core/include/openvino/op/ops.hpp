@@ -51,7 +51,7 @@
 #include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/experimental_detectron_detection_output.hpp"
-#include "openvino/op/experimental_detectron_generate_proposals.hpp"
+#include "openvino/op/generate_proposals.hpp"
 #include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
 #include "openvino/op/experimental_detectron_roi_feature.hpp"
 #include "openvino/op/experimental_detectron_topkrois.hpp"

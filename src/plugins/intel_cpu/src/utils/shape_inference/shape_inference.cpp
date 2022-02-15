@@ -25,7 +25,7 @@
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "embeddingbag_offsets_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
-#include "experimental_detectron_generate_proposals_shape_inference.hpp"
+#include "generate_proposals_shape_inference.hpp"
 #include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
 #include "experimental_detectron_roi_feature_shape_inference.hpp"
 #include "experimental_detectron_topkrois_shape_inference.hpp"
@@ -52,7 +52,6 @@
 #include "depth_to_space_shape_inference.hpp"
 #include "space_to_batch_shape_inference.hpp"
 #include "space_to_depth_shape_inference.hpp"
-#include "experimental_detectron_detection_output_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "embeddingbag_offsets_shape_inference.hpp"
@@ -518,9 +517,9 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset7::Roll>(op)) {
         return make_shared_entryIOC(node);
-    } else if (auto node = ov::as_type_ptr<ov::opset6::ExperimentalDetectronGenerateProposalsSingleImage>(op)) {
+    } else if (auto node = ov::as_type_ptr<ov::opset6::GenerateProposalsSingleImage>(op)) {
         return make_shared_entryIO(node);
-    } else if (auto node = ov::as_type_ptr<ov::opset9::ExperimentalDetectronGenerateProposalsSingleImage>(op)) {
+    } else if (auto node = ov::as_type_ptr<ov::opset9::GenerateProposalsSingleImage>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset4::Proposal>(op)) {
         return make_shared_entryIO(node);

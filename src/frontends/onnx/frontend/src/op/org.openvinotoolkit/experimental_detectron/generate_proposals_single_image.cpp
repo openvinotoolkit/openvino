@@ -12,12 +12,12 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector experimental_detectron_generate_proposals(const Node& node) {
-    using GenerateProposalsSingleImage = ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
+OutputVector generate_proposals(const Node& node) {
+    using GenerateProposalsSingleImage = ngraph::op::v6::GenerateProposalsSingleImage;
 
     const auto inputs = node.get_ng_inputs();
     NGRAPH_CHECK(inputs.size() == 4,
-                 "ExperimentalDetectronGenerateProposalsSingleImage expects 4 "
+                 "GenerateProposalsSingleImage expects 4 "
                  "inputs, received: ",
                  inputs.size());
 

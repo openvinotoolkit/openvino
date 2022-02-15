@@ -49,7 +49,7 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     check_rank(node, anchors, 4);
 
     // attribute
-    ov::op::v9::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attrs;
+    ov::op::v9::GenerateProposalsSingleImage::Attributes attrs;
     attrs.min_size = node.get_attribute<float>("min_size", 0.1);
     attrs.nms_threshold = node.get_attribute<float>("nms_thresh", 0.5);
     attrs.pre_nms_count = node.get_attribute<int>("pre_nms_topN", 6000);
@@ -85,7 +85,7 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     // output:
     //  1. rois: [proposals_num, 4]
     //  2. scores: [proposals_num]
-    auto proposal = std::make_shared<ov::op::v9::ExperimentalDetectronGenerateProposalsSingleImage>(im_info, reshaped_anchors, variances_bbox_deltas, single_scores, attrs);
+    auto proposal = std::make_shared<ov::op::v9::GenerateProposalsSingleImage>(im_info, reshaped_anchors, variances_bbox_deltas, single_scores, attrs);
 
     auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i64, {}, {1});
     auto probs = std::make_shared<default_opset::Unsqueeze>(proposal->output(1), unsqueeze_scalar);
@@ -99,7 +99,7 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     named_outputs["RpnRoiProbs"] = OutputVector{probs->output(0)};
     named_outputs["RpnRoisNum"] = OutputVector{proposal_number->output(0)};
 
-    // TODO: experimental generate proposal testcase
+    // TODO: generate proposal testcase
     return named_outputs;
 }
 }  // namespace op

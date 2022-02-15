@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <openvino/op/experimental_detectron_generate_proposals.hpp>
+#include <openvino/op/generate_proposals.hpp>
 
 namespace ov {
 namespace op {
 
 namespace v6 {
 template <class T>
-void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
+void shape_infer(const GenerateProposalsSingleImage* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 2);
@@ -84,7 +84,7 @@ void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
 
 namespace v9 {
 template <class T>
-void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
+void shape_infer(const GenerateProposalsSingleImage* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 2);

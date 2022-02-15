@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <shared_test_classes/single_layer/experimental_detectron_generate_proposals_single_image.hpp>
+#include <shared_test_classes/single_layer/generate_proposals_single_image.hpp>
 
 namespace ov {
 namespace test {
 namespace subgraph {
 
-TEST_P(ExperimentalDetectronGenerateProposalsSingleImageLayerTest, ExperimentalDetectronGenerateProposalsSingleImageLayerTests) {
+TEST_P(GenerateProposalsSingleImageLayerTest, GenerateProposalsSingleImageLayerTests) {
     run();
 }
 
