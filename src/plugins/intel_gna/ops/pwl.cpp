@@ -33,23 +33,22 @@ void Pwl::validate_and_infer_types() {
 }
 
 template <typename T1, typename T2>
-bool Pwl::evaluate(const ov::HostTensorVector& outputs,
-                   const ov::HostTensorVector& inputs) const {
-    outputs[0]->set_unary(inputs[0]);
+bool Pwl::evaluate(ov::TensorVector& outputs,
+                   const ov::TensorVector& inputs) const {
     using A1 = typename ov::element_type_traits<T1::value>::value_type;
     using A2 = typename ov::element_type_traits<T2::value>::value_type;
-    GNAPluginNS::runtime::reference::pwl(inputs[0]->get_data_ptr<A2>(),
-                                         outputs[0]->get_data_ptr<A2>(),
+    GNAPluginNS::runtime::reference::pwl(inputs[0].data<A2>(),
+                                         outputs[0].data<A2>(),
                                          shape_size(get_input_shape(0)),
-                                         inputs[1]->get_data_ptr<A1>(),
-                                         inputs[2]->get_data_ptr<A1>(),
-                                         inputs[3]->get_data_ptr<A1>(),
+                                         inputs[1].data<A1>(),
+                                         inputs[2].data<A1>(),
+                                         inputs[3].data<A1>(),
                                          shape_size(get_input_shape(1)));
     return true;
 }
 
-bool Pwl::evaluate(const ov::HostTensorVector& outputs,
-                   const ov::HostTensorVector& inputs) const {
+bool Pwl::evaluate(ov::TensorVector& outputs,
+                   const ov::TensorVector& inputs) const {
     return evaluate_pwl(std::tuple<std::integral_constant<ov::element::Type_t, ov::element::f32>,
                                    std::integral_constant<ov::element::Type_t, ov::element::f64>>(),
                         std::tuple<std::integral_constant<ov::element::Type_t, ov::element::i32>,

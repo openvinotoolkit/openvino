@@ -28,7 +28,7 @@ public:
     void validate_and_infer_types() override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-    bool evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const override;
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
     void set_base_node(const std::shared_ptr<ngraph::Node>& base_node);
     std::shared_ptr<ngraph::Node> get_base_node();
@@ -37,8 +37,8 @@ private:
     template<typename T1, typename ...Types1, typename ...Types2>
     bool evaluate_pwl(const std::tuple<T1, Types1...>&,
                       const std::tuple<Types2...>& args2,
-                      const ov::HostTensorVector& outputs,
-                      const ov::HostTensorVector& inputs) const {
+                      ov::TensorVector& outputs,
+                      const ov::TensorVector& inputs) const {
         if (evaluate_pwl<T1, Types2...>(args2, outputs, inputs)) {
             return true;
         }
@@ -49,33 +49,33 @@ private:
     template<typename T1, typename ...Types2>
     bool evaluate_pwl(const std::tuple<T1>&,
                       const std::tuple<Types2...>& args2,
-                      const ov::HostTensorVector& outputs,
-                      const ov::HostTensorVector& inputs) const {
+                      ov::TensorVector& outputs,
+                      const ov::TensorVector& inputs) const {
         return evaluate_pwl<T1, Types2...>(args2, outputs, inputs);
     }
 
     template<typename T1, typename T2, typename ...Types2>
     bool evaluate_pwl(const std::tuple<T2, Types2...>& args2,
-                      const ov::HostTensorVector& outputs,
-                      const ov::HostTensorVector& inputs) const {
-        return inputs[1]->get_element_type() == T1::value &&
-               inputs[0]->get_element_type() == T2::value &&
+                      ov::TensorVector& outputs,
+                      const ov::TensorVector& inputs) const {
+        return inputs[1].get_element_type() == T1::value &&
+               inputs[0].get_element_type() == T2::value &&
                evaluate<T1, T2>(outputs, inputs) ||
                evaluate_pwl<T1, Types2...>(std::tuple<Types2...>(), outputs, inputs);
     }
 
     template<typename T1, typename T2>
     bool evaluate_pwl(const std::tuple<T2>& args2,
-                      const ov::HostTensorVector& outputs,
-                      const ov::HostTensorVector& inputs) const {
-        return inputs[1]->get_element_type() == T1::value &&
-               inputs[0]->get_element_type() == T2::value &&
+                      ov::TensorVector& outputs,
+                      const ov::TensorVector& inputs) const {
+        return inputs[1].get_element_type() == T1::value &&
+               inputs[0].get_element_type() == T2::value &&
                evaluate<T1, T2>(outputs, inputs);
     }
 
     template <typename T1, typename T2>
-    bool evaluate(const ov::HostTensorVector& outputs,
-                  const ov::HostTensorVector& inputs) const;
+    bool evaluate(ov::TensorVector& outputs,
+                  const ov::TensorVector& inputs) const;
 
     std::shared_ptr<ngraph::Node> m_base_node;
 }; // class OPENVINO_API Pwl
