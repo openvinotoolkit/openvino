@@ -37,9 +37,8 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
         // Upper bound of the value
         auto ub = ngraph::evaluate_upper_bound(node_out);
         if (!ub) return false;
-        const auto ub_const_node = std::make_shared<ngraph::opset8::Constant>(ub);
-        if (!ub_const_node) return false;
 
+        const auto ub_const_node = std::make_shared<ngraph::opset8::Constant>(ub);
         const auto & ub_values = ub_const_node->cast_vector<int64_t>();
         if (lb_values.size() != ub_values.size()) return false;
 
