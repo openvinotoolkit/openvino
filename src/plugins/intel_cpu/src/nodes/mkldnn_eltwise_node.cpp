@@ -1590,14 +1590,13 @@ size_t MKLDNNEltwiseNode::getOpInputsNum() const {
     }
 }
 
-// TODO [DS]: used only in FuseConvolutionSumAndConvolutionSumActivation
-// fix when reimplement this transformation for dynamic shapes
 bool MKLDNNEltwiseNode::isWithBroadcast() {
-    auto oDims = getOutputShapeAtPort(0).getStaticDims();
+    const auto& oDims = getOutputShapeAtPort(0).getDims();
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        auto iDims = getInputShapeAtPort(i).getStaticDims();
-        if (iDims != oDims)
+        const auto& iDims = getInputShapeAtPort(i).getDims();
+        if (!dimsEqualWeak(iDims, oDims)) {
             return true;
+        }
     }
 
     return false;
@@ -2014,9 +2013,8 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
 
 void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
-    // TODO [DS]: at this moment this transformation prohibit for dynamic case
     specialConvolutionAddFusing = (parentNode->getType() == Convolution || parentNode->getType() == BinaryConvolution) && getAlgorithm() == EltwiseAdd &&
-            getInputShapeAtPort(0) == getInputShapeAtPort(1);
+            dimsEqualWeak(getInputShapeAtPort(0).getDims(), getInputShapeAtPort(1).getDims());
     if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
         std::tie(scales, shifts) = getScalesAndShifts(parentNode.get());
         if ((parentNode->getType() == FullyConnected || parentNode->getType() == MatMul) && one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract,

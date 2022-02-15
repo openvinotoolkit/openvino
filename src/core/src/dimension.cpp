@@ -118,10 +118,10 @@ bool Dimension::broadcast_merge(Dimension& dst, const Dimension& d1, const Dimen
         if (result.empty())
             return false;
         dst = Dimension(result);
-        if (dst == d1 && ov::DimensionTracker::get_label(d1))
-            ov::DimensionTracker::set_label(dst, ov::DimensionTracker::get_label(d1));
-        else if (dst == d2 && ov::DimensionTracker::get_label(d2))
-            ov::DimensionTracker::set_label(dst, ov::DimensionTracker::get_label(d2));
+        if (d1.m_label == d2.m_label || d2.m_label == 0)
+            dst.m_label = d1.m_label;
+        else if (d1.m_label == 0)
+            dst.m_label = d2.m_label;
         return true;
     } else if (d1_has_1) {
         dst = d2;

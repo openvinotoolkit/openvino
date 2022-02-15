@@ -186,9 +186,7 @@ public:
 
     bool isFusedWith(Type type) const;
 
-    void addFusedNode(const MKLDNNNodePtr &fusingNode) {
-        fusedWith.push_back(fusingNode);
-    }
+    virtual void addFusedNode(const MKLDNNNodePtr &fusingNode);
 
     virtual void fuseInto(MKLDNNNodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input port a node was fused into parent one.
@@ -332,7 +330,7 @@ public:
 
     virtual void execute(mkldnn::stream strm);
     void executeDynamic(mkldnn::stream strm);
-    void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
 
     virtual void initSupportedPrimitiveDescriptors();
 
