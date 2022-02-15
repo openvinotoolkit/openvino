@@ -21,14 +21,6 @@ endif()
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$")
     set(IE_TBB_DIR "${TBB_DIR}")
     list(APPEND PATH_VARS "IE_TBB_DIR")
-
-    # check whether we are building against system TBB
-    if(NOT TBBROOT MATCHES ${TEMP})
-        set(ov_system_tbb ON)
-        # set IE_TBB_DIR to "" as a hint for OpenVINOConfig.cmake that
-        # TBB needs to be searched on the system
-        set(IE_TBB_DIR "")
-    endif()
 endif()
 
 if(install_tbbbind)
@@ -37,7 +29,7 @@ if(install_tbbbind)
 endif()
 
 # install only downloaded TBB, system one is not installed
-if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND NOT ov_system_tbb)
+if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     ie_cpack_add_component(tbb_dev REQUIRED)
     list(APPEND core_components tbb)
