@@ -58,6 +58,7 @@
 #include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
 #include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
+#include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -179,6 +180,8 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+
+    manager.register_pass<ngraph::pass::AlignEltwiseInputRanks>();
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
