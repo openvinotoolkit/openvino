@@ -92,7 +92,7 @@ case_wrapper<C, T> make_case_wrapper(C && val) {
 }
 
 template<template<typename...> class Fn, typename Ctx, typename T, typename Case>
-bool match(const Ctx& ctx, const T& val, Case && cs) {
+bool match(Ctx&& ctx, T&& val, Case && cs) {
     const bool is_matched = val == cs.value;
     if (is_matched)
         Fn<typename Case::type>()(ctx);
@@ -100,10 +100,10 @@ bool match(const Ctx& ctx, const T& val, Case && cs) {
 }
 
 template<template<typename...> class Fn, typename Ctx, typename T, typename Case, typename ...Cases>
-bool match(const Ctx& ctx, const T& val, Case && cs, Cases&&... cases) {
+bool match(Ctx&& ctx, T&& val, Case && cs, Cases&&... cases) {
     if (match<Fn>(ctx, val, std::forward<Case>(cs)))
         return true;
-    return match<Fn>(ctx, val, std::forward<Cases>(cases)...);
+    return match<Fn>(std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Cases>(cases)...);
 }
 
 }  // namespace internal
