@@ -98,7 +98,7 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
             dims.push_back(dim.cast<ov::Dimension>());
         } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
             py::list bounded_dim = dim.cast<py::list>();
-            py::type_error error("Incorrect values in shape. Can't create bounded dimension from " + std::string(bounded_dim.str()) + ".");
+            py::type_error error("Incorrect values in shape. Can't create bounded dimension from " + std::string(dim.str()) + ".");
             if (bounded_dim.size() != 2) {
                 throw error;
             }

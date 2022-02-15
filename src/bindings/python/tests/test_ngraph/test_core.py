@@ -154,6 +154,18 @@ def test_partial_shape():
     assert list(ps.get_max_shape())[0] > 1000000000
     assert repr(ps) == "<PartialShape: {?,?}>"
 
+    shape_list = [(1,10), [2, 5], range(2,8), 4, Dimension(2)]
+    ref_ps = PartialShape([Dimension(1,10), Dimension(2,5), Dimension(2,7), Dimension(4), Dimension(2)])
+    assert PartialShape(shape_list) == ref_ps
+    assert PartialShape(tuple(shape_list)) == ref_ps
+
+    with pytest.raises(TypeError) as e:
+        PartialShape([(1,2,3)])
+    assert "Incorrect values in shape. Can't create bounded dimension from (1, 2, 3)." in str(e.value)
+    with pytest.raises(TypeError) as e:
+        PartialShape(['?'])
+    assert "Incorrect values in shape. Can't create dimension from ?." in str(e.value)
+
 
 def test_partial_shape_compatible():
     ps1 = PartialShape.dynamic()
