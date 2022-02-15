@@ -317,7 +317,7 @@ def parse_path(path, app_input_info):
             if input_path.exists():
                 if input_path.is_dir():
                     input_files += list(str(file_path) for file_path in input_path.iterdir())
-                elif input_path.is_file:
+                elif input_path.is_file():
                     input_files.append(str(input_path))
             else:
                 raise Exception(f"Path '{str(input_path)}' doesn't exist \n {str(input_path)}")
