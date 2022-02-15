@@ -33,10 +33,12 @@ static const char model_message[] =
 
 /// @brief message for performance hint
 static const char hint_message[] =
-    "Optional. Performance hint (optimize for latency or throughput)."
-    " The hint allows the OpenVINO device to select the right network-specific settings,"
-    " as opposite to just accepting specific values from the sample command line."
-    " So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
+    "Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.\n"
+    "                               'throughput' or 'tput': device performance mode will be set to THROUGHPUT.\n"
+    "                               'latency': device performance mode will be set to LATENCY.\n"
+    "                               'none': no device performance mode will be set.\n"
+    "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
+    "'none'";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
@@ -371,7 +373,7 @@ static void show_usage() {
     std::cout << "    -l \"<absolute_path>\"      " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -hint \"performance hint (latency or throughput)\"   " << hint_message << std::endl;
+    std::cout << "    -hint \"performance hint (latency or throughput or none)\"   " << hint_message << std::endl;
     std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
@@ -388,7 +390,8 @@ static void show_usage() {
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -pin \"YES\"/\"HYBRID_AWARE\"/\"NO\"/\"NUMA\"   " << infer_threads_pinning_message << std::endl;
+    std::cout << "    -pin (\"YES\"|\"CORE\")/\"HYBRID_AWARE\"/(\"NO\"|\"NONE\")/\"NUMA\"   "
+              << infer_threads_pinning_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif
