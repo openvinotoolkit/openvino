@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _deep learning model optimizer:
+
 .. toctree::
    :maxdepth: 1
    :hidden:

@@ -40,12 +40,16 @@ model = core.read_model("model.pdmodel");
 model = create_model();
 //! [part1_4_2]
 
+std::vector<ov::Output<ov::Node>> inputs, outputs;
+{
 //! [part2]
+std::shared_ptr<ov::Model> model;
 /** Take information about all topology inputs **/
 auto inputs = model->inputs();
 /** Take information about all topology outputs **/
 auto outputs = model->outputs();
 //! [part2]
+}
 
 //! [part3]
 /** Iterate over all input info**/

@@ -16,6 +16,7 @@ compiled_model = ov.CompiledModel()
 #! [part0]
 
 #! [part2]
+model = ov.Model()
 inputs = model.inputs
 outputs = model.outputs
 #! [part2]
