@@ -140,18 +140,27 @@ void ReadIRTest::SetUp() {
             }
         }
     }
-    std::vector<ov::Shape> staticShapes;
-    for (const auto param : function->get_parameters()) {
+    std::vector<InputShape> inputShapes;
+    for (const auto& param : function -> get_parameters()) {
         if (param->get_partial_shape().is_static()) {
-            staticShapes.push_back(param->get_shape());
+            inputShapes.push_back(InputShape{{}, {param->get_shape()}});
         } else {
-            staticShapes.push_back(param->get_partial_shape().get_max_shape());
+            ov::Shape midShape;
+            for (const auto s : param->get_partial_shape()) {
+                if (s.is_dynamic()) {
+                    int dim = (s.get_max_length() - s.get_min_length());
+                    dim /= 2;
+                    midShape.push_back(dim);
+                } else {
+                    midShape.push_back(s.get_length());
+                }
+            }
+            inputShapes.push_back(InputShape{param->get_partial_shape(), { param->get_partial_shape().get_min_shape(),
+                                                                                 param->get_partial_shape().get_max_shape(),
+                                                                                 midShape }});
         }
     }
-    for (const auto& param : function->get_parameters()) {
-        inputDynamicShapes.push_back(param->get_partial_shape());
-    }
-    targetStaticShapes.push_back(staticShapes);
+    init_input_shapes(inputShapes);
 }
 
 } // namespace subgraph
