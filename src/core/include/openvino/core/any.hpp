@@ -430,34 +430,6 @@ class OPENVINO_API Any {
         }
     };
 
-    template <class T>
-    struct HasOnAttribute {
-        template <class U>
-        static auto test(U*)
-            -> decltype(std::declval<AttributeVisitor>().on_attribute(std::declval<U&>()), std::true_type()) {
-            return {};
-        }
-        template <typename>
-        static auto test(...) -> std::false_type {
-            return {};
-        }
-        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
-    };
-
-    template <class T>
-    struct Visitable {
-        template <class U>
-        static auto test(U*)
-            -> decltype(std::declval<U>().visit_attributes(std::declval<AttributeVisitor&>()), std::true_type()) {
-            return {};
-        }
-        template <typename>
-        static auto test(...) -> std::false_type {
-            return {};
-        }
-        constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
-    };
-
     static bool equal(std::type_index lhs, std::type_index rhs);
 
     class OPENVINO_API Base : public std::enable_shared_from_this<Base> {

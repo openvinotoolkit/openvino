@@ -4,7 +4,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "read_ir/read_ir_query_model.hpp"
+#include "read_ir_test/read_ir_query_model.hpp"
 #include "conformance.hpp"
 
 namespace ov {

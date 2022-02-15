@@ -36,7 +36,7 @@ protected:
     AttrPtr initPrimitiveAttr() override;
 
 private:
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const;
+    void setPostOps(mkldnn::primitive_attr &attr);
 
     void initEffectiveAttributes(const Shape &inDims, const Shape &outDims);
     mkldnn::algorithm getPoolingAlgorithm() const;
