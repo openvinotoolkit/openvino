@@ -52,5 +52,6 @@ static void show_usage() {
     std::cout << std::endl;
     std::cout << "    -h                      " << help_message << std::endl;
     std::cout << "    -m \"<path>\"             " << model_message << std::endl;
+    std::cout << "    -i \"<path>\"             " << image_message << std::endl;
     std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
 }
