@@ -45,6 +45,12 @@
             b,
             static_cast<ov::element_type_traits<ov::element::i16>::value_type>(rtol),
             static_cast<ov::element_type_traits<ov::element::i16>::value_type>(atol));
+    case ov::element::boolean:
+        return all_close<ov::element_type_traits<ov::element::boolean>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::boolean>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::boolean>::value_type>(atol));
     case ov::element::i32:
         return all_close<ov::element_type_traits<ov::element::i32>::value_type>(
             a,

@@ -819,10 +819,6 @@ matmul_0x2_2x0
 matmul_3x2_2x0
 matmul_2x3_3x3_int64
 
-onnx_bool_const_op
-onnx_bool_init_and
-onnx_bool_input_or
-onnx_bool_init_raw
 shape_of_scalar_v0
 shape_of_scalar_v3
 shape_of_vector_v0
