@@ -117,9 +117,9 @@ ov::Tensor roi_tensor(input_tensor, begin, end);
 infer_request2.set_tensor(input_name, roi_tensor);
 //! [part9]
 
+void * memory_ptr = nullptr;
 //! [part10]
-void * memory;
-ov::Tensor input(inputs[0].get_element_type(), inputs[0].get_shape(), memory);
+ov::Tensor input(inputs[0].get_element_type(), inputs[0].get_shape(), memory_ptr);
 infer_request.set_tensor(inputs[0].get_any_name(), input);
 //! [part10]
 

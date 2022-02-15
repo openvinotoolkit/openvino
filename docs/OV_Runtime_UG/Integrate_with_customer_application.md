@@ -351,7 +351,6 @@ Start inference in asynchronous or synchronous mode. Async API usage can improve
       * `ov::InferRequest::wait()` - waits until inference result becomes available
 
 * For synchronous inference request:
-
     @sphinxdirective
 
     .. tab:: C++
