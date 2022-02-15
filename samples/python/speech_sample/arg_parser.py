@@ -4,8 +4,8 @@
 import argparse
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse and return command line arguments"""
+def build_arg_parser() -> argparse.ArgumentParser:
+    """Create and return argument parser"""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     model = parser.add_mutually_exclusive_group(required=True)
@@ -25,13 +25,15 @@ def parse_args() -> argparse.Namespace:
                       'CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
                       ' as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. '
                       'The sample will look for a suitable plugin for device specified. Default value is CPU.')
-    args.add_argument('-bs', '--batch_size', default=1, type=int, choices=range(1, 9), metavar='[1-8]',
-                      help='Optional. Batch size 1-8 (default 1).')
+    args.add_argument('-bs', '--batch_size', type=int, choices=range(1, 9), metavar='[1-8]',
+                      help='Optional. Batch size 1-8.')
+    args.add_argument('-layout', type=str,
+                      help='Optional. Custom layout in format: "input0[value0],input1[value1]" or "[value]" (applied to all inputs)')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int, choices=(8, 16), metavar='[8, 16]',
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
     args.add_argument('-sf', '--scale_factor', type=str,
                       help='Optional. The user-specified input scale factor for quantization. '
-                      'If the network contains multiple inputs, provide scale factors by separating them with commas.')
+                      'If the model contains multiple inputs, provide scale factors by separating them with commas.')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
     args.add_argument('-we', '--export_embedded_gna_model', type=str,
@@ -57,16 +59,22 @@ def parse_args() -> argparse.Namespace:
                       'Allows to change the order of output layers for -o flag. Example: Output1:port,Output2:port.')
     args.add_argument('-cw_l', '--context_window_left', type=int, default=0,
                       help='Optional. Number of frames for left context windows (default is 0). '
-                      'Works only with context window networks. '
+                      'Works only with context window models. '
                       'If you use the cw_l or cw_r flag, then batch size argument is ignored.')
     args.add_argument('-cw_r', '--context_window_right', type=int, default=0,
                       help='Optional. Number of frames for right context windows (default is 0). '
-                      'Works only with context window networks. '
+                      'Works only with context window models. '
                       'If you use the cw_l or cw_r flag, then batch size argument is ignored.')
     args.add_argument('-pwl_me', type=float, default=1.0,
                       help='Optional. The maximum percent of error for PWL function. '
                       'The value must be in <0, 100> range. The default value is 1.0.')
 
+    return parser
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse and validate command-line arguments"""
+    parser = build_arg_parser()
     args = parser.parse_args()
 
     if args.context_window_left < 0:
