@@ -79,11 +79,6 @@ private:
                                 const mkldnn::engine& engine);
     };
 
-    std::shared_ptr<MKLDNNDescriptor> createMkldnnConvDesc(const mkldnn::memory::desc& srcDesc,
-                                                           const mkldnn::memory::desc& wghDesc,
-                                                           const mkldnn::memory::desc& dstDesc,
-                                                           const mkldnn::memory::desc& biasDesc);
-
     void prepareParams() override;
     void execute(mkldnn::stream strm) override;
     void executeDynamicImpl(mkldnn::stream strm) override;
@@ -94,17 +89,7 @@ private:
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
-    std::shared_ptr<mkldnn::convolution_forward::desc>
-    createDescriptorInternal(const mkldnn::memory::desc& inputDesc,
-                             const mkldnn::memory::desc& weightDesc,
-                             const mkldnn::memory::desc& outputDesc,
-                             mkldnn::algorithm alg);
-    std::shared_ptr<mkldnn::convolution_forward::desc>
-    createDescriptorInternal(const mkldnn::memory::desc& inputDesc,
-                             const mkldnn::memory::desc& weightDesc,
-                             const mkldnn::memory::desc& biasDesc,
-                             const mkldnn::memory::desc& outputDesc,
-                             mkldnn::algorithm alg);
+
     void updatePadding();
 
     void appendZeroPointsArgs();

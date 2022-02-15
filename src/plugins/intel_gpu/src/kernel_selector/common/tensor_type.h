@@ -136,7 +136,7 @@ enum WeightsLayout {
     os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
     os_is_yx_osv8_isv4,                      // weights for int8 blocked conv
     os_is_yx_osv8_isv2,                      // weights for int8 blocked conv
-    os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzeled ofm (0, 2, 4..), (1, 3, 5...)
+    os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzled ofm (0, 2, 4..), (1, 3, 5...)
     os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
     os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
     oizyx,
