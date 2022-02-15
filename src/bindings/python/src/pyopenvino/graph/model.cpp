@@ -9,6 +9,7 @@
 
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "openvino/op/sink.hpp"
 #include "pyopenvino/core/tensor.hpp"
@@ -260,52 +261,66 @@ void regclass_graph_Model(py::module m) {
 
     function.def(
         "reshape",
-        [](ov::Model& self, const ov::PartialShape& partial_shape) {
-            self.reshape(partial_shape);
+        [](ov::Model& self, const py::handle& partial_shapes) {
+            if (py::isinstance<ov::PartialShape>(partial_shapes)) {
+                self.reshape(partial_shapes.cast<ov::PartialShape>());
+            } else if (py::isinstance<py::dict>(partial_shapes)) {
+                std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+                for (const auto item : partial_shapes.cast<py::dict>()) {
+                    std::pair<ov::Output<ov::Node>, ov::PartialShape> new_shape;
+                    // check keys
+                    if (py::isinstance<py::int_>(item.first)) {
+                        new_shape.first = self.input(item.first.cast<size_t>());
+                    } else if (py::isinstance<py::str>(item.first)) {
+                        new_shape.first = self.input(item.first.cast<std::string>());
+                    } else if (py::isinstance<ov::Output<ov::Node>>(item.first)) {
+                        new_shape.first = item.first.cast<ov::Output<ov::Node>>();
+                    } else {
+                        throw py::type_error("Incorrect key " + std::string(item.first.get_type().str()) + " type to reshape a model.");
+                    }
+                    // check values
+                    if (py::isinstance<ov::PartialShape>(item.second)) {
+                        new_shape.second = item.second.cast<ov::PartialShape>();
+                    } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
+                        new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
+                    }
+                    new_shapes.insert(new_shape);
+                }
+                self.reshape(new_shapes);
+            } else if (py::isinstance<py::list>(partial_shapes)) {
+                self.reshape(Common::partial_shape_from_list(partial_shapes.cast<py::list>()));
+            } else {
+                throw py::type_error("Incorrect type to reshape model. The following argument types are supported:\n"
+                "(self: openvino.runtime.Model, Union[ov.runtime.PartialShape, dict, list])");
+            }
         },
         py::arg("partial_shapes"),
-        R"(
-                :param partial_shapes: Index of Output.
-                :type partial_shapes: PartialShape
-                :return : void
-             )");
+        R"( Reshape model inputs.
 
-    function.def(
-        "reshape",
-        [](ov::Model& self, const std::map<size_t, ov::PartialShape>& partial_shapes) {
-            self.reshape(partial_shapes);
-        },
-        py::arg("partial_shapes"),
-        R"(
+            The allowed types of keys in the `partial_shapes` dictionary are:
 
-                :param partial_shapes: Index of Output.
-                :type partial_shapes: Dict[int, PartialShape]
-                :return: void
-             )");
+            (1) `int'
+            (2) `str`
+            (3) `openvino.runtime.Output`
 
-    function.def(
-        "reshape",
-        [](ov::Model& self, const std::map<std::string, ov::PartialShape>& partial_shapes) {
-            self.reshape(partial_shapes);
-        },
-        py::arg("partial_shapes"),
-        R"(
-                :param partial_shapes: Index of Output.
-                :type partial_shapes: Dict[string, PartialShape]
-                :return: void
-             )");
+            The allowed types of values in the `partial_shapes` are:
 
-    function.def(
-        "reshape",
-        [](ov::Model& self, const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
-            self.reshape(partial_shapes);
-        },
-        py::arg("partial_shapes"),
-        R"(
-                :param partial_shapes: Index of Output.
-                :type partial_shapes: Dict[Output, PartialShape]
-                :return: void
-             )");
+            (1) `openvino.runtime.PartialShape`
+            (2) `list`
+            (3) `tuple`
+
+            To define a single dimension in the list use:
+
+            (1) `int`
+            (2) `[min, max]`
+            (3) `(min, max)`
+            (4) `range(min, max)`
+            (5) `openvino.runtime.Dimension`
+
+            :param partial_shapes: New shapes.
+            :type partial_shapes: Union[Dict[keys, values], list, openvino.runtime.PartialShape]
+            :return: void
+        )");
 
     function.def("get_output_size",
                  &ov::Model::get_output_size,

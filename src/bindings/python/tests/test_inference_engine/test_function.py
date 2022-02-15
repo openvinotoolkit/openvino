@@ -361,3 +361,71 @@ def test_reshape(device):
     core = Core()
     compiled = core.compile_model(model, device)
     assert compiled.input().partial_shape == ref_shape
+
+
+def test_reshape_with_python_types(device):
+    model = create_test_model()
+
+    def check_shape(new_shape):
+        for input in model.inputs:
+            assert input.partial_shape == new_shape
+
+    shape1 = [1, 4]
+    new_shapes = {input: shape1 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape(shape1))
+
+    shape2 = [1, 6]
+    new_shapes = {input.any_name: shape2 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape(shape2))
+
+    shape3 = [1, 8]
+    new_shapes = {i: shape3 for i, input in enumerate(model.inputs)}
+    model.reshape(new_shapes)
+    check_shape(PartialShape(shape3))
+
+    shape4 = [1, -1]
+    new_shapes = {input: shape4 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape([Dimension(1), Dimension(-1)]))
+
+    shape5 = [1, (1, 10)]
+    new_shapes = {input: shape5 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape([Dimension(1), Dimension(1, 10)]))
+
+    shape6 = [Dimension(3), Dimension(3, 10)]
+    new_shapes = {input: shape6 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape(shape6))
+
+    shape7 = [range(10), range(12, 24)]
+    new_shapes = {input: shape7 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape([Dimension(0, 9), Dimension(12, 23)]))
+
+    # reshape mixed keys
+    shape8 = [range(1, 20), -1]
+    new_shapes = {"data1": shape8, 1: shape8}
+    model.reshape(new_shapes)
+    check_shape(PartialShape([Dimension(1, 19), Dimension(-1)]))
+
+    # reshape with one input
+    param = ops.parameter([1, 3, 28, 28])
+    model = Model(ops.relu(param), [param])
+
+    shape9 = [range(10), 3, (28, 56), (28, 56)]
+    model.reshape(shape9)
+    check_shape(PartialShape([Dimension(0, 9), Dimension(3), Dimension(28, 56), Dimension(28, 56)]))
+
+    # check exceptions
+    shape10 = [1, 1, 1, 1]
+    with pytest.raises(TypeError) as e:
+        model.reshape({model.input().node: shape10})
+    assert "Incorrect key <class 'openvino.pyopenvino.op.Parameter'> type to reshape a model." in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        model.reshape(model.input().node)
+    assert "Incorrect type to reshape model. The following argument types are supported:\n" \
+           "(self: openvino.runtime.Model, Union[ov.runtime.PartialShape, dict, list])" in str(e.value)
