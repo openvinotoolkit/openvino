@@ -159,7 +159,7 @@ RUN ./install_NEO_OCL_driver.sh --no_numa -y  && \
 
 To make GPU available in the container, attach the GPU to the container using `--device /dev/dri` option and run the container:
 
-* Ubuntu 18:
+* Ubuntu 18 or RHEL8:
     ```sh
     docker run -it --rm --device /dev/dri <image_name>
     ```
