@@ -209,5 +209,5 @@ openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME}_p
 ov_install_static_lib(${TARGET_NAME}_plugin_api core)
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
-        DESTINATION ${IE_CPACK_INCLUDEDIR}
+        DESTINATION ${OV_CPACK_INCLUDEDIR}
         COMPONENT core_dev)

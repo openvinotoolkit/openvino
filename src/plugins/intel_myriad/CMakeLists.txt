@@ -20,10 +20,10 @@ if(ENABLE_INTEL_MYRIAD)
     # TODO: custom installation or totally remove
     if(DEFINED VPU_CLC_MA2X8X_ROOT AND NOT CPACK_GENERATOR STREQUAL "DEB")
         install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/custom_kernels/
-                DESTINATION ${IE_CPACK_PLUGIN_PATH}/vpu_custom_kernels
+                DESTINATION ${OV_CPACK_PLUGINSDIR}/vpu_custom_kernels
                 COMPONENT myriad)
         install(DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu_custom_kernels/
-                DESTINATION ${IE_CPACK_PLUGIN_PATH}/vpu_custom_kernels
+                DESTINATION ${OV_CPACK_PLUGINSDIR}/vpu_custom_kernels
                 COMPONENT myriad)
         install(DIRECTORY ${VPU_CLC_MA2X8X_ROOT}/
                 DESTINATION tools/cl_compiler

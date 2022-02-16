@@ -22,7 +22,7 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/automation/version.txt.in"
 # ie_cpack_add_component(model_optimizer)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-        DESTINATION ${IE_CPACK_TOOLSDIR}/mo
+        DESTINATION ${OV_CPACK_TOOLSDIR}/mo
         USE_SOURCE_PERMISSIONS
         COMPONENT tests
         EXCLUDE_FROM_ALL

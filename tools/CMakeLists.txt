@@ -17,7 +17,7 @@ if(NOT CPACK_GENERATOR STREQUAL "DEB")
     ie_cpack_add_component(deployment_manager REQUIRED)
 
     install(DIRECTORY deployment_manager
-            DESTINATION ${IE_CPACK_TOOLSDIR}
+            DESTINATION ${OV_CPACK_TOOLSDIR}
             COMPONENT deployment_manager
             USE_SOURCE_PERMISSIONS)
 endif()
@@ -32,7 +32,7 @@ endif()
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
-ie_cpack_add_component(${OV_COMP_DEV_REQ_FILES})
+ie_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES})
 
 foreach(EXTRAS ${EXTRAS_LIST})
     if(${EXTRAS} STREQUAL "_")
@@ -45,8 +45,8 @@ foreach(EXTRAS ${EXTRAS_LIST})
     configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
-            DESTINATION ${IE_CPACK_TOOLSDIR}
-            COMPONENT ${OV_COMP_DEV_REQ_FILES}
+            DESTINATION ${OV_CPACK_TOOLSDIR}
+            COMPONENT ${OV_CPACK_COMP_DEV_REQ_FILES}
             EXCLUDE_FROM_ALL)
 endforeach()
 

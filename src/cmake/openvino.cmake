@@ -57,12 +57,12 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        NAMELINK_COMPONENT ${OV_COMP_CORE_DEV}
-        INCLUDES DESTINATION ${IE_CPACK_INCLUDEDIR}
-                             ${IE_CPACK_INCLUDEDIR}/ie)
+        RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT core
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT core
+        LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT core
+        NAMELINK_COMPONENT ${OV_CPACK_COMP_CORE_DEV}
+        INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR}
+                             ${OV_CPACK_INCLUDEDIR}/ie)
 
 # OpenVINO runtime library dev
 
@@ -106,7 +106,7 @@ ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
 
 if(BUILD_SHARED_LIBS)
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-            DESTINATION ${IE_CPACK_PLUGIN_PATH}
+            DESTINATION ${OV_CPACK_PLUGINSDIR}
             COMPONENT core)
 
     # for InferenceEngineUnitTest
@@ -125,7 +125,7 @@ endif()
 install(EXPORT OpenVINOTargets
         FILE OpenVINOTargets.cmake
         NAMESPACE openvino::
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}/cmake/openvino${OpenVINO_VERSION}
+        DESTINATION ${OV_CPACK_LIBRARYDIR}/cmake/openvino${OpenVINO_VERSION}
         COMPONENT core_dev)
 
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
@@ -144,19 +144,19 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
 set(IE_INCLUDE_DIR "include/ie")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
-set(GNA_PATH "../${IE_CPACK_RUNTIME_PATH}")
+set(GNA_PATH "../${OV_CPACK_RUNTIMEDIR}")
 if(WIN32)
-    set(GNA_PATH "../${IE_CPACK_LIBRARY_PATH}/../Release")
+    set(GNA_PATH "../${OV_CPACK_LIBRARYDIR}/../Release")
 endif()
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
-                              INSTALL_DESTINATION ${IE_CPACK_IE_CMAKEDIR}
+                              INSTALL_DESTINATION ${OV_CPACK_IE_CMAKEDIR}
                               PATH_VARS ${PATH_VARS})
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
-                              INSTALL_DESTINATION ${IE_CPACK_OPENVINO_CMAKEDIR}
+                              INSTALL_DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
                               PATH_VARS ${PATH_VARS})
 
 configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
@@ -166,10 +166,10 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-        DESTINATION ${IE_CPACK_IE_CMAKEDIR}
+        DESTINATION ${OV_CPACK_IE_CMAKEDIR}
         COMPONENT core_dev)
 
 install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
               "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake"
-        DESTINATION ${IE_CPACK_OPENVINO_CMAKEDIR}
+        DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
         COMPONENT core_dev)

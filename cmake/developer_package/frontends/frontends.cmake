@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "${IE_CPACK_INCLUDEDIR}/")
+set(FRONTEND_INSTALL_INCLUDE "${OV_CPACK_INCLUDEDIR}/")
 set(FRONTEND_NAME_PREFIX "openvino_")
 set(FRONTEND_NAME_SUFFIX "_frontend")
 
@@ -227,15 +227,15 @@ macro(ov_add_frontend)
         if(BUILD_SHARED_LIBS)
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 set(export_set EXPORT OpenVINOTargets)
-                set(archive_dest ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core)
+                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT core)
                 set(namelink NAMELINK_COMPONENT core_dev)
             else()
                 set(namelink NAMELINK_SKIP)
             endif()
             install(TARGETS ${TARGET_NAME} ${export_set}
-                    RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+                    RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT core
                     ${archive_dest}
-                    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+                    LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT core
                     ${namelink})
         else()
             ov_install_static_lib(${TARGET_NAME} core)

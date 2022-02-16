@@ -50,9 +50,9 @@ ov_install_static_lib(onnx_proto core)
 if(NOT BUILD_SHARED_LIBS)
     if(ONNX_USE_LITE_PROTO)
         install(TARGETS ${Protobuf_LITE_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core)
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT core)
     else()
         install(TARGETS ${Protobuf_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core)
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT core)
     endif()
 endif()

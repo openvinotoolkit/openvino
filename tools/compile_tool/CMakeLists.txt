@@ -37,14 +37,14 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 if(CPACK_GENERATOR MATCHES "DEB")
     install(TARGETS compile_tool
-            RUNTIME DESTINATION ${IE_CPACK_TOOLSDIR}
-            COMPONENT ${OV_COMP_CORE_TOOLS})
+            RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}
+            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
     # TODO: convert this README.md to man page
 else()
     install(TARGETS compile_tool
-            RUNTIME DESTINATION ${IE_CPACK_TOOLSDIR}/compile_tool
-            COMPONENT ${OV_COMP_CORE_TOOLS})
+            RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}/compile_tool
+            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
     install(FILES README.md
-            DESTINATION ${IE_CPACK_TOOLSDIR}/compile_tool
-            COMPONENT ${OV_COMP_CORE_TOOLS})
+            DESTINATION ${OV_CPACK_TOOLSDIR}/compile_tool
+            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
 endif()

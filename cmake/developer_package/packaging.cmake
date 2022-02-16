@@ -7,57 +7,62 @@ include(CPackComponent)
 include(GNUInstallDirs)
 
 #
-# ie_cpack_set_library_dir()
+# ov_cpack_set_dirs()
 #
 # Set library directory for cpack
 #
-function(ie_cpack_set_library_dir)
+function(ov_cpack_set_dirs)
     # common IRC package locations
-    set(IE_CPACK_INCLUDEDIR runtime/include PARENT_SCOPE)
-    set(IE_CPACK_IE_CMAKEDIR runtime/cmake PARENT_SCOPE)
-    set(IE_CPACK_NGRAPH_CMAKEDIR runtime/cmake PARENT_SCOPE)
-    set(IE_CPACK_OPENVINO_CMAKEDIR runtime/cmake PARENT_SCOPE)
-    set(IE_CPACK_DOCDIR docs PARENT_SCOPE)
-    set(IE_CPACK_SAMPLES samples PARENT_SCOPE)
-    set(IE_CPACK_PYTHONDIR python PARENT_SCOPE)
-    set(IE_CPACK_WHEELSDIR tools PARENT_SCOPE)
-    set(IE_CPACK_TOOLSDIR tools PARENT_SCOPE)
+    set(OV_CPACK_INCLUDEDIR runtime/include PARENT_SCOPE)
+    set(OV_CPACK_IE_CMAKEDIR runtime/cmake PARENT_SCOPE)
+    set(OV_CPACK_NGRAPH_CMAKEDIR runtime/cmake PARENT_SCOPE)
+    set(OV_CPACK_OPENVINO_CMAKEDIR runtime/cmake PARENT_SCOPE)
+    set(OV_CPACK_DOCDIR docs PARENT_SCOPE)
+    set(OV_CPACK_SAMPLESDIR samples PARENT_SCOPE)
+    set(OV_CPACK_PYTHONDIR python PARENT_SCOPE)
+    set(OV_CPACK_WHEELSDIR tools PARENT_SCOPE)
+    set(OV_CPACK_TOOLSDIR tools PARENT_SCOPE)
 
     if(WIN32)
-        set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH runtime/bin/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
-        set(IE_CPACK_PLUGIN_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(OV_CPACK_RUNTIMEDIR runtime/bin/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(OV_CPACK_PLUGINSDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
     else()
         if(CPACK_GENERATOR STREQUAL "DEB")
             # override default locations for Debian
-            set(IE_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} PARENT_SCOPE)
-            set(IE_CPACK_LIBRARY_PATH ${CMAKE_INSTALL_LIBDIR} PARENT_SCOPE)
-            set(IE_CPACK_RUNTIME_PATH ${CMAKE_INSTALL_LIBDIR} PARENT_SCOPE)
-            set(IE_CPACK_ARCHIVE_PATH ${CMAKE_INSTALL_LIBDIR} PARENT_SCOPE)
-            set(IE_CPACK_PLUGIN_PATH ${CMAKE_INSTALL_LIBDIR}/openvino${OpenVINO_VERSION} PARENT_SCOPE)
-            set(IE_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/inferenceengine${OpenVINO_VERSION} PARENT_SCOPE)
-            set(IE_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION} PARENT_SCOPE)
-            set(IE_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION} PARENT_SCOPE)
-            set(IE_CPACK_DOCDIR ${CMAKE_INSTALL_DOCDIR} PARENT_SCOPE) # TODO: check versions
+            set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} PARENT_SCOPE)
+            set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR} PARENT_SCOPE)
+            set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR} PARENT_SCOPE)
+            set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR} PARENT_SCOPE)
+            set(OV_CPACK_PLUGINSDIR ${CMAKE_INSTALL_LIBDIR}/openvino${OpenVINO_VERSION} PARENT_SCOPE)
+            set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/inferenceengine${OpenVINO_VERSION} PARENT_SCOPE)
+            set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION} PARENT_SCOPE)
+            set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION} PARENT_SCOPE)
+            set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DOCDIR} PARENT_SCOPE) # TODO: check versions
 
             # non-native stuff
-            set(IE_CPACK_PYTHONDIR ${IE_CPACK_PLUGIN_PATH})
+            set(OV_CPACK_PYTHONDIR ${OV_CPACK_PLUGINSDIR} PARENT_SCOPE)
             set(IE_CPACK_SHARE_PATH ${CMAKE_INSTALL_DATADIR}/openvino${OpenVINO_VERSION} PARENT_SCOPE)
-            set(IE_CPACK_SAMPLES ${IE_CPACK_SHARE_PATH}/samples PARENT_SCOPE)
-            set(IE_CPACK_TOOLSDIR ${IE_CPACK_SHARE_PATH}/tools PARENT_SCOPE)
+            set(OV_CPACK_SAMPLESDIR ${IE_CPACK_SHARE_PATH}/samples PARENT_SCOPE)
+            set(OV_CPACK_TOOLSDIR ${IE_CPACK_SHARE_PATH}/tools PARENT_SCOPE)
 
-            set(IE_CPACK_WHEELSDIR .) # TODO
+            set(OV_CPACK_WHEELSDIR .) # TODO
         else()
-            set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
-            set(IE_CPACK_RUNTIME_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
-            set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
-            set(IE_CPACK_PLUGIN_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(OV_CPACK_RUNTIMEDIR runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(OV_CPACK_PLUGINSDIR runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
         endif()
     endif()
+
+    # for BW compatibility
+    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR} PARENT_SCOPE)
+    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR} PARENT_SCOPE)
+    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR} PARENT_SCOPE)
 endfunction()
 
-ie_cpack_set_library_dir()
+ov_cpack_set_dirs()
 
 #
 # ie_cpack_add_component(NAME ...)
@@ -81,38 +86,38 @@ endif()
 # List of public OpenVINO components
 #
 
-set(OV_COMP_CORE "core")
-set(OV_COMP_CORE_C "core_c")
-set(OV_COMP_CORE_DEV "core_dev")
-set(OV_COMP_CORE_C_DEV "core_c_dev")
-set(OV_COMP_CORE_TOOLS "core_tools")
-set(OV_COMP_CPP_SAMPLES "cpp_samples")
-set(OV_COMP_C_SAMPLES "c_samples")
-set(OV_COMP_PYTHON_SAMPLES "python_samples")
-set(OV_COMP_PYTHON_IE_API "pyie")
-set(OV_COMP_PYTHON_NGRAPH "pyngraph")
-set(OV_COMP_PYTHON_OPENVINO "pyopenvino")
-set(OV_COMP_DEV_REQ_FILES "openvino_dev_req_files")
-set(OV_COMP_LICENSING "licensing")
+set(OV_CPACK_COMP_CORE "core")
+set(OV_CPACK_COMP_CORE_C "core_c")
+set(OV_CPACK_COMP_CORE_DEV "core_dev")
+set(OV_CPACK_COMP_CORE_C_DEV "core_c_dev")
+set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
+set(OV_CPACK_COMP_CPP_SAMPLES "cpp_samples")
+set(OV_CPACK_COMP_C_SAMPLES "c_samples")
+set(OV_CPACK_COMP_PYTHON_SAMPLES "python_samples")
+set(OV_CPACK_COMP_PYTHON_IE_API "pyie")
+set(OV_CPACK_COMP_PYTHON_NGRAPH "pyngraph")
+set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
+set(OV_CPACK_COMP_DEV_REQ_FILES "openvino_dev_req_files")
+set(OV_CPACK_COMP_LICENSING "licensing")
 
 # override cpack components name for DEB cpack generator
 if(CPACK_GENERATOR STREQUAL "DEB")
     # merge C++ and C runtimes
-    set(OV_COMP_CORE_C "${OV_COMP_CORE}")
-    set(OV_COMP_CORE_C_DEV "${OV_COMP_CORE_DEV}")
+    set(OV_CPACK_COMP_CORE_C "${OV_CPACK_COMP_CORE}")
+    set(OV_CPACK_COMP_CORE_C_DEV "${OV_CPACK_COMP_CORE_DEV}")
     # merge all pythons into a single component
-    set(OV_COMP_PYTHON_IE_API "${OV_COMP_PYTHON_OPENVINO}")
-    set(OV_COMP_PYTHON_NGRAPH "${OV_COMP_PYTHON_OPENVINO}")
-    set(OV_COMP_PYTHON_OPENVINO "${OV_COMP_PYTHON_OPENVINO}")
+    set(OV_CPACK_COMP_PYTHON_IE_API "${OV_CPACK_COMP_PYTHON_OPENVINO}")
+    set(OV_CPACK_COMP_PYTHON_NGRAPH "${OV_CPACK_COMP_PYTHON_OPENVINO}")
+    set(OV_CPACK_COMP_PYTHON_OPENVINO "${OV_CPACK_COMP_PYTHON_OPENVINO}")
     # merge all C / C++ samples as a single samples component
-    set(OV_COMP_CPP_SAMPLES "samples")
-    set(OV_COMP_C_SAMPLES "samples")
+    set(OV_CPACK_COMP_CPP_SAMPLES "samples")
+    set(OV_CPACK_COMP_C_SAMPLES "samples")
     # move requirements.txt to core-dev
-    set(OV_COMP_DEV_REQ_FILES "${OV_COMP_CORE_DEV}")
+    set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
     # move core_tools to core-dev
-    set(OV_COMP_CORE_TOOLS "${OV_COMP_CORE_DEV}")
+    set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
     # move licensing to core
-    set(OV_COMP_LICENSING "${OV_COMP_CORE}")
+    set(OV_CPACK_COMP_LICENSING "${OV_CPACK_COMP_CORE}")
 endif()
 
 macro(ie_cpack)

@@ -115,7 +115,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_CPACK_COMPILER_IS_CLANG)
             target_compile_options(${target} ${link_type} -Wno-undef)
         endif()
     endforeach()
@@ -149,22 +149,22 @@ if(NOT CPACK_GENERATOR STREQUAL "DEB")
     # These libraries are dependencies for openvino-samples-2022.1 package
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-            DESTINATION ${IE_CPACK_SAMPLES}/cpp/thirdparty
-            COMPONENT ${OV_COMP_CPP_SAMPLES}
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-            DESTINATION ${IE_CPACK_SAMPLES}/cpp/thirdparty
-            COMPONENT ${OV_COMP_CPP_SAMPLES}
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
-            DESTINATION ${IE_CPACK_SAMPLES}/cpp/thirdparty
-            COMPONENT ${OV_COMP_CPP_SAMPLES}
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION ${IE_CPACK_SAMPLES}/cpp/thirdparty
-        COMPONENT ${OV_COMP_CPP_SAMPLES}
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
         USE_SOURCE_PERMISSIONS)

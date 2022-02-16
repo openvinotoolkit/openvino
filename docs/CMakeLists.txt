@@ -39,9 +39,9 @@ if(NOT ENABLE_DOCKER)
     foreach(target openvino_template_plugin template_extension openvino_template_extension)
         if(TARGET ${target})
             if(target MATCHES ".*_plugin$")
-                set(dest_location ${IE_CPACK_PLUGIN_PATH})
+                set(dest_location ${OV_CPACK_PLUGINSDIR})
             else()
-                set(dest_location ${IE_CPACK_RUNTIME_PATH})
+                set(dest_location ${OV_CPACK_RUNTIMEDIR})
             endif()
 
             install(TARGETS ${target}

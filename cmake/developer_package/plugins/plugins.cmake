@@ -149,7 +149,7 @@ function(ie_add_plugin)
 
             if(BUILD_SHARED_LIBS)
                 install(TARGETS ${IE_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${IE_CPACK_PLUGIN_PATH}
+                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
             else()
                 ov_install_static_lib(${IE_PLUGIN_NAME} ${install_component})
