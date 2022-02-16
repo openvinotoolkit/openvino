@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "any_copy.hpp"
+#include "check_network_batchable.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "compilation_context.hpp"
 #include "cpp/ie_cnn_network.h"
@@ -594,6 +595,9 @@ public:
             if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
                 return;
         }
+        CNNNetwork clonedNetwork(InferenceEngine::details::cloneNetwork(network));
+        if (!InferenceEngine::details::isNetworkBatchable(clonedNetwork.getFunction()))
+            return;
         auto function = network.getFunction();
         // have to execute the DetectionOutput separately (without batching)
         // as this layer mix-in the values from the different inputs (batch id)
