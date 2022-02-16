@@ -191,9 +191,8 @@ bool convertTensorIteratorToSequence(
             for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                 input.replace_source_output(outputs[i]->output(0));
             }
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            outputs[i]->get_output_tensor(0).set_name(ngraph::op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            outputs[i]->get_output_tensor(0).get_rt_info()["ov_legacy_name"] =
+                ngraph::op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index));
         }
     }
 

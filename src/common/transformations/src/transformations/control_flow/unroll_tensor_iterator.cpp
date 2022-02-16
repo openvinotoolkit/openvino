@@ -134,10 +134,8 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                     copy_runtime_info(sub_graph_op, concat);
 
                     // set output name to Tensor to store it for ngraph to cnn conversion
-                    NGRAPH_SUPPRESS_DEPRECATED_START
-                    concat->output(0).get_tensor().set_name(
-                            op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
-                    NGRAPH_SUPPRESS_DEPRECATED_END
+                    auto& rt_info = concat->output(0).get_tensor().get_rt_info();
+                    rt_info["ov_legacy_name"] = op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index));
                     // connect the Concat layer to the corresponding TI outputs
                     for (auto &input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(concat);
@@ -148,10 +146,8 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                             concat_desc->m_body_value_index);
                     const auto& input_to_res = result->get_input_source_output(0);
                     // set output name to Tensor to store it for ngraph to cnn conversion
-                    NGRAPH_SUPPRESS_DEPRECATED_START
-                    input_to_res.get_tensor().set_name(
-                            op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
-                    NGRAPH_SUPPRESS_DEPRECATED_END
+                    auto& rt_info = input_to_res.get_tensor().get_rt_info();
+                    rt_info["ov_legacy_name"] = op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index));
                     for (auto &input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(input_to_res);
                     }
@@ -165,10 +161,8 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                 const auto& in_value = result->input_value(0);
 
                 // set output name to Tensor to store it for ngraph to cnn conversion
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                in_value.get_tensor().set_name(
-                        op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index)));
-                NGRAPH_SUPPRESS_DEPRECATED_END
+                auto& rt_info = in_value.get_tensor().get_rt_info();
+                rt_info["ov_legacy_name"] =  op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index));
                 for (const auto &input : sub_graph_op->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(result->get_input_source_output(0));
                 }

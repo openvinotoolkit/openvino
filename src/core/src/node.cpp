@@ -128,9 +128,9 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     }
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        clone->get_output_tensor(i).set_name(get_output_tensor(i).get_name());
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        auto& rt_info = get_output_tensor(i).get_rt_info();
+        if (rt_info.find("ov_legacy_name") != rt_info.end())
+            clone->get_output_tensor(i).get_rt_info()["ov_legacy_name"] = rt_info["ov_legacy_name"];
     }
     return clone;
 }
@@ -463,14 +463,22 @@ const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
 }
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-const string& ov::Node::get_input_tensor_name(size_t i) const {
+string ov::Node::get_input_tensor_name(size_t i) const {
     NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor_name(size_t i)");
-    return m_inputs[i].get_tensor().get_name();
+    std::string tensor_name;
+    const auto& rt_info = m_inputs[i].get_tensor().get_rt_info();
+    if (rt_info.find("ov_legacy_name") != rt_info.end())
+        tensor_name = rt_info.at("ov_legacy_name").as<std::string>();
+    return tensor_name;
 }
 
-const string& ov::Node::get_output_tensor_name(size_t i) const {
+string ov::Node::get_output_tensor_name(size_t i) const {
     NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
-    return m_outputs[i].get_tensor().get_name();
+    std::string tensor_name;
+    const auto& rt_info = m_outputs[i].get_tensor().get_rt_info();
+    if (rt_info.find("ov_legacy_name") != rt_info.end())
+        tensor_name = rt_info.at("ov_legacy_name").as<std::string>();
+    return tensor_name;
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 

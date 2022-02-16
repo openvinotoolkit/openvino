@@ -82,7 +82,9 @@ void Output<Node>::replace(const Output<Node>& replacement) {
     // In both of these cases please use replace_output_update_name() method which automatically prevents the
     // replacement for cases when we can not preserve input/output names of model.
     if (!is_type<ov::op::v0::Parameter>(replacement.get_node())) {
-        replacement.get_tensor_ptr()->set_name(get_tensor_ptr()->get_name());
+        auto& rt_info = get_tensor().get_rt_info();
+        if (rt_info.find("ov_legacy_name") != rt_info.end())
+            replacement.get_tensor().get_rt_info()["ov_legacy_name"] = rt_info["ov_legacy_name"];
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 

@@ -374,7 +374,7 @@ public:
 
     /// Returns the tensor name for output i
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
-    const std::string& get_output_tensor_name(size_t i) const;
+    std::string get_output_tensor_name(size_t i) const;
 
     std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
@@ -395,7 +395,7 @@ public:
 
     /// Returns the tensor name for input i
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
-    const std::string& get_input_tensor_name(size_t i) const;
+    std::string get_input_tensor_name(size_t i) const;
 
     Node* get_input_node_ptr(size_t index) const;
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;

@@ -320,9 +320,7 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
             ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            ng_subgraph_outputs[i].get_tensor().get_rt_info()["ov_legacy_name"] = onnx_node.output(i);
         }
     }
 }

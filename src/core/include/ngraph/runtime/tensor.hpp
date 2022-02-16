@@ -45,7 +45,7 @@ public:
     /// \brief Get tensor's unique name
     /// \return tensor's name
     NGRAPH_DEPRECATED("Only output ports have names")
-    const std::string& get_name() const;
+    std::string get_name() const;
 
     /// \brief Write bytes directly into the tensor
     /// \param p Pointer to source of data

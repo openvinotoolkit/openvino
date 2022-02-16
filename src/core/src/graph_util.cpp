@@ -772,24 +772,29 @@ bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& rep
         }
     }
 
+    // Save replacement tensor name before replacement as they will be overridden by the output tensor name
+    std::string tensor_name;
+
     if (preserve_legacy_output_name) {
         replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
         // Update output tensor name
-        const auto& output_tensor_name = output.get_tensor().get_name();
-        if (!output_tensor_name.empty()) {
-            replacement.get_tensor().set_name(output_tensor_name);
+        auto& rt_info = output.get_tensor().get_rt_info();
+        const auto it = rt_info.find("ov_legacy_name");
+        const bool is_legacy_name = it != rt_info.end();
+        if (is_legacy_name) {
+            tensor_name = it->second.as<std::string>();
         } else {
-            replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
+            tensor_name = output.get_node()->get_friendly_name();
         }
     }
-
-    // Save replacement tensor name before replacement as they will be overridden by the output tensor name
-    const auto tensor_name = replacement.get_tensor().get_name();
 
     output.replace(replacement);
 
     // Restore back original replacement tensor name
-    replacement.get_tensor().set_name(tensor_name);
+    if (!tensor_name.empty()) {
+        auto& rt_info = replacement.get_tensor().get_rt_info();
+        rt_info["ov_legacy_name"] = tensor_name;
+    }
 
     copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
                       replacement.get_node_shared_ptr());

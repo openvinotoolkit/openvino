@@ -93,16 +93,6 @@ size_t ov::descriptor::Tensor::size() const {
     return shape_size(get_shape()) * m_element_type.size();
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-void ov::descriptor::Tensor::set_name(const string& name) {
-    m_name = name;
-}
-
-const std::string& ov::descriptor::Tensor::get_name() const {
-    return m_name;
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
     return m_names;
 }
@@ -134,10 +124,6 @@ ostream& ov::descriptor::operator<<(ostream& out, const ov::descriptor::Tensor& 
             names += ", ";
         names += name;
     }
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    if (names.empty())
-        names = tensor.get_name();
-    NGRAPH_SUPPRESS_DEPRECATED_END
     out << "Tensor(" << names << ")";
     return out;
 }

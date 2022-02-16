@@ -44,9 +44,7 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         ngraph::copy_runtime_info(maxpool_v8_node, maxpool_v1_node);
         maxpool_v8_node->clear_control_dependencies();
 
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        maxpool_v1_node->output(0).get_tensor().set_name(out_name);
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        maxpool_v1_node->output(0).get_tensor().get_rt_info()["ov_legacy_name"] = out_name;
 
         return true;
     };

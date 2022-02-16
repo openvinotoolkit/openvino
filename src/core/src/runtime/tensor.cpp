@@ -31,8 +31,6 @@ size_t runtime::Tensor::get_size_in_bytes() const {
     return m_descriptor->size();
 }
 
-const std::string& runtime::Tensor::get_name() const {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    return m_descriptor->get_name();
-    NGRAPH_SUPPRESS_DEPRECATED_END
+std::string runtime::Tensor::get_name() const {
+    return m_descriptor->get_any_name();
 }
