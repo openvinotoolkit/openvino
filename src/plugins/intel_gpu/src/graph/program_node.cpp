@@ -25,7 +25,7 @@
 using namespace cldnn;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), org_id(prim->id) {
+    : desc(prim), myprog(prog), org_id(prim ? (prim->id) : 0) {
     if (prim)
         output_layout.data_padding = prim->output_padding;
 }
