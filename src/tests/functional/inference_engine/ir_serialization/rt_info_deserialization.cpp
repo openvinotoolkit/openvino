@@ -802,8 +802,8 @@ TEST_F(RTInfoDeserialization, NodeV11MultipleRTKeys) {
         <layer name="in1" type="Parameter" id="0" version="opset8">
             <data element_type="f32" shape="1,22,22,3"/>
             <rt_info>
-                <attribute name="old_api_map" version="0" order="0,2,3,1" element_type="f16"/>
-                <attribute name="old_api_map" version="0" order="0,1,2,3" element_type="f32"/>
+                <attribute name="old_api_map_order" version="0" value="0,2,3,1"/>
+                <attribute name="old_api_map_order" version="0" value="0,1,2,3"/>
                 <attribute name="fused_names" version="0" value="in1"/>
             </rt_info>
             <output>
@@ -843,7 +843,7 @@ TEST_F(RTInfoDeserialization, NodeV11MultipleRTKeys) {
         </layer>
         <layer name="output" type="Result" id="2" version="opset8">
             <rt_info>
-                <attribute name="old_api_map" version="0" order="0,3,1,2" element_type="f16"/>
+                <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
             </rt_info>
             <input>
                 <port id="0" precision="FP32">

@@ -3,8 +3,14 @@
 	<layers>
 		<layer id="0" name="Parameter_69" type="Parameter" version="opset1">
 			<data shape="490, 608, 1, 1" element_type="f32" />
+			<rt_info>
+				<attribute name="custom_attr" version="0"/>
+			</rt_info>
 			<output>
 				<port id="0" precision="FP32">
+					<rt_info>
+						<attribute name="another_custom_attr" version="0"/>
+					</rt_info>
 					<dim>490</dim>
 					<dim>608</dim>
 					<dim>1</dim>
