@@ -2,7 +2,7 @@
 
 This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
 
-> **NOTE**: This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../tools/benchmark_tool/README.md).
+> **NOTE**: This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../benchmark_tool/README.md).
 
 > **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
 > [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to
