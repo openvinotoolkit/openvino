@@ -55,9 +55,8 @@ ov::Any convert_from_py_object(const pybind11::object& py_obj) {
             case PY_TYPE::BOOL:
                 return _list.cast<std::vector<bool>>();
             default:
-                OPENVINO_ASSERT("Unsupported attribute type.");
+                OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
     }
-    OPENVINO_ASSERT("Unsupported attribute type.");
-    return ov::Any();
+    OPENVINO_ASSERT(false, "Unsupported attribute type.");
 }
