@@ -59,4 +59,5 @@ ov::Any convert_from_py_object(const pybind11::object& py_obj) {
         }
     }
     OPENVINO_ASSERT("Unsupported attribute type.");
+    return ov::Any();
 }
