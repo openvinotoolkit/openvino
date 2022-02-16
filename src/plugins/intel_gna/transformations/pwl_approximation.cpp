@@ -240,6 +240,7 @@ std::vector<details::Pwl> pwl_search(const details::Function<T>& activation_func
             for (auto& e : data) {
                 e.m = -e.m;
                 e.b = -e.b;
+                e.beta = -e.beta;
             }
         };
 
@@ -323,11 +324,15 @@ bool pwl_search(const std::shared_ptr<T>& node,
         return false;
     }
 
+    if (segments[0].beta < details::Function<T>::min_value()) {
+        segments[0].alpha += (details::Function<T>::min_value() - segments[0].beta) / segments[0].m;
+    }
+
     segments.insert(segments.begin(), {0,
-        std::max((segments.front().b > 0 ? 1. : -1.) * segments.front().beta, details::Function<T>::min_value()),
+        std::max(segments.front().beta, details::Function<T>::min_value()),
         -std::numeric_limits<double>::infinity()});
     segments.back().b =
-        std::min((segments.at(segments.size() - 2).b > 0 ? 1. : -1.) * segments.back().beta, details::Function<T>::max_value());
+        std::min(segments.back().beta, details::Function<T>::max_value());
     segments.push_back({0, 0, std::numeric_limits<double>::infinity()});
     return true;
 }
