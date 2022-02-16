@@ -503,9 +503,9 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
             if (!variance_encoded_in_target) {
                 for (int prior = 0; prior < num_of_priors; ++prior) {
                     int start_idx = prior * 4;
-                    std::array<float, PRIOR_BOX_SIZE> var;
+                    std::array<float, PRIOR_BOX_SIZE> var = {0.f, 0.f, 0.f, 0.f};
                     for (int j = 0; j < PRIOR_BOX_SIZE; ++j) {
-                        var[j] = (prior_box_data[start_idx + j +num_of_priors * prior_info_size]);
+                        var[j] = (prior_box_data[start_idx + j + num_of_priors * prior_info_size]);
                     }
                     prior_variances[i * num_of_priors + prior] = var;
                 }
