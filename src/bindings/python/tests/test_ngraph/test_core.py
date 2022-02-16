@@ -161,10 +161,17 @@ def test_partial_shape():
 
     with pytest.raises(TypeError) as e:
         PartialShape([(1,2,3)])
-    assert "Incorrect values in shape. Can't create bounded dimension from (1, 2, 3)." in str(e.value)
+    assert "Two elements are expected in tuple(lower, upper) for dynamic dimension, but 3 were given." in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        PartialShape([('?', '?')])
+    assert "Incorrect type <class 'str'> for dynamic dimension, int is expected." in str(e.value)
+
     with pytest.raises(TypeError) as e:
         PartialShape(['?'])
-    assert "Incorrect values in shape. Can't create dimension from ?." in str(e.value)
+    assert "Incorrect type <class 'str'> for dimension. Next types are expected: " \
+                            "int, ov.runtime.Dimension, list or tuple with lower " \
+                            "and upper values for dynamic dimension, range." in str(e.value)
 
 
 def test_partial_shape_compatible():

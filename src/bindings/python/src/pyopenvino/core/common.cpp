@@ -98,21 +98,21 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
             dims.push_back(dim.cast<ov::Dimension>());
         } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
             py::list bounded_dim = dim.cast<py::list>();
-            py::type_error error("Incorrect values in shape. Can't create bounded dimension from " +
-                                 std::string(dim.str()) + ".");
             if (bounded_dim.size() != 2) {
-                throw error;
+                throw py::type_error("Two elements are expected in tuple(lower, upper) for dynamic dimension, but "
+                                        + std::to_string(bounded_dim.size()) + " were given.");
             }
             if (!(py::isinstance<py::int_>(bounded_dim[0]) && py::isinstance<py::int_>(bounded_dim[1]))) {
-                throw error;
+                std::string wrong_type = py::isinstance<py::int_>(bounded_dim[0]) ? bounded_dim[1].get_type().str() : bounded_dim[0].get_type().str();
+                throw py::type_error("Incorrect type " + wrong_type + " for dynamic dimension, int is expected.");
             }
             dims.push_back(ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
         } else if (py::isinstance(dim, py::module::import("builtins").attr("range"))) {
             dims.push_back(
                 ov::Dimension(dim.attr("start").cast<value_type>(), dim.attr("stop").cast<value_type>() - 1));
         } else {
-            throw py::type_error("Incorrect values in shape. Can't create dimension from " + std::string(dim.str()) +
-                                 ".");
+            throw py::type_error("Incorrect type " + std::string(dim.get_type().str()) + " for dimension. Next types are expected: "
+                                 "int, ov.runtime.Dimension, list or tuple with lower and upper values for dynamic dimension, range.");
         }
     }
     return ov::PartialShape(dims);

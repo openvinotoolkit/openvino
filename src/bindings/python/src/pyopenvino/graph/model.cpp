@@ -309,8 +309,8 @@ void regclass_graph_Model(py::module m) {
                 } else if (py::isinstance<ov::Output<ov::Node>>(item.first)) {
                     new_shape.first = item.first.cast<ov::Output<ov::Node>>();
                 } else {
-                    throw py::type_error("Incorrect key " + std::string(item.first.get_type().str()) +
-                                         " type to reshape a model.");
+                    throw py::type_error("Incorrect key type " + std::string(item.first.get_type().str()) +
+                                         " to reshape a model, expected keys as ov.runtime.Output, int or str.");
                 }
                 // check values
                 if (py::isinstance<ov::PartialShape>(item.second)) {
