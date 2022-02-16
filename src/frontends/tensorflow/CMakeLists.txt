@@ -22,9 +22,8 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
 
 # install with original name for tests component
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests
-        EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 
 if(BUILD_SHARED_LIBS)
     function(ov_shared_library_name target_name library_name)
@@ -41,18 +40,18 @@ if(BUILD_SHARED_LIBS)
         set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
     endfunction()
 
-    ov_shared_library_name(openvino_tensorflow_fe shared_library_name)
+    ov_shared_library_name(${TARGET_NAME_IRC} shared_library_name)
 
     # rename targets files to avoid auto-loading by FEM
-    install(FILES $<TARGET_FILE:openvino_tensorflow_frontend>
+    install(FILES $<TARGET_FILE:${TARGET_NAME}>
             DESTINATION ${IE_CPACK_RUNTIME_PATH}
             COMPONENT core
             RENAME ${shared_library_name})
     if(WIN32)
-        ov_lib_file_name(openvino_tensorflow_fe lib_file_name)
+        ov_lib_file_name(${TARGET_NAME_IRC} lib_file_name)
 
         # need to install renamed .lib file as well
-        install(FILES $<TARGET_LINKER_FILE:openvino_tensorflow_frontend>
+        install(FILES $<TARGET_LINKER_FILE:${TARGET_NAME}>
                 DESTINATION ${IE_CPACK_LIBRARY_PATH}
                 COMPONENT core
                 RENAME ${lib_file_name})
