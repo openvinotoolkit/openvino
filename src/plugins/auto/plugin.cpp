@@ -531,6 +531,10 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     if (validDevices.empty()) {
          IE_THROW() << "Cannot select any device";
     }
+    // sort validDevices
+    validDevices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
+            return a.devicePriority < b.devicePriority;
+            });
     // all available Devices are in validDevices now
     // need to remove higher priority devices
     // save the last device first
@@ -559,10 +563,6 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
         // so select the last device of all available Devices.
         ptrSelectDevice = &lastDevice;
     } else {
-        // sort validDevices
-        validDevices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
-                return a.devicePriority < b.devicePriority;
-                });
         // select the first device in the rest of available devices.
         ptrSelectDevice = &validDevices.front();
     }
