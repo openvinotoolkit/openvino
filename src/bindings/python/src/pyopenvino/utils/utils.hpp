@@ -7,7 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <openvino/core/any.hpp>
 
-ov::Any convert_from_py_object(const pybind11::object& py_obj) {
+ov::Any py_object_to_any(const pybind11::object& py_obj) {
     if (pybind11::isinstance<pybind11::str>(py_obj)) {
         return py_obj.cast<std::string>();
     } else if (pybind11::isinstance<pybind11::bool_>(py_obj)) {

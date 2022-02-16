@@ -96,7 +96,7 @@ def create_onnx_model_for_op_extension():
     elu = onnx.helper.make_node("Elu", alpha=1.0, inputs=["x"], outputs=["elu"])
 
     # operation with vector<size_t>, enum, bool attributes
-    avg_pool = onnx.helper.make_node("AveragePool", kernel_shape=[2, 2], auto_pad='SAME_LOWER',
+    avg_pool = onnx.helper.make_node("AveragePool", kernel_shape=[2, 2], auto_pad="SAME_LOWER",
                                      strides=[2, 2],
                                      inputs=["elu"], outputs=["avg_pool"])
 
