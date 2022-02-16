@@ -65,7 +65,6 @@ bool op::v3::Assign::constant_fold(OutputVector& output_values, const OutputVect
     return false;
 }
 
-
 op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Variable>& variable)
     : AssignBase({new_value}) {
     m_variable = variable;
