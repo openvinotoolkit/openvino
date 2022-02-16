@@ -786,6 +786,36 @@ public:
         return GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
     }
 
+    void set_property(const std::string& device_name, const AnyMap& properties) override {
+        OPENVINO_ASSERT(device_name.find("HETERO:") != 0,
+                        "set_property is supported only for HETERO itself (without devices). "
+                        "You can configure the devices with set_property before creating the HETERO on top.");
+        OPENVINO_ASSERT(device_name.find("MULTI:") != 0,
+                        "set_property is supported only for MULTI itself (without devices). "
+                        "You can configure the devices with set_property before creating the MULTI on top.");
+        OPENVINO_ASSERT(device_name.find("AUTO:") != 0,
+                        "set_property is supported only for AUTO itself (without devices). "
+                        "You can configure the devices with set_property before creating the AUTO on top.");
+
+        ExtractAndSetDeviceConfig(properties);
+        SetConfigForPlugins(any_copy(properties), device_name);
+    }
+
+    Any get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const override {
+        OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
+                        "You can only get_config of the HETERO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the HETERO on top.");
+        OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
+                        "You can only get_config of the MULTI itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the MULTI on top.");
+        OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
+                        "You can only get_config of the AUTO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the AUTO on top.");
+
+        auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
+        return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
+    }
+
     Any GetConfig(const std::string& deviceName, const std::string& name) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName);
         return GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
@@ -1113,7 +1143,13 @@ public:
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override {
-        std::vector<std::string> supportedConfigKeys = GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        auto supportedConfigKeys =
+            GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+        for (auto&& property : ICore::get_property(deviceName, ov::supported_properties)) {
+            if (property.is_mutable()) {
+                supportedConfigKeys.emplace_back(std::move(property));
+            }
+        }
         std::map<std::string, std::string> supportedConfig;
         for (auto&& key : supportedConfigKeys) {
             auto itKey = configs.find(key);
@@ -1128,8 +1164,7 @@ public:
                 std::map<std::string, std::string> device_configs;
                 util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
                 for (auto&& device_config : device_configs) {
-                    if (supportedConfigKeys.end() !=
-                        std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), device_config.first)) {
+                    if (util::contains(supportedConfigKeys, device_config.first)) {
                         supportedConfig[device_config.first] = device_config.second;
                     }
                 }
@@ -1765,49 +1800,20 @@ SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
     });
 }
 
-void Core::set_property(const AnyMap& config) {
-    OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
-        _impl->SetConfigForPlugins(any_copy(config), {});
-    });
+void Core::set_property(const AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(return _impl->set_property({}, properties););
 }
 
-void Core::set_property(const std::string& deviceName, const AnyMap& config) {
-    OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
-                    "set_property is supported only for HETERO itself (without devices). "
-                    "You can configure the devices with set_property before creating the HETERO on top.");
-    OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
-                    "set_property is supported only for MULTI itself (without devices). "
-                    "You can configure the devices with set_property before creating the MULTI on top.");
-    OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
-                    "set_property is supported only for AUTO itself (without devices). "
-                    "You can configure the devices with set_property before creating the AUTO on top.");
-
-    OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
-        _impl->SetConfigForPlugins(any_copy(config), deviceName);
-    });
+void Core::set_property(const std::string& device_name, const AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(return _impl->set_property(device_name, properties););
 }
 
 Any Core::get_property(const std::string& deviceName, const std::string& name) const {
-    return get_property(deviceName, name, AnyMap{});
+    OV_CORE_CALL_STATEMENT(return _impl->get_property(deviceName, name, {}););
 }
 
 Any Core::get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const {
-    OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
-                    "You can only get_config of the HETERO itself (without devices). "
-                    "get_config is also possible for the individual devices before creating the HETERO on top.");
-    OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
-                    "You can only get_config of the MULTI itself (without devices). "
-                    "get_config is also possible for the individual devices before creating the MULTI on top.");
-    OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
-                    "You can only get_config of the AUTO itself (without devices). "
-                    "get_config is also possible for the individual devices before creating the AUTO on top.");
-
-    OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
-        return _impl->GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
-    });
+    OV_CORE_CALL_STATEMENT(return _impl->get_property(deviceName, name, arguments););
 }
 
 std::vector<std::string> Core::get_available_devices() const {

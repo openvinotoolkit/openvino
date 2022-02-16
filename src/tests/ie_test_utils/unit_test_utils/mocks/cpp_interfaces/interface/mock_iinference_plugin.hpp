@@ -9,6 +9,7 @@
 
 #include <gmock/gmock.h>
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie_icore.hpp"
 
 class MockIInferencePlugin : public InferenceEngine::IInferencePlugin {
 public:
