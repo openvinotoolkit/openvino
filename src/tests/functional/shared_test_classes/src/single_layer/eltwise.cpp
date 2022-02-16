@@ -68,9 +68,6 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
 }
 
 void EltwiseLayerTest::SetUp() {
-    // w/a for myriad (cann't store 2 caches simultaneously)
-    PluginCache::get().reset();
-
     std::vector<InputShape> shapes;
     ElementType netType;
     ngraph::helpers::InputLayerType secondaryInputType;
