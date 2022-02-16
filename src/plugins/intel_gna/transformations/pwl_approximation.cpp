@@ -324,13 +324,18 @@ bool pwl_search(const std::shared_ptr<T>& node,
         return false;
     }
 
-    if (segments[0].beta < details::Function<T>::min_value()) {
-        segments[0].alpha += (details::Function<T>::min_value() - segments[0].beta) / segments[0].m;
+    if (segments.front().beta < details::Function<T>::min_value()) {
+        segments.front().alpha += (details::Function<T>::min_value() - segments.front().beta) / segments.front().m;
     }
 
     segments.insert(segments.begin(), {0,
         std::max(segments.front().beta, details::Function<T>::min_value()),
         -std::numeric_limits<double>::infinity()});
+
+    if (segments.back().beta > details::Function<T>::max_value()) {
+        segments.back().alpha += (details::Function<T>::max_value() - segments.back().beta) / segments.at(segments.size() - 2).m;
+    }
+
     segments.back().b =
         std::min(segments.back().beta, details::Function<T>::max_value());
     segments.push_back({0, 0, std::numeric_limits<double>::infinity()});
