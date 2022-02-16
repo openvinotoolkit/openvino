@@ -70,12 +70,14 @@ int readBmpImage(const char* fileName, BitMap* image) {
 
     if (image->infoHeader.bits != 24) {
         printf("[BMP] 24bpp only supported. But input has: %d\n", image->infoHeader.bits);
-        return 3;
+        status = 3;
+        goto Exit;
     }
 
     if (image->infoHeader.compression != 0) {
         printf("[BMP] compression not supported\n");
-        return 4;
+        status = 4;
+        goto Exit;
     }
 
     int padSize = image->width & 3;
@@ -86,7 +88,8 @@ int readBmpImage(const char* fileName, BitMap* image) {
     image->data = malloc(sizeof(char) * size);
     if (NULL == image->data) {
         printf("[BMP] memory allocation failed\n");
-        return 5;
+        status = 5;
+        goto Exit;
     }
 
     if (0 != fseek(input, image->header.offset, SEEK_SET)) {
@@ -97,8 +100,9 @@ int readBmpImage(const char* fileName, BitMap* image) {
 
     // reading by rows in invert vertically
     int i;
-    for (i = 0; i < image->height; i++) {
-        unsigned int storeAt = image->infoHeader.height < 0 ? i : (unsigned int)image->height - 1 - i;
+    int image_height = image->height;
+    for (i = 0; i < image_height; i++) {
+        unsigned int storeAt = image->infoHeader.height < 0 ? i : (unsigned int)image_height - 1 - i;
         cnt = fread(image->data + row_size * storeAt, row_size, sizeof(unsigned char), input);
         if (cnt != row_size) {
             printf("[BMP] file read error\n");

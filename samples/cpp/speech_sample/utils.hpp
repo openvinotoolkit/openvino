@@ -307,7 +307,13 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
         float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
-        float call_units_us = current_units_us / numberOfFrames;
+        float call_units_us = 0;
+        if (numberOfFrames == 0) {
+            throw std::logic_error("Number off frames = 0,  division by zero.");
+        }
+        else {
+            call_units_us = current_units_us / numberOfFrames;
+        }
         if (FLAGS_d.find("GNA") != std::string::npos) {
             stream << std::setw(30) << std::left << counter_name.substr(4, counter_name.size() - 1);
         } else {
