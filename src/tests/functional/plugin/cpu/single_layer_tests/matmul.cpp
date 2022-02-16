@@ -427,11 +427,11 @@ std::vector<fusingSpecificParams> fusingParamsSet3D_smoke {
         fusingBias,
         fusingMultiplyPerChannel,
         fusingFakeQuantizePerChannel,
+        fusingScaleShiftAndFakeQuantizePerChannel,
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet3D_nightly {
         fusingFakeQuantizePerTensorRelu,
-        fusingScaleShiftAndFakeQuantizePerChannel,
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet3DBF16 {

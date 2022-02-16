@@ -1263,10 +1263,12 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
 }
 
 bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const {
+    IE_ASSERT(parentNode);
+
     size_t fusingPort = 0;
     const size_t channelAxis = parentNode->getFusingAxis();
 
-    for (size_t i = (parentNode == nullptr ? 1 : 0); i < getParentEdges().size(); i++) {
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
         MKLDNNNode *node = getParentEdgesAtPort(i)[0]->getParent().get();
         if (node == nullptr) {
             IE_THROW() << "Cannot get parent node for " << getName() << " on " << i << " port";

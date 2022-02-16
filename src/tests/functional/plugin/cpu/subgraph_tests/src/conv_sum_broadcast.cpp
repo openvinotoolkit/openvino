@@ -119,72 +119,72 @@ TEST_P(ConcatConvSumInPlaceTest, CompareWithRefs) {
 
 namespace {
 const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
-            ngraph::Shape newShape = generatePerChannelShape(inpNode);
-            auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
-            return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+        {[](postNodeConfig& cfg) {
+            ngraph::Shape newShape = generatePerChannelShape(cfg.inputNode);
+            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Multiply>(cfg.inputNode, constNode);
         }, "Multiply(PerChannel)"},
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
-            ngraph::Shape newShape = generatePerChannelShape(inpNode);
-            auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
-            return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+        {[](postNodeConfig& cfg) {
+            ngraph::Shape newShape = generatePerChannelShape(cfg.inputNode);
+            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Add>(cfg.inputNode, constNode);
         }, "Add(PerChannel)"},
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            auto localPrc = inpNode->get_element_type();
-            ngraph::Shape newShape = generatePerChannelShape(inpNode);
-            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        {[](postNodeConfig& cfg){
+            auto localPrc = cfg.inputNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(cfg.inputNode);
+            return ngraph::builder::makeFakeQuantize(cfg.inputNode, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"},
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
-            ngraph::Shape newShape = generatePerChannelShape(inpNode);
-            auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
-            return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+        {[](postNodeConfig& cfg) {
+            ngraph::Shape newShape = generatePerChannelShape(cfg.inputNode);
+            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Multiply>(cfg.inputNode, constNode);
         }, "Multiply(PerChannel)"},
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
-            ngraph::Shape newShape = generatePerChannelShape(inpNode);
-            auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
-            return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+        {[](postNodeConfig& cfg) {
+            ngraph::Shape newShape = generatePerChannelShape(cfg.inputNode);
+            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Add>(cfg.inputNode, constNode);
         }, "Add(PerChannel)"}}), {"Add"} };
 
 const auto fusingDivSubFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            ngraph::Shape secondMultInShape = generatePerChannelShape(inpNode);
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
-            return std::make_shared<ngraph::opset1::Divide>(inpNode, secondMultInput);
+        {[](postNodeConfig& cfg){
+            ngraph::Shape secondMultInShape = generatePerChannelShape(cfg.inputNode);
+            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Divide>(cfg.inputNode, secondMultInput);
         }, "Divide(PerChannel)"},
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            ngraph::Shape secondMultInShape = generatePerChannelShape(inpNode);
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
-            return std::make_shared<ngraph::opset1::Subtract>(inpNode, secondMultInput);
+        {[](postNodeConfig& cfg){
+            ngraph::Shape secondMultInShape = generatePerChannelShape(cfg.inputNode);
+            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            return std::make_shared<ngraph::opset1::Subtract>(cfg.inputNode, secondMultInput);
         }, "Subtract(PerChannel)"},
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            auto localPrc = inpNode->get_element_type();
-            ngraph::Shape newShape = generatePerChannelShape(inpNode);
-            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        {[](postNodeConfig& cfg){
+            auto localPrc = cfg.inputNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(cfg.inputNode);
+            return ngraph::builder::makeFakeQuantize(cfg.inputNode, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"} };
 
 const auto fusingSigmoidFQFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Sigmoid);
+        {[](postNodeConfig& cfg){
+            return ngraph::builder::makeActivation(cfg.inputNode, cfg.type, ngraph::helpers::Sigmoid);
         }, "Sigmoid"},
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            auto localPrc = inpNode->get_element_type();
-            ngraph::Shape newShape = generatePerChannelShape(inpNode);
-            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        {[](postNodeConfig& cfg){
+            auto localPrc = cfg.inputNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(cfg.inputNode);
+            return ngraph::builder::makeFakeQuantize(cfg.inputNode, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"},
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            auto localPrc = inpNode->get_element_type();
-            ngraph::Shape newShape = generatePerChannelShape(inpNode);
-            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        {[](postNodeConfig& cfg){
+            auto localPrc = cfg.inputNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(cfg.inputNode);
+            return ngraph::builder::makeFakeQuantize(cfg.inputNode, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"}}), {"Sigmoid", "FakeQuantize", "FakeQuantize"} };
 
 const auto fusingClampFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Clamp, {}, {3.0f, 6.0f});
+        {[](postNodeConfig& cfg){
+            return ngraph::builder::makeActivation(cfg.inputNode, cfg.type, ngraph::helpers::Clamp, {}, {3.0f, 6.0f});
         }, "Clamp"},
-        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            auto localPrc = inpNode->get_element_type();
-            ngraph::Shape newShape = generatePerChannelShape(inpNode);
-            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        {[](postNodeConfig& cfg){
+            auto localPrc = cfg.inputNode->get_element_type();
+            ngraph::Shape newShape = generatePerChannelShape(cfg.inputNode);
+            return ngraph::builder::makeFakeQuantize(cfg.inputNode, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"} };
 
 

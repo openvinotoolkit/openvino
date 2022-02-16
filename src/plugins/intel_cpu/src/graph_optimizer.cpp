@@ -1713,18 +1713,8 @@ void MKLDNNGraphOptimizer::FuseClampAndFakeQuantize(MKLDNNGraph &graph) {
 void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto getConstPort = [](const MKLDNNNodePtr node) -> int {
-        if (node->getParentEdgesAtPort(0)[0]->getParent()->getType() == Input && node->getParentEdgesAtPort(0)[0]->getParent()->isConstant()) {
-            return 0;
-        } else if (node->getParentEdgesAtPort(1)[0]->getParent()->getType() == Input && node->getParentEdgesAtPort(1)[0]->getParent()->isConstant()) {
-           return 1;
-        } else {
-            return -1;
-        }
-    };
-
-    auto getNonConstPort = [](const MKLDNNNodePtr node) -> size_t {
-        std::vector<size_t> nonConstPorts;
+    auto getNonConstPort = [](const MKLDNNNodePtr& node) {
+        std::vector<int> nonConstPorts;
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
             if (!(parent->getType() == Input && parent->isConstant()))
@@ -1733,25 +1723,27 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
         // there are more than 1 nonconst port or missed
         if (nonConstPorts.size() != 1)
             return -1;
+
         return nonConstPorts[0];
     };
 
-    auto isSuitableScaleShiftNode = [getNonConstPort](MKLDNNNodePtr node) {
-        if (one_of(node->getAlgorithm(), EltwiseAdd, EltwiseSubtract, EltwiseMultiply, EltwiseDivide, EltwiseMulAdd)) {
-            const auto nonConstPort = getNonConstPort(node);
-            if (nonConstPort == -1)
-                return false;
-            const MKLDNNNode* parent = node->getParentEdgesAtPort(nonConstPort)[0]->getParent().get();
-            return node->getType() == Eltwise && node->getChildEdges().size() == 1 && node->canBePerformedAsScaleShift(parent);
-        }
-        return false;
+    auto isSuitableScaleShiftNode = [getNonConstPort](const MKLDNNNodePtr& node) {
+        if (!one_of(node->getAlgorithm(), EltwiseAdd, EltwiseSubtract, EltwiseMultiply, EltwiseDivide, EltwiseMulAdd))
+            return false;
+
+        const auto nonConstPort = getNonConstPort(node);
+        if (nonConstPort == -1)
+            return false;
+
+        const MKLDNNNodePtr eltwiseInput = node->getParentEdgeAt(nonConstPort)->getParent();
+        return node->getChildEdges().size() == 1 && node->canBePerformedAsScaleShift(eltwiseInput.get());
     };
 
-    auto isSuitableFakeQuantizeNode = [](MKLDNNNodePtr node) {
+    auto isSuitableFakeQuantizeNode = [](const MKLDNNNodePtr& node) {
         return node->getType() == FakeQuantize && node->getAlgorithm() != FQBinarization;
     };
 
-    auto fuseScaleShiftAndFakeQuantizeNodes = [getConstPort](MKLDNNNodePtr parent, MKLDNNNodePtr child) {
+    auto fuseScaleShiftAndFakeQuantizeNodes = [getNonConstPort](const MKLDNNNodePtr& parent, const MKLDNNNodePtr& child) {
         auto fakeQuantizeNode = std::dynamic_pointer_cast<MKLDNNFakeQuantizeNode>(child);
         if (fakeQuantizeNode == nullptr)
             IE_THROW() << "Cannot cast " << child->getName() << " to FakeQuantize node";
@@ -1763,7 +1755,8 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
             IE_THROW() << "Cannot cast " << parent->getName() << " to Eltwise node";
         }
 
-        std::tie(scalesBuffer, shiftsBuffer) = parentEltwise->getScalesAndShifts(parent->getParentEdgesAtPort(1 - getConstPort(parent))[0]->getParent().get());
+        const MKLDNNNodePtr eltwiseInput = parentEltwise->getParentEdgeAt(getNonConstPort(parent))->getParent();
+        std::tie(scalesBuffer, shiftsBuffer) = parentEltwise->getScalesAndShifts(eltwiseInput.get());
 
         const auto &outputShape = child->getOutputShapeAtPort(0);
         VectorDims outputDims = outputShape.getDims();

@@ -120,10 +120,10 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
-    CheckPluginRelatedResultsImpl(function, std::move(nodeType));
+    CheckPluginRelatedResultsImpl(function, nodeType);
 }
 
-void CPUTestsBase::CheckPluginRelatedResults(const ov::runtime::CompiledModel &execNet, const std::string& nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const {
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";

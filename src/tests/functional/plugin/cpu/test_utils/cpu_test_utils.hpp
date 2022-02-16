@@ -137,7 +137,7 @@ public:
                                                          std::string name);
 
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const;
-    void CheckPluginRelatedResults(const ov::runtime::CompiledModel &execNet, const std::string& nodeType) const;
+    void CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const;
 
 protected:
     virtual void CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const;
