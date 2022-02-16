@@ -2,8 +2,6 @@
 
 OpenVINO™ Extension API allows you to register custom operations to support models with operations which OpenVINO™ does not support out-of-the-box.
 
-Besides creating custom operations, to [support custom operations](Custom_Layers_Guide.md) in your model you must also create a Model Optimizer extension for the custom operations.
-
 ## Operation Class
 
 To add your custom operation, create a new class that extends `ov::Op`, which is in turn derived from `ov::Node`, the base class for all graph operations in OpenVINO™. To add `ov::Op` please include next file:

@@ -14,6 +14,6 @@ To build the extension library, run the commands below:
 $ cd docs/template_extension/new
 $ mkdir build
 $ cd build
-$ cmake -DOpenVINO_DIR=[OpenVINO_DIR] ../
+$ cmake -DOpenVINO_DIR=<OpenVINO_DIR> ../
 $ cmake --build .
 ```
