@@ -361,30 +361,113 @@ void sum_performance_counters(std::map<std::string, ov::ProfilingInfo> const& pe
 }
 
 /**
- * @brief Parse scale factors
- * @param str reference to user-specified input scale factor for quantization, can be separated by comma
- * @return vector scale factors
+ * @brief Split string by delimeter
+ * @param s input string
+ * @param delim delimeter
+ * @return vector of chunks
  */
-std::vector<std::string> parse_scale_factors(const std::string& str) {
-    std::vector<std::string> scaleFactorInput;
+std::vector<std::string> split(const std::string& s, char delim) {
+    std::vector<std::string> result;
+    std::stringstream ss(s);
+    std::string item;
 
-    if (!str.empty()) {
-        std::string outStr;
-        std::istringstream stream(str);
-        int i = 0;
-        while (getline(stream, outStr, ',')) {
-            auto floatScaleFactor = std::stof(outStr);
-            if (floatScaleFactor <= 0.0f) {
-                throw std::logic_error("Scale factor for input #" + std::to_string(i) +
-                                       " (counting from zero) is out of range (must be positive).");
-            }
-            scaleFactorInput.push_back(outStr);
-            i++;
-        }
-    } else {
-        throw std::logic_error("Scale factor need to be specified via -sf option if you are using -q user");
+    while (getline(ss, item, delim)) {
+        result.push_back(item);
     }
-    return scaleFactorInput;
+    return result;
+}
+
+/**
+ * @brief Concat strings using delimeter
+ * @param chunks input chunks
+ * @param delim delimeter
+ * @return concatenated string
+ */
+std::string concat(const std::vector<std::string>& chunks, char delim) {
+    std::stringstream ss;
+    for (auto&& chunk : chunks) {
+        if (!ss.str().empty()) {
+            ss << delim;
+        }
+        ss << chunk;
+    }
+    return ss.str();
+}
+
+/**
+ * @brief Check whether name is present in node vector
+ * @param nodes nodes
+ * @param node_name name
+ * @return false or true
+ */
+bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
+    std::vector<std::string> any_names;
+    bool count = false;
+    for (auto& node : nodes) {
+        any_names.push_back(node.get_any_name());
+        auto names = node.get_names();
+        count = std::count(names.begin(), names.end(), node_name);
+        if (count)
+            break;
+    }
+    if (!count) {
+        std::stringstream ss;
+        ss << "Incorrect node name '" + node_name << "'! ";
+        ss << "Try one of the following names: [ ";
+        for (auto&& name : any_names) {
+            ss << name << " ";
+        }
+        ss << "]";
+        throw std::logic_error(ss.str());
+    }
+    return count;
+}
+
+/**
+ * @brief Parse scale factors per input
+ * Format : <input_name1>:<sf1>,<input2>:<sf2> or just <sf>
+ * @param inputs model inputs
+ * @param values_string values_string input string
+ * @return map of scale factors per input
+ */
+std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs, const std::string& values_string) {
+    auto get_sf = [&](const std::string& sf_string, const std::string& input_name = "") -> float {
+        float sf;
+        try {
+            sf = std::stof(sf_string);
+        } catch (...) {
+            throw std::logic_error("Can't get float scale factor from: " + sf_string);
+        }
+        if (sf <= 0.0f) {
+            throw std::logic_error("Scale factor for input '" + input_name +
+                                   "' (counting from zero) is out of range (must be positive).");
+        }
+        return sf;
+    };
+    std::map<std::string, float> result;
+    auto scale_factor_strings = split(values_string, ',');
+    for (auto& scale_factor_string : scale_factor_strings) {
+        auto values = split(scale_factor_string, ':');
+        if (values.size() == 1) {
+            if (scale_factor_strings.size() != 1) {
+                throw std::logic_error("Unrecognized scale factor format! "
+                                       "Please specify <input_name1>:<sf1>,<input_name2>:<sf2> or "
+                                       "just <sf> to be applied to all inputs");
+            }
+            auto scale_factor = get_sf(values.at(0));
+            for (auto& input : inputs) {
+                result[input.get_any_name()] = scale_factor;
+            }
+        } else if (values.size() > 0) {
+            auto sf_sting = values.back();
+            values.pop_back();
+            // input name can contain port, concat back
+            auto input_name = concat(values, ':');
+            check_name(inputs, input_name);
+            result[input_name] = get_sf(sf_sting, input_name);
+        }
+    }
+    return result;
 }
 
 /**
