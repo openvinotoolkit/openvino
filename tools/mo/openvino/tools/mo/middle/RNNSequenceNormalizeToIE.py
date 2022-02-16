@@ -4,14 +4,15 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_delete, mo_array
-from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.broadcast import Broadcast
 from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.op import Op
-from openvino.tools.mo.ops.reshape import Reshape
 from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.squeeze import Squeeze
 from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
 
@@ -175,19 +176,35 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         rnn_layer.in_port(0).get_source().connect(shape.in_port(0))
 
         batch = node_to_get_shape_value_of_indices(shape, int64_array([rnn_layer.batch_dim]))
-        new_dim = create_op_node_with_second_input(graph, Concat, second_input_value=int64_array([hidden_size]),
-                                                   op_attrs=dict(name=rnn_layer_name + '/HiddenStateResizeDim',
-                                                                 in_ports_count=2, axis=0), input_node=batch)
-        reshape_h = Reshape(graph, dict(name=rnn_layer_name + '/HiddenStateResize', override_output_shape=True)).create_node()
-        new_dim.out_port(0).connect(reshape_h.in_port(1))
+
+        # Squeezing hidden state input
+        reshape_h = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])},
+                                                dict(name=rnn_layer_name + '/HiddenStateSqueeze',
+                                                     override_output_shape=True))
+
         rnn_layer.in_port(hidden_init_port).get_connection().insert_node(reshape_h)
 
-        if rnn_layer.op == 'LSTM':
-            assert cell_init_port in rnn_layer.in_nodes()
+        new_dim_after_broadcast = create_op_node_with_second_input(graph, Concat, second_input_value=int64_array([hidden_size]),
+                                                   op_attrs=dict(name=rnn_layer_name + '/HiddenStateBroadcastToNewShape',
+                                                                 in_ports_count=2, axis=0), input_node=batch)
 
-            reshape_c = Reshape(graph, dict(name=rnn_layer_name + '/CellStateResize', override_output_shape=True)).create_node()
-            new_dim.out_port(0).connect(reshape_c.in_port(1))
+        broadcast_h = Broadcast(graph, dict(name=rnn_layer_name + '/HiddenStateBroadcast',
+                                            override_output_shape=True)).create_node()
+        new_dim_after_broadcast.out_port(0).connect(broadcast_h.in_port(1))
+        rnn_layer.in_port(hidden_init_port).get_connection().insert_node(broadcast_h)
+
+        if rnn_layer.op == 'LSTM':
+            # Squeezing cell state input
+            assert cell_init_port in rnn_layer.in_nodes()
+            reshape_c = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])},
+                                                    dict(name=rnn_layer_name + '/CellStateSqueeze',
+                                                         override_output_shape=True))
             rnn_layer.in_port(cell_init_port).get_connection().insert_node(reshape_c)
+            broadcast_c = Broadcast(graph, dict(name=rnn_layer_name + '/HiddenStateBroadcast',
+                                                override_output_shape=True)).create_node()
+            new_dim_after_broadcast.out_port(0).connect(broadcast_c.in_port(1))
+            rnn_layer.in_port(cell_init_port).get_connection().insert_node(broadcast_c)
+
 
     @staticmethod
     def reordering_inputs(graph: Graph, match: dict):
