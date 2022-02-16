@@ -11,6 +11,7 @@
 
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/layer_test_utils/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -147,13 +148,11 @@ void ReadIRTest::SetUp() {
         } else {
             ov::Shape midShape;
             for (const auto s : param->get_partial_shape()) {
+                int dimValue = s.get_length();
                 if (s.is_dynamic()) {
-                    int dim = (s.get_max_length() - s.get_min_length());
-                    dim /= 2;
-                    midShape.push_back(dim);
-                } else {
-                    midShape.push_back(s.get_length());
+                    CommonTestUtils::fill_data_random(&dimValue, 1, s.get_max_length() - s.get_min_length(), s.get_min_length(), 1);
                 }
+                midShape.push_back(dimValue);
             }
             inputShapes.push_back(InputShape{param->get_partial_shape(), { param->get_partial_shape().get_min_shape(),
                                                                                  param->get_partial_shape().get_max_shape(),
