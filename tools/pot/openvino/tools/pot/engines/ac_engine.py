@@ -69,7 +69,7 @@ class ACEngine(Engine):
 
     def set_model(self, model):
         """ Load NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         def _set_model(path):
             tmp_model_name = 'tmp_model'
@@ -248,7 +248,7 @@ class ACEngine(Engine):
         if not stats_layout:
             return
         dataset_index = kwargs['dataset_indices'][0]
-        append_stats(self._accumulated_layer_stats, stats_layout, value, dataset_index)
+        append_stats(self._accumulated_layer_stats, stats_layout, value, dataset_index, self.inference_for_shape)
 
     @staticmethod
     def _set_requests_number(params, requests_number):

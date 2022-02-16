@@ -1136,7 +1136,7 @@ void ReduceValidator::parseParams(CNNLayer* layer) {
         IE_THROW() << layer->name << " Layer is not instance of Reduce class";
     }
 
-    casted->keep_dims = layer->GetParamAsBool("keep_dims", "true");
+    casted->keep_dims = layer->GetParamAsBool("keep_dims", true);
 }
 
 //

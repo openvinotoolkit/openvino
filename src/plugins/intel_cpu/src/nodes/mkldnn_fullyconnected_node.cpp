@@ -205,16 +205,16 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory hasn't been allocated.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory hasn't been allocated.";
-    if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
+    if (!wghMemPtr || !wghMemPtr->isAllocated())
         IE_THROW() << "Weight memory hasn't been allocated.";
     MKLDNNMemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
-        if (!biasMemPtr || !biasMemPtr->GetPrimitivePtr())
+        if (!biasMemPtr || !biasMemPtr->isAllocated())
             IE_THROW() << "Input memory hasn't been allocated.";
     }
 
@@ -307,7 +307,7 @@ void MKLDNNFullyConnectedNode::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
     }
 
-    appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
+    appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
     auto reshapeMemory = [this](int argType) {
         auto param = primArgs.find(argType);
@@ -324,6 +324,27 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     };
     reshapeMemory(DNNL_ARG_SRC);
     reshapeMemory(DNNL_ARG_DST);
+}
+
+void MKLDNNFullyConnectedNode::setDynamicBatchLim(int lim) {
+    dynBatchLim = lim;
+
+    auto setBatchPrimArgs = [this](int argType, const mkldnn::memory& oldMem) {
+        mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+        newMemDesc.data.dims[0] = batchToProcess();
+        newMemDesc.data.padded_dims[0] = batchToProcess();
+        auto dims = newMemDesc.dims();
+
+        if (dims.size() == 3) {
+            std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
+            newMemDesc = newMemDesc.reshape(normalizedDims);
+        }
+
+        primArgs.at(argType) = mkldnn::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+    };
+
+    setBatchPrimArgs(DNNL_ARG_SRC, getParentEdgesAtPort(0)[0]->getMemory().GetPrimitive());
+    setBatchPrimArgs(DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemory().GetPrimitive());
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
@@ -372,15 +393,15 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, const Ve
 
     for (auto &node : fusedWith) {
         if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             continue;
         }
 
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-                eltwiseNode->appendPostOps(ops, dims);
+                eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
-                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             }
             continue;
         }
@@ -532,26 +553,26 @@ void MKLDNNFullyConnectedNode::initSupportedPrimitiveDescriptors() {
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = -1;
-                portConfig.constant = false;
+                portConfig.inPlace(-1);
+                portConfig.constant(false);
                 auto desc = getSrcMemDesc(itpd, i);
                 if (supportsUndefStridesAndOffset()) {
-                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                 } else {
-                    portConfig.desc = std::move(desc);
+                    portConfig.setMemDesc(desc);
                 }
                 config.inConfs.push_back(portConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = canBeInPlace() ? 0 : -1;
-                portConfig.constant = false;
+                portConfig.inPlace(canBeInPlace() ? 0 : -1);
+                portConfig.constant(false);
                 auto desc = getDstMemDesc(itpd, i);
                 if (supportsUndefStridesAndOffset()) {
-                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
                 } else {
-                    portConfig.desc = std::move(desc);
+                    portConfig.setMemDesc(desc);
                 }
                 config.outConfs.push_back(portConfig);
             }

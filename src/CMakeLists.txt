@@ -24,7 +24,7 @@ endif()
 
 add_subdirectory(plugins)
 add_subdirectory(inference)
-include(cmake/ov_runtime.cmake)
+include(cmake/openvino.cmake)
 # preprocessing has dependency on ov_runtime for static build
 add_subdirectory(common/preprocessing)
 

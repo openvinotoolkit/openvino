@@ -205,8 +205,8 @@ INSTANTIATE_TEST_SUITE_P(testing_deep_depth_conv, test_fused_reorder_deep_depth,
                                             }));
 
 // To test removal of reorder for first convolution optimizing in cldnn kernel (shallow input depth to deep output depth)
-class test_can_fuse_reorder_first_conv : public ReorderTest<reorder_test_param> {};
-TEST_P(test_can_fuse_reorder_first_conv, reorder_for_firstconv_cldnn)
+class test_can_fuse_reorder_cldnn : public ReorderTest<reorder_test_param> {};
+TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
 {
     build_options build_opt;
     topology topology;
@@ -243,8 +243,17 @@ TEST_P(test_can_fuse_reorder_first_conv, reorder_for_firstconv_cldnn)
     }
 }
 
+INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_first_conv, test_can_fuse_reorder_cldnn,
+                        ::testing::ValuesIn(std::vector<reorder_test_param>{
+                                            reorder_test_param{format::bfyx, format::b_fs_yx_fsv32, data_types::u8, data_types::u8, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
+                                                tensor{1}, tensor{0}, data_types::u8, format::goiyx, true},
+                                            reorder_test_param{format::bfyx, format::b_fs_yx_fsv16, data_types::f16, data_types::f16, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
+                                                tensor{1}, tensor{0}, data_types::f16, format::goiyx, true},
+                                            }));
+
 // To test removal of reorder for first convolution optimizing in onednn kernel (shallow input depth to deep output depth)
-TEST_P(test_can_fuse_reorder_first_conv, reorder_for_firstconv_onednn)
+class test_can_fuse_reorder_onednn : public ReorderTest<reorder_test_param> {};
+TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
 {
     build_options build_opt;
     topology topology;
@@ -257,9 +266,10 @@ TEST_P(test_can_fuse_reorder_first_conv, reorder_for_firstconv_onednn)
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(reorder("reorder_input", "input", p.output_format, p.input_data_type));
+    topology.add(reorder("reorder_input", "input", p.input_format, p.output_data_type));
+    topology.add(reorder("reorder_conv", "reorder_input", p.output_format, p.output_data_type));
     topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }));
-    topology.add(reorder("reorder_conv", "conv", reorder_layout));
+    topology.add(reorder("reorder_result", "conv", reorder_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();
@@ -269,7 +279,7 @@ TEST_P(test_can_fuse_reorder_first_conv, reorder_for_firstconv_onednn)
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
         auto node_ptr = *itr++;
-        if (!node_ptr->is_type<reorder>() || node_ptr->id() != "reorder_input")  // target reorder
+        if (!node_ptr->is_type<reorder>() || node_ptr->id() != "reorder_conv")  // target reorder
             continue;
 
         auto& node = node_ptr->as<reorder>();
@@ -281,10 +291,10 @@ TEST_P(test_can_fuse_reorder_first_conv, reorder_for_firstconv_onednn)
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_first_conv, test_can_fuse_reorder_first_conv,
+INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_first_conv, test_can_fuse_reorder_onednn,
                         ::testing::ValuesIn(std::vector<reorder_test_param>{
-                                            reorder_test_param{format::bfyx, format::b_fs_yx_fsv32, data_types::u8, data_types::u8, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
+                                            reorder_test_param{format::bs_fs_yx_bsv8_fsv4, format::b_fs_yx_fsv32, data_types::f32, data_types::u8, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
                                                 tensor{1}, tensor{0}, data_types::u8, format::goiyx, true},
-                                            reorder_test_param{format::bfyx, format::b_fs_yx_fsv16, data_types::f16, data_types::f16, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
+                                            reorder_test_param{format::bs_fs_yx_bsv8_fsv2, format::b_fs_yx_fsv16, data_types::f32, data_types::f16, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
                                                 tensor{1}, tensor{0}, data_types::f16, format::goiyx, true},
                                             }));

@@ -47,7 +47,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     std::vector<FakeQuantizeDequantization> layerDequantizations;
     layerDequantizations.reserve(concat->get_input_size());
     for (size_t parentIndex = 0ul; parentIndex < concat->get_input_size(); parentIndex++) {
-        FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, parentIndex);
+        FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, defaultPrecisions, parentIndex);
         if (dequantization.empty()) {
             return false;
         }
@@ -237,7 +237,7 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
 
     element::Type precision;
     for (size_t i = 0ul; i < concat->get_input_size(); i++) {
-        const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, i);
+        const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, defaultPrecisions, i);
         if (dequantization.empty() || (updatePrecisions && !dequantization.isLowPrecision())) {
             return false;
         }
@@ -331,7 +331,7 @@ bool ConcatTransformation::isHandled(const TransformationContext& context, const
     return false;
 }
 
-bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
     const auto concat = as_type_ptr<const opset1::Concat>(layer);
     if (concat == nullptr) {
         return false;
@@ -342,8 +342,8 @@ bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& 
         return false;
     }
 
-    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), concat->get_axis(), outputRank);
-    return normalizedAxis == 1ul;
+    const auto normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), concat->get_axis(), outputRank);
+    return normalizedAxis == 1;
 }
 
 } // namespace low_precision

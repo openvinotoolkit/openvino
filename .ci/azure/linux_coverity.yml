@@ -113,11 +113,6 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Pack cov-int folder for submission'
 
-  - publish: $(BUILD_DIR)/openvino.tgz
-    artifact: openvino.tgz
-    continueOnError: true
-    displayName: 'Publish submission'
-
   - script: |
         curl --form token=$(COVERITY_TOKEN) \
           --form email=$(COVERITY_USER) \

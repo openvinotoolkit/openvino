@@ -55,7 +55,7 @@ struct PrePostProcessor::PrePostProcessorImpl {
 public:
     PrePostProcessorImpl() = default;
     explicit PrePostProcessorImpl(const std::shared_ptr<ov::Model>& f) : m_function(f) {
-        OPENVINO_ASSERT(f, "Function can't be nullptr for PrePostProcessor");
+        OPENVINO_ASSERT(f, "Model can't be nullptr for PrePostProcessor");
         for (size_t i = 0; i < m_function->inputs().size(); ++i) {
             auto info = InputInfo();
             info.m_impl->m_resolved_param = m_function->get_parameters()[i];
@@ -75,7 +75,7 @@ public:
                 return m_inputs[index];
             }
         }
-        OPENVINO_ASSERT(false, "Function doesn't have input with name ", tensor_name);
+        OPENVINO_ASSERT(false, "Model doesn't have input with name ", tensor_name);
     }
 
     OutputInfo& find_output(const std::string& tensor_name) {
@@ -85,7 +85,7 @@ public:
                 return m_outputs[index];
             }
         }
-        OPENVINO_ASSERT(false, "Function doesn't have output with name ", tensor_name);
+        OPENVINO_ASSERT(false, "Model doesn't have output with name ", tensor_name);
     }
 
     std::vector<InputInfo> m_inputs;
@@ -101,14 +101,14 @@ PrePostProcessor::~PrePostProcessor() = default;
 
 InputInfo& PrePostProcessor::input() {
     OPENVINO_ASSERT(m_impl->m_inputs.size() == 1,
-                    "PrePostProcessor::input() - function must have exactly one input, got ",
+                    "PrePostProcessor::input() - Model must have exactly one input, got ",
                     m_impl->m_inputs.size());
     return m_impl->m_inputs.front();
 }
 
 InputInfo& PrePostProcessor::input(size_t input_index) {
     OPENVINO_ASSERT(m_impl->m_inputs.size() > input_index,
-                    "PrePostProcessor::input(size_t) - function doesn't have input with index ",
+                    "PrePostProcessor::input(size_t) - Model doesn't have input with index ",
                     input_index,
                     ". Total number of inputs is ",
                     m_impl->m_inputs.size());
@@ -121,14 +121,14 @@ InputInfo& PrePostProcessor::input(const std::string& tensor_name) {
 
 OutputInfo& PrePostProcessor::output() {
     OPENVINO_ASSERT(m_impl->m_outputs.size() == 1,
-                    "PrePostProcessor::output() - function must have exactly one output, got ",
+                    "PrePostProcessor::output() - Model must have exactly one output, got ",
                     m_impl->m_outputs.size());
     return m_impl->m_outputs.front();
 }
 
 OutputInfo& PrePostProcessor::output(size_t output_index) {
     OPENVINO_ASSERT(m_impl->m_outputs.size() > output_index,
-                    "PrePostProcessor::output(size_t) - function doesn't have input with index ",
+                    "PrePostProcessor::output(size_t) - Model doesn't have input with index ",
                     output_index,
                     ". Total number of inputs is ",
                     m_impl->m_inputs.size());
