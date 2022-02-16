@@ -139,8 +139,10 @@ int main(int argc, char* argv[]) {
                     std::any_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& i) {
                         return ov::layout::get_layout(i).empty();
                     })) {
-                    slog::err << "Layout is not set for any input, so custom batch size is not set." << slog::endl;
-                    batchSize = 1;
+                    throw std::logic_error(
+                        "-bs option is set to " + std::to_string(FLAGS_bs) +
+                        " but model does not contain layout information for any input. Please "
+                        "specify it explicitly using -layout option. For example, input1[NCHW], input2[NC] or [NC]");
                 } else {
                     ov::set_batch(model, batchSize);
                 }
@@ -260,6 +262,7 @@ int main(int argc, char* argv[]) {
             if (std::any_of(imported_inputs.begin(), imported_inputs.end(), [](const ov::Output<const ov::Node>& i) {
                     return ov::layout::get_layout(i).empty();
                 })) {
+                slog::warn << "No batch dimension was found at any input, assuming batch to be 1." << slog::endl;
                 batchSize = 1;
             } else {
                 for (auto& info : imported_inputs) {
