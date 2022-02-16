@@ -79,9 +79,9 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     Blob::Ptr blobPtr;
     INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
     std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
-    const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (blobPtr == nullptr)
         IE_THROW() << error;
+    const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (!remoteBlobPassed && blobPtr->buffer() == nullptr)
         IE_THROW() << error;
     return blobPtr;
@@ -442,7 +442,7 @@ std::vector<ProfilingInfo> InferRequest::get_profiling_info() const {
                 info.status = ProfilingInfo::Status::OPTIMIZED_OUT;
                 break;
             case ie::InferenceEngineProfileInfo::EXECUTED:
-                info.status = ProfilingInfo::Status::OPTIMIZED_OUT;
+                info.status = ProfilingInfo::Status::EXECUTED;
                 break;
             }
             info.real_time = std::chrono::microseconds{ieInfo.realTime_uSec};

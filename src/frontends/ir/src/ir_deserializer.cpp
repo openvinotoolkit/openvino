@@ -755,7 +755,8 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
                     IE_THROW() << "Attribute: " << item.name() << " is not recognized as runtime attribute";
                 }
             } else {
-                IE_THROW() << "Attribute: " << item.name() << " is not recognized";
+                // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
+                // when loading new IR with new attribute in old IE version.
             }
         }
     };

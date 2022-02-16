@@ -557,8 +557,15 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    auto attr = initPrimitiveAttr();
+
     for (auto& desc : descs) {
-        auto itpd = desc.createPrimitiveDescriptorIterator(engine);
+        primitive_desc_iterator itpd;
+        if (attr) {
+            itpd = desc.createPrimitiveDescriptorIterator(engine, *attr);
+        } else {
+            itpd = desc.createPrimitiveDescriptorIterator(engine);
+        }
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
@@ -1068,12 +1075,28 @@ void MKLDNNNode::setDynamicBatchLim(int lim) {
 
 void MKLDNNNode::appendPostOpArgs(const mkldnn::primitive_attr& attr,
                                   std::unordered_map<int, mkldnn::memory>& primArgs,
-                                  const std::vector<MKLDNNMemoryPtr>& binaryPostOpsArgs) {
+                                  const std::vector<MKLDNNMemoryPtr>& postOpsArgs) {
+    constexpr size_t maxPrimArgsCapacity = 32;
     auto post_ops = attr.get_post_ops();
     int idx = 0;
     for (int i = 0; i < post_ops.len(); i++) {
-        if (post_ops.kind(i) == mkldnn::primitive::kind::binary) {
-            primArgs.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1, binaryPostOpsArgs[idx++]->GetPrimitive()});
+        if (one_of(post_ops.kind(i), mkldnn::primitive::kind::binary, mkldnn::primitive::kind::depthwise, mkldnn::primitive::kind::quantization)) {
+            if (idx >= postOpsArgs.size()) {
+                IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
+            }
+            // oneDNN has implicit limitation on number of supported post ops arguments
+            if (i >= maxPrimArgsCapacity) {
+                IE_THROW() << "Cannot initialize primitive arguments: post-ops data pointers count exceed max capacity";
+            }
+
+            primArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1] = postOpsArgs[idx++]->GetPrimitive();
+        } else if (post_ops.kind(i) == mkldnn::primitive::kind::convolution) {
+            if (idx + 1 >= postOpsArgs.size()) {
+                IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
+            }
+
+            primArgs[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = postOpsArgs[idx++]->GetPrimitive();
+            primArgs[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = postOpsArgs[idx++]->GetPrimitive();
         }
     }
 }
@@ -1108,12 +1131,16 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
     }
 }
 
-void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) {
-    IE_THROW() << "Fusing of " << this->getType() << " operation is not implemented";
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem) {
+    IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
+}
+
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
+    IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
 void MKLDNNNode::appendBinPostOps(mkldnn::post_ops& ops, const std::vector<size_t>& binaryShape, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) {
-    IE_THROW() << "Binary fusing of " << this->getType() << " operation is not implemented";
+    IE_THROW() << "Binary fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
 std::vector<InferenceEngine::Precision> MKLDNNNode::getInputPrecisions() const {
@@ -1518,4 +1545,8 @@ bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
             node->canBePerformedAsScaleShift(this);
     }
     return false;
+}
+
+void MKLDNNNode::addFusedNode(const MKLDNNNodePtr &fusingNode) {
+    fusedWith.push_back(fusingNode);
 }
