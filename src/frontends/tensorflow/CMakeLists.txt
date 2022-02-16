@@ -56,8 +56,6 @@ if(BUILD_SHARED_LIBS)
                 COMPONENT core
                 RENAME ${lib_file_name})
     endif()
-else()
-    ov_install_static_lib(${TARGET_NAME} core)
 endif()
 
 # install -dev part
