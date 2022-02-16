@@ -43,8 +43,8 @@ void regclass_graph_Dimension(py::module m) {
 
     dim.def(py::init([](const py::handle& range) {
                 if (py::isinstance(range, py::module::import("builtins").attr("range"))) {
-                    return ov::Dimension(ov::Dimension(range.attr("start").cast<value_type>(),
-                                                       range.attr("stop").cast<value_type>() - 1));
+                    return ov::Dimension(range.attr("start").cast<value_type>(),
+                                                       range.attr("stop").cast<value_type>() - 1);
                 } else {
                     throw py::type_error("Incompatible argument types. The following argument types are supported:\n"
                                          "(self: openvino.runtime.Dimension)\n"

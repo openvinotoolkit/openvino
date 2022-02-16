@@ -321,7 +321,6 @@ void regclass_graph_Model(py::module m) {
 
             :param partial_shapes: New shapes.
             :type partial_shapes: Union[Dict[keys, values], list, openvino.runtime.PartialShape]
-            :return: void
         )");
 
     function.def("get_output_size",
