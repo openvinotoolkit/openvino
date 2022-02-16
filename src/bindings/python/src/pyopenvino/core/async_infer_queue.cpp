@@ -183,7 +183,10 @@ void regclass_AsyncInferQueue(py::module m) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();
-            self._idle_handles.pop();
+            {
+                std::lock_guard<std::mutex> lock(self._mutex);
+                self._idle_handles.pop();
+            }
             // Set new inputs label/id from user
             self._user_ids[handle] = userdata;
             // Update inputs if there are any
