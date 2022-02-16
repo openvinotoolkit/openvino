@@ -1,4 +1,4 @@
-# Custom Operations Guide {#openvino_docs_HOWTO_Custom_Layers_Guide}
+# Custom Operations Guide {#openvino_docs_Rxtensibility_UG_Custom_Layers_Guide}
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with multiple frameworks including
 TensorFlow*, Caffe*, MXNet*, Kaldi* and ONNX* file format. The list of supported operations (layers) is different for
@@ -59,22 +59,11 @@ operation. Refer to the "Operation Extractor" section of
 
 > **NOTE**: In some cases you may need to implement some transformation to support the operation. This topic is covered in the "Graph Transformation Extensions" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 
-## Custom Operations Extensions for the Inference Engine
+## Custom Operations Extensions for the OpenVINO™
 
-Inference Engine provides an extension mechanism to support new operations. This mechanism is described in [OpenVINO™ Extensibility Mechanism](../Extensibility_UG/Intro.md).
+OpenVINO™ provides an extension mechanism to support new operations. This mechanism is described in [OpenVINO™ Extensibility Mechanism](Intro.md).
 
-Each device plugin includes a library of optimized implementations to execute known operations which must be extended to execute a custom operation. The custom operation extension is implemented according to the target device:
-
-- Custom Operation CPU Extension
-   - A compiled shared library (`.so` or `.dll`) needed by the CPU Plugin for executing the custom operation
-   on a CPU. Refer to the [How to Implement Custom CPU Operations](../Extensibility_UG/CPU_Kernel.md) for more
-   details.
-- Custom Operation GPU Extension
-   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the GPU along with an operation description file (.xml) needed by the GPU Plugin for the custom operation kernel. Refer to the [How to Implement Custom GPU Operations](../Extensibility_UG/GPU_Kernel.md) for more details.
-- Custom Operation VPU Extension
-   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the VPU along with an  operation description file (.xml) needed by the VPU Plugin for the custom operation kernel. Refer to [How to Implement Custom Operations for VPU](../Extensibility_UG/VPU_Kernel.md) for more details.
-
-Also, it is necessary to implement nGraph custom operation according to [Custom nGraph Operation](../Extensibility_UG/AddingNGraphOps.md) so the Inference Engine can read an IR with this
+Also, it is necessary to implement custom operation according to [Custom nGraph Operation](AddingNGraphOps.md) so the OpenVINO™ Runtime can read an IR with this
 operation and correctly infer output tensor shape and type.
 
 ## Enabling Magnetic Resonance Image Reconstruction Model
@@ -295,8 +284,6 @@ following content:
 The "fft_kernel.cpp" with the implementation of the CPU has the following content:
 
 @snippet template_extension/old/fft_kernel.cpp fft_kernel:implementation
-
-Refer to the [How to Implement Custom CPU Operations](../Extensibility_UG/CPU_Kernel.md) for more details.
 
 #### Extension Library Implementation
 The last step is to create an extension library "extension.cpp" and "extension.hpp" which will include the FFT

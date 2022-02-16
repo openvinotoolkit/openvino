@@ -2,7 +2,7 @@
 
 Inference Engine provides an InferenceEngine::IExtension interface, which defines the interface for Inference Engine Extension libraries.
 Inherit all extension libraries from this interface. The example below contains an implementation of two operations: `Template`
-used as an example in this document and `FFT` used as a more complex example from the [Custom Operations Guide](../../HOWTO/Custom_Layers_Guide.md).
+used as an example in this document and `FFT` used as a more complex example from the [Custom Operations Guide](Custom_Layers_Guide.md).
 
 > **NOTE**: `FFT` operation is implemented using the OpenCV library functions `cv::dft` and `cv::idft`.
 
@@ -25,5 +25,6 @@ Also, an `Extension` object should implement the following methods:
 Implement the InferenceEngine::IExtension::getOpSets method if the extension contains custom layers. 
 Read [Custom nGraph Operation](AddingNGraphOps.md) for more information.
 
-To integrate execution kernels to the extension library, read [How to Implement Custom CPU Operations](CPU_Kernel.md).
+OpenVINO™ Intel CPU Pluing supports fallback to evaluate method.
+
 To register a custom ONNX\* operator to the extension library, read [Custom ONNX Operators](Custom_ONNX_Ops.md).

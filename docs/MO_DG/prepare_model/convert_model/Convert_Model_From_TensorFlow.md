@@ -354,7 +354,7 @@ TensorFlow*-specific parameters:
  mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-* Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [Custom Layers Guide](../../../HOWTO/Custom_Layers_Guide.md).
+* Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [OpenVINO™ Extensibility Mechanism](../../../Extensibility_UG/Intro.md).
 ```sh
  mo --input_model custom_model.pb --tensorflow_custom_layer_libraries ./my_custom_op.so --output_dir <OUTPUT_MODEL_DIR>
 ```

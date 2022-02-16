@@ -2,7 +2,7 @@
 
 Inference Engine Extension API allows you to register operation sets (opsets) with custom nGraph operations to support models with operations which OpenVINO™ does not support out-of-the-box.
 
-Besides creating custom nGraph operations, to [support custom operations](../../HOWTO/Custom_Layers_Guide.md) in your model you must also create a Model Optimizer extension for the custom operations and an Inference Engine device plugin extension for the device you will use for inference.
+Besides creating custom nGraph operations, to [support custom operations](Custom_Layers_Guide.md) in your model you must also create a Model Optimizer extension for the custom operations and an Inference Engine device plugin extension for the device you will use for inference.
 
 ## Operation Class
 
@@ -75,7 +75,7 @@ nGraph provides an opset mechanism to group operations into clusters. Different 
 When specifying opset names, follow the rules below:
 * Use unique opset names.
 * Do not use the following built-in opset names: `extension`, `experimental`, `opset1`, `opset2`, `opset3`, ... , `opsetN`.
-* [Make sure that the Model Optimizer](../../HOWTO/Custom_Layers_Guide.md) and your extension use the same opset names.
+* [Make sure that the Model Optimizer](Custom_Layers_Guide.md) and your extension use the same opset names.
 * IR v10 operations have the mandatory `version` attribute specifying the opset.
 Operations from the default opset cannot be redefined.
 
