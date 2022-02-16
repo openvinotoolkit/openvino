@@ -7,6 +7,19 @@
 #include "openvino/core/axis_vector.hpp"
 #include "utils.hpp"
 
+template <typename B>
+B get_ouput_dimension_bound(B b) {
+    if (b <= 0) {
+        return b;
+    }
+    return b / 2 + 1;
+}
+
+template <class DimType>
+DimType get_rdft_output_dimension(DimType d) {
+    return DimType(get_ouput_dimension_bound(d.get_min_length()), get_ouput_dimension_bound(d.get_max_length()));
+}
+
 template <class T>
 void rdft_shape_infer(const ov::op::v9::RDFT* op,
                       const std::vector<T>& input_shapes,
@@ -96,9 +109,7 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
 
     if (input_shapes.size() == 2) {
         for (int64_t axis : axes) {
-            if (input_shape[axis].is_static()) {
-                output_shape[axis] = DimType(input_shape[axis].get_length() / 2 + 1);
-            }
+            output_shape[axis] = get_rdft_output_dimension(input_shape[axis]);
         }
         return;
     }
@@ -119,8 +130,8 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
         const int64_t current_axis = axes[i];
         if (signal_size[i] != -1) {
             output_shape[current_axis] = DimType(signal_size[i]);
-        } else if (input_shape[current_axis].is_static()) {
-            output_shape[current_axis] = DimType(input_shape[current_axis].get_length() / 2 + 1);
+        } else {
+            output_shape[current_axis] = get_rdft_output_dimension(input_shape[current_axis]);
         }
     }
 }

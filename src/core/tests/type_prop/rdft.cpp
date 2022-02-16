@@ -65,14 +65,180 @@ INSTANTIATE_TEST_SUITE_P(
         RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(1, 18)},
                                                         {2},
                                                         Shape{},
-                                                        {2, 91, Dimension(1, 18), 2},
+                                                        {2, 91, Dimension(1, 10), 2},
                                                         {1, 2},
                                                         {}},
         RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(7, 500)},
                                                         {2},
                                                         Shape{},
-                                                        {2, 91, Dimension(7, 500), 2},
+                                                        {2, 91, Dimension(4, 251), 2},
                                                         {1, 2},
-                                                        {}}
-    ),
+                                                        {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), 180},
+                                                        {2},
+                                                        Shape{},
+                                                        {2, Dimension(4, 251), 91, 2},
+                                                        {1, 2},
+                                                        {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), Dimension(7, 500)},
+                                                        {2},
+                                                        Shape{},
+                                                        {2, Dimension(4, 251), Dimension(4, 251), 2},
+                                                        {1, 2},
+                                                        {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, 180},
+                                                        {2},
+                                                        Shape{},
+                                                        {Dimension(0, 2), 91, 91, 2},
+                                                        {1, 2},
+                                                        {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, Dimension(7, 500)},
+                                                        {2},
+                                                        Shape{},
+                                                        {Dimension(0, 2), 91, Dimension(4, 251), 2},
+                                                        {1, 2},
+                                                        {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), 180},
+                                                        {2},
+                                                        Shape{},
+                                                        {Dimension(0, 2), Dimension(4, 251), 91, 2},
+                                                        {1, 2},
+                                                        {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500)},
+                                                        {2},
+                                                        Shape{},
+                                                        {Dimension(0, 2), Dimension(4, 251), Dimension(4, 251), 2},
+                                                        {1, 2},
+                                                        {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180}, {2}, {2}, {2, 91, 77, 2}, {1, 2}, {-1, 77}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180}, {2}, {2}, {87, 180, 390, 2}, {2, 0}, {390, 87}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{7, 50, 130, 400},
+                                                        {3},
+                                                        {3},
+                                                        {4, 40, 130, 600, 2},
+                                                        {3, 0, 1},
+                                                        {600, -1, 40}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(0, 200), 180},
+                                                        {2},
+                                                        {2},
+                                                        {2, Dimension(0, 101), 77, 2},
+                                                        {1, 2},
+                                                        {-1, 77}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400)},
+                                                        {2},
+                                                        {2},
+                                                        {87, 180, 390, 2},
+                                                        {2, 0},
+                                                        {390, 87}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(8, 129), 50, 130, Dimension(0, 500)},
+                                                        {3},
+                                                        {3},
+                                                        {Dimension(5, 65), 40, 130, 600, 2},
+                                                        {3, 0, 1},
+                                                        {600, -1, 40}}),
+    PrintToDummyParamName());
+
+TEST(type_prop, rdft_dynamic_axes) {
+    const auto input_shape = PartialShape{2, 180, 180};
+    const auto axes_shape = PartialShape::dynamic();
+    const auto ref_output_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2};
+
+    auto data = std::make_shared<op::Parameter>(element::f32, input_shape);
+    auto axes_input = std::make_shared<op::Parameter>(element::i64, axes_shape);
+    auto rdft = std::make_shared<op::v9::RDFT>(data, axes_input);
+
+    EXPECT_EQ(rdft->get_element_type(), element::f32);
+    ASSERT_TRUE(rdft->get_output_partial_shape(0).same_scheme(ref_output_shape));
+}
+
+struct RDFTNonConstantAxesTestParams {
+    PartialShape input_shape;
+    Shape axes_shape;
+    PartialShape ref_output_shape;
+};
+
+struct RDFTNonConstantAxesTest : ::testing::TestWithParam<RDFTNonConstantAxesTestParams> {};
+
+TEST_P(RDFTNonConstantAxesTest, rdft_non_constant_axes) {
+    auto params = GetParam();
+
+    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
+    auto axes_input = std::make_shared<op::Parameter>(element::i64, params.axes_shape);
+    auto rdft = std::make_shared<op::v9::RDFT>(data, axes_input);
+
+    EXPECT_EQ(rdft->get_element_type(), element::f32);
+    ASSERT_TRUE(rdft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    type_prop,
+    RDFTNonConstantAxesTest,
+    ::testing::Values(
+        RDFTNonConstantAxesTestParams{{2, 180, 180},
+                                      {2},
+                                      {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        RDFTNonConstantAxesTestParams{{2, 180, Dimension(7, 500)},
+                                      {2},
+                                      {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        RDFTNonConstantAxesTestParams{{2, Dimension(7, 500), 180},
+                                      {2},
+                                      {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        RDFTNonConstantAxesTestParams{{2, Dimension(7, 500), Dimension(7, 500)},
+                                      {2},
+                                      {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        RDFTNonConstantAxesTestParams{{Dimension(0, 2), 180, 180},
+                                      {2},
+                                      {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        RDFTNonConstantAxesTestParams{{Dimension(0, 2), 180, Dimension(7, 500)},
+                                      {2},
+                                      {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        RDFTNonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), 180},
+                                      {2},
+                                      {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        RDFTNonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500)},
+                                      {2},
+                                      {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}}),
+    PrintToDummyParamName());
+
+struct RDFTNonConstantSignalSizeTestParams {
+    PartialShape input_shape;
+    Shape axes_shape;
+    Shape signal_size_shape;
+    PartialShape ref_output_shape;
+    std::vector<int64_t> axes;
+};
+
+struct RDFTNonConstantSignalSizeTest : ::testing::TestWithParam<RDFTNonConstantSignalSizeTestParams> {};
+
+TEST_P(RDFTNonConstantSignalSizeTest, rdft_non_constant_signal_size) {
+    auto params = GetParam();
+
+    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
+    auto axes_input = op::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
+    auto signal_size_input = std::make_shared<op::Parameter>(element::i64, params.signal_size_shape);
+    auto rdft = std::make_shared<op::v9::RDFT>(data, axes_input, signal_size_input);
+
+    EXPECT_EQ(rdft->get_element_type(), element::f32);
+    ASSERT_TRUE(rdft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    type_prop,
+    RDFTNonConstantSignalSizeTest,
+    ::testing::Values(RDFTNonConstantSignalSizeTestParams{{2, Dimension(0, 200), 180},
+                                                          {2},
+                                                          {2},
+                                                          {2, Dimension::dynamic(), Dimension::dynamic(), 2},
+                                                          {1, 2}},
+                      RDFTNonConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400)},
+                                                          {2},
+                                                          {2},
+                                                          {Dimension::dynamic(), 180, Dimension::dynamic(), 2},
+                                                          {2, 0}},
+                      RDFTNonConstantSignalSizeTestParams{
+                          {Dimension(8, 129), 50, 130, Dimension(0, 500)},
+                          {3},
+                          {3},
+                          {Dimension::dynamic(), Dimension::dynamic(), 130, Dimension::dynamic(), 2},
+                          {3, 0, 1}}),
     PrintToDummyParamName());
