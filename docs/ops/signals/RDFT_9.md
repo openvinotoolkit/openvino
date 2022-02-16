@@ -12,7 +12,7 @@
 
 **Inputs**
 
-*   **1**: `data` - Input tensor of type *T* with data for the RDFT transformation. Type of elements is any supported floating-point type. **Required.**
+*   **1**: `data` - Input tensor of type *T* with data for the RDFT transformation. **Required.**
 *   **2**: `axes` - 1D tensor of type *T_IND* specifying dimension indices where RDFT is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, for example, `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`, `[-3, 0, -2]`. These indices should be integers from `-r` to `r - 1` inclusively, where `r = rank(data)`. A negative axis `a` is interpreted as an axis `r + a`. Other dimensions do not change. The order of elements in `axes` attribute matters, and is mapped directly to elements in the third input `signal_size`. **Required.**
 *   **3**: `signal_size` - 1D tensor of type *T_SIZE* describing signal size with respect to axes from the input `axes`. If `signal_size[i] == -1`, then RDFT is calculated for full size of the axis `axes[i]`. If `signal_size[i] > input_shape[axes[i]]`, then input data are zero-padded with respect to the axis `axes[i]` at the end. Finally, `signal_size[i] < input_shape[axes[i]]`, then input data are trimmed with respect to the axis `axes[i]`. More precisely, if `signal_size[i] < input_shape[axes[i]]`, the slice `0: signal_size[i]` of the axis `axes[i]` is considered. Optional, with default value `[input_shape[a] for a in axes]`.
 *   **NOTE**: If the input `signal_size` is specified, the size of `signal_size` must be the same as the size of `axes`.
@@ -23,7 +23,7 @@
 
 **Types**
 
-* *T*: floating-point type.
+* *T*: any supported floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 
