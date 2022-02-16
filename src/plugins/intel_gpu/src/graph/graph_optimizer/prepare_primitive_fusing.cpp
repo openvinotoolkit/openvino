@@ -615,6 +615,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto reduce_supports_fusings = [](reduce_node& node) -> bool {
             auto keep_dims = node.as<reduce>().get_primitive()->keep_dims;
 
+            // all reduce ops force to onednn, onednn reduction without post-ops has better performance than with post-ops
+            return false;
+
             if (keep_dims)
                 return true;
 

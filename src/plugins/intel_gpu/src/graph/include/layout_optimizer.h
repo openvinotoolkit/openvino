@@ -175,6 +175,7 @@ private:
                                          std::shared_ptr<const deconvolution> conv);
     bool users_for_convolution_byxf_opt(program_node const& node, uint32_t depth);
     bool deps_for_convolution_byxf_opt(program_node const& node, uint32_t depth);
+    bool deps_for_fully_connected_opt(program_node const& node, uint32_t depth);
 
 public:
     explicit layout_optimizer(bool output_size_handling_enabled = true);
