@@ -16,6 +16,7 @@
 #include "gemm_inst.h"
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
+#include "reduce_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
 #include "gemm_inst.h"
@@ -876,6 +877,26 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
     return true;
 }
 
+bool layout_optimizer::deps_for_fully_connected_opt(program_node const& node, uint32_t depth) {
+    // This function checks if requested format is reduce for node's users in the required depth.
+    // Setting depth to 1 will check only node's dependencies, depth = 2 are dep's dependencies etc.
+    if (depth == 0)
+        return true;
+
+    for (auto& dep : node.get_dependencies()) {
+        // skip data and generic_layers
+        if (dep->is_type<data>() || dep->is_type<generic_layer>())
+            continue;
+
+        if (dep->is_type<reduce>() || (dep->id().find("reduce") != std::string::npos) )
+            return false;
+
+        if (!deps_for_fully_connected_opt(*dep, depth - 1))
+            return false;
+    }
+    return true;
+}
+
 format layout_optimizer::imad_case(convolution_node const& node) const {
     auto dims_count = format::dimension(node.input().get_output_layout().format);
 
@@ -1316,6 +1337,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             preferred_impl = impl_types::ocl;
         if (output_fmt == format::bfyx && output_dt == data_types::f32)
             preferred_impl = impl_types::ocl;
+    } else if (node.is_type<reduce>()) {
+        // reduce force to onednn, onednn has better performance
+        preferred_impl = impl_types::onednn;
     } else if (node.is_type<pooling>() || node.is_type<convolution>() || node.is_type<deconvolution>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
@@ -1479,6 +1503,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 impl_candidate = impl_types::ocl;
         }
 
+        if (!deps_for_fully_connected_opt(node, 3)) {
+            impl_candidate = impl_types::ocl;
+        }
         preferred_impl = impl_candidate;
     }
 
