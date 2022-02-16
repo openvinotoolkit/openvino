@@ -200,7 +200,7 @@ class IEEngine(Engine):
         :param annotations: list of annotations [(img_id, annotation)]
         """
         dataset_index = annotations[0][0] if annotations is not None and annotations[0][0] else 0
-        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index)
+        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index, self.inference_for_shape)
 
     def _update_metrics(self, output, annotations, need_metrics_per_sample=False):
         """ Updates metrics.
