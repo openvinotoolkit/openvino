@@ -15,7 +15,7 @@ For system requirements and more detailed steps, see <https://pypi.org/project/o
 
 ## Installing OpenVINO Development Tools
 
-OpenVINO Development Tools include Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool and Open Model Zoo tools including Model Downloader. While installing OpenVINO Model Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
+OpenVINO Development Tools include Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool and Open Model Zoo tools including Model Downloader. While installing OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
 
 Use the following command to install OpenVINO Development Tools:
 ```
