@@ -101,7 +101,8 @@ protected:
     std::shared_ptr<Program> m_program;
     uint16_t m_stream_id;
 
-    std::shared_ptr<cldnn::network> BuildNetwork(std::shared_ptr<cldnn::program> program);
+    std::shared_ptr<cldnn::network> BuildNetwork(std::shared_ptr<cldnn::program> program,
+                                                 const cldnn::network::variables_map& variables);
     void Build();
     void UpdateLayersMaps();
     std::shared_ptr<ngraph::Function> GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,

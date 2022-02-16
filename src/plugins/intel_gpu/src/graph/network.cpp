@@ -239,13 +239,18 @@ static void wait_for_the_turn() {
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
 */
-network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
+network::network(program::ptr program,
+                 stream::ptr stream,
+                 bool is_internal,
+                 bool is_primary_stream,
+                 const variables_map& variables)
     : _program(program)
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
-    , _reset_arguments(true) {
+    , _reset_arguments(true)
+    , _variables{variables} {
     static std::atomic<uint32_t> id_gen{0};
     if (!_internal) {
         net_id = ++id_gen;
@@ -268,20 +273,22 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
 network::network(engine& engine,
                  const topology& topo,
                  const build_options& options,
-                 bool is_internal)
-    : network(program::build_program(engine, topo, options, is_internal), engine.create_stream(), is_internal) {}
+                 bool is_internal,
+                 const variables_map& variables)
+    : network(program::build_program(engine, topo, options, is_internal), engine.create_stream(), is_internal, variables) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
                  const build_options& options,
-                 bool is_internal)
-    : network(program::build_program(engine, nodes, options, is_internal), engine.create_stream(), is_internal) {}
+                 bool is_internal,
+                 const variables_map& variables)
+    : network(program::build_program(engine, nodes, options, is_internal), engine.create_stream(), is_internal, false, variables) {}
 
-network::network(program::ptr program, uint16_t stream_id)
-    : network(program, program->get_engine().create_stream(), false, stream_id == 0) {}
+network::network(program::ptr program, uint16_t stream_id, const variables_map& variables)
+    : network(program, program->get_engine().create_stream(), false, stream_id == 0, variables) {}
 
-network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
-    : network(program, stream, false, stream_id == 0) {}
+network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, const variables_map& variables)
+    : network(program, stream, false, stream_id == 0, variables) {}
 
 network::~network() {
     _memory_pool->clear_pool_for_network(net_id);
@@ -930,5 +937,13 @@ memory::ptr network::get_memory_from_pool(const layout& layout,
     if (get_engine().configuration().use_memory_pool)
         return _memory_pool->get_memory(layout, id, get_id(), dependencies, type, reusable);
     return _memory_pool->get_memory(layout, type);
+}
+
+network::variable& network::get_variable(const std::string& variable_id) {
+    auto var_it = _variables.find(variable_id);
+    if (var_it == _variables.end()) {
+        CLDNN_ERROR_MESSAGE(variable_id, "Variable not found");
+    }
+    return var_it->second;
 }
 }  // namespace cldnn

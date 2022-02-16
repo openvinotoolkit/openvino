@@ -15,7 +15,10 @@ primitive_type_id assign::type_id() {
     return &instance;
 }
 
-assign_inst::typed_primitive_inst(network& network, const assign_node& node) : parent(network, node) {}
+assign_inst::typed_primitive_inst(network& network, const assign_node& node) : parent(network, node, false) {
+    const auto variable_id = node.get_primitive()->variable_id;
+    _output = network.get_variable(variable_id).memory;
+}
 
 layout assign_inst::calc_output_layout(const assign_node& node) {
     return node.get_primitive()->output_layout;

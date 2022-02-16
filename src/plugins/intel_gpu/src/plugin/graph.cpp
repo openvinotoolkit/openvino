@@ -80,13 +80,11 @@ void Graph::Build() {
     if (GetMaxDynamicBatchSize() > 1) {
         int m_bv_sz = m_program->GetMaxBatchSizeForSingleProgram();
         for (int b = m_bv_sz - 1; b >= 0; b--) {
-            auto network = BuildNetwork(m_program->GetCompiledProgram(b));
-            network->set_variables(m_program->GetVariables());
+            auto network = BuildNetwork(m_program->GetCompiledProgram(b), m_program->GetVariables());
             m_networks.insert(m_networks.begin(), network);
         }
     } else {
-        auto network = BuildNetwork(m_program->GetCompiledProgram());
-        network->set_variables(m_program->GetVariables());
+        auto network = BuildNetwork(m_program->GetCompiledProgram(), m_program->GetVariables());
         m_networks.emplace_back(network);
     }
 
@@ -103,7 +101,8 @@ bool Graph::use_external_queue() const {
     return impl->GetExternalQueue() != nullptr;
 }
 
-std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
+std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::program> program,
+                                                    const cldnn::network::variables_map& variables) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::BuildNetwork");
     std::shared_ptr<cldnn::network> network = nullptr;
 
@@ -113,9 +112,9 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
         if (m_config.throughput_streams != 1)
             IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";
         auto &engine = m_program->GetEngine();
-        network = std::make_shared<cldnn::network>(program, engine.create_stream(externalQueue), m_stream_id);
+        network = std::make_shared<cldnn::network>(program, engine.create_stream(externalQueue), m_stream_id, variables);
     } else {
-        network = std::make_shared<cldnn::network>(program, m_stream_id);
+        network = std::make_shared<cldnn::network>(program, m_stream_id, variables);
     }
 
 

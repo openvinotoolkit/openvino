@@ -20,21 +20,13 @@ struct assign_impl : public typed_primitive_impl_ocl<assign> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, assign_inst& instance) override {
         const auto arg = instance.argument;
         const auto variable_id = arg.variable_id;
-
-        auto& variables = instance.get_network().get_variables();
-
-        auto var_it = variables.find(variable_id);
-        if (var_it == variables.end()) {
-            CLDNN_ERROR_MESSAGE(instance.id(), "Variable " + variable_id + " not found");
-        }
-
-        auto& variable = var_it->second;
+        auto& variable = instance.get_network().get_variable(variable_id);
 
         if (variable.memory->get_layout() != arg.output_layout) {
             CLDNN_ERROR_MESSAGE(instance.id(), "Layout mismatch");
         }
 
-        std::vector<event::ptr> tmp_events(events);
+        std::vector<event::ptr> tmp_events{events};
         auto& stream = instance.get_network().get_stream();
 
         stream.enqueue_barrier(); // input must be ready before proceed
@@ -42,9 +34,6 @@ struct assign_impl : public typed_primitive_impl_ocl<assign> {
         const auto ev_set_memory = variable.memory->copy_from(stream, instance.input_memory());
         tmp_events.push_back(ev_set_memory);
         variable.is_set = true;
-
-        const auto ev_set_output = instance.output_memory().copy_from(stream, *variable.memory);
-        tmp_events.push_back(ev_set_output);
 
         return parent::execute_impl(tmp_events, instance);
     }

@@ -52,19 +52,33 @@ class primitive_inst;
 struct network {
 public:
     using ptr = std::shared_ptr<network>;
-    explicit network(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
+
+    struct variable {
+        memory_ptr memory;
+        bool is_set;
+        variable(memory_ptr mem = nullptr) : memory{mem}, is_set{false} {}
+    };
+    using variables_map = std::map<std::string, variable>;
+
+    explicit network(program::ptr program,
+                     stream::ptr stream,
+                     bool is_internal = false,
+                     bool is_primary_stream = true,
+                     const variables_map& variables = {});
     network(engine& engine,
             const topology& topo,
             const build_options& options = build_options(),
-            bool is_internal = false);
+            bool is_internal = false,
+            const variables_map& variables = {});
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
             const build_options& options,
-            bool is_internal);
+            bool is_internal,
+            const variables_map& variables = {});
 
-    network(program::ptr program, uint16_t stream_id = 0);
+    network(program::ptr program, uint16_t stream_id = 0, const variables_map& variables = {});
 
-    network(program::ptr program, stream::ptr stream, uint16_t stream_id);
+    network(program::ptr program, stream::ptr stream, uint16_t stream_id, const variables_map& variables = {});
 
     ~network();
 
@@ -187,26 +201,8 @@ public:
         return *_memory_pool;
     }
 
-    struct variable {
-        memory_ptr memory;
-        bool is_set;
-        variable(memory_ptr mem = nullptr) : memory{mem}, is_set{false} {}
-    };
-
-    /// Returns variables of stateful network
-    std::map<std::string, variable>& get_variables() {
-        return _variables;
-    }
-
-    /// Sets variables of stateful network
-    void set_variables(const std::map<std::string, variable>& variables) {
-        _variables = variables;
-    }
-
-    /// Associates @p memory with variable @p id
-    void add_variable(const std::string& id, memory_ptr memory) {
-        _variables[id] = variable{memory};
-    }
+    /// Returns variable @p variable_id of stateful network
+    variable& get_variable(const std::string& variable_id);
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
@@ -227,7 +223,7 @@ private:
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
 
-    std::map<std::string, variable> _variables;
+    variables_map _variables;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);

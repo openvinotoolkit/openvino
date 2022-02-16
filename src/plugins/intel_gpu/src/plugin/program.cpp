@@ -497,7 +497,7 @@ cldnn::memory_ptr Program::GetVariableMemory(const std::string& variable_id, con
     return memory;
 }
 
-std::map<std::string, cldnn::network::variable> Program::GetVariables() const {
+const cldnn::network::variables_map& Program::GetVariables() const {
     return m_variables;
 }
 

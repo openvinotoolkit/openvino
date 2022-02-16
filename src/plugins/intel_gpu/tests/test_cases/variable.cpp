@@ -37,9 +37,11 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
         topology.add(eltwise{"sum", {"input", "read_value"}, eltwise_mode::sum, {}, variable_layout.data_type});
         topology.add(assign{"assign", {"sum"}, "v0", variable_memory, variable_layout});
 
-        network network(engine, topology);
+        const network::variables_map variables{
+            {"v0", network::variable{variable_memory}}
+        };
+        network network(engine, topology, build_options{}, false, variables);
         network.set_input_data("input", input_data);
-        network.add_variable("v0", variable_memory);
 
         constexpr size_t number_of_inferences = 5;
         for (size_t inference = 1; inference <= number_of_inferences; ++inference) {
@@ -127,10 +129,12 @@ TEST(variable_test_common, exception_on_wrong_layout) {
     topology.add(input_layout("wrong_input", wrong_input_data->get_layout()));
     topology.add(assign{"assign", {"wrong_input"}, "v0", variable_memory, wrong_layout});
 
-    network network(engine, topology);
+    const network::variables_map variables{
+        {"v0", network::variable{variable_memory}}
+    };
+    network network(engine, topology, build_options{}, false, variables);
     network.set_input_data("input", input_data);
     network.set_input_data("wrong_input", wrong_input_data);
-    network.add_variable("v0", variable_memory);
 
     bool layout_mismatch_exception = false;
     try {
@@ -182,12 +186,15 @@ TEST(variable_test_common, variables_are_preserved_across_inferences) {
     topology.add(data("dummy2", dummy2));
     topology.add(read_value{"read_result", {"dummy2"}, "v_result", variable_result_memory, variable_layout});
 
-    network network{engine, topology, build_options{}, true};
+    const network::variables_map variables{
+        { "v1", network::variable{variable_1_memory} },
+        { "v2", network::variable{variable_2_memory} },
+        { "v_result", network::variable{variable_result_memory} }
+    };
+
+    network network{engine, topology, build_options{}, true, variables};
     network.set_input_data("input_1", input_1);
     network.set_input_data("input_2", input_2);
-    network.add_variable("v1", variable_1_memory);
-    network.add_variable("v2", variable_2_memory);
-    network.add_variable("v_result", variable_result_memory);
 
     // set variables with assign on 1st inference, read with read_values on 2nd one
     network.execute();

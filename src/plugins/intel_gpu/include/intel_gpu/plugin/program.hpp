@@ -152,7 +152,7 @@ public:
 
     cldnn::memory_ptr GetVariableMemory(const std::string& variable_id, const cldnn::layout& layout);
 
-    std::map<std::string, cldnn::network::variable> GetVariables() const;
+    const cldnn::network::variables_map& GetVariables() const;
 
 private:
     static factories_map_t factories_map;
@@ -164,7 +164,7 @@ private:
     InferenceEngine::InputsDataMap m_networkInputs;
     InferenceEngine::OutputsDataMap m_networkOutputs;
 
-    std::map<std::string, cldnn::network::variable> m_variables;
+    cldnn::network::variables_map m_variables;
 
     bool queryMode;
 

@@ -21,28 +21,21 @@ struct read_value_impl : public typed_primitive_impl_ocl<read_value> {
         const auto arg = instance.argument;
         const auto variable_id = arg.variable_id;
 
-        auto& variables = instance.get_network().get_variables();
-
-        auto var_it = variables.find(variable_id);
-        if (var_it == variables.end()) {
-            CLDNN_ERROR_MESSAGE(instance.id(), "Variable " + variable_id + " not found");
-        }
-
-        const auto& variable = var_it->second;
+        auto& variable = instance.get_network().get_variable(variable_id);
 
         if (variable.memory->get_layout() != arg.output_layout) {
             CLDNN_ERROR_MESSAGE(instance.id(), "Layout mismatch");
         }
 
-        std::vector<event::ptr> tmp_events(events);
-        auto& stream = instance.get_network().get_stream();
+        if (!variable.is_set) {
+            std::vector<event::ptr> tmp_events{events};
+            auto &stream = instance.get_network().get_stream();
+            const auto ev_set_output = instance.output_memory().fill(stream, 0);
+            tmp_events.push_back(ev_set_output);
+            return parent::execute_impl(tmp_events, instance);
+        }
 
-        const auto ev_set_output = variable.is_set ? instance.output_memory().copy_from(stream, *variable.memory)
-                                          : instance.output_memory().fill(stream, 0);
-
-        tmp_events.push_back(ev_set_output);
-
-        return parent::execute_impl(tmp_events, instance);
+        return parent::execute_impl(events, instance);
     }
 
 public:
