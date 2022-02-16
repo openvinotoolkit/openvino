@@ -215,7 +215,7 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
             logger.info("Prepare binary file " + binary_filename)
 
             binary_file_size = os.path.getsize(binary_filename)
-            blob_size = dtype().nbytes * int(np.prod(shape))
+            blob_size = dtype.itemsize * int(np.prod(shape))
             if blob_size != binary_file_size:
                 raise Exception(
                     f"File {binary_filename} contains {binary_file_size} bytes but network expects {blob_size}")
@@ -317,7 +317,7 @@ def parse_path(path, app_input_info):
             if input_path.exists():
                 if input_path.is_dir():
                     input_files += list(str(file_path) for file_path in input_path.iterdir())
-                elif input_path.is_file:
+                elif input_path.is_file():
                     input_files.append(str(input_path))
             else:
                 raise Exception(f"Path '{str(input_path)}' doesn't exist \n {str(input_path)}")

@@ -34,8 +34,8 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
 }
 
 bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
-    if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
+    const auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
+    if (!layer || !QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
     }
 
