@@ -314,7 +314,7 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
         }
 
         // Max pooling
-        if ((graph_data.max_pool && graph_data.pool_size_width > 1) || graph_data.pool_stride_width > 1) {
+        if (graph_data.max_pool && (graph_data.pool_size_width > 1 || graph_data.pool_stride_width > 1)) {
             last_conv_block_op = std::make_shared<ngraph::opset7::MaxPool>(last_conv_block_op,
                 ngraph::Strides{1, graph_data.pool_stride_width}, ngraph::Shape{0, 0}, ngraph::Shape{0, 0},
                 ngraph::Shape{1, graph_data.pool_size_width}, graph_data.max_pool->get_rounding_type(), ngraph::op::PadType::VALID);

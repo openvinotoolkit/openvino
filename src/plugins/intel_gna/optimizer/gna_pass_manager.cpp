@@ -1954,11 +1954,11 @@ void FuseFQIntoWeightsPass::run() {
             auto& relatedInputs = getInputTo(prevLayer->outData[0]);
             auto relatedInputsIter = relatedInputs.begin();
             while (relatedInputsIter != relatedInputs.end()) {
-                auto prevIter = relatedInputsIter;
-                if (LayerInfo(prevIter->second).isFakeQuantize()) {
-                    relatedInputs.erase(prevIter);
+                if (LayerInfo(relatedInputsIter->second).isFakeQuantize()) {
+                    relatedInputsIter = relatedInputs.erase(relatedInputsIter);
+                } else {
+                    ++relatedInputsIter;
                 }
-                ++relatedInputsIter;
             }
 
             weightableLayer->insData.resize(1);
