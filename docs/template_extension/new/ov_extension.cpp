@@ -7,5 +7,7 @@
 
 #include "identity.hpp"
 
+//! [ov_extension:entry_point]
 OPENVINO_CREATE_EXTENSIONS(
     std::vector<ov::Extension::Ptr>({std::make_shared<ov::OpExtension<TemplateExtension::Identity>>()}));
+//! [ov_extension:entry_point]

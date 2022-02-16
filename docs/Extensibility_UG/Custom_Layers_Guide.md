@@ -31,7 +31,7 @@ There are three steps to support inference of a model with custom operation(s):
 1. Add support for a custom operation in the [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) so
 the Model Optimizer can generate the IR with the operation.
 2. Create an operation set and implement a custom nGraph operation in it as described in the
-[Custom nGraph Operation](../Extensibility_UG/AddingNGraphOps.md).
+[Custom nGraph Operation](../Extensibility_UG/add_openvino_ops).
 3. Implement a customer operation in one of the [Inference Engine](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
 plugins to support inference of this operation using a particular target hardware (CPU, GPU or VPU).
 
@@ -63,7 +63,7 @@ operation. Refer to the "Operation Extractor" section of
 
 OpenVINO™ provides an extension mechanism to support new operations. This mechanism is described in [OpenVINO™ Extensibility Mechanism](Intro.md).
 
-Also, it is necessary to implement custom operation according to [Custom nGraph Operation](AddingNGraphOps.md) so the OpenVINO™ Runtime can read an IR with this
+Also, it is necessary to implement custom operation according to [Custom nGraph Operation](add_openvino_ops) so the OpenVINO™ Runtime can read an IR with this
 operation and correctly infer output tensor shape and type.
 
 ## Enabling Magnetic Resonance Image Reconstruction Model
@@ -273,7 +273,7 @@ in the `fft_op.cpp` file with the following content:
 
 @snippet template_extension/old/fft_op.cpp fft_op:implementation
 
-Refer to the [Custom nGraph Operation](../Extensibility_UG/AddingNGraphOps.md) for more details.
+Refer to the [Custom nGraph Operation](../Extensibility_UG/add_openvino_ops) for more details.
 
 #### CPU FFT Kernel Implementation
 The operation implementation for CPU plugin uses OpenCV to perform the FFT. The header file "fft_kernel.hpp" has the

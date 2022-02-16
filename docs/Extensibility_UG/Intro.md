@@ -6,11 +6,10 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_Rxtensibility_UG_Custom_Layers_Guide
-   openvino_docs_IE_DG_Extensibility_UG_AddingNGraphOps
-   openvino_docs_IE_DG_Extensibility_UG_Custom_ONNX_Ops
-   openvino_docs_IE_DG_Extensibility_UG_Extension
-   openvino_docs_IE_DG_Extensibility_UG_Building
+   openvino_docs_Extensibility_UG_Custom_Layers_Guide
+   openvino_docs_Extensibility_UG_add_openvino_ops
+   openvino_docs_Extensibility_UG_Extension
+   openvino_docs_Extensibility_UG_Building
 
 @endsphinxdirective
 
@@ -24,7 +23,7 @@ An OpenVINO™ Extension dynamic library contains the following components:
 
  * [Extension Library](Extension.md):
     - Contains custom operation
- * [Custom nGraph Operation](AddingNGraphOps.md):
+ * [Custom nGraph Operation](add_openvino_ops):
     - Enables the use of `ov::Core::read_model` to read Intermediate Representation (IR) with unsupported operations
     - Enables the creation of `ov::Model` with unsupported operations
     - Provides a shape inference mechanism for custom operations

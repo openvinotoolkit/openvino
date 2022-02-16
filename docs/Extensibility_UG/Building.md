@@ -1,4 +1,4 @@
-# Build Extension Library Using CMake* {#openvino_docs_IE_DG_Extensibility_UG_Building}
+# Build Extension Library Using CMake* {#openvino_docs_Extensibility_UG_Building}
 
 OpenVINO™ Runtime build infrastructure provides the OpenVINO™ Package for application development.
 
