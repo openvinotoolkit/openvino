@@ -310,7 +310,7 @@ void regclass_graph_Model(py::module m) {
                     new_shape.first = item.first.cast<ov::Output<ov::Node>>();
                 } else {
                     throw py::type_error("Incorrect key " + std::string(item.first.get_type().str()) +
-                                             " type to reshape a model.");
+                                         " type to reshape a model.");
                 }
                 // check values
                 if (py::isinstance<ov::PartialShape>(item.second)) {
