@@ -286,4 +286,56 @@ namespace {
                      ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                      ::testing::ValuesIn(auto_batch_configs)),
              CorrectConfigTests::getTestCaseName);
+
+    // Test cases for the key ALLOW_AUTO_BATCHING using SetConfig API
+    const std::vector<std::map<std::string, std::string>> allowAutoBatchingConf = {
+            {{InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}},
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
+                                     ::testing::ValuesIn(allowAutoBatchingConf)),
+                             CorrectConfigCheck::getTestCaseName);
+
+    const std::vector<std::map<std::string, std::string>> allowAutoBatchingAutoConf = {
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                     ::testing::ValuesIn(allowAutoBatchingAutoConf)),
+                             CorrectConfigCheck::getTestCaseName);
+
+    const std::vector<std::map<std::string, std::string>> allowAutoBatchingAutoBatchConf = {
+            {{InferenceEngine::PluginConfigParams::KEY_AUTO_BATCH_DEVICE_CONFIG, CommonTestUtils::DEVICE_GPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::PluginConfigParams::KEY_AUTO_BATCH_DEVICE_CONFIG, CommonTestUtils::DEVICE_GPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                     ::testing::ValuesIn(allowAutoBatchingAutoBatchConf)),
+                             CorrectConfigCheck::getTestCaseName);
+
+    // Test cases for the key ALLOW_AUTO_BATCHING using LoadNetwork API
+    INSTANTIATE_TEST_SUITE_P(smoke_SetAllowAutoBatchingConfigLoadNetworkTest, SetAllowAutoBatchingCorrectConfigLoadNetworkTestCheck,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                     ::testing::ValuesIn(allowAutoBatchingConf)),
+                             CorrectConfigCheck::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_SetAllowAutoBatchingConfigLoadNetworkTest, SetAllowAutoBatchingCorrectConfigLoadNetworkTestCheck,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                     ::testing::ValuesIn(allowAutoBatchingAutoConf)),
+                             CorrectConfigCheck::getTestCaseName);
+
 } // namespace

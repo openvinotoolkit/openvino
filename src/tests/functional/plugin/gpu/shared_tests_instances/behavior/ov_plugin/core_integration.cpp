@@ -28,6 +28,29 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassNetworkTestP, OVClassNetworkTestP, ::testing::Values("GPU"));
 
 //
+// IE Class set_property
+//
+const std::vector<ov::AnyMap> allowAutoBatchingConfigs = {
+        {ov::hint::allow_auto_batching(true)},
+        {ov::hint::allow_auto_batching(false)}
+};
+
+const std::vector<ov::AnyMap> allowAutoBatchingAutoConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::allow_auto_batching(true)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::allow_auto_batching(false)}
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetAllowAutoBatchingConfigTest, OVClassSetAllowAutoBatchingConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
+                           ::testing::ValuesIn(allowAutoBatchingConfigs)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_AUTO_OVClassSetAllowAutoBatchingConfigTest, OVClassSetAllowAutoBatchingConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                           ::testing::ValuesIn(allowAutoBatchingAutoConfigs)));
+
+//
 // IE Class GetMetric
 //
 
@@ -676,6 +699,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, :
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
         OVClassLoadNetworkAfterCoreRecreateTest,
         ::testing::Values("GPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetAllowAutoBatchingConfigCompileModeTest, OVClassSetAllowAutoBatchingConfigCompileModeTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                           ::testing::ValuesIn(allowAutoBatchingConfigs)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Auto_OVClassSetAllowAutoBatchingConfigCompileModeTest, OVClassSetAllowAutoBatchingConfigCompileModeTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                           ::testing::ValuesIn(allowAutoBatchingAutoConfigs)));
 
 // GetConfig / SetConfig for specific device
 
