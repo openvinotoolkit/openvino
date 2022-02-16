@@ -46,7 +46,7 @@ details::Category OvThroughputStreamsOption::category() {
 
 std::string OvThroughputStreamsOption::defaultValue() {
     std::stringstream ss;
-    ss << ov::NumStreams::AUTO;
+    ss << ov::NumStreams(ov::NumStreams::AUTO);
     return ss.str();
 }
 

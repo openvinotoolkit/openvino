@@ -75,6 +75,9 @@ bool MatMulKey::operator==(const MatMulKey &rhs) const {
     return retVal;
 }
 
+bool canBeExecutedInInt8(const Precision& firstInput, const Precision& secondInput) {
+    return one_of(firstInput, Precision::U8, Precision::I8) && secondInput == Precision::I8;
+}
 } // namespace
 
 bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -139,6 +142,14 @@ bool MKLDNNMatMulNode::canFuse(const MKLDNNNodePtr& node) const {
         }
     }
 
+    // Todo:
+    //  Consider the case when Matmul doesn't support execution in int8, but is getting fused with FQ with int8 output.
+    //  Then the Matmul will change its output precision to fp32, but the FQ child will still has the int8 input precision.
+    //  This information should be propagated! Note that we may need to propagate updated precision to child fused nodes.
+    if (node->getType() == FakeQuantize &&
+        one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
+        !canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)))
+        return false;
     return canFuseSimpleOperation(node);
 }
 
@@ -156,13 +167,13 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims
     for (const auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-                eltwiseNode->appendPostOps(ops, dims);
+                eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
-                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             }
             continue;
         } else if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             continue;
         }
 
@@ -232,10 +243,6 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
         IE_THROW()  << errorPrefix << " has incorrect number of output edges for layer " << getName();
 
     withBiases = getOriginalInputsNumber() == 3;
-
-    auto canBeExecutedInInt8 = [](const Precision firstInput, const Precision secondInput) {
-        return one_of(firstInput, Precision::U8, Precision::I8) && secondInput == Precision::I8;
-    };
 
     auto firstInPortPrec = getOriginalInputPrecisionAtPort(0);
     auto secondInPortPrec = getOriginalInputPrecisionAtPort(1);
@@ -560,7 +567,7 @@ void MKLDNNMatMulNode::prepareParams() {
     if (withBiases)
         primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
 
-    appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
+    appendPostOpArgs(*attr, primArgs, postOpsArgs);
 }
 
 void MKLDNNMatMulNode::executeDynamicImpl(dnnl::stream strm) {

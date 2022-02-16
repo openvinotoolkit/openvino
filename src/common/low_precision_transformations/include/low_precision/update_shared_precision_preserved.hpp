@@ -37,7 +37,7 @@ class UpdateSharedPrecisionPreserved;
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>
 class ngraph::pass::low_precision::UpdateSharedPrecisionPreserved : public ngraph::pass::MatcherPass {
 public:
-    UpdateSharedPrecisionPreserved() {
+    UpdateSharedPrecisionPreserved(const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support) {
         ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
 
@@ -74,7 +74,7 @@ public:
                             return false;
                         }
                     }
-                    auto parentAttribute = getSourceAttribute(input);
+                    auto parentAttribute = getSourceAttribute(input, defaultPrecisions);
                     if (parentAttribute.empty()) {
                         continue;
                     }
@@ -90,8 +90,8 @@ public:
     }
 
 private:
-    Input<Node> getDequantizationInput(const Input<Node>& input) {
-        const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), input.get_index());
+    Input<Node> getDequantizationInput(const Input<Node>& input, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+        const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), defaultPrecisions, input.get_index());
         if (!dequantization.empty() &&
             (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
             ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
@@ -101,8 +101,8 @@ private:
         return input;
     }
 
-    ov::Any getSourceAttribute(const Input<Node>& input) {
-        const auto dequantizationInput = getDequantizationInput(input);
+    ov::Any getSourceAttribute(const Input<Node>& input, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+        const auto dequantizationInput = getDequantizationInput(input, defaultPrecisions);
         const auto output = dequantizationInput.get_source_output();
         auto attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node()->shared_from_this());
         if (attribute.empty()) {

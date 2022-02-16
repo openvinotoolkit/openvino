@@ -65,8 +65,12 @@ public:
 
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
+    void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
+    void addFusedNode(const MKLDNNNodePtr &fusingNode) override;
 
 private:
+    class FusedSubgraph;
+    using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
 
@@ -79,39 +83,29 @@ private:
                                 const mkldnn::engine& engine);
     };
 
-    std::shared_ptr<MKLDNNDescriptor> createMkldnnConvDesc(const mkldnn::memory::desc& srcDesc,
-                                                           const mkldnn::memory::desc& wghDesc,
-                                                           const mkldnn::memory::desc& dstDesc,
-                                                           const mkldnn::memory::desc& biasDesc);
-
     void prepareParams() override;
     void execute(mkldnn::stream strm) override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
-    void addZeroPoints(mkldnn::primitive_attr& attr) const;
+    void addZeroPoints(mkldnn::primitive_attr& attr);
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
-    std::shared_ptr<mkldnn::convolution_forward::desc>
-    createDescriptorInternal(const mkldnn::memory::desc& inputDesc,
-                             const mkldnn::memory::desc& weightDesc,
-                             const mkldnn::memory::desc& outputDesc,
-                             mkldnn::algorithm alg);
-    std::shared_ptr<mkldnn::convolution_forward::desc>
-    createDescriptorInternal(const mkldnn::memory::desc& inputDesc,
-                             const mkldnn::memory::desc& weightDesc,
-                             const mkldnn::memory::desc& biasDesc,
-                             const mkldnn::memory::desc& outputDesc,
-                             mkldnn::algorithm alg);
+
     void updatePadding();
+    MemoryDescPtr getSumMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it);
+    MKLDNNMemoryPtr getOutputMemory() const;
+
+    void appendZeroPointsArgs();
 
     bool withBiases;
     bool withSum;
     bool withDWConv;
     bool isGrouped;
     bool isPrimitivesPriorityDefined = false;
+    bool withSumBroadcast = false;
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
@@ -139,6 +133,12 @@ private:
     bool isWino = false;
     AttrPtr pAttr;
     bool autoPadding = false;
+    FusedSubgraphPtr subgraph;
+    std::unordered_map<MKLDNNNodePtr, std::vector<MKLDNNNodePtr>> fusedConstNodes;
+
+    MKLDNNMemoryPtr inputZeroPointsMemPtr;
+    MKLDNNMemoryPtr weightsZeroPointsMemPtr;
+    MKLDNNMemoryPtr outputCompensationMemPtr;
 };
 
 }  // namespace MKLDNNPlugin

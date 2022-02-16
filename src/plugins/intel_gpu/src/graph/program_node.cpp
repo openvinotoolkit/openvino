@@ -25,7 +25,7 @@
 using namespace cldnn;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), org_id(prim->id) {
+    : desc(prim), myprog(prog), org_id(prim ? (prim->id) : 0) {
     if (prim)
         output_layout.data_padding = prim->output_padding;
 }
@@ -121,6 +121,20 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
     node_info->add("fused primitives", fused_nodes_info);
+
+    json_composite fused_activations;
+    auto fused_activations_funcs = get_fused_activations_funcs();
+    if (!fused_activations_funcs.empty()) {
+        for (size_t i = 0; i < fused_activations_funcs.size(); i++) {
+            json_composite fused_activation_info;
+            auto activation_type = activation_type_to_str(fused_activations_funcs[i]);
+            auto params = get_fused_activations_params()[i];
+            fused_activation_info.add("params", "a=" + std::to_string(params.a) + ", b=" + std::to_string(params.b));
+            fused_activation_info.add("activation", activation_type);
+            fused_activations.add("fused activation idx " + std::to_string(i), fused_activation_info);
+        }
+        node_info->add("fused activations (legacy)", fused_activations);
+    }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& onednn_post_ops = get_fused_primitives_onednn();
@@ -475,9 +489,9 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto prev_type = cur_post_ops[prev_post_op_idx].op_type;
 
         // Ignore optimized operations for "previous" operation in our operation pair
-        while (type_is_any_optimized(prev_type) && cur_post_op_idx < post_ops_size - 1) {
+        while (type_is_any_optimized(prev_type) && prev_post_op_idx < post_ops_size - 1) {
             prev_post_op_idx++;
-            if (prev_post_op_idx == cur_post_op_idx)
+            if (prev_post_op_idx == cur_post_op_idx && cur_post_op_idx < post_ops_size - 1)
                 cur_post_op_idx++;
             prev_type = cur_post_ops[prev_post_op_idx].op_type;
             cur_type = cur_post_ops[cur_post_op_idx].op_type;
