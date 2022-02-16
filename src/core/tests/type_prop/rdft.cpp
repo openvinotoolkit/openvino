@@ -20,7 +20,7 @@
 
 using namespace ngraph;
 
-struct ConstantAxesAndConstantSignalSizeTestParams {
+struct RDFTConstantAxesAndConstantSignalSizeTestParams {
     PartialShape input_shape;
     Shape axes_shape;
     Shape signal_size_shape;
@@ -29,9 +29,9 @@ struct ConstantAxesAndConstantSignalSizeTestParams {
     std::vector<int64_t> signal_size;
 };
 
-struct ConstantAxesAndConstantSignalSizeTest : ::testing::TestWithParam<ConstantAxesAndConstantSignalSizeTestParams> {};
+struct RDFTConstantAxesAndConstantSignalSizeTest : ::testing::TestWithParam<RDFTConstantAxesAndConstantSignalSizeTestParams> {};
 
-TEST_P(ConstantAxesAndConstantSignalSizeTest, rdft_constant_axes_and_signal_size) {
+TEST_P(RDFTConstantAxesAndConstantSignalSizeTest, rdft_constant_axes_and_signal_size) {
     auto params = GetParam();
 
     auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
@@ -52,8 +52,27 @@ TEST_P(ConstantAxesAndConstantSignalSizeTest, rdft_constant_axes_and_signal_size
 
 INSTANTIATE_TEST_SUITE_P(
     type_prop,
-    ConstantAxesAndConstantSignalSizeTest,
+    RDFTConstantAxesAndConstantSignalSizeTest,
     ::testing::Values(
-        ConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180}, {2}, Shape{}, {2, 91, 91, 2}, {1, 2}, {}}
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180}, {2}, Shape{}, {2, 91, 91, 2}, {1, 2}, {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180}, {2}, Shape{}, {2, 180, 91, 2}, {2, 0}, {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{16, 500, 180, 369},
+                                                        {3},
+                                                        Shape{},
+                                                        {9, 251, 180, 185, 2},
+                                                        {0, 3, 1},
+                                                        {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(1, 18)},
+                                                        {2},
+                                                        Shape{},
+                                                        {2, 91, Dimension(1, 18), 2},
+                                                        {1, 2},
+                                                        {}},
+        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(7, 500)},
+                                                        {2},
+                                                        Shape{},
+                                                        {2, 91, Dimension(7, 500), 2},
+                                                        {1, 2},
+                                                        {}}
     ),
     PrintToDummyParamName());
