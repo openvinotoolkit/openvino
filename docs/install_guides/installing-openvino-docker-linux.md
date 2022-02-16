@@ -1,8 +1,8 @@
 # Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image {#openvino_docs_install_guides_installing_openvino_docker_linux}
 
-This guide provides steps on creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Linux* and using the image on different devices. 
+This guide provides steps on creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Linux and using the image on different devices. 
 
-## System Requirements
+## <a name="system-requirments"></a>System Requirements
 
 @sphinxdirective
 .. tab:: Target Operating Systems
@@ -14,10 +14,10 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 .. tab:: Host Operating Systems
 
   * Linux
-  * Windows Subsystem for Linux 2 on CPU or GPU
+  * Windows Subsystem for Linux 2 (WSL2) on CPU or GPU
   * macOS on CPU only
   
-  To launch a Linux image on Windows Subsystem for Linux 2, note the following things:
+  To launch a Linux image on WSL2 when trying to run inferences on a GPU, make sure that the following requirements are met:
 
   - Only Windows 10 with 21H2 update or above installed and Windows 11 are supported.
   - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see [this article](https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434) for more details.
@@ -33,7 +33,7 @@ There are two ways to install OpenVINO with Docker. You can choose either of the
   2. <a href="#run-image">Run the image on different devices</a>.
   3. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
 * If you want to customize your image, you can also build a Docker image manually by using the following steps:
-  1. <a href="#create-dockerfile">Create a Dockerfile</a>.
+  1. <a href="#prepare-dockerfile">Prepare a Dockerfile</a>.
   2. <a href="#configure-image">Configure the Docker image</a>.
   3. <a href="#run-image">Run the image on different devices</a>.
   4. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
@@ -44,12 +44,13 @@ You can find prebuilt images on:
 
 - [Docker Hub](https://hub.docker.com/u/openvino)
 - [Red Hat Quay.io](https://quay.io/organization/openvino)
-- [Red Hat Ecosystem Catalog](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
+- [Red Hat Ecosystem Catalog (runtime image)](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
+- [Red Hat Ecosystem Catalog (development image)](https://catalog.redhat.com/software/containers/intel/openvino-dev/613a450dc9bc35f21dc4a1f7)
 - [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino)
 
-## <a name="create-dockerfile"></a>Creating a Dockerfile
+## <a name="prepare-dockerfile"></a>Preparing a Dockerfile
 
-You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test, and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
+You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your settings via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
 You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials) which demonstrate the usage of Docker containers with OpenVINO. 
 
 ## <a name="configure-image"></a>Configuring the Image for Different Devices
@@ -139,7 +140,6 @@ Note the following things:
 
 - GPU is not available in the container by default. You must attach it to the container.
 - Kernel driver must be installed on the host.
-- Intel® OpenCL™ Runtime package must be included in the container.
 - In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md).
 
 To make GPU available in the container, attach the GPU to the container using `--device /dev/dri` option and run the container:
@@ -148,13 +148,13 @@ To make GPU available in the container, attach the GPU to the container using `-
     ```sh
     docker run -it --rm --device /dev/dri <image_name>
     ```
+    > **NOTE**: If your host system is Ubuntu 20, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md).
 
 * WSL2:
     ```sh
     docker run -it --rm --device /dev/dxg --volume /usr/lib/wsl:/usr/lib/wsl <image_name>
     ```
-
-> **NOTE**: If your host system is Ubuntu 20, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
+    > **NOTE**: To launch a Linux image on WSL2, make sure that the additional requirements in <a href="#system-requirements">System Requirements</a> are met.
 
 
 ### Running the Image on Intel® Neural Compute Stick 2
@@ -174,7 +174,7 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 #### Known Limitations
 
 - Intel® Neural Compute Stick 2 device changes its VendorID and DeviceID during execution and each time looks for a host system as a brand new device. It means it cannot be mounted as usual.
-- UDEV events are not forwarded to the container by default, and it does not know about the device reconnection. From the 2022.1 release, the prebuilt Docker images and provided Dockerfiles include `libusb` rebuilt without UDEV support.
+- UDEV events are not forwarded to the container by default, and it does not know about the device reconnection. The prebuilt Docker images and provided Dockerfiles include `libusb` rebuilt without UDEV support.
 - Only one NCS2 device connected to the host can be used when running inference in a container.
 
 

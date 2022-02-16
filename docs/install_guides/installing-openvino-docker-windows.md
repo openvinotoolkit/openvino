@@ -2,7 +2,7 @@
 
 This guide provides steps for creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Windows and using the Docker image on different devices.
 
-## System Requirements
+## <a name="system-requirments"></a>System Requirements
 
 @sphinxdirective
 .. tab:: Target Operating Systems
@@ -17,7 +17,7 @@ This guide provides steps for creating a Docker image with Intel® Distribution 
   
 .. tab:: Additional Requirements for GPU
 
-  GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO and Docker requirements:
+   To use GPU Acceleration in Windows containers, make sure that the following requirements for Windows host, OpenVINO and Docker are met:
 
   - [Windows requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/gpu-acceleration):
     - The container host must be running Windows Server 2019 or Windows 10 of version 1809 or higher.
@@ -36,22 +36,29 @@ This guide provides steps for creating a Docker image with Intel® Distribution 
 
 There are two ways to install OpenVINO with Docker. You can choose either of them according to your needs:
 * Use a prebuilt image. Do the following steps:
-  1. Get a prebuilt image from [Docker Hub](https://hub.docker.com/u/openvino).
+  1. <a href="#get-prebuilt-image">Get a prebuilt image from provided sources</a>.
   2. <a href="#run-image">Run the image on different devices</a>.
 * If you want to customize your image, you can also build a Docker image manually by using the following steps:
-  1. <a href="#create-dockerfile">Create a Dockerfile</a>.
+  1. <a href="#prepare-dockerfile">Prepare a Dockerfile</a>.
   2. <a href="#configure-image">Configure the Docker image</a>.
   3. <a href="#run-image">Run the image on different devices</a>.
 
-## <a name="create-dockerfile"></a>Creating a Dockerfile
+## <a name="get-prebuilt-image"></a>Getting a Prebuilt Image from Provided Sources
 
-You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci)which can generate a Dockerfile, build, test, and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
+You can find prebuilt images on:
+
+- [Docker Hub](https://hub.docker.com/u/openvino)
+- [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino)
+
+## <a name="prepare-dockerfile"></a>Preparing a Dockerfile
+
+You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your settings via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci)which can generate a Dockerfile, build, test and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
 
 ## <a name="configure-image"></a>Configuring the Docker Image for Different Devices
 
-### InstalL Additional Dependencies for CPU
+### Installing Additional Dependencies for CPU
 
-#### Install CMake
+#### Installing CMake
 
    To add CMake to the image, add the following commands to the Dockerfile:
    ```bat
@@ -69,9 +76,9 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
    --build-arg HTTPS_PROXY=<https://your_proxy_server:port>
    ```   
    
-#### Install Microsoft Visual Studio Build Tools
+#### Installing Microsoft Visual Studio Build Tools
 
-   You can add Microsoft Visual Studio Build Tools* to a Windows OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
+   You can add Microsoft Visual Studio Build Tools to a Windows OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
    
    Microsoft Visual Studio Build Tools are licensed as a supplement your existing Microsoft Visual Studio license.
    
@@ -94,7 +101,10 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
    In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
 
-### Configuring the Image for GPU
+### <a name="config-image-for-gpu"></a>Configuring the Image for GPU
+
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure 
+the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and do the following steps to build the image manually.
 
 1. Reuse one of [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). You can also use your own Dockerfile. 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
@@ -133,6 +143,9 @@ cmd /S /C "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter
 ```
 
 ### Running the Image on GPU
+
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure 
+the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and <a href="#get-prebuilt-image">configure and build the image manually</a> before you can run inferences on a GPU.
 
 1. To try inference on a GPU, run the image with the following command:
    ```bat
