@@ -8,7 +8,7 @@ From 2022.1 release, the OpenVINO™ Development Tools can only be installed via
 
 ## System Requirements
 
-The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
+The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html).
 
 **Operating systems**
 
