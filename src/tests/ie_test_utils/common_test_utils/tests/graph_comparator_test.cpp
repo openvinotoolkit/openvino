@@ -464,3 +464,52 @@ TEST(GraphComparatorTests, CheckSinksPositive) {
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
+
+TEST(GraphComparatorTests, CheckSinksNegative) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto arg = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 1});
+        auto init_const = ov::opset8::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0});
+        const std::string variable_name("variable0");
+        auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ov::PartialShape::dynamic(),
+                                                                                ov::element::dynamic, variable_name});
+
+        auto read = std::make_shared<ov::opset8::ReadValue>(init_const, variable);
+        auto read2 = std::make_shared<ov::opset8::ReadValue>(init_const, variable);
+        auto add = std::make_shared<ov::opset8::Add>(arg, read);
+        auto add2 = std::make_shared<ov::opset8::Add>(arg, read2);
+        auto assign = std::make_shared<ov::opset8::Assign>(add, variable);
+        auto assign2 = std::make_shared<ov::opset8::Assign>(add, variable);
+
+        auto res = std::make_shared<ov::opset8::Result>(add);
+        auto res2 = std::make_shared<ov::opset8::Result>(add2);
+
+        function_ref = std::make_shared<ov::Model>(ov::ResultVector({res, res2}), ov::SinkVector({assign, assign2}),
+                                                   ov::ParameterVector({arg}));
+    }
+
+    {
+        auto arg = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 1});
+        auto init_const = ov::opset8::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0});
+        const std::string variable_name("variable_different");
+        auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ov::PartialShape::dynamic(),
+                                                                                ov::element::dynamic, variable_name});
+
+        auto read = std::make_shared<ov::opset8::ReadValue>(init_const, variable);
+        auto read2 = std::make_shared<ov::opset8::ReadValue>(init_const, variable);
+        auto add = std::make_shared<ov::opset8::Add>(arg, read);
+        auto add2 = std::make_shared<ov::opset8::Add>(arg, read2);
+        auto assign = std::make_shared<ov::opset8::Assign>(add, variable);
+        auto assign2 = std::make_shared<ov::opset8::Assign>(add, variable);
+
+        auto res = std::make_shared<ov::opset8::Result>(add);
+        auto res2 = std::make_shared<ov::opset8::Result>(add2);
+
+        function = std::make_shared<ov::Model>(ov::ResultVector({res, res2}), ov::SinkVector({assign, assign2}),
+                                                   ov::ParameterVector({arg}));
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << res.message;
+}
