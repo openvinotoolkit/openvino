@@ -10,7 +10,8 @@ from pathlib import Path
 REPOSITORIES = [
     'openvino',
     'omz',
-    'pot'
+    'pot',
+    'ovms'
 ]
 
 
