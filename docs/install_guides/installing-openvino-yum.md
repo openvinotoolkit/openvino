@@ -73,7 +73,7 @@ For example:
 sudo yum install openvino-2022.1.0
 ```
 
-#### To check for installed packages and version
+#### To Check for Installed Packages and Version
 
 Run the following command:
 ```sh
