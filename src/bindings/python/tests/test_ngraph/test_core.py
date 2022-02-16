@@ -33,19 +33,6 @@ def test_dimension():
     assert dim.get_max_length() == 15
     assert repr(dim) == "<Dimension: 5..15>"
 
-    dim = Dimension(range(5, 25))
-    assert dim.is_dynamic
-    assert dim.get_min_length() == 5
-    assert dim.get_max_length() == 24
-
-    with pytest.raises(TypeError) as e:
-        dim = Dimension([5, 25])
-    assert "Incompatible argument types. The following argument types are supported:\n" \
-           "(self: openvino.runtime.Dimension)\n" \
-           "(self: openvino.runtime.Dimension, dimension: int)\n" \
-           "(self: openvino.runtime.Dimension, min_dimension: int, max_dimension: int)\n" \
-           "(self: openvino.runtime.Dimension, range: range)" in str(e.value)
-
 
 def test_dimension_comparisons():
     d1 = Dimension.dynamic()
@@ -154,8 +141,8 @@ def test_partial_shape():
     assert list(ps.get_max_shape())[0] > 1000000000
     assert repr(ps) == "<PartialShape: {?,?}>"
 
-    shape_list = [(1,10), [2, 5], range(2,8), 4, Dimension(2)]
-    ref_ps = PartialShape([Dimension(1,10), Dimension(2,5), Dimension(2,7), Dimension(4), Dimension(2)])
+    shape_list = [(1,10), [2, 5], 4, Dimension(2)]
+    ref_ps = PartialShape([Dimension(1,10), Dimension(2,5), Dimension(4), Dimension(2)])
     assert PartialShape(shape_list) == ref_ps
     assert PartialShape(tuple(shape_list)) == ref_ps
 
@@ -171,7 +158,7 @@ def test_partial_shape():
         PartialShape(['?'])
     assert "Incorrect type <class 'str'> for dimension. Next types are expected: " \
                             "int, ov.runtime.Dimension, list or tuple with lower " \
-                            "and upper values for dynamic dimension, range." in str(e.value)
+                            "and upper values for dynamic dimension." in str(e.value)
 
 
 def test_partial_shape_compatible():

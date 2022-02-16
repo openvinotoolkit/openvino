@@ -342,8 +342,7 @@ void regclass_graph_Model(py::module m) {
             (1) `int`
             (2) `[min, max]`
             (3) `(min, max)`
-            (4) `range(min, max)`
-            (5) `openvino.runtime.Dimension`
+            (4) `openvino.runtime.Dimension`
 
             :param partial_shapes: New shapes.
             :type partial_shapes: Dict[keys, values]

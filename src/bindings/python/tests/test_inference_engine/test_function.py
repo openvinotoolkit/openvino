@@ -400,28 +400,23 @@ def test_reshape_with_python_types(device):
     model.reshape(new_shapes)
     check_shape(PartialShape(shape6))
 
-    shape7 = [range(10), range(12, 24)]
-    new_shapes = {input: shape7 for input in model.inputs}
-    model.reshape(new_shapes)
-    check_shape(PartialShape([Dimension(0, 9), Dimension(12, 23)]))
-
     # reshape mixed keys
-    shape8 = [range(1, 20), -1]
-    new_shapes = {"data1": shape8, 1: shape8}
+    shape7 = [(1, 20), -1]
+    new_shapes = {"data1": shape7, 1: shape7}
     model.reshape(new_shapes)
-    check_shape(PartialShape([Dimension(1, 19), Dimension(-1)]))
+    check_shape(PartialShape([Dimension(1, 20), Dimension(-1)]))
 
     # reshape with one input
     param = ops.parameter([1, 3, 28, 28])
     model = Model(ops.relu(param), [param])
 
-    shape9 = [range(10), 3, (28, 56), (28, 56)]
-    model.reshape(shape9)
-    check_shape(PartialShape([Dimension(0, 9), Dimension(3), Dimension(28, 56), Dimension(28, 56)]))
+    shape8 = [-1, 3, (28, 56), (28, 56)]
+    model.reshape(shape8)
+    check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(28, 56), Dimension(28, 56)]))
 
     # check exceptions
-    shape10 = [1, 1, 1, 1]
+    shape9 = [1, 1, 1, 1]
     with pytest.raises(TypeError) as e:
-        model.reshape({model.input().node: shape10})
+        model.reshape({model.input().node: shape9})
     assert "Incorrect key type <class 'openvino.pyopenvino.op.Parameter'> to reshape a model, " \
                                 "expected keys as ov.runtime.Output, int or str." in str(e.value)

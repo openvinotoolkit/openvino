@@ -107,12 +107,9 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
                 throw py::type_error("Incorrect type " + wrong_type + " for dynamic dimension, int is expected.");
             }
             dims.push_back(ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
-        } else if (py::isinstance(dim, py::module::import("builtins").attr("range"))) {
-            dims.push_back(
-                ov::Dimension(dim.attr("start").cast<value_type>(), dim.attr("stop").cast<value_type>() - 1));
-        } else {
+        }  else {
             throw py::type_error("Incorrect type " + std::string(dim.get_type().str()) + " for dimension. Next types are expected: "
-                                 "int, ov.runtime.Dimension, list or tuple with lower and upper values for dynamic dimension, range.");
+                                 "int, ov.runtime.Dimension, list or tuple with lower and upper values for dynamic dimension.");
         }
     }
     return ov::PartialShape(dims);
