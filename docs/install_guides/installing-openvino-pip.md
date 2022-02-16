@@ -1,6 +1,6 @@
 # Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip}
 
-You can install Intel® Distribution of OpenVINO™ Toolkit through the PyPI repository, including both OpenVINO Runtime and OpenVINO Model Development Tools. Besides, from the 2022.1 release, OpenVINO Model Development Tools can only be installed via PyPI.
+You can install Intel® Distribution of OpenVINO™ toolkit through the PyPI repository, including both OpenVINO™ Runtime and OpenVINO™ Development Tools. Besides, from the 2022.1 release, OpenVINO Model Development Tools can only be installed via PyPI.
 
 
 ## Installing OpenVINO Runtime
@@ -13,11 +13,11 @@ pip install openvino
 For system requirements and more detailed steps, see <https://pypi.org/project/openvino>.
 
 
-## Installing OpenVINO Model Development Tools
+## Installing OpenVINO Development Tools
 
-OpenVINO Model Development Tools include Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool and Open Model Zoo tools including Model Downloader. While installing OpenVINO Model Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
+OpenVINO Development Tools include Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool and Open Model Zoo tools including Model Downloader. While installing OpenVINO Model Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
 
-Use the following command to install OpenVINO Model Development Tools:
+Use the following command to install OpenVINO Development Tools:
 ```
 pip install openvino-dev[EXTRAS]
 ```
@@ -33,7 +33,7 @@ pip install openvino-dev[tensorflow2,mxnet,caffe]
 For system requirements and more detailed steps, see <https://pypi.org/project/openvino-dev>.
 
 
-## Additional resources
+## Additional Resources
 
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
