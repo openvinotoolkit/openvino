@@ -32,19 +32,16 @@
 using namespace ov::preprocess;
 
 /**
- * @brief The entry point for inference engine automatic speech recognition
- * sample
+ * @brief The entry point for inference engine automatic speech recognition sample
  * @file speech_sample/main.cpp
  * @example speech_sample/main.cpp
  */
 int main(int argc, char* argv[]) {
     try {
-        // ------------------------------ Get Inference Engine version
-        // ----------------------------------------------
+        // ------------------------------ Get Inference Engine version ----------------------------------------------
         slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
 
-        // ------------------------------ Parsing and validation of input arguments
-        // ---------------------------------
+        // ------------------------------ Parsing and validation of input arguments ---------------------------------
         if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
@@ -74,16 +71,15 @@ int main(int argc, char* argv[]) {
                 if (numUtterances == 0) {
                     numUtterances = currentNumUtterances;
                 } else if (currentNumUtterances != numUtterances) {
-                    throw std::logic_error("Incorrect input files. Number of utterance "
-                                           "must be the same for all input files");
+                    throw std::logic_error(
+                        "Incorrect input files. Number of utterance must be the same for all input files");
                 }
                 numBytesThisUtterance.push_back(currentNumBytesThisUtterance);
             }
         }
         size_t numInputFiles(inputFiles.size());
 
-        // --------------------------- Step 1. Initialize inference engine core and
-        // read model
+        // --------------------------- Step 1. Initialize inference engine core and read model
         // -------------------------------------
         ov::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
@@ -92,8 +88,7 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> outputs;
         std::vector<std::string> output_names;
         std::vector<size_t> ports;
-        // --------------------------- Processing custom outputs
-        // ---------------------------------------------
+        // --------------------------- Processing custom outputs ---------------------------------------------
         if (!FLAGS_oname.empty()) {
             output_names = convert_str_to_vector(FLAGS_oname);
             for (const auto& output_name : output_names) {
@@ -109,10 +104,9 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        // ------------------------------ Preprocessing
-        // ------------------------------------------------------ the preprocessing
-        // steps can be done only for loaded network and are not applicable for the
-        // imported network (already compiled)
+        // ------------------------------ Preprocessing ------------------------------------------------------
+        // the preprocessing steps can be done only for loaded network and are not applicable for the imported network
+        // (already compiled)
         if (!FLAGS_m.empty()) {
             model = core.read_model(FLAGS_m);
             if (!outputs.empty()) {
@@ -132,8 +126,7 @@ int main(int argc, char* argv[]) {
             model = proc.build();
             ov::set_batch(model, batchSize);
         }
-        // ------------------------------ Get Available Devices
-        // ------------------------------------------------------
+        // ------------------------------ Get Available Devices ------------------------------------------------------
         auto isFeature = [&](const std::string xFeature) {
             return FLAGS_d.find(xFeature) != std::string::npos;
         };
@@ -141,8 +134,7 @@ int main(int argc, char* argv[]) {
         bool useHetero = isFeature("HETERO");
         std::string deviceStr = useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
         // -----------------------------------------------------------------------------------------------------
-        // --------------------------- Set parameters and scale factors
-        // -------------------------------------
+        // --------------------------- Set parameters and scale factors -------------------------------------
         /** Setting parameter for per layer metrics **/
         ov::AnyMap gnaPluginConfig;
         ov::AnyMap genericPluginConfig;
@@ -213,17 +205,15 @@ int main(int argc, char* argv[]) {
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
         IE_SUPPRESS_DEPRECATED_END
         // -----------------------------------------------------------------------------------------------------
-        // --------------------------- Write model to file
-        // -------------------------------------------------- Embedded GNA model
-        // dumping (for Intel(R) Speech Enabling Developer Kit)
+        // --------------------------- Write model to file --------------------------------------------------
+        // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
             IE_SUPPRESS_DEPRECATED_START
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
             IE_SUPPRESS_DEPRECATED_END
         }
         // -----------------------------------------------------------------------------------------------------
-        // --------------------------- Step 2. Loading model to the device
-        // ------------------------------------------
+        // --------------------------- Step 2. Loading model to the device ------------------------------------------
         if (useGna) {
             genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
         }
@@ -243,8 +233,7 @@ int main(int argc, char* argv[]) {
             }
             executableNet = core.import_model(streamrq, deviceStr, genericPluginConfig);
         }
-        // --------------------------- Exporting gna model using InferenceEngine AOT
-        // API---------------------
+        // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
             slog::info << "Writing GNA Model to file " << FLAGS_wg << slog::endl;
             t0 = Time::now();
@@ -259,8 +248,7 @@ int main(int argc, char* argv[]) {
             return 0;
         }
         // ---------------------------------------------------------------------------------------------------------
-        // --------------------------- Step 3. Create infer request
-        // --------------------------------------------------
+        // --------------------------- Step 3. Create infer request --------------------------------------------------
         std::vector<InferRequestStruct> inferRequests(1);
 
         for (auto& inferRequest : inferRequests) {
@@ -275,8 +263,7 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> inputNameBlobs = convert_str_to_vector(FLAGS_iname);
             if (inputNameBlobs.size() != cInputInfo.size()) {
                 std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
-                                       " ) is not equal to the number of inputs "
-                                       "entered in the -iname argument ( " +
+                                       " ) is not equal to the number of inputs entered in the -iname argument ( " +
                                        std::to_string(inputNameBlobs.size()) + " ).");
                 throw std::logic_error(errMessage);
             }
@@ -299,22 +286,19 @@ int main(int argc, char* argv[]) {
         if (!FLAGS_o.empty()) {
             output_name_files = convert_str_to_vector(FLAGS_o);
             if (output_name_files.size() != outputs.size() && !outputs.empty()) {
-                throw std::logic_error("The number of output files is not equal to the "
-                                       "number of network outputs.");
+                throw std::logic_error("The number of output files is not equal to the number of network outputs.");
             }
             count_file = output_name_files.empty() ? 1 : output_name_files.size();
         }
         if (!FLAGS_r.empty()) {
             reference_name_files = convert_str_to_vector(FLAGS_r);
             if (reference_name_files.size() != outputs.size() && !outputs.empty()) {
-                throw std::logic_error("The number of reference files is not equal to "
-                                       "the number of network outputs.");
+                throw std::logic_error("The number of reference files is not equal to the number of network outputs.");
             }
             count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
         }
         // -----------------------------------------------------------------------------------------------------
-        // --------------------------- Step 5. Do inference
-        // --------------------------------------------------------
+        // --------------------------- Step 5. Do inference --------------------------------------------------------
         std::vector<std::vector<uint8_t>> ptrUtterances;
         std::vector<std::vector<uint8_t>> vectorPtrScores((outputs.size() == 0) ? 1 : outputs.size());
         std::vector<uint8_t> ptrScores;
@@ -463,8 +447,7 @@ int main(int argc, char* argv[]) {
                                         outputBlob =
                                             inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
                                     }
-                                    // locked memory holder should be alive all time while access
-                                    // to its buffer happens
+                                    // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerOutput[next_output] * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
                                 }
