@@ -132,7 +132,7 @@ Refer to <a href="installing-openvino-linux.md#install-external-dependencies">In
 
 ## Configurations for non-CPU Devices
 
-If you want to enable the toolkit components to use non-CPU devices on your system, 
+If you are using Intel® Processor Graphics, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs or Intel® Neural Compute Stick 2, please check the additional configurations for them accordingly: [Configurations for GPU](configurations-for-gpu.md), [Configurations for VPU](configurations-for-vpu.md) or [Configurations for NCS2](configurations-for-ncs2.md).
 
 
 ## Additional Resources
