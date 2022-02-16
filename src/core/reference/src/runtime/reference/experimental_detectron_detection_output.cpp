@@ -22,7 +22,7 @@
 
 #include "ngraph/runtime/reference/experimental_detectron_detection_output.hpp"
 #include "ngraph/shape.hpp"
-
+//
 namespace {
 void refine_boxes(const float* boxes,
                   const float* deltas,
