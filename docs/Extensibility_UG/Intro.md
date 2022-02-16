@@ -1,4 +1,4 @@
-# Inference Engine Extensibility Mechanism {#openvino_docs_IE_DG_Extensibility_DG_Intro}
+# Inference Engine Extensibility Mechanism {#openvino_docs_IE_DG_Extensibility_UG_Intro}
 
 @sphinxdirective
 
@@ -6,13 +6,13 @@
    :maxdepth: 1
    :hidden:
    
-   openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps
-   openvino_docs_IE_DG_Extensibility_DG_Custom_ONNX_Ops
-   CPU Kernels Extensibility <openvino_docs_IE_DG_Extensibility_DG_CPU_Kernel>
-   GPU Kernels Extensibility <openvino_docs_IE_DG_Extensibility_DG_GPU_Kernel>
-   VPU Kernels Extensibility <openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel>
-   openvino_docs_IE_DG_Extensibility_DG_Extension
-   openvino_docs_IE_DG_Extensibility_DG_Building
+   openvino_docs_IE_DG_Extensibility_UG_AddingNGraphOps
+   openvino_docs_IE_DG_Extensibility_UG_Custom_ONNX_Ops
+   CPU Kernels Extensibility <openvino_docs_IE_DG_Extensibility_UG_CPU_Kernel>
+   GPU Kernels Extensibility <openvino_docs_IE_DG_Extensibility_UG_GPU_Kernel>
+   VPU Kernels Extensibility <openvino_docs_IE_DG_Extensibility_UG_VPU_Kernel>
+   openvino_docs_IE_DG_Extensibility_UG_Extension
+   openvino_docs_IE_DG_Extensibility_UG_Building
 
 @endsphinxdirective
 

@@ -1,4 +1,4 @@
-# Custom ONNX* Operators {#openvino_docs_IE_DG_Extensibility_DG_Custom_ONNX_Ops}
+# Custom ONNX* Operators {#openvino_docs_IE_DG_Extensibility_UG_Custom_ONNX_Ops}
 
 The ONNX\* importer provides a mechanism to register custom ONNX operators based on predefined or custom nGraph operations.
 The function responsible for registering a new operator is called `ngraph::onnx_import::register_operator` and defined in the `onnx_import/onnx_utils.hpp` file.

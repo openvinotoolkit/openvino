@@ -21,7 +21,6 @@
    openvino_docs_IE_DG_DynamicBatching
    openvino_docs_IE_DG_ShapeInference
    openvino_docs_IE_DG_Model_caching_overview
-   openvino_docs_IE_DG_Extensibility_DG_Intro
    openvino_docs_IE_DG_Memory_primitives
    openvino_docs_IE_DG_network_state_intro   
    openvino_docs_IE_DG_API_Changes

@@ -1,4 +1,4 @@
-# Build Extension Library Using CMake* {#openvino_docs_IE_DG_Extensibility_DG_Building}
+# Build Extension Library Using CMake* {#openvino_docs_IE_DG_Extensibility_UG_Building}
 
 Inference Engine build infrastructure provides the Inference Engine Package for application development.
 

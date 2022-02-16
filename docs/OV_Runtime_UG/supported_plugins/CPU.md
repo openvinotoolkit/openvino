@@ -6,7 +6,7 @@ The CPU plugin was developed to achieve high performance of neural networks on C
 
 Currently, the CPU plugin uses Intel® Threading Building Blocks (Intel® TBB) in order to parallelize calculations. Please refer to the [Optimization Guide](../../optimization_guide/dldt_optimization_guide.md) for associated performance considerations.
 
-The set of supported layers can be expanded with [the Extensibility mechanism](../Extensibility_DG/Intro.md).
+The set of supported layers can be expanded with [the Extensibility mechanism](../../Extensibility_UG/Intro.md).
 
 ## Supported Platforms
 

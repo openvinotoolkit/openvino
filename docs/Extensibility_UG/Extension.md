@@ -1,4 +1,4 @@
-# Extension Library {#openvino_docs_IE_DG_Extensibility_DG_Extension}
+# Extension Library {#openvino_docs_IE_DG_Extensibility_UG_Extension}
 
 Inference Engine provides an InferenceEngine::IExtension interface, which defines the interface for Inference Engine Extension libraries.
 Inherit all extension libraries from this interface. The example below contains an implementation of two operations: `Template`

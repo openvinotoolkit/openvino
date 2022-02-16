@@ -1,4 +1,4 @@
-# How to Implement Custom GPU Operations {#openvino_docs_IE_DG_Extensibility_DG_GPU_Kernel}
+# How to Implement Custom GPU Operations {#openvino_docs_IE_DG_Extensibility_UG_GPU_Kernel}
 
 To enable operations not supported by OpenVINO™ out of the box, you need a custom extension for Model Optimizer, a custom nGraph operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
 
