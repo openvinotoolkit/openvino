@@ -99,11 +99,15 @@ Options:
   -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
                         Optional. Required for GPU custom kernels. Absolute
                         path to an .xml file with the kernels description.
-  -hint {throughput, latency}, --perf_hint {throughput, latency}
-                        Optional. Performance hint (optimize for latency or throughput).
-                        The hint allows the OpenVINO device to select the right network-specific settings,
-                        as opposite to defining specific values like  \nstreams\ from the command line.
-                        So you can specify just the hint without adding explicit device-specific options.
+  -hint {throughput, latency, none}, --perf_hint {throughput, latency, none}
+                        Optional. Performance hint (latency or throughput or
+                        none). Performance hint allows the OpenVINO device to
+                        select the right network-specific settings.
+                        'throughput': device performance mode will be set to
+                        THROUGHPUT. 'latency': device performance mode will be
+                        set to LATENCY. 'none': no device performance mode
+                        will be set. Using explicit 'nstreams' or other
+                        device-specific options, please set hint to 'none'
   -api {sync,async}, --api_type {sync,async}
                         Optional. Enable using sync/async API. Default value
                         is async.
