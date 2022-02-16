@@ -1,12 +1,12 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Linux Using APT Repository {#openvino_docs_install_guides_installing_openvino_apt}
+# Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using APT Repository {#openvino_docs_install_guides_installing_openvino_apt}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit Runtime for Linux distributed through the APT repository.
+This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the APT repository.
 
-From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Model Development Tools](installing-model-dev-tools.md) for detailed steps.
+From 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 > **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please review the content inside the `<INSTALL_DIR>/licensing` folder for more details.
 
-## System requirements
+## System Requirements
 
 The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
 
@@ -17,7 +17,7 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 ## Install OpenVINO Runtime
 
-### Step 1: Set up the OpenVINO™ Toolkit APT repository
+### Step 1: Set up the OpenVINO Toolkit APT repository
 
 
 1. Install the GPG key for the Repository
@@ -57,18 +57,18 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 ### Step 2: Install OpenVINO Runtime using the APT Package Manager
 
-Intel® OpenVINO™ Toolkit will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
+OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
     
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
-#### To install the latest version
+#### To Install the Latest Version
 
 Run the following command:
 ```sh
 sudo apt install openvino
 ```
 
-#### To install a specific version
+#### To Install a Specific Version
 
 
 1.	Get a list of OpenVINO packages available for installation:
@@ -84,53 +84,58 @@ sudo apt install openvino
    sudo apt install openvino-2022.1.0
    ```
 
-#### To check for installed packages and versions
+#### To Check for Installed Packages and Versions
 
 Run the following command:
 ```sh
 apt list --installed | grep openvino
 ```
 
-#### To uninstall the latest version
+#### To Uninstall the Latest Version
 
 Run the following command:
 ```sh
 sudo apt autoremove openvino
 ```
 
-#### To uninstall a specific version
+#### To Uninstall a Specific Version
 
 Run the following command:
 ```sh
 sudo apt autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 ```
 
-### Step 3 (Optional): Install OpenCV* from APT
+### Step 3 (Optional): Install OpenCV from APT
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
 
-#### To install the latest version of OpenCV
+#### To Install the Latest Version of OpenCV
 
 Run the following command:
 ```sh
 sudo apt install openvino-opencv
 ```
 
-#### To install a specific version of OpenCV
+#### To Install a Specific Version of OpenCV
 
 Run the following command:
 ```sh
 sudo apt install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 ```
 
-### Step 4 (Optional): Install software dependencies
+### Step 4 (Optional): Install Software Dependencies
 
-After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
+After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
 
-Refer to <a href="#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+Refer to <a href="installing-openvino-linux.md#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
 
 
-## Additional resources
+## Configurations for non-CPU Devices
+
+If you want to enable the toolkit components to use non-CPU devices on your system, 
+
+
+## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
 - OpenVINO™ toolkit online documentation: <https://docs.openvino.ai/>.
