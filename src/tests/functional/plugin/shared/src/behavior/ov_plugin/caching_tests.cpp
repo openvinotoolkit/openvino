@@ -116,11 +116,15 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
 }
 
 bool CompileModelCacheTestBase::importExportSupported(ov::Core& core) const {
-    auto supportedMetricKeys = core.get_property(targetDevice, ov::supported_properties);
-    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), ov::device::capabilities);
-    auto supported = (it != supportedMetricKeys.end()) &&
-                     core.get_property(targetDevice, ov::device::capability::EXPORT_IMPORT).as<bool>();
-    return supported;
+    auto supportedProperties = core.get_property(targetDevice, ov::supported_properties);
+    if (std::find(supportedProperties.begin(), supportedProperties.end(), ov::device::capabilities) == supportedProperties.end()) {
+        return false;
+    }
+    auto device_capabilities = core.get_property(targetDevice, ov::device::capabilities);
+    if (std::find(device_capabilities.begin(), device_capabilities.end(), std::string(ov::device::capability::EXPORT_IMPORT)) == device_capabilities.end()) {
+        return false;
+    }
+    return true;
 }
 
 std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<compileModelCacheParams> obj) {
@@ -153,7 +157,7 @@ void CompileModelCacheTestBase::SetUp() {
 void CompileModelCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
-    core->set_property({{CONFIG_KEY(CACHE_DIR), {}}});
+    core->set_property(ov::cache_dir());
 }
 
 void CompileModelCacheTestBase::run() {
