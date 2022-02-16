@@ -35,9 +35,7 @@ public:
     /// as_type.
     virtual const DiscreteTypeInfo& get_type_info() const = 0;
     virtual ~ValueAccessor() = default;
-    virtual ov::Any get_as_any() {
-        throw ov::Exception("get_as_any is not implemented");
-    }
+
     virtual void set_as_any(const ov::Any& x) {
         throw ov::Exception("set_as_any is not implemented");
     }
@@ -59,9 +57,7 @@ public:
     virtual const VAT& get() = 0;
     /// Sets the value
     virtual void set(const VAT& value) = 0;
-    ov::Any get_as_any() override {
-        return get();
-    }
+
     void set_as_any(const ov::Any& x) override {
         set(x.as<VAT>());
     }
