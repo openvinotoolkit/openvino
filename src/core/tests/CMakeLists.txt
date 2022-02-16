@@ -49,6 +49,7 @@ set(SRC
     coordinate_range.cpp
     copy.cpp
     copy_runtime_info.cpp
+    dimension.cpp
     element_type.cpp
     eval.cpp
     extension.cpp
@@ -72,6 +73,7 @@ set(SRC
     opset1.cpp
     ov_default_allocator_test.cpp
     ov_tensor_test.cpp
+    any.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
@@ -242,7 +244,7 @@ set(SRC
     type_prop/swish.cpp
     type_prop/tan.cpp
     type_prop/tanh.cpp
-    type_prop/ti.cpp
+    type_prop/tensor_iterator.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
     type_prop/transpose.cpp
@@ -404,6 +406,7 @@ set(SRC
     visitors/op/swish.cpp
     visitors/op/tan.cpp
     visitors/op/tanh.cpp
+    visitors/op/tensor_iterator.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     visitors/op/unsqueeze.cpp
