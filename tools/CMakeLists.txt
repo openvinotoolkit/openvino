@@ -17,7 +17,7 @@ if(NOT CPACK_GENERATOR STREQUAL "DEB")
     ie_cpack_add_component(deployment_manager REQUIRED)
 
     install(DIRECTORY deployment_manager
-            DESTINATION share/openvino${OpenVINO_VERSION}/tools
+            DESTINATION ${IE_CPACK_TOOLSDIR}
             COMPONENT deployment_manager
             USE_SOURCE_PERMISSIONS)
 endif()
@@ -45,9 +45,9 @@ foreach(EXTRAS ${EXTRAS_LIST})
     configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
-        DESTINATION share/openvino${OpenVINO_VERSION}/tools
-        COMPONENT ${OV_COMP_DEV_REQ_FILES}
-        EXCLUDE_FROM_ALL)
+            DESTINATION ${IE_CPACK_TOOLSDIR}
+            COMPONENT ${OV_COMP_DEV_REQ_FILES}
+            EXCLUDE_FROM_ALL)
 endforeach()
 
 # MO

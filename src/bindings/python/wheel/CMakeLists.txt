@@ -6,7 +6,7 @@ find_package(PythonInterp 3 REQUIRED)
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 set(WHEEL_VERSION "${OpenVINO_VERSION}" CACHE STRING "Version of this release" FORCE)
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
-set(PYTHON_BRIDGE_CPACK_PATH "python")
+set(PYTHON_BRIDGE_CPACK_PATH "${IE_CPACK_PYTHONDIR}")
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
 if(WIN32)
@@ -72,5 +72,5 @@ ie_cpack_add_component(python_wheels
             ${OV_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
 
 install(FILES ${openvino_wheel_path}
-        DESTINATION tools
+        DESTINATION ${IE_CPACK_WHEELSDIR}
         COMPONENT python_wheels)

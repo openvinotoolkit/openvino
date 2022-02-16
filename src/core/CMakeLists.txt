@@ -114,7 +114,7 @@ target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_
 #-----------------------------------------------------------------------------------------------
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION include
+        DESTINATION ${IE_CPACK_INCLUDEDIR}
         COMPONENT core_dev
         FILES_MATCHING
             PATTERN "*.hpp"
@@ -122,7 +122,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
-    INSTALL_DESTINATION ${IE_CPACK_LIBRARY_PATH}/cmake/ngraph${OpenVINO_VERSION})
+    INSTALL_DESTINATION ${IE_CPACK_NGRAPH_CMAKEDIR})
 
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
     VERSION ${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}
@@ -130,5 +130,5 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}/cmake/ngraph${OpenVINO_VERSION}
+        DESTINATION ${IE_CPACK_NGRAPH_CMAKEDIR}
         COMPONENT core_dev)
