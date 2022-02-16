@@ -51,10 +51,9 @@ TEST_MODELS = [
     # {'drop_type': 'relative', 'max_iter_num': 1, 'accuracy_drop': 0.005, 'metrics': [
     #     {'name': 'accuracy@top1', 'baseline_value': 0.431}]}, 'GNA'),
 
-    #TODO: Enable after the problem with the shapes will be fixed
-    # ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.8, 'map': 0.7445},
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.6638},
      {'use_fast_bias': False}, 'CPU')
 ]
 CASCADE_MAP = Dict({
