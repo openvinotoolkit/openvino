@@ -85,6 +85,11 @@ set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
 set(OV_CPACK_COMP_DEV_REQ_FILES "openvino_dev_req_files")
 set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
 
+# Include debian specific configuration file:
+# - overrides directories set by ov_cpack_set_dirs()
+# - merges some components
+include(packaging/debian)
+
 macro(ie_cpack)
     if(NOT DEFINED CPACK_GENERATOR)
         set(CPACK_GENERATOR "TGZ")
@@ -136,11 +141,8 @@ macro(ie_cpack)
         # multiple packages are generated
         set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
     elseif(CPACK_GENERATOR STREQUAL "DEB")
-        # include Debian dedicated configuration file
-        # - overrides directories set by ov_cpack_set_dirs()
-        # - merges some components
-        # - tunes Debian components itself and adds new ones
-        include(debian)
+        # include Debian dedicated per-component configuration file
+        ov_debian_components()
     endif()
 
     include(CPack)
