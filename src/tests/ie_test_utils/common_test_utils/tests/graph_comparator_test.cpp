@@ -393,3 +393,74 @@ TEST(GraphComparatorTests, CheckTensorIteratorPositive) {
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
+
+TEST(GraphComparatorTests, CheckLoopPositive) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto X = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Y = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+
+        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+        // Body parameters
+        auto Xi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Yi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M_body = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto body_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+
+        auto trip_count = std::make_shared<ov::opset8::Constant>(ngraph::element::i64, ov::Shape{1}, 3);
+        auto exec_condition = std::make_shared<ov::opset8::Constant>(ngraph::element::boolean, ov::Shape{1}, true);
+        // Body
+        auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
+        auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo},
+                                                ov::ParameterVector{Xi, Yi, M_body});
+
+        auto loop = std::make_shared<ov::opset8::Loop>(trip_count, exec_condition);
+        loop->set_function(body);
+
+        loop->set_invariant_input(Xi, X);
+        loop->set_invariant_input(Yi, Y);
+        loop->set_merged_input(M_body, M, Zo);
+
+        loop->set_special_body_ports(ov::opset8::Loop::SpecialBodyPorts{-1, 0});
+
+        // Output is last Zo
+        auto result = std::make_shared<ov::opset8::Result>(loop->get_iter_value(Zo, -1));
+        function_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{X, Y, M});
+        function = ov::clone_model(*function_ref);
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(GraphComparatorTests, CheckSinksPositive) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto arg = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 1});
+        auto init_const = ov::opset8::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0});
+        const std::string variable_name("variable0");
+        auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ov::PartialShape::dynamic(),
+                                                                                ov::element::dynamic, variable_name});
+
+        auto read = std::make_shared<ov::opset8::ReadValue>(init_const, variable);
+        auto read2 = std::make_shared<ov::opset8::ReadValue>(init_const, variable);
+        auto add = std::make_shared<ov::opset8::Add>(arg, read);
+        auto add2 = std::make_shared<ov::opset8::Add>(arg, read2);
+        auto assign = std::make_shared<ov::opset8::Assign>(add, variable);
+        auto assign2 = std::make_shared<ov::opset8::Assign>(add, variable);
+
+        auto res = std::make_shared<ov::opset8::Result>(add);
+        auto res2 = std::make_shared<ov::opset8::Result>(add2);
+
+        function_ref = std::make_shared<ov::Model>(ov::ResultVector({res, res2}), ov::SinkVector({assign, assign2}),
+                                                    ov::ParameterVector({arg}));
+        function = ov::clone_model(*function_ref);
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
