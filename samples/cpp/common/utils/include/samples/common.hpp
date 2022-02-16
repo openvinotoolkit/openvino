@@ -993,7 +993,7 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
     if (bshowHeader) {
         stream << std::endl << "performance counts:" << std::endl << std::endl;
     }
-
+    std::ios::fmtflags fmt(std::cout.flags());
     for (const auto& it : performanceData) {
         std::string toPrint(it.node_name);
         const int maxLayerName = 30;
@@ -1028,6 +1028,7 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
+    std::cout.flags(fmt);
 }
 
 static UNUSED void printPerformanceCounts(ov::InferRequest request,
