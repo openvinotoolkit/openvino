@@ -82,7 +82,7 @@ def main():
     gather("gather_one_dimension2", xnp, index_np, axis_np)
 
     # For axis as input
-    x_shape = (3, 88, 3)
+    x_shape = (6, 88, 3)
     x_type = "float32"
     index = [1, 3, 5]
     index_type = "int32"
