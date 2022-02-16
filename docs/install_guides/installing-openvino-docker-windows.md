@@ -163,7 +163,6 @@ the Additional Requirements for GPU in <a href="#system-requirements">System Req
    ```bat
    omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -kO https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python samples\python\hello_classification\hello_classification.py public\googlenet-v1\FP16\googlenet-v1.xml car_1.bmp GPU
    ```
-   > **NOTE**: Additional third-party dependencies will be installed.
 
 
 ## Additional Resources
