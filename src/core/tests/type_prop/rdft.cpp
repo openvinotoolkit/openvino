@@ -29,7 +29,8 @@ struct RDFTConstantAxesAndConstantSignalSizeTestParams {
     std::vector<int64_t> signal_size;
 };
 
-struct RDFTConstantAxesAndConstantSignalSizeTest : ::testing::TestWithParam<RDFTConstantAxesAndConstantSignalSizeTestParams> {};
+struct RDFTConstantAxesAndConstantSignalSizeTest
+    : ::testing::TestWithParam<RDFTConstantAxesAndConstantSignalSizeTestParams> {};
 
 TEST_P(RDFTConstantAxesAndConstantSignalSizeTest, rdft_constant_axes_and_signal_size) {
     auto params = GetParam();

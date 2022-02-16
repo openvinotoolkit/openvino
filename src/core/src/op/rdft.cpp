@@ -17,9 +17,9 @@
 #include "ngraph/op/rdft.hpp"
 
 #include <algorithm>
-#include <rdft_shape_inference.hpp>
 #include <memory>
 #include <ngraph/validation_util.hpp>
+#include <rdft_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"

@@ -100,7 +100,7 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
     output_shape.resize(input_rank - 1);
 
     if (axes_shape.rank().is_dynamic() || !axes_are_known) {
-        for (int64_t i = 0; i < input_rank; ++i) {
+        for (int64_t i = 0; i < input_rank - 1; ++i) {
             output_shape[i] = ov::Dimension::dynamic();
         }
         return;
@@ -108,9 +108,7 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
 
     if (input_shapes.size() == 2) {
         for (int64_t axis : axes) {
-            if (input_shape[axis].is_static()) {
-                output_shape[axis] = DimType(2 * (input_shape[axis].get_length() - 1));
-            }
+            output_shape[axis] = DimType(2) * (input_shape[axis] - DimType(1));
         }
         return;
     }
@@ -131,8 +129,8 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
         const int64_t current_axis = axes[i];
         if (signal_size[i] != -1) {
             output_shape[current_axis] = DimType(signal_size[i]);
-        } else if (input_shape[current_axis].is_static()) {
-            output_shape[current_axis] = DimType(2 * (input_shape[current_axis].get_length() - 1));
+        } else {
+            output_shape[current_axis] = DimType(2) * (input_shape[current_axis] - DimType(1));
         }
     }
 }
