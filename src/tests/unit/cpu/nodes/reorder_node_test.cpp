@@ -236,8 +236,9 @@ protected:
             n->init();
             n->getSupportedDescriptors();
             n->initSupportedPrimitiveDescriptors();
-            n->selectPrimitiveDescriptorByIndex(0);
         }
+        //Select inputDesc as primitive descriptor for reorder node
+        reorderNode->selectPrimitiveDescriptorByIndex(0);
     }
 
     void infer() {
@@ -496,8 +497,9 @@ protected:
             n->init();
             n->getSupportedDescriptors();
             n->initSupportedPrimitiveDescriptors();
-            n->selectPrimitiveDescriptorByIndex(0);
         }
+        //Select inputDesc as primitive descriptor for reorder node
+        reorderNode->selectPrimitiveDescriptorByIndex(0);
         stream = {cpuEngine};
         return;
     }
@@ -522,8 +524,13 @@ private:
 };
 
 using ReorderCPUTestF32 = ReorderCPUTest<f32_f32>;
+using ReorderCPUTestS8 = ReorderCPUTest<s8_s8>;
 
 TEST_P(ReorderCPUTestF32, CompareResult) {
+    Run();
+}
+
+TEST_P(ReorderCPUTestS8, CompareResult) {
     Run();
 }
 
@@ -548,6 +555,14 @@ const auto reorderCpuTestParams_3 =
                                                 LayoutType::nCsp8c,
                                                 InferenceEngine::Precision::FP32});
 
+const auto reorderCpuTestParams_4 =
+    ::testing::Values(ReorderCPUTestParamSetS8{{2, 32, -1, 4},
+                                                {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
+                                                LayoutType::nCsp16c,
+                                                LayoutType::nspc,
+                                                InferenceEngine::Precision::U8});
+
+
 INSTANTIATE_TEST_SUITE_P(smoke_ReorderTest_1,
                          ReorderCPUTestF32,
                          reorderCpuTestParams_1,
@@ -562,3 +577,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReorderTest_3,
                          ReorderCPUTestF32,
                          reorderCpuTestParams_3,
                          ReorderCPUTestF32::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTest_4,
+                         ReorderCPUTestS8,
+                         reorderCpuTestParams_4,
+                         ReorderCPUTestS8::getTestCaseName);
