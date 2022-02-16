@@ -23,7 +23,10 @@ const std::vector<ov::AnyMap> Autoconfigs = {
 };
 
 const std::vector<ov::AnyMap> AutoBatchConfigs = {
-        {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU}}
+        // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_GPU) + "(4)"},
+                // no timeout to avoid increasing the test time
+                {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "0 "}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
@@ -69,6 +72,23 @@ std::vector<ov::element::Type> prcs = {
     ov::element::u64,
 };
 
+std::vector<ov::element::Type> supported_input_prcs = {
+    ov::element::boolean,
+    ov::element::f16,
+    ov::element::f32,
+    ov::element::f64,
+    ov::element::i8,
+    ov::element::i16,
+    ov::element::i32,
+    ov::element::i64,
+    ov::element::u8,
+    ov::element::u16,
+    ov::element::u32,
+    ov::element::u64
+};
+
+const std::vector<ov::AnyMap> emptyConfigs = {{}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(prcs),
@@ -96,4 +116,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestIOTensorSe
                                  ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                  ::testing::ValuesIn(AutoBatchConfigs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(supported_input_prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                 ::testing::ValuesIn(emptyConfigs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(supported_input_prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                 ::testing::ValuesIn(AutoBatchConfigs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
 }  // namespace

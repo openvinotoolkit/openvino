@@ -559,9 +559,11 @@ TEST(type_prop, reshape_to_zero_shape_dynamic) {
 
 TEST(type_prop, reshape_to_zero_shape_incorrect) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{2, 1});
-    ASSERT_THROW(
-        make_shared<op::v1::Reshape>(param, op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}), false),
-        std::exception);
+    ASSERT_THROW(const auto unused =
+                     make_shared<op::v1::Reshape>(param,
+                                                  op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}),
+                                                  false),
+                 std::exception);
 }
 
 TEST(type_prop, reshape_to_zero) {
@@ -590,9 +592,11 @@ TEST(type_prop, reshape_to_scalar_2) {
 
 TEST(type_prop, reshape_to_scalar_3) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    ASSERT_THROW(
-        make_shared<op::v1::Reshape>(param, op::Constant::create(element::i64, {}, std::vector<int64_t>{100}), false),
-        std::exception);
+    ASSERT_THROW(const auto unused =
+                     make_shared<op::v1::Reshape>(param,
+                                                  op::Constant::create(element::i64, {}, std::vector<int64_t>{100}),
+                                                  false),
+                 std::exception);
 }
 
 TEST(type_prop, dynamic_shape_propagation_with_i32_precision) {
@@ -632,4 +636,21 @@ TEST(type_prop, reshape_dynamic_value_and_label_propagation) {
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+}
+
+TEST(type_prop, reshape_label_shape_propagation_minus_one) {
+    Dimension marked_0 = Dimension(-1);
+    ov::DimensionTracker::set_label(marked_0, 10);
+
+    PartialShape initial_shape = PartialShape{marked_0, 4, 3, 1};
+
+    auto input = std::make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = std::make_shared<op::Constant>(element::i64, Shape{2}, std::vector<int64_t>{-1, 12});
+
+    const auto reshape = std::make_shared<op::v1::Reshape>(input, output_pattern, false);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    ASSERT_EQ(output_shape, PartialShape({-1, 12}));
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[1]), 0);
 }

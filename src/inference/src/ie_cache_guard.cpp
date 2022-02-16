@@ -32,10 +32,6 @@ void CacheGuardEntry::performLock() {
 
 //////////////////////////////////////////////////////
 
-CacheGuard::~CacheGuard() {
-    IE_ASSERT(m_table.size() == 0);
-}
-
 std::unique_ptr<CacheGuardEntry> CacheGuard::getHashLock(const std::string& hash) {
     std::unique_lock<std::mutex> lock(m_tableMutex);
     auto& data = m_table[hash];

@@ -9,9 +9,11 @@
 
 #include <vpu/utils/error.hpp>
 
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_myriad/myriad_properties.hpp"
+
 using namespace vpu::MyriadPlugin;
 using namespace InferenceEngine;
-using namespace VPUConfigParams;
 using namespace PluginConfigParams;
 
 //------------------------------------------------------------------------------
@@ -34,23 +36,17 @@ MyriadMetrics::MyriadMetrics() {
 IE_SUPPRESS_DEPRECATED_START
     // TODO: remove once all options are migrated
     _supportedConfigKeys = {
-        MYRIAD_CUSTOM_LAYERS,
-        MYRIAD_ENABLE_FORCE_RESET,
+        ov::intel_myriad::custom_layers.name(),
+        ov::intel_myriad::enable_force_reset.name(),
         MYRIAD_ENABLE_MX_BOOT,
-
-        // deprecated
-        KEY_VPU_CUSTOM_LAYERS,
-        KEY_VPU_MYRIAD_FORCE_RESET,
 
         CONFIG_KEY(CONFIG_FILE),
     };
-IE_SUPPRESS_DEPRECATED_END
 
-    _optimizationCapabilities = { METRIC_VALUE(FP16) };
+    _optimizationCapabilities = {ov::device::capability::FP16, ov::device::capability::EXPORT_IMPORT};
     _rangeForAsyncInferRequests = RangeType(3, 6, 1);
 
     _idToDeviceFullNameMap = {
-        {"5", "Intel Movidius Myriad 2 VPU"},
         {"8", "Intel Movidius Myriad X VPU"},
     };
 }
@@ -119,11 +115,14 @@ RangeType MyriadMetrics::RangeForAsyncInferRequests(
     const std::map<std::string, std::string>& config) const {
 
     auto throughput_streams_str = config.find(InferenceEngine::MYRIAD_THROUGHPUT_STREAMS);
+    if (throughput_streams_str == config.end()) {
+        throughput_streams_str = config.find(ov::num_streams.name());
+    }
     if (throughput_streams_str != config.end()) {
         try {
             int throughput_streams = std::stoi(throughput_streams_str->second);
             if (throughput_streams > 0) {
-                return RangeType(throughput_streams+1, throughput_streams*3, 1);
+                return RangeType(throughput_streams + 1, throughput_streams * 3, 1);
             }
         }
         catch(...) {

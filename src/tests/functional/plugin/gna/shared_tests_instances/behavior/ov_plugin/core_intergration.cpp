@@ -70,9 +70,9 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest, OVClassGetConfigTest, ::t
 TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedScaleFactors) {
     ov::Core core;
     float sf1, sf2;
-    ASSERT_NO_THROW(core.set_property({{"GNA_SCALE_FACTOR_0", "1634.0"}, {"GNA_SCALE_FACTOR_1", "2000.0"}}));
-    ASSERT_NO_THROW(sf1 = std::stof(core.get_property("GNA", "GNA_SCALE_FACTOR_0").as<std::string>()));
-    ASSERT_NO_THROW(sf2 = std::stof(core.get_property("GNA", "GNA_SCALE_FACTOR_1").as<std::string>()));
+    OV_ASSERT_NO_THROW(core.set_property({{"GNA_SCALE_FACTOR_0", "1634.0"}, {"GNA_SCALE_FACTOR_1", "2000.0"}}));
+    OV_ASSERT_NO_THROW(sf1 = std::stof(core.get_property("GNA", "GNA_SCALE_FACTOR_0").as<std::string>()));
+    OV_ASSERT_NO_THROW(sf2 = std::stof(core.get_property("GNA", "GNA_SCALE_FACTOR_1").as<std::string>()));
     ASSERT_FLOAT_EQ(1634.0, sf1);
     ASSERT_FLOAT_EQ(2000.0, sf2);
 
@@ -84,16 +84,16 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedScaleFactorsPerInput) {
     ov::Core core;
     std::map<std::string, float> scale_factors_per_input;
 
-    ASSERT_NO_THROW(core.set_property("GNA",
+    OV_ASSERT_NO_THROW(core.set_property("GNA",
          ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"input_0", 1634.0f}, {"input_1", 2000.0f}})));
-    ASSERT_NO_THROW(scale_factors_per_input = core.get_property("GNA", ov::intel_gna::scale_factors_per_input));
+    OV_ASSERT_NO_THROW(scale_factors_per_input = core.get_property("GNA", ov::intel_gna::scale_factors_per_input));
     ASSERT_EQ(2, scale_factors_per_input.size());
     ASSERT_FLOAT_EQ(1634.0f, scale_factors_per_input["input_0"]);
     ASSERT_FLOAT_EQ(2000.0f, scale_factors_per_input["input_1"]);
 
-    ASSERT_NO_THROW(core.set_property("GNA",
+    OV_ASSERT_NO_THROW(core.set_property("GNA",
          ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}})));
-    ASSERT_NO_THROW(scale_factors_per_input = core.get_property("GNA", ov::intel_gna::scale_factors_per_input));
+    OV_ASSERT_NO_THROW(scale_factors_per_input = core.get_property("GNA", ov::intel_gna::scale_factors_per_input));
     ASSERT_EQ(1, scale_factors_per_input.size());
     ASSERT_FLOAT_EQ(1.0f, scale_factors_per_input["0"]);
 }
@@ -102,20 +102,23 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPrecisionHint) {
     ov::Core core;
     ov::element::Type precision;
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::hint::inference_precision(ov::element::i8)));
-    ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
+    ASSERT_EQ(ov::element::undefined, precision);
+
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::inference_precision(ov::element::i8)));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::i8, precision);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::hint::inference_precision(ov::element::i16)));
-    ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::inference_precision(ov::element::i16)));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::i16, precision);
 
-    ASSERT_NO_THROW(core.set_property("GNA", {{ov::hint::inference_precision.name(), "I8"}}));
-    ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", {{ov::hint::inference_precision.name(), "I8"}}));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::i8, precision);
 
-    ASSERT_NO_THROW(core.set_property("GNA", {{ov::hint::inference_precision.name(), "I16"}}));
-    ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", {{ov::hint::inference_precision.name(), "I16"}}));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::i16, precision);
 
     ASSERT_THROW(core.set_property("GNA", { ov::hint::inference_precision(ov::element::i8),
@@ -129,12 +132,15 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPerformanceHint) {
     ov::Core core;
     ov::hint::PerformanceMode mode;
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
-    ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
+    OV_ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
+    ASSERT_EQ(ov::hint::PerformanceMode::UNDEFINED, mode);
+
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+    OV_ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
     ASSERT_EQ(ov::hint::PerformanceMode::LATENCY, mode);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
-    ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
+    OV_ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
     ASSERT_EQ(ov::hint::PerformanceMode::THROUGHPUT, mode);
 
     ASSERT_THROW(core.set_property("GNA", {{ov::hint::performance_mode.name(), "ABC"}}), ov::Exception);
@@ -144,24 +150,24 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedNumRequests) {
     ov::Core core;
     uint32_t num_requests;
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::hint::num_requests(8)));
-    ASSERT_NO_THROW(num_requests = core.get_property("GNA", ov::hint::num_requests));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::num_requests(8)));
+    OV_ASSERT_NO_THROW(num_requests = core.get_property("GNA", ov::hint::num_requests));
     ASSERT_EQ(8, num_requests);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::hint::num_requests(1)));
-    ASSERT_NO_THROW(num_requests = core.get_property("GNA", ov::hint::num_requests));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::num_requests(1)));
+    OV_ASSERT_NO_THROW(num_requests = core.get_property("GNA", ov::hint::num_requests));
     ASSERT_EQ(1, num_requests);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::hint::num_requests(1000)));
-    ASSERT_NO_THROW(num_requests = core.get_property("GNA", ov::hint::num_requests));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::num_requests(1000)));
+    OV_ASSERT_NO_THROW(num_requests = core.get_property("GNA", ov::hint::num_requests));
     ASSERT_EQ(127, num_requests); // maximum value
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::hint::num_requests(0)));
-    ASSERT_NO_THROW(num_requests = core.get_property("GNA", ov::hint::num_requests));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::num_requests(0)));
+    OV_ASSERT_NO_THROW(num_requests = core.get_property("GNA", ov::hint::num_requests));
     ASSERT_EQ(1, num_requests); // minimum value
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-    ASSERT_NO_THROW(core.set_property("GNA", {ov::hint::num_requests(8), {GNA_CONFIG_KEY(LIB_N_THREADS), "8"}}));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", {ov::hint::num_requests(8), {GNA_CONFIG_KEY(LIB_N_THREADS), "8"}}));
     ASSERT_THROW(core.set_property("GNA", {ov::hint::num_requests(4), {GNA_CONFIG_KEY(LIB_N_THREADS), "8"}}), ov::Exception);
 OPENVINO_SUPPRESS_DEPRECATED_END
     ASSERT_THROW(core.set_property("GNA", {{ov::hint::num_requests.name(), "ABC"}}), ov::Exception);
@@ -171,31 +177,31 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedExecutionMode) {
     ov::Core core;
     auto execution_mode = ov::intel_gna::ExecutionMode::AUTO;
 
-    ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
+    OV_ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
     ASSERT_EQ(ov::intel_gna::ExecutionMode::SW_EXACT, execution_mode);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_FP32)));
-    ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_FP32)));
+    OV_ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
     ASSERT_EQ(ov::intel_gna::ExecutionMode::SW_FP32, execution_mode);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT)));
-    ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT)));
+    OV_ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
     ASSERT_EQ(ov::intel_gna::ExecutionMode::SW_EXACT, execution_mode);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::HW_WITH_SW_FBACK)));
-    ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::HW_WITH_SW_FBACK)));
+    OV_ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
     ASSERT_EQ(ov::intel_gna::ExecutionMode::HW_WITH_SW_FBACK, execution_mode);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::HW)));
-    ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::HW)));
+    OV_ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
     ASSERT_EQ(ov::intel_gna::ExecutionMode::HW, execution_mode);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::AUTO)));
-    ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::AUTO)));
+    OV_ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
     ASSERT_EQ(ov::intel_gna::ExecutionMode::AUTO, execution_mode);
 
     ASSERT_THROW(core.set_property("GNA", {{ov::intel_gna::execution_mode.name(), "ABC"}}), ov::Exception);
-    ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
+    OV_ASSERT_NO_THROW(execution_mode = core.get_property("GNA", ov::intel_gna::execution_mode));
     ASSERT_EQ(ov::intel_gna::ExecutionMode::AUTO, execution_mode);
 }
 
@@ -204,30 +210,30 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedTargetDevice) {
     auto execution_target = ov::intel_gna::HWGeneration::UNDEFINED;
     auto compile_target = ov::intel_gna::HWGeneration::UNDEFINED;
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_2_0)));
-    ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_2_0)));
+    OV_ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_2_0, execution_target);
-    ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
+    OV_ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_2_0, compile_target);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_0)));
-    ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_0)));
+    OV_ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_3_0, execution_target);
-    ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
+    OV_ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_2_0, compile_target);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::GNA_3_0)));
-    ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::GNA_3_0)));
+    OV_ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_3_0, execution_target);
-    ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
+    OV_ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_3_0, compile_target);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::UNDEFINED)));
-    ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::UNDEFINED)));
+    OV_ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::UNDEFINED, execution_target);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::UNDEFINED)));
-    ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::execution_target));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::UNDEFINED)));
+    OV_ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::execution_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::UNDEFINED, compile_target);
 
     ASSERT_THROW(core.set_property("GNA", {ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_2_0),
@@ -243,22 +249,22 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPwlAlgorithm) {
     auto pwl_algo = ov::intel_gna::PWLDesignAlgorithm::UNDEFINED;
     float pwl_max_error = 0.0f;
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::RECURSIVE_DESCENT)));
-    ASSERT_NO_THROW(pwl_algo = core.get_property("GNA", ov::intel_gna::pwl_design_algorithm));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::RECURSIVE_DESCENT)));
+    OV_ASSERT_NO_THROW(pwl_algo = core.get_property("GNA", ov::intel_gna::pwl_design_algorithm));
     ASSERT_EQ(ov::intel_gna::PWLDesignAlgorithm::RECURSIVE_DESCENT, pwl_algo);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION)));
-    ASSERT_NO_THROW(pwl_algo = core.get_property("GNA", ov::intel_gna::pwl_design_algorithm));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION)));
+    OV_ASSERT_NO_THROW(pwl_algo = core.get_property("GNA", ov::intel_gna::pwl_design_algorithm));
     ASSERT_EQ(ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION, pwl_algo);
 
     ASSERT_THROW(core.set_property("GNA", {{ov::intel_gna::pwl_design_algorithm.name(), "ABC"}}), ov::Exception);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_max_error_percent(0.05)));
-    ASSERT_NO_THROW(pwl_max_error = core.get_property("GNA", ov::intel_gna::pwl_max_error_percent));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_max_error_percent(0.05)));
+    OV_ASSERT_NO_THROW(pwl_max_error = core.get_property("GNA", ov::intel_gna::pwl_max_error_percent));
     ASSERT_FLOAT_EQ(0.05, pwl_max_error);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_max_error_percent(100.0f)));
-    ASSERT_NO_THROW(pwl_max_error = core.get_property("GNA", ov::intel_gna::pwl_max_error_percent));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_max_error_percent(100.0f)));
+    OV_ASSERT_NO_THROW(pwl_max_error = core.get_property("GNA", ov::intel_gna::pwl_max_error_percent));
     ASSERT_FLOAT_EQ(100.0f, pwl_max_error);
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -273,12 +279,12 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedLogLevel) {
     ov::Core core;
     auto level = ov::log::Level::NO;
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::log::level(ov::log::Level::WARNING)));
-    ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::log::level(ov::log::Level::WARNING)));
+    OV_ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
     ASSERT_EQ(ov::log::Level::WARNING, level);
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::log::level(ov::log::Level::NO)));
-    ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::log::level(ov::log::Level::NO)));
+    OV_ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
     ASSERT_EQ(ov::log::Level::NO, level);
 
     ASSERT_THROW(core.set_property("GNA",  ov::log::level(ov::log::Level::ERR)), ov::Exception);
@@ -292,8 +298,8 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedFwModelPath) {
     ov::Core core;
     std::string path = "";
 
-    ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::firmware_model_image_path("model.bin")));
-    ASSERT_NO_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::firmware_model_image_path("model.bin")));
+    OV_ASSERT_NO_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path));
     ASSERT_EQ("model.bin", path);
 }
 

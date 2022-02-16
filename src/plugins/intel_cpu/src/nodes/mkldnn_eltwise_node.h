@@ -93,12 +93,12 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void initOptimalPrimitiveDescriptor() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
     void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
     void fuseInto(MKLDNNNodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
@@ -106,8 +106,7 @@ public:
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
-    MKLDNNMemoryPtr scalesMemory;
-    MKLDNNMemoryPtr shiftsMemory;
+
     mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
 
     bool isWithBroadcast();
@@ -119,6 +118,8 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override;
 
+    void setDynamicBatchLim(int lim) override;
+
     enum BroadcastingPolicy {
         PerChannel,
         PerTensor,
@@ -128,7 +129,6 @@ public:
     BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-
 
 private:
     executorPtr execPtr = nullptr;
@@ -152,8 +152,12 @@ private:
 
     std::vector<float> scales = {};
     std::vector<float> shifts = {};
-    std::vector<float> scalesBuffer = {};
-    std::vector<float> shiftsBuffer = {};
+    MKLDNNMemoryPtr scalesMemory;
+    MKLDNNMemoryPtr shiftsMemory;
+
+    std::vector<float> depthwiseData = {};
+    MKLDNNMemoryPtr depthwiseMemory;
+    size_t depthwiseDataSize = 0;
 
     std::vector<MKLDNNMemoryPtr> memPtrs = {};
     std::vector<const void*> fqDataPtrs;
@@ -164,6 +168,12 @@ private:
     static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
 
     size_t getOpInputsNum() const;
+
+    template <typename T>
+    void appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
+
+    void appendMemory(const std::vector<float> &data, MKLDNNMemoryPtr &memPtr, std::vector<MKLDNNMemoryPtr>& postOpsMem);
+    void appendMemory(const std::vector<float> &data, MKLDNNMemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
 };
 
 }  // namespace MKLDNNPlugin
