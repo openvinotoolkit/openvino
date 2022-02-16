@@ -842,6 +842,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             optBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
         if (optBatchSize > 2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
             metaDevice.batchForDevice = optBatchSize;
+        else
+            metaDevice.batchForDevice = 1;
     }
 
     const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
