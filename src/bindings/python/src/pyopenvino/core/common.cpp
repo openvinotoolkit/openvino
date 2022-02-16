@@ -99,17 +99,20 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
         } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
             py::list bounded_dim = dim.cast<py::list>();
             if (bounded_dim.size() != 2) {
-                throw py::type_error("Two elements are expected in tuple(lower, upper) for dynamic dimension, but "
-                                        + std::to_string(bounded_dim.size()) + " were given.");
+                throw py::type_error("Two elements are expected in tuple(lower, upper) for dynamic dimension, but " +
+                                     std::to_string(bounded_dim.size()) + " were given.");
             }
             if (!(py::isinstance<py::int_>(bounded_dim[0]) && py::isinstance<py::int_>(bounded_dim[1]))) {
-                std::string wrong_type = py::isinstance<py::int_>(bounded_dim[0]) ? bounded_dim[1].get_type().str() : bounded_dim[0].get_type().str();
+                std::string wrong_type = py::isinstance<py::int_>(bounded_dim[0]) ? bounded_dim[1].get_type().str()
+                                                                                  : bounded_dim[0].get_type().str();
                 throw py::type_error("Incorrect type " + wrong_type + " for dynamic dimension, int is expected.");
             }
             dims.push_back(ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
-        }  else {
-            throw py::type_error("Incorrect type " + std::string(dim.get_type().str()) + " for dimension. Next types are expected: "
-                                 "int, ov.runtime.Dimension, list or tuple with lower and upper values for dynamic dimension.");
+        } else {
+            throw py::type_error(
+                "Incorrect type " + std::string(dim.get_type().str()) +
+                " for dimension. Next types are expected: "
+                "int, ov.runtime.Dimension, list or tuple with lower and upper values for dynamic dimension.");
         }
     }
     return ov::PartialShape(dims);
