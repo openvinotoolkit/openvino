@@ -63,7 +63,9 @@ public:
         return get();
     }
     void set_as_any(const ov::Any& x) override {
-        set(x.as<VAT>());
+        const auto* data = x.addressof();
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty ov::Any is provided.");
+        set(*static_cast<const VAT*>(data));
     }
 };
 
@@ -108,13 +110,15 @@ public:
     }
 
     void set_as_any(const ov::Any& x) override {
+        const auto* data = x.addressof();
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty ov::Any is provided.");
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
-            set(x.as<VAT>());
+            set(*static_cast<const VAT *>(data));
         } else {
             // Don't call set here avoiding unnecessary casts AT -> VAT -> AT,
             // instead reimplement logic from set.
-            m_ref = x.as<AT>();
+            m_ref = *static_cast<const AT *>(data);
             m_buffer_valid = false;
         }
     }
@@ -153,15 +157,18 @@ public:
     }
 
     void set_as_any(const ov::Any& x) override {
+        const auto* data = x.addressof();
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty ov::Any is provided.");
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
-            set(x.as<VAT>());
+            set(*static_cast<const VAT *>(data));
         } else {
             // Don't call set here avoiding unnecessary casts AT -> VAT -> AT,
             // instead reimplement logic from set.
-            m_ref = x.as<AT>();
+            m_ref = *static_cast<const AT *>(data);
             m_buffer_valid = false;
         }
+
     }
     operator AT&() {
         return m_ref;
@@ -200,9 +207,11 @@ public:
         if (x.is<std::string>()) {
             set(x.as<std::string>());
         } else {
+            const auto* data = x.addressof();
+            OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty ov::Any is provided.");
             // Don't call set here avoiding unnecessary casts AT -> std::string -> AT,
             // instead reimplement logic from set.
-            m_ref = x.as<AT>();
+            m_ref = *static_cast<const AT *>(data);
         }
     }
 
