@@ -77,10 +77,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("MULTI", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetAllowAutoBatchingConfigTest, OVClassSetAllowAutoBatchingConfigTest,
-        ::testing::Values("MULTI", "AUTO"));
-
-INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
         ::testing::Values("MULTI", "AUTO"));
 
@@ -91,6 +87,30 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
                            ::testing::ValuesIn(multiConfigs)));
+
+//
+// IE Class SetConfig
+//
+const std::vector<ov::AnyMap> allowAutoBatchingConfigs = {
+        {ov::hint::allow_auto_batching(true)},
+        {ov::hint::allow_auto_batching(false)}
+};
+
+const std::vector<ov::AnyMap> allowAutoBatchingAutoConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::allow_auto_batching(true)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::allow_auto_batching(false)}
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetAllowAutoBatchingConfigTest, OVClassSetAllowAutoBatchingConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
+                           ::testing::ValuesIn(allowAutoBatchingConfigs)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_AUTO_OVClassSetAllowAutoBatchingConfigTest, OVClassSetAllowAutoBatchingConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                           ::testing::ValuesIn(allowAutoBatchingAutoConfigs)));
+
 //
 // IE Class GetConfig
 //
@@ -201,5 +221,15 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,
         ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetAllowAutoBatchingConfigCompileModeTest, OVClassSetAllowAutoBatchingConfigCompileModeTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_CPU),
+                           ::testing::ValuesIn(allowAutoBatchingConfigs)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Auto_OVClassSetAllowAutoBatchingConfigCompileModeTest, OVClassSetAllowAutoBatchingConfigCompileModeTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                           ::testing::ValuesIn(allowAutoBatchingAutoConfigs)));
 } // namespace
 

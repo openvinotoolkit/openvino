@@ -108,13 +108,11 @@ TEST_P(CorrectConfigTests, CanUseCache) {
 }
 
 TEST_P(SetAllowAutoBatchingCorrectConfigTestCheck, SetConfigNoThrow) {
-    ie->SetConfig({ {CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)} }, targetDevice);
-    InferenceEngine::Parameter param;
-    ASSERT_NO_THROW(param = ie->GetConfig(targetDevice, CONFIG_KEY(ALLOW_AUTO_BATCHING)));
-    ASSERT_EQ(param, InferenceEngine::Parameter(CONFIG_VALUE(YES)));
-    ie->SetConfig({ {CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(NO)} }, targetDevice);
-    ASSERT_NO_THROW(param = ie->GetConfig(targetDevice, CONFIG_KEY(ALLOW_AUTO_BATCHING)));
-    ASSERT_EQ(param, InferenceEngine::Parameter(CONFIG_VALUE(NO)));
+    ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
+}
+
+TEST_P(SetAllowAutoBatchingCorrectConfigLoadNetworkTestCheck, LoadNetworkNoThrough) {
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
 
 TEST_P(CorrectConfigCheck, canSetConfigAndCheckGetConfig) {

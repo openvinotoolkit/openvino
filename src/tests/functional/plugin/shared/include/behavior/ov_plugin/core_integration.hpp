@@ -93,7 +93,8 @@ using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
-using OVClassSetAllowAutoBatchingConfigTest = OVClassBaseTestP;
+using OVClassSetAllowAutoBatchingConfigTest = OVClassSetDevicePriorityConfigTest;
+using OVClassSetAllowAutoBatchingConfigCompileModeTest = OVClassSetDevicePriorityConfigTest;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
@@ -374,23 +375,17 @@ TEST_P(OVClassSetModelPriorityConfigTest, SetConfigNoThrow) {
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
-TEST_P(OVClassSetAllowAutoBatchingConfigTest, SetConfigNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    bool value = false;
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::allow_auto_batching(true)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::allow_auto_batching));
-    ASSERT_TRUE(value);
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::allow_auto_batching(false)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::allow_auto_batching));
-    ASSERT_FALSE(value);
-}
-
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     std::string devicePriority;
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
     OV_ASSERT_NO_THROW(devicePriority = ie.get_property(deviceName, ov::device::priorities));
     ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
+}
+
+TEST_P(OVClassSetAllowAutoBatchingConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
@@ -890,6 +885,12 @@ using OVClassNetworkTestP = OVClassBaseTestP;
 TEST_P(OVClassNetworkTestP, LoadNetworkActualNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName));
+}
+
+TEST_P(OVClassSetAllowAutoBatchingConfigCompileModeTest, LoadNetworkActualNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    auto actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName, configuration));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
