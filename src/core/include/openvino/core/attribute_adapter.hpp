@@ -108,11 +108,11 @@ public:
         OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
-            set(*static_cast<const VAT *>(data));
+            set(*static_cast<const VAT*>(data));
         } else {
             // Don't call set here avoiding unnecessary casts AT -> VAT -> AT,
             // instead reimplement logic from set.
-            m_ref = *static_cast<const AT *>(data);
+            m_ref = *static_cast<const AT*>(data);
             m_buffer_valid = false;
         }
     }
@@ -155,14 +155,13 @@ public:
         OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
-            set(*static_cast<const VAT *>(data));
+            set(*static_cast<const VAT*>(data));
         } else {
             // Don't call set here avoiding unnecessary casts AT -> VAT -> AT,
             // instead reimplement logic from set.
-            m_ref = *static_cast<const AT *>(data);
+            m_ref = *static_cast<const AT*>(data);
             m_buffer_valid = false;
         }
-
     }
     operator AT&() {
         return m_ref;
@@ -205,7 +204,7 @@ public:
             OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
             // Don't call set here avoiding unnecessary casts AT -> std::string -> AT,
             // instead reimplement logic from set.
-            m_ref = *static_cast<const AT *>(data);
+            m_ref = *static_cast<const AT*>(data);
         }
     }
 

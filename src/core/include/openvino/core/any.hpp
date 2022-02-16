@@ -960,9 +960,9 @@ public:
     }
 
     /**
-    * @brief Returns address to internal value if any is not empty and `nullptr` instead
-    * @return address to internal stored value
-    */
+     * @brief Returns address to internal value if any is not empty and `nullptr` instead
+     * @return address to internal stored value
+     */
     void* addressof();
 
     /**
