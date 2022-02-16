@@ -129,20 +129,44 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+#define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
 
-Engine::Engine() {
+static std::string getDeviceFullName() {
+    std::string brand_string;
+#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+    const unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
+    unsigned int regs[4];
+    for (auto addr : addr_list) {
+        regs[0] = addr;
+#ifdef _WIN32
+        __cpuid(reinterpret_cast<int*>(regs), regs[0]);
+#else
+        __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
+#endif
+        char *ch = reinterpret_cast<char*>(&regs[0]);
+        for (size_t j = 0; j < sizeof(regs); j++)
+            brand_string += ch[j];
+    }
+#else
+    brand_string = "Non Intel Architecture";
+#endif
+    return brand_string;
+}
+
+Engine::Engine() :
+    deviceFullName(getDeviceFullName()) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<MKLDNNPlugin::MKLDNNExtension>());
 }
 
 Engine::~Engine() {
-    ExecutorManager::getInstance()->clear("CPU");
-    ExecutorManager::getInstance()->clear("CPUStreamsExecutor");
-    ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
+    executorManager()->clear("CPU");
+    executorManager()->clear("CPUStreamsExecutor");
+    executorManager()->clear("CPUCallbackExecutor");
 }
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
-                                               const bool _enableSnippets) {
+                                               const bool _enableSnippets, const bool isLegacyApi) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -150,9 +174,17 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     const bool useLpt =
             _enableLPT &&
         ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
+    auto defaultPrecisions = useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
+    bool hasINT16orINT32Levels = false;
     if (useLpt) {
-        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
+        hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
+                nGraphFunc,
+                {ngraph::pass::low_precision::levels::int16, ngraph::pass::low_precision::levels::int16_narrow_range,
+                 ngraph::pass::low_precision::levels::int32, ngraph::pass::low_precision::levels::int32_narrow_range});
+        if (hasINT16orINT32Levels) {
+            defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
+        }
+        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
     }
     auto get_convert_precisions = []() {
         precisions_array array = {
@@ -196,8 +228,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     if (useLpt) {
-        manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(
-            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
+        manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
     }
     manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
@@ -315,47 +346,23 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(
-            [](const_node_ptr &node) -> bool {
-                for (size_t i = 0; i < node->get_output_size(); i++) {
-                    const auto outputs = node->get_output_target_inputs(i);
-                    for (const auto &out : outputs) {
-                        if (!ngraph::op::is_output(out.get_node())) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
-            });
+    if (!isLegacyApi) {
+        auto nmsCallback = [](const_node_ptr &node) -> bool {
+                               for (size_t i = 0; i < node->get_output_size(); i++) {
+                                   const auto outputs = node->get_output_target_inputs(i);
+                                   for (const auto &out : outputs) {
+                                       if (!ngraph::op::is_output(out.get_node())) {
+                                           return false;
+                                       }
+                                   }
+                               }
+                               return true;
+                           };
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(
-            [](const_node_ptr &node) -> bool {
-                for (size_t i = 0; i < node->get_output_size(); i++) {
-                    const auto outputs = node->get_output_target_inputs(i);
-                    for (const auto &out : outputs) {
-                        if (!ngraph::op::is_output(out.get_node())) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
-            });
-
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(
-            [](const_node_ptr &node) -> bool {
-                for (size_t i = 0; i < node->get_output_size(); i++) {
-                    const auto outputs = node->get_output_target_inputs(i);
-                    for (const auto &out : outputs) {
-                        if (!ngraph::op::is_output(out.get_node())) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
-            });
+        pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(nmsCallback);
+        pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
+        pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
+    }
 
     // List of enabled/disabled transformations
 
@@ -399,12 +406,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             return !MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
         });
 
-        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
-            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
+        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
+            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
         });
 
-        pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
-            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
+        pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
+            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
         });
     }
 
@@ -444,28 +451,26 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
         // for GNA networks reference execution
         bool updatePrecision = true;
-        bool hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
-                nGraphFunc,
-                {levels::int16, levels::int16_narrow_range,
-                 levels::int32, levels::int32_narrow_range});
         if (hasINT16orINT32Levels) {
             updatePrecision = false;
-            LowPrecision::setDefaultPrecisions(precision_set::int8_int16_int32_support);
-
             supportedPrecisions = std::vector<OperationPrecisionRestriction>({});
         }
 
         ngraph::pass::Manager lptManager;
-        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization,
-                                                                            LayerTransformation::Params(updatePrecision));
+        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(
+            supportedPrecisions,
+            perTensorQuantization,
+            LayerTransformation::Params(updatePrecision, ngraph::element::f32, defaultPrecisions));
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
             }
             return false;
         });
-        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
-            return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
+        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>(
+            [&defaultPrecisions](const_node_ptr& node) -> bool {
+            return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) ||
+                WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
         });
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
             return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
@@ -528,10 +533,94 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     }
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets) {
+static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets, const bool isLegacyApi) {
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets, isLegacyApi);
     ConvertToCPUSpecificOpset(nGraphFunc);
+}
+
+static bool streamsSet(const std::map<std::string, std::string>& config) {
+    return config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
+           config.count(ov::num_streams.name());
+}
+
+void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
+    const bool streamsExplicitlySetForModel = streamsSet(config);
+    // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+    if (streamsExplicitlySetForModel ||
+        streamsExplicitlySetForEngine)
+        return;
+
+    const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+    // the mode may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
+    if (mode == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
+        return;
+    /* performance hints set for network has higher pririty than engine ones.
+     * This applies for all the configuration parameters */
+    const auto mode_name = (mode != config.end()) ?
+        PerfHintsConfig::CheckPerformanceHintValue(mode->second) :
+        engConfig.perfHintsConfig.ovPerfHint;
+
+    if (mode_name == CONFIG_VALUE(LATENCY)) {
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+    } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+        const auto isa = dnnl::get_effective_cpu_isa();
+        float isaSpecificThreshold = 1.0f;
+        switch (isa) {
+        case dnnl::cpu_isa::sse41 :
+            isaSpecificThreshold = 0.5f;
+            break;
+        case dnnl::cpu_isa::avx2:
+        case dnnl::cpu_isa::avx512_core:
+            isaSpecificThreshold = 1.0f;
+            break;
+        case dnnl::cpu_isa::avx512_core_vnni:
+        case dnnl::cpu_isa::avx2_vnni:
+            isaSpecificThreshold = 2.0f;
+            break;
+        case dnnl::cpu_isa::avx512_core_amx:
+            isaSpecificThreshold = 4.0f;
+            break;
+        default:
+            isaSpecificThreshold = 1.0f;
+        }
+        // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
+        const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
+        const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+        ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
+            ngraphFunc,
+            L2_cache_size, memThresholdAssumeLimitedForISA);
+        // num of phys CPU cores (most aggressive value for #streams)
+        const auto num_cores = getNumberOfCPUCores();
+        // less aggressive
+        const auto num_streams_less_aggressive = num_cores / 2;
+        // default #streams value (most conservative)
+        const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+        int num_streams = default_num_streams;
+        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
+                || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
+                // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
+                num_streams = num_cores;
+            }   // otherwise (no recognized layers) falling back to the default value
+        } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
+            // network is below the ISA-specific threshold
+            num_streams = num_cores;
+        } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
+            // network is below general threshold
+            num_streams = std::max(default_num_streams, num_streams_less_aggressive);
+        }
+        auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+        if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
+            auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
+            if (val > 0)
+                num_streams = std::min(num_streams, val);
+        } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  //set thru SetConfig to the plugin, 2nd priority
+            num_streams = std::min(num_streams,
+                                   engConfig.perfHintsConfig.ovPerfHintNumRequests);
+        }
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
+    }
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
@@ -555,7 +644,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         };
 
         if (!supported_precisions.count(input_precision)) {
-            IE_THROW(NotImplemented)
+            IE_CPU_PLUGIN_THROW(NotImplemented)
                         << "Input image format " << input_precision << " is not supported yet...";
         }
     }
@@ -576,107 +665,92 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             || engConfig.enableDynamicBatch;
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets, isLegacyAPI());
 
-    // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
-    const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
-    // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
-    if (mode != config.end() || !engConfig.perfHintsConfig.ovPerfHint.empty()) {
-        const auto mode_name = (mode != config.end())
-                               ? PerfHintsConfig::CheckPerformanceHintValue(mode->second) : engConfig.perfHintsConfig.ovPerfHint;
-        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
-        if (streams == config.end() && !streamsSet) {
-            if (mode_name == CONFIG_VALUE(LATENCY)) {
-                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
-                const auto isa = dnnl::get_effective_cpu_isa();
-                float isaSpecificThreshold = 1.0f;
-                switch (isa) {
-                    case dnnl::cpu_isa::sse41 :
-                        isaSpecificThreshold = 0.5f;
-                        break;
-                    case dnnl::cpu_isa::avx2:
-                    case dnnl::cpu_isa::avx512_core:
-                        isaSpecificThreshold = 1.0f;
-                        break;
-                    case dnnl::cpu_isa::avx512_core_vnni:
-                    case dnnl::cpu_isa::avx2_vnni:
-                        isaSpecificThreshold = 2.0f;
-                        break;
-                    case dnnl::cpu_isa::avx512_core_amx:
-                        isaSpecificThreshold = 4.0f;
-                        break;
-                    default:
-                        isaSpecificThreshold = 1.0f;
-                }
-                // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
-                const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
-                const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
-                ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
-                        clonedNetwork.getFunction(),
-                        L2_cache_size, memThresholdAssumeLimitedForISA);
-                // num of phys CPU cores (most aggressive value for #streams)
-                const auto num_cores = getNumberOfCPUCores();
-                // less aggressive
-                const auto num_streams_less_aggressive = num_cores / 2;
-                // default #streams value (most conservative)
-                const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
-                int num_streams = default_num_streams;
-                if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-                    if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
-                        || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
-                        // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                        num_streams = num_cores;
-                    }   // otherwise (no recognized layers) falling back to the default value
-                } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
-                    // network is below the ISA-specific threshold
-                    num_streams = num_cores;
-                } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
-                    // network is below general threshold
-                    num_streams = std::max(default_num_streams, num_streams_less_aggressive);
-                }
-                auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-                if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-                    auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
-                    if (val > 0)
-                        num_streams = std::min(num_streams, val);
-                } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  //set thru SetConfig to the plugin, 2nd priority
-                    num_streams = std::min(num_streams,
-                                           engConfig.perfHintsConfig.ovPerfHintNumRequests);
-                }
-                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
-           }
-        }
-    }
+    ApplyPerformanceHints(config, nGraphFunc);
+
     ConvertToCPUSpecificOpset(nGraphFunc);
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
+
     conf.readProperties(config);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
+    return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing, shared_from_this());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
-    // accumulate config parameters on engine level
-    streamsSet = (config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != config.end());
+    streamsExplicitlySetForEngine = streamsSet(config);
+
     engConfig.readProperties(config);
 }
 
-Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+bool Engine::isLegacyAPI() const {
+    const auto& core = GetCore();
+    if (!core)
+        IE_CPU_PLUGIN_THROW() << "Unable to get API version. Core is unavailable";
+
+    return !core->isNewAPI();
+}
+
+Parameter Engine::GetConfigLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
     Parameter result;
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         result = option->second;
     } else {
-        IE_THROW() << "Unsupported config key " << name;
+        IE_CPU_PLUGIN_THROW() << ". Unsupported config parameter: " << name;
     }
     return result;
+}
+
+Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
+    if (isLegacyAPI())
+        return GetConfigLegacy(name, options);
+
+    if (name == ov::optimal_number_of_infer_requests) {
+        const auto streams = engConfig.streamExecutorConfig._streams;
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(streams); // ov::optimal_number_of_infer_requests has no negative values
+    } else if (name == ov::num_streams) {
+        const auto streams = engConfig.streamExecutorConfig._streams;
+        return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+    } else if (name == ov::affinity) {
+        const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
+        switch (affinity) {
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::NONE:
+            return ov::Affinity::NONE;
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::CORES:
+            return ov::Affinity::CORE;
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::NUMA:
+            return ov::Affinity::NUMA;
+        case InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+            return ov::Affinity::HYBRID_AWARE;
+        }
+        return ov::Affinity::NONE;
+    } else if (name == ov::inference_num_threads) {
+        const auto num_threads = engConfig.streamExecutorConfig._threads;
+        return decltype(ov::inference_num_threads)::value_type(num_threads);
+    } else if (name == ov::enable_profiling.name()) {
+        const bool perfCount = engConfig.collectPerfCounters;
+        return decltype(ov::enable_profiling)::value_type(perfCount);
+    } else if (name == ov::hint::inference_precision) {
+        const auto enforceBF16 = engConfig.enforceBF16;
+        return decltype(ov::hint::inference_precision)::value_type(
+            enforceBF16 ? ov::element::bf16 : ov::element::f32);
+    } else if (name == ov::hint::performance_mode) {
+        const auto perfHint = engConfig.perfHintsConfig.ovPerfHint;
+        return ov::Any{perfHint}.as<decltype(ov::hint::performance_mode)::value_type>();
+    } else if (name == ov::hint::num_requests) {
+        const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
+        return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+    }
+    /* Internally legacy parameters are used with new API as part of migration procedure.
+     * This fallback can be removed as soon as migration completed */
+    return GetConfigLegacy(name, options);
 }
 
 static bool hasAVX512() {
@@ -693,7 +767,7 @@ static bool hasAVX512() {
     return false;
 }
 
-Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics = {
             METRIC_KEY(AVAILABLE_DEVICES),
@@ -707,25 +781,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        std::string brand_string;
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-        unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
-        unsigned int regs[4];
-        for (auto addr : addr_list) {
-            regs[0] = addr;
-#ifdef _WIN32
-            __cpuid(reinterpret_cast<int*>(regs), regs[0]);
-#else
-            __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
-#endif
-            char *ch = reinterpret_cast<char*>(&regs[0]);
-            for (size_t j = 0; j < sizeof(regs); j++)
-                brand_string += ch[j];
-        }
-#else
-        brand_string = "Non Intel Architecture";
-#endif
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, brand_string);
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, deviceFullName);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { "" };
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
@@ -753,9 +809,72 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else {
-        IE_THROW() << "Unsupported metric key " << name;
     }
+
+    IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
+}
+
+Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+    if (isLegacyAPI())
+        return GetMetricLegacy(name, options);
+
+    auto RO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+    };
+    auto RW_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+    };
+
+    if (name == ov::supported_properties) {
+        std::vector<ov::PropertyName> roProperties {RO_property(ov::supported_properties.name()),
+                                                    RO_property(ov::available_devices.name()),
+                                                    RO_property(ov::range_for_async_infer_requests.name()),
+                                                    RO_property(ov::range_for_streams.name()),
+                                                    RO_property(ov::device::full_name.name()),
+                                                    RO_property(ov::device::capabilities.name())
+        };
+        // the whole config is RW before network is loaded.
+        std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
+                                                    RW_property(ov::affinity.name()),
+                                                    RW_property(ov::inference_num_threads.name()),
+                                                    RW_property(ov::enable_profiling.name()),
+                                                    RW_property(ov::hint::inference_precision.name()),
+                                                    RW_property(ov::hint::performance_mode.name()),
+                                                    RW_property(ov::hint::num_requests.name()),
+        };
+
+        std::vector<ov::PropertyName> supportedProperties;
+        supportedProperties.reserve(roProperties.size() + rwProperties.size());
+        supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+        supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+        return supportedProperties;
+    } else if (name == ov::device::full_name) {
+        return deviceFullName;
+    } else if (name == ov::available_devices) {
+        const std::vector<std::string> availableDevices = { "" };
+        return availableDevices;
+    } else if (name == ov::device::capabilities) {
+        std::vector<std::string> capabilities;
+        if (with_cpu_x86_bfloat16())
+            capabilities.push_back(METRIC_VALUE(BF16));
+        if (hasAVX512())
+            capabilities.push_back(METRIC_VALUE(WINOGRAD));
+        capabilities.push_back(METRIC_VALUE(FP32));
+        capabilities.push_back(METRIC_VALUE(FP16));
+        capabilities.push_back(METRIC_VALUE(INT8));
+        capabilities.push_back(METRIC_VALUE(BIN));
+        capabilities.push_back("IMPORT_EXPORT");
+        return capabilities;
+    } else if (name == ov::range_for_async_infer_requests) {
+        const std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
+        return range;
+    } else if (name == ov::range_for_streams) {
+        const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
+        return range;
+    }
+    /* Internally legacy parameters are used with new API as part of migration procedure.
+     * This fallback can be removed as soon as migration completed */
+    return GetMetricLegacy(name, options);
 }
 
 void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
@@ -786,7 +905,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16 && with_cpu_x86_avx512_core()));
-        Transformation(clonedNetwork, enableLPT, enableSnippets);
+        Transformation(clonedNetwork, enableLPT, enableSnippets, isLegacyAPI());
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
@@ -844,7 +963,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
             res.supportedLayersMap.emplace(layerName, GetName());
         }
     } else {
-        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
+        IE_CPU_PLUGIN_THROW() << "Only ngraph-based models are supported!";
     }
 
     return res;
@@ -869,7 +988,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
     }
 
-    auto execNetwork = std::make_shared<MKLDNNExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing);
+    auto execNetwork = std::make_shared<MKLDNNExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing, shared_from_this());
 
     execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
     execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());

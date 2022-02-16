@@ -39,7 +39,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
     }
 
     void TearDown() override {
@@ -331,7 +331,7 @@ TEST_P(OVExecutableNetworkBaseTest, canExport) {
 TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
-    compare_functions(referenceNetwork, function);
+    compare_functions(function, referenceNetwork);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {

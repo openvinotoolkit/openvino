@@ -20,6 +20,7 @@
 #include "so_ptr.hpp"
 #include "openvino/runtime/common.hpp"
 #include "any_copy.hpp"
+#include "ie_plugin_config.hpp"
 
 #if defined __GNUC__
 # pragma GCC diagnostic push
@@ -231,6 +232,52 @@ public:
 
     Any get_config(const std::string& name, const AnyMap& options) const {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetConfig(name, options), _so});
+    }
+
+    Any get_property(const std::string& name, const AnyMap& arguments) const {
+        OV_PLUGIN_CALL_STATEMENT({
+            if (ov::supported_properties == name) {
+                try {
+                    return {_ptr->GetMetric(name, arguments), _so};
+                } catch (ie::Exception&) {
+                    std::vector<ov::PropertyName> supported_properties;
+                    try {
+                        auto ro_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_METRICS), arguments)
+                                                .as<std::vector<std::string>>();
+                        for (auto&& ro_property : ro_properties) {
+                            if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                                ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                                supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                            }
+                        }
+                    } catch (ie::Exception&) {}
+                    try {
+                        auto rw_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
+                                                .as<std::vector<std::string>>();
+                        for (auto&& rw_property : rw_properties) {
+                            supported_properties.emplace_back(rw_property, PropertyMutability::RW);
+                        }
+                    } catch (ie::Exception&) {}
+                    supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
+                    return supported_properties;
+                }
+            }
+            try {
+                return {_ptr->GetMetric(name, arguments), _so};
+            } catch (ie::Exception&) {
+                return {_ptr->GetConfig(name, arguments), _so};
+            }
+        });
+    }
+
+    template <typename T, PropertyMutability M>
+    T get_property(const ov::Property<T, M>& property) const {
+        return get_property(property.name(), {}).template as<T>();
+    }
+
+    template <typename T, PropertyMutability M>
+    T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
+        return get_property(property.name(), arguments).template as<T>();
     }
 };
 

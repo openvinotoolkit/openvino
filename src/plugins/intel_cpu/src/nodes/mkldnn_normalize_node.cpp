@@ -220,7 +220,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
                         this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
-                        this, post_op.depthwise.alg));
+                        this, post_op));
             } else if (post_op.is_quantization()) {
                 quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
                         this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
@@ -658,15 +658,13 @@ private:
                         || depthwise_injectors[depthwise_inj_idx] == nullptr)
                     assert(!"Invalid depthwise injectors.");
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
-                post_ops_data_offset += sizeof(void*);
-
-                mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
-                post_ops_data_offset += sizeof(void*);
-
                 add(reg_d_weights, reg_oc_off);
-                add(reg_d_bias, reg_oc_off);
+
                 // weight and bias is padding. scalar as vector.
-                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
+                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(
+                        vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_weights, is_broadcast);
+
+                post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 if (quantization_injectors.size() <= quantization_inj_idx
@@ -815,16 +813,16 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
-    config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
+    config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
         auto a = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA));
-        config.inConfs[0].desc = std::move(a);
+        config.inConfs[0].setMemDesc(std::move(a));
         a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(AXES));
-        config.inConfs[1].desc = std::move(a);
+        config.inConfs[1].setMemDesc(std::move(a));
         a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
-        config.outConfs[0].desc = std::move(a);
+        config.outConfs[0].setMemDesc(std::move(a));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -842,7 +840,7 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
         }
     }
     if (canBeInplace)
-        config.inConfs[0].inPlace = 0;
+        config.inConfs[0].inPlace(0);
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
@@ -853,16 +851,17 @@ bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
 void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights) {
     mkldnn::post_ops ops;
 
+    postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, dims);
+            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
             continue;
         }
 
@@ -875,9 +874,9 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, con
 void MKLDNNNormalizeL2Node::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "can't get destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         THROW_ERROR << "can't get input memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has nullable preferable primitive descriptor";
@@ -911,26 +910,6 @@ void MKLDNNNormalizeL2Node::prepareParams() {
     const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
 
     setPostOps(kernel_attrs, dims, true);
-
-    // move pointer address from compile time kernel_attrs into runtime kernel args
-    // and clear pointer address to remove it from cache key
-    auto &postOps = (*kernel_attrs.get()).post_ops_;
-    postOpsDataPtrs.clear();
-    for (int i = 0; i < postOps.len(); ++i) {
-        auto &post_op = postOps.entry_[i];
-        if (post_op.is_quantization()) {
-            auto &data = post_op.quantization.data;
-            postOpsDataPtrs.insert(postOpsDataPtrs.end(), std::begin(data), std::end(data));
-            memset(data, 0, sizeof(data));
-        } else if (post_op.is_depthwise()) {
-            auto &weights = post_op.depthwise.weights_data;
-            auto &biases = post_op.depthwise.biases_data;
-            postOpsDataPtrs.push_back(weights);
-            postOpsDataPtrs.push_back(biases);
-            weights = 0;
-            biases = 0;
-        }
-    }
 
     NormalizeKey key = {attrs, kernel_attrs, dims};
 
@@ -1444,12 +1423,14 @@ private:
                 dst_value = eltwise_injectors_ref[eltwise_inj_idx]->compute_scalar(dst_value);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
-                auto depthwise_weights = post_ops_data[0] + index_c;
-                auto depthwise_bias = post_ops_data[1] + index_c;
-                post_ops_data += 2;
+                auto depthwise_base = *post_ops_data;
+                auto depthwise_weights = depthwise_base + post_op.depthwise.offset[post_op.depthwise.scales] + index_c;
+                auto depthwise_bias = depthwise_base + post_op.depthwise.offset[post_op.depthwise.shifts] + index_c;
 
                 dst_value = depthwise_injectors_ref[depthwise_inj_idx]->compute_scalar(dst_value, depthwise_weights, depthwise_bias);
+
                 depthwise_inj_idx++;
+                post_ops_data++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || attrs.output_prec == Precision::FP32 || i != p.len() - 1;
@@ -1458,8 +1439,9 @@ private:
 
                 using quantization_fields = post_ops_t::entry_t::quantization_t::quantization_fields;
                 auto dataVal = [&](const quantization_fields& field) -> float {
+                    auto dataPtr = *post_ops_data + post_op.quantization.offset[field];
                     const int channelIdx = quant.per_channel[field] ? index_c : 0;
-                    return post_ops_data[field][channelIdx];
+                    return dataPtr[channelIdx];
                 };
 
                 float crop_low = dataVal(quant.crop_low);
@@ -1480,7 +1462,7 @@ private:
                     dst_value = dst_value * output_scale + output_shift;
                 }
 
-                post_ops_data += quant.fields_count;
+                post_ops_data++;
             }
         }
     }

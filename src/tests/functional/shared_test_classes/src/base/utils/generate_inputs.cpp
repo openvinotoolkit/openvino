@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <shared_test_classes/base/ov_subgraph.hpp>
 #include "ngraph/ops.hpp"
 
 #include "functional_test_utils/ov_tensor_utils.hpp"
@@ -627,6 +628,42 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppres
             return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
     }
 }
+
+template<ov::element::Type_t elemType>
+ov::runtime::Tensor generate_unique_possibilities(const ov::Shape &targetShape) {
+    using value_type = typename element_type_traits<elemType>::value_type;
+    ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+    const size_t k = targetShape[0];
+    std::vector<size_t> indices(k);
+    std::iota(indices.begin(), indices.end(), 0lu);
+    std::default_random_engine random;
+    std::shuffle(indices.begin(), indices.end(), random);
+
+    auto dataPtr = tensor.data<value_type>();
+    for (size_t i = 0; i < k; ++i) {
+        // our goal is to have unique values for both f32 and f16 to avoid false failures because of the same possibilities
+        dataPtr[i] = ov::float16::from_bits(static_cast<  uint16_t>(indices[i]));
+    }
+    return tensor;
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronTopKROIs>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 1) {
+        switch (elemType) {
+            case element::Type_t::f16:
+                return generate_unique_possibilities<element::Type_t::f16>(targetShape);
+            case element::Type_t::f32:
+                return generate_unique_possibilities<element::Type_t::f32>(targetShape);
+            default:
+                OPENVINO_UNREACHABLE("Unsupported element type: ", elemType);
+        }
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::RNNSequence>& node,
                              size_t port,

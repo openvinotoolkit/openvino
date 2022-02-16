@@ -17,7 +17,6 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
-#include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 
@@ -87,11 +86,13 @@ public:
      * @param deviceName Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
+     * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
      */
     virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
                                                     const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config) = 0;
+                                                    const std::map<std::string, std::string>& config,
+                                                    const std::function<void(const CNNNetwork&)>& val = nullptr) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
