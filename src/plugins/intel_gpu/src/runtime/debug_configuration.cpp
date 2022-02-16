@@ -208,7 +208,7 @@ bool debug_configuration::is_dumped_layer(const std::string& layerName) const {
 #ifdef GPU_DEBUG_CONFIG
     if (dump_layers.empty()) return true;
     auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
-        return (layerName.find(dl) != std::string::npos);
+        return (layerName.compare(dl) == 0);
     });
     return (iter != dump_layers.end());
 #else
