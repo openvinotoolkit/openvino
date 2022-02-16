@@ -80,7 +80,7 @@ Run the following command:
 yum list installed 'openvino*'
 ```
 
-#### To uninstall the latest version
+#### To Uninstall the Latest Version
 
 Run the following command:
 ```sh
