@@ -98,8 +98,7 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             auto fq_users = fq->get_users();
             // Concat LPT transformation supports per tensor quantization only
             bool fq_user_is_concat = std::any_of(fq_users.begin(), fq_users.end(),
-                                                 [] (const Output<Node>& node) -> bool {
-                                                     auto node_ptr = node.get_node();
+                                                 [] (const std::shared_ptr<Node> node_ptr) -> bool {
                                                      return is_type<opset5::Concat>(node_ptr);
                                                  });
             if (fq_user_is_concat)
