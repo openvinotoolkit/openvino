@@ -8,6 +8,7 @@
 #include <string>
 
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <ie_icore.hpp>
 
 class MockPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::IInferencePlugin * _target = nullptr;
