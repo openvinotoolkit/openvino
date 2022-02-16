@@ -33,8 +33,9 @@ struct tile : public primitive_base<tile> {
     tile(const primitive_id& id,
          const primitive_id& input,
          const tensor out_shape,
+         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), out_shape(out_shape) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding), out_shape(out_shape) {}
 
     /// @brief Shape of the output tensor
     tensor out_shape;

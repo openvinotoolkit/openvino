@@ -171,7 +171,6 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
 
 class Core::Impl : public ICore {
     // Fields are ordered by deletion order
-    ITaskExecutor::Ptr _taskExecutor = nullptr;
 
     mutable std::map<std::string, InferencePlugin> plugins;
 
@@ -466,14 +465,6 @@ public:
     //
     // ICore public API
     //
-
-    /**
-     * @brief Returns global task executor
-     * @return Reference to task executor
-     */
-    ITaskExecutor::Ptr GetTaskExecutor() const override {
-        return _taskExecutor;
-    }
 
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "Core::Impl::ReadNetwork from file");

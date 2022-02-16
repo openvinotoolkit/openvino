@@ -9,8 +9,6 @@
 
 class MockICore : public InferenceEngine::ICore {
 public:
-    MOCK_QUALIFIED_METHOD0(GetTaskExecutor, const, std::shared_ptr<InferenceEngine::ITaskExecutor>());
-
     MOCK_QUALIFIED_METHOD2(ReadNetwork, const, InferenceEngine::CNNNetwork(const std::string&, const InferenceEngine::Blob::CPtr&));
     MOCK_QUALIFIED_METHOD2(ReadNetwork, const, InferenceEngine::CNNNetwork(const std::string&, const std::string&));
 

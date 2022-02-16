@@ -19,8 +19,8 @@ using namespace tests;
 TEST(spatial_concatenate_f32_gpu, test01) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1,1,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1,1,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -72,8 +72,8 @@ TEST(spatial_concatenate_f32_gpu, test01) {
 TEST(spatial_concatenate_f32_gpu, test02) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1,1,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1,1,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -127,8 +127,8 @@ TEST(spatial_concatenate_f32_gpu, test02) {
 TEST(spatial_concatenate_f32_gpu, test03) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1,1,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1,1,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -152,7 +152,7 @@ TEST(spatial_concatenate_f32_gpu, test03) {
     topology tpl;
     tpl.add(input_layout("in1", input1.get_layout()));
     tpl.add(input_layout("in2", input2.get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, concatenation::along_y, padding({ 0, 0, 1, 1 }, 0.0f)));
+    tpl.add(concatenation("conc", { "in1", "in2" }, concatenation::along_y, "", padding({ 0, 0, 1, 1 }, 0.0f)));
 
     network net(eng, tpl);
     net.set_input_data("in1", input1);
@@ -184,8 +184,8 @@ TEST(spatial_concatenate_f32_gpu, test03) {
 TEST(spatial_concatenate_f32_gpu, test04) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1,1,2,2 }, padding({ 0,0,0,0 }, { 0,0,1,0 }) });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1,1,2,2 }, padding({ 0,0,0,1 }, 0.0f) });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1, 1, 2, 2 }, padding({ 0, 0, 0, 0 }, { 0, 0, 1, 0 }) });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1, 1, 2, 2 }, padding({ 0, 0, 0, 1 }, 0.0f) });
 
     set_values(input1, {
         1.0f, 2.0f, 0.0f,
@@ -207,7 +207,7 @@ TEST(spatial_concatenate_f32_gpu, test04) {
     topology tpl;
     tpl.add(input_layout("in1", input1.get_layout()));
     tpl.add(input_layout("in2", input2.get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, concatenation::along_x, padding({ 0,0,2,0 }, { 0,0,0,0 })));
+    tpl.add(concatenation("conc", { "in1", "in2" }, concatenation::along_x, "", padding({ 0, 0, 2, 0 }, { 0, 0, 0, 0 })));
 
     network net(eng, tpl);
     net.set_input_data("in1", input1);
@@ -239,9 +239,9 @@ TEST(spatial_concatenate_f32_gpu, test04) {
 TEST(spatial_concatenate_f32_gpu, inputs_3) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1,1,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1,1,2,2 } });
-    memory input3 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1,1,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    memory input3 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -300,9 +300,9 @@ TEST(spatial_concatenate_f32_gpu, inputs_3) {
 TEST(spatial_concatenate_f32_gpu, inputs_3_uneven_axis_b) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 3,1,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1,1,2,2 } });
-    memory input3 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 2,1,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 3, 1, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    memory input3 = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 2, 1, 2, 2 } });
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -388,8 +388,8 @@ TEST(spatial_concatenate_f32_gpu, inputs_3_uneven_axis_b) {
 TEST(spatial_concatenate_f32_gpu, inputs3d_axis_x) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1,1,2,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1,1,2,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -448,8 +448,8 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_x) {
 TEST(spatial_concatenate_f32_gpu, inputs3d_axis_y) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1,1,2,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1,1,2,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -512,8 +512,8 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_y) {
 TEST(spatial_concatenate_f32_gpu, inputs3d_axis_z) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1,1,2,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1,1,2,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -576,8 +576,8 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_z) {
 TEST(spatial_concatenate_f32_gpu, inputs3d_axis_b) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 2,1,2,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1,1,2,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 2, 1, 2, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
 
     set_values(input1, {
         1.0f, 2.0f,
@@ -651,9 +651,9 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_b) {
 TEST(spatial_concatenate_f32_gpu, inputs3d_3_uneven_axis_b) {
     engine eng;
 
-    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 3,1,2,2,2 } });
-    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1,1,2,2,2 } });
-    memory input3 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 2,1,2,2,2 } });
+    memory input1 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 3, 1, 2, 2, 2 } });
+    memory input2 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
+    memory input3 = memory::allocate(eng, layout{ data_types::f32, format::bfzyx, { 2, 1, 2, 2, 2 } });
 
     set_values(input1, {
         //b0

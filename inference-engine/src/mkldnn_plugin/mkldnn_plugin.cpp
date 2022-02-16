@@ -107,9 +107,9 @@ Engine::Engine() {
 }
 
 Engine::~Engine() {
-    ExecutorManager::getInstance()->clear("CPU");
-    ExecutorManager::getInstance()->clear("CPUStreamsExecutor");
-    ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
+    executorManager()->clear("CPU");
+    executorManager()->clear("CPUStreamsExecutor");
+    executorManager()->clear("CPUCallbackExecutor");
 }
 
 static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
@@ -406,7 +406,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     Transformation(clonedNetwork, conf);
 
-    return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
+    return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing, shared_from_this());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {

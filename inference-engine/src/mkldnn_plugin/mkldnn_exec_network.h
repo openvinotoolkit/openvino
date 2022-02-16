@@ -30,7 +30,8 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
-                      const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
+                      const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing,
+                      const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
 
     void setProperty(const std::map<std::string, std::string> &properties);
 

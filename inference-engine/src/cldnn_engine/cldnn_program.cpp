@@ -284,14 +284,12 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
 void Program::AddPrimitiveToProfiler(const std::shared_ptr<ngraph::Node>& op,
                                      cldnn::primitive_id customOutputId) {
     auto id = layer_type_name_ID(op);
-    primitivesToIRLayersMap[id] = { op->get_friendly_name() };
     primitiveIDs[id] = customOutputId.empty() ? id : customOutputId;
     profilingIDs.push_back(id);
 }
 
 void Program::AddPrimitiveToProfiler(cldnn::primitive_id id, const std::shared_ptr<ngraph::Node>& op,
                                      cldnn::primitive_id customOutputId) {
-    primitivesToIRLayersMap[id] = { op->get_friendly_name() };
     primitiveIDs[id] = customOutputId.empty() ? id : customOutputId;
     profilingIDs.push_back(id);
 }
@@ -299,7 +297,6 @@ void Program::AddPrimitiveToProfiler(cldnn::primitive_id id, const std::shared_p
 void Program::AddInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
                                           const std::shared_ptr<ngraph::Node>& op) {
     InitProfileInfo(id, layer_type_lower(op), false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, parentId);
-    primitivesToIRLayersMap[id] = { op->get_friendly_name() };
     primitiveIDs[id] = id;
     profilingIDs.push_back(id);
 }

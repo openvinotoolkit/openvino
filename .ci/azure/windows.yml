@@ -13,11 +13,13 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: releases/2021/4
 
   - repository: testdata
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: releases/2021/4
 
 jobs:
 - job: Win

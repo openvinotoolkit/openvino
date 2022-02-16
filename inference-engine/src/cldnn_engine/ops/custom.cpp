@@ -145,7 +145,10 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
                         reorderPrimName,
                         inputPrimitives[param.portIndex],
                         param.format,
-                        DataTypeFromPrecision(op->get_input_element_type(param.portIndex)));
+                        DataTypeFromPrecision(op->get_input_element_type(param.portIndex)),
+                        std::vector<float>(),
+                        cldnn::reorder_mean_mode::subtract,
+                        op->get_friendly_name());
 
                     p.AddPrimitive(preprocessPrim);
                     p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
@@ -229,7 +232,8 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
                                                   customLayer->CompilerOptions(),
                                                   outputLayout,
                                                   gws,
-                                                  lws);
+                                                  lws,
+                                                  op->get_friendly_name());
 
     auto prevLayerName = genericLayerName;
     if (outputLayout.format != cldnn::format::any) {
@@ -239,7 +243,10 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
             cldnn::reorder(reorderPrimName,
                            genericLayerName,
                            DefaultFormatForDims(op->get_output_shape(0).size()),
-                           customPrim.output_layout.data_type));
+                           customPrim.output_layout.data_type,
+                           std::vector<float>(),
+                           cldnn::reorder_mean_mode::subtract,
+                           op->get_friendly_name()));
         prevLayerName = reorderPrimName;
         p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
     }
