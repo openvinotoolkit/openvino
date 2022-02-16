@@ -19,7 +19,7 @@
 
 // clang-format off
 #include <openvino/openvino.hpp>
-#include <gna/gna_config.hpp>
+#include <openvino/runtime/intel_gna/properties.hpp>
 
 #include <samples/args_helper.hpp>
 #include <samples/slog.hpp>
@@ -141,8 +141,15 @@ int main(int argc, char* argv[]) {
         if (useGna) {
             std::string gnaDevice =
                 useHetero ? FLAGS_d.substr(FLAGS_d.find("GNA"), FLAGS_d.find(",") - FLAGS_d.find("GNA")) : FLAGS_d;
-            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE] =
-                gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
+            auto parse_gna_device = [&](const std::string& device) -> ov::intel_gna::ExecutionMode {
+                ov::intel_gna::ExecutionMode mode;
+                std::stringstream ss(device);
+                ss >> mode;
+                return mode;
+            };
+            gnaPluginConfig[ov::intel_gna::execution_mode.name()] = gnaDevice.find("_") == std::string::npos
+                                                                        ? ov::intel_gna::ExecutionMode::AUTO
+                                                                        : parse_gna_device(gnaDevice);
         }
         if (FLAGS_pc) {
             genericPluginConfig.emplace(ov::enable_profiling(true));
@@ -151,23 +158,23 @@ int main(int argc, char* argv[]) {
             if (!FLAGS_rg.empty()) {
                 slog::warn << "Custom scale factor will be used for imported gna model: " << FLAGS_rg << slog::endl;
             }
-            auto scaleFactorInput = parse_scale_factors(FLAGS_sf);
-            if (numInputFiles != scaleFactorInput.size()) {
+            auto scale_factors_per_input = parse_scale_factors(model->inputs(), FLAGS_sf);
+            if (numInputFiles != scale_factors_per_input.size()) {
                 std::string errMessage(
-                    "Incorrect command line for multiple inputs: " + std::to_string(scaleFactorInput.size()) +
+                    "Incorrect command line for multiple inputs: " + std::to_string(scale_factors_per_input.size()) +
                     " scale factors provided for " + std::to_string(numInputFiles) + " input files.");
                 throw std::logic_error(errMessage);
             }
-            for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
-                slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
-                std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
-                gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
+            for (auto&& sf : scale_factors_per_input) {
+                slog::info << "For input " << sf.first << " using scale factor of " << sf.second << slog::endl;
             }
+            gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
         } else {
             // "static" quantization with calculated scale factor
             if (!FLAGS_rg.empty()) {
                 slog::info << "Using scale factor from provided imported gna model: " << FLAGS_rg << slog::endl;
             } else {
+                std::map<std::string, float> scale_factors_per_input;
                 for (size_t i = 0; i < numInputFiles; i++) {
                     auto inputFileName = inputFiles[i].c_str();
                     std::string name;
@@ -187,30 +194,26 @@ int main(int argc, char* argv[]) {
                                                                           numFrames * numFrameElements);
                     slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance."
                                << slog::endl;
-                    std::string scaleFactorConfigKey =
-                        GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
-                    gnaPluginConfig[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
+                    scale_factors_per_input[model->input(i).get_any_name()] = floatScaleFactor;
                 }
+                gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
             }
         }
-        if (FLAGS_qb == 8) {
-            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_PRECISION] = "I8";
-        } else {
-            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_PRECISION] = "I16";
-        }
-        gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
-        gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
-        gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
-        IE_SUPPRESS_DEPRECATED_START
-        gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
-        IE_SUPPRESS_DEPRECATED_END
+        gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
+        auto parse_target = [&](const std::string& target) -> ov::intel_gna::HWGeneration {
+            return (target == "GNA_TARGET_2_0") ? ov::intel_gna::HWGeneration::GNA_2_0
+                                                : (target == "GNA_TARGET_3_0") ? ov::intel_gna::HWGeneration::GNA_3_0
+                                                                               : ov::intel_gna::HWGeneration::UNDEFINED;
+        };
+        gnaPluginConfig[ov::intel_gna::execution_target.name()] = parse_target(FLAGS_exec_target);
+        gnaPluginConfig[ov::intel_gna::compile_target.name()] = parse_target(FLAGS_compile_target);
+        gnaPluginConfig[ov::intel_gna::memory_reuse.name()] = false;
+        gnaPluginConfig[ov::intel_gna::pwl_max_error_percent.name()] = FLAGS_pwl_me;
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
-            IE_SUPPRESS_DEPRECATED_START
-            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
-            IE_SUPPRESS_DEPRECATED_END
+            gnaPluginConfig[ov::intel_gna::firmware_model_image_path.name()] = FLAGS_we;
         }
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 2. Loading model to the device ------------------------------------------

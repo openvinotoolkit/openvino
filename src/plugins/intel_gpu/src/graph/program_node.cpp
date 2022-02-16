@@ -25,7 +25,7 @@
 using namespace cldnn;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), org_id(prim->id) {
+    : desc(prim), myprog(prog), org_id(prim ? (prim->id) : 0) {
     if (prim)
         output_layout.data_padding = prim->output_padding;
 }
@@ -489,9 +489,9 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto prev_type = cur_post_ops[prev_post_op_idx].op_type;
 
         // Ignore optimized operations for "previous" operation in our operation pair
-        while (type_is_any_optimized(prev_type) && cur_post_op_idx < post_ops_size - 1) {
+        while (type_is_any_optimized(prev_type) && prev_post_op_idx < post_ops_size - 1) {
             prev_post_op_idx++;
-            if (prev_post_op_idx == cur_post_op_idx)
+            if (prev_post_op_idx == cur_post_op_idx && cur_post_op_idx < post_ops_size - 1)
                 cur_post_op_idx++;
             prev_type = cur_post_ops[prev_post_op_idx].op_type;
             cur_type = cur_post_ops[cur_post_op_idx].op_type;
