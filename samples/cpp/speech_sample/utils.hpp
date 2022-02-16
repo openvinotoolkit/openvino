@@ -311,8 +311,7 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
         float call_units_us = 0;
         if (numberOfFrames == 0) {
             throw std::logic_error("Number off frames = 0,  division by zero.");
-        }
-        else {
+        } else {
             call_units_us = current_units_us / numberOfFrames;
         }
         if (FLAGS_d.find("GNA") != std::string::npos) {
