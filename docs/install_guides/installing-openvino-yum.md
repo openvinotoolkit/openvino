@@ -87,7 +87,7 @@ Run the following command:
 sudo yum autoremove openvino
 ```
 
-#### To uninstall a specific version
+#### To Uninstall a Specific Version
 
 Run the following command:
 ```sh
