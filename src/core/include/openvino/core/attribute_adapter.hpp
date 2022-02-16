@@ -61,8 +61,9 @@ public:
         OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
         if (x.is<VAT>()) {
             set(*static_cast<const VAT*>(data));
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(VAT).name());
         }
-        OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(VAT).name());
     }
 };
 
@@ -117,8 +118,9 @@ public:
             // instead reimplement logic from set.
             m_ref = *static_cast<const AT*>(data);
             m_buffer_valid = false;
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
-        OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
     }
 
 protected:
@@ -165,8 +167,9 @@ public:
             // instead reimplement logic from set.
             m_ref = *static_cast<const AT*>(data);
             m_buffer_valid = false;
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
-        OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
     }
     operator AT&() {
         return m_ref;
@@ -210,8 +213,9 @@ public:
             // Don't call set here avoiding unnecessary casts AT -> std::string -> AT,
             // instead reimplement logic from set.
             m_ref = *static_cast<const AT*>(data);
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
-        OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
     }
 
 protected:
