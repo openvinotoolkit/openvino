@@ -8,7 +8,7 @@ from openvino.tools.pot import load_model, save_model, create_pipeline
 from openvino.tools.pot.utils.logger import init_logger
 from openvino.tools.pot.api.samples.utils.argument_parser import get_common_argparser
 from openvino.tools.pot.api.samples.speech.data_loader import ArkDataLoader
-from openvino.tools.pot.api.samples.speech.utils import ArkEngine
+from openvino.tools.pot.engines.simplified_engine import SimplifiedEngine
 
 
 def parse_args():
@@ -73,7 +73,9 @@ def get_configs(args):
         'exec_log_dir': args.output
     }
     engine_config = {
-        'device': 'CPU'
+        'device': 'CPU',
+        'stat_requests_number': 1,
+        'eval_requests_number': 1
     }
     dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
@@ -111,7 +113,7 @@ def get_configs(args):
 def optimize_model(args):
     model_config, engine_config, dataset_config, algorithms = get_configs(args)
     data_loader = ArkDataLoader(dataset_config)
-    engine = ArkEngine(config=engine_config, data_loader=data_loader)
+    engine = SimplifiedEngine(config=engine_config, data_loader=data_loader)
     pipeline = create_pipeline(algorithms, engine)
 
     model = load_model(model_config, target_device='GNA')

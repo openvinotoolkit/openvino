@@ -77,6 +77,23 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailableDevices, ::testing::Values("GPU"));
 
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+const std::vector<ov::AnyMap> multiConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
+        ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+                           ::testing::ValuesIn(multiConfigs)));
 //
 // GPU specific metrics
 //
@@ -447,7 +464,7 @@ TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPr
     uint32_t n_streams = 2;
     int64_t available_device_mem_size = 1073741824;
     ov::AnyMap _options = {ov::hint::model(simpleNetwork),
-                           ov::streams::num(n_streams),
+                           ov::num_streams(n_streams),
                            ov::intel_gpu::hint::available_device_mem(available_device_mem_size)};
 
     ASSERT_NO_THROW(p = ie.get_property(deviceName, ov::max_batch_size.name(), _options));

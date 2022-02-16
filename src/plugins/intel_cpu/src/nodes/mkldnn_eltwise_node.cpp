@@ -1590,14 +1590,13 @@ size_t MKLDNNEltwiseNode::getOpInputsNum() const {
     }
 }
 
-// TODO [DS]: used only in FuseConvolutionSumAndConvolutionSumActivation
-// fix when reimplement this transformation for dynamic shapes
 bool MKLDNNEltwiseNode::isWithBroadcast() {
-    auto oDims = getOutputShapeAtPort(0).getStaticDims();
+    const auto& oDims = getOutputShapeAtPort(0).getDims();
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        auto iDims = getInputShapeAtPort(i).getStaticDims();
-        if (iDims != oDims)
+        const auto& iDims = getInputShapeAtPort(i).getDims();
+        if (!dimsEqualWeak(iDims, oDims)) {
             return true;
+        }
     }
 
     return false;
@@ -1907,6 +1906,7 @@ void MKLDNNEltwiseNode::prepareParams() {
 
     EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, mkldnn::post_ops(), isDynBatchEnabled, canUseOptimizedImpl};
 
+    fqDataPtrs.clear();
     for (const auto &node : fusedWith) {
         key.ops_list.push_back(node->getType());
         if (node->getType() == Eltwise) {
@@ -1915,23 +1915,11 @@ void MKLDNNEltwiseNode::prepareParams() {
                                             eltwise->getBeta(), eltwise->getGamma()});
             }
         } else if (node->getType() == FakeQuantize) {
-            node->appendPostOps(key.postOps, {});
+            node->appendPostOps(key.postOps, {}, fqDataPtrs);
         } else {
             IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' has unexpected fused op of type '" << node->getTypeStr() << "'";
         }
     }
-
-    // TODO: we need to rewrite quantization_t to remove the pointers from its content and update all the jit kernels at once
-    // together with the corresponding appendPostOps method to pass the scales and shifts pointers at runtime.
-    // Until then we have to read them from the quantization_t directly, store them somewhere
-    // and nullify them to get read of the address dependency in the key structure
-    fqDataPtrs.clear();
-    for (int i = 0; i < key.postOps.len(); ++i) {
-        auto &data = key.postOps.get()->entry_[i].quantization.data;
-        fqDataPtrs.insert(fqDataPtrs.end(), std::begin(data), std::end(data));
-        memset(data, 0, sizeof(data));
-    }
-    // end of TODO
 
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, buildExecutor);
@@ -1978,6 +1966,24 @@ void MKLDNNEltwiseNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
+void MKLDNNEltwiseNode::setDynamicBatchLim(int lim) {
+    MKLDNNNode::setDynamicBatchLim(lim);
+
+    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
+    if (!getParentEdgesAtPort(0)[0]->getParent()->isConstant()) {
+        outShape[0] = batchToProcess();
+    }
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        auto currentShape = getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
+        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant()) {
+            currentShape[0] = batchToProcess();
+        }
+        if (!ov::PartialShape::broadcast_merge_into(outShape, currentShape, ov::op::AutoBroadcastType::NUMPY)) {
+            IE_THROW() << "Can't execute eltwise node with dynamic batch. Input shapes are incompatible";
+        }
+    }
+}
+
 bool MKLDNNEltwiseNode::created() const {
     return getType() == Eltwise;
 }
@@ -2007,9 +2013,8 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
 
 void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
-    // TODO [DS]: at this moment this transformation prohibit for dynamic case
     specialConvolutionAddFusing = (parentNode->getType() == Convolution || parentNode->getType() == BinaryConvolution) && getAlgorithm() == EltwiseAdd &&
-            getInputShapeAtPort(0) == getInputShapeAtPort(1);
+            dimsEqualWeak(getInputShapeAtPort(0).getDims(), getInputShapeAtPort(1).getDims());
     if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
         std::tie(scales, shifts) = getScalesAndShifts(parentNode.get());
         if ((parentNode->getType() == FullyConnected || parentNode->getType() == MatMul) && one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract,
@@ -2020,7 +2025,22 @@ void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     MKLDNNNode::fuseInto(parentNode);
 }
 
-void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) {
+void MKLDNNEltwiseNode::appendMemory(const std::vector<float> &data, MKLDNNMemoryPtr &memPtr, std::vector<MKLDNNMemoryPtr>& postOpsMem) {
+    if (!memPtr) {
+        memPtr.reset(new MKLDNNMemory(getEngine()));
+        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {data.size()});
+        memPtr->Create(memoryDesc, data.data());
+
+        postOpsMem.push_back(memPtr);
+    }
+}
+
+void MKLDNNEltwiseNode::appendMemory(const std::vector<float> &data, MKLDNNMemoryPtr &memPtr, std::vector<const void*>& postOpsMem) {
+    postOpsMem.push_back(data.data());
+}
+
+template <typename T>
+void MKLDNNEltwiseNode::appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
     if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
@@ -2051,11 +2071,38 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &p
         }
     } else {
         const size_t chIdx = postOpDims.size() > 1 ? getFusingAxis() : 0;
-        constexpr int align = 16; // always align for legacy scale/shift post ops
-        scalesBuffer = makeAlignedBuffer(postOpDims[chIdx], scales, align);
-        if (getAlgorithm() != EltwisePrelu) {
-            shiftsBuffer = makeAlignedBuffer(postOpDims[chIdx], shifts, align);
+        constexpr int bufferAlignment = 16; // always align for legacy scale/shift post ops
+        // since legacy depthwise post ops mechanism requires broadcasted data we need to reinitilize it in case of changed shape
+        if (depthwiseData.empty() || depthwiseDataSize != 2 * postOpDims[chIdx]) {
+            depthwiseData.clear();
+            depthwiseMemory.reset();
+
+            depthwiseData.insert(depthwiseData.end(), scales.begin(), scales.end());
+            if (scales.size() == 1) {
+                depthwiseData.resize(postOpDims[chIdx], depthwiseData.back());
+            } else if (scales.size() != postOpDims[chIdx]) {
+                IE_THROW() << errorPrefix << "failed due to scales data size inconsistency";
+            }
+            depthwiseData.insert(depthwiseData.end(), shifts.begin(), shifts.end());
+            if (shifts.empty()) {
+                // in case of Prelu algorithm scales data is always empty
+                depthwiseData.resize(2 * postOpDims[chIdx], 0);
+            } else if (shifts.size() == 1) {
+                depthwiseData.resize(2 * postOpDims[chIdx], depthwiseData.back());
+            } else if (shifts.size() != postOpDims[chIdx]) {
+                IE_THROW() << errorPrefix << "failed due to shifts data size inconsistency";
+            }
+            depthwiseDataSize = 2 * postOpDims[chIdx];
+
+            depthwiseData.resize(rnd_up(depthwiseData.size(), bufferAlignment), 0);
         }
+
+        if (depthwiseData.empty())
+            IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
+
+        std::array<size_t, 2> offsets = {0};
+        offsets[1] = offsets[0] + postOpDims[chIdx];
+
         /* @todo legacy depthwise post ops are kept for now
          * for performance reasons
          */
@@ -2066,19 +2113,25 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &p
         case EltwiseDivide:
         case EltwiseMulAdd:
         case EltwisePowerStatic:
-            if (scales.empty() || shifts.empty())
-                IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
-            ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift, &scalesBuffer[0], &shiftsBuffer[0]);
+            ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift, offsets);
             break;
         case EltwisePrelu:
-            if (scales.empty())
-                IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
-            ops.append_depthwise(mkldnn::algorithm::depthwise_prelu, &scalesBuffer[0], nullptr);
+            ops.append_depthwise(mkldnn::algorithm::depthwise_prelu, offsets);
             break;
         default:
             IE_THROW() << errorPrefix << "as post operation is not supported";
         }
+
+        appendMemory(depthwiseData, depthwiseMemory, postOpsMem);
     }
+}
+
+void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem) {
+    appendPostOpsImpl(ops, postOpDims, postOpsMem);
+}
+
+void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
+    appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 
 void MKLDNNEltwiseNode::appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) {

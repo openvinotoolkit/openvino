@@ -7,9 +7,11 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/iostream.h>
 
 #include <openvino/core/type/element_type.hpp>
 #include <string>
+#include <iterator>
 
 #include "Python.h"
 #include "ie_common.h"
@@ -26,6 +28,8 @@ namespace Common {
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
+
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape);
 
 ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
 
@@ -57,4 +61,39 @@ public:
         return &impl.get();
     }
 };
+
+namespace docs {
+template<typename Container, typename std::enable_if<std::is_same<typename Container::value_type, std::string>::value, bool>::type = true>
+std::string container_to_string(const Container& c, const std::string& delimiter) {
+    if (c.size() == 0) {
+    	return std::string{};
+    }
+
+    std::string buffer;
+    for (const auto& elem : c) {
+        buffer += elem + delimiter;
+    }
+
+    buffer.erase(buffer.end() - delimiter.size(), buffer.end());
+
+    return buffer;
+}
+
+template<typename Container, typename std::enable_if<!std::is_same<typename Container::value_type, std::string>::value, bool>::type = true>
+std::string container_to_string(const Container& c, const std::string& delimiter) {
+    if (c.size() == 0) {
+    	return std::string{};
+    }
+
+    std::string buffer;
+    for (const auto& elem : c) {
+        buffer += py::cast<std::string>(py::cast(elem).attr("__repr__")()) + delimiter;
+    }
+
+    buffer.erase(buffer.end() - delimiter.size(), buffer.end());
+
+    return buffer;
+}
+};  // namespace docs
+
 };  // namespace Common

@@ -33,7 +33,7 @@ void OvThroughputStreamsOption::validate(const PluginConfiguration& configuratio
 }
 
 std::string OvThroughputStreamsOption::key() {
-    return ov::streams::num.name();
+    return ov::num_streams.name();
 }
 
 details::Access OvThroughputStreamsOption::access() {
@@ -46,7 +46,7 @@ details::Category OvThroughputStreamsOption::category() {
 
 std::string OvThroughputStreamsOption::defaultValue() {
     std::stringstream ss;
-    ss << ov::streams::AUTO;
+    ss << ov::NumStreams(ov::NumStreams::AUTO);
     return ss.str();
 }
 
