@@ -22,6 +22,7 @@ macro(ov_cpack_set_dirs)
     set(OV_CPACK_PYTHONDIR python)
     set(OV_CPACK_WHEELSDIR tools)
     set(OV_CPACK_TOOLSDIR tools)
+    set(OV_CPACK_DEVREQDIR tools)
 
     if(WIN32)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
@@ -88,7 +89,9 @@ set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
 # Include debian specific configuration file:
 # - overrides directories set by ov_cpack_set_dirs()
 # - merges some components
-include(packaging/debian)
+if(CPACK_GENERATOR STREQUAL "DEB")
+    include(packaging/debian)
+endif()
 
 macro(ie_cpack)
     if(NOT DEFINED CPACK_GENERATOR)
