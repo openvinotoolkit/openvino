@@ -114,7 +114,7 @@ sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 4 (Optional): Install software dependencies
 
-After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
+After you have installed OpenVINO Runtime, if you decided to [install OpenVINO™ Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
 
 Refer to <a href="#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
 
