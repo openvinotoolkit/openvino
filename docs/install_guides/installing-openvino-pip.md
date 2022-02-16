@@ -5,7 +5,7 @@ You can install Intel® Distribution of OpenVINO™ toolkit through the PyPI rep
 
 ## Installing OpenVINO Runtime
 
-The OpenVINO Runtime package contains the Inference Engine. Use the following command:
+The OpenVINO Runtime contains a set of libraries for an easy inference integration into your applications and supports heterogeneous execution across Intel® CPU and Intel® GPU hardware. To install OpenVINO Runtime, use the following command:
 ```
 pip install openvino
 ```
