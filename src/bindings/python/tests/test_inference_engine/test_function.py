@@ -424,8 +424,3 @@ def test_reshape_with_python_types(device):
     with pytest.raises(TypeError) as e:
         model.reshape({model.input().node: shape10})
     assert "Incorrect key <class 'openvino.pyopenvino.op.Parameter'> type to reshape a model." in str(e.value)
-
-    with pytest.raises(TypeError) as e:
-        model.reshape(model.input().node)
-    assert "Incorrect type to reshape model. The following argument types are supported:\n" \
-           "(self: openvino.runtime.Model, partial_shapes: Union[ov.runtime.PartialShape, dict, list])" in str(e.value)

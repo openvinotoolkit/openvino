@@ -261,40 +261,66 @@ void regclass_graph_Model(py::module m) {
 
     function.def(
         "reshape",
-        [](ov::Model& self, const py::handle& partial_shapes) {
-            if (py::isinstance<ov::PartialShape>(partial_shapes)) {
-                self.reshape(partial_shapes.cast<ov::PartialShape>());
-            } else if (py::isinstance<py::dict>(partial_shapes)) {
-                std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-                for (const auto item : partial_shapes.cast<py::dict>()) {
-                    std::pair<ov::Output<ov::Node>, ov::PartialShape> new_shape;
-                    // check keys
-                    if (py::isinstance<py::int_>(item.first)) {
-                        new_shape.first = self.input(item.first.cast<size_t>());
-                    } else if (py::isinstance<py::str>(item.first)) {
-                        new_shape.first = self.input(item.first.cast<std::string>());
-                    } else if (py::isinstance<ov::Output<ov::Node>>(item.first)) {
-                        new_shape.first = item.first.cast<ov::Output<ov::Node>>();
-                    } else {
-                        throw py::type_error("Incorrect key " + std::string(item.first.get_type().str()) +
+        [](ov::Model& self, const ov::PartialShape& partial_shape) {
+            self.reshape(partial_shape);
+        },
+        py::arg("partial_shapes"),
+        R"(
+                :param partial_shapes: Index of Output.
+                :type partial_shapes: PartialShape
+                :return : void
+             )");
+
+    function.def(
+        "reshape",
+        [](ov::Model& self, const py::list& partial_shape) {
+            self.reshape(Common::partial_shape_from_list(partial_shape));
+        },
+        py::arg("partial_shapes"),
+        R"(
+                :param partial_shapes: New shape.
+                :type partial_shapes: list
+                :return : void
+             )");
+
+    function.def(
+        "reshape",
+        [](ov::Model& self, const py::tuple& partial_shape) {
+            self.reshape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
+        },
+        py::arg("partial_shapes"),
+        R"(
+                :param partial_shapes: New shape.
+                :type partial_shapes: tuple
+                :return : void
+             )");
+
+    function.def(
+        "reshape",
+        [](ov::Model& self, const py::dict& partial_shapes) {
+            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+            for (const auto& item : partial_shapes) {
+                std::pair<ov::Output<ov::Node>, ov::PartialShape> new_shape;
+                // check keys
+                if (py::isinstance<py::int_>(item.first)) {
+                    new_shape.first = self.input(item.first.cast<size_t>());
+                } else if (py::isinstance<py::str>(item.first)) {
+                    new_shape.first = self.input(item.first.cast<std::string>());
+                } else if (py::isinstance<ov::Output<ov::Node>>(item.first)) {
+                    new_shape.first = item.first.cast<ov::Output<ov::Node>>();
+                } else {
+                    throw py::type_error("Incorrect key " + std::string(item.first.get_type().str()) +
                                              " type to reshape a model.");
-                    }
-                    // check values
-                    if (py::isinstance<ov::PartialShape>(item.second)) {
-                        new_shape.second = item.second.cast<ov::PartialShape>();
-                    } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
-                        new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
-                    }
-                    new_shapes.insert(new_shape);
                 }
-                self.reshape(new_shapes);
-            } else if (py::isinstance<py::list>(partial_shapes)) {
-                self.reshape(Common::partial_shape_from_list(partial_shapes.cast<py::list>()));
-            } else {
-                throw py::type_error(
-                    "Incorrect type to reshape model. The following argument types are supported:\n"
-                    "(self: openvino.runtime.Model, partial_shapes: Union[ov.runtime.PartialShape, dict, list])");
+                // check values
+                if (py::isinstance<ov::PartialShape>(item.second)) {
+                    new_shape.second = item.second.cast<ov::PartialShape>();
+                } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
+                    new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
+                }
+                new_shapes.insert(new_shape);
             }
+            self.reshape(new_shapes);
         },
         py::arg("partial_shapes"),
         R"( Reshape model inputs.
@@ -320,7 +346,7 @@ void regclass_graph_Model(py::module m) {
             (5) `openvino.runtime.Dimension`
 
             :param partial_shapes: New shapes.
-            :type partial_shapes: Union[Dict[keys, values], list, openvino.runtime.PartialShape]
+            :type partial_shapes: Dict[keys, values]
         )");
 
     function.def("get_output_size",
