@@ -17,10 +17,9 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 ## Install OpenVINO Runtime
 
-### Step 1: Set up the OpenVINO Toolkit APT repository
+### Step 1: Set Up the OpenVINO Toolkit APT Repository
 
-
-1. Install the GPG key for the Repository
+1. Install the GPG key for the repository
 
     a. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB). You can also use the following command:
       ```sh
@@ -55,7 +54,7 @@ The complete list of supported hardware is available in the [Release Notes](http
    ```   
    
 
-### Step 2: Install OpenVINO Runtime using the APT Package Manager
+### Step 2: Install OpenVINO Runtime Using the APT Package Manager
 
 OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
     
@@ -107,7 +106,7 @@ sudo apt autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 3 (Optional): Install OpenCV from APT
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
+OpenCV is necessary to run C++ demos from Open Model Zoo. Some C++ samples and demos also use OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
 
 #### To Install the Latest Version of OpenCV
 
@@ -130,9 +129,9 @@ After you have installed OpenVINO Runtime, if you decided to [install OpenVINO D
 Refer to <a href="installing-openvino-linux.md#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
 
 
-## Configurations for non-CPU Devices
+## Configurations for Non-CPU Devices
 
-If you are using Intel® Processor Graphics, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs or Intel® Neural Compute Stick 2, please check the additional configurations for them accordingly: [Configurations for GPU](configurations-for-gpu.md), [Configurations for VPU](configurations-for-vpu.md) or [Configurations for NCS2](configurations-for-ncs2.md).
+If you are using Intel® Processor Graphics, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs or Intel® Neural Compute Stick 2, please follow the configuration steps in [Configurations for GPU](configurations-for-intel-gpu.md), [Configurations for VPU](installing-openvino-config-ivad-vpu.md) or [Configurations for NCS2](configurations-for-ncs2.md) accordingly.
 
 
 ## Additional Resources
