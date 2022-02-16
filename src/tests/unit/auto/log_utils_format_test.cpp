@@ -20,7 +20,7 @@ public:
     }
 
     void traceCallStacksTest(){
-        TraceCallStacks();
+        TraceCallStacks("test");
     }
 };
 
