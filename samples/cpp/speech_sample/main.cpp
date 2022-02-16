@@ -90,11 +90,12 @@ int main(int argc, char* argv[]) {
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
         std::vector<std::string> outputs;
+        std::vector<std::string> output_names;
         std::vector<size_t> ports;
         // --------------------------- Processing custom outputs
         // ---------------------------------------------
         if (!FLAGS_oname.empty()) {
-            std::vector<std::string> output_names = convert_str_to_vector(FLAGS_oname);
+            output_names = convert_str_to_vector(FLAGS_oname);
             for (const auto& output_name : output_names) {
                 auto pos_layer = output_name.rfind(":");
                 if (pos_layer == std::string::npos) {
@@ -440,7 +441,7 @@ int main(int argc, char* argv[]) {
                         if (inferRequest.frameIndex >= 0)
                             for (size_t next_output = 0; next_output < count_file; next_output++) {
                                 std::string outputName = (outputs.size() == 0) ? executableNet.output(0).get_any_name()
-                                                                               : outputs[next_output];
+                                                                               : output_names[next_output];
                                 auto dims = executableNet.output(outputName).get_shape();
                                 numScoresPerOutput[next_output] = std::accumulate(std::begin(dims),
                                                                                   std::end(dims),
@@ -457,10 +458,10 @@ int main(int argc, char* argv[]) {
                                         numScoresPerOutput[next_output] * sizeof(float) * (inferRequest.frameIndex);
 
                                     ov::Tensor outputBlob =
-                                        inferRequest.inferRequest.get_tensor(executableNet.outputs()[next_output]);
+                                        inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
                                     if (!outputs.empty()) {
-                                        outputBlob = inferRequest.inferRequest.get_tensor(
-                                            executableNet.output(outputs[next_output]));
+                                        outputBlob =
+                                            inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
                                     }
                                     // locked memory holder should be alive all time while access
                                     // to its buffer happens
@@ -470,10 +471,10 @@ int main(int argc, char* argv[]) {
                                 if (!FLAGS_r.empty()) {
                                     /** Compare output data with reference scores **/
                                     ov::Tensor outputBlob =
-                                        inferRequest.inferRequest.get_tensor(executableNet.outputs()[next_output]);
+                                        inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
                                     if (!FLAGS_oname.empty())
-                                        outputBlob = inferRequest.inferRequest.get_tensor(
-                                            executableNet.output(outputs[next_output]));
+                                        outputBlob =
+                                            inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
                                     compare_scores(
                                         outputBlob.data<float>(),
                                         &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
