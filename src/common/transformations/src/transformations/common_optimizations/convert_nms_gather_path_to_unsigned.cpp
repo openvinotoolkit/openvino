@@ -49,6 +49,7 @@ class PropagateNMSPath: public pass::MatcherPass {
                     opset8::Reshape,
                     op::util::BroadcastBase,
                     opset8::StridedSlice,
+                    opset8::Slice,
                     opset8::VariadicSplit,
                     op::util::GatherBase,
                     opset8::Concat,
