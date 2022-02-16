@@ -47,10 +47,14 @@ private:
 
     InferenceEngine::Parameter GetConfigLegacy(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const;
 
+    void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
+
     Config engConfig;
     NumaNodesWeights weightsSharing;
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
-    bool streamsSet = false;
+    /* Explicily configured streams have higher priority even than performance hints.
+       So track if streams is set explicitly (not auto-configured) */
+    bool streamsExplicitlySetForEngine = false;
     const std::string deviceFullName;
 };
 

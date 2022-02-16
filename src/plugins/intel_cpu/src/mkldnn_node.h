@@ -182,13 +182,11 @@ public:
 
     static void appendPostOpArgs(const mkldnn::primitive_attr& attr,
                                  std::unordered_map<int, mkldnn::memory>& primArgs,
-                                 const std::vector<MKLDNNMemoryPtr>& binaryPostOpsArgs);
+                                 const std::vector<MKLDNNMemoryPtr>& postOpsArgs);
 
     bool isFusedWith(Type type) const;
 
-    void addFusedNode(const MKLDNNNodePtr &fusingNode) {
-        fusedWith.push_back(fusingNode);
-    }
+    virtual void addFusedNode(const MKLDNNNodePtr &fusingNode);
 
     virtual void fuseInto(MKLDNNNodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input port a node was fused into parent one.
@@ -332,7 +330,7 @@ public:
 
     virtual void execute(mkldnn::stream strm);
     void executeDynamic(mkldnn::stream strm);
-    void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
 
     virtual void initSupportedPrimitiveDescriptors();
 
@@ -563,7 +561,8 @@ public:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem);
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem);
 
     virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
 
@@ -627,7 +626,7 @@ protected:
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, mkldnn::memory> primArgs;
-    std::vector<MKLDNNMemoryPtr> binaryPostOpsArgs;
+    std::vector<MKLDNNMemoryPtr> postOpsArgs;
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 

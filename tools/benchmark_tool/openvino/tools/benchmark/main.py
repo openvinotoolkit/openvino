@@ -331,7 +331,7 @@ def run(args):
                     try:
                         logger.info(f'  {k}  , {benchmark.core.get_property(device, k)}')
                     except:
-                        logger.info(f'  {k}  , UNSUPPORTED TYPE ')
+                        pass
 
 
         # Update number of streams
