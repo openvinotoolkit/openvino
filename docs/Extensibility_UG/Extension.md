@@ -5,4 +5,4 @@ This macro should have a vector of all OpenVINO™ Extensions as an argument.
 
 Based on that, the declaration of an extension class can look as follows:
 
-@snippet template_extension/new/ov_extension.hpp ov_extension:entry_point
+@snippet template_extension/new/ov_extension.cpp ov_extension:entry_point

@@ -9,7 +9,7 @@
 //! [op:common_include]
 //! [op:frontend_include]
 #ifdef OPENVINO_ONNX_FRONTEND_ENABLED
-#include <openvino/frontend/onnx/extension/op.hpp>
+#    include <openvino/frontend/onnx/extension/op.hpp>
 #endif
 //! [op:frontend_include]
 
