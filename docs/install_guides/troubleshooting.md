@@ -9,7 +9,7 @@ If you met proxy issues during the installation with Docker, please set up proxy
 
 ## Issues with configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs 
 
-<!-- this part is taken from original installing-openvino-linux-ivad-vpu.md -->
+<!-- this part is taken from original installing-openvino-config-ivad-vpu.md -->
 
 ### Unable to run inference with the MYRIAD Plugin after running with the HDDL Plugin
 
