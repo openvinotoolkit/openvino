@@ -44,7 +44,8 @@ You can find prebuilt images on:
 
 - [Docker Hub](https://hub.docker.com/u/openvino)
 - [Red Hat Quay.io](https://quay.io/organization/openvino)
-- [Red Hat Ecosystem Catalog](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
+- [Red Hat Ecosystem Catalog (runtime image)](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
+- [Red Hat Ecosystem Catalog (development image)](https://catalog.redhat.com/software/containers/intel/openvino-dev/613a450dc9bc35f21dc4a1f7)
 - [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino)
 
 ## <a name="create-dockerfile"></a>Creating a Dockerfile
