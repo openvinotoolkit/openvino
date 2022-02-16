@@ -48,7 +48,7 @@ yum list 'openvino*'
 
 ### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 
-Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
+Intel® Distribution of OpenVINO™ toolkit will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
