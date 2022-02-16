@@ -107,7 +107,7 @@ sudo apt autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 3 (Optional): Install OpenCV* from APT
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
+OpenCV is necessary to run demos from Open Model Zoo. Some OpenVINO toolkit samples and demos also use OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
 
 #### To install the latest version of OpenCV
 
