@@ -82,7 +82,7 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace(-1);
     config.outConfs[0].constant(false);
     if (isOptimized) {
-        config.inConfs[0].inPlace(0);
+        config.inConfs[0].inPlace(-1);
         config.outConfs[0].inPlace(0);
     }
     if (input && output) {
