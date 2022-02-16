@@ -148,7 +148,6 @@ Compile the model to the device using `ov::Core::compile_model()`:
 @sphinxdirective
 
 .. tab:: C++
-
     .. tab:: IR
 
         .. doxygensnippet:: docs/snippets/src/main.cpp
@@ -174,7 +173,6 @@ Compile the model to the device using `ov::Core::compile_model()`:
            :fragment: [part4_4]
 
 .. tab:: Python
-
     .. tab:: IR
 
         .. doxygensnippet:: docs/snippets/src/main.py
