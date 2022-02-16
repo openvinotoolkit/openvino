@@ -35,9 +35,6 @@ public:
     /// as_type.
     virtual const DiscreteTypeInfo& get_type_info() const = 0;
     virtual ~ValueAccessor() = default;
-    virtual ov::Any get_as_any() {
-        throw ov::Exception("get_as_any is not implemented");
-    }
     virtual void set_as_any(const ov::Any& x) {
         throw ov::Exception("set_as_any is not implemented");
     }
@@ -59,12 +56,9 @@ public:
     virtual const VAT& get() = 0;
     /// Sets the value
     virtual void set(const VAT& value) = 0;
-    ov::Any get_as_any() override {
-        return get();
-    }
     void set_as_any(const ov::Any& x) override {
         const auto* data = x.addressof();
-        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty ov::Any is provided.");
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
         set(*static_cast<const VAT*>(data));
     }
 };
@@ -111,7 +105,7 @@ public:
 
     void set_as_any(const ov::Any& x) override {
         const auto* data = x.addressof();
-        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty ov::Any is provided.");
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
             set(*static_cast<const VAT *>(data));
@@ -158,7 +152,7 @@ public:
 
     void set_as_any(const ov::Any& x) override {
         const auto* data = x.addressof();
-        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty ov::Any is provided.");
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
             set(*static_cast<const VAT *>(data));
@@ -208,7 +202,7 @@ public:
             set(x.as<std::string>());
         } else {
             const auto* data = x.addressof();
-            OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty ov::Any is provided.");
+            OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
             // Don't call set here avoiding unnecessary casts AT -> std::string -> AT,
             // instead reimplement logic from set.
             m_ref = *static_cast<const AT *>(data);
