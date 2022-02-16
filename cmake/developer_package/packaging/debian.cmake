@@ -44,12 +44,13 @@ ov_debian_cpack_set_dirs()
 set(OV_CPACK_COMP_CORE_C "${OV_CPACK_COMP_CORE}")
 set(OV_CPACK_COMP_CORE_C_DEV "${OV_CPACK_COMP_CORE_DEV}")
 # merge all pythons into a single component
+set(OV_CPACK_COMP_PYTHON_OPENVINO "python")
 set(OV_CPACK_COMP_PYTHON_IE_API "${OV_CPACK_COMP_PYTHON_OPENVINO}")
 set(OV_CPACK_COMP_PYTHON_NGRAPH "${OV_CPACK_COMP_PYTHON_OPENVINO}")
-set(OV_CPACK_COMP_PYTHON_OPENVINO "${OV_CPACK_COMP_PYTHON_OPENVINO}")
 # merge all C / C++ samples as a single samples component
 set(OV_CPACK_COMP_CPP_SAMPLES "samples")
-set(OV_CPACK_COMP_C_SAMPLES "samples")
+set(OV_CPACK_COMP_C_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
+set(OV_CPACK_COMP_PYTHON_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
 # move requirements.txt to core-dev
 set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
 # move core_tools to core-dev
@@ -60,16 +61,6 @@ set(OV_CPACK_COMP_LICENSING "${OV_CPACK_COMP_CORE}")
 #
 # Common settings
 #
-
-# fill a list of components which are part of debian
-unset(CPACK_COMPONENTS_ALL)
-foreach(item ${ARGN})
-    # don't provide python components and deployment_manager to end users
-    if(NOT ${item} MATCHES ".*(python).*" AND NOT ${item} MATCHES "^deployment_manager$")
-        list(APPEND CPACK_COMPONENTS_ALL ${item})
-    endif()
-endforeach()
-list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
 
 # multiple packages are generated
 set(CPACK_DEB_COMPONENT_INSTALL ON)
@@ -101,9 +92,6 @@ set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)
 set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY "=")
 # naming convention for debian package files
 set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
-
-# CPACK_PACKAGE_VERSION_MAJOR.CPACK_PACKAGE_VERSION_MINOR
-set(cpack_ver_mm "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}")
 
 # needed to override cmake auto generated files
 set(def_postinst "${OpenVINO_BINARY_DIR}/_CPack_Packages/postinst")
@@ -152,7 +140,7 @@ function(ov_add_lintian_suppression comp)
     file(REMOVE ${lintian_override_file})
     file(WRITE ${lintian_override_file} ${content})
     install(FILES ${lintian_override_file}
-            DESTINATION share/lintian/overrides/
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/lintian/overrides/
             COMPONENT ${comp})
 endfunction()
 
@@ -182,6 +170,21 @@ endmacro()
 #
 
 macro(ov_debian_components)
+    # fill a list of components which are part of debian
+    set(cpack_components_all ${CPACK_COMPONENTS_ALL})
+    unset(CPACK_COMPONENTS_ALL)
+    foreach(item ${cpack_components_all})
+        # don't provide python components and deployment_manager to end users
+        if(# NOT ${item} MATCHES ".*(python).*" AND
+           NOT ${item} MATCHES "^${OV_CPACK_COMP_DEPLOYMENT_MANAGER}$")
+            list(APPEND CPACK_COMPONENTS_ALL ${item})
+        endif()
+    endforeach()
+    list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
+
+    # CPACK_PACKAGE_VERSION_MAJOR.CPACK_PACKAGE_VERSION_MINOR
+    set(cpack_ver_mm "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}")
+
     # core
     set(CPACK_COMPONENT_CORE_DESCRIPTION "OpenVINO C / C++ Runtime libraries")
     set(CPACK_DEBIAN_CORE_PACKAGE_NAME "libopenvino${cpack_ver_mm}")
@@ -240,7 +243,7 @@ macro(ov_debian_components)
     endif()
 
     # intel-cpu
-    if(ENABLE_MKL_DNN)
+    if(ENABLE_INTEL_CPU)
         set(CPACK_COMPONENT_CPU_DESCRIPTION "OpenVINO Intel CPU plugin")
         set(CPACK_COMPONENT_CPU_DEPENDS "core")
         set(CPACK_DEBIAN_CPU_PACKAGE_NAME "libopenvino-intel-cpu${cpack_ver_mm}")
@@ -260,7 +263,7 @@ macro(ov_debian_components)
     endif()
 
     # intel-myriad
-    if(ENABLE_MYRIAD)
+    if(ENABLE_INTEL_MYRIAD)
         set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "OpenVINO Intel Myriad plugin")
         set(CPACK_COMPONENT_MYRIAD_DEPENDS "core")
         set(CPACK_DEBIAN_MYRIAD_PACKAGE_NAME "libopenvino-intel-myriad${cpack_ver_mm}")
@@ -273,12 +276,23 @@ macro(ov_debian_components)
     if(ENABLE_INTEL_GNA)
         set(CPACK_COMPONENT_GNA_DESCRIPTION "OpenVINO Intel GNA plugin")
         set(CPACK_COMPONENT_GNA_DEPENDS "core")
-        set(CPACK_DEFIAN_GNA_PACKAGE_SHLIBDEPS OFF)
         set(CPACK_DEBIAN_GNA_PACKAGE_NAME "libopenvino-intel-gna${cpack_ver_mm}")
         set(CPACK_DEBIAN_GNA_PACKAGE_SUGGESTS "libopenvino-auto${cpack_ver_mm} (= ${CPACK_PACKAGE_VERSION}), libopenvino-hetero${cpack_ver_mm} (= ${CPACK_PACKAGE_VERSION})")
         set(CPACK_DEBIAN_GNA_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
         list(APPEND installed_plugins "gna")
     endif()
+
+    #
+    # Python bindings
+    #
+
+    set(CPACK_COMPONENT_PYTHON_PYTHON3.8_DESCRIPTION "OpenVINO Python bindings")
+    if(installed_plugins)
+        set(CPACK_COMPONENT_PYTHON_PYTHON3.8_DEPENDS "${installed_plugins}")
+    else()
+        set(CPACK_COMPONENT_PYTHON_PYTHON3.8_DEPENDS "core")
+    endif()
+    set(CPACK_DEBIAN_PYTHON_PYTHON3.8_PACKAGE_NAME "libopenvino-python${cpack_ver_mm}")
 
     #
     # Samples
@@ -297,7 +311,7 @@ macro(ov_debian_components)
 
     # python_samples
     set(CPACK_COMPONENT_PYTHON_SAMPLES_DESCRIPTION "OpenVINO Python samples")
-    set(CPACK_COMPONENT_PYTHON_SAMPLES_DEPENDS "python3")
+    set(CPACK_COMPONENT_PYTHON_SAMPLES_DEPENDS "python_python3.8")
     set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME "libopenvino-samples-python${cpack_ver_mm}")
     set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
 
@@ -355,7 +369,7 @@ macro(ov_debian_components)
     # since a user needs to depend on specific VERSIONED runtime package
     # with fixed SONAMEs, while latest package can be updated multiple times
 
-    ov_add_latest_component(core_dev)
-    ov_add_latest_component(samples)
-    ov_add_latest_component(libraries_dev)
+    # ov_add_latest_component(core_dev)
+    # ov_add_latest_component(samples)
+    # ov_add_latest_component(libraries_dev)
 endmacro()
