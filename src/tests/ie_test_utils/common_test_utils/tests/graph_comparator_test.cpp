@@ -347,3 +347,49 @@ TEST(GraphComparatorTests, CheckRTInfoOutput) {
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
+
+TEST(GraphComparatorTests, CheckTensorIteratorPositive) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto X = std::make_shared<ov::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1, 16});
+        auto Y = std::make_shared<ov::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
+
+        auto Xi = std::make_shared<ov::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 16});
+        auto Yi = std::make_shared<ov::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
+
+        // Body
+        auto axis = ov::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto squeeze = std::make_shared<ov::opset8::Squeeze>(Xi, axis);
+
+        auto w_val = std::vector<float>(384*16, 0);
+        auto r_val = std::vector<float>(384*128, 0);
+        auto b_val = std::vector<float>(384, 0);
+        auto W = ov::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{384, 16}, w_val);
+        auto R = ov::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{384, 128}, r_val);
+        auto B = ov::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{384}, b_val);
+
+        auto gru_cell = std::make_shared<ov::opset8::GRUCell>(squeeze, Yi, W, R, B, 128);
+        auto res_1 = std::make_shared<ov::opset8::Result>(gru_cell);
+        auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(gru_cell, axis);
+        auto res_2 = std::make_shared<ov::opset8::Result>(unsqueeze);
+        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{res_1, res_2},
+                                                       ngraph::ParameterVector{Xi, Yi});
+
+        auto tensor_iterator = std::make_shared<ov::opset8::TensorIterator>();
+        tensor_iterator->set_body(body);
+
+        tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
+        tensor_iterator->set_merged_input(Yi, Y, res_1);
+
+        auto out0 = tensor_iterator->get_iter_value(res_1, -1);
+        auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
+
+        auto res_ti_1 = std::make_shared<ov::opset8::Result>(tensor_iterator->output(1));
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
+                                               ngraph::ParameterVector{X, Y});
+        function = ov::clone_model(*function_ref);
+    }
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
