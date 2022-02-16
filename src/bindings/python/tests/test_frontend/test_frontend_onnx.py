@@ -122,7 +122,8 @@ def create_onnx_model_for_op_extension():
         make_tensor_value_info("x", onnx.TensorProto.FLOAT, (1, 3, 32, 32)),
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (3, 3, 32, 32))]
-    graph = make_graph([const_node, elu, avg_pool, floor, concat, mul, cast], "graph", input_tensors, output_tensors)
+    graph = make_graph([const_node, elu, avg_pool, floor, concat, mul, cast], "graph",
+                       input_tensors, output_tensors)
     return make_model(graph, producer_name="ngraph ONNX Importer")
 
 
