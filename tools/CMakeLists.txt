@@ -14,11 +14,11 @@ add_subdirectory(compile_tool)
 # install deployment_manager
 
 if(NOT CPACK_GENERATOR STREQUAL "DEB")
-    ie_cpack_add_component(deployment_manager REQUIRED)
+    ie_cpack_add_component(${OV_CPACK_COMP_DEPLOYMENT_MANAGER} REQUIRED)
 
     install(DIRECTORY deployment_manager
             DESTINATION ${OV_CPACK_TOOLSDIR}
-            COMPONENT deployment_manager
+            COMPONENT ${OV_CPACK_COMP_DEPLOYMENT_MANAGER}
             USE_SOURCE_PERMISSIONS)
 endif()
 

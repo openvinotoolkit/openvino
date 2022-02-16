@@ -87,7 +87,7 @@ endif()
 # Common scripts
 #
 
-include(packaging)
+include(packaging/packaging)
 include(coverage/coverage)
 include(shellcheck/shellcheck)
 
