@@ -56,7 +56,7 @@ From 2022.1 release, the OpenVINO Model Development Tools can only be installed 
 
 Now you can start developing your application.
 
-## Additional resources
+## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
 - OpenVINO™ toolkit online documentation: <https://docs.openvinotoolkit.ai>.
