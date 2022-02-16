@@ -59,7 +59,10 @@ public:
     void set_as_any(const ov::Any& x) override {
         const auto* data = x.addressof();
         OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
-        set(*static_cast<const VAT*>(data));
+        if (x.is<VAT>()) {
+            set(*static_cast<const VAT*>(data));
+        }
+        OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(VAT).name());
     }
 };
 
@@ -109,12 +112,13 @@ public:
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
             set(*static_cast<const VAT*>(data));
-        } else {
+        } else if (x.is<AT>()) {
             // Don't call set here avoiding unnecessary casts AT -> VAT -> AT,
             // instead reimplement logic from set.
             m_ref = *static_cast<const AT*>(data);
             m_buffer_valid = false;
         }
+        OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
     }
 
 protected:
@@ -156,12 +160,13 @@ public:
         // Try to represent x as VAT or AT
         if (x.is<VAT>()) {
             set(*static_cast<const VAT*>(data));
-        } else {
+        } else if (x.is<AT>()) {
             // Don't call set here avoiding unnecessary casts AT -> VAT -> AT,
             // instead reimplement logic from set.
             m_ref = *static_cast<const AT*>(data);
             m_buffer_valid = false;
         }
+        OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
     }
     operator AT&() {
         return m_ref;
@@ -196,16 +201,17 @@ public:
     }
 
     void set_as_any(const ov::Any& x) override {
+        const auto* data = x.addressof();
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
         // Try to represent x as std::string or AT
         if (x.is<std::string>()) {
             set(x.as<std::string>());
-        } else {
-            const auto* data = x.addressof();
-            OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
+        } else if (x.is<AT>()) {
             // Don't call set here avoiding unnecessary casts AT -> std::string -> AT,
             // instead reimplement logic from set.
             m_ref = *static_cast<const AT*>(data);
         }
+        OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
     }
 
 protected:
