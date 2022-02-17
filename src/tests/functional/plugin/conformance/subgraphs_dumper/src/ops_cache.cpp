@@ -30,7 +30,7 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
         try {
             const std::shared_ptr<ngraph::Node> op_clone = clone_fn(op, meta);
             op_clone->set_friendly_name(op_clone->get_friendly_name() + "_cached");
-            m_ops_cache.emplace_back(std::make_pair(op_clone, meta));
+            m_ops_cache.insert({op_clone, meta});
         } catch (std::exception &e) {
             std::cout << e.what() << std::endl;
         }
