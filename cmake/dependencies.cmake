@@ -28,12 +28,12 @@ if(COMMAND get_linux_name)
 endif()
 
 if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
-    set(protoc_version "3.19.4")
+    set(protoc_version "3.18.2")
 
     RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
         ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
         TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64"
-        SHA256 "2c78f2a9f3af9643f98813444d72d7893f7f14bbccdc4cde694a976558c3be0a"
+        SHA256 "42fde2b6044c1f74c7e86d4e03b43aac87128ddf57ac6ed8c4eab7a1e21bbf21"
     )
     debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
 
