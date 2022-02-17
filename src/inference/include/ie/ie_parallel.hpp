@@ -369,12 +369,17 @@ struct num_of_lambda_args<R (C::*)(Args...) const> {
 };
 
 template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
-typename std::enable_if<N_ARGS == sizeof...(T) + 1, void>::type call_with_args(const ACT& body, size_t g_id, T... arg) {
+typename std::enable_if<N_ARGS == sizeof...(T) + 2, void>::type call_with_args(const ACT& body, size_t g_id, size_t iwork, T... arg) {
+    body(g_id, iwork, arg...);
+}
+
+template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
+typename std::enable_if<N_ARGS == sizeof...(T) + 1, void>::type call_with_args(const ACT& body, size_t g_id, size_t iwork, T... arg) {
     body(g_id, arg...);
 }
 
 template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
-typename std::enable_if<N_ARGS == sizeof...(T), void>::type call_with_args(const ACT& body, size_t g_id, T... arg) {
+typename std::enable_if<N_ARGS == sizeof...(T), void>::type call_with_args(const ACT& body, size_t g_id, size_t iwork, T... arg) {
     body(arg...);
 }
 }  // namespace details
@@ -384,7 +389,7 @@ void for_1d(const int& ithr, const int& nthr, const T0& D0, const F& func) {
     T0 d0{0}, end{0};
     splitter(D0, nthr, ithr, d0, end);
     for (; d0 < end; ++d0)
-        details::call_with_args(func, ithr, d0);
+        details::call_with_args(func, ithr, d0, d0);
 }
 
 template <typename T0, typename F>
@@ -430,7 +435,7 @@ void for_2d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
     T1 d1{0};
     parallel_it_init(start, d0, D0, d1, D1);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, d0, d1);
+        details::call_with_args(func, ithr, iwork, d0, d1);
         parallel_it_step(d0, D0, d1, D1);
     }
 }
@@ -479,7 +484,7 @@ void for_3d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
     T2 d2{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, d0, d1, d2);
+        details::call_with_args(func, ithr, iwork, d0, d1, d2);
         parallel_it_step(d0, D0, d1, D1, d2, D2);
     }
 }
@@ -529,7 +534,7 @@ void for_4d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
     T3 d3{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2, d3, D3);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, d0, d1, d2, d3);
+        details::call_with_args(func, ithr, iwork, d0, d1, d2, d3);
         parallel_it_step(d0, D0, d1, D1, d2, D2, d3, D3);
     }
 }
@@ -587,7 +592,7 @@ void for_5d(const int& ithr,
     T4 d4{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2, d3, D3, d4, D4);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, d0, d1, d2, d3, d4);
+        details::call_with_args(func, ithr, iwork, d0, d1, d2, d3, d4);
         parallel_it_step(d0, D0, d1, D1, d2, D2, d3, D3, d4, D4);
     }
 }

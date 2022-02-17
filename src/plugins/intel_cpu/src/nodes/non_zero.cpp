@@ -158,11 +158,8 @@ void NonZero::executeSpecified() {
         break;
     case 2:
     {
-        int i0Stride = srcDims[1];
-
         parallel_for2d(srcDims[0], srcDims[1],
-                       [&](size_t ithr, int i0, int i1) {
-                           int inputIndex = i0 * i0Stride + i1;
+                       [&](size_t ithr, size_t inputIndex, int i0, int i1) {
                            size_t& outputIndex = destIndices[ithr];
 
                            if (src[inputIndex] != zero) {
@@ -175,13 +172,10 @@ void NonZero::executeSpecified() {
     }
     case 3:
     {
-        int i1Stride = srcDims[2];
-        int i0Stride = srcDims[1] * i1Stride;
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
 
         parallel_for3d(srcDims[0], srcDims[1], srcDims[2],
-                       [&](size_t ithr, int i0, int i1, int i2) {
-                           int inputIndex = i0 * i0Stride + i1 * i1Stride + i2;
+                       [&](size_t ithr, size_t inputIndex, int i0, int i1, int i2) {
                            size_t& outputIndex = destIndices[ithr];
 
                            if (src[inputIndex] != zero) {
@@ -195,15 +189,11 @@ void NonZero::executeSpecified() {
     }
     case 4:
     {
-        int i2Stride = srcDims[3];
-        int i1Stride = srcDims[2] * i2Stride;
-        int i0Stride = srcDims[1] * i1Stride;
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
         size_t x3totalNonZeroCount = totalNonZeroCount * 3;
 
         parallel_for4d(srcDims[0], srcDims[1], srcDims[2], srcDims[3],
-                       [&](size_t ithr, int i0, int i1, int i2, int i3) {
-                           int inputIndex = i0 * i0Stride + i1 * i1Stride + i2 * i2Stride + i3;
+                       [&](size_t ithr, size_t inputIndex, int i0, int i1, int i2, int i3) {
                            size_t& outputIndex = destIndices[ithr];
 
                            if (src[inputIndex] != zero) {
@@ -218,17 +208,12 @@ void NonZero::executeSpecified() {
     }
     case 5:
     {
-        int i3Stride = srcDims[4];
-        int i2Stride = srcDims[3] * i3Stride;
-        int i1Stride = srcDims[2] * i2Stride;
-        int i0Stride = srcDims[1] * i1Stride;
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
         size_t x3totalNonZeroCount = totalNonZeroCount * 3;
         size_t x4totalNonZeroCount = totalNonZeroCount * 4;
 
         parallel_for5d(srcDims[0], srcDims[1], srcDims[2], srcDims[3], srcDims[4],
-                       [&](size_t ithr, int i0, int i1, int i2, int i3, int i4) {
-                           int inputIndex = i0 * i0Stride + i1 * i1Stride + i2 * i2Stride + i3 * i3Stride + i4;
+                       [&](size_t ithr, size_t inputIndex, int i0, int i1, int i2, int i3, int i4) {
                            size_t& outputIndex = destIndices[ithr];
 
                            if (src[inputIndex] != zero) {
