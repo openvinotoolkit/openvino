@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,7 +19,8 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
 
     add_dependencies(${TARGET_NAME} pyopenvino)
 
-    target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                      "${PYTHON_SOURCE_DIR}/pyopenvino/utils/")
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::frontend::${FRAMEWORK})
 
     # Compatibility with python 2.7 which has deprecated "register" specifier

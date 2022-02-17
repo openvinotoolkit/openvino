@@ -28,13 +28,31 @@ Subgraph Attribute::get_subgraph(const Graph* parent_graph) const {
 ov::Any Attribute::get_any() const {
     switch (get_type()) {
     case Type::float_point:
-        return get_float();
+        // OV has automatic downcasting of node attributes:
+        // double -> float
+        // but upcasting is not supported:
+        // float -> double
+        // so float value from protobuf leads to the issue
+        // when we are trying to get an attribute of double type in ov::Node
+        return static_cast<double>(get_float());
     case Type::integer:
         return get_integer();
     case Type::string:
         return get_string();
-    case Type::float_point_array:
-        return get_float_array();
+    case Type::float_point_array: {
+        auto float_array = get_float_array();
+        // OV has automatic downcasting of node attributes:
+        // double -> float
+        // but upcasting is not supported:
+        // float -> double
+        // so float value from protobuf leads to the issue
+        // when we are trying to get an attribute of double type in ov::Node
+        std::vector<double> double_array(float_array.size());
+        for (size_t i = 0; i < float_array.size(); ++i) {
+            double_array[i] = static_cast<double>(float_array[i]);
+        }
+        return double_array;
+    }
     case Type::integer_array:
         return get_integer_array();
     case Type::string_array:
