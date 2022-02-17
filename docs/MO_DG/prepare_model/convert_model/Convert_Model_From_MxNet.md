@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _convert model mxnet:
+
 .. toctree::
    :maxdepth: 1
    :hidden:

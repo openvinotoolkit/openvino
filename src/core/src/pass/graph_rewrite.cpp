@@ -288,52 +288,6 @@ void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& 
     }
 }
 
-void ov::pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                                                  const ov::recurrent_graph_rewrite_callback& callback,
-                                                  const PassPropertyMask& property) {
-    m_matchers.push_back(std::make_shared<MatcherPass>(
-        "Recurrent matcher",
-        nullptr,
-        [m, callback](const std::shared_ptr<Node>& node) {
-            NGRAPH_DEBUG << "Running recurrent matcher on " << node;
-            if (m->match(node->output(0))) {
-                NGRAPH_DEBUG << "Recurrent matcher matched " << m.get();
-                return callback(*m.get());
-            }
-            return false;
-        },
-        property));
-}
-
-void ov::pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                                                  const ov::recurrent_graph_rewrite_callback& callback) {
-    // TODO: before deprecate this function, by default expect the
-    // callback require static shape.
-    add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
-}
-
-bool ov::pass::RecurrentGraphRewrite::run_on_model(const std::shared_ptr<Model>& f) {
-    bool changed = false;
-    size_t i = 0;
-
-    auto run_matchers = [&]() -> bool {
-        for (const auto& node : f->get_ops()) {
-            for (auto& m_pass : m_matchers) {
-                if (m_pass->apply(node)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    };
-
-    do {
-        changed = run_matchers();
-        i++;
-    } while (changed && i < m_num_iters);
-    return changed;
-}
-
 void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pattern::Matcher>& m,
                                              const ov::graph_rewrite_callback& callback,
                                              const PassPropertyMask& property) {

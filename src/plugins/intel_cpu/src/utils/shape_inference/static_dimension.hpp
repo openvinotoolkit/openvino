@@ -63,6 +63,12 @@ public:
     StaticDimension operator/(const value_type divisor) const;
     StaticDimension &operator/=(const value_type divisor);
 
+    /// \brief Swap of dimensions
+    friend void swap(StaticDimension& a, StaticDimension& b) {
+        using std::swap;
+        swap(a.m_dimension, b.m_dimension);
+    }
+
 private:
     value_type m_dimension = 0;
 };

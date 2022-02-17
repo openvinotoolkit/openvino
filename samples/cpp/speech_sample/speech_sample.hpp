@@ -90,7 +90,8 @@ static const char quantization_bits_message[] = "Optional. Weight bits for quant
 static const char scale_factor_message[] =
     "Optional. User-specified input scale factor for quantization (use with -q user). "
     "If the network contains multiple inputs, provide scale factors by separating them with "
-    "commas.";
+    "commas. "
+    "For example: <input_name1>:<sf1>,<input_name2>:<sf2> or just <sf> to be applied to all inputs";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";

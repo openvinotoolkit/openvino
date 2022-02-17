@@ -51,10 +51,9 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Media Processing
+   :caption: Media Processing and Computer Vision Libraries
 
-   DL Streamer API Reference <https://openvinotoolkit.github.io/dlstreamer_gst/>
-   gst_samples_README
+   Intel® Deep Learning Streamer <openvino_docs_dlstreamer>
    openvino_docs_gapi_gapi_intro
    OpenVX Developer Guide <https://software.intel.com/en-us/openvino-ovx-guide>
    OpenVX API Reference <https://khronos.org/openvx>
@@ -104,5 +103,12 @@ The toolkit provides a [Performance Optimization Guide](optimization_guide/dldt_
 ## Graphical Web Interface for OpenVINO™ Toolkit
 You can choose to use the [OpenVINO™ Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), a web-based tool that guides you through the process of converting, measuring, optimizing, and deploying models. This tool also serves as a low-effort introduction to the toolkit and provides a variety of useful interactive charts for understanding performance.
 
-## Media Processing
-The OpenVINO™ toolkit comes with several sets of libraries and tools that add capability and flexibility to the toolkit. These include [DL Streamer](@ref gst_samples_README), a utility that eases creation of pipelines via command line or API, and optimized versions of OpenCV and OpenCL.
+## Media Processing and Computer Vision Libraries
+
+The OpenVINO™ toolkit also works with the following media processing frameworks and libraries:
+
+* [Intel® Deep Learning Streamer (Intel® DL Streamer)](@ref openvino_docs_dlstreamer) — A streaming media analytics framework based on GStreamer, for creating complex media analytics pipelines optimized for Intel hardware platforms. Go to the Intel® DL Streamer [documentation](https://dlstreamer.github.io/) website to learn more.
+* [Intel® oneAPI Video Processing Library (oneVPL)](https://www.intel.com/content/www/us/en/develop/documentation/oneapi-programming-guide/top/api-based-programming/intel-oneapi-video-processing-library-onevpl.html) — A programming interface for video decoding, encoding, and processing to build portable media pipelines on CPUs, GPUs, and other accelerators.
+
+You can also add computer vision capabilities to your application using optimized versions of [OpenCV](https://opencv.org/) and [OpenVX](https://khronos.org/openvx).
+
