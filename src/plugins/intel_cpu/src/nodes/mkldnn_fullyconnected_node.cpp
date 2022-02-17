@@ -307,7 +307,7 @@ void MKLDNNFullyConnectedNode::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
     }
 
-    appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
+    appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
     auto reshapeMemory = [this](int argType) {
         auto param = primArgs.find(argType);
@@ -324,6 +324,27 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     };
     reshapeMemory(DNNL_ARG_SRC);
     reshapeMemory(DNNL_ARG_DST);
+}
+
+void MKLDNNFullyConnectedNode::setDynamicBatchLim(int lim) {
+    dynBatchLim = lim;
+
+    auto setBatchPrimArgs = [this](int argType, const mkldnn::memory& oldMem) {
+        mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+        newMemDesc.data.dims[0] = batchToProcess();
+        newMemDesc.data.padded_dims[0] = batchToProcess();
+        auto dims = newMemDesc.dims();
+
+        if (dims.size() == 3) {
+            std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
+            newMemDesc = newMemDesc.reshape(normalizedDims);
+        }
+
+        primArgs.at(argType) = mkldnn::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+    };
+
+    setBatchPrimArgs(DNNL_ARG_SRC, getParentEdgesAtPort(0)[0]->getMemory().GetPrimitive());
+    setBatchPrimArgs(DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemory().GetPrimitive());
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
@@ -372,15 +393,15 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, const Ve
 
     for (auto &node : fusedWith) {
         if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             continue;
         }
 
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-                eltwiseNode->appendPostOps(ops, dims);
+                eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
-                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             }
             continue;
         }

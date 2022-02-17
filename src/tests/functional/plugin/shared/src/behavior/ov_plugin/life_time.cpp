@@ -61,7 +61,7 @@ TEST_P(OVHoldersTest, Orders) {
 }
 
 TEST_P(OVHoldersTest, LoadedState) {
-    std::vector<runtime::VariableState> states;
+    std::vector<ov::VariableState> states;
     {
         ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);
@@ -92,7 +92,7 @@ TEST_P(OVHoldersTest, LoadedAny) {
 }
 
 TEST_P(OVHoldersTest, LoadedRemoteContext) {
-    runtime::RemoteContext ctx;
+    ov::RemoteContext ctx;
     {
         ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);

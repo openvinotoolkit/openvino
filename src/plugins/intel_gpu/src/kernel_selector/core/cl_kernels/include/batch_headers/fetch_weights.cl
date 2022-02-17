@@ -834,6 +834,16 @@ inline uint get_g_is_os_yx_isa4_osa8_isv8_osv4(uint g, uint o, uint i, uint z, u
         CAT(prefix, _OFM_NUM),                                                     \
         CAT(prefix, _OFFSET))
 
+#define GET_FILTER_G_OS_IS_YX_OSA2_ISA8_OSV8_ISV2_INDEX(prefix, g, o, i, y, x) \
+    get_g_os_is_yx_osa2_isa8_osv8_isv2(                        \
+        g, o, i, 0, y, x,                                                 \
+        CAT(prefix, _SIZE_X),                                             \
+        CAT(prefix, _SIZE_Y),                                             \
+        1,                                                                \
+        CAT(prefix, _IFM_NUM),                                            \
+        CAT(prefix, _OFM_NUM),                                            \
+        CAT(prefix, _OFFSET))
+
 #define GET_FILTER_OS_IS_YX_OSA2_ISA8_OSV8_ISV2_INDEX(prefix, o, i, y, x) \
     get_g_os_is_yx_osa2_isa8_osv8_isv2(                        \
         0, o, i, 0, y, x,                                                 \

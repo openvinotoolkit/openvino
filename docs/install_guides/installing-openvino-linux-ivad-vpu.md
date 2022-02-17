@@ -38,8 +38,6 @@ Now the dependencies are installed and you are ready to use the Intel® Vision A
 
 * For advanced configuration steps for your **IEI Mustang-V100-MX8-R10** accelerator, see [Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-setup-guide.md). **IEI Mustang-V100-MX8-R11** accelerator doesn't require any additional steps. 
 
-* After you've configured your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see [Intel® Movidius™ VPUs Programming Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-programming-guide.md) to learn how to distribute a model across all 8 VPUs to maximize performance.
-
 ## Troubleshooting
 
 ### Unable to run inference with the MYRIAD Plugin after running with the HDDL Plugin

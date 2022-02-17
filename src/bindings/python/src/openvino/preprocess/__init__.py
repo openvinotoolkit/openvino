@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Package: ngraph
-Low level wrappers for the PrePostProcessing c++ api.
+Package: openvino
+Low level wrappers for the PrePostProcessing C++ API.
 """
 
 # flake8: noqa

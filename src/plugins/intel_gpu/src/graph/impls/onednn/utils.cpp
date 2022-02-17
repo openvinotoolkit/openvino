@@ -271,6 +271,7 @@ static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_groupe
         case dnnl::memory::format_tag::Abcde16a: return cldnn::format::gs_oiyx_gsv16;
         case dnnl::memory::format_tag::Abcde32a: return cldnn::format::gs_oiyx_gsv32;
         case dnnl::memory::format_tag::aCBde16c16b: return cldnn::format::g_is_os_yx_isv16_osv16;
+        case dnnl::memory::format_tag::aBCde2b8c8b2c: return cldnn::format::g_os_is_yx_osa2_isa8_osv8_isv2;
         case dnnl::memory::format_tag::aBCde4b8c8b4c: return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv4;
         case dnnl::memory::format_tag::aBCde4b8c8b2c: return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv2;
         case dnnl::memory::format_tag::aBCd2b8c16b4c: return cldnn::format::g_os_is_yx_osa2_isa8_osv16_isv4;

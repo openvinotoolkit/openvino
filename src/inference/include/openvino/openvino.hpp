@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief This is a header file for the OpenVINO Runtime Components
+ * @brief A header file for the OpenVINO Runtime Components.
  *
  * @file openvino/runtime/runtime.hpp
  */

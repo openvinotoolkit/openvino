@@ -55,9 +55,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency") {
+    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
+        FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
-                               "either `throughput`(tput) or `latency' value.");
+                               "`throughput`(tput), `latency' value or 'none'.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
@@ -104,6 +105,36 @@ static void next_step(const std::string additional_info = "") {
 
     std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
+}
+
+ov::hint::PerformanceMode get_performance_hint(const std::string& device, const ov::Core& core) {
+    ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
+    auto supported_properties = core.get_property(device, ov::supported_properties);
+    if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
+        supported_properties.end()) {
+        if (FLAGS_hint != "") {
+            if (FLAGS_hint == "throughput" || FLAGS_hint == "tput") {
+                slog::warn << "Device(" << device << ") performance hint is set to THROUGHPUT" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+            } else if (FLAGS_hint == "latency") {
+                slog::warn << "Device(" << device << ") performance hint is set to LATENCY" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+            } else if (FLAGS_hint == "none") {
+                slog::warn << "No device(" << device << ") performance hint is set" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
+            }
+        } else {
+            slog::warn << "PerformanceMode was not explicitly specified in command line. "
+                          "Device("
+                       << device << ") performance hint will be set to THROUGHPUT." << slog::endl;
+            ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+        }
+    } else {
+        if (FLAGS_hint != "") {
+            slog::warn << "Device(" << device << ") does not support performance hint property(-hint)." << slog::endl;
+        }
+    }
+    return ov_perf_hint;
 }
 
 /**
@@ -157,7 +188,9 @@ int main(int argc, char* argv[]) {
         auto devices = parse_devices(device_name);
 
         // Parse nstreams per device
-        std::map<std::string, std::string> device_nstreams = parse_nstreams_value_per_device(devices, FLAGS_nstreams);
+        std::map<std::string, std::string> device_nstreams = parse_value_per_device(devices, FLAGS_nstreams);
+        std::map<std::string, std::string> device_infer_precision =
+            parse_value_per_device(devices, FLAGS_infer_precision);
 
         // Load device config file if specified
         std::map<std::string, ov::AnyMap> config;
@@ -193,21 +226,6 @@ int main(int argc, char* argv[]) {
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
-        if (FLAGS_hint.empty()) {
-            for (auto& device : devices) {
-                auto supported_properties = core.get_property(device, ov::supported_properties);
-                if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
-                    supported_properties.end()) {
-                    slog::warn << "-hint default value is determined as " << ov::hint::PerformanceMode::THROUGHPUT
-                               << " automatically for " << device
-                               << " device. For more detailed information look at README." << slog::endl;
-                    std::stringstream strm;
-                    strm << ov::hint::PerformanceMode::THROUGHPUT;
-                    FLAGS_hint = strm.str();
-                }
-            }
-        }
-
         slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
         slog::info << "Device info: " << slog::endl;
         slog::info << core.get_versions(device_name) << slog::endl;
@@ -215,11 +233,6 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
-        ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
-        if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
-            ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
-        else if (FLAGS_hint == "latency")
-            ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
 
         auto getDeviceTypeFromName = [](std::string device) -> std::string {
             return device.substr(0, device.find_first_of(".("));
@@ -243,11 +256,10 @@ int main(int argc, char* argv[]) {
         bool perf_counts = false;
         // Update config per device according to command line parameters
         for (auto& device : devices) {
-            if (!config.count(device))
-                config[device] = {};
-            auto& device_config = config.at(device);
+            auto& device_config = config[device];
 
             // high-level performance modes
+            auto ov_perf_hint = get_performance_hint(device, core);
             if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
                 device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
                 if (FLAGS_nireq != 0)
@@ -276,24 +288,27 @@ int main(int argc, char* argv[]) {
             }
             perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
+            auto supported_properties = core.get_property(device, ov::supported_properties);
+
+            auto supported = [&](const std::string& key) {
+                return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                       std::end(supported_properties);
+            };
             // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
                 std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
-                if (device_nstreams.count(device)) {
+                auto it_device_nstreams = device_nstreams.find(device);
+                if (it_device_nstreams != device_nstreams.end()) {
                     // set to user defined value
-                    auto supported_properties = core.get_property(device, ov::supported_properties);
-                    if (std::find(supported_properties.begin(), supported_properties.end(), key) !=
-                        supported_properties.end()) {
-                        device_config[key] = device_nstreams.at(device);
-                    } else if (std::find(supported_properties.begin(),
-                                         supported_properties.end(),
-                                         ov::streams::num.name()) != supported_properties.end()) {
+                    if (supported(key)) {
+                        device_config[key] = it_device_nstreams->second;
+                    } else if (supported(ov::num_streams.name())) {
                         // Use API 2.0 key for streams
-                        key = ov::streams::num.name();
-                        device_config[key] = device_nstreams.at(device);
+                        key = ov::num_streams.name();
+                        device_config[key] = it_device_nstreams->second;
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +
-                                               "and '" + ov::streams::num.name() + "'!" +
+                                               "and '" + ov::num_streams.name() + "'!" +
                                                "Please specify -nstreams for correct devices in format  "
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
@@ -309,45 +324,66 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
                     if (std::string::npos == device.find("MYRIAD")) {  // MYRIAD sets the default number of
                                                                        // streams implicitly (without _AUTO)
-                        auto supported_properties = core.get_property(device, ov::supported_properties);
-                        if (std::find(supported_properties.begin(), supported_properties.end(), key) !=
-                            supported_properties.end()) {
+                        if (supported(key)) {
                             device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
-                        } else if (std::find(supported_properties.begin(),
-                                             supported_properties.end(),
-                                             ov::streams::num.name()) != supported_properties.end()) {
+                        } else if (supported(ov::num_streams.name())) {
                             // Use API 2.0 key for streams
-                            key = ov::streams::num.name();
-                            device_config[key] = std::to_string(ov::streams::AUTO);
+                            key = ov::num_streams.name();
+                            device_config[key] = ov::NumStreams::AUTO;
                         }
                     }
                 }
-                if (device_config.count(key))
-                    device_nstreams[device] = device_config.at(key).as<std::string>();
+                auto it_streams = device_config.find(ov::num_streams.name());
+                if (it_streams != device_config.end())
+                    device_nstreams[device] = it_streams->second.as<std::string>();
             };
+
+            auto set_infer_precision = [&] {
+                auto it_device_infer_precision = device_infer_precision.find(device);
+                if (it_device_infer_precision != device_infer_precision.end()) {
+                    // set to user defined value
+                    if (!supported(ov::hint::inference_precision.name())) {
+                        throw std::logic_error("Device " + device + " doesn't support config key '" +
+                                               ov::hint::inference_precision.name() + "'! " +
+                                               "Please specify -infer_precision for correct devices in format  "
+                                               "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
+                                               " or via configuration file.");
+                    }
+                    device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
+                }
+            };
+
+            auto fix_pin_option = [](const std::string& str) -> std::string {
+                if (str == "NO")
+                    return "NONE";
+                else if (str == "YES")
+                    return "CORE";
+                else
+                    return str;
+            };
+
+            if (supported(ov::inference_num_threads.name()) && isFlagSetInCommandLine("nthreads")) {
+                device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
+            }
+            if (supported(ov::affinity.name()) && isFlagSetInCommandLine("pin")) {
+                device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
+            }
 
             if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
-                if (isFlagSetInCommandLine("nthreads"))
-                    device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
-
-                if (isFlagSetInCommandLine("enforcebf16"))
-                    device_config[CONFIG_KEY(ENFORCE_BF16)] = FLAGS_enforcebf16 ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
-
-                if (isFlagSetInCommandLine("pin")) {
-                    // set to user defined value
-                    device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
-                } else if (!device_config.count(CONFIG_KEY(CPU_BIND_THREAD))) {
-                    if ((device_name.find("MULTI") != std::string::npos) &&
+                if (!isFlagSetInCommandLine("pin")) {
+                    auto it_affinity = device_config.find(ov::affinity.name());
+                    if (it_affinity != device_config.end() && (device_name.find("MULTI") != std::string::npos) &&
                         (device_name.find("GPU") != std::string::npos)) {
                         slog::warn << "Turn off threads pinning for " << device
                                    << " device since multi-scenario with GPU device is used." << slog::endl;
-                        device_config[CONFIG_KEY(CPU_BIND_THREAD)] = CONFIG_VALUE(NO);
+                        it_affinity->second = ov::Affinity::NONE;
                     }
                 }
 
                 // for CPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
+                set_infer_precision();
             } else if (device.find("GPU") != std::string::npos) {
                 // for GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
@@ -365,25 +401,7 @@ int main(int argc, char* argv[]) {
                 device_config.emplace(ov::log::level(ov::log::Level::WARNING));
                 setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
-                if (FLAGS_qb == 8)
-                    device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
-                else
-                    device_config[GNA_CONFIG_KEY(PRECISION)] = "I16";
-            } else {
-                auto supported_properties = core.get_property(device, ov::supported_properties);
-                auto supported = [&](const std::string& key) {
-                    return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
-                           std::end(supported_properties);
-                };
-                if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
-                    device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
-                }
-                if (supported(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) && isFlagSetInCommandLine("nstreams")) {
-                    device_config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = FLAGS_nstreams;
-                }
-                if (supported(CONFIG_KEY(CPU_BIND_THREAD)) && isFlagSetInCommandLine("pin")) {
-                    device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
-                }
+                set_infer_precision();
             }
         }
 
@@ -532,7 +550,9 @@ int main(int argc, char* argv[]) {
                             info.at(name).type = type_to_set;
                         }
                     }
-                    // Explicitly set inputs layout.
+                }
+                // Explicitly set inputs layout.
+                if (!name.empty() && !app_inputs_info[0].at(name).layout.empty()) {
                     in.model().set_layout(app_inputs_info[0].at(name).layout);
                 }
             }
@@ -649,7 +669,7 @@ int main(int argc, char* argv[]) {
         next_step();
         // output of the actual settings that the device selected
         for (const auto& device : devices) {
-            auto supported_properties = core.get_property(device, ov::supported_properties);
+            auto supported_properties = compiledModel.get_property(ov::supported_properties);
             slog::info << "Device: " << device << slog::endl;
             for (const auto& cfg : supported_properties) {
                 try {
@@ -669,7 +689,7 @@ int main(int argc, char* argv[]) {
                 const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
                 device_nstreams[ds.first] = core.get_property(ds.first, key).as<std::string>();
             } catch (const ov::Exception&) {
-                device_nstreams[ds.first] = core.get_property(ds.first, ov::streams::num.name()).as<std::string>();
+                device_nstreams[ds.first] = core.get_property(ds.first, ov::num_streams.name()).as<std::string>();
             }
         }
 

@@ -67,6 +67,8 @@ struct Config {
 
     void readDebugCapsProperties();
 #endif
+
+    bool isNewApi = true;
 };
 
 }  // namespace MKLDNNPlugin

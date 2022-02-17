@@ -125,10 +125,6 @@ std::string reorder_options(const std::string& org_options) {
     return options;
 }
 
-inline bool does_options_support_batch_compilation(const std::string& options) {
-    return options.find("-D") == std::string::npos && options.find("-I") == std::string::npos;
-}
-
 }  // namespace
 
 namespace cldnn {
@@ -152,7 +148,7 @@ bool kernels_cache::is_cache_enabled() const {
 }
 
 size_t kernels_cache::get_max_kernels_per_batch() const {
-    return 10;
+    return 9;
 }
 
 
@@ -166,8 +162,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         std::string options = code.kernel_strings->options;
         bool batch_compilation = code.kernel_strings->batch_compilation;
         bool dump_custom_program = code.dump_custom_program;
-
-        batch_compilation &= does_options_support_batch_compilation(options);
 
         if (batch_compilation) {
             options = reorder_options(options);
@@ -424,7 +418,7 @@ void kernels_cache::build_all() {
     std::vector<InferenceEngine::Task> tasks;
     for (int idx = 0; idx < batches.size(); idx++) {
         auto& batch = batches[idx];
-        tasks.push_back([this, &_build_engine, batch, &exception] {
+        tasks.push_back([this, &_build_engine, &batch, &exception] {
             try {
                 build_batch(*_build_engine, batch);
             } catch(...) {

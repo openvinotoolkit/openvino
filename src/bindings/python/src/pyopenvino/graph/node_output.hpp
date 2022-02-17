@@ -9,6 +9,7 @@
 #include <pybind11/stl.h>
 
 #include "openvino/core/node_output.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -20,7 +21,7 @@ template <typename VT>
 void regclass_graph_Output(py::module m, std::string typestring)
 {
     auto pyclass_name = py::detail::c_str((typestring + std::string("Output")));
-    auto docs = py::detail::c_str((std::string("openvino.runtime.") + typestring + std::string("Output wraps ov::Output<") + typestring + std::string(" ov::Node >")));
+    auto docs = py::detail::c_str(std::string("openvino.runtime.") + typestring + std::string("Output represents port/node output."));
     py::class_<ov::Output<VT>, std::shared_ptr<ov::Output<VT>>> output(m,
                                                                        pyclass_name,
                                                                        py::dynamic_attr());
@@ -34,8 +35,8 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def(py::self == py::self);
     output.def(py::self != py::self);
 
-    output.def("__hash__", [](ov::Output<VT>& port) {
-        return std::hash<VT*>()(port.get_node()) + port.get_index();
+    output.def("__hash__", [](ov::Output<VT>& self) {
+        return std::hash<VT*>()(self.get_node()) + self.get_index();
     });
 
     output.def("get_node",
@@ -43,20 +44,16 @@ void regclass_graph_Output(py::module m, std::string typestring)
                R"(
                 Get node referenced by this output handle.
 
-                Returns
-                ----------
-                get_node : Node or const Node
-                    Node object referenced by this output handle.
+                :return: Node object referenced by this output handle.
+                :rtype: openvino.runtime.Node
                )");
     output.def("get_index",
                &ov::Output<VT>::get_index,
                R"(
                 The index of the output referred to by this output handle.
 
-                Returns
-                ----------
-                get_index : int
-                    Index value as integer.
+                :return: Index value as integer.
+                :rtype: int
                )");
     output.def("get_any_name",
                &ov::Output<VT>::get_any_name,
@@ -64,30 +61,24 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 One of the tensor names associated with this output.
                 Note: first name in lexicographical order.
 
-                Returns
-                ----------
-                get_any_name : str
-                    Tensor name as string.
+                :return: Tensor name as string.
+                :rtype: str
                )");
     output.def("get_names",
                &ov::Output<VT>::get_names,
                R"(
                 The tensor names associated with this output.
 
-                Returns
-                ----------
-                get_names : set
-                    Set of tensor names.
+                :return: Set of tensor names.
+                :rtype: Set[str]
                )");
     output.def("get_element_type",
                &ov::Output<VT>::get_element_type,
                R"(
                 The element type of the output referred to by this output handle.
 
-                Returns
-                ----------
-                get_element_type : Type
-                    Type of the output.
+                :return: Type of the output.
+                :rtype: openvino.runtime.Type
                )");
     output.def("get_shape",
                &ov::Output<VT>::get_shape,
@@ -95,10 +86,8 @@ void regclass_graph_Output(py::module m, std::string typestring)
                R"(
                 The shape of the output referred to by this output handle.
 
-                Returns
-                ----------
-                get_shape : Shape
-                    Copy of Shape of the output.
+                :return: Copy of Shape of the output.
+                :rtype: openvino.runtime.Shape
                )");
     output.def("get_partial_shape",
                &ov::Output<VT>::get_partial_shape,
@@ -106,20 +95,17 @@ void regclass_graph_Output(py::module m, std::string typestring)
                R"(
                 The partial shape of the output referred to by this output handle.
 
-                Returns
-                ----------
-                get_partial_shape : PartialShape
-                    Copy of PartialShape of the output.
+                :return: Copy of PartialShape of the output.
+                :rtype: openvino.runtime.PartialShape
                )");
     output.def("get_target_inputs",
                &ov::Output<VT>::get_target_inputs,
                R"(
                 A set containing handles for all inputs targeted by the output
                 referenced by this output handle.
-                Returns
-                ----------
-                get_target_inputs : Set[Input]
-                    Set of Inputs.
+
+                :return: Set of Inputs.
+                :rtype: Set[openvino.runtime.Input]
                )");
     output.def("_from_node", [](const std::shared_ptr<ov::Node>& node) {
                return ov::Output<ov::Node>(node);
@@ -129,10 +115,9 @@ void regclass_graph_Output(py::module m, std::string typestring)
                py::return_value_policy::reference_internal,
                R"(
                 A reference to the tensor descriptor for this output.
-                Returns
-                ----------
-                get_tensor : descriptor.Tensor
-                    Tensor of the output.
+
+                :return: Tensor of the output.
+                :rtype: openvino.pyopenvino.DescriptorTensor 
                )");
     output.def("get_rt_info",
              (ov::RTMap & (ov::Output<VT>::*)()) &  ov::Output<VT>::get_rt_info,
@@ -140,12 +125,18 @@ void regclass_graph_Output(py::module m, std::string typestring)
              R"(
                 Returns RTMap which is a dictionary of user defined runtime info.
 
-                Returns
-                ----------
-                get_rt_info : RTMap
-                    A dictionary of user defined data.
+                :return: A dictionary of user defined data.
+                :rtype: openvino.runtime.RTMap
              )");
 
+    output.def("__repr__", [typestring](const ov::Output<VT>& self) {
+        std::stringstream shape_type_ss;
+
+        auto names_str = Common::docs::container_to_string(self.get_names(), ", ");
+        shape_type_ss << " shape" << self.get_partial_shape() << " type: " << self.get_element_type();
+
+        return "<" + typestring + "Output: names[" + names_str + "]" + shape_type_ss.str() + ">";
+    });
 
     output.def_property_readonly("node", &ov::Output<VT>::get_node_shared_ptr);
     output.def_property_readonly("index", &ov::Output<VT>::get_index);

@@ -38,8 +38,8 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
         return false;
     }
 
-    const auto shuffleChannels = ov::as_type_ptr<opset1::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root()));
-    auto dequantization = NetworkHelper::getDequantization(shuffleChannels);
+    const auto shuffleChannels = ov::as_type_ptr<opset1::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
+    auto dequantization = NetworkHelper::getDequantization(shuffleChannels, defaultPrecisions);
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
         const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise);
@@ -87,7 +87,7 @@ bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(shuffleChannels);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(shuffleChannels, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }
