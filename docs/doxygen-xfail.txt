@@ -60,3 +60,4 @@ openvino_docs_ie_dg_lpt_variadicsplittransformation.rst
 openvino_docs_ie_plugin_dg_lp_representation.rst
 openvino_docs_ie_dg_lpt.rst
 notebooks/notebook_utils-with-output.rst
+api/api_reference.rst
