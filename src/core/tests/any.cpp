@@ -129,7 +129,6 @@ TEST_F(AnyTests, AnyAsStringInLine) {
     Any p = "test";
     ASSERT_TRUE(p.is<std::string>());
     std::string test = p.as<std::string>();
-    ;
     ASSERT_EQ("test", test);
 }
 
@@ -370,14 +369,13 @@ TEST_F(AnyTests, PrintToVectorOfUInts) {
 
 TEST_F(AnyTests, PrintToVectorOfFloats) {
     auto ref_vec = std::vector<float>{0.0f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f};
-    std::stringstream stream;
     {
         Any p = std::vector<float>{0.0f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f};
-        ASSERT_NO_THROW(p.print(stream));
-        ASSERT_EQ(stream.str(), std::string{"0 1.1 2.2 3.3 4.4 5.5"});
+        ASSERT_EQ(p.as<std::string>(), std::string{"0 1.1 2.2 3.3 4.4 5.5"});
     }
+
     {
-        Any p = stream.str();
+        Any p = "0 1.1 2.2 3.3 4.4 5.5";
         ASSERT_EQ((p.as<std::vector<float>>()), ref_vec);
     }
 }
@@ -534,4 +532,11 @@ TEST_F(AnyTests, NotIntFromStringThrow) {
     Any p = "not42";
     ASSERT_TRUE(p.is<std::string>());
     ASSERT_THROW(p.as<int>(), ov::Exception);
+}
+
+TEST_F(AnyTests, AddressofNoThrow) {
+    Any p;
+    ASSERT_EQ(nullptr, p.addressof());
+    p = 42;
+    ASSERT_NE(nullptr, p.addressof());
 }
