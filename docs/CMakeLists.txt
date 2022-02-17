@@ -150,6 +150,9 @@ function(build_docs)
     list(APPEND commands
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ie_python_api ${API_DOCS_OUT}/ie_python_api
         )
+    list(APPEND commands
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ngraph_python_api ${API_DOCS_OUT}/ngraph_python_api
+        )
     endif()
 
     # omz doc files
