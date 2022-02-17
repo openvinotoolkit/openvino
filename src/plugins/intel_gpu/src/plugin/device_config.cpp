@@ -243,7 +243,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             }
         } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0 || key == ov::num_streams) {
             if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0 ||
-                val.compare(ov::num_streams(ov::NumStreams::AUTO).second.as<std::string>()) == 0) {
+                val.compare(ov::util::to_string(ov::streams::AUTO)) == 0) {
                 throughput_streams = GetDefaultNStreamsForThroughputMode();
             } else {
                 int val_i;
