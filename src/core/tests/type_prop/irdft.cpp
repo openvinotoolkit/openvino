@@ -260,10 +260,9 @@ INSTANTIATE_TEST_SUITE_P(
         IRDFTNonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
                                        {2},
                                        {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
-        IRDFTNonConstantAxesTestParams{
-            {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-            {2},
-            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}}),
+        IRDFTNonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+                                       {2},
+                                       {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}}),
     PrintToDummyParamName());
 
 struct IRDFTNonConstantSignalSizeTestParams {
