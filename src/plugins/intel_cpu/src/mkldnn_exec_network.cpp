@@ -422,9 +422,8 @@ bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Mod
         }
 
         if (type == Tile) {
+            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
             const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(1));
-
             if (!(tile && repeatsNode && repeatsNode->cast_vector<int64_t>()[0] == 1)) {
                 return false;
             }
@@ -502,10 +501,10 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
     for (const auto& op : ops) {
         auto type = TypeFromName(op->get_type_name());
         if (type == Tile) {
-            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(1));
+            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
             if (!repeatsNode)
                 return false;
+            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
             if (tile && repeatsNode->cast_vector<int64_t>()[0] == 1)
                 continue;
         }

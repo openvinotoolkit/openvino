@@ -127,6 +127,10 @@ public:
             }
             return false;
         });
+
+        if (itr == opList.end())
+            return;
+
         auto sumNode = *itr;
         addEdge(inp0, sumNode, 0, 0);
         addEdge(inp1, sumNode, 0, 1);
