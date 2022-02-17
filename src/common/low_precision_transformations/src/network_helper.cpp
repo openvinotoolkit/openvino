@@ -586,7 +586,7 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
 std::shared_ptr<ngraph::Node> NetworkHelper::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node,
     const std::vector<ngraph::element::Type>& defaultPrecisions) {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, defaultPrecisions);
-    if (dequantization.isShared()) {
+    if (dequantization.isShared() && !dequantization.empty()) {
         Output<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
             auto convert = dequantization.convert->clone_with_new_inputs({ parent });
