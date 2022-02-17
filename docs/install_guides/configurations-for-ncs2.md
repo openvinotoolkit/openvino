@@ -5,7 +5,7 @@ Once you have your OpenVINO installed, follow the steps to be able to work on NC
 
 1. Go to the install_dependencies directory:
    ```sh
-   cd <INSTALL_DIR>/intel/openvino_2022/install_dependencies/
+   cd <INSTALL_DIR>/install_dependencies/
    ```
 2. Run the `install_NCS_udev_rules.sh` script:
    ```
