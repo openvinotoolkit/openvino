@@ -30,7 +30,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
         ie = PluginCache::get().ie(targetDevice);
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -297,7 +297,7 @@ TEST_P(ExecutableNetworkBaseTest, canExport) {
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
-    compare_functions(referenceNetwork, cnnNet.getFunction());
+    compare_functions(cnnNet.getFunction(), referenceNetwork);
 }
 
 using ExecNetSetPrecision = BehaviorTestsUtils::BehaviorTestsBasic;

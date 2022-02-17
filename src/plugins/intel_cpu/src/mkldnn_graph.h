@@ -50,6 +50,11 @@ public:
                      const MKLDNNExtensionManager::Ptr& extMgr,
                      MKLDNNWeightsSharing::Ptr &w_cache);
 
+    void CreateGraph(const std::vector<MKLDNNNodePtr> &graphNodes,
+                     const std::vector<MKLDNNEdgePtr> &graphEdges,
+                     MKLDNNWeightsSharing::Ptr &w_cache,
+                     std::string name);
+
     bool hasMeanImageFor(const std::string& name) {
         return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }
@@ -57,7 +62,7 @@ public:
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
     void PullOutputData(InferenceEngine::BlobMap &out);
 
-    void Infer(MKLDNNInferRequestBase* request = nullptr, int batch = -1);
+    void Infer(MKLDNNInferRequestBase* request = nullptr);
 
     const std::vector<MKLDNNNodePtr>& GetNodes() const {
         return graphNodes;

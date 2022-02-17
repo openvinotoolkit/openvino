@@ -7,6 +7,7 @@
 #include <ie_blob.h>
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/node_config.h"
 #include "mkldnn_weights_cache.hpp"
 
 #include <map>
@@ -92,6 +93,9 @@ private:
 
     const MemoryDesc& getInputDesc() const;
     const MemoryDesc& getOutputDesc() const;
+    PortDescBaseCPtr getInputPortDesc() const;
+    PortDescBaseCPtr getOutputPortDesc() const;
+
     const MemoryDesc& getDesc() const;
     bool enforceReorder();
 

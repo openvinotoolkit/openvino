@@ -171,23 +171,23 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
-    EXPECT_NO_THROW(importedExecNet.input());
-    EXPECT_NO_THROW(importedExecNet.input("data").get_node());
-    EXPECT_THROW(importedExecNet.input("param"), ov::Exception);
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.input());
+    EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
+    EXPECT_THROW(importedCompiledModel.input("param"), ov::Exception);
 
     EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
-    EXPECT_NO_THROW(importedExecNet.output());
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output());
     EXPECT_EQ(function->output(0).get_tensor().get_names(),
-              importedExecNet.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedExecNet.output("data").get_node());
-    EXPECT_THROW(importedExecNet.output("param"), ov::Exception);
+              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+    EXPECT_THROW(importedCompiledModel.output("param"), ov::Exception);
 
-    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.input("data").get_element_type());
-    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("data").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.input("data").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
@@ -211,22 +211,22 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 0);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
-    EXPECT_THROW(importedExecNet.input(), ov::Exception);
-    EXPECT_THROW(importedExecNet.input("data"), ov::Exception);
-    EXPECT_THROW(importedExecNet.input("constant"), ov::Exception);
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
+    EXPECT_THROW(importedCompiledModel.input("data"), ov::Exception);
+    EXPECT_THROW(importedCompiledModel.input("constant"), ov::Exception);
 
     EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
-    EXPECT_NO_THROW(importedExecNet.output());
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output());
     EXPECT_EQ(function->output(0).get_tensor().get_names(),
-              importedExecNet.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedExecNet.output("data").get_node());
-    EXPECT_THROW(importedExecNet.output("constant"), ov::Exception);
+              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+    EXPECT_THROW(importedCompiledModel.output("constant"), ov::Exception);
 
-    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("data").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
 }
 
 TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
@@ -415,28 +415,28 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
     std::stringstream strm;
     execNet.Export(strm);
 
-    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
-    EXPECT_NO_THROW(importedExecNet.input());
-    EXPECT_NO_THROW(importedExecNet.input("data").get_node());
-    EXPECT_NO_THROW(importedExecNet.input("param").get_node());
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.input());
+    EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
+    EXPECT_NO_THROW(importedCompiledModel.input("param").get_node());
 
     EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
-    EXPECT_NO_THROW(importedExecNet.output());
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output());
     EXPECT_NE(function->output(0).get_tensor().get_names(),
-              importedExecNet.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedExecNet.output("data").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("param").get_node());
+              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+    EXPECT_NO_THROW(importedCompiledModel.output("param").get_node());
 
     const ov::element::Type outputType = elementType == ngraph::element::i32 ||
         elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
     const ov::element::Type inputType = elementType ==
         ngraph::element::f16 ? ngraph::element::Type_t::f32 : elementType;
 
-    EXPECT_EQ(inputType, importedExecNet.input("param").get_element_type());
-    EXPECT_EQ(outputType, importedExecNet.output("data").get_element_type());
+    EXPECT_EQ(inputType, importedCompiledModel.input("param").get_element_type());
+    EXPECT_EQ(outputType, importedCompiledModel.output("data").get_element_type());
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
@@ -463,24 +463,24 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
     std::stringstream strm;
     execNet.Export(strm);
 
-    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 0);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
-    EXPECT_THROW(importedExecNet.input(), ov::Exception);
-    EXPECT_THROW(importedExecNet.input("data"), ov::Exception);
-    EXPECT_THROW(importedExecNet.input("constant"), ov::Exception);
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
+    EXPECT_THROW(importedCompiledModel.input("data"), ov::Exception);
+    EXPECT_THROW(importedCompiledModel.input("constant"), ov::Exception);
 
     EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
-    EXPECT_NO_THROW(importedExecNet.output());
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output());
     EXPECT_NE(function->output(0).get_tensor().get_names(),
-              importedExecNet.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedExecNet.output("data").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("constant").get_node());
+              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+    EXPECT_NO_THROW(importedCompiledModel.output("constant").get_node());
 
     const auto outputType = elementType == ngraph::element::i32 ||
                             elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
-    EXPECT_EQ(outputType, importedExecNet.output("data").get_element_type());
+    EXPECT_EQ(outputType, importedCompiledModel.output("data").get_element_type());
 }
 
 TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {

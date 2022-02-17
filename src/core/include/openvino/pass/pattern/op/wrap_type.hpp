@@ -70,6 +70,7 @@ void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
     collect_wrap_info<T>(info);
     collect_wrap_info<Targs...>(info);
 }
+
 template <class... Args>
 std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const pattern::op::ValuePredicate& pred) {
     std::vector<DiscreteTypeInfo> info;

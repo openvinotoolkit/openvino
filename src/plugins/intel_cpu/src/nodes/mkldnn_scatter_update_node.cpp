@@ -194,17 +194,17 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(3);
     }
     config.outConfs.resize(1);
-    config.inConfs[DATA_ID].constant = false;
-    config.inConfs[INDICES_ID].constant = false;
-    config.inConfs[UPDATE_ID].constant = false;
-    config.outConfs[0].constant = false;
-    config.inConfs[DATA_ID].inPlace = canBeInplace ? 0 : -1;
-    config.inConfs[INDICES_ID].inPlace = -1;
-    config.inConfs[UPDATE_ID].inPlace = -1;
-    config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
+    config.inConfs[DATA_ID].constant(false);
+    config.inConfs[INDICES_ID].constant(false);
+    config.inConfs[UPDATE_ID].constant(false);
+    config.outConfs[0].constant(false);
+    config.inConfs[DATA_ID].inPlace(canBeInplace ? 0 : -1);
+    config.inConfs[INDICES_ID].inPlace(-1);
+    config.inConfs[UPDATE_ID].inPlace(-1);
+    config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
     if (axisRelaxed) {
-        config.inConfs[AXIS_ID].constant = false;
-        config.inConfs[AXIS_ID].inPlace = -1;
+        config.inConfs[AXIS_ID].constant(false);
+        config.inConfs[AXIS_ID].inPlace(-1);
     }
 
     std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec}, {LayoutType::ncsp, indicesPrec}, {LayoutType::ncsp, dataPrec}};

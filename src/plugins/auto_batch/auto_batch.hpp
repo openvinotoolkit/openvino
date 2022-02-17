@@ -80,7 +80,7 @@ protected:
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool _needPerfCounters = false;
     std::atomic_size_t _numRequestsCreated = {0};
-    std::atomic_int _timeOut = {1000};  // in ms
+    std::atomic_int _timeOut = {0};  // in ms
 };
 
 class AutoBatchInferRequest : public InferenceEngine::IInferRequestInternal {
@@ -173,7 +173,6 @@ protected:
         const InferenceEngine::CNNNetwork& network,
         const std::shared_ptr<InferenceEngine::RemoteContext> context,
         const std::map<std::string, std::string>& config);
-    std::vector<std::shared_ptr<void>> _additionalSOPtrs;
 };
 
 }  // namespace AutoBatchPlugin

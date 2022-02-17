@@ -41,8 +41,16 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         auto add_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
         if (!add_const)
             return false;
-        std::shared_ptr<Node> new_const = add_const;
+
         auto const_shape = add_const->get_shape();
+        if (ngraph::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
+            // We can't eliminate Add if Constant input broadcasts another input shape because
+            // when we reconnect input from Add to FQ won't broadcast given input, so it will result
+            // in shape collision.
+            return false;
+        }
+
+        std::shared_ptr<Node> new_const = add_const;
         size_t const_shape_size = shape_size(const_shape);
         bool is_single_value = const_shape_size == 1;
 
@@ -90,8 +98,7 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             auto fq_users = fq->get_users();
             // Concat LPT transformation supports per tensor quantization only
             bool fq_user_is_concat = std::any_of(fq_users.begin(), fq_users.end(),
-                                                 [] (const Output<Node>& node) -> bool {
-                                                     auto node_ptr = node.get_node();
+                                                 [] (const std::shared_ptr<Node> node_ptr) -> bool {
                                                      return is_type<opset5::Concat>(node_ptr);
                                                  });
             if (fq_user_is_concat)

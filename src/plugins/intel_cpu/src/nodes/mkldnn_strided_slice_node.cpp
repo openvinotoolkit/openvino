@@ -249,19 +249,19 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(getParentEdges().size());
-    config.inConfs[DATA_ID].inPlace = -1;
-    config.inConfs[BEGIN_ID].inPlace = -1;
-    config.inConfs[END_ID].inPlace = -1;
-    config.inConfs[DATA_ID].constant = isConstantInput[DATA_ID];
-    config.inConfs[BEGIN_ID].constant = isConstantInput[BEGIN_ID];
-    config.inConfs[END_ID].constant = isConstantInput[END_ID];
+    config.inConfs[DATA_ID].inPlace(-1);
+    config.inConfs[BEGIN_ID].inPlace(-1);
+    config.inConfs[END_ID].inPlace(-1);
+    config.inConfs[DATA_ID].constant(isConstantInput[DATA_ID]);
+    config.inConfs[BEGIN_ID].constant(isConstantInput[BEGIN_ID]);
+    config.inConfs[END_ID].constant(isConstantInput[END_ID]);
     if (isStrideSpecified) {
-        config.inConfs[STRIDE_ID].inPlace = -1;
-        config.inConfs[STRIDE_ID].constant = isConstantInput[STRIDE_ID];
+        config.inConfs[STRIDE_ID].inPlace(-1);
+        config.inConfs[STRIDE_ID].constant(isConstantInput[STRIDE_ID]);
     }
     if (isAxesSpecified) {
-        config.inConfs[AXES_ID].inPlace = -1;
-        config.inConfs[AXES_ID].constant = isConstantInput[AXES_ID];
+        config.inConfs[AXES_ID].inPlace(-1);
+        config.inConfs[AXES_ID].constant(isConstantInput[AXES_ID]);
     }
     config.outConfs.resize(1);
 
@@ -287,15 +287,15 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[DATA_ID].desc = itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(DATA_ID));
-        config.inConfs[BEGIN_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(BEGIN_ID));
-        config.inConfs[END_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(END_ID));
+        config.inConfs[DATA_ID].setMemDesc(itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(DATA_ID)));
+        config.inConfs[BEGIN_ID].setMemDesc(creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(BEGIN_ID)));
+        config.inConfs[END_ID].setMemDesc(creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(END_ID)));
         if (isStrideSpecified)
-            config.inConfs[STRIDE_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(STRIDE_ID));
+            config.inConfs[STRIDE_ID].setMemDesc(creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(STRIDE_ID)));
         if (isAxesSpecified)
-            config.inConfs[AXES_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(AXES_ID));
+            config.inConfs[AXES_ID].setMemDesc(creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(AXES_ID)));
 
-        config.outConfs[0].desc = itr->second->createSharedDesc(dataPrecision, getOutputShapeAtPort(DATA_ID));
+        config.outConfs[0].setMemDesc(itr->second->createSharedDesc(dataPrecision, getOutputShapeAtPort(DATA_ID)));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
 }
@@ -310,9 +310,9 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     }
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "has not allocated destination memory.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         THROW_ERROR << "has not allocated input memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor.";

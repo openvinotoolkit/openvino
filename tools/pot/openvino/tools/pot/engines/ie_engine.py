@@ -38,7 +38,7 @@ class IEEngine(Engine):
 
     def set_model(self, model):
         """ Loads NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         if model.is_cascade:
             raise Exception('Cascade models are not supported in current engine')
@@ -48,8 +48,8 @@ class IEEngine(Engine):
         self._output_layers = [get_clean_name(output.get_node().friendly_name) for output in self._model.outputs]
 
     def _set_model(self, model):
-        """Creates IENetwork instances from NetworkX models in NXModel.
-        :param: model: NXModel instance
+        """Creates IENetwork instances from NetworkX models in CompressedModel.
+        :param: model: CompressedModel instance
         :return: list of dictionaries:
                  [
                     {
@@ -200,7 +200,7 @@ class IEEngine(Engine):
         :param annotations: list of annotations [(img_id, annotation)]
         """
         dataset_index = annotations[0][0] if annotations is not None and annotations[0][0] else 0
-        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index)
+        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index, self.inference_for_shape)
 
     def _update_metrics(self, output, annotations, need_metrics_per_sample=False):
         """ Updates metrics.
@@ -226,14 +226,21 @@ class IEEngine(Engine):
         :param model: IENetwork instance
         :param image_batch: list of ndarray images or list with a dictionary of inputs mapping
         """
-        if isinstance(image_batch[0], dict):
-            return image_batch[0]
-
         input_info = model.inputs
+
+        if isinstance(image_batch[0], dict):
+            feed_dict = {}
+            input_blobs = {get_clean_name(in_node.get_node().friendly_name): in_node for in_node in input_info}
+            for input_name in image_batch[0].keys():
+                input_blob = input_blobs[input_name]
+                input_blob_name = self._get_input_any_name(input_blob)
+                feed_dict[input_blob_name] = np.reshape(image_batch[0][input_name], input_blob.shape)
+            return feed_dict
+
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
-            image_batch = {input_blob_name: np.stack(image_batch, axis=0)}
+            image_batch = {input_blob_name: np.reshape(image_batch, input_blob.shape)}
             if Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
@@ -253,7 +260,7 @@ class IEEngine(Engine):
                 lambda x: x.get_any_name() != image_info_name, input_info)))
             image_tensor_name = image_tensor_node.get_any_name()
 
-            image_tensor = (image_tensor_name, np.stack(image_batch, axis=0))
+            image_tensor = (image_tensor_name, np.reshape(image_batch, input_blob.shape))
             if Shape(image_tensor[1].shape) != image_tensor_node.shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_tensor[1].shape)} into {image_tensor_node.shape}."

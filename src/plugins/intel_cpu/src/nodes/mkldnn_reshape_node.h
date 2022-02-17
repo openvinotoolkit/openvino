@@ -21,7 +21,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     bool created() const override;
     bool isExecutable() const override {
-        return isDynamicNode();
+        return false;
     }
 
     bool needShapeInfer() const override;

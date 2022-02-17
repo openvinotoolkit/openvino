@@ -327,7 +327,7 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     }
 
     bool all_below_min_signal = below_min_count == distances.size();
-    if (rc && (getenv_bool("NGRAPH_GTEST_INFO"))) {
+    if (rc) {
         // Short unobtrusive message when passing
         std::cout << "[   INFO   ] Verifying match of <= " << (FLOAT_MANTISSA_BITS - tolerance_bits)
                   << " mantissa bits (" << FLOAT_MANTISSA_BITS << " bits precision - " << tolerance_bits
@@ -435,7 +435,7 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     }
 
     bool all_below_min_signal = below_min_count == distances.size();
-    if (rc && (getenv_bool("NGRAPH_GTEST_INFO"))) {
+    if (rc) {
         // Short unobtrusive message when passing
         std::cout << "[   INFO   ] Verifying match of >= " << (DOUBLE_MANTISSA_BITS - tolerance_bits)
                   << " mantissa bits (" << DOUBLE_MANTISSA_BITS << " bits precision - " << tolerance_bits

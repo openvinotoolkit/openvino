@@ -126,6 +126,8 @@ MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::N
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
+
+    attr = std::make_shared<mkldnn::primitive_attr>();
 }
 
 InferenceEngine::Blob::Ptr MKLDNNDeconvolutionNode::createWeiBlobAsIO(InferenceEngine::SizeVector dims) {
@@ -319,7 +321,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
             createDescriptor({in_candidate}, {out_candidate});
         }
     }
-    setPostOps(attr, outShape.getStaticDims());
+    setPostOps(*attr, outShape.getStaticDims());
 }
 
 void MKLDNNDeconvolutionNode::initPaddingR(const Shape &inShape, const Shape &outShape) {
@@ -351,11 +353,11 @@ void MKLDNNDeconvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const Vec
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             // TODO [DS]: change to shape from memory
             // use legacy depthwise since backprop convolution does not support binary post ops
-            eltwiseNode->appendPostOps(ops, dims);
+            eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             continue;
         }
         if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
@@ -454,6 +456,16 @@ VectorDims MKLDNNDeconvolutionNode::shapeInferInternal(const VectorDims &inDims,
     return outputShapes.back().to_shape();
 }
 
+void MKLDNNDeconvolutionNode::setDynamicBatchLim(int lim) {
+    if (!execPtr) {
+        IE_THROW() << "Can't set dynamic batch for Deconvolution node with name: " << getName() << ", because executor is not compiled";
+    }
+    if (execPtr->needReordering()) {
+        IE_THROW() << "Can't execute Deconvolution node with dynamic batch via executor with reorders";
+    }
+    MKLDNNNode::setDynamicBatchLim(lim);
+}
+
 void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Deconvolution node with name: " << getName() << ", because executor is not compiled";
@@ -545,34 +557,39 @@ void MKLDNNDeconvolutionNode::createDeconvPrim(std::shared_ptr<MKLDNNDescriptor>
     IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
 }
 
+MKLDNNNode::AttrPtr MKLDNNDeconvolutionNode::makePrimitiveAttr(const VectorDims &dims) {
+    auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
+
+    setPostOps(*attr, dims);
+
+    return attr;
+}
+
+MKLDNNNode::AttrPtr MKLDNNDeconvolutionNode::initPrimitiveAttr() {
+    return attr;
+}
+
 void MKLDNNDeconvolutionNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
+        IE_THROW() << "Destination memory has not been allocated.";
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
+        IE_THROW() << "Input memory has not been allocated.";
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
-    if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Weight memory didn't allocate.";
+    if (!wghMemPtr || !wghMemPtr->isAllocated())
+        IE_THROW() << "Weight memory has not been allocated.";
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
     auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
     auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
 
-    auto initPrimitiveAttr = [&]() {
-        mkldnn::primitive_attr attr;
-        setPostOps(attr, dstMemPtr->getStaticDims());
-        return std::make_shared<mkldnn::primitive_attr>(std::move(attr));
-    };
-
     AttrPtr pAttrLocal;
-
     if (isDynamicNode()) {
         if (!pAttr) {
-            pAttr = initPrimitiveAttr();
+            pAttr = makePrimitiveAttr(dstMemPtr->getStaticDims());
         }
         pAttrLocal = pAttr;
         if (autoPad || externOutShape) {
@@ -581,7 +598,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
         }
         initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());
     } else {
-        pAttrLocal = initPrimitiveAttr();
+        pAttrLocal = makePrimitiveAttr(dstMemPtr->getStaticDims());
     }
 
     const auto in_candidate = inMemoryDesc->getDnnlDesc();
@@ -617,7 +634,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
                     {DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive()},
                     {DNNL_ARG_DIFF_SRC, dstMemPtr->GetPrimitive()}};
     }
-    MKLDNNNode::appendPostOpArgs(attr, primArgs, binaryPostOpsArgs);
+    MKLDNNNode::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
 }
 
 void MKLDNNDeconvolutionNode::createPrimitive() {
@@ -790,7 +807,7 @@ std::vector<int32_t> MKLDNNDeconvolutionNode::readOutputSpatialDims() const {
         IE_THROW() << "Can't get output spatial dims. Inputs number = " << getParentEdges().size();
     }
     const auto &shapeMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
-    if (!shapeMemPtr || !shapeMemPtr->GetPrimitivePtr()) {
+    if (!shapeMemPtr || !shapeMemPtr->isAllocated()) {
         IE_THROW() << "'output_shape' input memory is not allocated.";
     }
     const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;

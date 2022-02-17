@@ -136,13 +136,13 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
-        config.inConfs[0].desc = creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID));
-        config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID));
-        config.inConfs[2].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_END_ID));
+        config.inConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID)));
+        config.inConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID)));
+        config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_END_ID)));
         if (isPadValueSpecified)
-            config.inConfs[3].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID));
+            config.inConfs[3].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID)));
 
-        config.outConfs[0].desc = creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID));
+        config.outConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID)));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
 
@@ -169,9 +169,9 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNPadNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "has not allocated source memory.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         THROW_ERROR << "has not allocated destination memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor";

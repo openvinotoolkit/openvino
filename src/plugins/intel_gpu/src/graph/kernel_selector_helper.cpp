@@ -138,6 +138,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bs_fs_yx_bsv4_fsv4;
         case format::bs_fs_yx_bsv8_fsv4:
             return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv4;
+        case format::bs_fs_yx_bsv8_fsv2:
+            return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2;
         case format::bs_fs_yx_bsv4_fsv2:
             return kernel_selector::data_layout::bs_fs_yx_bsv4_fsv2;
         case format::bs_fs_yx_bsv32_fsv32:
@@ -197,6 +199,8 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::bs_fs_yx_bsv4_fsv4;
         case kernel_selector::data_layout::bs_fs_yx_bsv8_fsv4:
             return cldnn::format::bs_fs_yx_bsv8_fsv4;
+        case kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2:
+            return cldnn::format::bs_fs_yx_bsv8_fsv2;
         case kernel_selector::data_layout::bs_fs_yx_bsv32_fsv32:
             return cldnn::format::bs_fs_yx_bsv32_fsv32;
         case kernel_selector::data_layout::nv12:
@@ -254,6 +258,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv2;
         case format::os_is_zyx_osa4_isa8_osv8_isv4:
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4;
+        case format::g_os_is_yx_osa2_isa8_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv8_isv2;
         case format::g_os_is_yx_osa4_isa8_osv8_isv2:
             return kernel_selector::weights_layout::g_os_is_yx_osa4_isa8_osv8_isv2;
         case format::g_os_is_yx_osa4_isa8_osv8_isv4:
@@ -452,6 +458,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv2;
         case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4:
             return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
+        case kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv8_isv2:
+            return cldnn::format::g_os_is_yx_osa2_isa8_osv8_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_osa4_isa8_osv8_isv2:
             return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_osa4_isa8_osv8_isv4:

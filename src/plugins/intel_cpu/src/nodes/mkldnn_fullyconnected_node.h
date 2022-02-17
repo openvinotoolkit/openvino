@@ -52,6 +52,8 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
+    void setDynamicBatchLim(int lim) override;
+
 private:
     void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
                                   const mkldnn::memory::desc &outputDesc);

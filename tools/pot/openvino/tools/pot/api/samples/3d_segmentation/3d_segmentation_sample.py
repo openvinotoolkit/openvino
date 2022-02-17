@@ -6,7 +6,6 @@ import os
 import nibabel as nib
 import numpy as np
 from scipy.ndimage import interpolation
-from addict import Dict
 
 from openvino.tools.pot import Metric, DataLoader, IEEngine, \
     load_model, save_model, compress_model_weights, create_pipeline
@@ -23,8 +22,6 @@ class BRATSDataLoader(DataLoader):
 
     # Required methods:
     def __init__(self, config):
-        if not isinstance(config, Dict):
-            config = Dict(config)
         super().__init__(config)
         self._img_ids = sorted(os.listdir(self.config.data_source))
 
@@ -246,24 +243,24 @@ def main():
     if not args.weights:
         args.weights = '{}.bin'.format(os.path.splitext(args.model)[0])
 
-    model_config = Dict({
+    model_config = {
         'model_name': 'brain-tumor-segmentation-0002',
         'model': os.path.expanduser(args.model),
         'weights': os.path.expanduser(args.weights)
-    })
+    }
 
-    engine_config = Dict({
+    engine_config = {
         'device': 'CPU',
         'stat_requests_number': 4,
         'eval_requests_number': 4
-    })
+    }
 
-    dataset_config = Dict({
+    dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
         'mask_dir': os.path.expanduser(args.mask_dir),
         'modality_order': [1, 2, 3, 0],
         'size': (128, 128, 128)
-    })
+    }
 
     algorithms = [
         {

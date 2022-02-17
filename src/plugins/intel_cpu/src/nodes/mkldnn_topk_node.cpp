@@ -99,7 +99,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
             mov(reg_table, l_table);
 
         data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(jcp_.precision);
-        if (jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost)
+        if (!shape_agnostic_alg && jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost)
             blk_stride = jcp_.sort_stride * jcp_.blk_size;
 
         if (jcp_.mode_max) {
@@ -209,7 +209,7 @@ private:
     const int tail = jcp_.work_amount % step;
     const int topk_tail = jcp_.top_k % step;
 
-    int blk_stride;       // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
+    int blk_stride = 0;    // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
     unsigned char cmp_flg;
     unsigned char heap_cmp_flg;
 
@@ -1181,6 +1181,7 @@ private:
     inline void topk_bubble_BLK_on_channel_horiz() {
         mov(reg_bubble_axis_dim, ptr[reg_params + GET_OFF(axis_dim)]);
         mov(reg_seq_sort_stride, ptr[reg_params + GET_OFF(sort_stride)]);
+        mov(reg_bubble_seq_idx, ptr[reg_params + GET_OFF(idx_seq_buf)]);
 
         // load and sort
         mov(reg_i, 0);
@@ -1196,7 +1197,6 @@ private:
 
         L(topk_load_sort_label);
         {
-            mov(reg_bubble_seq_idx, ptr[reg_params + GET_OFF(idx_seq_buf)]);
             load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val(0).getIdx())},
                           std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, step, 0),
                           {}, {load_pool_gpr_idxs});
@@ -1946,7 +1946,7 @@ void MKLDNNTopKNode::preset_params() {
     }
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    auto data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].desc->getPrecision());
+    auto data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = MKLDNNExtensionUtils::sizeOfDataType(data_type);
 
     topk_innermost = (layout == TopKLayoutType::topk_ncsp && axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
@@ -1971,9 +1971,9 @@ void MKLDNNTopKNode::preset_params() {
 void MKLDNNTopKNode::prepareParams() {
     auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocated destination memory.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocate input memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
@@ -2063,7 +2063,7 @@ void MKLDNNTopKNode::createPrimitive() {
         // will be used. These params are: top_k, axis_dim, sort_stride, work_amount
         auto jcp = jit_topk_config_params();
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        jcp.precision = selectedPD->getConfig().inConfs[TOPK_DATA].desc->getPrecision();
+        jcp.precision = selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision();
         jcp.data_size = data_size;
         jcp.blk_size = blk_size;
         jcp.layout = layout;

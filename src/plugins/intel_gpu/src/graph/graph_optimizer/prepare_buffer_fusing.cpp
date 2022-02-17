@@ -98,7 +98,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                     auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = input->get_output_layout();
 
-                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                    if (!program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout))
                         continue;
                     if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout))
                         return false;
