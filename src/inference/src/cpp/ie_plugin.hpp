@@ -51,7 +51,7 @@ struct InferencePlugin {
         PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
-    void SetCore(std::weak_ptr<InferenceEngine::ICore> core) {
+    void SetCore(std::weak_ptr<ov::ICore> core) {
         PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
     }
 
@@ -164,7 +164,7 @@ public:
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
-    void set_core(std::weak_ptr<ie::ICore> core) {
+    void set_core(std::weak_ptr<ICore> core) {
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
     }
 
