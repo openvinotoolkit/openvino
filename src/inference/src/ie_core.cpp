@@ -556,6 +556,7 @@ public:
     void ApplyAutoBatching(const ie::CNNNetwork& network,
                            std::string& deviceName,
                            std::map<std::string, std::string>& config) {
+        return;
         std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
         if (deviceName.find("BATCH") != std::string::npos) {
             // explicitly enabled Auto-Batching
