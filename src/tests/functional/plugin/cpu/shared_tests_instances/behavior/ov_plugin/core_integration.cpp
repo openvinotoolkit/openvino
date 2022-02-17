@@ -108,7 +108,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_AUTO_OVClassSetAllowAutoBatchingConfigTest, OVClassSetAllowAutoBatchingConfigTest,
-        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
                            ::testing::ValuesIn(allowAutoBatchingAutoConfigs)));
 
 //
