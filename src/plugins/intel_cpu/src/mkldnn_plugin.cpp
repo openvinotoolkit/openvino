@@ -863,7 +863,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         capabilities.push_back(METRIC_VALUE(FP16));
         capabilities.push_back(METRIC_VALUE(INT8));
         capabilities.push_back(METRIC_VALUE(BIN));
-        capabilities.push_back("EXPORT_IMPORT");
+        capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
         return capabilities;
     } else if (name == ov::range_for_async_infer_requests) {
         const std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
