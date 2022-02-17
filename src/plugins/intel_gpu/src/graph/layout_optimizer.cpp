@@ -1497,11 +1497,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         for (auto& dep : node.get_dependencies()) {
             if (dep->is_in_data_flow() && dep->get_preferred_impl_type() == impl_types::onednn) {
-                return impl_types::onednn;
+                preferred_impl = impl_types::onednn;
+                break;
             }
-        }
-        if (format::is_blocked(node.get_output_layout().format)) {
-            return impl_types::onednn;
         }
     // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
     } else if (node.is_type<fully_connected>()/* || node.is_type<gemm>()*/) {
