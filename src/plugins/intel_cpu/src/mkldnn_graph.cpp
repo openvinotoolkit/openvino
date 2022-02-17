@@ -80,6 +80,38 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
+void MKLDNNGraph::CreateGraph(const std::vector<MKLDNNNodePtr> &graphNodes,
+                              const std::vector<MKLDNNEdgePtr> &graphEdges,
+                              MKLDNNWeightsSharing::Ptr &w_cache,
+                              std::string name) {
+    if (IsReady())
+        ForgetGraphData();
+    // disable weights caching if graph was created only once
+    weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
+
+    rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
+
+    this->_name = std::move(name);
+    this->reuse_io_tensors = false;
+
+    this->graphNodes = graphNodes;
+    this->graphEdges = graphEdges;
+
+    for (auto node : graphNodes) {
+        if ("Parameter" == node->getTypeStr()) {
+            inputNodesMap[node->getName()] = node;
+        } else if ("Result" == node->getTypeStr()) {
+            outputNodesMap[node->getName()] = node;
+        }
+    }
+
+    InitGraph();
+
+    status = Ready;
+
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
+}
+
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
         const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 template void MKLDNNGraph::CreateGraph(const CNNNetwork&,
@@ -289,6 +321,17 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     if (config.enforceBF16)
         EnforceBF16();
 
+    auto hasSubgraphConsumers = [] (const MKLDNNNodePtr& node) -> bool {
+        const auto & childEdges = node->getChildEdges();
+        return std::any_of(childEdges.begin(), childEdges.end(),
+                           [] (const MKLDNNEdgeWeakPtr& edge) -> bool {
+                               auto edgePtr = edge.lock();
+                               if (!edgePtr)
+                                   return false;
+                               return edgePtr->getChild()->getType() == Type::Subgraph;
+                           });
+    };
+
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto &input : inputNodesMap) {
@@ -297,7 +340,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
-            if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16)
+            if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16 &&
+                // remove this WA when #78939 is resolved
+                !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
         }
     }
@@ -459,9 +504,13 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() const {
     }
 }
 
-static bool isReorderAvailable(const MemoryDesc& parentDesc, const MemoryDesc& childDesc, const mkldnn::engine& eng) {
-    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(childDesc.clone())->getDnnlDesc();
-    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(parentDesc.clone())->getDnnlDesc();
+static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc, const mkldnn::engine& eng) {
+    auto definedParentDesc = parentDesc->isDefined() ? parentDesc : MemoryDescUtils::makeDummyDesc(*parentDesc);
+    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedParentDesc)->getDnnlDesc();
+
+    auto definedChildDesc = childDesc->isDefined() ? childDesc : MemoryDescUtils::makeDummyDesc(*childDesc);
+    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedChildDesc)->getDnnlDesc();
+
     mkldnn::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
@@ -513,7 +562,9 @@ void MKLDNNGraph::InitEdges() {
             MKLDNNEdge::ReorderStatus reorderStatusInternal = MKLDNNEdge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
-                    !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
+                    !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
+                                        edge->getOutputPortDesc()->getMemDesc(),
+                                        this->getEngine())) {
                 // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
                 const auto& inDesc = edge->getInputDesc();
                 const auto& outDesc = edge->getOutputDesc();
@@ -1031,6 +1082,8 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
+        if (graphNodes[i]->isConstant())
+            continue;
         getPerfMapFor(perfMap, graphNodes[i]);
     }
 }
@@ -1054,6 +1107,7 @@ Config MKLDNNGraph::getProperty() const {
 void MKLDNNGraph::RemoveEdge(MKLDNNEdgePtr& edge) {
     for (auto it = graphEdges.begin(); it != graphEdges.end(); it++) {
         if ((*it) == edge) {
+            edge->drop();
             graphEdges.erase(it);
             return;
         }
@@ -1149,10 +1203,11 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         if (!parent) continue;
 
         MKLDNNEdgePtr &remEdge = p_edge;
-        const auto portCandidate = remEdge->getOutputNum();
         int inNum = 0;
+        int portCandidate = 0;
         if (remEdge) {
             inNum = remEdge->getInputNum();
+            portCandidate = remEdge->getOutputNum();
             remEdge->drop();
             RemoveEdge(remEdge);
         }

@@ -50,8 +50,6 @@ public:
                 return false;
             }
 
-            std::cout << "CreatePrecisionsDependentAttribute: " << node->get_type_name() << "." << node->get_friendly_name() << std::endl;
-
             {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "CreatePrecisionsDependentAttribute");
                 auto &rt = node->get_rt_info();

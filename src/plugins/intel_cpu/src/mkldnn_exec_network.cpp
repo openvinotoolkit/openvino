@@ -313,10 +313,10 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         return graph.dump()->get_friendly_name();
     } else if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig._streams;
-        return static_cast<uint32_t>(streams); // ov::optimal_number_of_infer_requests has no negative values
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(streams); // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig._streams;
-        return static_cast<int32_t>(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = config.streamExecutorConfig._threadBindingType;
         switch (affinity) {
@@ -422,9 +422,8 @@ bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Mod
         }
 
         if (type == Tile) {
+            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
             const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(1));
-
             if (!(tile && repeatsNode && repeatsNode->cast_vector<int64_t>()[0] == 1)) {
                 return false;
             }
@@ -502,10 +501,10 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
     for (const auto& op : ops) {
         auto type = TypeFromName(op->get_type_name());
         if (type == Tile) {
-            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(1));
+            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
             if (!repeatsNode)
                 return false;
+            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
             if (tile && repeatsNode->cast_vector<int64_t>()[0] == 1)
                 continue;
         }

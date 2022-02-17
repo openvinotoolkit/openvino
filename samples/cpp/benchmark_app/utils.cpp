@@ -112,7 +112,8 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
-    if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
+    if ((comma_separated_devices == "AUTO") || (comma_separated_devices == "MULTI") ||
+        (comma_separated_devices == "HETERO"))
         return std::vector<std::string>();
     auto devices = split(comma_separated_devices, ',');
     return devices;
@@ -316,7 +317,11 @@ std::map<std::string, std::vector<std::string>> parse_input_arguments(const std:
             }
 
             for (auto& file : files.second) {
-                readInputFilesArguments(mapped_files[files.first], file);
+                if (file == "image_info" || file == "random") {
+                    mapped_files[files.first].push_back(file);
+                } else {
+                    readInputFilesArguments(mapped_files[files.first], file);
+                }
             }
         }
         args_it = files_end;

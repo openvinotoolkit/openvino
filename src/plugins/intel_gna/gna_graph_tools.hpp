@@ -725,8 +725,6 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
  *    - new & old prev layer must have exactly one outgoing port
  */
 inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new_prev_layer, CNNLayerPtr layer, bool checkDims = true) {
-    gnalog() << "Reconnecting " << old_prev_layer->name << " --> " << layer->name << " layer to "
-        << new_prev_layer->name << " -- > " << layer->name << "layer\n";
     if (!layer) {
         IE_THROW() << "Cannot reconnect layer pointed to NULL";
     }
@@ -736,6 +734,9 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
     if (!new_prev_layer) {
         IE_THROW() << "Cannot reconnect layer new parent is NULL";
     }
+
+    gnalog() << "Reconnecting " << old_prev_layer->name << " --> " << layer->name << " layer to "
+        << new_prev_layer->name << " -- > " << layer->name << "layer\n";
 
     if (layer->insData.size() < 1) {
         IE_THROW() << "Cannot reconnect layer : " << layer->name

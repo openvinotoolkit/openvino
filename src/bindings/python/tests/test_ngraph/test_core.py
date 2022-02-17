@@ -239,7 +239,10 @@ def test_repr_dynamic_shape():
     model = parameter_a + parameter_b
     function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
-    assert repr(function) == "<Model: 'simple_dyn_shapes_graph' ({?,2})>"
+    assert repr(function) == "<Model: 'simple_dyn_shapes_graph'\ninputs[" + \
+                             "\n<ConstOutput: names[A] shape{?,2} type: f32>," +\
+                             "\n<ConstOutput: names[B] shape{?,2} type: f32>\n]" + \
+                             "\noutputs[\n<ConstOutput: names[] shape{?,2} type: f32>\n]>"
 
     ops = function.get_ordered_ops()
     for op in ops:

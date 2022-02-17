@@ -55,6 +55,10 @@ public:
 
     void setDynamicBatchLim(int lim) override;
 
+protected:
+    AttrPtr initPrimitiveAttr() override;
+    AttrPtr makePrimitiveAttr(const VectorDims& dims);
+
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
@@ -98,7 +102,7 @@ private:
 
     AttrPtr pAttr;
 
-    mkldnn::primitive_attr attr;
+    std::shared_ptr<mkldnn::primitive_attr> attr;
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims);
 
     VectorDims shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const;

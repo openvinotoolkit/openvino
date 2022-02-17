@@ -8,20 +8,14 @@
 
 using namespace MKLDNNPlugin;
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) : MemoryDesc(shape, Blocked), precision(prc) {
-    auto& dims = shape.getDims();
-    order.resize(dims.size());
-    std::iota(order.begin(), order.end(), 0);
-    blockedDims = dims;
-    offsetPadding = 0;
-    offsetPaddingToData.resize(dims.size(), 0);
-    strides.resize(order.size());
-    // for empty tensor case we fill all strides with 0 values
-    strides[strides.size() - 1] = shape.hasZeroDims() ? 0 : 1;
-    for (size_t i = 2; i <= order.size(); i++) {
-        strides[strides.size() - i] = strides[strides.size() - (i - 1)] * blockedDims[blockedDims.size() - (i - 1)];
-    }
+static VectorDims makeRange(size_t size) {
+    VectorDims retVec(size, 0);
+    std::iota(retVec.begin(), retVec.end(), 0);
+    return retVec;
 }
+
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) :
+    CpuBlockedMemoryDesc(prc, shape, shape.getDims(), makeRange(shape.getDims().size())) {}
 
 CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
                   const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,

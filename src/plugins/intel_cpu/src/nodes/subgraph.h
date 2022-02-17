@@ -32,6 +32,7 @@ public:
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
 
+    bool canBeInPlace() const override;
     bool created() const override;
 
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference

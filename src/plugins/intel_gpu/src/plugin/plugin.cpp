@@ -225,7 +225,7 @@ std::map<std::string, std::string> Plugin::ConvertPerfHintsToConfig(
                 config[ov::num_streams.name()] = std::to_string(1);
             } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-                config[ov::num_streams.name()] = ov::Any::make<ov::NumStreams>(ov::NumStreams::AUTO).as<std::string>();
+                config[ov::num_streams.name()] = ov::util::to_string(ov::NumStreams(ov::NumStreams::AUTO));
                 //disabling the throttling temporarily to set the validation (that is switching to the hints) perf baseline
                 //checking throttling (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
                 // const auto bInConfig = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||

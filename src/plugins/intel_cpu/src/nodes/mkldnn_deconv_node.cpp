@@ -126,6 +126,8 @@ MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::N
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
+
+    attr = std::make_shared<mkldnn::primitive_attr>();
 }
 
 InferenceEngine::Blob::Ptr MKLDNNDeconvolutionNode::createWeiBlobAsIO(InferenceEngine::SizeVector dims) {
@@ -319,7 +321,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
             createDescriptor({in_candidate}, {out_candidate});
         }
     }
-    setPostOps(attr, outShape.getStaticDims());
+    setPostOps(*attr, outShape.getStaticDims());
 }
 
 void MKLDNNDeconvolutionNode::initPaddingR(const Shape &inShape, const Shape &outShape) {
@@ -351,11 +353,11 @@ void MKLDNNDeconvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const Vec
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             // TODO [DS]: change to shape from memory
             // use legacy depthwise since backprop convolution does not support binary post ops
-            eltwiseNode->appendPostOps(ops, dims);
+            eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             continue;
         }
         if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
@@ -555,6 +557,18 @@ void MKLDNNDeconvolutionNode::createDeconvPrim(std::shared_ptr<MKLDNNDescriptor>
     IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
 }
 
+MKLDNNNode::AttrPtr MKLDNNDeconvolutionNode::makePrimitiveAttr(const VectorDims &dims) {
+    auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
+
+    setPostOps(*attr, dims);
+
+    return attr;
+}
+
+MKLDNNNode::AttrPtr MKLDNNDeconvolutionNode::initPrimitiveAttr() {
+    return attr;
+}
+
 void MKLDNNDeconvolutionNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
@@ -572,17 +586,10 @@ void MKLDNNDeconvolutionNode::prepareParams() {
     auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
     auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
 
-    auto initPrimitiveAttr = [&]() {
-        mkldnn::primitive_attr attr;
-        setPostOps(attr, dstMemPtr->getStaticDims());
-        return std::make_shared<mkldnn::primitive_attr>(std::move(attr));
-    };
-
     AttrPtr pAttrLocal;
-
     if (isDynamicNode()) {
         if (!pAttr) {
-            pAttr = initPrimitiveAttr();
+            pAttr = makePrimitiveAttr(dstMemPtr->getStaticDims());
         }
         pAttrLocal = pAttr;
         if (autoPad || externOutShape) {
@@ -591,7 +598,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
         }
         initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());
     } else {
-        pAttrLocal = initPrimitiveAttr();
+        pAttrLocal = makePrimitiveAttr(dstMemPtr->getStaticDims());
     }
 
     const auto in_candidate = inMemoryDesc->getDnnlDesc();
@@ -627,7 +634,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
                     {DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive()},
                     {DNNL_ARG_DIFF_SRC, dstMemPtr->GetPrimitive()}};
     }
-    MKLDNNNode::appendPostOpArgs(attr, primArgs, binaryPostOpsArgs);
+    MKLDNNNode::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
 }
 
 void MKLDNNDeconvolutionNode::createPrimitive() {
