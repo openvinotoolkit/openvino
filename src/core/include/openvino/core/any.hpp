@@ -123,12 +123,12 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
     void operator()(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) const;
 };
 
-inline const std::string& from_string(const std::string& str) {
+static const std::string& from_string(const std::string& str) {
     return str;
 }
 
 template <typename T>
-inline auto from_string(const std::string& val) -> typename std::enable_if<Readable<T>::value, T>::type {
+auto from_string(const std::string& val) -> typename std::enable_if<Readable<T>::value, T>::type {
     std::stringstream ss(val);
     T value;
     Read<T>{}(ss, value);
@@ -136,7 +136,7 @@ inline auto from_string(const std::string& val) -> typename std::enable_if<Reada
 }
 
 template <typename T>
-inline auto from_string(const std::string& val) ->
+auto from_string(const std::string& val) ->
     typename std::enable_if<!Readable<T>::value && Istreamable<T>::value, T>::type {
     std::stringstream ss(val);
     T value;
@@ -159,7 +159,7 @@ struct ValueTyped {
 
 template <typename T,
           typename std::enable_if<ValueTyped<T>::value && Readable<typename T::value_type>::value, bool>::type = true>
-inline typename T::value_type from_string(const std::string& val, const T&) {
+ typename T::value_type from_string(const std::string& val, const T&) {
     std::stringstream ss(val);
     typename T::value_type value;
     Read<typename T::value_type, void>{}(ss, value);
@@ -170,7 +170,7 @@ template <typename T,
           typename std::enable_if<ValueTyped<T>::value && !Readable<typename T::value_type>::value &&
                                       Istreamable<typename T::value_type>::value,
                                   bool>::type = true>
-inline typename T::value_type from_string(const std::string& val, const T&) {
+typename T::value_type from_string(const std::string& val, const T&) {
     std::stringstream ss(val);
     typename T::value_type value;
     ss >> value;
@@ -178,7 +178,7 @@ inline typename T::value_type from_string(const std::string& val, const T&) {
 }
 
 template <typename T>
-inline auto from_string(const std::string& val) ->
+auto from_string(const std::string& val) ->
     typename std::enable_if<!Readable<T>::value && !Istreamable<T>::value, T>::type {
     OPENVINO_UNREACHABLE("Could read type without std::istream& operator>>(std::istream&, T)",
                          " defined or ov::util::Read<T> class specialization, T: ",
@@ -263,19 +263,19 @@ struct OPENVINO_API Write<std::tuple<unsigned int, unsigned int>> {
     void operator()(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple) const;
 };
 
-inline const std::string& to_string(const std::string& str) {
+static const std::string& to_string(const std::string& str) {
     return str;
 }
 
 template <typename T>
-inline auto to_string(const T& value) -> typename std::enable_if<Writable<T>::value, std::string>::type {
+auto to_string(const T& value) -> typename std::enable_if<Writable<T>::value, std::string>::type {
     std::stringstream ss;
     Write<T>{}(ss, value);
     return ss.str();
 }
 
 template <typename T>
-inline auto to_string(const T& value) ->
+auto to_string(const T& value) ->
     typename std::enable_if<!Writable<T>::value && Ostreamable<T>::value, std::string>::type {
     std::stringstream ss;
     ss << value;
@@ -283,7 +283,7 @@ inline auto to_string(const T& value) ->
 }
 
 template <typename T>
-inline auto to_string(const T&) ->
+auto to_string(const T&) ->
     typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value, std::string>::type {
     OPENVINO_UNREACHABLE("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
                          " defined or ov::util::Write<T> class specialization, T: ",
@@ -995,7 +995,7 @@ using RTMap = AnyMap;
 using AnyVector = std::vector<ov::Any>;
 
 /** @cond INTERNAL */
-inline static void PrintTo(const Any& any, std::ostream* os) {
+static void PrintTo(const Any& any, std::ostream* os) {
     any.print(*os);
 }
 /** @endcond */
