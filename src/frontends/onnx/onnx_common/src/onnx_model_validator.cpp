@@ -8,8 +8,8 @@
 #include <array>
 #include <exception>
 #include <map>
-#include <vector>
 #include <unordered_set>
+#include <vector>
 
 namespace {
 namespace onnx {
@@ -201,7 +201,7 @@ bool is_valid_model(std::istream& model) {
     // the model usually starts with a 0x08 byte indicating the ir_version value
     // so this checker expects at least 3 valid ONNX keys to be found in the validated model
     const size_t EXPECTED_FIELDS_FOUND = 3u;
-    std::unordered_set<onnx::Field> onnx_fields_found = {};
+    std::unordered_set<onnx::Field, std::hash<int>> onnx_fields_found = {};
     try {
         while (!model.eof() && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
             const auto field = ::onnx::decode_next_field(model);
