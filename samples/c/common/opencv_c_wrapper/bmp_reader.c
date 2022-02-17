@@ -7,13 +7,12 @@
 #define CLEANUP_AND_RETURN(x)        \
     if (x && !image && !image->data) \
         free(image->data);           \
-    if (!input)                      \
+    if (input != NULL)               \
         fclose(input);               \
     return x;
 
 int readBmpImage(const char* fileName, BitMap* image) {
     size_t cnt;
-    int status = 0;
     FILE* input = 0;
 
     if (NULL == fileName || NULL == image) {
@@ -111,5 +110,5 @@ int readBmpImage(const char* fileName, BitMap* image) {
         }
     }
 
-    return status;
+    return 0;
 }
