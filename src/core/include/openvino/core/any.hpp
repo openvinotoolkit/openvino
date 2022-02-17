@@ -958,6 +958,18 @@ public:
         impl_check();
         return _impl.get();
     }
+
+    /**
+     * @brief Returns address to internal value if any is not empty and `nullptr` instead
+     * @return address to internal stored value
+     */
+    void* addressof();
+
+    /**
+     * @brief Returns address to internal value if any is not empty and `nullptr` instead
+     * @return address to internal stored value
+     */
+    const void* addressof() const;
 };
 
 /** @cond INTERNAL */
