@@ -165,17 +165,20 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
                              std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
-                                                      METRIC_KEY(FULL_DEVICE_NAME),
+                                                      ov::device::full_name.name(),
                                                       METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                      METRIC_KEY(DEVICE_ARCHITECTURE),
-                                                      METRIC_KEY(IMPORT_EXPORT_SUPPORT)});
+                                                      ov::device::architecture.name(),
+                                                      METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+                                                      ov::device::capabilities.name()});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, getSupportedConfigKeys());
-    } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, std::string{"HETERO"});
+    } else if (ov::device::full_name == name) {
+        return decltype(ov::device::full_name)::value_type{"HETERO"};
     } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else if (METRIC_KEY(DEVICE_ARCHITECTURE) == name) {
+    } else if (ov::device::capabilities == name) {
+        return decltype(ov::device::capabilities)::value_type{{ov::device::capability::EXPORT_IMPORT}};
+    } else if (ov::device::architecture == name) {
         auto deviceIt = options.find("TARGET_FALLBACK");
         std::string targetFallback;
         if (deviceIt != options.end()) {
@@ -188,7 +191,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                 targetFallback = GetConfig(ov::device::priorities.name(), {}).as<std::string>();
             }
         }
-        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, DeviceArchitecture(targetFallback));
+        return decltype(ov::device::architecture)::value_type{DeviceArchitecture(targetFallback)};
     } else {
         IE_THROW() << "Unsupported metric key: " << name;
     }
