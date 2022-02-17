@@ -68,6 +68,7 @@ class IREngine(object):
         self.graph.name = xml_root.attrib['name'] if xml_root.attrib.get('name') is not None else None
 
         self.graph.inputs_order = []
+        self.graph.outputs_order = []
 
         # Parse XML
         for child in xml_root:
@@ -77,6 +78,8 @@ class IREngine(object):
                     xml_layers.update({layer_id: layer_attrs})
                     if layer_attrs['type'] == 'Parameter':
                         self.graph.inputs_order.append(layer_attrs['name'])
+                    if layer_attrs['type'] == 'Result':
+                        self.graph.outputs_order.append(layer_attrs['name'])
             elif child.tag == 'edges':
                 for edge in child:
                     xml_edges.append(Edge(edge.attrib['from-layer'], int(edge.attrib['from-port']),
