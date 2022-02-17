@@ -101,7 +101,7 @@ jobs:
 
   - script: |
       cd $(REPO_DIR)
-      git reset --hard 89f071f5fa6490be435e681036f458745fe6df7a
+      git reset --hard 926460e603ae88147be1e907f3e1ac40e1662046
       git submodule foreach --recursive git reset --hard
       git submodule update --init
 

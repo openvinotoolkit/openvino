@@ -125,10 +125,10 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
+    config.inConfs[0].inPlace(-1);
+    config.inConfs[0].constant(false);
+    config.outConfs[0].inPlace(-1);
+    config.outConfs[0].constant(false);
 
     const auto& inputDataShape = getInputShapeAtPort(0);
     const auto& outputDataShape = getOutputShapeAtPort(0);
@@ -152,8 +152,8 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     auto range = BlockedDescCreator::makeFilteredRange(creators, inputDataShape.getRank(), supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[0].desc = itr->second->createSharedDesc(precision, inputDataShape);
-        config.outConfs[0].desc = itr->second->createSharedDesc(precision, outputDataShape);
+        config.inConfs[0].setMemDesc(itr->second->createSharedDesc(precision, inputDataShape));
+        config.outConfs[0].setMemDesc(itr->second->createSharedDesc(precision, outputDataShape));
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     }
 }
@@ -161,9 +161,9 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNDepthToSpaceNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "has not allocated destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         THROW_ERROR << "has not allocated input memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor";

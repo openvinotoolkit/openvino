@@ -423,3 +423,57 @@ def test_onnx_conversion_extension():
     model = fe.convert(input_model)
     assert model
     assert invoked
+
+
+def test_op_extension_via_onnx_extension():
+    skip_if_onnx_frontend_is_disabled()
+
+    # use specific (openvino.frontend.onnx) import here
+    from openvino.frontend.onnx import OpExtension
+    from openvino.runtime import Core
+
+    ie = Core()
+    ie.add_extension(OpExtension("FW_OV_OP"))
+    ie.add_extension(OpExtension("OV_OP", "FW_OP_1"))
+    ie.add_extension(OpExtension("OV_OP", "FW_OP_2", {"ov_attribute_1": "fw_attribute_1",
+                                                      "ov_attribute_2": "fw_attribute_2"}))
+    ie.add_extension(OpExtension("OV_OP", "FW_OP_3", {"ov_attribute_1": "fw_attribute_1",
+                                                      "ov_attribute_2": "fw_attribute_2"},
+                                 {"ov_attribute_str": "string",
+                                  "ov_attribute_int": 4,
+                                  "ov_attribute_bool": True,
+                                  "ov_attribute_float": 4.,
+                                  "ov_attribute_vec_string": ["str1", "str2", "str3"],
+                                  "ov_attribute_vec_int": [1, 2, 3, 4, 5, 6, 7],
+                                  "ov_attribute_vec_bool": [True, False, True],
+                                  "ov_attribute_vec_float": [1., 2., 3., 4., 5., 6., 7.]}))
+
+    model = ie.read_model(onnx_model_filename)
+    assert model
+
+
+def test_op_extension_via_frontend_extension():
+    skip_if_onnx_frontend_is_disabled()
+
+    # use specific (openvino.frontend) import here
+    from openvino.frontend import OpExtension
+    from openvino.runtime import Core
+
+    ie = Core()
+    ie.add_extension(OpExtension("FW_OV_OP"))
+    ie.add_extension(OpExtension("OV_OP", "FW_OP_1"))
+    ie.add_extension(OpExtension("OV_OP", "FW_OP_2", {"ov_attribute_1": "fw_attribute_1",
+                                                      "ov_attribute_2": "fw_attribute_2"}))
+    ie.add_extension(OpExtension("OV_OP", "FW_OP_3", {"ov_attribute_1": "fw_attribute_1",
+                                                      "ov_attribute_2": "fw_attribute_2"},
+                                 {"ov_attribute_str": "string",
+                                  "ov_attribute_int": 4,
+                                  "ov_attribute_bool": True,
+                                  "ov_attribute_float": 4.,
+                                  "ov_attribute_vec_string": ["str1", "str2", "str3"],
+                                  "ov_attribute_vec_int": [1, 2, 3, 4, 5, 6, 7],
+                                  "ov_attribute_vec_bool": [True, False, True],
+                                  "ov_attribute_vec_float": [1., 2., 3., 4., 5., 6., 7.]}))
+
+    model = ie.read_model(onnx_model_filename)
+    assert model

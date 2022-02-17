@@ -38,47 +38,32 @@ bool compare_type_info(const ngraph::DiscreteTypeInfo& info1, const ngraph::Disc
     return info1Name == info2Name;
 }
 
-template <typename Node>
-bool compare_rt_keys(const Node& node1, const Node& node2) {
-    // The "opset" parameter in RT info is optional
-    // and mandatory only for TypeRelaxed operations.
-    // Therefore, we ignore this key when comparing RT keys.
-    const auto& first_node_rt_info = node1->get_rt_info();
-    const auto& second_node_rt_info = node2->get_rt_info();
+template <typename T>
+bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
+    const auto& first_node_rt_info = node1.get_rt_info();
+    const auto& second_node_rt_info = node2.get_rt_info();
 
-    auto first_node_rt_info_it = first_node_rt_info.begin();
-    auto second_node_rt_info_it = second_node_rt_info.begin();
-
-    while (first_node_rt_info_it != first_node_rt_info.end() && second_node_rt_info_it != second_node_rt_info.end()) {
-        std::stringstream strm;
-        first_node_rt_info_it->second.print(strm);
-        strm << " ";
-        second_node_rt_info_it->second.print(strm);
-        bool is_continue = false;
-        if (first_node_rt_info_it->first == "opset") {
-            ++first_node_rt_info_it;
-            is_continue = true;
-        }
-        if (second_node_rt_info_it->first == "opset") {
-            ++second_node_rt_info_it;
-            is_continue = true;
-        }
-        if (is_continue)
+    for (const auto& attr : second_node_rt_info) {
+        const auto& key = attr.first;
+        // TODO: remove this check after 77716 is implemented
+        if (key == "opset") {
             continue;
-        if (first_node_rt_info_it->first != second_node_rt_info_it->first) {
+        }
+        auto value1 = first_node_rt_info.find(key);
+        if (value1 == first_node_rt_info.end()) {
+            err_log << "Key: " << key << " is missing.\n";
             return false;
         }
-        ++first_node_rt_info_it;
-        ++second_node_rt_info_it;
+        try {
+            if (value1->second != attr.second) {
+                err_log << "Values for " << key << " key are not equal.\n";
+                return false;
+            }
+        } catch (ov::Exception& e) {
+            // Handle cases wen equality operator is not defined for some rt attribute
+        }
     }
-
-    if (first_node_rt_info_it != first_node_rt_info.end() && first_node_rt_info_it->first == "opset") {
-        ++first_node_rt_info_it;
-    }
-    if (second_node_rt_info_it != second_node_rt_info.end() && second_node_rt_info_it->first == "opset") {
-        ++second_node_rt_info_it;
-    }
-    return first_node_rt_info_it == first_node_rt_info.end() && second_node_rt_info_it == second_node_rt_info.end();
+    return true;
 }
 
 bool less_by_name(const std::shared_ptr<ngraph::op::v0::Result>& l, const std::shared_ptr<ngraph::op::v0::Result>& r) {
@@ -539,8 +524,8 @@ Comparator::Result compare_io(ov::op::util::SubGraphOp* sub_lhs, ov::op::util::S
 }
 }  // namespace subgraph
 }  // namespace
-Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& f1,
-                                       const std::shared_ptr<ngraph::Function>& f2) {
+Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& f,
+                                       const std::shared_ptr<ngraph::Function>& f_ref) {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
@@ -550,47 +535,47 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
      * + Check node attributes by Visitor API
      */
 
-    auto f1_results = f1->get_results();
-    auto f2_results = f2->get_results();
+    auto f_results = f->get_results();
+    auto f_ref_results = f_ref->get_results();
 
     auto cmp = less_by_name;
     // In case if Result source output has more than one name so the Result may have any of this names as a friendly
-    // name And in case of multiple names we sort Result operation using their parent node names
-    if (std::any_of(f1_results.begin(),
-                    f1_results.end(),
+    // name An in case of multiple names we sort Result operation using their parent node names
+    if (std::any_of(f_results.begin(),
+                    f_results.end(),
                     [](const std::shared_ptr<ngraph::Node>& node) {
                         const auto& t = node->input_value(0).get_tensor_ptr();
                         return t->get_names().size() > 1;
                     }) ||
-        std::any_of(f2_results.begin(), f2_results.end(), [](const std::shared_ptr<ngraph::Node>& node) {
+        std::any_of(f_ref_results.begin(), f_ref_results.end(), [](const std::shared_ptr<ngraph::Node>& node) {
             const auto& t = node->input_value(0).get_tensor_ptr();
             return t->get_names().size() > 1;
         })) {
         cmp = less_by_parent_name;
     }
 
-    std::sort(f1_results.begin(), f1_results.end(), cmp);
-    std::sort(f2_results.begin(), f2_results.end(), cmp);
+    std::sort(f_results.begin(), f_results.end(), cmp);
+    std::sort(f_ref_results.begin(), f_ref_results.end(), cmp);
 
-    if (f1_results.size() != f2_results.size()) {
-        return Result::error("Number of results is different: " + to_str(f1_results.size()) + " and " +
-                             to_str(f2_results.size()));
+    if (f_results.size() != f_ref_results.size()) {
+        return Result::error("Number of results is different: " + to_str(f_results.size()) + " and " +
+                             to_str(f_ref_results.size()));
     }
 
-    const auto& f1_sinks = f1->get_sinks();
-    const auto& f2_sinks = f2->get_sinks();
-    if (f1_sinks.size() != f2_sinks.size()) {
-        return Result::error("Number of sinks is different: " + to_str(f1_sinks.size()) + " and " +
-                             to_str(f2_sinks.size()));
+    const auto& f_sinks = f->get_sinks();
+    const auto& f_ref_sinks = f_ref->get_sinks();
+    if (f_sinks.size() != f_ref_sinks.size()) {
+        return Result::error("Number of sinks is different: " + to_str(f_sinks.size()) + " and " +
+                             to_str(f_ref_sinks.size()));
     }
 
     // Compare sinks
-    if (f1_sinks.size() == 1) {
-        q.push({f1_sinks[0].get(), f2_sinks[0].get()});
-        used.insert(f1_sinks[0].get());
+    if (f_sinks.size() == 1) {
+        q.push({f_sinks[0].get(), f_ref_sinks[0].get()});
+        used.insert(f_sinks[0].get());
     } else {
         // Cast to Assign and find those that have same variable_id suffix
-        for (const auto& sink1 : f1_sinks) {
+        for (const auto& sink1 : f_sinks) {
             auto assign1 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink1);
             if (!assign1) {
                 return Result::error("Sink '" + name(sink1) +
@@ -598,7 +583,7 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
             }
             auto name1 = assign1->get_variable_id();
             std::shared_ptr<ov::op::Sink> found_sink2;
-            for (const auto& sink2 : f2_sinks) {
+            for (const auto& sink2 : f_ref_sinks) {
                 auto assign2 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink2);
                 if (!assign2) {
                     return Result::error("Sink '" + name(sink2) +
@@ -618,17 +603,17 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
         }
     }
 
-    for (size_t i = 0; i < f1_results.size(); ++i) {
+    for (size_t i = 0; i < f_results.size(); ++i) {
         if (should_compare(CmpValues::NAMES)) {
-            if (name(f1_results[i]->get_input_node_shared_ptr(0)) !=
-                name(f2_results[i]->get_input_node_shared_ptr(0))) {
+            if (name(f_results[i]->get_input_node_shared_ptr(0)) !=
+                name(f_ref_results[i]->get_input_node_shared_ptr(0))) {
                 return Result::error(
-                    "Different output node names: " + name(f1_results[i]->get_input_node_shared_ptr(0)) + " and " +
-                    name(f2_results[i]->get_input_node_shared_ptr(0)));
+                    "Different output node names: " + name(f_results[i]->get_input_node_shared_ptr(0)) + " and " +
+                    name(f_ref_results[i]->get_input_node_shared_ptr(0)));
             }
         }
-        q.push({f1_results[i].get(), f2_results[i].get()});
-        used.insert(f1_results[i].get());
+        q.push({f_results[i].get(), f_ref_results[i].get()});
+        used.insert(f_results[i].get());
     }
 
     std::stringstream errors;
@@ -692,13 +677,7 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2,
         compare_outputs(node1, node2, err_log);
     }
 
-    if (should_compare(CmpValues::ATTRIBUTES)) {
-        const auto result = attributes::compare(node1, node2, m_comparison_flags);
-        if (!result.valid) {
-            return result;
-        }
-    }
-
+    compare_nodes(node1, node2, err_log);
     return Result::ok("Check if any minor error was log in to err_log");
 }
 
@@ -739,15 +718,15 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
                     << " Input(" << i << ") connected to parent port " << idx2 << std::endl;
         }
 
-        if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1, node2)) {
-            err_log << "Different runtime info detected\n"
+        if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1->input(i), node2->input(i), err_log)) {
+            err_log << "Different runtime info detected at input(" << i << ")\n"
                     << name(node1) << " and " << name(node2) << " not equal runtime info." << std::endl;
         }
     }
 }
 
 void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
-    // Some transformations creates new tensors with autogenerated names
+    // Some transformations create new tensors with autogenerated names
     for (int i = 0; i < node1->outputs().size(); ++i) {
         const auto& tensor1 = node1->output(i).get_tensor();
         const auto& tensor2 = node2->output(i).get_tensor();
@@ -765,6 +744,24 @@ void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::
                     << name(node1) << " Output(" << i << ") " << node1->output(i).get_partial_shape() << " and "
                     << name(node2) << " Output(" << i << ") " << node2->output(i).get_partial_shape() << std::endl;
         }
+
+        if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1->output(i), node2->output(i), err_log)) {
+            err_log << "Different runtime info detected at output(" << i << ")\n"
+                    << name(node1) << " and " << name(node2) << " not equal runtime info." << std::endl;
+        }
+    }
+}
+
+void Comparator::compare_nodes(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
+    if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(*node1, *node2, err_log)) {
+        err_log << "Different runtime info detected\n" + name(node1) + " and " + name(node2) +
+                       " not equal runtime info.\n";
+    }
+
+    if (should_compare(CmpValues::ATTRIBUTES)) {
+        auto res = attributes::compare(node1, node2, m_comparison_flags);
+        if (!res.valid)
+            err_log << res.message;
     }
 }
 
@@ -777,9 +774,9 @@ void Comparator::add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* no
     }
 }
 
-FunctionsComparator::Result FunctionsComparator::compare(const std::shared_ptr<ngraph::Function>& f1,
-                                                         const std::shared_ptr<ngraph::Function>& f2) const {
-    return Comparator(m_comparison_flags).compare(f1, f2);
+FunctionsComparator::Result FunctionsComparator::compare(const std::shared_ptr<ngraph::Function>& f,
+                                                         const std::shared_ptr<ngraph::Function>& f_ref) const {
+    return Comparator(m_comparison_flags).compare(f, f_ref);
 }
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {

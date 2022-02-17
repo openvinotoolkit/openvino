@@ -59,7 +59,7 @@ bool FullyConnected_bf_io_input_spatial::Validate(const Params& p, const optiona
     const auto& input = params.inputs[0];
     const auto& output = params.output;
     if ((input.GetLayout() != DataLayout::bfyx && input.GetLayout() != DataLayout::bf) ||
-        (output.GetLayout() != DataLayout::bfyx && output.GetLayout() != DataLayout::bf)) {
+        (output.GetLayout() != DataLayout::bf)) {
         return false;
     }
 

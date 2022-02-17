@@ -55,6 +55,9 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
     auto beginMask = stridedSlice->get_begin_mask();
     auto endMask = stridedSlice->get_end_mask();
     for (size_t i = 0; i < constantShape.size(); ++i) {
+        if ((beginMask.size() <= i) && (endMask.size() <= i)) {
+            break;
+        }
         // don't slice constant if current dimension is 1
         if (constantShape[i] == 1ul) {
             beginMask[i] = 1ul;
@@ -98,8 +101,8 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
         return false;
     }
 
-    const auto stridedSlice = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    auto dequantization = NetworkHelper::getDequantization(stridedSlice);
+    const auto stridedSlice = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    auto dequantization = NetworkHelper::getDequantization(stridedSlice, defaultPrecisions);
 
     if (dequantization.subtract) {
         const auto newSubConst = stridedSliceDeqConstant(stridedSlice, dequantization.subtractConstant);
@@ -111,7 +114,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
     replace_node(dequantization.multiplyConstant, newMulConst);
     dequantization.multiplyConstant = newMulConst;
 
-    moveDequantizationAfter(context, stridedSlice, NetworkHelper::getDequantization(stridedSlice), false);
+    moveDequantizationAfter(context, stridedSlice, NetworkHelper::getDequantization(stridedSlice, defaultPrecisions), false);
     return true;
 }
 

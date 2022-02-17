@@ -63,8 +63,8 @@ std::shared_ptr<Node> makeDequantization(
                 dequantizationOperations.subtract.outPrecision);
 
             auto& rt = subtractConstConvert->get_rt_info();
-            for (const std::string& attribute : dequantizationOperations.subtract.convertAttributes) {
-                rt[attribute] = "";
+            for (const auto& attribute : dequantizationOperations.subtract.convertAttributes) {
+                rt.insert(attribute);
             }
 
             subtractConst = subtractConstConvert;
@@ -104,8 +104,8 @@ std::shared_ptr<Node> makeDequantization(
 
         if (!dequantizationOperations.subtract.attributes.empty()) {
             auto& rt = subtract->get_rt_info();
-            for (const std::string& attribute : dequantizationOperations.subtract.attributes) {
-                rt[attribute] = "";
+            for (const auto& attribute : dequantizationOperations.subtract.attributes) {
+                rt.insert(attribute);
             }
         }
 

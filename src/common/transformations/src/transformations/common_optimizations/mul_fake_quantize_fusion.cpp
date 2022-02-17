@@ -41,12 +41,19 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         if (!mul_const)
             return false;
 
+        auto const_shape = mul_const->get_shape();
+        if (ngraph::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
+            // We can't eliminate Multiply if Constant input broadcasts another input shape because
+            // when we reconnect input from Multiply to FQ won't broadcast given input, so it will result
+            // in shape collision.
+            return false;
+        }
+
         auto mul_const_value = mul_const->cast_vector<float>();
         if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f <= 0.0f; }))
             return false;
 
         std::shared_ptr<Node> new_const = mul_const;
-        auto const_shape = mul_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
         bool is_single_value = const_shape_size == 1;
 
@@ -81,8 +88,7 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             auto fq_users = fq->get_users();
             // Concat LPT transformation supports per tensor quantization only
             bool fq_user_is_concat = std::any_of(fq_users.begin(), fq_users.end(),
-                                                 [] (const Output<Node>& node) -> bool {
-                                                     auto node_ptr = node.get_node();
+                                                 [] (const std::shared_ptr<Node> node_ptr) -> bool {
                                                      return is_type<opset5::Concat>(node_ptr);
                                                  });
             if (fq_user_is_concat)

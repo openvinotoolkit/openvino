@@ -63,19 +63,19 @@ private:
     static constexpr uint64_t idxTypeSize = sizeof(int);
 
     int axis = 0;
-    int axisDim;
+    int axisDim = 0;
     int batchDims = 0;
     int dataSrcRank = 1;
-    uint64_t specIndicesSize;
-    uint64_t beforeBatchSize;
-    uint64_t beforeAxisSize;
-    uint64_t betweenBatchAndAxisSize;
+    uint64_t specIndicesSize = 0lu;
+    uint64_t beforeBatchSize = 0lu;
+    uint64_t beforeAxisSize = 0lu;
+    uint64_t betweenBatchAndAxisSize = 0lu;
     uint64_t afterAxisSize = 0lu;
     uint64_t afterAxisSizeInBytes = 0lu;
     uint64_t axisAndAfterAxisSizeInBytes = 0lu;
     uint64_t srcAfterBatchSizeInBytes = 0lu;
     uint64_t specIdxAndAfterAxSizeB = 0lu;
-    uint64_t totalWork;
+    uint64_t totalWork = 0lu;
 
     std::vector<threadExecParams> execParamsPerThread;
 

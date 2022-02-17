@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
+import os
 
 import defusedxml.ElementTree as ET
 from defusedxml import defuse_stdlib
@@ -408,12 +409,22 @@ def add_quantization_info_section(net: Element, meta_info: dict):
         cli_params.set('value', parameters['cli_params'])
 
 
-def add_meta_data(net: Element, meta_info: dict):
+def add_meta_data(net: Element, meta_info: dict, legacy_path: bool):
     if meta_info == {}:
         log.warning('`meta_info` is not provided, IR will not contain appropriate section.')
     else:
         meta = SubElement(net, 'meta_data')
         SubElement(meta, 'MO_version').set('value', get_version())
+
+        try:
+            from openvino.runtime import get_version as get_rt_version  # pylint: disable=import-error,no-name-in-module
+
+            SubElement(meta, 'Runtime_version').set('value', get_rt_version())
+        except Exception as e:
+            SubElement(meta, 'Runtime_version').set('value', 'Not found')
+
+        SubElement(meta, 'legacy_path').set('value', str(legacy_path))
+
         parameters = SubElement(meta, 'cli_parameters')
         if 'inputs_list' in meta_info:
             del meta_info['inputs_list']
@@ -594,7 +605,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
 
     serialize_network(graph, net, unsupported)
     add_quantization_statistics(graph, net)
-    add_meta_data(net, meta_info)
+    add_meta_data(net, meta_info, legacy_path=True)
     add_quantization_info_section(net, meta_info)
     xml_string = tostring(net)
     xml_doc = parseString(xml_string)
@@ -621,7 +632,11 @@ def port_renumber(graph: Graph):
             base += 1
 
 
-def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] = None, input_names: list = None):
+def append_ir_info(file: str,
+                   meta_info: dict = dict(),
+                   mean_data: [list, None] = None,
+                   input_names: list = None,
+                   legacy_path: bool = True):
     path_to_xml = file + ".xml"
     path_to_bin = file + ".bin"
 
@@ -632,7 +647,7 @@ def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] 
         mean_offset, mean_size = serialize_mean_image(path_to_bin, mean_data=mean_data)
         create_pre_process_block_for_image(net, input_names, mean_offset, mean_size)
 
-    add_meta_data(net, meta_info)
+    add_meta_data(net, meta_info, legacy_path)
 
     for elem in et.iter():
         if elem.text:

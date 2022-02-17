@@ -64,7 +64,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
                         this, post_op.eltwise, true, eltwise_reserved, mask_post_op_reserved));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(new jit_uni_depthwise_injector_f32<isa>(
-                        this, post_op.depthwise.alg, mask_post_op_reserved));
+                        this, post_op, mask_post_op_reserved));
             }
         }
 
@@ -76,6 +76,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
 
         mov(reg_kh, ptr[this->param1 + GET_OFF(kh_padding)]);
         mov(reg_oc_work, ptr[this->param1 + GET_OFF(oc_work)]);
+        mov(reg_post_ops_data, ptr[this->param1 + GET_OFF(post_op_data)]);
 
         mov(reg_oc_off,  ptr[param1 + GET_OFF(oc_off)]);
         mov(reg_table, l_table);
@@ -169,6 +170,7 @@ private:
     reg64_t reg_d_weights = aux_reg_input;
     reg64_t reg_d_bias = aux_reg_kernel;
     reg64_t reg_oc_off = kj;
+    reg64_t reg_post_ops_data = rbx;
     reg64_t reg_tmp2_64 = reg_oc_off;
     reg32_t reg_tmp2_32 = reg_oc_off.cvt32();
 
@@ -555,6 +557,7 @@ private:
 
             int eltwise_inj_idx = 0;
             int depthwise_inj_idx = 0;
+            int post_ops_data_offset = 0;
             int end_idx = jcp_.with_dw_conv ? p.find(primitive_kind::convolution) : p.len();
             for (int i = 0; i < end_idx; i++) {
                 int start_idx = 1 + r * jcp_.ur_w * jcp_.nb_oc_blocking;
@@ -566,26 +569,22 @@ private:
                 } else if (post_op.is_depthwise()) {
                     pop(reg_oc_off);
 
-                    mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
-                    mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
-
+                    mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                     add(reg_d_weights, reg_oc_off);
-                    add(reg_d_bias, reg_oc_off);
 
                     if (r == 1) {
                         add(reg_d_weights, (jcp_.oc_block / 2) * sizeof(float));
-                        add(reg_d_bias, (jcp_.oc_block / 2) * sizeof(float));
                     }
 
                     for (int ii = 0; ii < oc_blocks; ii++) {
                         depthwise_injectors[depthwise_inj_idx]->compute_vector_range(start_idx + ur_w * ii,
-                                                                                     start_idx + ur_w * ii + ur_w, reg_d_weights, reg_d_bias);
+                                                                                     start_idx + ur_w * ii + ur_w, reg_d_weights, reg_d_weights);
 
                         add(reg_d_weights, jcp_.oc_block * sizeof(float));
-                        add(reg_d_bias, jcp_.oc_block * sizeof(float));
                     }
 
                     depthwise_inj_idx++;
+                    post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
 
                     push(reg_oc_off);
                 } else if (post_op.is_sum(false)) {
@@ -970,14 +969,14 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
     NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(2);
-    config.inConfs[0].constant = false;
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[1].constant = false;
-    config.inConfs[1].inPlace = -1;
+    config.inConfs[0].constant(false);
+    config.inConfs[0].inPlace(-1);
+    config.inConfs[1].constant(false);
+    config.inConfs[1].inPlace(-1);
 
     config.outConfs.resize(1);
-    config.outConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
+    config.outConfs[0].constant(false);
+    config.outConfs[0].inPlace(-1);
 
     if (implType != impl_desc_type::ref) {
         // optimzed implementation
@@ -985,7 +984,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
 
         //activation
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
-        config.inConfs[0].desc = nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0));
+        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0)));
 
         //weights
         size_t weiFirstDimBlockSize = implType == impl_desc_type::jit_avx512 ? 16 : 8; //memory::format_tag::OIhw16o32i : memory::format_tag::OIhw8o32i;
@@ -994,14 +993,14 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
                                             weiDims[2], weiDims[3], weiFirstDimBlockSize, 32};
         std::vector<size_t> weiOrder = {0, 1, 2, 3, 0, 1};
 
-        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::BIN, Shape(weiDims), weiBlockDims, weiOrder);
+        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(Precision::BIN, Shape(weiDims), weiBlockDims, weiOrder));
 
         //result
         auto outputPrecision = withBinarization ? Precision::BIN : Precision::FP32;
-        config.outConfs[0].desc = nspcCreator->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
+        config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
         if (withSum) {
             config.inConfs.push_back(config.outConfs[0]);
-            config.outConfs[0].inPlace = 2;
+            config.outConfs[0].inPlace(2);
         }
         supportedPrimitiveDescriptors.push_back({config, implType});
     } else {
@@ -1009,9 +1008,9 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
         auto weiCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
 
-        config.inConfs[0].desc = nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0));
-        config.inConfs[1].desc = weiCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(1));
-        config.outConfs[0].desc = nspcCreator->createSharedDesc(Precision::FP32, getOutputShapeAtPort(0));
+        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0)));
+        config.inConfs[1].setMemDesc(weiCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(1)));
+        config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(Precision::FP32, getOutputShapeAtPort(0)));
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 }
@@ -1125,6 +1124,7 @@ bool MKLDNNBinaryConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
 void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     mkldnn::post_ops ops;
 
+    postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
@@ -1132,14 +1132,14 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
                 ops.append_sum(1.0);
             } else {
                 // TODO [DS]: change to shape from memory
-                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
             }
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
+            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
             continue;
         }
 
@@ -1193,6 +1193,7 @@ void MKLDNNBinaryConvolutionNode::executeOptimized(const uint8_t* src, const uin
         par_conv.b_overflow = i_b_overflow;
 
         par_conv.oc_off = _oc * jcp.oc_block * sizeof(float);
+        par_conv.post_op_data = postOpsDataPtrs.data();
 
         (*bin_conv_kernel)(&par_conv);
     });

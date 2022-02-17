@@ -58,7 +58,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 ## <a name="install-openvino"></a>Step 1: Install the Intel® Distribution of OpenVINO™ toolkit Core Components
 
-1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Windows*](https://software.intel.com/en-us/openvino-toolkit/choose-download).
+1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Windows](https://software.intel.com/en-us/openvino-toolkit/choose-download).
    Select the Intel® Distribution of OpenVINO™ toolkit for Windows package from the dropdown menu.
    
 2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. In the opened window, you can select the folder where installer files will be placed. The directory will be referred to as <INSTALL_DIR> elsewhere in the documentation. Once the files are extracted, you should see the following dialog box open up:
@@ -74,6 +74,12 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue. Check out the installation process in the image below:<br>
    ![](../img/openvino-install-win-run-boostrapper-script-2.gif)
    Click on the image to see the details.
+   <br>
+   <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation: `C:\Program Files (x86)\Intel\openvino_<version>/`.
+
+   <br>For simplicity, a symbolic link to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2022/`.
+
+To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
 The core components are now installed. Continue to the next section to configure environment.
 
@@ -84,7 +90,7 @@ The core components are now installed. Continue to the next section to configure
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the `setupvars.bat` batch file to temporarily set your environment variables:
 
 ```sh
-"<INSTALL_DIR>\openvino_2022\setupvars.bat"
+"<INSTALL_DIR>\setupvars.bat"
 ```
 
 **Optional**: OpenVINO™ toolkit environment variables are removed when you close the command prompt window. You can permanently set the environment variables manually.
@@ -96,6 +102,33 @@ The environment variables are set. Next, you can download some additional tools.
 ## <a name="model-optimizer">Step 3 (Optional): Download additional components
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Model Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Model Development Tools](@ref installing_model_dev_tools) for detailed steps.
+
+@sphinxdirective
+
+.. dropdown:: OpenCV
+
+   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
+
+   .. note::
+      No prerequisites are needed.
+      
+   There are 3 ways to run the script:
+   
+   a. GUI: right click and select ``Run with PowerShell``
+   b. Command prompt (CMD) console:
+   .. code-block:: sh
+
+      powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1
+
+   c. PowerShell console:
+   .. code-block:: sh
+
+      .\<INSTALL_DIR>\scripts\download_opencv.ps1 
+
+   If the Intel® Distribution of OpenVINO™ is installed to the system location (e.g. ``Program Files (x86)``) then privilege elevation dialog will be shown. The script can be run from CMD/PowerShell Administrator console to avoid this dialog in case of system-wide installation. 
+   The script is interactive by default, so during the execution it will wait for user to press ``Enter`` If you want to avoid this, use the ``-batch`` option, e.g. ``powershell <openvino>\extras\scripts\download_opencv.ps1 -batch``. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
+
+@endsphinxdirective
 
 ## <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
 
@@ -128,31 +161,24 @@ Developing in C++:
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
-## Additional Resources
 @sphinxdirective
-.. raw:: html
 
-   <div class="collapsible-section">
-
-@endsphinxdirective
-
-- Convert models for use with OpenVINO™: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-- Write your own OpenVINO™ applications: [Inference Engine Developer Guide](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
-- Information on sample applications: [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md)
-- Information on a supplied set of models: [Overview of OpenVINO™ Toolkit Pre-Trained Models](../model_zoo.md)
-- IoT libraries and code samples: [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit)
-
-To learn more about converting models from specific frameworks, go to:
-
-- [Convert Your Caffe Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
-- [Convert Your TensorFlow Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
-- [Convert Your MXNet Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
-- [Convert Your Kaldi Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
-- [Convert Your ONNX Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
+.. dropdown:: Additional Resources
+      
+   * Convert models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
+   * Write your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning inference engine>`
+   * Information on sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+   * Information on a supplied set of models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+      
+   To learn more about converting models from specific frameworks, go to:
+      
+   * :ref:`Convert Your Caffe Model <convert model caffe>`
+   * :ref:`Convert Your TensorFlow Model <convert model tf>`
+   * :ref:`Convert Your MXNet Modele <convert model mxnet>`
+   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
+   * :ref:`Convert Your ONNX Model <convert model onnx>`
+      
+   .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

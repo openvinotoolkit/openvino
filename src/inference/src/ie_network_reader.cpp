@@ -63,6 +63,10 @@ public:
         return node->outputs();
     }
 
+    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+        return {};
+    }
+
 private:
     InferenceEngine::IExtensionPtr m_ext;
     std::string m_opset_name;

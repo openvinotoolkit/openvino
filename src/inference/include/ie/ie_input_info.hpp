@@ -140,21 +140,6 @@ public:
     }
 
     /**
-     * @deprecated Use OpenVINO 2.0 API for dynamic shapes support
-     * @brief Returns the input shape. May have undefined dimensions.
-     * @return PartialShape object describing input shape.
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use OpenVINO 2.0 API for dynamic shapes support")
-    ngraph::PartialShape getPartialShape() const {
-        if (!_inputData) {
-            IE_THROW() << "Data is empty!";
-        }
-        IE_SUPPRESS_DEPRECATED_START
-        return _inputData->getPartialShape();
-        IE_SUPPRESS_DEPRECATED_END
-    }
-
-    /**
      * @brief Gets pre-process info for the input
      * @return A reference to the PreProcessInfo instance that contains pre-process info for this input
      */

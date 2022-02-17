@@ -79,7 +79,8 @@ TEST_P(IsAsymmetricOnWeightsDequantizationTransformation, CompareFunctions) {
 
     IsAsymmetricOnWeightsDequantizationTestValues testValues = std::get<2>(GetParam());
 
-    const auto isAsymmetricOnWeights = ngraph::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolutions[0]);
+    const auto isAsymmetricOnWeights = ngraph::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolutions[0],
+        testValues.params.defaultPrecisions);
     ASSERT_EQ(testValues.isAsymmetricOnWeights, isAsymmetricOnWeights);
 }
 

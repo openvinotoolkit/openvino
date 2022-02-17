@@ -3,8 +3,6 @@
 
 import os
 
-from addict import Dict
-
 from openvino.tools.pot import IEEngine, load_model, save_model, compress_model_weights, create_pipeline
 from openvino.tools.pot.utils.logger import init_logger
 from openvino.tools.pot.api.samples.utils.argument_parser import get_common_argparser
@@ -25,20 +23,20 @@ def main():
     if not args.weights:
         args.weights = '{}.bin'.format(os.path.splitext(args.model)[0])
 
-    model_config = Dict({
+    model_config = {
         'model_name': 'ssd_mobilenet_v1_fpn',
         'model': os.path.expanduser(args.model),
         'weights': os.path.expanduser(args.weights)
-    })
+    }
 
-    engine_config = Dict({
+    engine_config = {
         'device': 'CPU'
-    })
+    }
 
-    dataset_config = Dict({
+    dataset_config = {
         'images_path': os.path.expanduser(args.dataset),
         'annotation_path': os.path.expanduser(args.annotation_path),
-    })
+    }
     algorithms = [
         {
             'name': 'AccuracyAwareQuantization',

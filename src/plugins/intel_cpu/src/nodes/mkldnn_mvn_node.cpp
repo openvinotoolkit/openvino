@@ -425,7 +425,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
                         this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
-                        this, post_op.depthwise.alg));
+                        this, post_op));
             } else if (post_op.is_quantization()) {
                 quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
                         this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
@@ -629,11 +629,11 @@ private:
             } else if (post_op.is_depthwise()) {
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
-                post_ops_data_offset += sizeof(float*);
-                mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
-                add(reg_d_bias, reg_oc_off);
-                post_ops_data_offset += sizeof(float*);
-                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
+
+                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(
+                        vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_weights, is_broadcast);
+
+                post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
@@ -782,19 +782,19 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = false;
     config.inConfs.resize(inputsNum);
     config.outConfs.resize(1);
-    config.inConfs[0].constant = false;
-    config.outConfs[0].constant = false;
-    config.inConfs[0].inPlace = -1;
-    config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
+    config.inConfs[0].constant(false);
+    config.outConfs[0].constant(false);
+    config.inConfs[0].inPlace(-1);
+    config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
     if (inputsNum == 2) {
-        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, getInputShapeAtPort(1));
-        config.inConfs[1].constant = true;
+        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, getInputShapeAtPort(1)));
+        config.inConfs[1].constant(true);
     }
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
-        config.inConfs[0].desc = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
-        config.outConfs[0].desc = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
+        config.inConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0)));
+        config.outConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -828,7 +828,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     // planar
     if (canBeInplace)
-        config.inConfs[0].inPlace = 0;
+        config.inConfs[0].inPlace(0);
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
@@ -906,9 +906,9 @@ void MKLDNNMVNNode::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_d
 void MKLDNNMVNNode::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -918,8 +918,8 @@ void MKLDNNMVNNode::prepareParams() {
 
     if (mayiuse(cpu::x64::sse41)) {
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].desc->getPrecision();
-        mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].desc->getPrecision();
+        mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
+        mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
         if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
             mvnAttrs.layout = MVNLayoutType::planar;
         } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
@@ -931,24 +931,6 @@ void MKLDNNMVNNode::prepareParams() {
 
     MVNKey key = {mvnAttrs, mkldnn::primitive_attr()};
     setPostOps(key.attr, true);
-
-    postOpsDataPtrs.clear();
-    auto &postOps = (*key.attr.get()).post_ops_;
-    for (int i = 0; i < postOps.len(); ++i) {
-        auto &postOp = postOps.entry_[i];
-        if (postOp.is_quantization()) {
-            auto &data = postOp.quantization.data;
-            postOpsDataPtrs.insert(postOpsDataPtrs.end(), std::begin(data), std::end(data));
-            memset(data, 0, sizeof(data));
-        } else if (postOp.is_depthwise()) {
-            auto &weights = postOp.depthwise.weights_data;
-            auto &biases = postOp.depthwise.biases_data;
-            postOpsDataPtrs.push_back(weights);
-            postOpsDataPtrs.push_back(biases);
-            weights = 0;
-            biases = 0;
-        }
-    }
 
     auto builder = [&](const MVNKey& key) -> std::shared_ptr<MVNExecutor> {
         std::shared_ptr<MVNExecutor> executor;
@@ -998,16 +980,18 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
     mkldnn::post_ops ops;
     VectorDims postOpDims(5);
     std::tie(postOpDims[0], postOpDims[1], postOpDims[2], postOpDims[3], postOpDims[4]) = mvnAttrs.shape5D;
+
+    postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, postOpDims);
+            eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs);
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";

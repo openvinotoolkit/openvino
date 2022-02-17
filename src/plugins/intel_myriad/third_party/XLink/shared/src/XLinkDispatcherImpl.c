@@ -194,7 +194,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
                                                             event->header.streamName,
                                                             event->header.size, 0,
                                                             INVALID_STREAM_ID);
-            mvLog(MVLOG_DEBUG, "XLINK_CREATE_STREAM_REQ - stream has been just opened with id %lu\n",
+            mvLog(MVLOG_DEBUG, "XLINK_CREATE_STREAM_REQ - stream has been just opened with id %u\n",
                   event->header.streamId);
 #else
             mvLog(MVLOG_DEBUG, "XLINK_CREATE_STREAM_REQ - do nothing. Stream will be "

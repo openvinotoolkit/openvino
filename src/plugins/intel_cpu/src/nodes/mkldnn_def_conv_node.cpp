@@ -654,20 +654,20 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(inputsNumber);
-    config.inConfs[0].constant = false;
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[1].constant = false;
-    config.inConfs[1].inPlace = -1;
-    config.inConfs[2].constant = false;
-    config.inConfs[2].inPlace = -1;
+    config.inConfs[0].constant(false);
+    config.inConfs[0].inPlace(-1);
+    config.inConfs[1].constant(false);
+    config.inConfs[1].inPlace(-1);
+    config.inConfs[2].constant(false);
+    config.inConfs[2].inPlace(-1);
     if (inputsNumber > 3) {
-        config.inConfs[3].constant = false;
-        config.inConfs[3].inPlace = -1;
+        config.inConfs[3].constant(false);
+        config.inConfs[3].inPlace(-1);
     }
 
     config.outConfs.resize(1);
-    config.outConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
+    config.outConfs[0].constant(false);
+    config.outConfs[0].inPlace(-1);
 
     impl_desc_type impl_type;
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
@@ -698,35 +698,35 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
         auto weiFormat = mayiuse(avx512_common) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
-        config.inConfs[DATA_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID),
-                                                                              memory::data_type::f32, dataFormat);
-        config.inConfs[OFF_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID),
-                                                                              memory::data_type::f32, offFormat);
+        config.inConfs[DATA_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID),
+                                                                                   memory::data_type::f32, dataFormat));
+        config.inConfs[OFF_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID),
+                                                                                  memory::data_type::f32, offFormat));
 
-        config.inConfs[WEI_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID),
-                                                                                memory::data_type::f32, weiFormat);
+        config.inConfs[WEI_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID),
+                                                                                  memory::data_type::f32, weiFormat));
 
         if (inputsNumber > 3) {
-            config.inConfs[MOD_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID),
-                                                                                 memory::data_type::f32, memory::format_tag::nchw);
+            config.inConfs[MOD_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID),
+                                                                                      memory::data_type::f32, memory::format_tag::nchw));
         }
-        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID),
-                                                                              memory::data_type::f32, dataFormat);
+        config.outConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID),
+                                                                              memory::data_type::f32, dataFormat));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     } else {
         // reference implementation
-        config.inConfs[DATA_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID), memory::data_type::f32,
-                                                               memory::format_tag::nchw);
-        config.inConfs[OFF_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID), memory::data_type::f32,
-                                                               memory::format_tag::nchw);
-        config.inConfs[WEI_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID), memory::data_type::f32,
-                                                               memory::format_tag::oihw);
+        config.inConfs[DATA_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID), memory::data_type::f32,
+                                                                                   memory::format_tag::nchw));
+        config.inConfs[OFF_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID), memory::data_type::f32,
+                                                                                  memory::format_tag::nchw));
+        config.inConfs[WEI_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID), memory::data_type::f32,
+                                                                                  memory::format_tag::oihw));
         if (inputsNumber > 3) {
-            config.inConfs[MOD_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID), memory::data_type::f32,
-                                                                                 memory::format_tag::nchw);
+            config.inConfs[MOD_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID), memory::data_type::f32,
+                                                                                      memory::format_tag::nchw));
         }
-        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID), memory::data_type::f32,
-                                                                memory::format_tag::nchw);
+        config.outConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID), memory::data_type::f32,
+                                                                              memory::format_tag::nchw));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     }
 }
@@ -1016,18 +1016,18 @@ void MKLDNNDeformableConvolutionNode::prepareParams() {
     auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
     auto& weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
 
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
-    if (!offMemPtr || !offMemPtr->GetPrimitivePtr())
+    if (!offMemPtr || !offMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate offsets shape memory";
-    if (!weiMemPtr || !weiMemPtr->GetPrimitivePtr())
+    if (!weiMemPtr || !weiMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate weights memory";
 
     if (getOriginalInputsNumber() > 3) {
         auto& modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
-        if (!modMemPtr || !modMemPtr->GetPrimitivePtr())
+        if (!modMemPtr || !modMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate modulations memory";
     }
 

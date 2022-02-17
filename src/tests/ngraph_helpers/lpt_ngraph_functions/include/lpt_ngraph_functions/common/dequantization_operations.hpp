@@ -43,8 +43,8 @@ public:
             const size_t constantIndex = 1ul,
             const ngraph::element::Type constantPrecision = ngraph::element::undefined,
             const bool addConvert = false,
-            const std::vector<std::string>& attributes = {},
-            const std::vector<std::string>& convertAttributes = {});
+            const ov::Node::RTMap& attributes = {},
+            const ov::Node::RTMap& convertAttributes = {});
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Subtract& value) const noexcept;
         bool operator==(const Subtract& value) const noexcept {
@@ -62,8 +62,8 @@ public:
         size_t constantIndex = 1ul;
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
         bool addConvert = false;
-        std::vector<std::string> attributes;
-        std::vector<std::string> convertAttributes;
+        ov::Node::RTMap attributes;
+        ov::Node::RTMap convertAttributes;
 
     private:
         bool isEmpty;
