@@ -35,8 +35,7 @@ ngraph::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction()
         auto transpose = std::make_shared<opset8::Transpose>(weights, op::Constant::create(element::i32, {transpose_order.size()}, transpose_order));
         auto new_matmul = std::make_shared<opset8::MatMul>(pattern_value_map.at(data_pattern), transpose, matmul->get_transpose_a(), true);
         new_matmul->set_friendly_name(matmul->get_friendly_name());
-        copy_runtime_info(weights.get_node_shared_ptr(), transpose);
-        copy_runtime_info(node, new_matmul);
+        copy_runtime_info(node, {transpose, new_matmul});
         replace_node(node, new_matmul);
         return true;
     };
