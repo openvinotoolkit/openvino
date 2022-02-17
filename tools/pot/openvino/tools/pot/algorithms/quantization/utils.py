@@ -337,6 +337,13 @@ def get_stat_name_by_config(config, stat_type):
     return '_'.join(name_list)
 
 
+def get_input_shape_for_bias(activations_statistics, input_node_name):
+    input_shape = list(activations_statistics[input_node_name]['shape'][0])
+    if len(input_shape) > 1:
+        input_shape[0] = 1
+    return input_shape
+
+
 def get_ignored_operations(model):
     operation = {"transformer": [{"type": "Add"}, {"type": "Power"},
                                  {"type": "Squeeze"}, {"type": "Multiply"},

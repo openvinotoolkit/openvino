@@ -44,8 +44,7 @@ def run_append_stats_test(engine):
     fc_layer_mock = create_ng_mock(['fc_layer'])
     value = {conv_layer_mock: sample_tensor, fc_layer_mock: sample_tensor}
     ref_value = {'conv_layer': sample_tensor, 'fc_layer': sample_tensor}
-    append_stats(engine._accumulated_layer_stats, stats_layout, value,
-                 dataset_index=0, inference_for_shape=False)
+    append_stats(engine._accumulated_layer_stats, stats_layout, value, dataset_index=0)
     for layer, accumulated_value in engine._accumulated_layer_stats.items():
         assert np.array_equal(accumulated_value[stat_name][0][1], ref_value[layer])
 
@@ -58,8 +57,7 @@ def run_append_stats_test(engine):
         {'conv_layer': sample_tensor, 'fc_layer': sample_tensor},
         {'conv_layer': sample_tensor, 'fc_layer': sample_tensor},
     ]
-    append_stats(engine._accumulated_layer_stats, stats_layout, value,
-                 dataset_index=0, inference_for_shape=False)
+    append_stats(engine._accumulated_layer_stats, stats_layout, value, dataset_index=0)
     for layer, accumulated_value in engine._accumulated_layer_stats.items():
         assert np.array_equal(
             accumulated_value[stat_name][0][1][:, 0], ref_value[0][layer]
