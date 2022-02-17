@@ -16,92 +16,69 @@ std::shared_ptr<ov::Model> create_model() {
 //! [part1_4_1]
 
 int main() {
-//! [part0]
+//! [part1]
 ov::Core core;
 std::shared_ptr<ov::Model> model;
 ov::CompiledModel compiled_model;
-//! [part0]
+//! [part1]
 
-//! [part1_1]
-model = core.read_model("model.xml");
-//! [part1_1]
-
-//! [part1_2]
-model = core.read_model("model.onnx");
-//! [part1_2]
-
-//! [part1_3]
-model = core.read_model("model.pdmodel");
-//! [part1_3]
-
-//! [part1_4_2]
-model = create_model();
-//! [part1_4_2]
-
-std::vector<ov::Output<ov::Node>> inputs, outputs;
-{
-//! [part2]
-std::shared_ptr<ov::Model> model;
-/** Take information about all topology inputs **/
-auto inputs = model->inputs();
-/** Take information about all topology outputs **/
-auto outputs = model->outputs();
-//! [part2]
-}
-
-//! [part3]
-/** Iterate over all input info**/
-for (auto &item : inputs) {
-    // ...
-}
-/** Iterate over all output info**/
-for (auto &item : outputs) {
-    // ...
-}
-//! [part3]
-
-//! [part4_1]
+//! [part2_1]
 compiled_model = core.compile_model("model.xml", "AUTO");
-//! [part4_1]
-//! [part4_2]
+//! [part2_1]
+//! [part2_2]
 compiled_model = core.compile_model("model.onnx", "AUTO");
-//! [part4_2]
-//! [part4_3]
+//! [part2_2]
+//! [part2_3]
 compiled_model = core.compile_model("model.pdmodel", "AUTO");
-//! [part4_3]
-//! [part4_4]
+//! [part2_3]
+//! [part2_4]
 compiled_model = core.compile_model(model, "AUTO");
-//! [part4_4]
+//! [part2_4]
 
-//! [part5]
-/** Optional config. E.g. this enables profiling of performance counters. **/
-ov::AnyMap config = {ov::enable_profiling(true)};
-compiled_model = core.compile_model(model, "AUTO", config);
-//! [part5]
-
-//! [part6]
+//! [part3]
 auto infer_request = compiled_model.create_infer_request();
+//! [part3]
+
+void * memory_ptr = nullptr;
+//! [part4]
+// Get input port for model with one input
+auto input_port = model->input();
+// Create tensor from external memory
+ov::Tensor input_tensor(input_port.get_element_type(), input_port.get_shape(), memory_ptr);
+// Set input tensor for model with one input
+infer_request.set_input_tensor(input_tensor);
+//! [part4]
+
+//! [part5]
+infer_request.start_async();
+infer_request.wait();
+//! [part5]
+
 //! [part6]
+// Get output tensor for model with one output
+auto output = infer_request.get_output_tensor();
+const float *output_buffer = output.data<const float>();
+/* output_buffer[] - accessing output tensor data */
+//! [part6]
+
+// ======= FAQ =======
+
+{
+//! [faq:get_set_tensor]
+auto tensor1 = infer_request.get_tensor("tensor_name1");
+ov::Tensor tensor2;
+infer_request.set_tensor("tensor_name2", tensor2);
+//! [faq:get_set_tensor]
 
 auto infer_request1 = compiled_model.create_infer_request();
 auto infer_request2 = compiled_model.create_infer_request();
 
-//! [part7]
-/** Iterate over all input tensors **/
-for (auto & item : inputs) {
-    /** Get input tensor **/
-    auto input = infer_request.get_tensor(item.get_any_name());
-    // Fill input tensor
-    //  ...
-}
-//! [part7]
+//! [faq:cascade_models]
+auto output = infer_request1.get_output_tensor(0);
+infer_request2.set_input_tensor(0, output);
+//! [faq:cascade_models]
 
-//! [part8]
-auto output = infer_request1.get_tensor(output_name);
-infer_request2.set_tensor(input_name, output);
-//! [part8]
-
-//! [part9]
+//! [faq:roi_tensor]
 /** input_tensor points to input of a previous network and
     cropROI contains coordinates of output bounding box **/
 ov::Tensor input_tensor;
@@ -112,32 +89,13 @@ ov::Coordinate end;
 /** roi_tensor uses shared memory of input_tensor and describes cropROI
     according to its coordinates **/
 ov::Tensor roi_tensor(input_tensor, begin, end);
-infer_request2.set_tensor(input_name, roi_tensor);
-//! [part9]
+infer_request2.set_tensor("input_name", roi_tensor);
+//! [faq:roi_tensor]
 
-void * memory_ptr = nullptr;
-//! [part10]
-ov::Tensor input(inputs[0].get_element_type(), inputs[0].get_shape(), memory_ptr);
-infer_request.set_tensor(inputs[0].get_any_name(), input);
-//! [part10]
-
-//! [part11]
+//! [faq:sync_infer]
 infer_request.infer();
-//! [part11]
-
-
-//! [part12]
-infer_request.start_async();
-infer_request.wait();
-//! [part12]
-
-//! [part13]
-for (auto &item : outputs) {
-    auto output = infer_request.get_tensor(item.get_any_name());
-    const float *output_buffer = output.data<const float>();
-    /** output_buffer[] - accessing output tensor data **/
+//! [faq:sync_infer]
 }
-//! [part13]
 
-return 0;
+    return 0;
 }

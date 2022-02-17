@@ -10,7 +10,7 @@ Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
 
 For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref build_model) section.
 
-OpenVINO™ Runtime allows to use tensor names or indexes to work wit model inputs/outpus. To get model input/output ports you can use `ov::Model::input()` or `ov::Model::output()` respectively.
+OpenVINO™ Runtime allows to use tensor names or indexes to work wit model inputs/outpus. To get model input/output ports you can use `ov::Model::inputs()` or `ov::Model::outputs()` respectively.
 
 @sphinxdirective
 
@@ -133,7 +133,7 @@ The following code creates a model with several outputs:
 
 ## FAQ
 
-### Does OpenVINO™ Runtime provide any capabilities to debug the model structure and model modification?
+- Does OpenVINO™ Runtime provide any capabilities to debug the model structure and model modification?
 
 @sphinxdirective
 .. raw:: html
@@ -184,7 +184,7 @@ The following code creates a model with several outputs:
     </div>
 @endsphinxdirective
 
-### How can I develop my own transformation pass?
+- How can I develop my own transformation pass?
 
 @sphinxdirective
 .. raw:: html
