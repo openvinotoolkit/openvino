@@ -280,6 +280,22 @@ private:
                         Label ic_loop_main;
                         Label ic_loop_tail;
                         Label loop_end;
+                        Label nullify_v1;
+                        Label nullify_v2;
+                        Label nullify_v3;
+                        Label nullify_v4;
+                        Label nullify_v1_end;
+                        Label nullify_v2_end;
+                        Label nullify_v3_end;
+                        Label nullify_v4_end;
+                        Label nullify_v1_tail;
+                        Label nullify_v2_tail;
+                        Label nullify_v3_tail;
+                        Label nullify_v4_tail;
+                        Label nullify_v1_end_tail;
+                        Label nullify_v2_end_tail;
+                        Label nullify_v3_end_tail;
+                        Label nullify_v4_end_tail;
 
                         mov(aux2_reg_input, aux_reg_input);
                         add(aux2_reg_input, (ow * jcp_.stride_w * jcp_.ic) * jcp_.typesize_in);
@@ -337,35 +353,89 @@ private:
                             cmp(reg_ic_iter, simd_w);
                             jl(ic_loop_tail, T_NEAR);
 
+                            // check zero markers
+                            uni_vbroadcastss(xmm_v1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v2, dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
+
                             size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
 
                             uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
                             uni_vmovq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            //->
+                            uni_vtestps(xmm_v1, xmm_v1);
+                            jz(nullify_v1);
+                            //<-
                             uni_vmovups(vmm_v1, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v1, vmm_v1, vmm_w1);
+                            //->
+                            jmp(nullify_v1_end, T_NEAR);
+                            L(nullify_v1);
+                            {
+                                uni_vpxor(vmm_v1, vmm_v1, vmm_v1);
+                            }
+                            L(nullify_v1_end);
+                            //<-
 
                             uni_vpmovsxdq(xmm_v2_off, xmm_v2_off);
                             uni_vmovq(reg_tmp_64, xmm_v2_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            //->
+                            uni_vtestps(xmm_v2, xmm_v2);
+                            jz(nullify_v2);
+                            //<-
                             uni_vmovups(vmm_v2, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v2, vmm_v2, vmm_w2);
+                            //->
+                            jmp(nullify_v2_end, T_NEAR);
+                            L(nullify_v2);
+                            {
+                                uni_vpxor(vmm_v2, vmm_v2, vmm_v2);
+                            }
+                            L(nullify_v2_end);
+                            //<-
 
                             uni_vpmovsxdq(xmm_v3_off, xmm_v3_off);
                             uni_vmovq(reg_tmp_64, xmm_v3_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            //->
+                            uni_vtestps(xmm_v3, xmm_v3);
+                            jz(nullify_v3);
+                            //<-
                             uni_vmovups(vmm_v3, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v3, vmm_v3, vmm_w3);
+                            //->
+                            jmp(nullify_v3_end, T_NEAR);
+                            L(nullify_v3);
+                            {
+                                uni_vpxor(vmm_v3, vmm_v3, vmm_v3);
+                            }
+                            L(nullify_v3_end);
+                            //<-
 
                             uni_vpmovsxdq(xmm_v4_off, xmm_v4_off);
                             uni_vmovq(reg_tmp_64, xmm_v4_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            //->
+                            uni_vtestps(xmm_v4, xmm_v4);
+                            jz(nullify_v4);
+                            //<-
                             uni_vmovups(vmm_v4, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v4, vmm_v4, vmm_w4);
+                            //->
+                            jmp(nullify_v4_end, T_NEAR);
+                            L(nullify_v4);
+                            {
+                                uni_vpxor(vmm_v4, vmm_v4, vmm_v4);
+                            }
+                            L(nullify_v4_end);
+                            //<-
 
                             uni_vaddps(vmm_v1, vmm_v1, vmm_v2);
                             uni_vaddps(vmm_v1, vmm_v1, vmm_v3);
@@ -383,34 +453,88 @@ private:
                             cmp(reg_ic_iter, 1);
                             jl(loop_end, T_NEAR);
 
+                            // check zero markers
+                            uni_vbroadcastss(xmm_v1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v2, dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
+
                             size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
                             uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
                             uni_vmovq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            //->
+                            uni_vtestps(xmm_v1, xmm_v1);
+                            jz(nullify_v1_tail);
+                            //<-
                             uni_vmovss(xmm_v1, ptr[reg_tmp_64]);
                             uni_vmulss(xmm_v1, xmm_v1, xmm_w1);
+                            //->
+                            jmp(nullify_v1_end_tail, T_NEAR);
+                            L(nullify_v1_tail);
+                            {
+                                uni_vpxor(xmm_v1, xmm_v1, xmm_v1);
+                            }
+                            L(nullify_v1_end_tail);
+                            //<-
 
                             uni_vpmovsxdq(xmm_v2_off, xmm_v2_off);
                             uni_vmovq(reg_tmp_64, xmm_v2_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            //->
+                            uni_vtestps(xmm_v2, xmm_v2);
+                            jz(nullify_v2_tail);
+                            //<-
                             uni_vmovss(xmm_v2, ptr[reg_tmp_64]);
                             uni_vmulss(xmm_v2, xmm_v2, xmm_w2);
+                            //->
+                            jmp(nullify_v2_end_tail, T_NEAR);
+                            L(nullify_v2_tail);
+                            {
+                                uni_vpxor(xmm_v2, xmm_v2, xmm_v2);
+                            }
+                            L(nullify_v2_end_tail);
+                            //<-
 
                             uni_vpmovsxdq(xmm_v3_off, xmm_v3_off);
                             uni_vmovq(reg_tmp_64, xmm_v3_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            //->
+                            uni_vtestps(xmm_v3, xmm_v3);
+                            jz(nullify_v3_tail);
+                            //<-
                             uni_vmovss(xmm_v3, ptr[reg_tmp_64]);
                             uni_vmulss(xmm_v3, xmm_v3, xmm_w3);
+                            //->
+                            jmp(nullify_v3_end_tail, T_NEAR);
+                            L(nullify_v3_tail);
+                            {
+                                uni_vpxor(xmm_v3, xmm_v3, xmm_v3);
+                            }
+                            L(nullify_v3_end_tail);
+                            //<-
 
                             uni_vpmovsxdq(xmm_v4_off, xmm_v4_off);
                             uni_vmovq(reg_tmp_64, xmm_v4_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            //->
+                            uni_vtestps(xmm_v4, xmm_v4);
+                            jz(nullify_v4_tail);
+                            //<-
                             uni_vmovss(xmm_v4, ptr[reg_tmp_64]);
                             uni_vmulss(xmm_v4, xmm_v4, xmm_w4);
+                            //->
+                            jmp(nullify_v4_end_tail, T_NEAR);
+                            L(nullify_v4_tail);
+                            {
+                                uni_vpxor(xmm_v4, xmm_v4, xmm_v4);
+                            }
+                            L(nullify_v4_end_tail);
+                            //<-
 
                             uni_vaddss(xmm_v1, xmm_v1, xmm_v2);
                             uni_vaddss(xmm_v1, xmm_v1, xmm_v3);
