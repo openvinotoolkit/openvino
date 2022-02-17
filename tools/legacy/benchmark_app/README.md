@@ -1,13 +1,8 @@
-# Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
+# Benchmark C++ Tool {#openvino_inference_engine_legacy_benchmark_app_README}
 
 This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
 
 > **NOTE**: This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../benchmark_tool/README.md).
-
-> **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to
-> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
-> deployment on various Intel® platforms.
 
 
 ## How It Works
@@ -46,6 +41,8 @@ or `benchmark_detailed_counters_report.csv` file located in the path specified i
 The application also saves executable graph information serialized to an XML file if you specify a path to it with the
 `-exec_graph_path` parameter.
 
+## Building
+This tools can be built as part of OpenVINO building process. More information about building OpenVINO can be found here[Build OpenVINO Inference Engine](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
 
 ## Run the Tool
 
@@ -56,11 +53,11 @@ Note that the benchmark_app usually produces optimal performance for any device 
 ./benchmark_app -m <model> -i <input> -d CPU
 ```
 
-But it is still may be non-optimal for some cases, especially for very small networks. More details can read in More details can read in [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
+But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
-As explained in the  More details can read in [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md) section, for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
+As explained in the  [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md) section, for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
 Also if latency of the CPU inference on the multi-socket machines is of concern, please refer to the same
-More details can read in [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md) document.
+[Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
 Running the application with the `-h` option yields the following usage message:
 ```
@@ -139,73 +136,53 @@ To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's]
 
 ## Examples of Running the Tool
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. As an input, the `car.png` file from the `<INSTALL_DIR>/samples/scripts/` directory is used.
 
 > **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
-1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with the model name and directory to download the model to:
+1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
    ```sh
-   cd <INSTAL_DIR>/deployment_tools/open_model_zoo/tools/downloader
+   cd <INSTAL_DIR>/extras/open_model_zoo/tools/model_tools
    ```
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
-2. Convert the model to the Inference Engine IR format. Run Model Optimizer with the path to the model, model format (which must be FP32 for CPU) and output directory to generate the IR files:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 <INSTALL_DIR>/deployment_tools/model_optimizer/mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
-@endsphinxdirective
-
-3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and FPGA devices:
+2. Convert the model to the Inference Engine IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
+   ```sh
+   mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   ```
+3. Run the tool with specifying the `<INSTALL_DIR>/samples/scripts/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 
    * On CPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png  -d CPU -api async --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/samples/scripts/car.png  -d CPU -api async --progress true
    ```
-   * On FPGA:
+   * On GPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png -d HETERO:FPGA,CPU -api async --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/samples/scripts/car.png -d GPU -api async --progress true
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
 Additionally, if you set the `-report_type` parameter, the application outputs statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
-Below are fragments of sample output for CPU and FPGA devices:
+Below are fragments of sample output:
 
-* For CPU:
    ```
-   [Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
-   Progress: [....................] 100.00% done
-
-   [Step 9/9] Dumping statistics report
-   [ INFO ] Statistics collecting was not requested. No reports are dumped.
-   Progress: [....................] 100.00% done
-
-   Count:      4612 iterations
-   Duration:   60110.04 ms
-   Latency:    50.99 ms
-   Throughput: 76.73 FPS
-   ```
-
-* For FPGA:
-   ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 4 streams for CPU, limits: 120000 ms duration)
-   Progress: [....................] 100% done
+   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
+   [ INFO ] BENCHMARK IS IN INFERENCE ONLY MODE.
+   [ INFO ] Input blobs will be filled once before performance measurements.
+   [ INFO ] First inference took 26.26 ms
+   Progress: [................... ]  99% done
 
    [Step 11/11] Dumping statistics report
-   Count:      102515 iterations
-   Duration:   120007.38 ms
-   Latency:    5.84 ms
-   Throughput: 854.24 FP
+   [ INFO ] Count:      6640 iterations
+   [ INFO ] Duration:   60039.70 ms
+   [ INFO ] Latency:
+   [ INFO ]        Median:  35.36 ms
+   [ INFO ]        Avg:    36.12 ms
+   [ INFO ]        Min:    18.55 ms
+   [ INFO ]        Max:    88.96 ms
+   [ INFO ] Throughput: 110.59 FPS
    ```
 
 ## See Also
