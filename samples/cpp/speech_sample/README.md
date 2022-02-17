@@ -107,7 +107,8 @@ Options:
     -q "<mode>"                Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).
     -qb "<integer>"            Optional. Weight bits for quantization: 8 or 16 (default)
     -sf "<double>"             Optional. User-specified input scale factor for quantization (use with -q user). If the network contains multiple inputs, provide scale factors by separating them with commas.
-    -bs "<integer>"            Optional. Batch size 1-8 (default 1)
+    -bs "<integer>"            Optional. Batch size 1-8
+    -layout "<string>"         Optional. Prompts how network layouts should be treated by application.For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.
     -r "<path>"                Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>
     -rg "<path>"               Read GNA model from file using path/filename provided (required if -m is missing).
     -wg "<path>"               Optional. Write GNA model to file using path/filename provided.

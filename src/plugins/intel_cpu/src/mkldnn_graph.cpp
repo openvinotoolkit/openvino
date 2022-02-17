@@ -1082,6 +1082,8 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
+        if (graphNodes[i]->isConstant())
+            continue;
         getPerfMapFor(perfMap, graphNodes[i]);
     }
 }
@@ -1201,10 +1203,11 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         if (!parent) continue;
 
         MKLDNNEdgePtr &remEdge = p_edge;
-        const auto portCandidate = remEdge->getOutputNum();
         int inNum = 0;
+        int portCandidate = 0;
         if (remEdge) {
             inNum = remEdge->getInputNum();
+            portCandidate = remEdge->getOutputNum();
             remEdge->drop();
             RemoveEdge(remEdge);
         }
