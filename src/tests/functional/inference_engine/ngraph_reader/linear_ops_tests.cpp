@@ -937,6 +937,8 @@ TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
         <layer id="14" name="broadcast1_data" precision="FP32" type="Const">
             <output>
                 <port id="1">
+                    <dim>1</dim>
+                    <dim>1</dim>
                     <dim>112</dim>
                     <dim>1</dim>
                 </port>
@@ -955,6 +957,8 @@ TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
                     <dim>112</dim>
                 </port>
                 <port id="1">
+                    <dim>1</dim>
+                    <dim>1</dim>
                     <dim>112</dim>
                     <dim>1</dim>
                 </port>
@@ -1058,6 +1062,8 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
         <layer id="14" name="broadcast1_data" precision="FP32" type="Const">
             <output>
                 <port id="1">
+                    <dim>1</dim>
+                    <dim>1</dim>
                     <dim>112</dim>
                     <dim>1</dim>
                 </port>
@@ -1076,6 +1082,8 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
                     <dim>112</dim>
                 </port>
                 <port id="1">
+                    <dim>1</dim>
+                    <dim>1</dim>
                     <dim>112</dim>
                     <dim>1</dim>
                 </port>
@@ -1873,6 +1881,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
                     <dim>1</dim>
                     <dim>1</dim>
                     <dim>1</dim>
+                    <dim>1</dim>
                 </port>
             </output>
             <blobs>
@@ -1889,6 +1898,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
                     <dim>112</dim>
                 </port>
                 <port id="1">
+                    <dim>1</dim>
                     <dim>1</dim>
                     <dim>1</dim>
                     <dim>1</dim>
