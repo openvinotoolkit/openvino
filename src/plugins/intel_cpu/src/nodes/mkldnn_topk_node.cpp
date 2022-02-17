@@ -99,7 +99,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
             mov(reg_table, l_table);
 
         data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(jcp_.precision);
-        if (jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost)
+        if (!shape_agnostic_alg && jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost)
             blk_stride = jcp_.sort_stride * jcp_.blk_size;
 
         if (jcp_.mode_max) {
@@ -209,7 +209,7 @@ private:
     const int tail = jcp_.work_amount % step;
     const int topk_tail = jcp_.top_k % step;
 
-    int blk_stride;       // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
+    int blk_stride = 0;    // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
     unsigned char cmp_flg;
     unsigned char heap_cmp_flg;
 
@@ -2076,6 +2076,8 @@ void MKLDNNTopKNode::createPrimitive() {
         jcp.bubble_inplace = bubble_inplace;
         jcp.sort_stride = static_cast<int>(I);
         jcp.work_amount = static_cast<int>(I);
+        jcp.bitonic_idx_cnt = 0;
+        jcp.bitonic_k_idx_cnt = 0;
 
         if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
             auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
