@@ -17,48 +17,13 @@ Read the sections below to learn about each item.
 Before the start, it is necessary to say several words about OpenVINO™ Model representation.
 In OpenVINO™ Runtime a model is represented by the `ov::Model` class.
 
-The `ov::Model` object stores shared pointers to `ov::op::v0::Parameter`, `ov::op::v0::Result` and `ov::op::Sink` operations that are inputs, outputs and sinks of the graph.
-Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If an operation has no consumers and it's not the `Result` or `Sink` operation
-(shared pointer counter is zero), then it will be destructed and won't be accessible anymore. 
+The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
+`ov::model` allows to use tensor names or indexes to work wit model inputs/outpus. To get model input/output ports you can use `ov::Model::input()` or `ov::Model::output()` respectively.
+For more details please read article about [OpenVINO™ Model representation](model_representation.md)
 
-Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
+### Link with OpenVINO™ Runtime (for C++)
 
-For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref build_model) section.
-
-OpenVINO™ Runtime allows to use tensor names or indexes to work wit model inputs/outpus. To get model input/output ports you can use `ov::Model::input()` or `ov::Model::output()` respectively.
-
-@sphinxdirective
-
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part2]
-
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part2]
-
-@endsphinxdirective
-
-OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. For data types the `ov::element::Type` is used.
-
-#### Shapes representation
-
-OpenVINO™ Runtime provides two types for shape representation: 
-
-* `ov::Shape` - Represents static (fully defined) shapes.
-
-* `ov::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (undefined). `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise the conversion raises an exception.
-  `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise, conversion raises an exception.
-
-    @snippet example_ngraph_utils.cpp ov:shape
-
-  But in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.
-
-### Link with OpenVINO™ Runtime
+The example uses CMake for project configuration.
 
 1. **Create a structure** for the project:
    ``` sh

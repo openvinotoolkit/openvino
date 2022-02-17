@@ -22,22 +22,22 @@ outputs = model.outputs
 #! [part2]
 
 #! [part4_1]
-compiled_model = core.compile_model("model.xml", "CPU")
+compiled_model = core.compile_model("model.xml", "AUTO")
 #! [part4_1]
 #! [part4_2]
-compiled_model = core.compile_model("model.onnx", "CPU")
+compiled_model = core.compile_model("model.onnx", "AUTO")
 #! [part4_2]
 #! [part4_3]
-compiled_model = core.compile_model("model.pdmodel", "CPU")
+compiled_model = core.compile_model("model.pdmodel", "AUTO")
 #! [part4_3]
 #! [part4_4]
-compiled_model = core.compile_model(model, "CPU")
+compiled_model = core.compile_model(model, "AUTO")
 #! [part4_4]
 
 #! [part5]
 # Optional config. E.g. this enables profiling of performance counters.
 config = {} # TODO: enable perf counters
-compiled_model = core.compile_model(model, "CPU", config)
+compiled_model = core.compile_model(model, "AUTO", config)
 #! [part5]
 
 #! [part6]
