@@ -264,10 +264,10 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const ov::PartialShape& partial_shape) {
             self.reshape(partial_shape);
         },
-        py::arg("partial_shapes"),
+        py::arg("partial_shape"),
         R"(
-                :param partial_shapes: Index of Output.
-                :type partial_shapes: PartialShape
+                :param partial_shape: New shape.
+                :type partial_shape: PartialShape
                 :return : void
              )");
 
@@ -276,10 +276,10 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::list& partial_shape) {
             self.reshape(Common::partial_shape_from_list(partial_shape));
         },
-        py::arg("partial_shapes"),
+        py::arg("partial_shape"),
         R"(
-                :param partial_shapes: New shape.
-                :type partial_shapes: list
+                :param partial_shape: New shape.
+                :type partial_shape: list
                 :return : void
              )");
 
@@ -288,10 +288,22 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::tuple& partial_shape) {
             self.reshape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
         },
-        py::arg("partial_shapes"),
+        py::arg("partial_shape"),
         R"(
-                :param partial_shapes: New shape.
-                :type partial_shapes: tuple
+                :param partial_shape: New shape.
+                :type partial_shape: tuple
+                :return : void
+             )");
+
+    function.def(
+        "reshape",
+        [](ov::Model& self, const std::string& partial_shape) {
+            self.reshape(Common::partial_shape_from_str(partial_shape));
+        },
+        py::arg("partial_shape"),
+        R"(
+                :param partial_shape: New shape.
+                :type partial_shape: str
                 :return : void
              )");
 
@@ -317,10 +329,12 @@ void regclass_graph_Model(py::module m) {
                     new_shape.second = item.second.cast<ov::PartialShape>();
                 } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
                     new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
+                } else if (py::isinstance<py::str>(item.second)) {
+                    new_shape.second = Common::partial_shape_from_str(item.second.cast<std::string>());
                 } else {
                     throw py::type_error(
                         "Incorrect value type " + std::string(item.second.get_type().str()) +
-                        " to reshape a model, expected values as openvino.runtime.PartialShape, list or tuple.");
+                        " to reshape a model, expected values as openvino.runtime.PartialShape, str, list or tuple.");
                 }
                 new_shapes.insert(new_shape);
             }
@@ -340,6 +354,7 @@ void regclass_graph_Model(py::module m) {
             (1) `openvino.runtime.PartialShape`
             (2) `list`
             (3) `tuple`
+            (4) `str`
 
             To define a single dimension in the list use:
 
@@ -347,6 +362,7 @@ void regclass_graph_Model(py::module m) {
             (2) `[min, max]`
             (3) `(min, max)`
             (4) `openvino.runtime.Dimension`
+            (5) `str`
 
             :param partial_shapes: New shapes.
             :type partial_shapes: Dict[keys, values]

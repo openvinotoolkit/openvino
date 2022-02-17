@@ -77,6 +77,33 @@ def test_dimension_comparisons():
     assert not d2.compatible(d1)
     assert not d2.same_scheme(d1)
 
+    d = Dimension("?")
+    assert d == Dimension()
+
+    d = Dimension("1")
+    assert d == Dimension(1)
+
+    d = Dimension("..10")
+    assert d == Dimension(-1, 10)
+
+    d = Dimension("10..")
+    assert d == Dimension(10, -1)
+
+    d = Dimension("5..10")
+    assert d == Dimension(5, 10)
+
+    with pytest.raises(RuntimeError) as e:
+        d = Dimension("C")
+    assert 'Cannot parse dimension: "C"' in str(e.value)
+
+    with pytest.raises(RuntimeError) as e:
+        d = Dimension("?..5")
+    assert 'Cannot parse min bound: "?"' in str(e.value)
+
+    with pytest.raises(RuntimeError) as e:
+        d = Dimension("5..?")
+    assert 'Cannot parse max bound: "?"' in str(e.value)
+
 
 def test_partial_shape():
     ps = PartialShape([1, 2, 3, 4])
@@ -141,24 +168,35 @@ def test_partial_shape():
     assert list(ps.get_max_shape())[0] > 1000000000
     assert repr(ps) == "<PartialShape: {?,?}>"
 
-    shape_list = [(1,10), [2, 5], 4, Dimension(2)]
-    ref_ps = PartialShape([Dimension(1,10), Dimension(2,5), Dimension(4), Dimension(2)])
+    shape_list = [(1, 10), [2, 5], 4, Dimension(2), "..10"]
+    ref_ps = PartialShape([Dimension(1, 10), Dimension(2, 5), Dimension(4), Dimension(2), Dimension(-1, 10)])
     assert PartialShape(shape_list) == ref_ps
     assert PartialShape(tuple(shape_list)) == ref_ps
 
     with pytest.raises(TypeError) as e:
-        PartialShape([(1,2,3)])
-    assert "Two elements are expected in tuple(lower, upper) for dynamic dimension, but 3 were given." in str(e.value)
+        PartialShape([(1, 2, 3)])
+    assert "Two elements are expected in tuple(lower, upper) " \
+           "for dynamic dimension, but 3 were given." in str(e.value)
 
     with pytest.raises(TypeError) as e:
-        PartialShape([('?', '?')])
+        PartialShape([("?", "?")])
     assert "Incorrect type <class 'str'> for dynamic dimension, int is expected." in str(e.value)
 
     with pytest.raises(TypeError) as e:
-        PartialShape(['?'])
-    assert "Incorrect type <class 'str'> for dimension. Next types are expected: " \
-                            "int, openvino.runtime.Dimension, list or tuple with lower " \
-                            "and upper values for dynamic dimension." in str(e.value)
+        PartialShape([range(10)])
+    assert "Incorrect type <class 'range'> for dimension. Next types are expected: " \
+           "int, str, openvino.runtime.Dimension, list or tuple with lower " \
+           "and upper values for dynamic dimension." in str(e.value)
+
+    ps = PartialShape("...")
+    assert ps == PartialShape.dynamic()
+
+    ps = PartialShape("?, 3, ..224, 28..224")
+    assert ps == PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(28, 224)])
+
+    with pytest.raises(RuntimeError) as e:
+        ps = PartialShape("?,,3")
+    assert 'Cannot get vector of dimensions! "?,,3" is incorrect' in str(e.value)
 
 
 def test_partial_shape_compatible():

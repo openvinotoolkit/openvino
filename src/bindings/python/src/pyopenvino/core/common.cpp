@@ -6,6 +6,8 @@
 
 #include <unordered_map>
 
+#include "openvino/util/common_util.hpp"
+
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
 
 namespace Common {
@@ -90,12 +92,14 @@ ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
 
 ov::PartialShape partial_shape_from_list(const py::list& shape) {
     using value_type = ov::Dimension::value_type;
-    std::vector<ov::Dimension> dims;
+    ov::PartialShape pshape;
     for (py::handle dim : shape) {
         if (py::isinstance<py::int_>(dim)) {
-            dims.push_back(ov::Dimension(dim.cast<value_type>()));
+            pshape.insert(pshape.end(), ov::Dimension(dim.cast<value_type>()));
+        } else if (py::isinstance<py::str>(dim)) {
+            pshape.insert(pshape.end(), Common::dimension_from_str(dim.cast<std::string>()));
         } else if (py::isinstance<ov::Dimension>(dim)) {
-            dims.push_back(dim.cast<ov::Dimension>());
+            pshape.insert(pshape.end(), dim.cast<ov::Dimension>());
         } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
             py::list bounded_dim = dim.cast<py::list>();
             if (bounded_dim.size() != 2) {
@@ -107,15 +111,86 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
                                                                                   : bounded_dim[0].get_type().str();
                 throw py::type_error("Incorrect type " + wrong_type + " for dynamic dimension, int is expected.");
             }
-            dims.push_back(ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
+            pshape.insert(pshape.end(),
+                          ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
         } else {
-            throw py::type_error(
-                "Incorrect type " + std::string(dim.get_type().str()) +
-                " for dimension. Next types are expected: "
-                "int, openvino.runtime.Dimension, list or tuple with lower and upper values for dynamic dimension.");
+            throw py::type_error("Incorrect type " + std::string(dim.get_type().str()) +
+                                 " for dimension. Next types are expected: "
+                                 "int, str, openvino.runtime.Dimension, list or tuple with lower and upper values for "
+                                 "dynamic dimension.");
         }
     }
-    return ov::PartialShape(dims);
+    return pshape;
+}
+
+bool check_all_digits(const std::string& value) {
+    auto val = ov::util::trim(value);
+    for (const auto& c : val) {
+        if (!std::isdigit(c) || c == '-')
+            return false;
+    }
+    return true;
+}
+
+template <class T>
+T stringToType(const std::string& valStr) {
+    T ret{0};
+    std::istringstream ss(valStr);
+    if (!ss.eof()) {
+        ss >> ret;
+    }
+    return ret;
+}
+
+ov::Dimension dimension_from_str(const std::string& value) {
+    using value_type = ov::Dimension::value_type;
+    auto val = ov::util::trim(value);
+    if (val == "?" || val == "-1") {
+        return {-1};
+    }
+    if (val.find("..") == std::string::npos) {
+        if (!Common::check_all_digits(val))
+            IE_THROW() << "Cannot parse dimension: \"" << val << "\"";
+        return {Common::stringToType<value_type>(val)};
+    }
+
+    std::string min_value_str = val.substr(0, val.find(".."));
+    if (!Common::check_all_digits(min_value_str))
+        IE_THROW() << "Cannot parse min bound: \"" << min_value_str << "\"";
+
+    value_type min_value;
+    if (min_value_str.empty())
+        min_value = 0;
+    else
+        min_value = Common::stringToType<value_type>(min_value_str);
+
+    std::string max_value_str = val.substr(val.find("..") + 2);
+    value_type max_value;
+    if (max_value_str.empty())
+        max_value = -1;
+    else
+        max_value = Common::stringToType<value_type>(max_value_str);
+
+    if (!Common::check_all_digits(max_value_str))
+        IE_THROW() << "Cannot parse max bound: \"" << max_value_str << "\"";
+
+    return {min_value, max_value};
+}
+
+ov::PartialShape partial_shape_from_str(const std::string& value) {
+    auto val = ov::util::trim(value);
+    if (val == "...") {
+        return ov::PartialShape::dynamic();
+    }
+    ov::PartialShape res;
+    std::stringstream ss(val);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        if (field.empty())
+            IE_THROW() << "Cannot get vector of dimensions! \"" << val << "\" is incorrect";
+        res.insert(res.end(), Common::dimension_from_str(field));
+    }
+    return res;
 }
 
 py::array as_contiguous(py::array& array, ov::element::Type type) {

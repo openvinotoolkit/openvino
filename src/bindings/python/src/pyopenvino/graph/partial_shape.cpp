@@ -32,6 +32,9 @@ void regclass_graph_PartialShape(py::module m) {
     shape.def(py::init([](py::tuple& shape) {
         return Common::partial_shape_from_list(shape.cast<py::list>());
     }));
+    shape.def(py::init([](const std::string& shape) {
+        return Common::partial_shape_from_str(shape);
+    }));
 
     shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("rank") = ov::Dimension());
 
