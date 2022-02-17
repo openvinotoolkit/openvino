@@ -1367,7 +1367,7 @@ MKLDNNMemoryPtr MKLDNNConvolutionNode::getOutputMemory() const {
     }
 }
 
-void MKLDNNPlugin::MKLDNNConvolutionNode::addFusedNode(const MKLDNNNodePtr &fusingNode) {
+void MKLDNNConvolutionNode::addFusedNode(const MKLDNNNodePtr &fusingNode) {
     if (Eltwise == fusingNode->getType()) {
         if (fusingNode->getAlgorithm() == EltwiseAdd) {
             auto eltwiseNode = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(fusingNode);

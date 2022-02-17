@@ -16,7 +16,7 @@ namespace intel_cpu {
 namespace itt {
 namespace domains {
     OV_ITT_DOMAIN(intel_cpu);
-    OV_ITT_DOMAIN(MKLDNN_LT);
+    OV_ITT_DOMAIN(intel_cpu_LT);
 }
 }
 }

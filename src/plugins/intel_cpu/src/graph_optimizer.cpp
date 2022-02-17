@@ -58,7 +58,7 @@ using namespace InferenceEngine;
 MKLDNNGraphOptimizer::MKLDNNGraphOptimizer() {}
 
 void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
-    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::MKLDNN_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndBias");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndBias");
     FuseConvolutionMatMulAndBias(graph);
     graph.RemoveDroppedNodes();
 
@@ -155,7 +155,7 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &graph) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations");
 
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();

@@ -421,7 +421,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::intel_cpu::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::intel_cpu::itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
 
         auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
             OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
@@ -960,7 +960,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
                                             const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "ImportNetwork");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "ImportNetwork");
 
     CNNNetworkDeserializer deserializer(networkModel,
         [this](const std::string& model, const Blob::CPtr& weights) {

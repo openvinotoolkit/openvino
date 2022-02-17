@@ -63,7 +63,7 @@ mkldnn::engine MKLDNNGraph::eng(mkldnn::engine::kind::cpu, 0);
 template<typename NET>
 void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMgr,
         MKLDNNWeightsSharing::Ptr &w_cache) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::intel_cpu::itt::domains::MKLDNN_LT, "CreateGraph");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::intel_cpu::itt::domains::intel_cpu_LT, "CreateGraph");
 
     if (IsReady())
         ForgetGraphData();
@@ -201,7 +201,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, co
 }
 
 void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
-    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::MKLDNN_LT, "MKLDNNGraph::Replicate", "CNNNetwork");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "MKLDNNGraph::Replicate", "CNNNetwork");
 
     InputsDataMap inputsInfo = network.getInputsInfo();
     OutputsDataMap outputsInfo = network.getOutputsInfo();
@@ -405,14 +405,14 @@ void MKLDNNGraph::InitGraph() {
 }
 
 void MKLDNNGraph::InitNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::InitNodes");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "MKLDNNGraph::InitNodes");
     for (auto &node : graphNodes) {
         node->init();
     }
 }
 
 void MKLDNNGraph::InitDescriptors() {
-    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, ov::intel_cpu::itt::domains::MKLDNN_LT, "InitDescriptors", "Prepare");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, ov::intel_cpu::itt::domains::intel_cpu_LT, "InitDescriptors", "Prepare");
 
     for (auto &node : graphNodes) {
         if (node->getType() == Input && _normalizePreprocMap.find(node->getName()) != _normalizePreprocMap.end()) {
@@ -439,13 +439,13 @@ void MKLDNNGraph::InitDescriptors() {
 void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "MKLDNNGraph::InitOptimalPrimitiveDescriptors");
     for (auto &node : graphNodes) {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, node->profiling.initOptimalPrimitiveDescriptor);
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
         node->initOptimalPrimitiveDescriptor();
     }
 }
 
 void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantAndExecutableNodes");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "MKLDNNGraph::ExtractConstantAndExecutableNodes");
     for (const auto& graphNode : graphNodes) {
         if (graphNode->isConstant()) {
             constantGraphNodes.emplace_back(graphNode);
@@ -461,7 +461,7 @@ void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
 }
 
 void MKLDNNGraph::ExecuteConstantNodesOnly() const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExecuteConstantNodesOnly");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "MKLDNNGraph::ExecuteConstantNodesOnly");
     mkldnn::stream stream(eng);
 
     using shared_memory_ptr = MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr;
@@ -524,7 +524,7 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
 }
 
 void MKLDNNGraph::InitEdges() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::InitEdges");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "MKLDNNGraph::InitEdges");
 
     size_t numberOfEdges = graphEdges.size();
 
@@ -762,7 +762,7 @@ void MKLDNNGraph::AllocateWithReuse() {
 }
 
 void MKLDNNGraph::Allocate() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::Allocate");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "MKLDNNGraph::Allocate");
 
     // resolve edges. Define which will be a view on others
     //   NeedAllocation - real blob
@@ -785,7 +785,7 @@ void MKLDNNGraph::Allocate() {
 void MKLDNNGraph::CreatePrimitives() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "MKLDNNGraph::CreatePrimitives");
     for (auto& node : graphNodes) {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, node->profiling.createPrimitive);
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
         node->createPrimitive();
     }
 }
@@ -992,7 +992,7 @@ void MKLDNNGraph::VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sort
 }
 
 void MKLDNNGraph::SortTopologically() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::SortTopologically");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "MKLDNNGraph::SortTopologically");
 
     std::vector<MKLDNNNodePtr> unsorted;
     std::vector<MKLDNNNodePtr> sorted;
