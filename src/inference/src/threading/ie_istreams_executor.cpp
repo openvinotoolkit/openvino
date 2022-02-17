@@ -16,6 +16,7 @@
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace InferenceEngine {
 IStreamsExecutor::~IStreamsExecutor() {}
@@ -108,12 +109,10 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             _streams = val_i;
         }
     } else if (key == ov::num_streams) {
-        ov::NumStreams streams;
-        std::stringstream strm{value};
-        strm >> streams;
-        if (streams.num == ov::NumStreams::NUMA) {
+        auto streams = ov::util::from_string(value, ov::streams::num);
+        if (streams == ov::streams::NUMA) {
             _streams = static_cast<int32_t>(getAvailableNUMANodes().size());
-        } else if (streams.num == ov::NumStreams::AUTO) {
+        } else if (streams == ov::streams::AUTO) {
             // bare minimum of streams (that evenly divides available number of cores)
             _streams = GetDefaultNumStreams();
         } else if (streams.num >= 0) {
@@ -122,7 +121,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             OPENVINO_UNREACHABLE("Wrong value for property key ",
                                  ov::num_streams.name(),
                                  ". Expected non negative numbers (#streams) or ",
-                                 "ov::NumStreams(ov::NumStreams::NUMA|ov::NumStreams::AUTO), Got: ",
+                                 "ov::streams::NUMA|ov::streams::AUTO, Got: ",
                                  streams);
         }
     } else if (key == CONFIG_KEY(CPU_THREADS_NUM) || key == ov::inference_num_threads) {
