@@ -1,4 +1,4 @@
-# Overview of Preprocessing API {#openvino_docs_OV_Runtime_UG_Preprocessing_Details}
+# Overview of Preprocessing API {#openvino_docs_OV_Runtime_UG_Preprocessing_Overview}
 
 @sphinxdirective
 
@@ -6,7 +6,7 @@
 :maxdepth: 1
 :hidden:
 
-openvino_docs_deployment_optimization_guide_dldt_optimization_guide_additional
+openvino_docs_OV_Runtime_UG_Preprocessing_Details
 
 @endsphinxdirective
 
