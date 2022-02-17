@@ -105,13 +105,13 @@ private:
     }
 };
 
-//TEST_P(ReferenceReadValueAssignV3LayerTest, ReadValueAssignWithHardcodedRefs) {
-//    Exec();
-//}
+TEST_P(ReferenceReadValueAssignV3LayerTest, ReadValueAssignWithHardcodedRefs) {
+    Exec();
+}
 
-//TEST_P(ReferenceReadValueAssignV6LayerTest, ReadValueAssignWithHardcodedRefs) {
-//    Exec();
-//}
+TEST_P(ReferenceReadValueAssignV6LayerTest, ReadValueAssignWithHardcodedRefs) {
+    Exec();
+}
 
 template <element::Type_t IN_ET>
 std::vector<ReadValueAssignParams> generateParamsForReadValueAssign() {
@@ -186,14 +186,14 @@ std::vector<ReadValueAssignParams> generateCombinedParamsForReadValueAssign() {
     return combinedParams;
 }
 
-//INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
-//                         ReferenceReadValueAssignV3LayerTest,
-//                         ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
-//                         ReferenceReadValueAssignV3LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
+                         ReferenceReadValueAssignV3LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
+                         ReferenceReadValueAssignV3LayerTest::getTestCaseName);
 
-//INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
-//                         ReferenceReadValueAssignV6LayerTest,
-//                         ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
-//                         ReferenceReadValueAssignV6LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
+                         ReferenceReadValueAssignV6LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
+                         ReferenceReadValueAssignV6LayerTest::getTestCaseName);
 
 }  // namespace
