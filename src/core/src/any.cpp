@@ -121,6 +121,13 @@ const Any::Base* Any::operator->() const {
     return _impl.get();
 }
 
+void* Any::addressof() {
+    return _impl != nullptr ? _impl->addressof() : nullptr;
+}
+
+const void* Any::addressof() const {
+    return _impl != nullptr ? _impl->addressof() : nullptr;
+}
 namespace util {
 
 void Read<bool>::operator()(std::istream& is, bool& value) const {
