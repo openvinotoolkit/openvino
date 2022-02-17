@@ -283,8 +283,7 @@ auto to_string(const T& value) ->
 }
 
 template <typename T>
-auto to_string(const T&) ->
-    typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value, std::string>::type {
+auto to_string(const T&) -> typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value, std::string>::type {
     OPENVINO_UNREACHABLE("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
                          " defined or ov::util::Write<T> class specialization, T: ",
                          typeid(T).name());
