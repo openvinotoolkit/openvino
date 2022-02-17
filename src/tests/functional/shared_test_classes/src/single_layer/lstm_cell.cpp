@@ -18,8 +18,9 @@ std::string LSTMCellTest::getTestCaseName(const testing::TestParamInfo<LSTMCellP
     float clip;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
+    std::map<std::string, std::string> additionalConfig;
     std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, netPrecision,
-            targetDevice) = obj.param;
+            targetDevice, additionalConfig) = obj.param;
     std::vector<std::vector<size_t>> inputShapes = {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                     {4 * hidden_size, hidden_size}, {4 * hidden_size}},
@@ -34,6 +35,9 @@ std::string LSTMCellTest::getTestCaseName(const testing::TestParamInfo<LSTMCellP
     result << "clip=" << clip << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
+    for (const auto configEntry : additionalConfig) {
+        result << configEntry.first << ", " << configEntry.second << ";";
+    }
     return result.str();
 }
 
@@ -47,8 +51,11 @@ void LSTMCellTest::SetUp() {
     std::vector<float> activations_beta;
     float clip;
     InferenceEngine::Precision netPrecision;
+    std::map<std::string, std::string> additionalConfig;
     std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, netPrecision,
-            targetDevice) = this->GetParam();
+            targetDevice, additionalConfig) = this->GetParam();
+
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
     std::vector<std::vector<size_t>> inputShapes = {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                     {4 * hidden_size, hidden_size}, {4 * hidden_size}},

@@ -20,7 +20,7 @@ namespace {
     std::vector<float> clip{0.f, 0.7f};
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16};
-
+    std::map<std::string, std::string> config = {};
     INSTANTIATE_TEST_SUITE_P(smoke_LSTMCellCommon, LSTMCellTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(should_decompose),
@@ -30,7 +30,8 @@ namespace {
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(config)),
                             LSTMCellTest::getTestCaseName);
 
 }  // namespace
