@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include "mkldnn_node.h"
+#include <node.h>
 
 #include <memory>
 #include <vector>
 
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class TileBroadcastCommon {
 protected:
@@ -41,4 +42,5 @@ private:
     } optimizedParams;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
