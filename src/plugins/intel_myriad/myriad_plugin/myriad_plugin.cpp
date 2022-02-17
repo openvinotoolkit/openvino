@@ -314,6 +314,9 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             ov::range_for_async_infer_requests.name(),
             ov::device::thermal.name(),
             ov::device::architecture.name(),
+            ov::num_streams.name(),
+            ov::hint::performance_mode.name(),
+            ov::hint::num_requests.name(),
         };
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         // TODO: remove once all options are migrated
