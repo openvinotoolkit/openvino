@@ -1,4 +1,14 @@
-# Overview of Preprocessing API {#openvino_docs_OV_Runtime_UG_Preprocessing_Overview}
+# Overview of Preprocessing API {#openvino_docs_OV_Runtime_UG_Preprocessing_Details}
+
+@sphinxdirective
+
+.. toctree::
+:maxdepth: 1
+:hidden:
+
+openvino_docs_deployment_optimization_guide_dldt_optimization_guide_additional
+
+@endsphinxdirective
 
 ## Introduction
 
@@ -22,11 +32,11 @@ Even though all these steps can be relatively easy implemented manually in appli
 ## Preprocessing API
 
 Intuitively, Preprocessing API consists of the following parts:
- 1) **Tensor:** Declare user's data format, like shape, [layout](./layout_overview.md), precision, color format of actual user's data
- 2) **Steps:** Describe sequence of preprocessing steps which need to be applied to user's data
- 3) **Model:** Specify Model's data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified
+ 1. 	**Tensor:** Declare user's data format, like shape, [layout](./layout_overview.md), precision, color format of actual user's data
+ 2. 	**Steps:** Describe sequence of preprocessing steps which need to be applied to user's data
+ 3. 	**Model:** Specify Model's data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified
 
-**Note:** All model's graph modification shall be performed after model is read from disk and **before** it is being loaded on actual device. See also [OpenVINO™ Common Inference pipeline](../migration_ov_2_0/docs/common_inference_pipeline.md)
+>**Note:** All model's graph modification shall be performed after model is read from disk and **before** it is being loaded on actual device. See also [OpenVINO™ Common Inference pipeline](../migration_ov_2_0/docs/common_inference_pipeline.md)
 
 ### PrePostProcessor object
 
