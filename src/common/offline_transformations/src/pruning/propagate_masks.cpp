@@ -511,6 +511,7 @@ public:
                                                                m_output_low.get_node_shared_ptr(),
                                                                m_output_high.get_node_shared_ptr()};
             auto fq_node = std::dynamic_pointer_cast<op::FakeQuantize>(m_output.get_node_shared_ptr());
+            if (!fq_node) return false;
             size_t idx = 0;
             if (fq_node->get_auto_broadcast() != ngraph::op::AutoBroadcastType::NONE) {
                 for (auto node : fq_params_nodes) {
