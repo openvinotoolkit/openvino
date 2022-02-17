@@ -442,7 +442,7 @@ std::vector<ProfilingInfo> InferRequest::get_profiling_info() const {
                 info.status = ProfilingInfo::Status::OPTIMIZED_OUT;
                 break;
             case ie::InferenceEngineProfileInfo::EXECUTED:
-                info.status = ProfilingInfo::Status::OPTIMIZED_OUT;
+                info.status = ProfilingInfo::Status::EXECUTED;
                 break;
             }
             info.real_time = std::chrono::microseconds{ieInfo.realTime_uSec};
