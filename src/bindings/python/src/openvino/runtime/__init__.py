@@ -41,7 +41,6 @@ from openvino.runtime.ie_api import InferRequest
 from openvino.runtime.ie_api import AsyncInferQueue
 from openvino.runtime.ie_api import OVAny
 from openvino.pyopenvino import Version
-from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import Extension
 from openvino.pyopenvino import ProfilingInfo
