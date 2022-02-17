@@ -64,17 +64,18 @@ public:
     InitMatMulMask() {
         auto a = pattern::any_input();
         auto b = pattern::any_input();
-        auto matmul = pattern::wrap_type<opset6::MatMul>({a, b});
+        auto matmul_pattern = pattern::wrap_type<opset6::MatMul>({a, b});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
-            const auto & m_output = pattern_map.at(matmul);
+            const auto & matmul = std::dynamic_pointer_cast<opset6::MatMul>(pattern_map.at(matmul_pattern).get_node_shared_ptr());
+            if (!matmul) return false;
 
             // Assume constant always in the first input port.
             // Initializing weights mask:
             // 1. Looking for Const node with weights
             NodeVector weights_calculation_nodes;
-            auto cur_node = m_output.get_node()->get_input_node_shared_ptr(1);
+            auto cur_node = matmul->get_input_node_shared_ptr(1);
 
             while (!ngraph::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
                 weights_calculation_nodes.push_back(cur_node);
@@ -82,17 +83,16 @@ public:
             }
             if (!ngraph::is_type<opset6::Constant>(cur_node)) {
                 NGRAPH_DEBUG << "Can't find Constant weights for MatMul: " <<
-                m_output.get_node()->get_friendly_name() << std::endl;
+                matmul->get_friendly_name() << std::endl;
                 return false;
             }
             // 2. Get constant rank to set mask on last dimension
             const auto const_op = std::dynamic_pointer_cast<opset6::Constant>(cur_node);
             const auto shape_rank = const_op->get_shape().size();
-            const auto matmul = std::dynamic_pointer_cast<opset6::MatMul>(m_output.get_node_shared_ptr());
             const auto shift = (matmul->get_transpose_b())? 2 : 1;
             if (shape_rank < shift) {
                 NGRAPH_DEBUG << "Can't init mask for MatMul: " <<
-                m_output.get_node()->get_friendly_name() << std::endl;
+                matmul->get_friendly_name() << std::endl;
                 return false;
             }
             const size_t outer_dim  = shape_rank - shift;
@@ -101,7 +101,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "MatMulInitMask");
+        auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_pattern, "MatMulInitMask");
         register_matcher(m, callback);
     }
 };
