@@ -123,7 +123,7 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
     void operator()(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) const;
 };
 
-static const std::string& from_string(const std::string& str) {
+static inline const std::string& from_string(const std::string& str) {
     return str;
 }
 
@@ -263,7 +263,7 @@ struct OPENVINO_API Write<std::tuple<unsigned int, unsigned int>> {
     void operator()(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple) const;
 };
 
-static const std::string& to_string(const std::string& str) {
+static inline const std::string& to_string(const std::string& str) {
     return str;
 }
 
@@ -283,7 +283,8 @@ auto to_string(const T& value) ->
 }
 
 template <typename T>
-auto to_string(const T&) -> typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value, std::string>::type {
+auto to_string(const T&) ->
+    typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value, std::string>::type {
     OPENVINO_UNREACHABLE("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
                          " defined or ov::util::Write<T> class specialization, T: ",
                          typeid(T).name());
@@ -994,7 +995,7 @@ using RTMap = AnyMap;
 using AnyVector = std::vector<ov::Any>;
 
 /** @cond INTERNAL */
-static void PrintTo(const Any& any, std::ostream* os) {
+inline static void PrintTo(const Any& any, std::ostream* os) {
     any.print(*os);
 }
 /** @endcond */
