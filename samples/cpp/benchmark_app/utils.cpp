@@ -317,7 +317,11 @@ std::map<std::string, std::vector<std::string>> parse_input_arguments(const std:
             }
 
             for (auto& file : files.second) {
-                readInputFilesArguments(mapped_files[files.first], file);
+                if (file == "image_info" || file == "random") {
+                    mapped_files[files.first].push_back(file);
+                } else {
+                    readInputFilesArguments(mapped_files[files.first], file);
+                }
             }
         }
         args_it = files_end;
