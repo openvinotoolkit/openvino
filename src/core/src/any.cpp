@@ -138,7 +138,10 @@ void* Any::addressof() {
 const void* Any::addressof() const {
     return _impl != nullptr ? _impl->addressof() : nullptr;
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> master
 namespace util {
 
 void Read<bool>::operator()(std::istream& is, bool& value) const {
