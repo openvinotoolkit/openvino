@@ -28,12 +28,12 @@ public:
         bool inPlace;
         std::tie(srcDims, inPlace) = obj.param;
         std::ostringstream result;
-        result << "IS:(";
+        result << "IS=(";
         for (const auto s : srcDims)
             result << s << ".";
         result.seekp(-1, result.cur);
         result << ")";
-        result << "_InPlace:" << inPlace;
+        result << "_InPlace=" << inPlace;
         return result.str();
     }
 

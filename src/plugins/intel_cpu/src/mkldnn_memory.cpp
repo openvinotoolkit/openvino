@@ -116,7 +116,7 @@ void MKLDNNMemory::FillZero() {
 
 void *MKLDNNMemory::GetPtr() const  {
     auto ptr = static_cast<uint8_t*>(GetData());
-    const auto& md = prim->get_desc().data;
+    const mkldnn_memory_desc_t md = prim->get_desc().data;
     mkldnn::impl::memory_desc_wrapper wrapper(md);
     ptr += wrapper.offset0() * wrapper.data_type_size();
     return ptr;
