@@ -39,7 +39,21 @@ OpenVINO™ Runtime provides two types for shape representation:
 * `ov::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (undefined). `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise the conversion raises an exception.
   `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise, conversion raises an exception.
 
-    @snippet example_ngraph_utils.cpp ov:shape
+  @sphinxdirective
+
+  .. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+         :language: cpp
+         :fragment: [ov:partial_shape]
+
+  .. tab:: Python
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: python
+         :fragment: [ov:partial_shape]
+
+  @endsphinxdirective
 
   But in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.
 

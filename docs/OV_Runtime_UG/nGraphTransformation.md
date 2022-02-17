@@ -276,7 +276,7 @@ nGraph has two types for shape representation:
 `ngraph::PartialShape` - represents dynamic shape. It means that rank or some of dimensions are dynamic (undefined).
 `ngraph::PartialShape` can be converted to `ngraph::Shape` using the `get_shape()` method if all dimensions are static; otherwise, conversion raises an exception.
 
-@snippet example_ngraph_utils.cpp ov:shape
+@snippet ov_model_snippets.cpp ov:partial_shape
 
 But in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.
 

@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 #! [import]
 import openvino.runtime as ov
 #! [import]
@@ -28,7 +29,7 @@ def create_advanced_model():
     # Parameter->Split---0-->Result
     #               | `--1-->Relu-->Result
     #               `----2-->Result
-    data = ov.opset8.parameter(ov.Shape[1, 3, 64, 64], ov.Type.f32)
+    data = ov.opset8.parameter(ov.Shape([1, 3, 64, 64]), ov.Type.f32)
     # Create Constant for axis value
     axis_const = ov.opset8.constant(ov.Type.i64, ov.Shape({}), [1])
 
@@ -42,6 +43,20 @@ def create_advanced_model():
     return ov.Model([split.output(0), relu, split.output[2]], [data], "model")
 # ! [ov:create_advanced_model]
 
+def ov_api_examples():
+    # Doesn't work
+    # node = ov.opset8.parameter(ov.PartialShape([ov.Dimension.dynamic(), 3, 64, 64]), np.float32)
+    node = ov.opset8.parameter(ov.PartialShape([ov.Dimension.dynamic(), ov.Dimension(3), ov.Dimension(64), ov.Dimension(64)]), np.float32)
+
+    # it doesn't work:
+    # static_shape = ov.Shape()
+    # ! [ov:partial_shape]
+    partial_shape = node.output(0).get_partial_shape() # get zero output partial shape
+    if not partial_shape.is_dynamic: # or partial_shape.is_static
+        static_shape = partial_shape.get_shape()
+    # ! [ov:partial_shape]
+
 if __name__ == '__main__':
+    ov_api_examples()
     create_simple_model()
     create_advanced_model()

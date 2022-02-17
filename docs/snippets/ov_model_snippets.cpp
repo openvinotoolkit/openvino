@@ -56,3 +56,15 @@ std::shared_ptr<ov::Model> create_advanced_model() {
                                        ov::ParameterVector{data});
 }
 // ! [ov:create_advanced_model]
+
+void ov_api_examples() {
+    std::shared_ptr<ov::Node> node = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), 3, 64, 64});
+
+    // ! [ov:partial_shape]
+    ov::Shape static_shape;
+    ov::PartialShape partial_shape = node->output(0).get_partial_shape(); // get zero output partial shape
+    if (!partial_shape.is_dynamic() /* or partial_shape.is_static() */) {
+        static_shape = partial_shape.get_shape();
+    }
+    // ! [ov:partial_shape]
+}
