@@ -148,7 +148,11 @@ void DecoderProto::get_input_node(size_t input_port_idx,
     auto delim_pos = producer_port_name.find(':');
     if (delim_pos != std::string::npos) {
         producer_name = producer_port_name.substr(0, delim_pos);
-        producer_output_port_index = std::stoi(producer_port_name.substr(delim_pos));
+        auto port_id = producer_port_name.substr(delim_pos + 1);
+        FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
+                                "Port id is not specified or not a number. Value: ",
+                                port_id);
+        producer_output_port_index = std::stoi(port_id);
         return;
     }
     producer_name = producer_port_name;
