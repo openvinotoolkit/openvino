@@ -908,10 +908,10 @@ void collectPluginMetrics(std::vector<std::string>& baseMetrics, const std::vect
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string& name) const {
     if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        std::vector<std::string> heteroMetrics = {METRIC_KEY(NETWORK_NAME),
+        std::vector<std::string> heteroMetrics = {ov::model_name.name(),
                                                   METRIC_KEY(SUPPORTED_METRICS),
                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                  METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
+                                                  ov::optimal_number_of_infer_requests.name()};
 
         {
             std::vector<::Metrics> pluginMetrics;
@@ -951,15 +951,15 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         }
 
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, heteroConfigKeys);
-    } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, _name);
-    } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
+    } else if (ov::model_name == name) {
+        return decltype(ov::model_name)::value_type{_name};
+    } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = 0u;
         for (auto&& desc : _networks) {
             value = std::max(value,
                              desc._network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
+        return decltype(ov::optimal_number_of_infer_requests)::value_type{value};
     } else {
         // find metric key among plugin metrics
         for (auto&& desc : _networks) {
