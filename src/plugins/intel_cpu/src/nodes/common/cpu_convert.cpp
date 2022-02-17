@@ -531,9 +531,9 @@ void cpu_convert(const void *srcPtr,
         IE_THROW() << "cpu_convert has null data pointer";
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
-        const size_t L3_cache_size = mkldnn::utils::get_cache_size(3, true);
+        const size_t L2_cache_size = mkldnn::utils::get_cache_size(2, true);
         const size_t totalSize = size * dstPrc.size();
-        if (totalSize >= L3_cache_size) {
+        if (totalSize >= L2_cache_size) {
             auto src = static_cast<const uint8_t *>(srcPtr);
             auto dst = static_cast<uint8_t *>(dstPtr);
             parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
