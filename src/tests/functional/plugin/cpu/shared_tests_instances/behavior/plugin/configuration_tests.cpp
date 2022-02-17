@@ -73,7 +73,11 @@ namespace {
                 {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                 {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}}
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}}
     };
 
     const std::vector<std::map<std::string, std::string>> AutoConfigs = {
@@ -102,7 +106,11 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                 {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW}}
+                {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
@@ -152,7 +160,9 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                     {InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, "OFF"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                    {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}}
+                    {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, "OFF"}}
     };
 
     const std::vector<std::map<std::string, std::string>> autoinconfigs = {
@@ -175,7 +185,9 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                 {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, "ABC"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}}
+                {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, "OFF"}}
     };
 
     const std::vector<std::map<std::string, std::string>> multiconf = {
@@ -245,56 +257,5 @@ namespace {
                              ::testing::Combine(
                                      ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                      ::testing::ValuesIn(ConfigsCheck)),
-                             CorrectConfigCheck::getTestCaseName);
-
-    // Test cases for the key ALLOW_AUTO_BATCHING using SetConfig API
-    const std::vector<std::map<std::string, std::string>> allowAutoBatchingConf = {
-            {{InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}},
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
-                                     ::testing::ValuesIn(allowAutoBatchingConf)),
-                             CorrectConfigCheck::getTestCaseName);
-
-    const std::vector<std::map<std::string, std::string>> allowAutoBatchingAutoConf = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}}
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                     ::testing::ValuesIn(allowAutoBatchingAutoConf)),
-                             CorrectConfigCheck::getTestCaseName);
-
-    const std::vector<std::map<std::string, std::string>> allowAutoBatchingAutoBatchConf = {
-            {{InferenceEngine::PluginConfigParams::KEY_AUTO_BATCH_DEVICE_CONFIG, CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::PluginConfigParams::KEY_AUTO_BATCH_DEVICE_CONFIG, CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}}
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                                     ::testing::ValuesIn(allowAutoBatchingAutoBatchConf)),
-                             CorrectConfigCheck::getTestCaseName);
-
-    // Test cases for the key ALLOW_AUTO_BATCHING using LoadNetwork API
-    INSTANTIATE_TEST_SUITE_P(smoke_SetAllowAutoBatchingConfigLoadNetworkTest, SetAllowAutoBatchingCorrectConfigLoadNetworkTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                     ::testing::ValuesIn(allowAutoBatchingConf)),
-                             CorrectConfigCheck::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_SetAllowAutoBatchingConfigLoadNetworkTest, SetAllowAutoBatchingCorrectConfigLoadNetworkTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                     ::testing::ValuesIn(allowAutoBatchingAutoConf)),
                              CorrectConfigCheck::getTestCaseName);
 } // namespace

@@ -107,14 +107,6 @@ TEST_P(CorrectConfigTests, CanUseCache) {
     CommonTestUtils::removeDir("./test_cache");
 }
 
-TEST_P(SetAllowAutoBatchingCorrectConfigTestCheck, SetConfigNoThrow) {
-    ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
-}
-
-TEST_P(SetAllowAutoBatchingCorrectConfigLoadNetworkTestCheck, LoadNetworkNoThrough) {
-    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
-}
-
 TEST_P(CorrectConfigCheck, canSetConfigAndCheckGetConfig) {
     ie->SetConfig(configuration, targetDevice);
     for (const auto& configItem : configuration) {

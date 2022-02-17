@@ -59,6 +59,8 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "ON"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, "OFF"}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, "unknown_file"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_DUMP_KERNELS, "ON"}},
@@ -207,6 +209,10 @@ namespace {
              {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
              {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
+             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
                  CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
              {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
@@ -287,55 +293,9 @@ namespace {
                      ::testing::ValuesIn(auto_batch_configs)),
              CorrectConfigTests::getTestCaseName);
 
-    // Test cases for the key ALLOW_AUTO_BATCHING using SetConfig API
-    const std::vector<std::map<std::string, std::string>> allowAutoBatchingConf = {
-            {{InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}},
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
-                                     ::testing::ValuesIn(allowAutoBatchingConf)),
-                             CorrectConfigCheck::getTestCaseName);
-
-    const std::vector<std::map<std::string, std::string>> allowAutoBatchingAutoConf = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}}
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                     ::testing::ValuesIn(allowAutoBatchingAutoConf)),
-                             CorrectConfigCheck::getTestCaseName);
-
-    const std::vector<std::map<std::string, std::string>> allowAutoBatchingAutoBatchConf = {
-            {{InferenceEngine::PluginConfigParams::KEY_AUTO_BATCH_DEVICE_CONFIG, CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::PluginConfigParams::KEY_AUTO_BATCH_DEVICE_CONFIG, CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO}}
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_SetAllowAutoBatchingConfigTest, SetAllowAutoBatchingCorrectConfigTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                                     ::testing::ValuesIn(allowAutoBatchingAutoBatchConf)),
-                             CorrectConfigCheck::getTestCaseName);
-
-    // Test cases for the key ALLOW_AUTO_BATCHING using LoadNetwork API
-    INSTANTIATE_TEST_SUITE_P(smoke_SetAllowAutoBatchingConfigLoadNetworkTest, SetAllowAutoBatchingCorrectConfigLoadNetworkTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                     ::testing::ValuesIn(allowAutoBatchingConf)),
-                             CorrectConfigCheck::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_SetAllowAutoBatchingConfigLoadNetworkTest, SetAllowAutoBatchingCorrectConfigLoadNetworkTestCheck,
-                             ::testing::Combine(
-                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                     ::testing::ValuesIn(allowAutoBatchingAutoConf)),
-                             CorrectConfigCheck::getTestCaseName);
-
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
+             ::testing::Combine(
+                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                     ::testing::ValuesIn(autoConfigs)),
+             CorrectConfigTests::getTestCaseName);
 } // namespace

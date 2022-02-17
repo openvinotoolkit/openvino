@@ -633,8 +633,13 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
         } else if (kvp.first == ov::hint::allow_auto_batching) {
             if (kvp.second == PluginConfigParams::NO) {
                 context.batchingDisabled = true;
-                continue;
+            } else if (kvp.second == PluginConfigParams::YES) {
+                context.batchingDisabled = false;
+            } else {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
             }
+            continue;
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
             PerfHintsConfig::CheckConfigAndValue(kvp);
         } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
