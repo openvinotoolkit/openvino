@@ -15,8 +15,8 @@ def get_attrs(node: Node):
     result_shapes = []
     for shape_pb in shapes:
         result_shapes.append(tf_tensor_shape(shape_pb))
-    assert len(result_shapes) == len(extracted_types), "Output shapes do not match output" \
-                                                       "types in the node {}".format(node.soft_get('name', node.id))
+    if len(result_shapes) < len(extracted_types):
+        result_shapes.extend([None for x in range(len(extracted_types) - len(result_shapes))])
     attrs = {"shapes": result_shapes, "types": extracted_types, 'out_ports_count': len(result_shapes)}
     return attrs
 

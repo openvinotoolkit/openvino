@@ -1100,8 +1100,6 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                     continue
 
                 if before_infer:
-                    if shape is None:
-                        continue
                     # We cut with shapes provided by user and there is no need to wait till infer
                     if is_out_port:
                         add_input_ops_helper_before_infer_output_port(graph, port, node_id, shape, user_shape,
