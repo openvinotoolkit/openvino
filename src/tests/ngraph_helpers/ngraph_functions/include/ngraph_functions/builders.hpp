@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -435,7 +435,9 @@ std::shared_ptr<Node> makeMaxPoolingV8(const ngraph::Output<Node> &in,
                                        const std::vector<size_t> &padsEnd,
                                        const std::vector<size_t> &kernel,
                                        const op::RoundingType &roundingType,
-                                       const op::PadType &padType);
+                                       const op::PadType &padType,
+                                       const ov::element::Type &indexElementType,
+                                       const int64_t axis);
 
 std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
                                      const Output<Node>& coords,

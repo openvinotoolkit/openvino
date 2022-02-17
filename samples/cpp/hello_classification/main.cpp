@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <iterator>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -27,7 +28,7 @@ int tmain(int argc, tchar* argv[]) {
 
         // -------- Parsing and validation of input arguments --------
         if (argc != 4) {
-            slog::info << "Usage : " << argc << " <path_to_model> <path_to_image> <device_name>" << slog::endl;
+            slog::info << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << slog::endl;
             return EXIT_FAILURE;
         }
 
@@ -37,15 +38,15 @@ int tmain(int argc, tchar* argv[]) {
         const std::string device_name = TSTRING2STRING(argv[3]);
 
         // -------- Step 1. Initialize OpenVINO Runtime Core --------
-        ov::runtime::Core core;
+        ov::Core core;
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files: " << model_path << slog::endl;
         std::shared_ptr<ov::Model> model = core.read_model(model_path);
         printInputAndOutputsInfo(*model);
 
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
+        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
 
         // -------- Step 3. Set up input
 
@@ -53,16 +54,17 @@ int tmain(int argc, tchar* argv[]) {
         // without resize and layout conversions
         FormatReader::ReaderPtr reader(image_path.c_str());
         if (reader.get() == nullptr) {
-            slog::warn << "Image " + image_path + " cannot be read!" << slog::endl;
-            throw std::logic_error("");
+            std::stringstream ss;
+            ss << "Image " + image_path + " cannot be read!";
+            throw std::logic_error(ss.str());
         }
 
         ov::element::Type input_type = ov::element::u8;
         ov::Shape input_shape = {1, reader->height(), reader->width(), 3};
         std::shared_ptr<unsigned char> input_data = reader->getData();
 
-        // just wrap image data by ov::runtime::Tensor without allocating of new memory
-        ov::runtime::Tensor input_tensor = ov::runtime::Tensor(input_type, input_shape, input_data.get());
+        // just wrap image data by ov::Tensor without allocating of new memory
+        ov::Tensor input_tensor = ov::Tensor(input_type, input_shape, input_data.get());
 
         const ov::Shape tensor_shape = input_tensor.get_shape();
         const ov::Layout tensor_layout{"NHWC"};
@@ -96,10 +98,10 @@ int tmain(int argc, tchar* argv[]) {
         model = ppp.build();
 
         // -------- Step 5. Loading a model to the device --------
-        ov::runtime::CompiledModel compiled_model = core.compile_model(model, device_name);
+        ov::CompiledModel compiled_model = core.compile_model(model, device_name);
 
         // -------- Step 6. Create an infer request --------
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
         // -----------------------------------------------------------------------------------------------------
 
         // -------- Step 7. Prepare input --------
@@ -109,7 +111,7 @@ int tmain(int argc, tchar* argv[]) {
         infer_request.infer();
 
         // -------- Step 9. Process output
-        const ov::runtime::Tensor& output_tensor = infer_request.get_output_tensor();
+        const ov::Tensor& output_tensor = infer_request.get_output_tensor();
 
         // Print classification results
         ClassificationResult classification_result(output_tensor, {image_path});

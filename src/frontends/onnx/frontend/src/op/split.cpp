@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/builder/split.hpp"
 
-#include <cstdint>
 #include <vector>
 
 #include "default_opset.hpp"
@@ -19,7 +18,7 @@ OutputVector split(const Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
     if (node.has_attribute("split")) {
-        const auto splits = node.get_attribute_value<std::vector<std::size_t>>("split");
+        const auto splits = node.get_attribute_value<std::vector<int64_t>>("split");
         return ngraph::builder::opset1::split(input, splits, axis);
     } else {
         const auto outputs_number = node.get_output_names().size();

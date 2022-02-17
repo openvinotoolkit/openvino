@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -32,6 +32,9 @@ function(get_lib_path OUTPUT_DIR FINAL_OUTPUT_DIR)
     set("${FINAL_OUTPUT_DIR}" "${OUTPUT_DIR}/${LIB_DIR}" PARENT_SCOPE)
 endfunction()
 
+if(WIN32)
+    set(CMAKE_DEBUG_POSTFIX "")
+endif()
 set(OPENCL_ICD_LOADER_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cl_headers/" CACHE PATH "Path to OCL includes" FORCE)
 
 set(OPENCL_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cl_headers/" "${CMAKE_CURRENT_SOURCE_DIR}/clhpp_headers/include/" CACHE PATH "Path to OCL (CL and CLHPP) includes" FORCE)

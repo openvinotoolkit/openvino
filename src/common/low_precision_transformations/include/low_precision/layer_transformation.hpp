@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <limits>
 #include <list>
 #include <memory>
@@ -38,15 +39,34 @@
 namespace ngraph {
 namespace pass {
 namespace low_precision {
-
+namespace precision_set {
+    const std::vector<element::Type> int8_support  = {
+            ngraph::element::u8,  ngraph::element::i8
+    };
+    const std::vector<element::Type> int8_int16_int32_support = {
+            ngraph::element::u8,  ngraph::element::i8,
+            ngraph::element::u16, ngraph::element::i16,
+            ngraph::element::u32, ngraph::element::i32
+    };
+}
+enum levels : size_t {
+    int4 = 16,
+    int4_narrow_range = 15,
+    int8 = 256,
+    int8_narrow_range = 255,
+    int16 = 65536,
+    int16_narrow_range = 65535,
+    int32 = size_t(4294967296),  // for ARM and ia32 platforms where this number bigger than size_t but never used
+    int32_narrow_range = 4294967295
+};
 class LP_TRANSFORMATIONS_API DataPrecision {
 public:
     DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
 
     explicit DataPrecision(const element::Type& precision) {
         this->precision = precision;
-        min = getMinValue(precision, 256);
-        max = getMaxValue(precision, 256);
+        min = getMinValue(precision, levels::int8);
+        max = getMaxValue(precision, levels::int8);
         hasZeroPoint = false;
     }
 
@@ -57,6 +77,9 @@ public:
             hasZeroPoint(hasZeroPoint) {}
 
     bool empty() const noexcept {
+        assert(
+            ((precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
+            ((precision != element::undefined) && (max != 0.f)));
         return (precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
     }
 
@@ -66,7 +89,7 @@ public:
                 element::i16, element::u16,
                 element::i32, element::u32
         };
-        return lowPrecision.count(precision) == 1;
+        return lowPrecision.find(precision) != lowPrecision.end();
     }
 
     static float getMinValue(const element::Type precision, const size_t levels) {
@@ -80,17 +103,32 @@ public:
                 return -8.f;
             case element::i8:
                 switch (levels) {
-                    case 16:
+                    case low_precision::levels::int4:
                         return -8.f;
-                    case 255:
-                        return -127.f;
-                    default:
+                    case low_precision::levels::int4_narrow_range:
+                        return -7.f;
+                    case low_precision::levels::int8:
                         return -128.f;
+                    case low_precision::levels::int8_narrow_range:
+                        return -127.f;
                 }
+                break;
             case element::i16:
-                return levels == 65535 ? -32767.f : -32768.f;
+                switch (levels) {
+                    case low_precision::levels::int16:
+                        return -32768.f;
+                    case low_precision::levels::int16_narrow_range:
+                        return -32767.f;
+                }
+                break;
             case element::i32:
-                return -2147483647.f; // -2147483647.f == -2147483648.f
+                switch (levels) {
+                    case low_precision::levels::int32:
+                        return -2147483648.f;
+                    case low_precision::levels::int32_narrow_range:
+                        return -2147483647.f;
+                }
+                break;
             case element::f16:
                 return -1.0e15f;
             case element::f32:
@@ -140,14 +178,14 @@ public:
 
     // Return maximum value for quantization level. Quantization level is maximum value for precision.
     static float getMaxValue(const size_t maxLevelsForPrecision) {
-        if (maxLevelsForPrecision == 255ul) {
-            return 254.f;
-        } else if (maxLevelsForPrecision == 256ul) {
-            return 255.f;
-        } else if (maxLevelsForPrecision == 16ul) {
-            return 15.f;
-        } else if (maxLevelsForPrecision == 15ul) {
-            return 14.f;
+        std::set<size_t> validLevels = {
+            levels::int4,  levels::int4_narrow_range,
+            levels::int8,  levels::int8_narrow_range,
+            levels::int16, levels::int16_narrow_range,
+            levels::int32, levels::int32_narrow_range
+        };
+        if (validLevels.find(maxLevelsForPrecision) != validLevels.end()) {
+            return maxLevelsForPrecision - 1.f;
         } else {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected quantization level " << maxLevelsForPrecision;
         }
@@ -192,19 +230,24 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
     return os;
 }
 
-// Base class for all LP transformations, holds some common data structures
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Base class for low precision transformation.
+ */
 class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
-    static std::vector<ngraph::element::Type> defaultPrecisions;
-    static std::mutex defaultPrecisionsMutex;
-
 public:
     class Params {
     public:
         Params(
             const bool updatePrecisions = true,
-            element::Type deqPrecision = element::f32) :
+            element::Type deqPrecision = element::f32,
+            const std::vector<ngraph::element::Type> defaultPrecisions =
+            { ngraph::element::u8,  ngraph::element::i8 },
+            const bool reshapeIgnorePerTensorQuantizationCheck = false) :
             updatePrecisions(updatePrecisions),
-            deqPrecision(deqPrecision) {}
+            deqPrecision(deqPrecision),
+            defaultPrecisions(defaultPrecisions),
+            reshapeIgnorePerTensorQuantizationCheck(reshapeIgnorePerTensorQuantizationCheck) {}
 
         Params& setUpdatePrecisions(const bool updatePrecisions) {
             this->updatePrecisions = updatePrecisions;
@@ -216,8 +259,16 @@ public:
             return *this;
         }
 
+        Params& setDefaultPrecisions(const std::vector<ngraph::element::Type>& defaultPrecisions) {
+            this->defaultPrecisions = defaultPrecisions;
+            return *this;
+        }
+
         bool updatePrecisions;
         element::Type deqPrecision;
+        std::vector<ngraph::element::Type> defaultPrecisions;
+        // to support GPU workarround to keep Reshape and MatMul in FP32
+        bool reshapeIgnorePerTensorQuantizationCheck;
     };
 
     class PrecisionDetails {
@@ -240,8 +291,11 @@ public:
 
     void setUpdatePrecisions(const bool updatePrecisions);
 
+    void setDefaultPrecisions(const std::vector<ngraph::element::Type>& defaultPrecisions);
+
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
-    static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer);
+    static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
@@ -254,12 +308,14 @@ public:
         const std::vector<float>& outputHighValues);
     static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
 
-    static bool isAsymmetricQuantization(const std::shared_ptr<const Node>& node);
+    static bool isAsymmetricQuantization(const std::shared_ptr<const Node>& node,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
     // note: dequantization operations on activations are absent during method execution
-    virtual bool isQuantized(const std::shared_ptr<const Node>& layer) const;
+    virtual bool isQuantized(const std::shared_ptr<const Node>& layer,
+        const std::vector<ngraph::element::Type>& defaultPrecisions) const;
 
     // return true if operation can be preserved for precision
     // note: dequantization operations on activations are absent during method execution
@@ -269,10 +325,7 @@ public:
     static DataPrecision getDataPrecision(
             const std::shared_ptr<Node>& layer,
             const QuantizationDetails& quantizationDetails,
-            const std::vector<element::Type>& precisions);
-
-    static void setDefaultPrecisions(const std::vector<ngraph::element::Type>& precisions);
-    static std::vector<ngraph::element::Type> getDefaultPrecisions();
+            const std::vector<element::Type>& requiredPrecisions);
 
 protected:
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -285,6 +338,8 @@ protected:
 
     bool updatePrecisions;
     element::Type deqPrecision;
+    std::vector<ngraph::element::Type> defaultPrecisions;
+    bool reshapeIgnorePerTensorQuantizationCheck;
 
     static constexpr char originalLayerPostfix[] = "_original";
     TransformationContext* context;
@@ -292,6 +347,13 @@ protected:
 protected:
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(
         TransformationContext &context,
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool updatePrecision,
+        const bool moveSubtract = true) const;
+
+    std::shared_ptr<ngraph::Node> moveDequantizationBefore(
+        TransformationContext& context,
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,

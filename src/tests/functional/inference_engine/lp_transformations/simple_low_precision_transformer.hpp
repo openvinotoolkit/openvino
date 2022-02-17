@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,16 @@ class SimpleLowPrecisionTransformer : public ngraph::pass::FunctionPass{
 public:
     SimpleLowPrecisionTransformer(
         const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions = {},
-        const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {});
+        const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {},
+        const AttributeParameters& params = AttributeParameters());
 
     template <class T, class Operation>
     void add(const TestTransformationParams& params) {
         commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
+    }
+    template <class T, class Operation>
+    void add(const std::shared_ptr<ngraph::Function> function, const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(function, TestTransformationParams::toParams(params));
     }
 
     void transform(std::shared_ptr<ngraph::Function>& function);

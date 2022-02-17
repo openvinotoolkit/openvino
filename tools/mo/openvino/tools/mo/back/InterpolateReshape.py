@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,6 +9,7 @@ from openvino.tools.mo.ops.interpolate import Interpolate
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.shape import Shape
@@ -71,7 +72,7 @@ class InterpolateConcat(BackReplacementPattern):
         shape = Shape(graph, {'name': src.node.soft_get('name', src.node.id) + '/Shape'}).create_node()
         shape.in_port(0).connect(src)
         gather = create_op_with_const_inputs(graph, Gather,
-                                             {1: np.array(interp_axes, dtype=np.int32), 2: int64_array(0)},
+                                             {1: mo_array(interp_axes, dtype=np.int32), 2: int64_array(0)},
                                              {'name': shape.name + '/Gathered'}, shape)
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
@@ -129,7 +130,7 @@ class InterpolateReshapeWA(BackReplacementPattern):
         name = interpolate.soft_get('name', interpolate.id)
         shape = Shape(graph, {'name': name + '/ShapeOf'}).create_node()
         shape.in_port(0).connect(interpolate.in_port(0).get_source())
-        gather = create_op_with_const_inputs(graph, Gather, {1: np.array(axes, dtype=np.int32), 2: int64_array(0)},
+        gather = create_op_with_const_inputs(graph, Gather, {1: mo_array(axes, dtype=np.int32), 2: int64_array(0)},
                                              {'name': shape.name + '/Gathered'}, shape)
         multipliers = output_shape[axes] / input_shape[axes]
         mul = create_op_node_with_second_input(graph, Mul, multipliers, {'name': gather.name + '/Multiplied'}, gather)

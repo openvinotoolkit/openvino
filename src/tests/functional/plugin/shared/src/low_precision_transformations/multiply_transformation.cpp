@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,7 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
             param.fakeQuantize2.outputLowValues[0] << "_" <<
             param.fakeQuantize2.outputHighValues[0];
     }
+    result << "_" << param.secondInputIsConstant;
     return result.str();
 }
 
@@ -62,7 +63,8 @@ void MultiplyTransformation::SetUp() {
         param.fakeQuantize1,
         param.broadcast2,
         param.fakeQuantize2,
-        param.fakeQuantizeAfter);
+        param.fakeQuantizeAfter,
+        param.secondInputIsConstant);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 }

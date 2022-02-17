@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,7 +87,11 @@ template <typename T>
 void infer_using_scales(T& output_shape, const std::vector<int64_t>& axes, const std::vector<float>& scales) {
     size_t i = 0;
     static constexpr float epsilon = 1.0e-6f;
-    for (auto axis : axes) {
+    for (const auto& axis : axes) {
+        if (scales[i] == 1.) {
+            ++i;
+            continue;
+        }
         const auto& current_dim = output_shape[axis];
         float multiplier = scales[i] + epsilon;
         if (current_dim.is_static()) {
@@ -109,6 +113,7 @@ void shape_infer(const Interpolate* op,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4) && output_shapes.size() == 1);
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
 
     const auto& input_shape = input_shapes[0];
     auto& output_shape = output_shapes[0];
@@ -136,10 +141,8 @@ void shape_infer(const Interpolate* op,
                               "Axis value should less than input rank.");
 
         // Get padded input shape
-        for (int64_t i = 0; i < input_rank; ++i) {
-            if (input_shape[i].is_static()) {
-                output_shape[i] = pads_begin[i] + pads_end[i] + input_shape[i].get_length();
-            }
+        for (size_t i = 0; i < input_rank; ++i) {
+            output_shape[i] = DimType(pads_begin[i]) + DimType(pads_end[i]) + input_shape[i];
         }
 
         if (op->m_attrs.shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES) {
@@ -147,7 +150,7 @@ void shape_infer(const Interpolate* op,
             if (get_data_as_float<T>(2, op, scales, constant_data)) {
                 infer_using_scales(output_shape, axes, scales);
             } else {
-                for (auto axis : axes) {
+                for (const auto& axis : axes) {
                     output_shape[axis] = ov::Dimension::dynamic();
                 }
             }
@@ -155,11 +158,11 @@ void shape_infer(const Interpolate* op,
             T target_spatial_shape;
             if (get_data_as_shape<T>(1, op, target_spatial_shape, constant_data)) {
                 size_t i = 0;
-                for (auto axis : axes) {
+                for (const auto& axis : axes) {
                     output_shape[axis] = target_spatial_shape[i++];
                 }
             } else {
-                for (auto axis : axes) {
+                for (const auto& axis : axes) {
                     output_shape[axis] = ov::Dimension::dynamic();
                 }
             }

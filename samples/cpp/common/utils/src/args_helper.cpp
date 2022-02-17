@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,6 @@ void parseInputFilesArguments(std::vector<std::string>& files) {
     }
 }
 
-namespace {
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
     if (str.empty())
         return {};
@@ -157,69 +156,47 @@ InferenceEngine::Precision getPrecision(std::string value, const supported_preci
 
 InferenceEngine::Precision getPrecision(const std::string& value) {
     static const supported_precisions_t supported_precisions = {
-        {"FP32", InferenceEngine::Precision::FP32},
-        {"FP16", InferenceEngine::Precision::FP16},
-        {"BF16", InferenceEngine::Precision::BF16},
-        {"U64", InferenceEngine::Precision::U64},
-        {"I64", InferenceEngine::Precision::I64},
-        {"U32", InferenceEngine::Precision::U32},
-        {"I32", InferenceEngine::Precision::I32},
-        {"U16", InferenceEngine::Precision::U16},
-        {"I16", InferenceEngine::Precision::I16},
-        {"U8", InferenceEngine::Precision::U8},
-        {"I8", InferenceEngine::Precision::I8},
-        {"BOOL", InferenceEngine::Precision::BOOL},
+        {"FP32", InferenceEngine::Precision::FP32}, {"f32", InferenceEngine::Precision::FP32},
+        {"FP16", InferenceEngine::Precision::FP16}, {"f16", InferenceEngine::Precision::FP16},
+        {"BF16", InferenceEngine::Precision::BF16}, {"bf16", InferenceEngine::Precision::BF16},
+        {"U64", InferenceEngine::Precision::U64},   {"u64", InferenceEngine::Precision::U64},
+        {"I64", InferenceEngine::Precision::I64},   {"i64", InferenceEngine::Precision::I64},
+        {"U32", InferenceEngine::Precision::U32},   {"u32", InferenceEngine::Precision::U32},
+        {"I32", InferenceEngine::Precision::I32},   {"i32", InferenceEngine::Precision::I32},
+        {"U16", InferenceEngine::Precision::U16},   {"u16", InferenceEngine::Precision::U16},
+        {"I16", InferenceEngine::Precision::I16},   {"i16", InferenceEngine::Precision::I16},
+        {"U8", InferenceEngine::Precision::U8},     {"u8", InferenceEngine::Precision::U8},
+        {"I8", InferenceEngine::Precision::I8},     {"i8", InferenceEngine::Precision::I8},
+        {"BOOL", InferenceEngine::Precision::BOOL}, {"boolean", InferenceEngine::Precision::BOOL},
     };
 
     return getPrecision(value, supported_precisions);
 }
 
-void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string& iop) {
-    const auto user_precisions_map = parseArgMap(iop);
+using supported_type_t = std::unordered_map<std::string, ov::element::Type>;
+ov::element::Type getType(std::string value, const supported_type_t& supported_precisions) {
+    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
 
-    auto inputs = network.getInputsInfo();
-    auto outputs = network.getOutputsInfo();
-
-    for (auto&& item : user_precisions_map) {
-        const auto& layer_name = item.first;
-        const auto& user_precision = item.second;
-
-        const auto input = inputs.find(layer_name);
-        const auto output = outputs.find(layer_name);
-
-        if (input != inputs.end()) {
-            input->second->setPrecision(getPrecision(user_precision));
-        } else if (output != outputs.end()) {
-            output->second->setPrecision(getPrecision(user_precision));
-        } else {
-            throw std::logic_error(layer_name + " is not an input neither output");
-        }
+    const auto precision = supported_precisions.find(value);
+    if (precision == supported_precisions.end()) {
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
     }
+
+    return precision->second;
 }
+ov::element::Type getType(const std::string& value) {
+    static const supported_type_t supported_types = {
+        {"FP32", ov::element::f32}, {"f32", ov::element::f32},      {"FP16", ov::element::f16},
+        {"f16", ov::element::f16},  {"BF16", ov::element::bf16},    {"bf16", ov::element::bf16},
+        {"U64", ov::element::u64},  {"u64", ov::element::u64},      {"I64", ov::element::i64},
+        {"i64", ov::element::i64},  {"U32", ov::element::u32},      {"u32", ov::element::u32},
+        {"I32", ov::element::i32},  {"i32", ov::element::i32},      {"U16", ov::element::u16},
+        {"u16", ov::element::u16},  {"I16", ov::element::i16},      {"i16", ov::element::i16},
+        {"U8", ov::element::u8},    {"u8", ov::element::u8},        {"I8", ov::element::i8},
+        {"i8", ov::element::i8},    {"BOOL", ov::element::boolean}, {"boolean", ov::element::boolean},
+    };
 
-}  // namespace
-
-void processPrecision(InferenceEngine::CNNNetwork& network,
-                      const std::string& ip,
-                      const std::string& op,
-                      const std::string& iop) {
-    if (!ip.empty()) {
-        const auto user_precision = getPrecision(ip);
-        for (auto&& layer : network.getInputsInfo()) {
-            layer.second->setPrecision(user_precision);
-        }
-    }
-
-    if (!op.empty()) {
-        auto user_precision = getPrecision(op);
-        for (auto&& layer : network.getOutputsInfo()) {
-            layer.second->setPrecision(user_precision);
-        }
-    }
-
-    if (!iop.empty()) {
-        setPrecisions(network, iop);
-    }
+    return getType(value, supported_types);
 }
 
 namespace {
@@ -269,76 +246,33 @@ bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
     return dimension == dims->second;
 }
 
-void setLayouts(const InferenceEngine::CNNNetwork& network, const std::string iol) {
-    const auto user_layouts_map = parseArgMap(iol);
-
-    auto inputs = network.getInputsInfo();
-    auto outputs = network.getOutputsInfo();
-
-    for (auto&& item : user_layouts_map) {
-        const auto& layer_name = item.first;
-        const auto& user_layout = getLayout(item.second);
-
-        const auto input = inputs.find(layer_name);
-        const auto output = outputs.find(layer_name);
-
-        if (input != inputs.end()) {
-            if (!isMatchLayoutToDims(user_layout, input->second->getTensorDesc().getDims().size())) {
-                throw std::logic_error(item.second + " layout is not applicable to " + layer_name);
-            }
-
-            input->second->setLayout(user_layout);
-        } else if (output != outputs.end()) {
-            if (!isMatchLayoutToDims(user_layout, output->second->getTensorDesc().getDims().size())) {
-                throw std::logic_error(item.second + " layout is not applicable to " + layer_name);
-            }
-
-            output->second->setLayout(user_layout);
-        } else {
-            throw std::logic_error(layer_name + " is not an input neither output");
-        }
-    }
-}
-
 }  // namespace
 
-void processLayout(InferenceEngine::CNNNetwork& network,
-                   const std::string& il,
-                   const std::string& ol,
-                   const std::string& iol) {
-    if (!il.empty()) {
-        const auto layout = getLayout(il);
-        for (auto&& layer : network.getInputsInfo()) {
-            if (isMatchLayoutToDims(layout, layer.second->getTensorDesc().getDims().size())) {
-                layer.second->setLayout(layout);
-            }
-        }
-    }
-
-    if (!ol.empty()) {
-        const auto layout = getLayout(ol);
-        for (auto&& layer : network.getOutputsInfo()) {
-            if (isMatchLayoutToDims(layout, layer.second->getTensorDesc().getDims().size())) {
-                layer.second->setLayout(layout);
-            }
-        }
-    }
-
-    if (!iol.empty()) {
-        setLayouts(network, iol);
-    }
-}
-
-void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network) {
+void printInputAndOutputsInfoShort(const ov::Model& network) {
     std::cout << "Network inputs:" << std::endl;
-    for (auto&& layer : network.getInputsInfo()) {
-        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / "
-                  << layer.second->getLayout() << std::endl;
+    for (auto&& input : network.inputs()) {
+        std::cout << "    " << input.get_any_name() << " (node: " << input.get_node()->get_friendly_name()
+                  << ") : " << input.get_element_type() << " / " << ov::layout::get_layout(input).to_string()
+                  << std::endl;
     }
+
     std::cout << "Network outputs:" << std::endl;
-    for (auto&& layer : network.getOutputsInfo()) {
-        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / "
-                  << layer.second->getLayout() << std::endl;
+    for (auto&& output : network.outputs()) {
+        std::string out_name = "***NO_NAME***";
+        std::string node_name = "***NO_NAME***";
+
+        // Workaround for "tensor has no name" issue
+        try {
+            out_name = output.get_any_name();
+        } catch (const ov::Exception&) {
+        }
+        try {
+            node_name = output.get_node()->get_input_node_ptr(0)->get_friendly_name();
+        } catch (const ov::Exception&) {
+        }
+
+        std::cout << "    " << out_name << " (node: " << node_name << ") : " << output.get_element_type() << " / "
+                  << ov::layout::get_layout(output).to_string() << std::endl;
     }
 }
 
@@ -372,4 +306,167 @@ void printInputAndOutputsInfo(const ov::Model& network) {
         const ov::Shape shape = output.get_shape();
         slog::info << "        output shape: " << shape << slog::endl;
     }
+}
+
+void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
+                                const std::string& ip,
+                                const std::string& op,
+                                const std::string& iop,
+                                const std::string& il,
+                                const std::string& ol,
+                                const std::string& iol,
+                                const std::string& iml,
+                                const std::string& oml,
+                                const std::string& ioml) {
+    auto preprocessor = ov::preprocess::PrePostProcessor(model);
+    const auto inputs = model->inputs();
+    const auto outputs = model->outputs();
+    if (!ip.empty()) {
+        auto type = getType(ip);
+        for (size_t i = 0; i < inputs.size(); i++) {
+            preprocessor.input(i).tensor().set_element_type(type);
+        }
+    }
+
+    if (!op.empty()) {
+        auto type = getType(op);
+        for (size_t i = 0; i < outputs.size(); i++) {
+            preprocessor.output(i).tensor().set_element_type(type);
+        }
+    }
+
+    if (!iop.empty()) {
+        const auto user_precisions_map = parseArgMap(iop);
+        for (auto&& item : user_precisions_map) {
+            const auto& tensor_name = item.first;
+            const auto type = getType(item.second);
+
+            bool tensorFound = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (inputs[i].get_names().count(tensor_name)) {
+                    preprocessor.input(i).tensor().set_element_type(type);
+                    tensorFound = true;
+                    break;
+                }
+            }
+            if (!tensorFound) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    if (outputs[i].get_names().count(tensor_name)) {
+                        preprocessor.output(i).tensor().set_element_type(type);
+                        tensorFound = true;
+                        break;
+                    }
+                }
+            }
+            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
+        }
+    }
+    if (!il.empty()) {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            preprocessor.input(i).tensor().set_layout(ov::Layout(il));
+        }
+    }
+
+    if (!ol.empty()) {
+        for (size_t i = 0; i < outputs.size(); i++) {
+            preprocessor.output(i).tensor().set_layout(ov::Layout(ol));
+        }
+    }
+
+    if (!iol.empty()) {
+        const auto user_precisions_map = parseArgMap(iol);
+        for (auto&& item : user_precisions_map) {
+            const auto& tensor_name = item.first;
+
+            bool tensorFound = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (inputs[i].get_names().count(tensor_name)) {
+                    preprocessor.input(i).tensor().set_layout(ov::Layout(item.second));
+                    tensorFound = true;
+                    break;
+                }
+            }
+            if (!tensorFound) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    if (outputs[i].get_names().count(tensor_name)) {
+                        preprocessor.output(i).tensor().set_layout(ov::Layout(item.second));
+                        tensorFound = true;
+                        break;
+                    }
+                }
+            }
+            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
+        }
+    }
+
+    if (!iml.empty()) {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            preprocessor.input(i).model().set_layout(ov::Layout(iml));
+        }
+    }
+
+    if (!oml.empty()) {
+        for (size_t i = 0; i < outputs.size(); i++) {
+            preprocessor.output(i).model().set_layout(ov::Layout(oml));
+        }
+    }
+
+    if (!ioml.empty()) {
+        const auto user_precisions_map = parseArgMap(ioml);
+        for (auto&& item : user_precisions_map) {
+            const auto& tensor_name = item.first;
+
+            bool tensorFound = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (inputs[i].get_names().count(tensor_name)) {
+                    preprocessor.input(i).model().set_layout(ov::Layout(item.second));
+                    tensorFound = true;
+                    break;
+                }
+            }
+            if (!tensorFound) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    if (outputs[i].get_names().count(tensor_name)) {
+                        preprocessor.output(i).model().set_layout(ov::Layout(item.second));
+                        tensorFound = true;
+                        break;
+                    }
+                }
+            }
+            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
+        }
+    }
+
+    model = preprocessor.build();
+}
+
+ov::element::Type getPrecision(std::string value,
+                               const std::unordered_map<std::string, ov::element::Type>& supported_precisions) {
+    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
+    const auto precision = supported_precisions.find(value);
+    if (precision == supported_precisions.end()) {
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
+    }
+
+    return precision->second;
+}
+
+ov::element::Type getPrecision2(const std::string& value) {
+    static const std::unordered_map<std::string, ov::element::Type> supported_precisions = {
+        {"FP32", ov::element::f32},
+        {"FP16", ov::element::f16},
+        {"BF16", ov::element::bf16},
+        {"U64", ov::element::u64},
+        {"I64", ov::element::i64},
+        {"U32", ov::element::u32},
+        {"I32", ov::element::i32},
+        {"U16", ov::element::u16},
+        {"I16", ov::element::i16},
+        {"U8", ov::element::u8},
+        {"I8", ov::element::i8},
+        {"BOOL", ov::element::boolean},
+    };
+
+    return getPrecision(value, supported_precisions);
 }

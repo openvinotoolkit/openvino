@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,9 +42,12 @@ std::shared_ptr<Node> makeMaxPoolingV8(const ngraph::Output<Node> &in,
                                        const std::vector<size_t> &padsEnd,
                                        const std::vector<size_t> &kernel,
                                        const op::RoundingType &roundingType,
-                                       const op::PadType &padType) {
+                                       const op::PadType &padType,
+                                       const ov::element::Type &indexElementType,
+                                       const int64_t axis) {
     std::shared_ptr<ngraph::Node> pooling = std::make_shared<ngraph::opset8::MaxPool>(in, strides, dilation, padsBegin, padsEnd,
-                                                                                      kernel, roundingType, padType);
+                                                                                      kernel, roundingType, padType,
+                                                                                      indexElementType, axis);
     return pooling;
 }
 

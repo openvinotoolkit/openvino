@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
@@ -10,6 +10,7 @@ from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import mark_inpu
 from openvino.tools.mo.ops.activation_ops import Sigmoid
 from openvino.tools.mo.ops.elementwise import Add, Less, Mul
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.const import Const
@@ -74,14 +75,14 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
 
     if coordinates_size == 5:
         # zero indexed element is not box coordinate ("batch id" in case of Proposal)
-        conv_filter_data = np.array(np.array([[[[1, 0, 0, 0, 0],
+        conv_filter_data = mo_array(mo_array([[[[1, 0, 0, 0, 0],
                                                 [0, 0, 1, 0, 0],
                                                 [0, 1, 0, 0, 0],
                                                 [0, 0, 0, 0, 1],
                                                 [0, 0, 0, 1, 0]]]],
                                              dtype=np.float32))
     else:
-        conv_filter_data = np.array(np.array([[[[0, 1, 0, 0],
+        conv_filter_data = mo_array(mo_array([[[[0, 1, 0, 0],
                                                 [1, 0, 0, 0],
                                                 [0, 0, 0, 1],
                                                 [0, 0, 1, 0]]]],
@@ -94,8 +95,8 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
 
     conv_op = Convolution(graph, {
         'bias_addable': True,
-        'channel_dims': np.array([3]),
-        'batch_dims': np.array([0]),
+        'channel_dims': mo_array([3]),
+        'batch_dims': mo_array([0]),
         'input_feature_channel': 0,
         'output_feature_channel': 1,
         'group': 1,
@@ -116,7 +117,7 @@ def add_fake_background_loc(graph: Graph, input_node: Node):
     :param input_node: node producing the boxes coordinates.
     :return convolution node that adds slice of data for the "background" class.
     """
-    crop_op = Crop(graph, dict(axis=np.array([1]), offset=np.array([0]), dim=np.array([1]), nchw_layout=True))
+    crop_op = Crop(graph, dict(axis=mo_array([1]), offset=mo_array([0]), dim=mo_array([1]), nchw_layout=True))
     crop_node = crop_op.create_node([input_node], dict(name='crop_locs'))
 
     concat_op = Concat(graph, dict(axis=1, in_ports_count=2, nchw_layout=True))
@@ -164,7 +165,7 @@ def add_constant_to_negative_values(node: Node, port_idx: int, added_value: np.a
     graph = node.graph
 
     less_node = create_op_with_const_inputs(graph, Less,
-                                            {1: np.array(0, dtype=added_value.dtype)},
+                                            {1: mo_array(0, dtype=added_value.dtype)},
                                             {'name': negative_values_node_name + '/Less'})
     mul_node = create_op_with_const_inputs(graph, Mul, {1: added_value}, {'name': negative_values_node_name + '/Mul'})
 

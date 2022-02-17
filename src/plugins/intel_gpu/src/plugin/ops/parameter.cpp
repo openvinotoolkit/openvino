@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -178,13 +178,26 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         break;
     }
 
-    bool is_convert_color_input = false;
-    for (auto& node : op->get_users()) {
-        is_convert_color_input |= ngraph::is_type<ngraph::op::v8::NV12toRGB>(node) ||
-                                  ngraph::is_type<ngraph::op::v8::NV12toBGR>(node) ||
-                                  ngraph::is_type<ngraph::op::v8::I420toRGB>(node) ||
-                                  ngraph::is_type<ngraph::op::v8::I420toBGR>(node);
-    }
+    auto is_convert_color_type = [](const std::shared_ptr<ov::Node> &node) {
+        return ngraph::is_type<ngraph::op::v8::NV12toRGB>(node) ||
+               ngraph::is_type<ngraph::op::v8::NV12toBGR>(node) ||
+               ngraph::is_type<ngraph::op::v8::I420toRGB>(node) ||
+               ngraph::is_type<ngraph::op::v8::I420toBGR>(node);
+    };
+
+    std::function<bool(const std::shared_ptr<ov::Node>&, size_t)> recursive_search_convert_color =
+        [&](const std::shared_ptr<ov::Node> &node, size_t curr_depth) -> bool {
+        bool convert_color_found = is_convert_color_type(node);
+        if (curr_depth != 0) {
+            for (auto& user : node->get_users()) {
+                convert_color_found |= recursive_search_convert_color(user, curr_depth - 1);
+            }
+        }
+        return convert_color_found;
+    };
+
+    size_t search_depth = 3;
+    bool is_convert_color_input = recursive_search_convert_color(op, search_depth);
 
     if (is_convert_color_input) {
         networkInputLayout.format = cldnn::format::byxf;
@@ -196,12 +209,26 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 networkInputLayout.format = cldnn::format::nv12;
             }
         }
-        networkInputLayout.size = { TensorValue(inputDims[0]), TensorValue(inputDims[3]),
-                                    TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
 
-        p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
-        p.AddPrimitive(cldnn::input_layout(inputName, networkInputLayout, inputInfo->name()));
-        p.AddPrimitiveToProfiler(op);
+        if (networkInputLayout.format == cldnn::format::nv12 && networkInputLayout.size.batch[0] > 1) {
+            networkInputLayout.size = { 1, TensorValue(inputDims[3]), TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
+
+            std::vector<cldnn::primitive_id> inputs;
+            for (size_t i = 0; i < inputDims[0]; ++i) {
+                std::string batched_name = inputName + "_" + std::to_string(i);
+                p.inputLayouts.insert({ inputInfo->name() + "_" + std::to_string(i), networkInputLayout });
+                inputs.emplace_back(batched_name);
+                p.AddPrimitive(cldnn::input_layout(batched_name, networkInputLayout, inputInfo->name()));
+                p.AddPrimitiveToProfiler(op);
+            }
+        } else {
+            networkInputLayout.size = { TensorValue(inputDims[0]), TensorValue(inputDims[3]),
+                                        TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
+
+            p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
+            p.AddPrimitive(cldnn::input_layout(inputName, networkInputLayout, inputInfo->name()));
+            p.AddPrimitiveToProfiler(op);
+        }
     } else {
         if (ColorFormat::NV12 == preProcess.getColorFormat() && p.GetConfig().nv12_two_inputs) {
             // for NV12, create two input layouts with reorder instead of one,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 using namespace std;
 using namespace ngraph;
+#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
 
 namespace {
 constexpr size_t data_input_idx = 0;
@@ -275,10 +276,8 @@ TEST(type_prop, batch_to_space_incompatible_block_shape_input_values_with_data_s
     try {
         auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
         FAIL() << "Incompatible data shape and block_shape input values not detected";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            "The input data's 'batch' axis size: 80 must be a multiple of product of block_shape values: 50");
+    } catch (const ov::Exception& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "[ 80, 80] must be a multiple of divisor: 50");
     } catch (...) {
         FAIL() << "Data shape and block_shape input values check failed for unexpected reason";
     }
@@ -338,6 +337,37 @@ TEST(type_prop, batch_to_space_output_shape_5D) {
 
     ASSERT_EQ(batch_to_space->get_element_type(), element::f32);
     ASSERT_EQ(batch_to_space->get_shape(), (Shape{960 / (6 * 5 * 16), 6 * 6 - 2 - 2, 13 * 5 - 1, 128, 16 * 16}));
+}
+
+TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_static) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{960, {2, 20}, {12, 14}, {100, 150}, {10, 20}});
+    auto block_shape = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{1, 6, 5, 1, 16});
+    auto crops_begin = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{0, 2, 0, 0, 0});
+    auto crops_end = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{0, 2, 1, 0, 0});
+    auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+
+    ASSERT_EQ(batch_to_space->get_output_partial_shape(0),
+              (PartialShape{960 / (6 * 5 * 16),
+                            {2 * 6 - 2 - 2, 20 * 6 - 2 - 2},
+                            {12 * 5 - 1, 14 * 5 - 1},
+                            {100, 150},
+                            {10 * 16, 20 * 16}}));
+}
+
+TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_dynamic) {
+    auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{{959, 962}, {2, 34}, {9, 21}, {100, 162}, {1, 1999}});
+    auto block_shape = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{1, 6, 5, 1, 16});
+    auto crops_begin = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{0, 2, 0, 0, 0});
+    auto crops_end = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{0, 2, 1, 0, 0});
+    auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+
+    ASSERT_EQ(batch_to_space->get_output_partial_shape(0),
+              (PartialShape{{DIV_ROUND_UP(959, (6 * 5 * 16)), 962 / (6 * 5 * 16)},
+                            {2 * 6 - 2 - 2, 34 * 6 - 2 - 2},
+                            {9 * 5 - 1, 21 * 5 - 1},
+                            {100, 162},
+                            {1 * 16, 1999 * 16}}));
 }
 
 TEST(type_prop, batch_to_space_and_space_to_batch) {

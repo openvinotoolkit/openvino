@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,10 @@ public:
         return node->outputs();
     }
 
+    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+        return {};
+    }
+
 private:
     InferenceEngine::IExtensionPtr m_ext;
     std::string m_opset_name;
@@ -83,7 +87,7 @@ class Reader : public IReader {
 #    ifdef OPENVINO_STATIC_LIBRARY
     using ReaderPtr = std::shared_ptr<IReader>;
 #    else
-    using ReaderPtr = ov::runtime::SoPtr<IReader>;
+    using ReaderPtr = ov::SoPtr<IReader>;
 #    endif
     ReaderPtr ptr;
     std::once_flag readFlag;
@@ -302,11 +306,33 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         const int64_t ir_version = it->second.as<int64_t>();
 
         if (ir_version == 10 && newAPI) {
+            std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor>> leaf_names;
             const auto inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
                 const auto ngraph_type = inputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, true);
                 prepost.input(i).tensor().set_element_type(legacy_type);
+                for (const auto& name : inputs[i].get_names()) {
+                    OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
+                                    "Model tensor names have collisions.",
+                                    " Please use MO to generate new IR version, it should allow to avoid the issue");
+                    leaf_names.emplace(name, inputs[i].get_tensor_ptr());
+                }
+            }
+
+            const auto outputs = function->outputs();
+            for (size_t i = 0; i < outputs.size(); ++i) {
+                const auto ngraph_type = outputs[i].get_element_type();
+                const auto legacy_type = details::toLegacyType(ngraph_type, false);
+
+                prepost.output(i).tensor().set_element_type(legacy_type);
+                for (const auto& name : outputs[i].get_names()) {
+                    auto tensor_it = leaf_names.find(name);
+                    OPENVINO_ASSERT(tensor_it == leaf_names.end() || tensor_it->second == outputs[i].get_tensor_ptr(),
+                                    "Model tensor names have collisions.",
+                                    " Please use MO to generate new IR version, it should allow to avoid the issue");
+                    leaf_names.emplace(name, outputs[i].get_tensor_ptr());
+                }
             }
 
             // in order to support the following scenarios for IR v10 cases:
@@ -317,27 +343,26 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // f.reshape({ { "input_operation_name", ov::PartialShape{} } });
             // we need to add operation names as tensor names for inputs and outputs
             {
-                std::vector<std::string> result_names;
-                std::vector<ov::Output<ov::Node>> prevPorts;
-                result_names.reserve(function->get_results().size());
-                prevPorts.reserve(function->get_results().size());
-
                 for (const auto& result : function->get_results()) {
-                    result_names.emplace_back(ngraph::op::util::create_ie_output_name(result->input_value(0)));
-                    result->output(0).get_tensor().add_names({result_names.back()});
-                    prevPorts.emplace_back(result->input_value(0));
+                    auto res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+                    OPENVINO_ASSERT(
+                        leaf_names.find(res_name) == leaf_names.end() ||
+                            result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
+                        "Model operation names have collisions with tensor names.",
+                        " Please use MO to generate new IR version, it should allow to avoid the issue");
+                    leaf_names.emplace(res_name, nullptr);
+                    result->output(0).get_tensor().add_names({res_name});
                 }
                 for (const auto& param : function->get_parameters()) {
-                    param->output(0).get_tensor().add_names({param->get_friendly_name()});
+                    auto param_name = param->get_friendly_name();
+                    OPENVINO_ASSERT(
+                        leaf_names.find(param_name) == leaf_names.end() ||
+                            param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
+                        "Model operation names have collisions with tensor names.",
+                        " Please use MO to generate new IR version, it should allow to avoid the issue");
+                    leaf_names.emplace(param_name, nullptr);
+                    param->output(0).get_tensor().add_names({param_name});
                 }
-            }
-
-            const auto outputs = function->outputs();
-            for (size_t i = 0; i < outputs.size(); ++i) {
-                const auto ngraph_type = outputs[i].get_element_type();
-                const auto legacy_type = details::toLegacyType(ngraph_type, false);
-
-                prepost.output(i).tensor().set_element_type(legacy_type);
             }
 
             function = prepost.build();

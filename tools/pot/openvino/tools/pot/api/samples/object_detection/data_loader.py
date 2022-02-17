@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -71,7 +71,7 @@ class COCOLoader(DataLoader):
     def _read_and_preprocess_image(image_path):
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
         image = cv2.resize(image, (640, 640))
-        return image.transpose(2, 0, 1)
+        return image
 
     @staticmethod
     def prepare_bbox(x, y, weight, height):

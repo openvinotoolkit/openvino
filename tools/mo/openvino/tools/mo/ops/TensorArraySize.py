@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
@@ -28,7 +27,7 @@ class TensorArraySize(Op):
         ta_node = Node(node.graph, str(handle.value))
         assert ta_node.has_valid('size')
 
-        output_value = np.array(ta_node['size'])
+        output_value = mo_array(ta_node['size'])
 
         for _, out_node in node.graph.out_edges(node.id):
             node.graph.node[out_node]['shape'] = shape_array(output_value.shape)

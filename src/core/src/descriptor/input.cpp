@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,13 +38,6 @@ void ov::descriptor::Input::replace_output(Output& new_output) {
     new_output.add_input(this);
     m_output = &new_output;
     m_src_node = std::shared_ptr<ngraph::Node>(new_output.get_node());
-
-    if (ngraph::getenv_bool("NGRAPH_ENABLE_REPLACE_CHECK")) {
-        // the result of clone_with_new_inputs will be thrown away or
-        // an exception will be thrown by `m_node`'s class c-tor
-        // if a new input violates one of the type checks in the c-tor.
-        m_node->clone_with_new_inputs(m_node->input_values());
-    }
 
     // Output replacement may change the topological order of nodes,
     // so we have to reset cache by setting a flag into shared node info.

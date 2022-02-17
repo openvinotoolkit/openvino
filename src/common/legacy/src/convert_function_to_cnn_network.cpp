@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -321,7 +321,7 @@ public:
     }
 
     void addSpecificCreator(const std::vector<std::string>& forTypes, const CreatorFor& creator) {
-        for (const auto type : forTypes) {
+        for (const auto& type : forTypes) {
             creators[type] = creator;
         }
     }
@@ -2068,8 +2068,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             layer->parseParams();
         }
     }
-
-    if (!cnnNetworkImpl) IE_THROW() << "Cannot convert nGraph function to CNNNetworkImpl!";
 
     // update input preprocessing info
     InputsDataMap resultInputDataMap;

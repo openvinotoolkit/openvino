@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.kaldi.loader.utils import read_token_value, collect_until_token, \
     read_binary_integer32_token, find_next_tag, read_placeholder
@@ -35,12 +36,12 @@ class MaxPoolingComponentFrontExtractor(FrontExtractorOp):
             raise Error('Can not extract parameters for {}'.format(node))
 
         mapping_rule = {
-            'window': np.array([1, 1, 1, kernel], dtype=np.int64),
-            'stride': np.array([1, 1, 1, stride], dtype=np.int64),
+            'window': int64_array([1, 1, 1, kernel]),
+            'stride': int64_array([1, 1, 1, stride]),
             'pool_stride': pool_stride,
             'pool_step': pool_step,
-            'pad': np.array([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[0, 0], [0, 0]], dtype=np.int64),
+            'pad': int64_array([[0, 0], [0, 0], [0, 0], [0, 0]]),
+            'pad_spatial_shape': int64_array([[0, 0], [0, 0]]),
             'pool_method': 'max',
         }
         mapping_rule.update(layout_attrs())

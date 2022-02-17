@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
-#if GNA_LIB_VER == 2
 
 #include <gna2-common-api.h>
 #include <gna2-model-api.h>
@@ -124,5 +122,3 @@ void HelperGna2OperationInitDeInterleave(
     Gna2Operation * operation,
     Gna2UserAllocator userAllocator, GnaUserFree userFree,
     Gna2Tensor * inputs, Gna2Tensor * outputs);
-
-#endif

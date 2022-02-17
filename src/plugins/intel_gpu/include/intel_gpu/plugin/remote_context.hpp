@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -236,7 +236,11 @@ public:
     void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
         if (!_usm_host_blob)
             return nullptr;
-        return _usm_host_blob->get();
+        try {
+            return _usm_host_blob->get();
+        } catch (...) {
+            return nullptr;
+        }
     };
 
     /**
@@ -252,11 +256,15 @@ public:
     * @return Handle to the allocated resource
     */
     void* alloc(size_t size) noexcept override {
-        auto td = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, InferenceEngine::SizeVector{size}, InferenceEngine::Layout::C);
-        InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
-        _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
-        _usm_host_blob->allocate();
-        return _usm_host_blob->get();
+        try {
+            auto td = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, InferenceEngine::SizeVector{size}, InferenceEngine::Layout::C);
+            InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
+            _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
+            _usm_host_blob->allocate();
+            return _usm_host_blob->get();
+        } catch (...) {
+            return nullptr;
+        }
     }
 
     /**
@@ -467,6 +475,11 @@ public:
                                    const InferenceEngine::ParamMap& params,
                                    const Config& config = {})
         : _impl(plugin, params, config) {}
+
+    ~TypedExecutionContext() {
+        shared_surf_reg.clear();
+        shared_obj_reg.clear();
+    }
 
     InferenceEngine::ParamMap getParams() const override { return _impl.getParams(); }
     std::string getDeviceName() const noexcept override { return _impl.getDeviceName(); }

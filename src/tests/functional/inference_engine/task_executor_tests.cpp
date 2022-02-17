@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <threading/ie_immediate_executor.hpp>
 #include <ie_system_conf.h>
+#include <thread>
 
 using namespace ::testing;
 using namespace std;
@@ -187,16 +188,6 @@ TEST_P(ASyncTaskExecutorTests, runAndWaitDoesNotOwnTasks) {
 }
 
 class StreamsExecutorConfigTest : public ::testing::Test {};
-
-TEST_F(StreamsExecutorConfigTest, streamsExecutorConfigReturnStrings) {
-    auto streams = getNumberOfCPUCores();
-    auto threads = parallel_get_max_threads();
-    auto config = IStreamsExecutor::Config::MakeDefaultMultiThreaded({"TestCPUStreamsExecutor",
-                                            streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});
-    for (auto&& key : config.SupportedKeys()) {
-        ASSERT_NO_THROW(config.GetConfig(key).as<std::string>());
-    }
-}
 
 static auto Executors = ::testing::Values(
     [] {

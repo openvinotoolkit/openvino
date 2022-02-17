@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,8 @@
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "place.hpp"
-#include "visibility.hpp"
+#include "openvino/frontend/place.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -36,10 +36,20 @@ namespace frontend {
 /// All editing requests affect the model representation that is held behind the scene
 /// successive method calls observe a new graph structure.
 class FRONTEND_API InputModel {
-public:
-    typedef std::shared_ptr<InputModel> Ptr;
+    std::shared_ptr<void> m_shared_object;
+    std::shared_ptr<InputModel> m_actual;
+    friend class FrontEnd;
 
-    virtual ~InputModel() = 0;
+public:
+    using Ptr = std::shared_ptr<InputModel>;
+
+    InputModel() = default;
+    InputModel(const InputModel&) = delete;
+    InputModel(InputModel&&) = delete;
+    InputModel& operator=(const InputModel&) = delete;
+    InputModel& operator=(InputModel&&) = delete;
+
+    virtual ~InputModel() = default;
 
     /////  Searching for places  /////
 

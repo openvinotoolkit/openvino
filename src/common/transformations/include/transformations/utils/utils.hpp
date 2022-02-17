@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,7 +167,7 @@ TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Con
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function);
 
-TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &other_shape);
+TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::PartialShape &ref_shape, const ngraph::PartialShape &other_shape);
 
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
                                                              const ngraph::Output<ngraph::Node>& apply_to);
@@ -179,6 +179,10 @@ TRANSFORMATIONS_API std::shared_ptr<Node> try_fold_unary_output(const std::share
 TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const OutputVector& inputs);
 
 TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected, const ngraph::PartialShape& actual);
+
+TRANSFORMATIONS_API void visit_shape_path(ov::Node * node,
+                                          std::unordered_set<ov::Node*>& visited,
+                                          std::function<void(ov::Node*)> func);
 
 template <typename T, typename... Args>
 std::shared_ptr<Node> make_try_fold(Args&&... args) {
@@ -206,6 +210,10 @@ TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_ind
 
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(
         const ngraph::Output<ngraph::Node>& shape_source, const std::vector<size_t>& indices);
+
+TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
+
+TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Output<Node>& constant, const Output<Node>& non_constant_input);
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

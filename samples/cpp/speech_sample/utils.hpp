@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ typedef std::chrono::duration<float> fsec;
 /**
  * @brief struct to store score error
  */
-typedef struct {
+struct ScoreErrorT {
     uint32_t numScores;
     uint32_t numErrors;
     float threshold;
@@ -29,13 +29,13 @@ typedef struct {
     float maxRelError;
     float sumRelError;
     float sumSquaredRelError;
-} score_error_t;
+};
 
 /**
  * @brief struct to store infer request data per frame
  */
 struct InferRequestStruct {
-    ov::runtime::InferRequest inferRequest;
+    ov::InferRequest inferRequest;
     int frameIndex;
     uint32_t numFramesThisBatch;
 };
@@ -46,7 +46,7 @@ struct InferRequestStruct {
  * @param numInputFiles number of input files
  * @return none.
  */
-void CheckNumberOfInputs(size_t numInputs, size_t numInputFiles) {
+void check_number_of_inputs(size_t numInputs, size_t numInputFiles) {
     if (numInputs != numInputFiles) {
         throw std::logic_error("Number of network inputs (" + std::to_string(numInputs) +
                                ")"
@@ -62,7 +62,7 @@ void CheckNumberOfInputs(size_t numInputs, size_t numInputFiles) {
  * @param numElements number of elements in speech feature vector
  * @return scale factor
  */
-float ScaleFactorForQuantization(void* ptrFloatMemory, float targetMax, uint32_t numElements) {
+float scale_factor_for_quantization(void* ptrFloatMemory, float targetMax, uint32_t numElements) {
     float* ptrFloatFeat = reinterpret_cast<float*>(ptrFloatMemory);
     float max = 0.0;
     float scaleFactor;
@@ -87,7 +87,7 @@ float ScaleFactorForQuantization(void* ptrFloatMemory, float targetMax, uint32_t
  * @param error pointer to score error struct
  * @return none.
  */
-void ClearScoreError(score_error_t* error) {
+void clear_score_error(ScoreErrorT* error) {
     error->numScores = 0;
     error->numErrors = 0;
     error->maxError = 0.0;
@@ -106,7 +106,7 @@ void ClearScoreError(score_error_t* error) {
  * @param totalError pointer to total score error struct
  * @return none.
  */
-void UpdateScoreError(score_error_t* error, score_error_t* totalError) {
+void update_score_error(ScoreErrorT* error, ScoreErrorT* totalError) {
     totalError->numErrors += error->numErrors;
     totalError->numScores += error->numScores;
     totalError->sumRmsError += error->rmsError;
@@ -131,14 +131,14 @@ void UpdateScoreError(score_error_t* error, score_error_t* totalError) {
  * @param numColumns - number columns in score error arrays
  * @return none.
  */
-void CompareScores(float* ptrScoreArray,
-                   void* ptrRefScoreArray,
-                   score_error_t* scoreError,
-                   uint32_t numRows,
-                   uint32_t numColumns) {
+void compare_scores(float* ptrScoreArray,
+                    void* ptrRefScoreArray,
+                    ScoreErrorT* scoreError,
+                    uint32_t numRows,
+                    uint32_t numColumns) {
     uint32_t numErrors = 0;
 
-    ClearScoreError(scoreError);
+    clear_score_error(scoreError);
 
     float* A = ptrScoreArray;
     float* B = reinterpret_cast<float*>(ptrRefScoreArray);
@@ -178,7 +178,7 @@ void CompareScores(float* ptrScoreArray,
  * @param error pointer to score error struct
  * @return error
  */
-float StdDevError(score_error_t error) {
+float std_dev_error(ScoreErrorT error) {
     return (sqrt(error.sumSquaredError / error.numScores -
                  (error.sumError / error.numScores) * (error.sumError / error.numScores)));
 }
@@ -211,7 +211,7 @@ inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx
  * @brief Get GNA module frequency
  * @return GNA module frequency in MHz
  */
-float getGnaFrequencyMHz() {
+float get_gna_frequency_mhz() {
     uint32_t eax = 1;
     uint32_t ebx = 0;
     uint32_t ecx = 0;
@@ -223,7 +223,8 @@ float getGnaFrequencyMHz() {
     const uint8_t gemini_lake_model = 122;
     const uint8_t ice_lake_model = 126;
     const uint8_t tgl_model = 140;
-    const uint8_t next_model = 151;
+    const uint8_t adl_s_model = 151;
+    const uint8_t adl_p_model = 154;
 
     native_cpuid(&eax, &ebx, &ecx, &edx);
     family = (eax >> 8) & 0xF;
@@ -242,7 +243,8 @@ float getGnaFrequencyMHz() {
         case cannon_lake_model:
         case ice_lake_model:
         case tgl_model:
-        case next_model:
+        case adl_s_model:
+        case adl_p_model:
             return 400;
         case gemini_lake_model:
             return 200;
@@ -264,11 +266,11 @@ float getGnaFrequencyMHz() {
  * @param stream output stream
  * @return none.
  */
-void printReferenceCompareResults(score_error_t const& totalError, size_t framesNum, std::ostream& stream) {
+void print_reference_compare_results(ScoreErrorT const& totalError, size_t framesNum, std::ostream& stream) {
     stream << "         max error: " << totalError.maxError << std::endl;
     stream << "         avg error: " << totalError.sumError / totalError.numScores << std::endl;
     stream << "     avg rms error: " << totalError.sumRmsError / framesNum << std::endl;
-    stream << "       stdev error: " << StdDevError(totalError) << std::endl << std::endl;
+    stream << "       stdev error: " << std_dev_error(totalError) << std::endl << std::endl;
     stream << std::endl;
 }
 
@@ -282,12 +284,12 @@ void printReferenceCompareResults(score_error_t const& totalError, size_t frames
  * @param FLAGS_d flag of device
  * @return none.
  */
-void printPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> const& utterancePerfMap,
-                              size_t numberOfFrames,
-                              std::ostream& stream,
-                              std::string fullDeviceName,
-                              const uint64_t numberOfFramesOnHw,
-                              std::string FLAGS_d) {
+void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& utterancePerfMap,
+                                size_t numberOfFrames,
+                                std::ostream& stream,
+                                std::string fullDeviceName,
+                                const uint64_t numberOfFramesOnHw,
+                                std::string FLAGS_d) {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << ""
@@ -301,7 +303,7 @@ void printPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> 
     stream << std::endl;
     // if GNA HW counters
     // get frequency of GNA module
-    float freq = getGnaFrequencyMHz();
+    float freq = get_gna_frequency_mhz();
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
         float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
@@ -331,8 +333,7 @@ void printPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> 
  * @param perfCounters reference to a map to save performance counters
  * @return none.
  */
-void getPerformanceCounters(ov::runtime::InferRequest& request,
-                            std::map<std::string, ov::runtime::ProfilingInfo>& perfCounters) {
+void get_performance_counters(ov::InferRequest& request, std::map<std::string, ov::ProfilingInfo>& perfCounters) {
     auto retPerfCounters = request.get_profiling_info();
 
     for (const auto& element : retPerfCounters) {
@@ -347,9 +348,9 @@ void getPerformanceCounters(ov::runtime::InferRequest& request,
  * @param totalRunsOnHw reference to a total number of frames computed on GNA HW
  * @return none.
  */
-void sumPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> const& perfCounters,
-                            std::map<std::string, ov::runtime::ProfilingInfo>& totalPerfCounters,
-                            uint64_t& totalRunsOnHw) {
+void sum_performance_counters(std::map<std::string, ov::ProfilingInfo> const& perfCounters,
+                              std::map<std::string, ov::ProfilingInfo>& totalPerfCounters,
+                              uint64_t& totalRunsOnHw) {
     auto runOnHw = false;
     for (const auto& pair : perfCounters) {
         totalPerfCounters[pair.first].real_time += pair.second.real_time;
@@ -360,30 +361,113 @@ void sumPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> co
 }
 
 /**
- * @brief Parse scale factors
- * @param str reference to user-specified input scale factor for quantization, can be separated by comma
- * @return vector scale factors
+ * @brief Split string by delimeter
+ * @param s input string
+ * @param delim delimeter
+ * @return vector of chunks
  */
-std::vector<std::string> ParseScaleFactors(const std::string& str) {
-    std::vector<std::string> scaleFactorInput;
+std::vector<std::string> split(const std::string& s, char delim) {
+    std::vector<std::string> result;
+    std::stringstream ss(s);
+    std::string item;
 
-    if (!str.empty()) {
-        std::string outStr;
-        std::istringstream stream(str);
-        int i = 0;
-        while (getline(stream, outStr, ',')) {
-            auto floatScaleFactor = std::stof(outStr);
-            if (floatScaleFactor <= 0.0f) {
-                throw std::logic_error("Scale factor for input #" + std::to_string(i) +
-                                       " (counting from zero) is out of range (must be positive).");
-            }
-            scaleFactorInput.push_back(outStr);
-            i++;
-        }
-    } else {
-        throw std::logic_error("Scale factor need to be specified via -sf option if you are using -q user");
+    while (getline(ss, item, delim)) {
+        result.push_back(item);
     }
-    return scaleFactorInput;
+    return result;
+}
+
+/**
+ * @brief Concat strings using delimeter
+ * @param chunks input chunks
+ * @param delim delimeter
+ * @return concatenated string
+ */
+std::string concat(const std::vector<std::string>& chunks, char delim) {
+    std::stringstream ss;
+    for (auto&& chunk : chunks) {
+        if (!ss.str().empty()) {
+            ss << delim;
+        }
+        ss << chunk;
+    }
+    return ss.str();
+}
+
+/**
+ * @brief Check whether name is present in node vector
+ * @param nodes nodes
+ * @param node_name name
+ * @return false or true
+ */
+bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
+    std::vector<std::string> any_names;
+    bool count = false;
+    for (auto& node : nodes) {
+        any_names.push_back(node.get_any_name());
+        auto names = node.get_names();
+        count = std::count(names.begin(), names.end(), node_name);
+        if (count)
+            break;
+    }
+    if (!count) {
+        std::stringstream ss;
+        ss << "Incorrect node name '" + node_name << "'! ";
+        ss << "Try one of the following names: [ ";
+        for (auto&& name : any_names) {
+            ss << name << " ";
+        }
+        ss << "]";
+        throw std::logic_error(ss.str());
+    }
+    return count;
+}
+
+/**
+ * @brief Parse scale factors per input
+ * Format : <input_name1>:<sf1>,<input2>:<sf2> or just <sf>
+ * @param inputs model inputs
+ * @param values_string values_string input string
+ * @return map of scale factors per input
+ */
+std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs, const std::string& values_string) {
+    auto get_sf = [&](const std::string& sf_string, const std::string& input_name = "") -> float {
+        float sf;
+        try {
+            sf = std::stof(sf_string);
+        } catch (...) {
+            throw std::logic_error("Can't get float scale factor from: " + sf_string);
+        }
+        if (sf <= 0.0f) {
+            throw std::logic_error("Scale factor for input '" + input_name +
+                                   "' (counting from zero) is out of range (must be positive).");
+        }
+        return sf;
+    };
+    std::map<std::string, float> result;
+    auto scale_factor_strings = split(values_string, ',');
+    for (auto& scale_factor_string : scale_factor_strings) {
+        auto values = split(scale_factor_string, ':');
+        if (values.size() == 1) {
+            if (scale_factor_strings.size() != 1) {
+                throw std::logic_error("Unrecognized scale factor format! "
+                                       "Please specify <input_name1>:<sf1>,<input_name2>:<sf2> or "
+                                       "just <sf> to be applied to all inputs");
+            }
+            auto scale_factor = get_sf(values.at(0));
+            for (auto& input : inputs) {
+                result[input.get_any_name()] = scale_factor;
+            }
+        } else if (values.size() > 0) {
+            auto sf_sting = values.back();
+            values.pop_back();
+            // input name can contain port, concat back
+            auto input_name = concat(values, ':');
+            check_name(inputs, input_name);
+            result[input_name] = get_sf(sf_sting, input_name);
+        }
+    }
+    return result;
 }
 
 /**
@@ -391,7 +475,7 @@ std::vector<std::string> ParseScaleFactors(const std::string& str) {
  * @param str file names separated by comma
  * @return vector of file names
  */
-std::vector<std::string> ConvertStrToVector(std::string str) {
+std::vector<std::string> convert_str_to_vector(std::string str) {
     std::vector<std::string> blobName;
     if (!str.empty()) {
         size_t pos_last = 0;

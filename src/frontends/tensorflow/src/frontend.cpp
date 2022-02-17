@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,12 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pass/transpose_sinking.hpp"
+#include "so_extension.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 
@@ -17,22 +19,15 @@ using namespace ov::frontend::tensorflow;
 
 namespace {
 void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
-                              const FrontEnd::TranslatorDictionaryType& op_translators) {
+                              const TranslatorDictionaryType& op_translators) {
     auto type = node->get_op_type();
 
     const auto& TRANSLATE_OP_MAP = op_translators;
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
-    ov::OutputVector ng_inputs;
-    NamedInputs named_inputs;
-    size_t input_port_idx = 0;
-    for (const auto& input : node->input_values()) {
-        ng_inputs.push_back(input);
-        named_inputs[input_port_idx++] = {input};
-    }
-
-    NodeContext node_ctx(*node->get_decoder(), named_inputs);
+    ov::OutputVector ng_inputs = node->input_values();
+    NodeContext node_ctx(*node->get_decoder(), ng_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
 
     auto new_output = new_node_outputs.begin();
@@ -58,7 +53,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
     ov::ParameterVector params;
     ov::ResultVector results;
     const auto& model_tf = std::dynamic_pointer_cast<InputModel>(model);
-    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV function");
+    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV Model");
     const auto& operation_places = model_tf->get_op_places();
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
@@ -112,8 +107,11 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
-        ::ov::frontend::tensorflow::NamedInputs named_inputs;
         for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
+            // TODO: Implement more general approach. Skipping Constants that have input edges
+            if (operation_decoder->get_op_type() == "Const") {
+                break;
+            }
             std::string producer_name;
             size_t producer_port_idx;
             try {
@@ -136,23 +134,20 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(0));
-                named_inputs[input_port_idx] = {input_outputs_vector.at(0)};
             } else if (ng_op_map.count(producer_name + ":" + std::to_string(producer_port_idx))) {
                 const auto& input_outputs_vector =
                     ng_op_map.at(producer_name + ":" + std::to_string(producer_port_idx));
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(0));
-                named_inputs[input_port_idx] = {input_outputs_vector.at(0)};
             } else if (ng_op_map.count(producer_name)) {
                 const auto& input_outputs_vector = ng_op_map.at(producer_name);
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > producer_port_idx,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(producer_port_idx));
-                named_inputs[input_port_idx] = {input_outputs_vector.at(producer_port_idx)};
             } else {
                 FRONT_END_GENERAL_CHECK(false,
-                                        "No input is found for node \"" + operation_name + "\" by port" +
+                                        "No input is found for node \"" + operation_name + "\" by port " +
                                             std::to_string(producer_port_idx));
             }
         }
@@ -165,7 +160,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
             // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
             // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
-            ::ov::frontend::tensorflow::NodeContext node_context(*operation_decoder, named_inputs);
+            NodeContext node_context(*operation_decoder, ng_inputs);
             // generate OV node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {
@@ -264,7 +259,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
     // TODO: reorder results and params according to indices given in RT info (if any)
 
-    // create the OV function
+    // create the OV Model
     ng_function = std::make_shared<ov::Model>(results, params, model_name);
     OPENVINO_DEBUG << "Done with translations";
 }
@@ -282,7 +277,17 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
-    } else if (variants[0].is<GraphIterator::Ptr>()) {
+    }
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    else if (variants[0].is<std::wstring>()) {
+        std::wstring suffix = L".pb";
+        std::wstring model_path = variants[0].as<std::wstring>();
+        if (ov::util::ends_with(model_path, suffix)) {
+            return true;
+        }
+    }
+#endif
+    else if (variants[0].is<GraphIterator::Ptr>()) {
         return true;
     }
     return false;
@@ -300,7 +305,19 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                     std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
                     m_telemetry);
             }
-        } else if (variants[0].is<GraphIterator::Ptr>()) {
+        }
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        else if (variants[0].is<std::wstring>()) {
+            std::wstring suffix = L".pb";
+            std::wstring model_path = variants[0].as<std::wstring>();
+            if (ov::util::ends_with(model_path, suffix)) {
+                return std::make_shared<InputModel>(
+                    std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
+                    m_telemetry);
+            }
+        }
+#endif
+        else if (variants[0].is<GraphIterator::Ptr>()) {
             auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
             return std::make_shared<InputModel>(graph_iterator, m_telemetry);
         }
@@ -385,5 +402,18 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_telemetry = telemetry;
     } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_transformation_extensions.push_back(transformation);
+    } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+        add_extension(so_ext->extension());
+        m_extensions.push_back(so_ext);
+    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+        m_conversion_extensions.push_back(common_conv_ext);
+        m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return common_conv_ext->get_converter()(context);
+        };
+    } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+        m_conversion_extensions.push_back(tensorflow_conv_ext);
+        m_op_translators[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return tensorflow_conv_ext->get_converter()(context);
+        };
     }
 }

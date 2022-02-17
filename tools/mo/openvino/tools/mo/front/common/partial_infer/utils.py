@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -179,12 +179,27 @@ def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.nda
     return np.array(value, dtype=np.int64)
 
 
-def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
-    return np.array(value, dtype=np.float64)
-
-
 def float32_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
     return np.array(value, dtype=np.float32)
+
+
+def int8_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.int8)
+
+
+def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return float32_array(value)
+
+
+def mo_array(value: Union[Iterable[Union[float, int]], float, int], dtype=None) -> np.ndarray:
+    """
+    This function acts in a same way as np.array except for the case when dtype is not provided
+    and np.array return fp64 array this function returns fp32 array
+    """
+    x = np.array(value, dtype=dtype)
+    if not isinstance(value, np.ndarray) and x.dtype == np.float64 and dtype != np.float64:
+        x = x.astype(np.float32)
+    return x
 
 
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
@@ -200,9 +215,9 @@ def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
 
 def assign_dims_to_weights(node, spatial, input_channel, output_channel=None, dims_number=None):
     if spatial is not None:
-        node['spatial_dims'] = np.array(spatial, dtype=np.int64)
-    node['input_channel_dim'] = np.array(input_channel, dtype=np.int64)
-    node['output_channel_dim'] = np.array(output_channel, dtype=np.int64)
+        node['spatial_dims'] = int64_array(spatial)
+    node['input_channel_dim'] = int64_array(input_channel)
+    node['output_channel_dim'] = int64_array(output_channel)
     if 'dim_attrs' in node and 'input_channel_dim' not in node['dim_attrs']:
         node['dim_attrs'].append('input_channel_dim')
     node['dims_number'] = dims_number
@@ -303,3 +318,49 @@ def is_dynamic_slice(s: [slice, int, None]):
     return isinstance(s, slice) and (s.start is dynamic_dimension or
                                      s.stop is dynamic_dimension or
                                      s.step is dynamic_dimension)
+
+
+def reverse_bypass_infer(node, in_ports: List[int]):
+    """
+    Copies shapes from the out_port 0 into ports specified in the in_ports
+
+
+    :param node:
+    :param in_ports: input ports for which shape will be updated
+    :return:
+    """
+    assert node.is_out_port_connected(0)
+
+    output_shape = node.out_port(0).data.get_shape()
+    if output_shape is not None:
+        for port in in_ports:
+            assert node.is_in_port_connected(port)
+            if node.in_port(port).data.get_shape() is None:
+                node.in_port(port).data.set_shape(output_shape)
+
+
+def clarify_partial_shape(shapes: List):
+    """
+    returns more precise partial shape from a set of partial shapes,
+    e.g. pshape_1 = [dyn, 2, dyn], pshape_2 = [10, dyn, dyn] => out_shape = [10, 2, dyn]
+    :param shapes:
+    :return:
+    """
+    assert len(shapes) > 0
+    out_shape = shapes[0]
+    for shape in shapes:
+        assert compatible_shapes(shape, out_shape), "shapes {} and {} are not compatible".format(
+            unmask_shape(shape), unmask_shape(out_shape))
+        shape_unmasked = shape.data.copy()
+        for i, dim in enumerate(shape_unmasked):
+            if dim != dynamic_dimension_value:
+                out_shape[i] = dim
+    return out_shape
+
+
+def set_input_shapes(node, *shapes: List):
+    assert len(shapes) <= len(node.in_ports())
+    
+    for i, shape in enumerate(shapes):
+        if node.is_in_port_connected(i) and node.in_port(i).data.get_shape() is None:
+            node.in_port(i).data.set_shape(shape)

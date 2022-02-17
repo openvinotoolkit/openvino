@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.ops.op import Op
@@ -45,7 +46,7 @@ class NonZero(Op):
 
         input_value = node.in_port(0).data.get_value()
         if is_fully_defined(input_value):
-            node.out_port(0).data.set_value(np.array(np.nonzero(input_value), dtype=node.output_type))
+            node.out_port(0).data.set_value(mo_array(np.nonzero(input_value), dtype=node.output_type))
         else:
             if is_fully_defined(input_shape):
                 # output shape of NonZero is still static (upper bound)

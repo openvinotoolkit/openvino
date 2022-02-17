@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
+#include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
 
 using namespace ov;
@@ -220,19 +221,17 @@ struct onnx_editor::ONNXModelEditor::Impl {
 #endif
 };
 
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
-                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path, frontend::ExtensionHolder extensions)
     : m_model_path{model_path},
-      m_telemetry(telemetry),
+      m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
-                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions)
     : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
-      m_telemetry(telemetry),
+      m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -240,9 +239,9 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
                                               const std::string& model_path,
-                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+                                              frontend::ExtensionHolder extensions)
     : m_model_path{model_path},
-      m_telemetry(telemetry),
+      m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -276,6 +275,25 @@ void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, e
             throw ov::Exception("Could not set a custom element type for input: " + input_desc.first +
                                 ". Such input was not found in the original ONNX model.");
         }
+    }
+}
+
+element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) const {
+    auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    auto* onnx_input = find_graph_input(*onnx_graph, tensor_name);
+
+    if (onnx_input != nullptr) {
+        const auto& type_proto = onnx_input->type();
+        if (!type_proto.has_tensor_type()) {
+            throw ov::Exception("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+                                "change the data type. Input name: " +
+                                onnx_input->name());
+        }
+        auto& tensor_type = type_proto.tensor_type();
+        auto type = tensor_type.elem_type();
+        return ngraph::onnx_import::common::get_ngraph_element_type(type);
+    } else {
+        throw ov::Exception("The tensor: " + tensor_name + " was not found in the input graph.");
     }
 }
 
@@ -337,7 +355,8 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
 }
 
 void onnx_editor::ONNXModelEditor::extract_subgraph(const std::vector<InputEdge>& inputs,
-                                                    const std::vector<OutputEdge>& outputs) {
+                                                    const std::vector<OutputEdge>& outputs,
+                                                    const bool merge_inputs) {
     if (inputs.empty() && outputs.empty()) {
         return;
     }
@@ -346,7 +365,7 @@ void onnx_editor::ONNXModelEditor::extract_subgraph(const std::vector<InputEdge>
     onnx_shapes.infer_shapes();
 
     SubgraphExtractor editor{*(m_pimpl->m_model_proto->mutable_graph())};
-    editor.add_new_inputs(inputs);
+    editor.add_new_inputs(inputs, merge_inputs);
     editor.add_new_outputs(outputs);
     editor.extract_subgraph(outputs);
 
@@ -415,7 +434,7 @@ std::string onnx_editor::ONNXModelEditor::model_string() const {
 }
 
 std::shared_ptr<Model> onnx_editor::ONNXModelEditor::get_function() const {
-    return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto, m_model_path, m_telemetry);
+    return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto, m_model_path, m_extensions);
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
@@ -604,5 +623,13 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const Ed
 }
 
 std::shared_ptr<Model> onnx_editor::ONNXModelEditor::decode() {
-    return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path, m_telemetry);
+    return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path, m_extensions);
+}
+
+void onnx_editor::ONNXModelEditor::add_output(const OutputEdge& output_edge) const {
+    auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    std::vector<onnx_editor::OutputEdge> onnx_output;
+    onnx_output.push_back(output_edge);
+    SubgraphExtractor editor{*onnx_graph};
+    editor.add_new_outputs(onnx_output);
 }

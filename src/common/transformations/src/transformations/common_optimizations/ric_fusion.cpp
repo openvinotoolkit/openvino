@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -234,7 +234,7 @@ public:
 
             const auto axis_value = axis->cast_vector<int64_t>().at(0);
 
-            if (ov::is_reverse_input_channels(output.get_node_shared_ptr())) {
+            if (ov::is_preprocesing_node(output.get_node_shared_ptr())) {
                 ric_attr::init(output, {}, axis_value);
                 return true;
             }

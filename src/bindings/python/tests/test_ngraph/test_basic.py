@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -30,8 +30,8 @@ def test_ngraph_function_api():
 
     assert parameter_a.element_type == Type.f32
     assert parameter_a.partial_shape == PartialShape([2, 2])
-    parameter_a.layout = ov.Layout("NCWH")
-    assert parameter_a.layout == ov.Layout("NCWH")
+    parameter_a.layout = ov.Layout("NC")
+    assert parameter_a.layout == ov.Layout("NC")
     function = Model(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
@@ -622,6 +622,23 @@ def test_coordinate_diff_iteration_methods():
         coordinateDiff[i] = data2[i]
 
     assert np.equal(coordinateDiff, data2).all()
+
+
+def test_get_and_set_layout():
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
+
+    model = Model(parameter_a + parameter_b, [parameter_a, parameter_b])
+
+    assert layout_helpers.get_layout(model.input(0)) == ov.Layout()
+    assert layout_helpers.get_layout(model.input(1)) == ov.Layout()
+
+    layout_helpers.set_layout(model.input(0), ov.Layout("CH"))
+    layout_helpers.set_layout(model.input(1), ov.Layout("HW"))
+
+    assert layout_helpers.get_layout(model.input(0)) == ov.Layout("CH")
+    assert layout_helpers.get_layout(model.input(1)) == ov.Layout("HW")
 
 
 def test_layout():

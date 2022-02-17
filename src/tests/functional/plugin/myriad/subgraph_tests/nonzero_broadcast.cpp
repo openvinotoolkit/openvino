@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,11 +125,7 @@ TEST_P(NonZero_Broadcast, CompareWithReference) {
 
 std::vector<BroadcastInputParams> broadcastTestParams = {
         { DataShapeWithUpperBound{ {1, 1, 4}, {} }, DataShapeWithUpperBound{ {200, 2, 4}, {300, 2, 4} }, {} },
-        { DataShapeWithUpperBound{ {15, 14}, {} }, DataShapeWithUpperBound{ {2, 16, 1, 14}, {2, 16, 15, 14} }, {} },
         { DataShapeWithUpperBound{ {15, 1}, {} }, DataShapeWithUpperBound{ {1, 16, 15, 14}, {2, 16, 15, 14} }, {} },
-        { DataShapeWithUpperBound{ {2, 16, 15, 14}, {} }, DataShapeWithUpperBound{ {1, 15, 14}, {16, 15, 14} }, {} },
-        { DataShapeWithUpperBound{ {2, 16, 15, 14}, {} }, DataShapeWithUpperBound{ {16,  1,  1}, {16,  1,  14}}, {} },
-        { DataShapeWithUpperBound{ {16, 15, 1}, {} }, DataShapeWithUpperBound{ {2, 1, 15, 14}, {2, 16, 15, 14} }, {} },
         { DataShapeWithUpperBound{ {142, 1, 1, 64}, {300, 1, 1, 64} }, DataShapeWithUpperBound { {142, 3, 64, 64}, {300, 3, 64, 64} }, {} },
         { DataShapeWithUpperBound{ {1}, {} }, DataShapeWithUpperBound{ {1, 800}, {1, 1000} }, {0} },
         { DataShapeWithUpperBound{ {4}, {} }, DataShapeWithUpperBound{ {100, 4}, {1000, 4} }, {1} },

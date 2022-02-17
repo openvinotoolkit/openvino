@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1566,4 +1566,136 @@ NGRAPH_TEST(onnx_editor, get_output_ports) {
             msg.find("The node with name: not_given, output_name: not_given, node_index: not_given is ambiguous") !=
             std::string::npos);
     }
+}
+
+NGRAPH_TEST(onnx_editor, add_output) {
+    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.onnx")};
+
+    editor.add_output({OutputEdge{0, 0}});
+
+    const auto edge1 = editor.find_output_edge(EditorNode{"add_node1"}, EditorOutput{"X"});
+    EXPECT_TRUE(editor.is_output(edge1));
+}
+
+NGRAPH_TEST(onnx_editor, get_tensor_element_type) {
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    EXPECT_EQ(editor.get_input_type("in1"), (element::f32));
+    EXPECT_EQ(editor.get_input_type("in2"), (element::f32));
+    editor.set_input_types({{"in3", (element::f16)}});
+    EXPECT_EQ(editor.get_input_type("in3"), (element::f16));
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__cut_one_edge_and_merge_all_new_inputs) {
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    // InputEdge{1, "relu1"}
+    const auto input_edge_1 = editor.find_input_edge(EditorNode(EditorOutput("add1")), EditorInput(0));
+
+    editor.extract_subgraph({{input_edge_1}}, {}, true);
+
+    const auto ref_model = ngraph::file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__cut_one_edge_and_merge_all_new_inputs.onnx");
+
+    auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    // InputEdge{5, "add2"}
+    const auto input_edge_2 = editor.find_input_edge(EditorNode(EditorOutput("split1")), EditorInput(0));
+
+    editor.extract_subgraph({{input_edge_2}}, {}, true);
+
+    const auto ref_model1 = ngraph::file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__cut_one_another_edge_and_merge_all_new_inputs.onnx");
+
+    result = compare_onnx_models(editor.model_string(), ref_model1);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__cut_two_edges_from_one_source_and_merge_all_new_inputs) {
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    // InputEdge{3, "relu1"}
+    const auto input_edge_1 = editor.find_input_edge(EditorNode(EditorOutput("add2")), EditorInput(0));
+    // InputEdge{6, "relu1"}
+    const auto input_edge_2 = editor.find_input_edge(EditorNode(EditorOutput("mul1")), EditorInput(0));
+
+    editor.extract_subgraph({{input_edge_1, input_edge_2}}, {}, true);
+
+    const auto ref_model = ngraph::file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__cut_two_edges_from_one_source_and_merge_all_new_inputs.onnx");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__cut_two_edges_from_different_sources_and_merge_all_new_inputs) {
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    // InputEdge{3, "add1"}
+    const auto input_edge_1 = editor.find_input_edge(EditorNode(EditorOutput("add2")), EditorInput(1));
+    // InputEdge{6, "relu1"}
+    const auto input_edge_2 = editor.find_input_edge(EditorNode(EditorOutput("mul1")), EditorInput(0));
+
+    editor.extract_subgraph({{input_edge_1, input_edge_2}}, {}, true);
+
+    const auto ref_model = ngraph::file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__cut_two_edges_from_different_sources_and_merge_all_new_inputs.onnx");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__cut_all_edges_from_one_source_and_merge_all_new_inputs) {
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    // InputEdge{3, "relu1"}
+    const auto input_edge_1 = editor.find_input_edge(EditorNode(EditorOutput("add2")), EditorInput(0));
+    // InputEdge{6, "relu1"}
+    const auto input_edge_2 = editor.find_input_edge(EditorNode(EditorOutput("mul1")), EditorInput(0));
+    // InputEdge{1, "relu1"}
+    const auto input_edge_3 = editor.find_input_edge(EditorNode(EditorOutput("add1")), EditorInput(0));
+
+    editor.extract_subgraph({{input_edge_1, input_edge_2, input_edge_3}}, {}, true);
+
+    const auto ref_model = ngraph::file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__cut_all_edges_from_one_source_and_merge_all_new_inputs.onnx");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__cut_custom_edges_from_different_sources_and_merge_all_new_inputs) {
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    // InputEdge{3, "relu1"}
+    const auto input_edge_1 = editor.find_input_edge(EditorNode(EditorOutput("add2")), EditorInput(0));
+    // InputEdge{4, "add1"}
+    const auto input_edge_2 = editor.find_input_edge(EditorNode(EditorOutput("mul2")), EditorInput(0));
+    // InputEdge{3, "add1"}
+    const auto input_edge_3 = editor.find_input_edge(EditorNode(EditorOutput("add2")), EditorInput(1));
+
+    editor.extract_subgraph({{input_edge_2, input_edge_1, input_edge_3}}, {}, true);
+
+    const auto ref_model = ngraph::file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__cut_custom_edges_from_different_sources_and_merge_all_new_inputs.onnx");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
 }

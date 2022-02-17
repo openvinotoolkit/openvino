@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -64,6 +64,12 @@ class ChangeOutputTypeAttributesTests(unittest.TestCase):
         graph, graph_ref = build_cast_test_graphs(input_data, dst_type_str='FP16')
         self.assertRaises(Error, ChangeOutputTypeAttributes().find_and_replace_pattern, graph)
 
+    def test_cast_with_scalar(self):
+        input_data = np.array(4)
+        graph, graph_ref = build_cast_test_graphs(input_data, dst_type_str='FP16')
+        ChangeOutputTypeAttributes().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'res', check_op_attrs=True)
+        self.assertTrue(flag, resp)
 
 def build_range_test_graphs(start=0, limit=10, delta=1, dst_type_str='FP16',
                             src_type_str='FP32', returns_shape_value=None):

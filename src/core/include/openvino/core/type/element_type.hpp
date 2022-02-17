@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,6 +166,9 @@ OPENVINO_API Type fundamental_type_for(const Type& type);
 
 OPENVINO_API
 std::ostream& operator<<(std::ostream& out, const ov::element::Type& obj);
+
+OPENVINO_API
+std::istream& operator>>(std::istream& out, ov::element::Type& obj);
 }  // namespace element
 
 template <>

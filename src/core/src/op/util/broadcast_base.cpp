@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -259,8 +259,9 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes_num
     const op::BroadcastModeSpec& broadcast_spec) {
     AxisSet broadcast_axes;
     bool axes_known = false;
-    auto start_axis = (broadcast_spec.m_type == op::BroadcastType::PDPD) ? broadcast_spec.m_axis
-                                                                         : result_shape.size() - arg_shape.size();
+    int64_t start_axis = (broadcast_spec.m_type == op::BroadcastType::PDPD)
+                             ? broadcast_spec.m_axis
+                             : static_cast<int64_t>(result_shape.size()) - static_cast<int64_t>(arg_shape.size());
     NGRAPH_CHECK(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
         if (i < start_axis || result_shape[i] != arg_shape[i - start_axis]) {

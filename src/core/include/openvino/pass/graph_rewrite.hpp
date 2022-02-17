@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -224,26 +224,6 @@ public:
     explicit BackwardGraphRewrite(const std::shared_ptr<MatcherPass>& pass) : GraphRewrite(pass) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-};
-
-class OPENVINO_API RecurrentGraphRewrite : public ModelPass {
-public:
-    RecurrentGraphRewrite(size_t num_iters = 10) : ModelPass(), m_num_iters(num_iters) {}
-
-    void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                     const ov::recurrent_graph_rewrite_callback& callback,
-                     const PassPropertyMask& property);
-
-    // TODO: This interface may deprecate after all passes are refactored.
-    void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                     const ov::recurrent_graph_rewrite_callback& callback);
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-
-private:
-    size_t m_num_iters;
-
-    std::vector<std::shared_ptr<ov::pass::MatcherPass>> m_matchers;
 };
 }  // namespace pass
 }  // namespace ov

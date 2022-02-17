@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@
 #include "openvino/runtime/remote_tensor.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 namespace ocl {
 
@@ -38,7 +37,7 @@ using gpu_handle_param = void*;
 class ClBufferTensor : public RemoteTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
@@ -82,7 +81,7 @@ public:
 class ClImage2DTensor : public RemoteTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
@@ -126,7 +125,7 @@ public:
 class USMTensor : public RemoteTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
@@ -151,7 +150,7 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with OpenCL context object.
  * The plugin object derived from this class can be obtained either with
- * ExecutableNetwork::get_context() or Core::create_context() calls.
+ * CompiledModel::get_context() or Core::create_context() calls.
  */
 class ClContext : public RemoteContext {
 protected:
@@ -164,8 +163,8 @@ public:
     // Needed to make create_tensor overloads from base class visible for user
     using RemoteContext::create_tensor;
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
-     * @param remote_context remote context to check
+     * @brief Checks that type defined runtime parameters are presented in remote object
+     * @param remote_context A remote context to check
      */
     static void type_check(const RemoteContext& remote_context) {
         RemoteContext::type_check(remote_context,
@@ -180,10 +179,10 @@ public:
      * @param ctx_device_id An ID of device to be used from ctx
      */
     ClContext(Core& core, cl_context ctx, int ctx_device_id = 0) {
-        ParamMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
-                                   {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
-                                   {GPU_PARAM_KEY(OCL_CONTEXT_DEVICE_ID), ctx_device_id}};
-        *this = core.create_context(device_name, context_params);
+        AnyMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
+                                 {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
+                                 {GPU_PARAM_KEY(OCL_CONTEXT_DEVICE_ID), ctx_device_id}};
+        *this = core.create_context(device_name, context_params).as<ClContext>();
     }
 
     /**
@@ -197,10 +196,10 @@ public:
         auto res = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(cl_context), &ctx, nullptr);
         if (res != CL_SUCCESS)
             IE_THROW() << "Can't get context from given opencl queue";
-        ParamMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
-                                   {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
-                                   {GPU_PARAM_KEY(OCL_QUEUE), static_cast<gpu_handle_param>(queue)}};
-        *this = core.create_context(device_name, context_params);
+        AnyMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
+                                 {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
+                                 {GPU_PARAM_KEY(OCL_QUEUE), static_cast<gpu_handle_param>(queue)}};
+        *this = core.create_context(device_name, context_params).as<ClContext>();
     }
 
     /**
@@ -238,12 +237,12 @@ public:
                                                                    const cl::Image2D& nv12_image_plane_uv) {
         size_t width = nv12_image_plane_y.getImageInfo<CL_IMAGE_WIDTH>();
         size_t height = nv12_image_plane_y.getImageInfo<CL_IMAGE_HEIGHT>();
-        ParamMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
-                                  {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(nv12_image_plane_y.get())}};
+        AnyMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
+                                {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(nv12_image_plane_y.get())}};
         auto y_tensor = create_tensor(element::u8, {1, 1, height, width}, tensor_params);
         tensor_params[GPU_PARAM_KEY(MEM_HANDLE)] = static_cast<gpu_handle_param>(nv12_image_plane_uv.get());
         auto uv_tensor = create_tensor(element::u8, {1, 2, height / 2, width / 2}, tensor_params);
-        return std::make_pair(y_tensor, uv_tensor);
+        return std::make_pair(y_tensor.as<ClImage2DTensor>(), uv_tensor.as<ClImage2DTensor>());
     }
 
     /**
@@ -254,9 +253,9 @@ public:
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const cl_mem buffer) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)},
-                           {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer)}};
-        return create_tensor(type, shape, params);
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)},
+                         {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer)}};
+        return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 
     /**
@@ -278,9 +277,9 @@ public:
      * @return A remote tensor instance
      */
     ClImage2DTensor create_tensor(const element::Type type, const Shape& shape, const cl::Image2D& image) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
-                           {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get())}};
-        return create_tensor(type, shape, params);
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
+                         {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get())}};
+        return create_tensor(type, shape, params).as<ClImage2DTensor>();
     }
 
     /**
@@ -291,9 +290,9 @@ public:
      * @return A remote tensor instance
      */
     USMTensor create_tensor(const element::Type type, const Shape& shape, void* usm_ptr) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_USER_BUFFER)},
-                           {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(usm_ptr)}};
-        return create_tensor(type, shape, params);
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_USER_BUFFER)},
+                         {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(usm_ptr)}};
+        return create_tensor(type, shape, params).as<USMTensor>();
     }
 
     /**
@@ -303,8 +302,8 @@ public:
      * @return A remote tensor instance
      */
     USMTensor create_usm_host_tensor(const element::Type type, const Shape& shape) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
-        return create_tensor(type, shape, params);
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
+        return create_tensor(type, shape, params).as<USMTensor>();
     }
 
     /**
@@ -314,12 +313,11 @@ public:
      * @return A remote tensor instance
      */
     USMTensor create_usm_device_tensor(const element::Type type, const Shape& shape) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_DEVICE_BUFFER)}};
-        return create_tensor(type, shape, params);
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_DEVICE_BUFFER)}};
+        return create_tensor(type, shape, params).as<USMTensor>();
     }
 };
 
 }  // namespace ocl
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

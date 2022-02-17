@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,9 +39,9 @@
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 #include <vpu/configuration/options/dump_all_passes_directory.hpp>
 #include <vpu/configuration/options/dump_all_passes.hpp>
+#include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/disable_reorder.hpp>
-#include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/detect_network_batch.hpp>
 #include <vpu/configuration/options/custom_layers.hpp>
@@ -53,6 +53,9 @@
 #include <vpu/configuration/options/enable_custom_reshape_param.hpp>
 #include <vpu/configuration/options/none_layers.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
+#include <vpu/configuration/options/performance_hint.hpp>
+#include "vpu/configuration/options/performance_hint_num_requests.hpp"
+#include "vpu/configuration/options/ov_throughput_streams.hpp"
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -133,19 +136,15 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<EnableCustomReshapeParamOption>();
     _configuration.registerOption<NoneLayersOption>();
     _configuration.registerOption<EnableAsyncDMAOption>();
+    _configuration.registerOption<PerformanceHintOption>();
+    _configuration.registerOption<PerformanceHintNumRequestsOption>();
+    _configuration.registerOption<OvThroughputStreamsOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
     _configuration.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
-    _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
-    _configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
-    _configuration.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
-    _configuration.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
-    _configuration.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
-    _configuration.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
-    _configuration.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
-    _configuration.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
 IE_SUPPRESS_DEPRECATED_END
+
 
     _inputsInfo.clear();
     _outputsInfo.clear();

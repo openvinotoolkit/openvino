@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,11 +65,11 @@ void TestsCommon::SetUp() {
     if (memsize != 0) {
         std::cout << "\nMEM_USAGE=" << getVmSizeInKB() << "KB\n";
     }
-    InferenceEngine::ExecutorManager::getInstance()->clear();
+    InferenceEngine::executorManager()->clear();
 }
 
 void TestsCommon::TearDown() {
-    InferenceEngine::ExecutorManager::getInstance()->clear();
+    InferenceEngine::executorManager()->clear();
 }
 
 /**

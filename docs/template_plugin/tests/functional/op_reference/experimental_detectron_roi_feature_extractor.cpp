@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,15 +11,15 @@ using namespace ov;
 using namespace reference_tests;
 
 struct ExperimentalROIParams {
-    ExperimentalROIParams(const std::vector<Tensor>& experimental_detectron_roi_feature_inputs,
-                          const std::vector<Tensor>& expected_results,
+    ExperimentalROIParams(const std::vector<reference_tests::Tensor>& experimental_detectron_roi_feature_inputs,
+                          const std::vector<reference_tests::Tensor>& expected_results,
                           const std::string& test_case_name)
         : inputs{experimental_detectron_roi_feature_inputs},
           expected_results{expected_results},
           test_case_name{test_case_name} {}
 
-    std::vector<Tensor> inputs;
-    std::vector<Tensor> expected_results;
+    std::vector<reference_tests::Tensor> inputs;
+    std::vector<reference_tests::Tensor> expected_results;
     std::string test_case_name;
 };
 
@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    std::shared_ptr<Model> create_function(const std::vector<Tensor>& inputs) {
+    std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& inputs) {
         op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
         attrs.aligned = false;
         attrs.output_size = 3;
@@ -76,13 +76,13 @@ INSTANTIATE_TEST_SUITE_P(
     ReferenceExperimentalROILayerTest,
     ::testing::Values(
         ExperimentalROIParams(
-            std::vector<Tensor>{Tensor(Shape{2, 4},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{2, 4},
                                        ov::element::f32,
                                        std::vector<float>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
-                                Tensor(Shape{1, 2, 2, 3},
+                                reference_tests::Tensor(Shape{1, 2, 2, 3},
                                        ov::element::f32,
                                        std::vector<float>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0})},
-            std::vector<Tensor>{Tensor(Shape{2, 2, 3, 3},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{2, 2, 3, 3},
                                        ov::element::f32,
                                        std::vector<float>{1.416667,
                                                           1.75,
@@ -120,18 +120,18 @@ INSTANTIATE_TEST_SUITE_P(
                                                           5.083333,
                                                           5.25,
                                                           5.416667}),
-                                Tensor(Shape{2, 4},
+                                reference_tests::Tensor(Shape{2, 4},
                                        ov::element::f32,
                                        std::vector<float>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0})},
             "experimental_detectron_roi_feature_eval_f32"),
         ExperimentalROIParams(
-            std::vector<Tensor>{Tensor(Shape{2, 4},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{2, 4},
                                        ov::element::f16,
                                        std::vector<ngraph::float16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
-                                Tensor(Shape{1, 2, 2, 3},
+                                reference_tests::Tensor(Shape{1, 2, 2, 3},
                                        ov::element::f16,
                                        std::vector<ngraph::float16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0})},
-            std::vector<Tensor>{Tensor(Shape{2, 2, 3, 3},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{2, 2, 3, 3},
                                        ov::element::f16,
                                        std::vector<ngraph::float16>{1.416667,
                                                                     1.75,
@@ -169,18 +169,18 @@ INSTANTIATE_TEST_SUITE_P(
                                                                     5.083333,
                                                                     5.25,
                                                                     5.416667}),
-                                Tensor(Shape{2, 4},
+                                reference_tests::Tensor(Shape{2, 4},
                                        ov::element::f16,
                                        std::vector<ngraph::float16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0})},
             "experimental_detectron_roi_feature_eval_f16"),
         ExperimentalROIParams(
-            std::vector<Tensor>{Tensor(Shape{2, 4},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{2, 4},
                                        ov::element::bf16,
                                        std::vector<ngraph::bfloat16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
-                                Tensor(Shape{1, 2, 2, 3},
+                                reference_tests::Tensor(Shape{1, 2, 2, 3},
                                        ov::element::bf16,
                                        std::vector<ngraph::bfloat16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0})},
-            std::vector<Tensor>{Tensor(Shape{2, 2, 3, 3},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{2, 2, 3, 3},
                                        ov::element::bf16,
                                        std::vector<ngraph::bfloat16>{1.416667,
                                                                      1.75,
@@ -218,7 +218,7 @@ INSTANTIATE_TEST_SUITE_P(
                                                                      5.083333,
                                                                      5.25,
                                                                      5.416667}),
-                                Tensor(Shape{2, 4},
+                                reference_tests::Tensor(Shape{2, 4},
                                        ov::element::bf16,
                                        std::vector<ngraph::bfloat16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0})},
             "experimental_detectron_roi_feature_eval_bf16")));

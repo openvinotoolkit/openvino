@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.middle.TensorIteratorCondition import looking_for_op_in_list
 from openvino.tools.mo.ops.elementwise import Mul
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
@@ -115,7 +114,7 @@ class GNMT_sequence_lengths(FrontReplacementPattern):
         tensor_seq_len = looking_for_op_in_list([minimum.in_port(port).get_source().node for port in minimum.in_ports()], 'StridedSlice')
 
         # Create node for multiplying seq_len by 2
-        const = Const(graph, {'name': 'FakeSeqLenMultiplyer', 'value': np.array(2)}).create_node()
+        const = Const(graph, {'name': 'FakeSeqLenMultiplyer', 'value': mo_array(2)}).create_node()
         mul_op = Mul(graph, {'name': 'FakeSeqLen'}).create_node()
 
         const.out_port(0).get_connection().set_destination(mul_op.in_port(1))

@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <dimension_tracker.hpp>
 #include <numeric>
 
 #include "gtest/gtest.h"
@@ -386,7 +387,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_INT_dynamic_dimensions) {
                                     Dimension(10, 20),
                                     Dimension(30, 40),
                                     Dimension(0, 50),
-                                    Dimension(0, INT32_MAX)};
+                                    Dimension(-1)};
 
     std::vector<int32_t> start_val{2, 2, INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN, 0, 0};
     std::vector<int32_t> stop_val{10, INT32_MAX, 5, 10, 15, 25, INT32_MAX, 50, INT32_MAX};
@@ -536,11 +537,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_step_neg_
 
 TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_step_mix_ind) {
     PartialShape data_shape{Dimension(-1), Dimension(-1), Dimension(-1), Dimension(-1), Dimension(-1)};
-    PartialShape expected_out_shape{Dimension(0, 6),
-                                    Dimension(0, 6),
-                                    Dimension(-1),
-                                    Dimension(0, INT32_MAX - 5),
-                                    Dimension(-1)};
+    PartialShape expected_out_shape{Dimension(0, 6), Dimension(0, 6), Dimension(-1), Dimension(0, -1), Dimension(-1)};
 
     std::vector<int32_t> start_val{5, 5, -10, INT32_MAX, INT32_MAX};
     std::vector<int32_t> stop_val{-10, INT32_MIN, 5, 5, INT32_MIN};
@@ -551,6 +548,80 @@ TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_step_mix_
 
     element::Type_t et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint32) {
+    PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
+    PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
+
+    std::vector<int32_t> start_val{0, 0, 0};
+    std::vector<int32_t> stop_val{INT32_MAX, INT32_MAX, INT32_MAX};
+    std::vector<int32_t> step_val{1, 1, 1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint64) {
+    PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
+    PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
+
+    std::vector<int64_t> start_val{0, 0, 0};
+    std::vector<int64_t> stop_val{INT64_MAX, INT64_MAX, INT64_MAX};
+    std::vector<int64_t> step_val{1, 1, 1};
+
+    std::vector<int64_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i64;
+    std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint32_start1) {
+    PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
+    PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
+
+    std::vector<int32_t> start_val{1};
+    std::vector<int32_t> stop_val{INT32_MAX};
+    std::vector<int32_t> step_val{1};
+
+    std::vector<int32_t> axes_val{1};
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint64_start1) {
+    PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
+    PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
+
+    std::vector<int64_t> start_val{1};
+    std::vector<int64_t> stop_val{INT64_MAX};
+    std::vector<int64_t> step_val{1};
+
+    std::vector<int64_t> axes_val{1};
+
+    element::Type_t et = element::i64;
+    std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
 
     EXPECT_EQ(op->get_element_type(), et);
@@ -1077,4 +1148,27 @@ TEST(type_prop, slice_v8_dynamic_rank_inputs) {
     const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
 
     EXPECT_EQ(op->get_output_partial_shape(0), dyn_rank_shape);
+}
+
+TEST(type_prop, slice_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> start_val{0}, stop_val{1}, step_val{1};
+    const auto start = std::make_shared<op::v0::Constant>(et, Shape{start_val.size()}, start_val);
+    const auto stop = std::make_shared<op::v0::Constant>(et, Shape{stop_val.size()}, stop_val);
+    const auto step = std::make_shared<op::v0::Constant>(et, Shape{step_val.size()}, step_val);
+    const auto slice = std::make_shared<op::v8::Slice>(shape_0, start, stop, step);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, slice);
+    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }

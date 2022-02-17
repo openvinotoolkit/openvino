@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/primitives/convert_color.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 
 namespace ov {
@@ -32,13 +33,34 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
             memory_type = cldnn::convert_color::memory_type::image;
         }
     }
-    p.AddPrimitive(cldnn::convert_color(layerName,
-                                        inputPrimitives,
-                                        from_color,
-                                        to_color,
-                                        memory_type,
-                                        out_layout,
-                                        op->get_friendly_name()));
+
+    if (outShape.batch[0] > 1 && memory_type == cldnn::convert_color::memory_type::image) {
+        std::vector<cldnn::primitive_id> convert_color_names;
+        for (size_t b = 0; b < outShape.batch[0]; ++b) {
+            cldnn::primitive::primitive_id_arr batchedInputPrimitives = { inputPrimitives[0] + "_" + std::to_string(b),
+                                                                          inputPrimitives[1] + "_" + std::to_string(b)};
+            cldnn::primitive_id batched_prim_id = layerName + "_" + std::to_string(b);
+            convert_color_names.emplace_back(batched_prim_id);
+            out_layout.size.batch[0] = 1;
+
+            p.AddPrimitive(cldnn::convert_color(batched_prim_id,
+                                                batchedInputPrimitives,
+                                                from_color,
+                                                to_color,
+                                                memory_type,
+                                                out_layout,
+                                                op->get_friendly_name()));
+        }
+        p.AddPrimitive(cldnn::concatenation(layerName, convert_color_names, cldnn::concatenation::along_b, op->get_friendly_name()));
+    } else {
+        p.AddPrimitive(cldnn::convert_color(layerName,
+                                            inputPrimitives,
+                                            from_color,
+                                            to_color,
+                                            memory_type,
+                                            out_layout,
+                                            op->get_friendly_name()));
+    }
     p.AddPrimitiveToProfiler(op);
 }
 

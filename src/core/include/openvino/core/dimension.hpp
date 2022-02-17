@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,8 @@
 #include "openvino/core/interval.hpp"
 
 namespace ov {
+class TableOfEquivalence;
+
 /// \brief Class representing a dimension, which may be dynamic (undetermined until runtime),
 ///        in a shape or shape-like object.
 ///
@@ -82,11 +84,11 @@ public:
     /// \li If `d1` and `d2` are static and equal, writes `d1` to `dst` and returns `true`.
     /// \li If `d1` and `d2` are both static and unequal, leaves `dst` unchanged and
     ///     returns `false`.
-    static bool merge(Dimension& dst, const Dimension d1, const Dimension d2);
+    static bool merge(Dimension& dst, const Dimension& d1, const Dimension& d2);
 
     /// \brief Try to merge two Dimension objects together with implicit broadcasting
     ///        of unit-sized dimension to non unit-sized dimension
-    static bool broadcast_merge(Dimension& dst, const Dimension d1, const Dimension d2);
+    static bool broadcast_merge(Dimension& dst, const Dimension& d1, const Dimension& d2);
 
     /// \brief Check whether this dimension is capable of being merged with the argument
     ///        dimension.
@@ -132,6 +134,18 @@ public:
     /// \return Smallest interval dimension enclosing inputs
     Dimension operator-(const Dimension& dim) const;
 
+    /// \brief Division operator for Dimension divided by a value_type parameter.
+    /// \param divisor Right operand for division.
+    /// \return Smallest interval dimension enclosing inputs
+    Dimension operator/(const value_type divisor) const;
+
+    /// \brief Divided-into operator for Dimension.
+    /// \param divisor Right operand for multiplication.
+    /// \return A reference to `*this`, after updating `*this` to the value `*this * dim`.
+    Dimension& operator/=(const value_type divisor) {
+        return (*this = *this / divisor);
+    }
+
     /// \brief Multiplication operator for Dimension.
     /// \param dim Right operand for multiplicaiton.
     /// \return Smallest interval containing all "produces" which are 0 if either of `this` or
@@ -154,12 +168,24 @@ public:
     Dimension operator&(const Dimension& dim) const;
     /// \brief Intersection of dimensions
     Dimension& operator&=(const Dimension& dim);
+    /// \brief Swap of dimensions
+    friend void swap(Dimension& a, Dimension& b) {
+        using std::swap;
+        swap(a.m_dimension, b.m_dimension);
+        swap(a.m_label, b.m_label);
+        swap(a.m_table_of_equivalence, b.m_table_of_equivalence);
+    }
 
 private:
     Dimension(const Interval& interval) : m_dimension(interval) {}
 
     // The actual numerical value of the dimension.
     Interval m_dimension{};
+
+    // private fields for dimension tracking
+    friend class DimensionTracker;
+    size_t m_label{0};
+    std::shared_ptr<TableOfEquivalence> m_table_of_equivalence = nullptr;
 };
 
 /// \brief Insert a human-readable representation of a dimension into an output stream.

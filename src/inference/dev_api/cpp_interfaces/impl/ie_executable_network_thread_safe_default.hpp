@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {
@@ -63,8 +64,10 @@ protected:
             syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
         } catch (const NotImplemented&) {
         }
-        if (!syncRequestImpl)
+        if (!syncRequestImpl) {
             syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
+            syncRequestImpl->setModelInputsOutputs(_parameters, _results);
+        }
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         return std::make_shared<AsyncInferRequestType>(syncRequestImpl, _taskExecutor, _callbackExecutor);
     }

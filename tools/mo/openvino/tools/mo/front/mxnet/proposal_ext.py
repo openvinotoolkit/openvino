@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.ops.proposal import ProposalOp
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
@@ -25,9 +24,9 @@ class ProposalFrontExtractor(FrontExtractorOp):
 
         update_attrs = {
             'feat_stride': feat_stride,
-            'ratio': np.array(ratio),
+            'ratio': mo_array(ratio),
             'min_size': min_size,
-            'scale': np.array(scale),
+            'scale': mo_array(scale),
             'pre_nms_topn': pre_nms_topn,
             'post_nms_topn': post_nms_topn,
             'nms_thresh': nms_thresh,

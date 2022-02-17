@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -26,6 +26,9 @@ def nodes_dict(original, transformed=None, levels=255, data=None, il=[-127], ih=
     return {
         **valued_const_with_data('weights', data),
         **valued_const_with_data('int_weights', int_data),
+
+        **regular_op_with_shaped_data(
+            'weights_cast', shape, {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
 
         **regular_op_with_shaped_data(
             'cast', shape, {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': transformed}),
@@ -130,25 +133,9 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-
-@generator
-class CompressionDataTypeTest(unittest.TestCase):
-    @generate(*[
-        ('FP32', np.int64),
-        ('FP16', np.int64),
-        ('FP32', np.int32),
-        ('FP16', np.int32),
-        ('FP32', np.float64, np.float32),
-        ('FP16', np.float64, np.float16),
-        ('FP32', np.float32, np.float32),
-        ('FP16', np.float32, np.float16),
-        ('FP32', np.float16, np.float32),
-        ('FP16', np.float16, np.float16),
-    ])
-    def test_data_type(self, model_dtype, original, transformed=None):
-        if transformed is None:
-            transformed = original
-        nodes = nodes_dict(original, transformed)
+    def test_quantize_new_fp16(self):
+        original_type = np.float16
+        nodes = nodes_dict(original_type)
 
         graph = build_graph(nodes, [
             *connect('weights:0', '0:FQ'),
@@ -157,7 +144,52 @@ class CompressionDataTypeTest(unittest.TestCase):
             *connect('ol:0', '3:FQ'),
             *connect('oh:0', '4:FQ'),
             *connect('FQ:0', 'output'),
-        ], nodes_with_edges_only=True, cli=Namespace(data_type=model_dtype, static_shape=True))
+        ], nodes_with_edges_only=True)
+
+        error_message = 'Unexpected number of FakeQuantize nodes {} CompressQuantizeWeights.quantize_data call `{}`'
+        fq_nodes = graph.get_op_nodes(type='FakeQuantize')
+        self.assertEqual(len(fq_nodes), 1, error_message.format('before', len(fq_nodes)))
+        fake_quantize = fq_nodes[0]
+
+        CompressQuantizeWeights.quantize_data(fake_quantize, original_type, np.int8, "signed")
+        graph.clean_up()
+
+        fq_nodes = graph.get_op_nodes(type='FakeQuantize')
+        self.assertEqual(len(fq_nodes), 1, error_message.format('after', len(fq_nodes)))
+        self.assertEqual(fq_nodes[0].in_port(0).get_source().node.soft_get('type'), 'Const')
+        self.assertEqual(fq_nodes[0].in_port(0).get_source().node.data_type, np.int8)
+
+        graph_ref = build_graph(nodes, [
+            *connect('int_weights:0', '0:FQ'),
+            *connect('il:0', '1:FQ'),
+            *connect('ih:0', '2:FQ'),
+            *connect('ol:0', '3:FQ'),
+            *connect('oh:0', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ], nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+
+@generator
+class CompressionDataTypeTest(unittest.TestCase):
+    @generate(*[np.int64,
+                np.int32,
+                np.float64,
+                np.float32,
+                np.float16])
+    def test_data_type(self, original):
+        nodes = nodes_dict(original)
+
+        graph = build_graph(nodes, [
+            *connect('weights:0', '0:FQ'),
+            *connect('il:0', '1:FQ'),
+            *connect('ih:0', '2:FQ'),
+            *connect('ol:0', '3:FQ'),
+            *connect('oh:0', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ], nodes_with_edges_only=True, cli=Namespace(static_shape=True))
 
         CompressQuantizeWeights().find_and_replace_pattern(graph)
         graph.clean_up()
@@ -173,28 +205,70 @@ class CompressionDataTypeTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
+    def test_data_type_new_fp16(self):
+        nodes = nodes_dict(np.float16)
+
+        graph = build_graph(nodes, [
+            *connect('weights:0', '0:weights_cast'),
+            *connect('weights_cast:0', '0:FQ'),
+            *connect('il:0', '1:FQ'),
+            *connect('ih:0', '2:FQ'),
+            *connect('ol:0', '3:FQ'),
+            *connect('oh:0', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ], nodes_with_edges_only=True, cli=Namespace(data_type='FP16', static_shape=True))
+
+        CompressQuantizeWeights().find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        graph_ref = build_graph(nodes, [
+            *connect('int_weights:0', '0:weights_cast'),
+            *connect('weights_cast:0', '0:sub'),
+            *connect('zp:0', '1:sub'),
+            *connect('sub:0', '0:mul'),
+            *connect('scale:0', '1:mul'),
+            *connect('mul:0', 'output'),
+        ], nodes_with_edges_only=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
 
 @generator
 class AccuracyCheckFP32Test(unittest.TestCase):
     eps = np.finfo(np.float32).eps
 
     @generate(*[
-        ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256),
-        ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256),
-        ([1, 1 + eps, 1 + 2 * eps, 1 + 3 * eps], [1], [1 + 3 * eps], [1], [1 + 3 * eps], 256),
-        ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256),
+        ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256, False),
+        ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256, False),
+        ([1, 1 + eps, 1 + 2 * eps, 1 + 3 * eps], [1], [1 + 3 * eps], [1], [1 + 3 * eps], 256, False),
+        ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256, False),
+        ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256, True),
+        ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256, True),
+        ([1, 1 + eps, 1 + 2 * eps, 1 + 3 * eps], [1], [1 + 3 * eps], [1], [1 + 3 * eps], 256, True),
+        ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256, True),
     ])
-    def test_accuracy(self, data, in_low, in_high, out_low, out_high, levels):
-        nodes = nodes_dict(np.float32, None, levels, data, in_low, in_high, out_low, out_high)
-
-        graph = build_graph(nodes, [
-            *connect('weights:0', '0:FQ'),
-            *connect('il:0', '1:FQ'),
-            *connect('ih:0', '2:FQ'),
-            *connect('ol:0', '3:FQ'),
-            *connect('oh:0', '4:FQ'),
-            *connect('FQ:0', 'output'),
-        ], nodes_with_edges_only=True)
+    def test_accuracy(self, data, in_low, in_high, out_low, out_high, levels, add_cast):
+        if not add_cast:
+            nodes = nodes_dict(np.float32, None, levels, data, in_low, in_high, out_low, out_high)
+            graph = build_graph(nodes, [
+                *connect('weights:0', '0:FQ'),
+                *connect('il:0', '1:FQ'),
+                *connect('ih:0', '2:FQ'),
+                *connect('ol:0', '3:FQ'),
+                *connect('oh:0', '4:FQ'),
+                *connect('FQ:0', 'output'),
+            ], nodes_with_edges_only=True)
+        else:
+            nodes = nodes_dict(np.float16, None, levels, data, in_low, in_high, out_low, out_high)
+            graph = build_graph(nodes, [
+                *connect('weights:0', '0:weights_cast'),
+                *connect('weights_cast:0', '0:FQ'),
+                *connect('il:0', '1:FQ'),
+                *connect('ih:0', '2:FQ'),
+                *connect('ol:0', '3:FQ'),
+                *connect('oh:0', '4:FQ'),
+                *connect('FQ:0', 'output'),
+            ], nodes_with_edges_only=True)
         graph_ref = graph.copy()
 
         CompressQuantizeWeights().find_and_replace_pattern(graph)
@@ -248,6 +322,7 @@ class NegativeCompressionTestLevels(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
 
 @generator
 class ZeroPointOptimizerTestClass(unittest.TestCase):

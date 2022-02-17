@@ -37,6 +37,7 @@ language = 'en'
 extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
+    'sphinx_panels',
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',
@@ -65,6 +66,8 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'openvino/inference-engine']
 
 
+panels_add_bootstrap_css = False
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -81,23 +84,23 @@ html_theme_options = {
 }
 
 html_context = {
-    'current_version': '2021.4',
     'current_language': 'English',
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
-    'versions': (('Latest', '/latest'), ('2021.4', '/2021.4'),
-                ('2021.3', '/2021.3'), ('2021.2', '/2021.2'), ('2021.1', '/2021.1'),
-                 ('2020.4', '/2020.4'), ('2020.3', '/2020.3'), ('2020.2', '/2020.1'),
-                  ('2020.1', '/2020.1'), ('2019_R3.1', '/2019_R3.1'), ('2019_R3', '/2019_R3'),
-                   ('2019_R2', '/2019_R2'), ('2019_R1.1', '/2019_R1.1'),  ('2019_R1.01', '/2019_R1.01'),
-                    ('2019_R1', '/2019_R1'), ('2018_R5', '/2018_R5'),),
-    'download_docs_url': '/archives/2021.4.zip'
+    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
+    'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
 }
 
 repositories = {
     'openvino': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'openvino',
-        'github_version': 'releases/2021/4',
+        'github_version': 'master',
+        'host_url': 'https://github.com'
+    },
+    'pot': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'openvino',
+        'github_version': 'master',
         'host_url': 'https://github.com'
     },
     'open_model_zoo': {
@@ -139,9 +142,6 @@ def setup(app):
     logger = logging.getLogger(__name__)
     app.add_config_value('doxygen_mapping_file', doxygen_mapping_file, rebuild=True)
     app.add_config_value('repositories', repositories, rebuild=True)
-    app.add_css_file('css/viewer.min.css')
-    app.add_css_file('css/custom.css')
-    app.add_js_file('js/viewer.min.js')
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
     try:

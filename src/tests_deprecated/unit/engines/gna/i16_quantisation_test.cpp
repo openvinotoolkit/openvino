@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,6 @@
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
 #include <ie_core.hpp>
-
-#if defined GNA_LIB_VER && GNA_LIB_VER == 2
-# define DISABLE_TEST_ON_GNA2 GTEST_SKIP();
-#else
-# define DISABLE_TEST_ON_GNA2
-#endif
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
@@ -241,19 +235,6 @@ TEST_F(I16QuantisationTest, multiple_inputs_supported) {
         .inNotCompactMode().withGNAConfig(configKey + std::to_string(0), 1.0f)
         .withGNAConfig(configKey + std::to_string(1), 2.0f).gna().propagate_forward()
         .called_with().pwl_inserted_into_nnet().once();
-}
-TEST_F(I16QuantisationTest, multiple_inputs_can_handle_individual_scale_factors) {
-    DISABLE_TEST_ON_GNA2
-    std::vector<float> input_data  = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<float> input2_data = {2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0};
-    std::vector<float> result      = {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
-
-    std::string configKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_");
-
-    assert_that().onInferModel(two_inputs_to_affine())
-        .inNotCompactMode().gna().propagate_forward()
-        .called_with().withGNAConfig(configKey + std::to_string(0), 2.0f).And()
-        .withGNAConfig(configKey + std::to_string(1), 2.0f).returns().result().filledWith(16384).that().equals_to(result);
 }
 
 TEST_F(I16QuantisationTest, DISABLED_multiple_inputs_into_concat_supported) {

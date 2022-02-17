@@ -11,6 +11,7 @@
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle
    openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques
    openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
    openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
@@ -75,7 +76,10 @@ Framework-agnostic parameters:
                         shape to the layout required by Inference Engine
                         (N,C,H,W). The shape should not contain undefined
                         dimensions (? or -1) and should fit the dimensions
-                        defined in the input operation of the graph. If there
+                        defined in the input operation of the graph. Boundaries 
+                        of undefined dimension can be specified with ellipsis, 
+                        for example [1,1..10,128,128]. One boundary can be undefined, 
+                        for example [1,..100] or [1,3,1..,1..]. If there
                         are multiple inputs in the model, --input_shape should
                         contain definition of shape for each input separated
                         by a comma, for example: [1,3,227,227],[2,4] for a
@@ -88,6 +92,9 @@ Framework-agnostic parameters:
                         is overridden by the --input parameter, this scale is
                         not applied for any input that does not match with the
                         original input of the model.
+                        If both --mean and --scale are specified,
+                        the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line.
   --reverse_input_channels
                         Switch the input channels order from RGB to BGR (or
                         vice versa). Applied to original inputs of the model
@@ -101,20 +108,29 @@ Framework-agnostic parameters:
                         Parameter -> ReverseInputChannels -> Mean/Scale apply -> the original body of the model.                        
   --log_level {CRITICAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
                         Logger level
-  --input INPUT         Quoted list of comma-separated input nodes names with
-                        shapes, data types, and values for freezing. The shape
-                        and value are specified as space-separated lists. The
-                        data type of input node is specified in braces and can
-                        have one of the values: f64 (float64), f32 (float32),
-                        f16 (float16), i64 (int64), i32 (int32), u8 (uint8),
-                        boolean. For example, use the following format to set
-                        input port 0 of the node `node_name1` with the shape
-                        [3 4] as an input node and freeze output port 1 of the
-                        node `node_name2` with the value [20 15] of the int32
-                        type and shape [2]: "0:node_name1[3
-                        4],node_name2:1[2]{i32}->[20 15]".
+  --input INPUT         Quoted list of comma-separated input nodes names with shapes, 
+                        data types, and values for freezing. The order of inputs in converted 
+                        model is the same as order of specified operation names. The shape and value are 
+                        specified as space-separated lists. The data type of input 
+                        node is specified in braces and can have one of the values: 
+                        f64 (float64), f32 (float32), f16 (float16), i64 (int64), 
+                        i32 (int32), u8 (uint8), boolean (bool). Data type is optional. 
+                        If it's not specified explicitly then there are two options: 
+                        if input node is a parameter, data type is taken from the 
+                        original node dtype, if input node is not a parameter, data type 
+                        is set to f32. Example, to set `input_1` with shape [1 100], 
+                        and Parameter node `sequence_len` with scalar input with value `150`, 
+                        and boolean input `is_training` with `False` value use the 
+                        following format: "input_1[1 10],sequence_len->150,is_training->False". 
+                        Another example, use the following format to set input port 0 
+                        of the node `node_name1` with the shape [3 4] as an input node 
+                        and freeze output port 1 of the node `node_name2` with the 
+                        value [20 15] of the int32 type and shape [2]: 
+                        "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".
   --output OUTPUT       The name of the output operation of the model. For
                         TensorFlow*, do not add :0 to this name.
+                        The order of outputs in converted model is the same as order of
+                        specified operation names.
   --mean_values MEAN_VALUES, -ms MEAN_VALUES
                         Mean values to be used for the input image per
                         channel. Values to be provided in the (R,G,B) or
@@ -131,6 +147,9 @@ Framework-agnostic parameters:
                         data[255,255,255],info[255,255,255]". The exact
                         meaning and order of channels depend on how the
                         original model was trained.
+                        If both --mean_values and --scale_values are specified,
+                        the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line.
   --data_type {FP16,FP32,half,float}
                         Data type for all intermediate tensors and weights. If
                         original model is in FP32 and --data_type=FP16 is
@@ -175,6 +194,8 @@ Framework-agnostic parameters:
   --transformations_config TRANSFORMATIONS_CONFIG
                         Use the configuration file with transformations
                         description.
+  --use_new_frontend    Force the usage of new frontend API for model processing.
+  --use_legacy_frontend Force the usage of legacy API for model processing.
 ```
 
 The sections below provide details on using particular parameters and examples of CLI commands.
@@ -186,9 +207,9 @@ Usually neural network models are trained with the normalized input data. This m
  
 In the first case, the Model Optimizer generates the IR with required pre-processing layers and Inference Engine samples may be used to infer the model. 
  
-In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--scale`, `--scale_values`, `--mean_values`. 
+In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--mean`, `--scale`, `--scale_values`, `--mean_values`. 
 
-If both mean and scale values are specified, the mean is subtracted first and then scale is applied. Input values are *divided* by the scale value(s). 
+> **NOTE:** If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the reverse_input_channels will be applied first, then mean and after that scale.
 
 There is no a universal recipe for determining the mean/scale values for a particular model. The steps below could help to determine them:
 * Read the model documentation. Usually the documentation describes mean/scale value if the pre-processing is required.
@@ -247,7 +268,7 @@ mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values 
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto 
- file. For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
+ file. For more information about extensions, please refer to  the [Custom Layers Guide](../../../HOWTO/Custom_Layers_Guide.md).
 ```sh
 mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
 ```
@@ -270,7 +291,7 @@ mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --ou
 
 
 ## See Also
-* [Configuring the Model Optimizer](../Config_Model_Optimizer.md)
+* [Configuring the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md)
 * [IR Notation Reference](../../IR_and_opsets.md)
 * [Model Optimizer Extensibility](../customize_model_optimizer/Customize_Model_Optimizer.md)
 * [Model Cutting](Cutting_Model.md)

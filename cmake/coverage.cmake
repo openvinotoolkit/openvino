@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,14 +23,14 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "legacy"
 ie_coverage_genhtml(INFO_FILE "legacy"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "ov_hetero_plugin"
+ie_coverage_extract(INPUT "openvino" OUTPUT "hetero_plugin"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/hetero/*")
-ie_coverage_genhtml(INFO_FILE "ov_hetero_plugin"
+ie_coverage_genhtml(INFO_FILE "hetero_plugin"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "ov_auto_plugin"
+ie_coverage_extract(INPUT "openvino" OUTPUT "auto_plugin"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/auto/*")
-ie_coverage_genhtml(INFO_FILE "ov_auto_plugin"
+ie_coverage_genhtml(INFO_FILE "auto_plugin"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "preprocessing"
@@ -58,10 +58,10 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "template_plugin"
 ie_coverage_genhtml(INFO_FILE "template_plugin"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-if(ENABLE_MKL_DNN)
-    ie_coverage_extract(INPUT "openvino" OUTPUT "mkldnn_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/mkldnn_plugin/*")
-    ie_coverage_genhtml(INFO_FILE "mkldnn_plugin"
+if(ENABLE_INTEL_CPU)
+    ie_coverage_extract(INPUT "openvino" OUTPUT "intel_cpu_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_cpu/*")
+    ie_coverage_genhtml(INFO_FILE "intel_cpu_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
@@ -73,9 +73,9 @@ if (ENABLE_INTEL_GPU)
 endif()
 
 if(ENABLE_INTEL_GNA)
-    ie_coverage_extract(INPUT "openvino" OUTPUT "ov_intel_gna_plugin"
+    ie_coverage_extract(INPUT "openvino" OUTPUT "intel_gna_plugin"
                         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gna/*")
-    ie_coverage_genhtml(INFO_FILE "ov_intel_gna_plugin"
+    ie_coverage_genhtml(INFO_FILE "intel_gna_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 

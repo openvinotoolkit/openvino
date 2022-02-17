@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.fusing.helpers import backward_bfs, forward_bfs, get_value_in_port, \
     get_tensor_in_port
@@ -62,27 +63,27 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
 
     for fuse_node in fuse_nodes:
         weights_port = fuse_node.in_port(1)
-        value = np.array(const_port.data.get_value())
+        value = mo_array(const_port.data.get_value())
 
         value = np.squeeze(value)
 
         # TODO : ch_dim should be equal to node.in_node(1).value.shape
         # We will multiply weights according output/input channel dimension
         ch_dim = weights_port.data.get_attr('output_channel_dim' if backward else 'input_channel_dim')
-        shape = np.array([weights_port.data.get_shape()[ch_dim]])
+        shape = mo_array([weights_port.data.get_shape()[ch_dim]])
 
         # Scalar broadcast
         if value.size == 1:
-            value = np.full(shape, value.item())
+            value = np.full(shape, value.item(), dtype=value.dtype)
 
         # Common broadcast for forward fusion
         if not backward:
             cnt = shape[-1] / value.shape[0]
             if fuse_node.layout == 'NCHW':
-                tmp = []
+                tmp = mo_array([], dtype=value.dtype)
                 for val in value:
                     tmp = np.concatenate((tmp, np.repeat(val, cnt)))
-                value = np.array(tmp)
+                value = mo_array(tmp)
             else:
                 value = np.tile(value, int(cnt))
 
@@ -91,7 +92,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         for x in range(wdims_number - ch_dim - 1):
             shape = np.append(shape, 1)
 
-        mul_val = np.array(value)
+        mul_val = mo_array(value)
         # If the value fails to reshape to the provided shape, skip fusing.
         # This can happen in case of group != 1 of the convolution.
         try:
@@ -141,7 +142,10 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         const_port.disconnect()
         # as Mul node is added before convolution, output tensor from Convolution node
         # corresponds to original Mul node
-        node.out_port(0).get_connection().set_source(producer_port, "dest")
+        if producer_port.node.soft_get('type') == 'Parameter':
+            node.out_port(0).get_connection().set_source(producer_port, "source")
+        else:
+            node.out_port(0).get_connection().set_source(producer_port, "dest")
 
     return is_fused
 

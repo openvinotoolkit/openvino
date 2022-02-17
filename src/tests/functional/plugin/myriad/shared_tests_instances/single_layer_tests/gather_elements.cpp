@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,10 +27,15 @@ TEST_P(GatherElementsLayerTestVPU, GatherElementsTests) {
 const std::vector<InferenceEngine::Precision> dPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::U32,
+        InferenceEngine::Precision::I64,
+        InferenceEngine::Precision::U64,
 };
 
 const std::vector<InferenceEngine::Precision> iPrecisions = {
-        InferenceEngine::Precision::I32
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::I64,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements1, GatherElementsLayerTestVPU,

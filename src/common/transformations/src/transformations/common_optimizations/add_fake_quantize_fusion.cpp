@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,8 +41,16 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         auto add_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
         if (!add_const)
             return false;
-        std::shared_ptr<Node> new_const = add_const;
+
         auto const_shape = add_const->get_shape();
+        if (ngraph::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
+            // We can't eliminate Add if Constant input broadcasts another input shape because
+            // when we reconnect input from Add to FQ won't broadcast given input, so it will result
+            // in shape collision.
+            return false;
+        }
+
+        std::shared_ptr<Node> new_const = add_const;
         size_t const_shape_size = shape_size(const_shape);
         bool is_single_value = const_shape_size == 1;
 
@@ -55,6 +63,18 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         }
 
         if (!is_single_value) {
+            const auto& fq_input_shape = fq->get_input_partial_shape(0);
+            if (fq_input_shape.rank().is_dynamic())
+                return false;
+
+            const auto diff = fq_input_shape.size() - const_shape.size();
+            if (diff > 0) {
+                // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
+                const_shape.insert(const_shape.begin(), diff, 1);
+                new_const = std::make_shared<opset5::Reshape>(new_const,
+                        op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
+            }
+
             // disallow constant shapes other than (N, 1, 1, ..., 1) or (1, C, 1, ..., 1)
             if (!(const_shape[0] > 1 && const_shape[0] == const_shape_size) &&
                 !(const_shape.size() > 1 && const_shape[1] == const_shape_size)) {
@@ -78,19 +98,11 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             auto fq_users = fq->get_users();
             // Concat LPT transformation supports per tensor quantization only
             bool fq_user_is_concat = std::any_of(fq_users.begin(), fq_users.end(),
-                                                 [] (const Output<Node>& node) -> bool {
-                                                     auto node_ptr = node.get_node();
+                                                 [] (const std::shared_ptr<Node> node_ptr) -> bool {
                                                      return is_type<opset5::Concat>(node_ptr);
                                                  });
             if (fq_user_is_concat)
                 return false;
-            auto diff = fq->get_input_partial_shape(0).rank().get_length() - static_cast<Dimension::value_type>(const_shape.size());
-            if (diff > 0) {
-                // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
-                const_shape.insert(const_shape.begin(), diff, 1);
-                new_const = std::make_shared<opset5::Reshape>(new_const,
-                        op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
-            }
         }
 
         auto input_low_sub = std::make_shared<opset5::Subtract>(fq->input_value(1), new_const);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -442,6 +442,11 @@ public:
     */
     explicit WeightableLayer(const LayerParams & prms);
 
+    /**
+     * @brief Constructs a WeightableLayer instance and initiates layer parameters with the given values
+     */
+    using CNNLayer::CNNLayer;
+
     IE_SUPPRESS_DEPRECATED_END
 
     /**
@@ -452,11 +457,6 @@ public:
      * @brief A pointer to a biases blob
      */
     Blob::Ptr _biases;
-
-    /**
-     * @brief Constructs a WeightableLayer instance and initiates layer parameters with the given values
-     */
-    using CNNLayer::CNNLayer;
 
     ~WeightableLayer() override;
 };
@@ -555,8 +555,10 @@ public:
  */
 class DeconvolutionLayer: public ConvolutionLayer {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using ConvolutionLayer::ConvolutionLayer;
     using ConvolutionLayer::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~DeconvolutionLayer() override;
 };
@@ -567,8 +569,10 @@ public:
  */
 class DeformableConvolutionLayer: public ConvolutionLayer {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using ConvolutionLayer::ConvolutionLayer;
     using ConvolutionLayer::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Number of deformable groups
@@ -779,7 +783,9 @@ public:
     /**
      * @brief Creates a new FullyConnectedLayer instance and initializes layer parameters with the given values.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~FullyConnectedLayer() override;
 };
@@ -803,7 +809,9 @@ public:
      * If batch is used, then batch needs to be specified as an input dimension also
      * In current implementation 1 means channels, 0 - batch
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ConcatLayer() override;
 };
@@ -822,7 +830,9 @@ public:
     /**
      * @brief Creates a new SplitLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SplitLayer() override;
 };
@@ -857,7 +867,9 @@ public:
     /**
      * @brief Creates a new NormLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~NormLayer() override;
 };
@@ -875,7 +887,9 @@ public:
     /**
      * @brief Creates a new SoftMaxLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SoftMaxLayer() override;
 };
@@ -890,7 +904,9 @@ public:
      * @brief A default constructor. Creates a new GRNLayer instance and initializes layer parameters with the given
      * values.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Bias for squares sum
@@ -910,7 +926,9 @@ public:
      * @brief A default constructor. Creates a new MVNLayer instance and initializes layer parameters with the given
      * values.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Indicate that mean value is calculated across channels
@@ -939,7 +957,9 @@ public:
     /**
      * @brief Creates a new ReLULayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ReLULayer() override;
 };
@@ -964,7 +984,9 @@ public:
     /**
      * @brief Creates a new ClampLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ClampLayer() override;
 };
@@ -1037,7 +1059,9 @@ public:
     /**
      * @brief Creates a new EltwiseLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~EltwiseLayer() override;
 };
@@ -1064,7 +1088,9 @@ public:
     /**
      * @brief Creates a new CropLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~CropLayer() override;
 };
@@ -1091,7 +1117,9 @@ public:
     /**
      * @brief Creates a new ReshapeLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ReshapeLayer() override;
 };
@@ -1114,7 +1142,9 @@ public:
     /**
      * @brief Creates a new TileLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~TileLayer() override;
 };
@@ -1134,7 +1164,9 @@ public:
     /**
      * @brief Creates a new ScaleShiftLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ScaleShiftLayer() override;
 };
@@ -1172,7 +1204,9 @@ public:
 
     Body body;  //!< A Tensor Iterator body
 
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~TensorIterator() override;
 };
@@ -1183,7 +1217,9 @@ public:
  */
 class RNNCellBase: public WeightableLayer {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Direct type of recurrent cell (including subtypes)
@@ -1276,8 +1312,10 @@ public:
  */
 class LSTMCell: public RNNCellBase {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
     using RNNCellBase::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~LSTMCell() override;
 };
@@ -1318,8 +1356,10 @@ public:
  */
 class GRUCell: public RNNCellBase {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
     using RNNCellBase::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~GRUCell() override;
 };
@@ -1355,8 +1395,10 @@ public:
  */
 class RNNCell: public RNNCellBase {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
     using RNNCellBase::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~RNNCell() override;
 };
@@ -1392,7 +1434,9 @@ public:
  */
 class RNNSequenceLayer: public RNNCellBase {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief An axis by which iteration is performed
@@ -1435,7 +1479,9 @@ public:
      *
      * @param prms Initial layer parameters
      */
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~PReLULayer() override;
 };
@@ -1464,7 +1510,9 @@ public:
     /**
      * @brief Creates a new PowerLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~PowerLayer() override;
 };
@@ -1483,7 +1531,9 @@ public:
     /**
      * @brief Creates a new BatchNormalizationLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~BatchNormalizationLayer() override;
 };
@@ -1515,7 +1565,9 @@ public:
     /**
      * @brief Creates a new GemmLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~GemmLayer() override;
 };
@@ -1553,7 +1605,9 @@ public:
     /**
      * @brief Creates a new PadLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~PadLayer() override;
 };
@@ -1573,7 +1627,9 @@ public:
     /**
      * @brief Creates a new GatherLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~GatherLayer() override;
 };
@@ -1614,7 +1670,9 @@ public:
     /**
      * @brief Creates a new StridedSliceLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~StridedSliceLayer() override;
 };
@@ -1639,7 +1697,9 @@ public:
     /**
      * @brief Creates a new ShuffleChannelsLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ShuffleChannelsLayer() override;
 };
@@ -1659,7 +1719,9 @@ public:
     /**
      * @brief Creates a new DepthToSpaceLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~DepthToSpaceLayer() override;
 };
@@ -1679,7 +1741,9 @@ public:
     /**
      * @brief Creates a new SpaceToDepthLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SpaceToDepthLayer() override;
 };
@@ -1709,7 +1773,9 @@ public:
     /**
      * @brief Creates a new SpaceToBatchLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SpaceToBatchLayer() override;
 };
@@ -1742,7 +1808,9 @@ public:
     /**
      * @brief Creates a new BatchToSpaceLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~BatchToSpaceLayer() override;
 };
@@ -1758,7 +1826,9 @@ public:
     /**
      * @brief Creates a new SparseFillEmptyRowsLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SparseFillEmptyRowsLayer() override;
 };
@@ -1773,7 +1843,9 @@ public:
     /**
      * @brief Creates a new SparseSegmentReduceLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SparseSegmentReduceLayer() override;
 };
@@ -1788,7 +1860,9 @@ public:
     /**
     * @brief Creates a new ExperimentalSparseWeightedReduceLayer instance.
     */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ExperimentalSparseWeightedReduceLayer() override;
 };
@@ -1803,7 +1877,9 @@ public:
     /**
     * @brief Creates a new SparseToDenseLayer instance.
     */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SparseToDenseLayer() override;
 };
@@ -1823,7 +1899,9 @@ public:
     /**
     * @brief Creates a new BucketizeLayer instance.
     */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~BucketizeLayer() override;
 };
@@ -1849,7 +1927,9 @@ public:
     /**
      * @brief Creates a new ReverseSequence instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ReverseSequenceLayer() override;
 };
@@ -1884,7 +1964,9 @@ public:
     /**
      * @brief Creates a new OneHot instance
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~OneHotLayer() override;
 };
@@ -1900,7 +1982,9 @@ public:
     /**
      * @brief Creates a new RangeLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~RangeLayer() override;
 };
@@ -1916,7 +2000,9 @@ public:
     /**
      * @brief Creates a new Fill instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~FillLayer() override;
 };
@@ -1934,7 +2020,9 @@ public:
     /**
      * @brief Creates a new SelectLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SelectLayer() override;
 };
@@ -1950,7 +2038,9 @@ public:
     /**
      * @brief Creates a new Broadcast instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~BroadcastLayer() override;
 };
@@ -1971,7 +2061,9 @@ public:
     /**
      * @brief Creates a new QuantizeLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~QuantizeLayer() override;
 };
@@ -1987,7 +2079,9 @@ public:
     /**
      * @brief Creates a new Math instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~MathLayer() override;
 };
@@ -2008,7 +2102,9 @@ public:
     /**
      * @brief Creates a new Reduce instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ReduceLayer() override;
 };
@@ -2037,7 +2133,9 @@ public:
     /**
      * @brief Creates a new TopKLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~TopKLayer() override;
 };
@@ -2066,7 +2164,9 @@ public:
     /**
      * @brief Creates a new UniqueLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~UniqueLayer() override;
 };
@@ -2093,7 +2193,9 @@ public:
     /**
      * @brief Creates a new NonMaxSuppressionLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~NonMaxSuppressionLayer() override;
 };
@@ -2107,7 +2209,9 @@ public:
     /**
      * @brief Creates a new ScatterUpdateLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ScatterUpdateLayer() override;
 };
@@ -2121,7 +2225,9 @@ public:
     /**
      * @brief Creates a new ScatterElementsUpdateLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ScatterElementsUpdateLayer() override;
 };
@@ -2156,7 +2262,9 @@ public:
     /**
      * @brief Creates a new ExperimentalDetectronPriorGridGenerator instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     virtual ~ExperimentalDetectronPriorGridGeneratorLayer();
 };
@@ -2173,7 +2281,9 @@ public:
     /**
      * @brief Creates a new ExperimentalDetectronTopKROIs instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     virtual ~ExperimentalDetectronTopKROIs();
 };
@@ -2203,7 +2313,9 @@ public:
     /**
      * @brief Creates a new ExperimentalDetectronGenerateProposalsSingleImage instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     virtual ~ExperimentalDetectronGenerateProposalsSingleImageLayer();
 };

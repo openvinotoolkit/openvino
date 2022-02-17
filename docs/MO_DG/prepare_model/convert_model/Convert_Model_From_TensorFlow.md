@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _convert model tf:
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -26,11 +28,11 @@
 
 A summary of the steps for optimizing and deploying a model that was trained with the TensorFlow\* framework:
 
-1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for TensorFlow\* (TensorFlow was used to train your model).
+1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for TensorFlow\* (TensorFlow was used to train your model).
 2. [Freeze the TensorFlow model](#freeze-the-tensorflow-model) if your model is not already frozen or skip this step and use the [instruction](#loading-nonfrozen-models) to a convert a non-frozen model.
 3. [Convert a TensorFlow\* model](#Convert_From_TF) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
-4. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided [sample applications](../../../IE_DG/Samples_Overview.md).
-5. [Integrate](../../../IE_DG/Samples_Overview.md) the Inference Engine in your application to deploy the model in the target environment.
+4. Test the model in the Intermediate Representation format using the [Inference Engine](../../../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
+5. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the Inference Engine in your application to deploy the model in the target environment.
 
 ## Supported Topologies
 
@@ -256,7 +258,7 @@ The graph is frozen and dumped to a file with the following code:
 ```python
 import tensorflow as tf
 from tensorflow.python.framework import graph_io
-frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["name_of_the_output_node"])
+frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["name_of_the_output_node"])
 graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
 ```
 
@@ -352,7 +354,7 @@ TensorFlow*-specific parameters:
  mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-* Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [Extending the Model Optimizer with New Primitives](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
+* Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [Custom Layers Guide](../../../HOWTO/Custom_Layers_Guide.md).
 ```sh
  mo --input_model custom_model.pb --tensorflow_custom_layer_libraries ./my_custom_op.so --output_dir <OUTPUT_MODEL_DIR>
 ```
@@ -360,7 +362,7 @@ TensorFlow*-specific parameters:
 
 ## Convert TensorFlow* 2 Models <a name="Convert_From_TF2X"></a>
 
-In order to convert TensorFlow* 2 models, installation of dependencies from `requirements_tf2.txt` is required.
+In order to convert TensorFlow* 2 models, installation of dependencies from `requirements_tf.txt` is required.
 TensorFlow* 2.X officially supports two model formats: SavedModel and Keras H5 (or HDF5).    
 Below are the instructions on how to convert each of them.
 

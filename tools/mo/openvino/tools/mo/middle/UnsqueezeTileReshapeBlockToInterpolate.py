@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -26,7 +26,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
     one after another, performing unsqueeze-ing over different dimensions, effectively performing interpolation over
     several dimensions.
 
-    These sequences are merged in the 'optimizer/openvino/tools/mo/middle/InterpolateSequenceToInterpolate.py' transformation
+    These sequences are merged in the 'optimizer/extensions/middle/InterpolateSequenceToInterpolate.py' transformation
     into a single Interpolate operation.
 
     The transformation is applicable only when all following conditions are fulfilled:
@@ -43,7 +43,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
     Example.
 
     Let data = np.arange(0, 1 * 2 * 3 * 4).reshape((1, 2, 3, 4)).astype(np.float32), that is
-        data = np.array([[[[ 0,  1,  2,  3],
+        data = mo_array([[[[ 0,  1,  2,  3],
                            [ 4,  5,  6,  7],
                            [ 8,  9, 10, 11]],
                           [[12, 13, 14, 15],
@@ -119,7 +119,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         if input_rank_of_unsqueeze + 1 != len(second_input_of_tile.value):
             return False
 
-        expected_tile_constant = np.ones(input_rank_of_unsqueeze + 1)
+        expected_tile_constant = np.ones(input_rank_of_unsqueeze + 1, dtype=np.float32)
         expected_tile_constant[d_idx] = float(second_input_of_tile.value[d_idx])
 
         if not np.array_equal(expected_tile_constant, float32_array(second_input_of_tile.value)):

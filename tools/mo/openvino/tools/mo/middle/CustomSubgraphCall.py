@@ -1,12 +1,17 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
 import logging as log
 
 import numpy as np
+import os
+
+# do not print INFO and WARNING messages from TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 from openvino.tools.mo.front.common.layout import nhwc_to_nchw_permute
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, shape_insert
 from openvino.tools.mo.front.extractor import update_ie_fields
 from openvino.tools.mo.graph.graph import Graph
@@ -54,6 +59,9 @@ class CustomSubgraphCall(MiddleReplacementPattern):
             tf_v1.disable_eager_execution()
         except ImportError:
             import tensorflow as tf_v1
+        # in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+        tf_v1.get_logger().setLevel("ERROR")
+
         from openvino.tools.mo.front.common.layout import convert_shape, nhwc_to_nchw_permute, nchw_to_nhwc_permute
         from openvino.tools.mo.front.tf.extractors.utils import tf_tensor_shape
         from openvino.tools.mo.front.tf.partial_infer.tf import add_node_def_to_subgraph, update_input_in_pbs
@@ -206,15 +214,15 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         # reshape shape data node
         reshape_shape_data_node_name = graph.unique_id("Reshape_shape_")
         graph.add_node(reshape_shape_data_node_name, kind='data', name=reshape_shape_data_node_name,
-                       value=np.array(data_node['shape']), shape=[1])
+                       value=mo_array(data_node['shape']), shape=[1])
 
         # reshaped data node
         reshaped_value = None
         if data_node['value'] is not None:
-            reshaped_value = np.array(data_node['value'])
+            reshaped_value = mo_array(data_node['value'])
         reshaped_data_node_name = graph.unique_id("reshaped_data_")
         graph.add_node(reshaped_data_node_name, kind='data', name=reshaped_data_node_name,
-                       shape=np.array(data_node['shape']), value=reshaped_value, nchw_layout=True)
+                       shape=mo_array(data_node['shape']), value=reshaped_value, nchw_layout=True)
 
         if is_out_node:
             add_opoutput(graph, reshaped_data_node_name, 0, False)
@@ -274,6 +282,9 @@ class CustomSubgraphCall(MiddleReplacementPattern):
             tf_v1.disable_eager_execution()
         except ImportError:
             import tensorflow as tf_v1
+        # in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+        tf_v1.get_logger().setLevel("ERROR")
+
         from openvino.tools.mo.front.tf.partial_infer.tf import get_subgraph_output_tensors, add_node_def_to_subgraph
         _, output_tensors = get_subgraph_output_tensors(node)
 

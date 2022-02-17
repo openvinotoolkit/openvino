@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -8,6 +8,7 @@ from openvino.tools.mo.ops.elementwise import Mul
 from openvino.tools.mo.ops.normalize_l2 import NormalizeL2Op
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_node
 
@@ -48,11 +49,11 @@ class NormalizeToNormalizeL2(BackReplacementPattern):
         # in the code below we intentionally use get_source() to get the out port. Because updating the out port will
         # update the Const node 'value' and 'shape' attributes
         if node.channel_shared or all(weights == weights[0]):
-            node.in_port(1).get_source().data.set_value(np.array([weights[0]]))
+            node.in_port(1).get_source().data.set_value(mo_array([weights[0]]))
         else:
             new_shape = np.ones((len(node.in_port(0).data.get_shape())), dtype=np.int64)
             new_shape[1] = -1
-            node.in_port(1).get_source().data.set_value(np.array(weights).reshape(new_shape))
+            node.in_port(1).get_source().data.set_value(mo_array(weights).reshape(new_shape))
 
         mul = Mul(graph, {'name': output_name}).create_node()
         rename_node(mul, output_name)

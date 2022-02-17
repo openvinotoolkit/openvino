@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -709,7 +709,7 @@ private:
     element::Type m_element_type;
     Shape m_shape{};
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
-    bool m_all_elements_bitwise_identical;
+    bool m_all_elements_bitwise_identical = false;
     bool m_alloc_buffer_on_visit_attributes = true;
 };
 }  // namespace v0

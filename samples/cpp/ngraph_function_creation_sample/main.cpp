@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 
 // clang-format off
 #include "openvino/openvino.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "ngraph/util.hpp"
 
@@ -37,7 +38,7 @@ using namespace ov::preprocess;
  * @param maxSize length of file
  * @return none
  */
-void readFile(const std::string& file_name, void* buffer, size_t maxSize) {
+void read_file(const std::string& file_name, void* buffer, size_t maxSize) {
     std::ifstream input_file;
 
     input_file.open(file_name, std::ios::binary | std::ios::in);
@@ -58,7 +59,7 @@ void readFile(const std::string& file_name, void* buffer, size_t maxSize) {
  * @param filepath string
  * @return weightsPtr tensor blob
  */
-ov::runtime::Tensor ReadWeights(const std::string& filepath) {
+ov::Tensor read_weights(const std::string& filepath) {
     std::ifstream weightFile(filepath, std::ifstream::ate | std::ifstream::binary);
 
     int64_t fileSize = weightFile.tellg();
@@ -66,8 +67,8 @@ ov::runtime::Tensor ReadWeights(const std::string& filepath) {
                     "Incorrect weights file. This sample works only with LeNet "
                     "classification model.");
 
-    ov::runtime::Tensor weights(ov::element::u8, {static_cast<size_t>(fileSize)});
-    readFile(filepath, weights.data(), weights.get_byte_size());
+    ov::Tensor weights(ov::element::u8, {static_cast<size_t>(fileSize)});
+    read_file(filepath, weights.data(), weights.get_byte_size());
 
     return std::move(weights);
 }
@@ -76,8 +77,8 @@ ov::runtime::Tensor ReadWeights(const std::string& filepath) {
  * @brief Create ngraph function
  * @return Ptr to ngraph function
  */
-std::shared_ptr<ov::Model> createNgraphFunction(const std::string& path_to_weights) {
-    const ov::runtime::Tensor weights = ReadWeights(path_to_weights);
+std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
+    const ov::Tensor weights = read_weights(path_to_weights);
     const std::uint8_t* data = weights.data<std::uint8_t>();
 
     // -------input------
@@ -108,7 +109,7 @@ std::shared_ptr<ov::Model> createNgraphFunction(const std::string& path_to_weigh
     Shape padBeginShape{0, 0};
     Shape padEndShape{0, 0};
 
-    auto maxPoolingNodeFirst = std::make_shared<op::v1::MaxPool>(addNodeFirst->output(0),
+    auto maxPoolingNodeFirst = std::make_shared<opset1::MaxPool>(addNodeFirst->output(0),
                                                                  Strides{2, 2},
                                                                  padBeginShape,
                                                                  padEndShape,
@@ -138,7 +139,7 @@ std::shared_ptr<ov::Model> createNgraphFunction(const std::string& path_to_weigh
         std::make_shared<opset8::Add>(convolutionNodeSecond->output(0), addSecondConstantNode->output(0));
 
     // -------MAXPOOL 2--------
-    auto maxPoolingNodeSecond = std::make_shared<op::v1::MaxPool>(addNodeSecond->output(0),
+    auto maxPoolingNodeSecond = std::make_shared<opset1::MaxPool>(addNodeSecond->output(0),
                                                                   Strides{2, 2},
                                                                   padBeginShape,
                                                                   padEndShape,
@@ -152,7 +153,7 @@ std::shared_ptr<ov::Model> createNgraphFunction(const std::string& path_to_weigh
         std::make_shared<opset8::Constant>(element::Type_t::i64, reshapeFirstShape, data + reshapeOffset);
 
     auto reshapeFirstNode =
-        std::make_shared<op::v1::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
+        std::make_shared<opset8::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
 
     // -------MatMul 1---------
     auto matMulFirstShape = Shape{500, 800};
@@ -179,7 +180,7 @@ std::shared_ptr<ov::Model> createNgraphFunction(const std::string& path_to_weigh
         std::make_shared<opset8::Constant>(element::Type_t::i64, reshapeSecondShape, data + reshapeOffset);
 
     auto reshapeSecondNode =
-        std::make_shared<op::v1::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
+        std::make_shared<opset8::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
 
     // -------MatMul 2---------
     auto matMulSecondShape = Shape{10, 500};
@@ -232,14 +233,14 @@ int main(int argc, char* argv[]) {
         const std::string device_name{argv[2]};
 
         // -------- Step 1. Initialize OpenVINO Runtime Core object --------
-        runtime::Core core;
+        ov::Core core;
 
         slog::info << "Device info: " << slog::endl;
         slog::info << core.get_versions(device_name) << slog::endl;
 
         // -------- Step 2. Create network using ov::Function --------
         slog::info << "Create model from weights: " << weights_path << slog::endl;
-        std::shared_ptr<ov::Model> model = createNgraphFunction(weights_path);
+        std::shared_ptr<ov::Model> model = create_model(weights_path);
         printInputAndOutputsInfo(*model);
 
         OPENVINO_ASSERT(model->inputs().size() == 1, "Incorrect number of inputs for LeNet");
@@ -284,15 +285,15 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 5. Compiling model for the device --------
         slog::info << "Compiling a model for the " << device_name << " device" << slog::endl;
-        runtime::CompiledModel compiled_model = core.compile_model(model, device_name);
+        ov::CompiledModel compiled_model = core.compile_model(model, device_name);
 
         // -------- Step 6. Create infer request --------
         slog::info << "Create infer request" << slog::endl;
-        runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
 
         // -------- Step 7. Combine multiple input images as batch --------
         slog::info << "Combine images in batch and set to input tensor" << slog::endl;
-        runtime::Tensor input_tensor = infer_request.get_input_tensor();
+        ov::Tensor input_tensor = infer_request.get_input_tensor();
 
         // Iterate over all input images and copy data to input tensor
         for (size_t image_id = 0; image_id < digits.size(); ++image_id) {
@@ -306,7 +307,7 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 9. Process output --------
         slog::info << "Processing output tensor" << slog::endl;
-        const runtime::Tensor output_tensor = infer_request.get_output_tensor();
+        const ov::Tensor output_tensor = infer_request.get_output_tensor();
 
         const std::vector<std::string> lenet_labels{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 

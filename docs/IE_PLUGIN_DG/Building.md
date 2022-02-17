@@ -21,7 +21,7 @@ Once the commands above are executed, the Inference Engine Developer Package is 
        * `IE::ngraph` - shared nGraph library
        * `IE::inference_engine` - shared Inference Engine library
        * `IE::inference_engine_transformations` - shared library with Inference Engine ngraph-based Transformations
-       * `IE::inference_engine_preproc` - shared library with Inference Engine preprocessing plugin
+       * `IE::openvino_gapi_preproc` - shared library with Inference Engine preprocessing plugin
        * `IE::inference_engine_plugin_api` - interface library with Inference Engine Plugin API headers
        * `IE::inference_engine_lp_transformations` - shared library with low-precision transformations
        * `IE::pugixml` - static Pugixml library
@@ -59,13 +59,17 @@ To build a plugin and its tests, run the following CMake scripts:
 - Root `CMakeLists.txt`, which finds the Inference Engine Developer Package using the `find_package` CMake command and adds the `src` and `tests` subdirectories with plugin sources and their tests respectively:
 
 ```cmake
-cmake_minimum_required(VERSION 3.13.3)
+cmake_minimum_required(VERSION 3.13)
 
-project(InferenceEngineTemplatePlugin)
+project(OpenVINOTemplatePlugin)
 
-set(IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR ${InferenceEngineTemplatePlugin_SOURCE_DIR})
+set(TEMPLATE_PLUGIN_SOURCE_DIR ${OpenVINOTemplatePlugin_SOURCE_DIR})
 
-find_package(InferenceEngineDeveloperPackage REQUIRED)
+find_package(OpenVINODeveloperPackage REQUIRED)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ov_add_compiler_flags(-Wall)
+endif()
 
 add_subdirectory(src)
 
@@ -87,12 +91,12 @@ endif()
 
 - `src/CMakeLists.txt` to build a plugin shared library from sources:
 
-@snippet src/CMakeLists.txt cmake:plugin
+@snippet template_plugin/src/CMakeLists.txt cmake:plugin
 
 > **NOTE**: `IE::inference_engine` target is imported from the Inference Engine Developer Package.
 
 - `tests/functional/CMakeLists.txt` to build a set of functional plugin tests:
 
-@snippet tests/functional/CMakeLists.txt cmake:functional_tests
+@snippet template_plugin/tests/functional/CMakeLists.txt cmake:functional_tests
 
 > **NOTE**: The `IE::funcSharedTests` static library with common functional Inference Engine Plugin tests is imported via the Inference Engine Developer Package.

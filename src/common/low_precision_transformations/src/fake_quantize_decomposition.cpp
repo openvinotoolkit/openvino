@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,12 +122,12 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
     const auto& precisions = precisionsAttribute.as<PrecisionsAttribute>().value();
     std::vector<element::Type> precisionsForLevels{};
     switch (levels) {
-        case 65536:
-        case 65535:
+        case low_precision::levels::int16:
+        case low_precision::levels::int16_narrow_range:
             precisionsForLevels = {element::u16, element::i16};
             break;
-        case static_cast<size_t>(4294967296):
-        case 4294967295:
+        case low_precision::levels::int32:
+        case low_precision::levels::int32_narrow_range:
             precisionsForLevels = {element::u32, element::i32};
             break;
         default:
@@ -204,12 +204,12 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
             updatedOutputHighValue);
 
         if ((updatePrecisions == false) && (dequantizationMul == 1.f) && (dequantizationSub == 0.f)) {
-            std::make_tuple(nullptr, nullptr);
+            return std::make_tuple(nullptr, nullptr);
         }
 
         //TODO: pass min levels as a parameter?
         if (levels < 2ul) {
-            std::make_tuple(nullptr, nullptr);
+            return std::make_tuple(nullptr, nullptr);
         }
 
         // 2. update FakeQuantize - one time action
@@ -258,7 +258,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 
         const auto newFakeQuantize = std::get<0>(QDQ);
         if (newFakeQuantize == nullptr) {
-            std::make_tuple(nullptr, nullptr);
+            return std::make_tuple(nullptr, nullptr);
         }
         matcherPass->register_new_node(newFakeQuantize);
         dequantize = std::get<1>(QDQ);
@@ -273,11 +273,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 
 bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
-    if (!NetworkHelper::isQuantizeSupported(layer)) {
-        return false;
-    }
-
-    if (NetworkHelper::isFQByDynamicDimension(layer)) {
+    if (!layer || !NetworkHelper::isQuantizeSupported(layer)) {
         return false;
     }
 
@@ -304,7 +300,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             return false;
         }
 
-        layer = NetworkHelper::composeFakeQuantize(layer);
+        layer = NetworkHelper::composeFakeQuantize(layer, defaultPrecisions);
         if (layer == nullptr) {
             return false;
         }
@@ -320,7 +316,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     DataPrecision dataPrecision = fq_decomposition::getDataPrecisionByOutputPort(layer);
 
-    PrecisionsAttribute precisionsAttribute(getDefaultPrecisions());
+    PrecisionsAttribute precisionsAttribute(defaultPrecisions);
     {
         // TODO: LPT: return attribute (not wrapper)
         auto attributeWrapper = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));

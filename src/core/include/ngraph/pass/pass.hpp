@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,6 @@ class Manager;
 namespace ngraph {
 namespace pass {
 using FunctionPass = ov::pass::ModelPass;
-using ov::pass::FusionType;
-using ov::pass::FusionTypeMask;
 using ov::pass::Manager;
 using ov::pass::PassBase;
 using ov::pass::PassProperty;
@@ -40,5 +38,20 @@ public:
     ~NodePass() override;
     virtual bool run_on_node(std::shared_ptr<ngraph::Node>) = 0;
 };
+
+enum class NGRAPH_DEPRECATED("FusionType is no longer used anywhere. Please do no use it.") FusionType : uint32_t {
+    //`DIFFERENTIABLE_FUSIONS` produce ops that support autodiff
+    // i.e. implement `generate_adjoints`
+    DIFFERENTIABLE_FUSIONS = 0x1,
+    REGULAR_FUSIONS = 0x2,
+    //`FOP_FUSIONS` produce ops in the FusedOps category that might
+    // not be supported by all backends
+    FOP_FUSIONS = 0x4,
+    ALL_FUSIONS = 0xFFFFFFFF
+};
+
+NGRAPH_SUPPRESS_DEPRECATED_START
+using FusionTypeMask = ov::EnumMask<FusionType>;
+NGRAPH_SUPPRESS_DEPRECATED_END
 }  // namespace pass
 }  // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
@@ -21,13 +21,15 @@ class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequ
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
-        std::map<std::string, std::string> configuration;
+        ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+                result << "configItem=" << configItem.first << "_";
+                configItem.second.print(result);
+                result << "_";
             }
         }
         return result.str();
@@ -37,7 +39,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
     }
 
     void TearDown() override {
@@ -46,7 +48,7 @@ public:
         }
     }
 
-    bool compareTensors(const ov::runtime::Tensor& t1, const ov::runtime::Tensor& t2) {
+    bool compareTensors(const ov::Tensor& t1, const ov::Tensor& t2) {
         void* data1;
         void* data2;
         try {
@@ -67,9 +69,9 @@ public:
     }
 
 protected:
-    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
-    std::map<std::string, std::string> configuration;
+    ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
 };
 
@@ -78,13 +80,14 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
 }
 
 TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
-    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeConvPoolRelu();
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
-    std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
+    ov::AnyMap incorrectConfig = {{"abc", "def"}};
     EXPECT_ANY_THROW(auto execNet = core->compile_model(function, targetDevice, incorrectConfig));
 }
 
@@ -101,55 +104,55 @@ TEST_P(OVExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
 
 TEST_P(OVExecutableNetworkBaseTest, checkGetMetric) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    EXPECT_NO_THROW(execNet.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    EXPECT_NO_THROW(execNet.get_property(ov::supported_properties));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
     for (const auto& configItem : configuration) {
-        InferenceEngine::Parameter param;
-        EXPECT_NO_THROW(param = execNet.get_config(configItem.first));
+        ov::Any param;
+        EXPECT_NO_THROW(param = execNet.get_property(configItem.first));
         EXPECT_FALSE(param.empty());
-        EXPECT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        EXPECT_EQ(param, configItem.second);
     }
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
     auto execNet = core->compile_model(function, targetDevice);
-    std::map<std::string, InferenceEngine::Parameter> config;
+    std::map<std::string, ov::Any> config;
     for (const auto& confItem : configuration) {
-        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
+        config.emplace(confItem.first, confItem.second);
     }
-    EXPECT_NO_THROW(execNet.set_config(config));
+    EXPECT_NO_THROW(execNet.set_property(config));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
     auto execNet = core->compile_model(function, targetDevice);
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
-    std::map<std::string, InferenceEngine::Parameter> config;
+    std::map<std::string, ov::Any> config;
     for (const auto& confItem : incorrectConfig) {
-        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
+        config.emplace(confItem.first, confItem.second);
     }
-    EXPECT_ANY_THROW(execNet.set_config(config));
+    EXPECT_ANY_THROW(execNet.set_property(config));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck) {
     auto execNet = core->compile_model(function, targetDevice);
-    std::map<std::string, InferenceEngine::Parameter> config;
+    std::map<std::string, ov::Any> config;
     for (const auto& confItem : configuration) {
-        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
+        config.emplace(confItem.first, confItem.second);
     }
-    execNet.set_config(config);
+    execNet.set_property(config);
     for (const auto& configItem : configuration) {
-        InferenceEngine::Parameter param;
-        EXPECT_NO_THROW(param = execNet.get_config(configItem.first));
+        ov::Any param;
+        EXPECT_NO_THROW(param = execNet.get_property(configItem.first));
         EXPECT_FALSE(param.empty());
-        EXPECT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        EXPECT_EQ(param, configItem.second);
     }
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
-    std::vector<ov::runtime::CompiledModel> vec;
+    std::vector<ov::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, targetDevice, configuration)));
         EXPECT_NE(nullptr, function);
@@ -157,7 +160,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
-    std::vector<ov::runtime::CompiledModel> vec;
+    std::vector<ov::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, targetDevice, configuration)));
         EXPECT_NE(nullptr, vec[i].get_runtime_model());
@@ -328,13 +331,13 @@ TEST_P(OVExecutableNetworkBaseTest, canExport) {
 TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
-    compare_functions(referenceNetwork, function);
+    compare_functions(function, referenceNetwork);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
@@ -344,9 +347,9 @@ TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
     EXPECT_EQ(function->input().get_tensor().get_partial_shape(), execNet.input().get_tensor().get_partial_shape());
     EXPECT_EQ(function->input().get_tensor().get_element_type(), execNet.input().get_tensor().get_element_type());
 
-    ov::runtime::InferRequest request = execNet.create_infer_request();
+    ov::InferRequest request = execNet.create_infer_request();
 
-    ov::runtime::Tensor tensor1, tensor2;
+    ov::Tensor tensor1, tensor2;
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.input()));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -361,7 +364,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(function->outputs().size(), 1);
@@ -371,8 +374,8 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
     EXPECT_EQ(function->output().get_tensor().get_partial_shape(), execNet.output().get_tensor().get_partial_shape());
     EXPECT_EQ(function->output().get_tensor().get_element_type(), execNet.output().get_tensor().get_element_type());
 
-    ov::runtime::InferRequest request = execNet.create_infer_request();
-    ov::runtime::Tensor tensor1, tensor2;
+    ov::InferRequest request = execNet.create_infer_request();
+    ov::Tensor tensor1, tensor2;
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output()));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output()));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -387,7 +390,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
 TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     // Create simple function
     {
@@ -426,9 +429,9 @@ TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
     EXPECT_EQ(function->input(1).get_node(), function->input("data2").get_node());
     EXPECT_NE(function->input(0).get_node(), function->input("data2").get_node());
 
-    ov::runtime::InferRequest request = execNet.create_infer_request();
+    ov::InferRequest request = execNet.create_infer_request();
 
-    ov::runtime::Tensor tensor1, tensor2;
+    ov::Tensor tensor1, tensor2;
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.input(0)));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(0)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -458,7 +461,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     // Create simple function
     {
@@ -497,9 +500,9 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     EXPECT_EQ(function->output(1).get_node(), function->output("concat").get_node());
     EXPECT_NE(function->output(0).get_node(), function->output("concat").get_node());
 
-    ov::runtime::InferRequest request = execNet.create_infer_request();
+    ov::InferRequest request = execNet.create_infer_request();
 
-    ov::runtime::Tensor tensor1, tensor2;
+    ov::Tensor tensor1, tensor2;
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(0)));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -529,7 +532,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     // Create simple function
     {
@@ -564,9 +567,9 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
     EXPECT_EQ(function->output(1).get_node(), function->output("tensor_split_2").get_node());
     EXPECT_NE(function->output(0).get_node(), function->output("tensor_split_2").get_node());
 
-    ov::runtime::InferRequest request = execNet.create_infer_request();
+    ov::InferRequest request = execNet.create_infer_request();
 
-    ov::runtime::Tensor tensor1, tensor2;
+    ov::Tensor tensor1, tensor2;
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(0)));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
@@ -595,7 +598,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
 
 // Load correct network to Plugin to get executable network
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(function, targetDevice, configuration));
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
@@ -619,8 +622,9 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, targetDevice, configuration));
+    CommonTestUtils::removeIRFiles(m_out_xml_path_1, m_out_bin_path_1);
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();
@@ -638,21 +642,66 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, getCompiledModelFromInferRequest) {
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     {
-        ov::runtime::CompiledModel compiled_model;
+        ov::CompiledModel compiled_model;
         ASSERT_NO_THROW(compiled_model = core->compile_model(function, targetDevice, configuration));
         ASSERT_NO_THROW(req = compiled_model.create_infer_request());
         ASSERT_NO_THROW(req.infer());
     }
     {
-        ov::runtime::CompiledModel restored_compiled_model;
-        ov::runtime::InferRequest another_req;
+        ov::CompiledModel restored_compiled_model;
+        ov::InferRequest another_req;
         ASSERT_NO_THROW(restored_compiled_model = req.get_compiled_model());
         ASSERT_NO_THROW(another_req = restored_compiled_model.create_infer_request());
         ASSERT_NO_THROW(another_req.infer());
     }
 }
+
+TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV10Model) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(10);
+        function->set_friendly_name("SimpleReLU");
+    }
+    EXPECT_THROW(core->compile_model(function, targetDevice, configuration), ov::Exception);
+}
+
+TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV11Model) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(11);
+        function->set_friendly_name("SimpleReLU");
+    }
+    EXPECT_NO_THROW(core->compile_model(function, targetDevice, configuration));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

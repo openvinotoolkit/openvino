@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,8 @@ FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     const std::vector<float>& outputLowValues,
     const std::vector<float>& outputHighValues,
     const ngraph::element::Type outputPrecision,
-    const std::vector<ov::Any>& attributes) :
+    const std::vector<ov::Any>& attributes,
+    const bool addConverts) :
     quantizationLevel(quantizationLevel),
     constantShapes(constantShapes),
     inputLowValues(inputLowValues),
@@ -66,7 +67,8 @@ FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     outputLowValues(outputLowValues),
     outputHighValues(outputHighValues),
     outputPrecision(outputPrecision),
-    attributes(attributes)
+    attributes(attributes),
+    addConverts(addConverts)
 {}
 
 FakeQuantizeOnDataWithConstant::~FakeQuantizeOnDataWithConstant() {}

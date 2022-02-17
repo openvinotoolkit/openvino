@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "pyopenvino/graph/model.hpp"
 
 namespace py = pybind11;
 
@@ -18,7 +18,7 @@ using namespace ov::frontend;
 
 void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
-    fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
+    fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
 
     fem.def(
         "load",
@@ -137,7 +137,24 @@ void regclass_frontend_FrontEnd(py::module m) {
             )");
 
     fem.def("add_extension",
-            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension));
+            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension),
+            R"(
+                Add extension defined by an object inheriting from Extension 
+                used in order to extend capabilities of Frontend.
+
+                :param extension: Provided extension object.
+                :type extension: Extension
+            )");
+
+    fem.def("add_extension",
+            static_cast<void (FrontEnd::*)(const std::string& extension_path)>(&FrontEnd::add_extension),
+            R"(
+                Add extension defined in external library indicated by a extension_path 
+                used in order to extend capabilities of Frontend.
+
+                :param extension_path: A path to extension.
+                :type extension_path: str
+            )");
 
     fem.def("__repr__", [](const FrontEnd& self) -> std::string {
         return "<FrontEnd '" + self.get_name() + "'>";

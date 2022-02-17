@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@
 #else
     #if defined(_WIN32)
         #define INFERENCE_ENGINE_C_API_CALLBACK __cdecl
-        #ifdef inference_engine_c_api_EXPORTS
+        #ifdef openvino_c_EXPORTS
             #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN   __declspec(dllexport) __VA_ARGS__ __cdecl
         #else
             #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN  __declspec(dllimport) __VA_ARGS__ __cdecl

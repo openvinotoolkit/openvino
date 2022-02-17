@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.fusing.helpers import get_next_operation
 
@@ -84,8 +85,8 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
     weights_node = gconv.in_node(1)
     bias_node = gconv.in_node(2) if has_biases else None
 
-    weights_value = np.array(weights_node.value)
-    bias_value = np.array(bias_node.value) if has_biases else None
+    weights_value = mo_array(weights_node.value)
+    bias_value = mo_array(bias_node.value) if has_biases else None
 
     # gconv.get_weights_permute.perm contains permutation indices
     # where feature dimension is set to zero position, so 0 value
@@ -97,12 +98,12 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
         if has_biases:
             bias_value = np.concatenate((bias_value, conv.in_node(2).value), axis=-1)  # Not validated
 
-    weights_node.value = np.array(weights_value)
-    weights_node.shape = np.array(weights_value.shape)
+    weights_node.value = mo_array(weights_value)
+    weights_node.shape = mo_array(weights_value.shape)
 
     if has_biases:
-        bias_node.value = np.array(bias_value)
-        bias_node.shape = np.array(bias_value.shape)
+        bias_node.value = mo_array(bias_value)
+        bias_node.shape = mo_array(bias_value.shape)
 
     log.debug('Start node : {} Last node : {}  Nodes inside : {}'.format(start_node.id, last_node.id,
                                                                          len(start_node.out_nodes())))

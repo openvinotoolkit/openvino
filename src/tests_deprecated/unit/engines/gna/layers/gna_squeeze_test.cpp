@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,13 +65,6 @@ protected:
     }
 
     void runtest() {
-#if GNA_LIB_VER == 1
-        if (strcmp(::testing::UnitTest::GetInstance()->current_test_info()->name(),
-            "SqueezeTest/I16_squeeze_[3 1 2 4 4 3]_[1]") == 0) {
-            GTEST_SKIP();
-        }
-#endif
-
         InferenceEngine::Precision precision;
         bool is_squeeze;
         SqueezeCaseParam param;

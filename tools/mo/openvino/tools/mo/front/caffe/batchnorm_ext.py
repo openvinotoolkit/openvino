@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.ops.BatchNormInference import BatchNormInference
 from openvino.tools.mo.front.caffe.extractors.utils import embed_input
 from openvino.tools.mo.front.extractor import FrontExtractorOp
@@ -22,8 +23,8 @@ class BatchNormalizationExtractor(FrontExtractorOp):
         if pb_model:
             blobs = pb_model.blobs
             assert len(blobs) >= 2, 'BatchNorm accepts not less then two input blobs'
-            mean = np.array(blobs[0].data)
-            variance = np.array(blobs[1].data)
+            mean = mo_array(blobs[0].data)
+            variance = mo_array(blobs[1].data)
 
             if len(blobs) == 3:
                 scale = blobs[2].data[0]

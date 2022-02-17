@@ -1,110 +1,120 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-""" Doxygen log parsing routines
 """
-from collections import defaultdict
-import argparse
+Doxygen and Sphinx logs parsing routines
+"""
+
 import re
+from pathlib import Path
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--doxygen', type=str, required=True, default=None, help='Path to doxygen.log file')
-    parser.add_argument('--doxygen-strip', type=str, required=False, default='tmp_docs/', help='Path to doxygen.log file')
-    return parser.parse_args()
-
-
-def strip_timestmp(text):
-    """Strip jenkins timestamp
+class LogParser:
     """
-    return text.split(']')[-1]
-
-
-def strip_path(path, strip):
-    """Strip `path` components ends on `strip`
+    This class reads a log file and converts it to a structured format represented as a python `dict`
     """
-    strip = strip.replace('\\', '/')
-    if not strip.endswith('/'):
-        strip = strip + '/'
-    new_path = path.split(strip)[-1]
-    if new_path.startswith('build/docs/'):
-        new_path = new_path.split('build/docs/')[-1]
-    return new_path
+    exclude_symbols = (
+        '\x1b[91m',
+        '[39;49;00m'
+    )
 
+    # a regex that is used to match log lines containing a filepath,
+    # a line number, and an error,warning or critical
+    regex = r'^(?!\*)(.*?):?([0-9]*):? ?(warning|error|critical): (.+)'
 
-def _get_file_line(text):
-    """Extracts file and line from Doxygen warning line
-    """
-    if text:
-        location = text.split()[-1]
-        file_line = location.rsplit(':', 1)
-        if len(file_line) == 2:
-            return file_line
-    return '', ''
+    def __init__(self, log: Path, strip: str, xfail_list: list, suppress_warnings: list):
+        """
+        Initialize a LogParser object for parsing doxygen and sphinx logs
+        :param log: Path to a log file represented as a `pathlib.Path` object
+        :param strip: A part of the filepath that should be removed
+        :param suppress_warnings: A list of warnings that should be ignored
+        :param xfail_list: A list of filepaths that should be ignored
+        """
+        self.log = log
+        if not strip.endswith('/'):
+            strip = strip + '/'
+        self.strip = strip.replace('\\', '/').lower()
+        self.xfail_list = xfail_list
+        self.suppress_warnings = suppress_warnings
+        self.out = dict()
 
+    def get_match(self, line: str):
+        """
+        Match a log line against the regex defined by this class
+        """
+        return re.match(self.regex, line)
 
-def parse(log, strip):
-    """Extracts {file: errors} from doxygen log
-    """
-    log = log.splitlines()
-    files = defaultdict(lambda: set())  # pylint: disable=unnecessary-lambda
-    idx = 0
-    prev_file = ''
-    prev_line = ''
-    while idx < len(log):  # pylint: disable=too-many-nested-blocks
-        try:
-            log_line = strip_timestmp(log[idx]).strip()
-            processing_verb = next(
-                filter(log_line.startswith,
-                       ('Reading /', 'Parsing file /', 'Preprocessing /')),
-                None)
-            if processing_verb:
-                files[strip_path(log_line[len(processing_verb) - 1:-3],
-                                 strip)] = set()
-            elif 'warning:' in log_line:
-                warning = list(map(str.strip, log_line.split(': warning:')))
-                file, line = _get_file_line(warning[0])
-                file = strip_path(file, strip)
-                if len(warning) == 1:
-                    file = prev_file
-                    line = prev_line
-                    error = warning[0]
-                else:
-                    error = warning[1]
-                if error.endswith(':'):
-                    continuation = []
-                    while idx + 1 < len(log):
-                        peek = strip_timestmp(log[idx + 1])
-                        if not peek.startswith('  '):
-                            break
-                        continuation += [peek]
-                        idx += 1
-                    error += ';'.join(continuation)
-                if line:
-                    error = '{error} (line: {line})'.format(
-                        line=line, error=error)
-                if not file or 'deprecated' in file:
-                    files['doxygen_errors'].update([error])
-                else:
-                    prev_file = file
-                    prev_line = line
-                    files[file].update([error])
-            elif log_line.startswith('explicit link request') and 'in layout file' in log_line:
-                match = re.search(r"\'(.+?)\'", log_line)
-                if match:
-                    file = match.group(1)
-                    files[file].update([log_line])
-                else:
-                    files['doxygen_errors'].update([log_line])
-            idx += 1
-        except:
-            print('Parsing error at line {}\n\n{}\n'.format(idx, log[idx]))
-            raise
-    return files
+    def preprocess_line(self, line):
+        """
+        Clear log line from unwanted symbols
+        """
+        for sym in self.exclude_symbols:
+            line = line.replace(sym, '')
+        return line.strip().lower()
 
+    def strip_path(self, path):
+        """
+        Strip `path` components ends on `strip`
+        """
+        path = path.replace('\\', '/').lower()
 
-if __name__ == '__main__':
-    arguments = parse_arguments()
-    with open(arguments.doxygen, 'r') as log:
-        files = parse(log.read(), arguments.doxygen_strip)
+        new_path = path.split(self.strip)[-1]
+        if new_path.startswith('build/docs/'):
+            new_path = new_path.split('build/docs/')[-1]
+        return new_path
+
+    def filter(self):
+        """
+        Filter out a log file to remove files or warning based on the values provided in `strip`,
+        `suppress_warnings`, and 'xfail_list`
+        """
+        filtered_out = dict()
+        for filepath, warnings in self.out.items():
+            filepath = self.strip_path(filepath)
+            if filepath in self.xfail_list:
+                continue
+            warnings = list(filter(lambda item: not self.is_suppressed(item), warnings))
+            if warnings:
+                filtered_out[filepath] = warnings
+        return filtered_out
+
+    def is_suppressed(self, line):
+        return any([re.search(re.compile(warning, re.IGNORECASE), line) for warning in self.suppress_warnings])
+
+    def parse(self):
+        """
+        Parse a log file to convert it to a structured format
+        """
+        with open(self.log, 'r', errors='ignore') as f:
+            log_lines = f.readlines()
+
+        # iterate each line in the log file
+        i = 0
+        while i < len(log_lines):
+            j = i + 1
+            line = self.preprocess_line(log_lines[i])
+            match = self.get_match(line)
+            # if match is true then we found a line containing a filepath,
+            # a line number, and a warning/error
+            if match and not self.is_suppressed(line):
+                filepath = match.group(1) or 'warning'
+                linenum = match.group(2)
+                warning = match.group(4)
+                if not filepath in self.out:
+                    self.out[filepath] = set()
+                if linenum:
+                    warning = f'{warning} line ({linenum})'
+                self.out[filepath].add(warning)
+                # in this case, the filepath might contain several errors on separate lines,
+                # so we need to iterate next lines until we find a line
+                # that matches the regex defined in this class
+                while j < len(log_lines):
+                    next_line = self.preprocess_line(log_lines[j])
+                    match = self.get_match(next_line)
+                    if match:
+                        break
+                    if next_line:
+                        self.out[filepath].add(self.preprocess_line(next_line))
+                    j += 1
+            i = j
+        return self.out

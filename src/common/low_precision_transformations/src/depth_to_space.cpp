@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& c
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (dequantization.multiply != nullptr) {
         if (!NetworkHelper::isScalarLike(dequantization.multiplyConstant)) {
             return false;

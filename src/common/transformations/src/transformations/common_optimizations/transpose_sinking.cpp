@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeSinking, "TransposeSinking", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeConvert, "TransposeConvert", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeEltwise, "TransposeEltwise", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeReduction, "TransposeReduction", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeFQReduction, "TransposeFQReduction", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeFuse, "TransposeFuse", 0);
@@ -60,6 +61,54 @@ std::shared_ptr<ngraph::opset6::Constant> get_reversed_order_constant(const std:
 }
 
 } // namespace
+
+ngraph::pass::TransposeEltwise::TransposeEltwise() {
+    MATCHER_SCOPE(TransposeEltwise);
+
+    auto eltwise_data_input_p = pattern::any_input();
+    auto eltwise_const_input_p = pattern::wrap_type<opset6::Constant>();
+    auto eltwise_p = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_data_input_p, eltwise_const_input_p},
+        [](const Output<Node> & output) {
+            return ov::is_preprocesing_node(output.get_node_shared_ptr());
+    });
+    auto transpose_p = pattern::wrap_type<opset6::Transpose>({eltwise_p,
+                                                              pattern::wrap_type<opset6::Constant>()},
+                                                              pattern::consumers_count(1));
+
+    auto callback = [=](ngraph::pattern::Matcher &m) {
+        const auto &pattern_to_output = m.get_pattern_value_map();
+        auto eltwise = pattern_to_output.at(eltwise_p).get_node_shared_ptr();
+        auto eltwise_const_input = pattern_to_output.at(eltwise_const_input_p);
+        auto eltwise_data_input = pattern_to_output.at(eltwise_data_input_p);
+        auto transpose = pattern_to_output.at(transpose_p).get_node_shared_ptr();
+
+        const auto & order_size = transpose->get_input_shape(1).at(0);
+        const auto & shape = eltwise_const_input.get_shape();
+        if (shape.size() != order_size && ov::shape_size(shape) != 1) {
+            // TODO: temporary restrictions
+            return false;
+        }
+
+        if (ov::shape_size(shape) != 1) {
+            eltwise_const_input = std::make_shared<opset6::Transpose>(eltwise_const_input, transpose->input_value(1));
+            if (auto const_node = ov::get_constant_from_source(eltwise_const_input)) {
+                eltwise_const_input = const_node;
+            }
+        }
+
+        auto new_transpose = transpose->clone_with_new_inputs({eltwise_data_input, transpose->input_value(1)});
+        auto new_eltwise = eltwise->clone_with_new_inputs({new_transpose, eltwise_const_input});
+        register_new_node(new_transpose);
+
+        new_transpose->set_friendly_name(eltwise->get_friendly_name());
+        copy_runtime_info({eltwise, transpose}, {new_transpose, new_eltwise});
+        replace_node(transpose, new_eltwise);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(transpose_p, matcher_name);
+    register_matcher(m, callback);
+}
 
 ngraph::pass::TransposeConvert::TransposeConvert() {
     MATCHER_SCOPE(TransposeConvert);
@@ -161,10 +210,11 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
         auto &pattern_to_output = m.get_pattern_value_map();
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
+        if (!transpose) return false;
+
         auto transpose_order = std::dynamic_pointer_cast<opset6::Constant>(transpose->get_input_node_shared_ptr(1));
         auto fq = pattern_to_output.at(fq_label).get_node_shared_ptr();
-        if (!transpose || !transpose_order || !fq)
-            return false;
+        if (!transpose_order || !fq) return false;
 
         ngraph::NodeVector new_ops;
 

@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_insert
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -181,7 +182,7 @@ class DilatedConvolution1DConverter(MiddleReplacementPattern):
             log.debug('The block size must contain 1 element')
             return
 
-        unsqueeze_dims = np.array(unsqueeze.in_port(1).data.get_value())
+        unsqueeze_dims = mo_array(unsqueeze.in_port(1).data.get_value())
         if unsqueeze_dims.size != 1 or unsqueeze_dims.item() != 1:
             log.debug('The Unsqueeze dimension is not equal to 1')
             return

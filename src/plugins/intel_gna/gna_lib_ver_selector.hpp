@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
-#if GNA_LIB_VER == 2
 
 #include <cstdint>
 
@@ -29,17 +27,3 @@
  * Used for calculating memory sizes of GNA data arrays
  */
 #define ALIGN64(number) ALIGN(number, 64)
-
-#else
-
-#include <gna-api.h>
-#include <gna-api-types-xnn.h>
-
-#define gna_pwl_segment_t intel_pwl_segment_t
-#define gna_compound_bias_t intel_compound_bias_t
-#define gna_nnet_layer_t intel_nnet_layer_t
-#define gna_nnet_type_t intel_nnet_type_t
-#define gna_affine_func_t intel_affine_func_t
-#define gna_affine_layer_t intel_affine_layer_t
-#define gna_convolutional_layer_t intel_convolutional_layer_t
-#endif

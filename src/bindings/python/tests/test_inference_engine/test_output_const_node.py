@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -38,7 +38,7 @@ def test_const_output_docs(device):
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
     node = exec_net.input(0)
-    exptected_string = "openvino.runtime.ConstOutput wraps ov::Output<Const ov::Node >"
+    exptected_string = "openvino.runtime.ConstOutput represents port/node output."
     assert node.__doc__ == exptected_string
 
 
@@ -131,3 +131,13 @@ def test_update_rt_info(device):
     for k, v in output_node.get_rt_info().items():
         assert k == "test12345"
         assert isinstance(v, Parameter)
+
+
+def test_operations():
+    data = ops.parameter([2])
+    split = ops.split(data, 0, 2)
+    outputs = split.outputs()
+    assert outputs[0] < outputs[1]
+    assert outputs[0] == split.output(0)
+    assert hash(outputs[0]) == hash(split.output(0))
+    assert hash(outputs[0]) != hash(outputs[0].node)

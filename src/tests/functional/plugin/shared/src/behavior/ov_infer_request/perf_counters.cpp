@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ std::string OVInferRequestPerfCountersTest::getTestCaseName(const testing::TestP
 void OVInferRequestPerfCountersTest::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(targetDevice, configuration) = this->GetParam();
-    function = ngraph::builder::subgraph::makeConvPoolRelu();
-    configuration.insert({ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES });
+    function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
+    configuration.insert(ov::enable_profiling(true));
     execNet = core->compile_model(function, targetDevice, configuration);
     req = execNet.create_infer_request();
 }
@@ -26,14 +26,14 @@ void OVInferRequestPerfCountersTest::SetUp() {
 TEST_P(OVInferRequestPerfCountersTest, NotEmptyAfterAsyncInfer) {
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
-    std::vector<runtime::ProfilingInfo> perf;
+    std::vector<ov::ProfilingInfo> perf;
     OV_ASSERT_NO_THROW(perf = req.get_profiling_info());
     ASSERT_FALSE(perf.empty());
 }
 
 TEST_P(OVInferRequestPerfCountersTest, NotEmptyAfterSyncInfer) {
     OV_ASSERT_NO_THROW(req.infer());
-    std::vector<runtime::ProfilingInfo> perf;
+    std::vector<ov::ProfilingInfo> perf;
     OV_ASSERT_NO_THROW(perf = req.get_profiling_info());
     ASSERT_FALSE(perf.empty());
 }

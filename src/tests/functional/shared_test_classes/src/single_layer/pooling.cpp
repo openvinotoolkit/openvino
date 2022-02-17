@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,7 +106,9 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
     std::vector<size_t> padBegin, padEnd;
     ngraph::op::PadType padType;
     ngraph::op::RoundingType roundingType;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, roundingType, padType) = poolParams;
+    ngraph::element::Type indexElementType;
+    int64_t axis;
+    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -115,6 +117,8 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
     result << "D" << CommonTestUtils::vec2str(dilation) << "_";
     result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
     result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+    result << "IET" << indexElementType << "_";
+    result << "A" << axis << "_";
     result << "Rounding=" << roundingType << "_";
     result << "AutoPad=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -201,7 +205,9 @@ void MaxPoolingV8LayerTest::SetUp() {
     std::vector<size_t> padBegin, padEnd;
     ngraph::op::PadType padType;
     ngraph::op::RoundingType roundingType;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, roundingType, padType) = poolParams;
+    ngraph::element::Type indexElementType;
+    int64_t axis;
+    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -209,9 +215,17 @@ void MaxPoolingV8LayerTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::shared_ptr<ngraph::Node> maxPool = ngraph::builder::makeMaxPoolingV8(paramOuts[0], stride, dilation, padBegin, padEnd,
-                                                                              kernel, roundingType, padType);
+                                                                              kernel, roundingType, padType,
+                                                                              indexElementType, axis);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(maxPool->output(0))};
+    const auto maxPoolV8_second_output_is_supported = targetDevice == CommonTestUtils::DEVICE_GPU;
+    ngraph::ResultVector results;
+    if (maxPoolV8_second_output_is_supported) {
+        results = {std::make_shared<ngraph::opset3::Result>(maxPool->output(0)),
+                   std::make_shared<ngraph::opset3::Result>(maxPool->output(1))};
+    } else {
+        results = { std::make_shared<ngraph::opset3::Result>(maxPool->output(0)) };
+    }
     function = std::make_shared<ngraph::Function>(results, params, "MaxPoolV8");
 }
 

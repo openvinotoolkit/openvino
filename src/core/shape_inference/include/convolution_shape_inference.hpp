@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -509,14 +509,14 @@ void shape_infer(const ConvolutionBackpropData* op,
         if (output_shape_from_input.rank().is_static()) {
             NODE_VALIDATION_CHECK(op, output_shape_from_input.size() == num_spatial,
                                   "Output shape should be specified only and for all spatial dimensions.");
-            for (size_t i = 0; i < num_spatial; ++i)
+            for (int64_t i = 0; i < num_spatial; ++i)
                 output_shape[i + 2] = output_shape_from_input[i];
         }
     } else {
         const auto& strides = op->m_strides;
         const auto& dilations = op->m_dilations;
         const auto& output_padding = op->m_output_padding;
-        for (size_t i = 0; i < num_spatial; ++i) {
+        for (int64_t i = 0; i < num_spatial; ++i) {
             if (filters_shape[i + 2].is_static() && input_shape[i + 2].is_static())
                 output_shape[i + 2] = strides[i] * (input_shape[i + 2].get_length() - 1) +
                   dilations[i] * (filters_shape[i + 2].get_length() - 1) + 1 - pads_begin[i] - pads_end[i] +
@@ -595,14 +595,14 @@ void shape_infer(const GroupConvolutionBackpropData* op,
         if (output_shape_from_input.rank().is_static()) {
             NODE_VALIDATION_CHECK(op, output_shape_from_input.size() == num_spatial,
                                   "Output shape should be specified only and for all spatial dimensions.");
-            for (size_t i = 0; i < num_spatial; ++i)
+            for (int64_t i = 0; i < num_spatial; ++i)
                 output_shape[i + 2] = output_shape_from_input[i];
         }
     } else {
         const auto& strides = op->m_strides;
         const auto& dilations = op->m_dilations;
         const auto& output_padding = op->m_output_padding;
-        for (size_t i = 0; i < num_spatial; ++i) {
+        for (int64_t i = 0; i < num_spatial; ++i) {
             if (filters_shape[i + 3].is_static() && input_shape[i + 2].is_static())
                 output_shape[i + 2] = strides[i] * (input_shape[i + 2].get_length() - 1) +
                   dilations[i] * (filters_shape[i + 3].get_length() - 1) + 1 - pads_begin[i] - pads_end[i] +

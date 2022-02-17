@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -363,6 +363,8 @@ const auto maxPoolv8_ExplicitPad_FloorRounding_Params = ::testing::Combine(
         ::testing::ValuesIn(dilation),
         ::testing::ValuesIn(padBegins),
         ::testing::ValuesIn(padEnds),
+        ::testing::Values(ngraph::element::Type_t::i32),
+        ::testing::Values(0),
         ::testing::Values(ngraph::op::RoundingType::FLOOR),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
@@ -386,6 +388,8 @@ const auto maxPoolv8_SameUpperPad_FloorRounding_Params = ::testing::Combine(
         ::testing::ValuesIn(dilation),
         ::testing::ValuesIn(padBegins),
         ::testing::ValuesIn(padEnds),
+        ::testing::Values(ngraph::element::Type_t::i32),
+        ::testing::Values(0),
         ::testing::Values(ngraph::op::RoundingType::FLOOR),
         ::testing::Values(ngraph::op::PadType::SAME_UPPER)
 );
@@ -409,6 +413,8 @@ const auto maxPoolv8_SameLowerPad_FloorRounding_Params = ::testing::Combine(
         ::testing::ValuesIn(dilation),
         ::testing::ValuesIn(padBegins),
         ::testing::ValuesIn(padEnds),
+        ::testing::Values(ngraph::element::Type_t::i32),
+        ::testing::Values(0),
         ::testing::Values(ngraph::op::RoundingType::FLOOR),
         ::testing::Values(ngraph::op::PadType::SAME_LOWER)
 );
@@ -432,6 +438,8 @@ const auto maxPoolv8_ExplicitPad_FloorRounding_5Dinput_Params = ::testing::Combi
         ::testing::Values(dilation3D[0]),
         ::testing::ValuesIn(padBegins3D),
         ::testing::ValuesIn(padEnds3D),
+        ::testing::Values(ngraph::element::Type_t::i32),
+        ::testing::Values(0),
         ::testing::Values(ngraph::op::RoundingType::FLOOR),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
@@ -455,6 +463,8 @@ const auto maxPoolv8_SameUpperPad_FloorRounding_5Dinput_Params = ::testing::Comb
         ::testing::ValuesIn(dilation3D),
         ::testing::ValuesIn(padBegins3D),
         ::testing::ValuesIn(padEnds3D),
+        ::testing::Values(ngraph::element::Type_t::i32),
+        ::testing::Values(0),
         ::testing::Values(ngraph::op::RoundingType::FLOOR),
         ::testing::Values(ngraph::op::PadType::SAME_UPPER)
 );
@@ -478,6 +488,8 @@ const auto maxPoolv8_SameLowerPad_CeilRounding_5Dinput_Params = ::testing::Combi
         ::testing::ValuesIn(dilation3D),
         ::testing::ValuesIn(padBegins3D),
         ::testing::ValuesIn(padEnds3D),
+        ::testing::Values(ngraph::element::Type_t::i32),
+        ::testing::Values(0),
         ::testing::Values(ngraph::op::RoundingType::CEIL),
         ::testing::Values(ngraph::op::PadType::SAME_LOWER)
 );
@@ -501,6 +513,8 @@ const auto maxPoolv8_ExplicitPad_CeilRounding_Params = ::testing::Combine(
         ::testing::ValuesIn(dilation),
         ::testing::ValuesIn(padBegins),
         ::testing::ValuesIn(padEnds),
+        ::testing::Values(ngraph::element::Type_t::i32),
+        ::testing::Values(0),
         ::testing::Values(ngraph::op::RoundingType::CEIL),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
@@ -549,6 +563,8 @@ const auto maxPoolv8_ValidPad_Params = ::testing::Combine(
         ::testing::ValuesIn(dilation),
         ::testing::Values(std::vector<size_t>({0, 0})),
         ::testing::Values(std::vector<size_t>({0, 0})),
+        ::testing::Values(ngraph::element::Type_t::i32),
+        ::testing::Values(0),
         ::testing::Values(ngraph::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
         ::testing::Values(ngraph::op::PadType::VALID)
 );

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,16 +93,9 @@ void fill_data_const(InferenceEngine::Blob::Ptr &blob, float val);
  */
 size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
 
-template<InferenceEngine::Precision::ePrecision PRC>
-inline void
-fill_data_roi(InferenceEngine::Blob::Ptr &blob, const uint32_t range, const int height, const int width, const float omega,
-              const bool is_roi_max_mode, const int seed = 1, void (*propGenerator)(InferenceEngine::Blob::Ptr &) = nullptr) {
-    if (propGenerator != nullptr) {
-        propGenerator(blob);
-        return;
-    }
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto *data = blob->buffer().as<dataType *>();
+template<typename T>
+inline void fill_roi_raw_ptr(T* data, size_t data_size, const uint32_t range, const int32_t height, const int32_t width, const float omega,
+                             const bool is_roi_max_mode, const int32_t seed = 1) {
     std::default_random_engine random(seed);
     std::uniform_int_distribution<int32_t> distribution(0, range);
 
@@ -112,40 +105,53 @@ fill_data_roi(InferenceEngine::Blob::Ptr &blob, const uint32_t range, const int 
     float center_h = (max_y) / 2.0f;
     float center_w = (max_x) / 2.0f;
 
-    for (size_t i = 0; i < blob->size(); i += 5) {
-        data[i] = static_cast<dataType>(distribution(random));
+    for (size_t i = 0; i < data_size; i += 5) {
+        data[i] = static_cast<T>(distribution(random));
         const float x0 = (center_w + width * 0.3f * sin(static_cast<float>(i + 1) * omega));
         const float x1 = (center_w + width * 0.3f * sin(static_cast<float>(i + 3) * omega));
-        data[i + 1] = static_cast<dataType>(is_roi_max_mode ? std::floor(x0) : x0);
-        data[i + 3] = static_cast<dataType>(is_roi_max_mode ? std::floor(x1) : x1);
+        data[i + 1] = static_cast<T>(is_roi_max_mode ? std::floor(x0) : x0);
+        data[i + 3] = static_cast<T>(is_roi_max_mode ? std::floor(x1) : x1);
         if (data[i + 3] < data[i + 1]) {
             std::swap(data[i + 1], data[i + 3]);
         }
         if (data[i + 1] < 0)
             data[i + 1] = 0;
         if (data[i + 3] > max_x)
-            data[i + 3] = static_cast<dataType>(max_x);
+            data[i + 3] = static_cast<T>(max_x);
 
         const float y0 = (center_h + height * 0.3f * sin(static_cast<float>(i + 2) * omega));
         const float y1 = (center_h + height * 0.3f * sin(static_cast<float>(i + 4) * omega));
-        data[i + 2] = static_cast<dataType>(is_roi_max_mode ? std::floor(y0) : y0);
-        data[i + 4] = static_cast<dataType>(is_roi_max_mode ? std::floor(y1) : y1);
+        data[i + 2] = static_cast<T>(is_roi_max_mode ? std::floor(y0) : y0);
+        data[i + 4] = static_cast<T>(is_roi_max_mode ? std::floor(y1) : y1);
         if (data[i + 4] < data[i + 2]) {
             std::swap(data[i + 2], data[i + 4]);
         }
         if (data[i + 2] < 0)
             data[i + 2] = 0;
         if (data[i + 4] > max_y)
-            data[i + 4] = static_cast<dataType>(max_y);
+            data[i + 4] = static_cast<T>(max_y);
     }
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
 inline void
+fill_data_roi(InferenceEngine::Blob::Ptr &blob, const uint32_t range, const int height, const int width, const float omega,
+              const bool is_roi_max_mode, const int seed = 1, void (*propGenerator)(InferenceEngine::Blob::Ptr &) = nullptr) {
+    if (propGenerator != nullptr) {
+        propGenerator(blob);
+        return;
+    }
+    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *data = blob->buffer().as<T *>();
+    fill_roi_raw_ptr<T>(data, blob->size(), range, height, width, omega, is_roi_max_mode, seed);
+}
+
+template<InferenceEngine::Precision::ePrecision PRC>
+inline void
 fill_data_roi(ov::runtime::Tensor& tensor, const uint32_t range, const int height, const int width, const float omega,
-    const bool is_roi_max_mode, const int seed = 1) {
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto* data = static_cast<dataType*>(tensor.data());
+              const bool is_roi_max_mode, const int seed = 1) {
+    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto* data = static_cast<T*>(tensor.data());
     std::default_random_engine random(seed);
     std::uniform_int_distribution<int32_t> distribution(0, range);
 
@@ -156,30 +162,30 @@ fill_data_roi(ov::runtime::Tensor& tensor, const uint32_t range, const int heigh
     float center_w = (max_x) / 2.0f;
 
     for (size_t i = 0; i < tensor.get_size(); i += 5) {
-        data[i] = static_cast<dataType>(distribution(random));
+        data[i] = static_cast<T>(distribution(random));
         const float x0 = (center_w + width * 0.3f * sin(static_cast<float>(i + 1) * omega));
         const float x1 = (center_w + width * 0.3f * sin(static_cast<float>(i + 3) * omega));
-        data[i + 1] = static_cast<dataType>(is_roi_max_mode ? std::floor(x0) : x0);
-        data[i + 3] = static_cast<dataType>(is_roi_max_mode ? std::floor(x1) : x1);
+        data[i + 1] = static_cast<T>(is_roi_max_mode ? std::floor(x0) : x0);
+        data[i + 3] = static_cast<T>(is_roi_max_mode ? std::floor(x1) : x1);
         if (data[i + 3] < data[i + 1]) {
             std::swap(data[i + 1], data[i + 3]);
         }
         if (data[i + 1] < 0)
             data[i + 1] = 0;
         if (data[i + 3] > max_x)
-            data[i + 3] = static_cast<dataType>(max_x);
+            data[i + 3] = static_cast<T>(max_x);
 
         const float y0 = (center_h + height * 0.3f * sin(static_cast<float>(i + 2) * omega));
         const float y1 = (center_h + height * 0.3f * sin(static_cast<float>(i + 4) * omega));
-        data[i + 2] = static_cast<dataType>(is_roi_max_mode ? std::floor(y0) : y0);
-        data[i + 4] = static_cast<dataType>(is_roi_max_mode ? std::floor(y1) : y1);
+        data[i + 2] = static_cast<T>(is_roi_max_mode ? std::floor(y0) : y0);
+        data[i + 4] = static_cast<T>(is_roi_max_mode ? std::floor(y1) : y1);
         if (data[i + 4] < data[i + 2]) {
             std::swap(data[i + 2], data[i + 4]);
         }
         if (data[i + 2] < 0)
             data[i + 2] = 0;
         if (data[i + 4] > max_y)
-            data[i + 4] = static_cast<dataType>(max_y);
+            data[i + 4] = static_cast<T>(max_y);
     }
 }
 
@@ -260,8 +266,8 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
 template<InferenceEngine::Precision::ePrecision PRC>
 void inline fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0,
                              const int32_t k = 1, const int seed = 1) {
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
+    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *rawBlobDataPtr = blob->buffer().as<T *>();
     if (PRC == InferenceEngine::Precision::U4 || PRC == InferenceEngine::Precision::I4 ||
         PRC == InferenceEngine::Precision::BIN) {
         fill_data_random(rawBlobDataPtr, blob->byteSize(), range, start_from, k, seed);
@@ -289,10 +295,10 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
                                         int64_t start_from = 0,
                                         const int64_t k = 1,
                                         const int32_t seed = 1) {
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
+    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *rawBlobDataPtr = blob->buffer().as<T *>();
 
-    if (start_from < 0 && !std::is_signed<dataType>::value) {
+    if (start_from < 0 && !std::is_signed<T>::value) {
         start_from = 0;
     }
 
@@ -303,32 +309,25 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
     std::mt19937 generator(seed);
     std::uniform_int_distribution<int64_t> dist(k * start_from, k * (start_from + range));
 
-    std::set<dataType> elems;
+    std::set<T> elems;
     while (elems.size() != blob->size()) {
         auto value = static_cast<float>(dist(generator));
         value /= static_cast<float>(k);
         if (PRC == InferenceEngine::Precision::FP16) {
-            elems.insert(static_cast<dataType>(ngraph::float16(value).to_bits()));
+            elems.insert(static_cast<T>(ngraph::float16(value).to_bits()));
         } else {
-            elems.insert(static_cast<dataType>(value));
+            elems.insert(static_cast<T>(value));
         }
     }
     std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
 }
 
-template<InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0,
-                                   const int32_t k = 1) {
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
-    if (start_from < 0 && !std::is_signed<dataType>::value) {
-        start_from = 0;
-    }
-
+template<typename T>
+void inline fill_data_ptr_consistently(T* data, size_t size, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1) {
     int64_t value = start_from;
     const int64_t maxValue = start_from + range;
-    for (size_t i = 0; i < blob->size(); i++) {
-        rawBlobDataPtr[i] = static_cast<dataType>(value);
+    for (size_t i = 0; i < size; i++) {
+        data[i] = static_cast<T>(value);
         if (value < (maxValue - k)) {
             value += k;
         } else {
@@ -338,24 +337,53 @@ void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint3
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
+void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0,
+                                   const int32_t k = 1) {
+    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *rawBlobDataPtr = blob->buffer().as<T *>();
+    if (start_from < 0 && !std::is_signed<T>::value) {
+        start_from = 0;
+    }
+    fill_data_ptr_consistently(rawBlobDataPtr, blob->size(), range, start_from, k);
+}
+
+template<InferenceEngine::Precision::ePrecision PRC>
 void inline
 fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k,
                        const int seed = 1) {
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     std::default_random_engine random(seed);
     // 1/k is the resolution of the floating point numbers
     std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
 
-    auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
+    auto *rawBlobDataPtr = blob->buffer().as<T *>();
     for (size_t i = 0; i < blob->size(); i++) {
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
         if (PRC == InferenceEngine::Precision::FP16) {
-            rawBlobDataPtr[i] = static_cast<dataType>(ngraph::float16(value).to_bits());
+            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
         } else if (PRC == InferenceEngine::Precision::BF16) {
-            rawBlobDataPtr[i] = static_cast<dataType>(ngraph::bfloat16(value).to_bits());
+            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
         } else {
-            rawBlobDataPtr[i] = static_cast<dataType>(value);
+            rawBlobDataPtr[i] = static_cast<T>(value);
+        }
+    }
+}
+
+template<typename T>
+void inline fill_data_ptr_normal_random_float(T* data,
+                                          size_t size,
+                                          const float mean,
+                                          const float stddev,
+                                          const int seed = 1) {
+    std::default_random_engine random(seed);
+    std::normal_distribution<> normal_d{mean, stddev};
+    for (size_t i = 0; i < size; i++) {
+        auto value = static_cast<float>(normal_d(random));
+        if (typeid(T) == typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
+            data[i] = static_cast<T>(ov::float16(value).to_bits());
+        } else {
+            data[i] = static_cast<T>(value);
         }
     }
 }
@@ -365,35 +393,24 @@ void inline fill_data_normal_random_float(InferenceEngine::Blob::Ptr &blob,
                                           const float mean,
                                           const float stddev,
                                           const int seed = 1) {
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    std::default_random_engine random(seed);
-    std::normal_distribution<> normal_d{mean, stddev};
-
-    auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
-    for (size_t i = 0; i < blob->size(); i++) {
-        auto value = static_cast<float>(normal_d(random));
-        if (typeid(dataType) ==
-            typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
-            rawBlobDataPtr[i] = static_cast<dataType>(ngraph::float16(value).to_bits());
-        } else {
-            rawBlobDataPtr[i] = static_cast<dataType>(value);
-        }
-    }
+    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *rawBlobDataPtr = blob->buffer().as<T *>();
+    fill_data_ptr_normal_random_float<T>(rawBlobDataPtr, blob->size(), mean, stddev, seed);
 }
 
 template<InferenceEngine::Precision::ePrecision PRC, typename T>
 void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const T values[], const size_t size) {
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    using Type = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
 
-    auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
+    auto *rawBlobDataPtr = blob->buffer().as<T *>();
     for (size_t i = 0; i < std::min(size, blob->size()); i++) {
         auto value = values[i];
-        if (typeid(dataType) ==
+        if (typeid(Type) ==
             typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
-            rawBlobDataPtr[i] = static_cast<dataType>(ngraph::float16(value).to_bits());
+            rawBlobDataPtr[i] = static_cast<Type>(ngraph::float16(value).to_bits());
 
         } else {
-            rawBlobDataPtr[i] = static_cast<dataType>(value);
+            rawBlobDataPtr[i] = static_cast<Type>(value);
         }
     }
 }
@@ -421,18 +438,6 @@ void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::
                                                                int32_t start_from,
                                                                const int32_t k, const int seed) {
     fill_data_random_float<InferenceEngine::Precision::BF16>(blob, range, start_from, k, seed);
-}
-
-template <class T>
-static ov::runtime::Tensor create_tensor(
-        const ov::element::Type& element_type,
-        const ov::Shape& shape,
-        const std::vector<T>& values,
-        const size_t size = 0) {
-    const size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
-    ov::runtime::Tensor tensor { element_type, shape };
-    std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
-    return tensor;
 }
 
 template<typename T>

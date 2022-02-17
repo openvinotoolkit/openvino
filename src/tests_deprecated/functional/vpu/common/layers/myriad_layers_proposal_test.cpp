@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -304,7 +304,7 @@ TEST_F(myriadLayersTestsProposal_smoke, Caffe) {
 
 TEST_F(myriadLayersTestsProposal_smoke, CaffeNoClipBeforeNms) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    // Verify only 20 ranked proposal output with GT values - reference get from MKLDNN plugin
+    // Verify only 20 ranked proposal output with GT values - reference get from CPU plugin
     std::vector<float> gt_values = {
         0, 72.408f,   58.925f,  197.062f, 177.856f,
         0, 6.907f,    75.193f,  50.726f,  144.589f,

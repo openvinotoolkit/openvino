@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,10 @@
 #include "low_precision/lpt_visibility.hpp"
 
 namespace ngraph {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief IntervalsAlignmentSharedValue is used by IntervalsAlignmentAttribute as attribute shared value.
+ */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentSharedValue {
 public:
     class Interval {
@@ -45,6 +49,14 @@ public:
 #endif
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief IntervalsAlignmentAttribute defines subgraph with the same quantization intervals alignment.
+ * FakeQuantize operations are included. The attribute is used by quantization operations.
+ *
+ * For more details about the attribute, refer to
+ * [IntervalsAlignmentAttribute](@ref openvino_docs_IE_DG_lpt_IntervalsAlignment) page in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:
     OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute, 0);
@@ -58,7 +70,7 @@ public:
 
     static ov::Any create(
         const std::shared_ptr<ngraph::Node>& node,
-        const AttributeParameters& params);
+        const AttributeParameters& params = AttributeParameters());
     void merge(std::vector<ov::Any>& attributes);
     std::string to_string() const override;
 

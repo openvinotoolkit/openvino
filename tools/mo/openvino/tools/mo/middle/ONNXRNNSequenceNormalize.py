@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import compatible_dims
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.op import Op
@@ -117,7 +118,7 @@ class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 rnn_layer,
-                {'value': blob, 'shape': np.array(blob.shape, dtype=np.int64)},
+                {'value': blob, 'shape': int64_array(blob.shape)},
                 {'in': port, 'permutation': None}
             )
 
@@ -139,7 +140,7 @@ class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 rnn_layer,
-                {'value': h_init, 'shape': np.array(h_init.shape, dtype=np.int64)},
+                {'value': h_init, 'shape': int64_array(h_init.shape)},
                 {'in': h_init_port, 'permutation': None}
             )
 
@@ -150,7 +151,7 @@ class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
                 Op.create_and_connect_input_data_node(
                     graph,
                     rnn_layer,
-                    {'value': c_init, 'shape': np.array(c_init.shape, dtype=np.int64)},
+                    {'value': c_init, 'shape': int64_array(c_init.shape)},
                     {'in': c_init_port, 'permutation': None}
                 )
 

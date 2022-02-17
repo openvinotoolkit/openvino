@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,17 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
 }  // namespace ngraph
 
 // Transformation is used to add customization options runtime
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MarkupPrecisions transformation marks:
+ *    1) not supported operations by PrecisionsAttribute attribute with empty precisions,
+ *    2) operations with required precisions by PrecisionsAttribute attribute according to the provided restrictions,
+ *    3) precision preserved operations by PrecisionPreservedAttribute attribute.
+ *
+ * For more details about the transformation, refer to
+ * [MarkupPrecisions](@ref openvino_docs_IE_DG_lpt_MarkupPrecisions) page
+ * in the Inference Engine Developer Guide.
+ */
 class ngraph::pass::low_precision::MarkupPrecisions : public ngraph::pass::FunctionPass {
 public:
     class Restriction {
@@ -37,11 +48,13 @@ public:
     };
 
     NGRAPH_RTTI_DECLARATION;
-    explicit MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions = {});
+    explicit MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions = {},
+        const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
 private:
     static bool isPrecisionPreserved(const std::shared_ptr<Node>& node);
     static bool isSupported(const std::shared_ptr<Node>& node);
     std::unordered_map<std::string, Restriction> restrictionsByOperation;
+    std::vector<ngraph::element::Type> defaultPrecisions;
 };

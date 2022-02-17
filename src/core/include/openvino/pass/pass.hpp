@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,17 +100,5 @@ private:
     bool call_on_model{false};
 };
 
-class Manager;
-enum class FusionType : uint32_t {
-    //`DIFFERENTIABLE_FUSIONS` produce ops that support autodiff
-    // i.e. implement `generate_adjoints`
-    DIFFERENTIABLE_FUSIONS = 0x1,
-    REGULAR_FUSIONS = 0x2,
-    //`FOP_FUSIONS` produce ops in the FusedOps category that might
-    // not be supported by all backends
-    FOP_FUSIONS = 0x4,
-    ALL_FUSIONS = 0xFFFFFFFF
-};
-using FusionTypeMask = ov::EnumMask<FusionType>;
 }  // namespace pass
 }  // namespace ov

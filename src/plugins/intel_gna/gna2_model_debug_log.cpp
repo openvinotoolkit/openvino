@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <vector>
 #include <iostream>
-#if GNA_LIB_VER == 2
+
 #include "gna2_model_debug_log.hpp"
 #include "gna2-model-api.h"
 
@@ -432,4 +432,3 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
         }
     }
 }
-#endif

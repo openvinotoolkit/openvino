@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -21,6 +21,11 @@ install(DIRECTORY deployment_manager
         USE_SOURCE_PERMISSIONS)
 
 # outbound requirements.txt files for openvino-dev package
+if (DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT $ENV{CI_BUILD_DEV_TAG} STREQUAL "")
+    set(WHEEL_VERSION "${IE_VERSION}.$ENV{CI_BUILD_DEV_TAG}")
+else()
+    set(WHEEL_VERSION ${IE_VERSION})
+endif()
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
@@ -42,48 +47,10 @@ foreach(EXTRAS ${EXTRAS_LIST})
         EXCLUDE_FROM_ALL)
 endforeach()
 
-# copy benchmark_app scripts
-
-if(ENABLE_PYTHON)
-    find_package(PythonInterp 3 REQUIRED)
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-
-    if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
-    else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
-    endif()
-
-    # creates a copy inside bin directory for developers to have ability running python benchmark_app
-    add_custom_target(python_tools_benchmark ALL
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_tool/openvino/tools/benchmark
-                                                   ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
-    )
-
-    # install BA tool for tests
-    install(FILES benchmark_tool/README.md
-                  benchmark_tool/requirements.txt
-            DESTINATION tools/benchmark_tool
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
-
-    install(PROGRAMS benchmark_tool/benchmark_app.py
-            DESTINATION tools/benchmark_tool
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
-
-    # install openvino/tools/benchmark as a python package
-    install(DIRECTORY benchmark_tool/openvino/tools/benchmark
-            DESTINATION python/${PYTHON_VERSION}/openvino/tools
-            USE_SOURCE_PERMISSIONS
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
-endif()
-
 add_subdirectory(mo)
 
-file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/pot/version.txt ${CI_BUILD_NUMBER})
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt.in"
+               "${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt" @ONLY)
 
 # build and install openvino-dev wheel
 

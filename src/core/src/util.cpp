@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -418,7 +418,7 @@ vector<float> read_float_vector(shared_ptr<runtime::Tensor> tv) {
             float_vec.push_back(static_cast<float>(value));
         }
     } else {
-        throw ngraph_error("Unsupported nGraph element type.");
+        throw ngraph_error("Unsupported OpenVINO element type.");
     }
 
     return float_vec;
@@ -494,7 +494,7 @@ vector<int64_t> read_index_vector(shared_ptr<runtime::Tensor> tv) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
     } else {
-        throw ngraph_error("Unsupported nGraph element type.");
+        throw ngraph_error("Unsupported OpenVINO element type.");
     }
 
     return index_vec;

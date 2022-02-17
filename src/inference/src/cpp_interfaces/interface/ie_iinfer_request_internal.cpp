@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,8 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
+
 IInferRequestInternal::~IInferRequestInternal() {}
 
 IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs)
@@ -36,18 +38,22 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
     : _parameters(inputs),
       _results(outputs) {
     const auto& create_old_data = [](const ov::Output<const ov::Node>& output) -> InferenceEngine::DataPtr {
-        IE_SUPPRESS_DEPRECATED_START
         auto name = ngraph::op::util::get_ie_output_name(output);
         auto shape = output.get_partial_shape();
         auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
+        SizeVector dims(1, 0);
+        if (shape.is_static()) {
+            dims = output.get_shape();
+        } else if (rank >= 0) {
+            dims = SizeVector(rank, 0);
+        }
         for (const auto& dim : shape) {
             if (dim.is_static() && dim.get_length() == 0)
                 IE_THROW() << name << " has zero dimension which is not allowed";
         }
         const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
         const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
-        return std::make_shared<Data>(name, precision, shape, rankLayout);
-        IE_SUPPRESS_DEPRECATED_END
+        return std::make_shared<Data>(name, TensorDesc{precision, dims, rankLayout});
     };
     const auto& create_old_input_data =
         [create_old_data](const ov::Output<const ov::Node>& output) -> InferenceEngine::InputInfo::Ptr {
@@ -85,6 +91,22 @@ std::map<std::string, InferenceEngineProfileInfo> IInferRequestInternal::GetPerf
     IE_THROW(NotImplemented);
 }
 
+std::shared_ptr<const ov::Node> IInferRequestInternal::findInputByNodeName(const std::string& name) const {
+    for (const auto& input : GetInputs()) {
+        if (input->get_friendly_name() == name)
+            return input;
+    }
+    return nullptr;
+}
+
+std::shared_ptr<const ov::Node> IInferRequestInternal::findOutputByNodeName(const std::string& name) const {
+    for (const auto& output : GetOutputs()) {
+        if (output->input_value(0).get_node()->get_friendly_name() == name)
+            return output;
+    }
+    return nullptr;
+}
+
 void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& userBlob) {
     OV_ITT_SCOPED_TASK(itt::domains::Plugin, "SetBlob");
     if (name.empty()) {
@@ -95,18 +117,19 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
     const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
+    const auto input = findInputByNodeName(name);
+    const auto output = findInputByNodeName(name);
+
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    IE_SUPPRESS_DEPRECATED_START
-    if (userBlob->size() == 0 &&
-        !((foundInput && foundInput->getInputData()->isDynamic()) || (foundOutput && foundOutput->isDynamic()))) {
+    if (userBlob->size() == 0 && !((input && input->get_output_partial_shape(0).is_dynamic()) ||
+                                   (output && output->get_output_partial_shape(0).is_dynamic()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
-    const bool isInputDynamic = foundInput && foundInput->getInputData()->isDynamic();
-    const bool isOutputDynamic = foundOutput && foundOutput->isDynamic();
-    IE_SUPPRESS_DEPRECATED_END
+    const bool isInputDynamic = input && input->get_output_partial_shape(0).is_dynamic();
+    const bool isOutputDynamic = output && output->get_output_partial_shape(0).is_dynamic();
 
     size_t dataSize = userBlob->size();
     if (isInput) {
@@ -342,9 +365,8 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
     DataPtr foundOutput;
     const SizeVector oneVector = {1};
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        IE_SUPPRESS_DEPRECATED_START
-        const bool isInputDynamic = foundInput && foundInput->getInputData()->isDynamic();
-        IE_SUPPRESS_DEPRECATED_END
+        const auto input = findInputByNodeName(name);
+        const bool isInputDynamic = input && input->get_output_partial_shape(0).is_dynamic();
         // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
@@ -364,9 +386,8 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
             }
         }
     } else {
-        IE_SUPPRESS_DEPRECATED_START
-        const bool isOutputDynamic = foundOutput && foundOutput->isDynamic();
-        IE_SUPPRESS_DEPRECATED_END
+        const auto output = findOutputByNodeName(name);
+        const bool isOutputDynamic = output && output->get_output_partial_shape(0).is_dynamic();
         data = _outputs[name];
         const auto& dims = foundOutput->getTensorDesc().getDims();
         if (isOutputDynamic)
@@ -499,9 +520,8 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             if (foundInputPair == std::end(_networkInputs)) {
                 IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
             }
-            IE_SUPPRESS_DEPRECATED_START
-            isDynamic = foundInputPair->second->getInputData()->getPartialShape().is_dynamic();
-            IE_SUPPRESS_DEPRECATED_END
+            const auto input = findInputByNodeName(name);
+            isDynamic = input && input->get_output_partial_shape(0).is_dynamic();
             dims = foundInputPair->second->getTensorDesc().getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         } else {
@@ -513,17 +533,16 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             if (foundOutputPair == std::end(_networkOutputs)) {
                 IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
             }
-            IE_SUPPRESS_DEPRECATED_START
-            isDynamic = foundOutputPair->second->getPartialShape().is_dynamic();
+            const auto output = findOutputByNodeName(name);
+            isDynamic = output && output->get_output_partial_shape(0).is_dynamic();
             ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
-            if (foundOutputPair->second->getPartialShape().compatible(blobPartialShape)) {
+            if (output && output->get_output_partial_shape(0).compatible(blobPartialShape)) {
                 dims = blob->getTensorDesc().getDims();
             } else {
                 // TODO: it is strange to request tensor desc from data when the shapes are not compatible, probably we
                 // need to immediately throw here
                 dims = foundOutputPair->second->getTensorDesc().getDims();
             }
-            IE_SUPPRESS_DEPRECATED_END
             refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         }
     } else {
@@ -612,6 +631,12 @@ void* IInferRequestInternal::GetUserData() noexcept {
 
 void IInferRequestInternal::SetUserData(void* userData) noexcept {
     _userData = userData;
+}
+
+void IInferRequestInternal::setModelInputsOutputs(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    _parameters = inputs;
+    _results = outputs;
 }
 
 const std::vector<std::shared_ptr<const ov::Node>>& IInferRequestInternal::GetInputs() const {

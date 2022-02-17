@@ -1,13 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
-import numpy as np
-
 from openvino.tools.mo.front.Pack import Pack
 from openvino.tools.mo.ops.interpolate import Interpolate
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array, float32_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.const import Const
@@ -70,9 +68,9 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
                               'name': resample_node.name + '/axes',
                               'value': int64_array([2, 3]) if graph.graph['layout'] == 'NCHW' else int64_array([1, 2])
                           }).create_node()
-        sizes_node = Const(graph, {'value': np.array([input_height * height_scale, input_width * width_scale]),
+        sizes_node = Const(graph, {'value': mo_array([input_height * height_scale, input_width * width_scale]),
                                    'name': resample_node.name + '/target_shape'}).create_node()
-        scales_node = Const(graph, {'value': np.array([height_scale, width_scale], dtype=np.float32),
+        scales_node = Const(graph, {'value': float32_array([height_scale, width_scale]),
                                     'name': resample_node.name + '/scales'}).create_node()
 
         match['reshape_2'].replace_node(resample_node)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,14 @@ std::vector<std::string> devices = {
 };
 
 std::pair<std::string, std::string> plugins[] = {
-        std::make_pair(std::string("myriadPlugin"), std::string(CommonTestUtils::DEVICE_MYRIAD)),
+        std::make_pair(std::string("openvino_intel_myriad_plugin"), std::string(CommonTestUtils::DEVICE_MYRIAD)),
 };
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassImportExportTestP, IEClassImportExportTestP,
         ::testing::Values(std::string(CommonTestUtils::DEVICE_MYRIAD), "HETERO:" + std::string(CommonTestUtils::DEVICE_MYRIAD)));
 
-#if defined(ENABLE_MKL_DNN) && ENABLE_MKL_DNN
+#if defined(ENABLE_INTEL_CPU) && ENABLE_INTEL_CPU
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassImportExportTestP_HETERO_CPU, IEClassImportExportTestP,

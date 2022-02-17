@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remote_blobs {
         {{GPU}, true}, // GPU via MULTI,
         {{"GPU.0"}, true}, // GPU.0 via MULTI,
-#ifdef ENABLE_MKL_DNN
+#ifdef ENABLE_INTEL_CPU
         {{GPU, CPU}, true}, // GPU+CPU
         {{CPU, GPU}, true}, // CPU+GPU
 #endif
@@ -48,7 +48,7 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
 }
 
 const std::vector<DevicesNames> device_names_and_support_for_remote_blobs2 {
-#ifdef ENABLE_MKL_DNN
+#ifdef ENABLE_INTEL_CPU
         {CPU},  // stand-alone CPU via MULTI (no GPU), no OCL context
 #endif
         {"GPU.1"},  // another GPU (the test will test its presence), different OCL contexts

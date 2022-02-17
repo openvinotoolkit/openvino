@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,10 @@ FuseFakeQuantizeTransformation::FuseFakeQuantizeTransformation(const Params& par
 }
 
 bool FuseFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::FakeQuantize> fakeQuantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(m.get_match_root());
+    auto fakeQuantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(m.get_match_root());
+    if (!fakeQuantize)
+        return false;
+
     do {
         fakeQuantize = handle(context, fakeQuantize);
     } while (fakeQuantize != nullptr);
