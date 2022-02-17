@@ -96,7 +96,7 @@ void Any::read(std::istream& istream) {
 }
 
 bool Any::operator==(const Any& other) const {
-    if (_impl == nullptr && other._impl == nullptr) {
+    if (_impl == nullptr || other._impl == nullptr) {
         return false;
     }
     if (_impl == other._impl) {
