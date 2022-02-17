@@ -44,7 +44,7 @@ The original model key features:
 
 Transformations are run with the following parameters:
 
-@snippet snippets/lpt_mkldnn_plugin.cpp lpt_markup_pipeline
+@snippet snippets/lpt_intel_cpu_plugin.cpp lpt_markup_pipeline
 
 ## 1. MarkupCanBeQuantized
 The transformation marks operations that cannot be quantized. No attributes are required before the transformation.

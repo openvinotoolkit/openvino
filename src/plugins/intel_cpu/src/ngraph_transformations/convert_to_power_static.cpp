@@ -43,14 +43,14 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
     auto const_shape = node->get_input_shape(constPort);
     return ngraph::shape_size(const_shape) == 1 &&
            input_rank.get_length() >= const_shape.size() &&
-           !MKLDNNPlugin::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
+           !ov::intel_cpu::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
                                  ngraph::opset1::NormalizeL2::get_type_info_static(),
                                  ngraph::opset4::Interpolate::get_type_info_static(),
                                  ngraph::opset1::Convolution::get_type_info_static(),
                                  ngraph::opset1::GroupConvolution::get_type_info_static(),
                                  ngraph::opset1::ConvolutionBackpropData::get_type_info_static(),
                                  ngraph::opset1::GroupConvolutionBackpropData::get_type_info_static(),
-                                 MKLDNNPlugin::FullyConnectedNode::get_type_info_static(),
+                                 ov::intel_cpu::FullyConnectedNode::get_type_info_static(),
                                  ngraph::op::v0::MVN::get_type_info_static(),
                                  ngraph::opset6::MVN::get_type_info_static());
 }
@@ -71,10 +71,10 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
     std::shared_ptr<ngraph::opset1::Constant> powerNode = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(constPort));
     const float value = powerNode->cast_vector<float>()[0];
     if (std::is_same<BaseOp, ngraph::opset1::Power>::value) {
-        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), value, 1.0f, 0.0f,
+        return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(), value, 1.0f, 0.0f,
                                                                node->output(0).get_element_type());
     } else if (std::is_same<BaseOp, ngraph::opset1::Add>::value) {
-        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.0f, 1.0f, value,
+        return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.0f, 1.0f, value,
                                                                node->output(0).get_element_type());
     } else if (std::is_same<BaseOp, ngraph::opset1::Subtract>::value) {
         float scale = 1.0f;
@@ -84,10 +84,10 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
         } else {
             shift *= -1.0f;
         }
-        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.0f, scale, shift,
+        return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.0f, scale, shift,
                                                                node->output(0).get_element_type());
     } else if (std::is_same<BaseOp, ngraph::opset1::Multiply>::value) {
-        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.f, value, 0.0f,
+        return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.f, value, 0.0f,
                                                                node->output(0).get_element_type());
     } else {
         throw ngraph::ngraph_error("ConvertToPowerStatic: op type is not supported");
@@ -96,9 +96,9 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
 
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertToPowerStatic, "ConvertToPowerStatic", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::ConvertToPowerStatic, "ConvertToPowerStatic", 0);
 
-MKLDNNPlugin::ConvertToPowerStatic::ConvertToPowerStatic() {
+ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
     ngraph::OutputVector twoInputs = {ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
                                       ngraph::pattern::any_input(ngraph::pattern::has_static_rank())};
     auto power = ngraph::pattern::wrap_type<ngraph::opset1::Power>(twoInputs);

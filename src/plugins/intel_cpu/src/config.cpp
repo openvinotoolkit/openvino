@@ -18,7 +18,8 @@
 #include "openvino/runtime/properties.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 using namespace InferenceEngine;
 
@@ -260,4 +261,6 @@ void Config::readDebugCapsProperties() {
 }
 #endif // CPU_DEBUG_CAPS
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

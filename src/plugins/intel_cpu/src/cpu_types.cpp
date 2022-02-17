@@ -6,7 +6,8 @@
 #include <vector>
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
@@ -486,4 +487,6 @@ std::string algToString(const Algorithm alg) {
     return "Undefined";
 }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

@@ -7,7 +7,9 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/blocked_memory_desc.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 class PortDescBase {
 public:
     virtual ~PortDescBase() = default;
@@ -149,4 +151,6 @@ struct NodeConfig {
     std::vector<PortConfig> inConfs;
     std::vector<PortConfig> outConfs;
 };
-} // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

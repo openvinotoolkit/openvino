@@ -4,7 +4,7 @@
 
 #include "power_static.hpp"
 
-MKLDNNPlugin::PowerStaticNode::PowerStaticNode(const ngraph::Output<Node> &data,
+ov::intel_cpu::PowerStaticNode::PowerStaticNode(const ngraph::Output<Node> &data,
                                                const float &power,
                                                const float &scale,
                                                const float &shift,
@@ -13,19 +13,19 @@ MKLDNNPlugin::PowerStaticNode::PowerStaticNode(const ngraph::Output<Node> &data,
     validate_and_infer_types();
 }
 
-std::shared_ptr<ngraph::Node> MKLDNNPlugin::PowerStaticNode::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+std::shared_ptr<ngraph::Node> ov::intel_cpu::PowerStaticNode::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
     if (new_args.size() != 1) {
         throw ngraph::ngraph_error("Incorrect number of new arguments");
     }
 
-    return std::make_shared<MKLDNNPlugin::PowerStaticNode>(new_args.at(0), this->power, this->scale, this->shift, this->m_output_type);
+    return std::make_shared<ov::intel_cpu::PowerStaticNode>(new_args.at(0), this->power, this->scale, this->shift, this->m_output_type);
 }
 
-void MKLDNNPlugin::PowerStaticNode::validate_and_infer_types() {
+void ov::intel_cpu::PowerStaticNode::validate_and_infer_types() {
     set_output_type(0, m_output_type == ngraph::element::undefined ? get_input_element_type(0) : m_output_type, get_input_partial_shape(0));
 }
 
-bool MKLDNNPlugin::PowerStaticNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
+bool ov::intel_cpu::PowerStaticNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
     visitor.on_attribute("scale", scale);
     visitor.on_attribute("power", power);
     visitor.on_attribute("shift", shift);

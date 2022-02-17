@@ -5,10 +5,11 @@
 #pragma once
 
 #include "blocked_memory_desc.h"
-#include "mkldnn_memory.h"
-#include "mkldnn_extension_utils.h"
+#include <cpu_memory.h>
+#include <extension_utils.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class DnnlBlockedMemoryDesc : public BlockedMemoryDesc, public DnnlMemoryDesc {
 public:
@@ -100,4 +101,5 @@ private:
 using DnnlBlockedMemoryDescPtr = std::shared_ptr<DnnlBlockedMemoryDesc>;
 using DnnlBlockedMemoryDescCPtr = std::shared_ptr<const DnnlBlockedMemoryDesc>;
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -19,7 +19,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 TEST(TransformationTests, OptimizeLSTMSequenceTransposesTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);

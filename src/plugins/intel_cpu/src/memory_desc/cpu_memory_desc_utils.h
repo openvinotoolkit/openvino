@@ -10,7 +10,8 @@
 #include <ie_layouts.h>
 #include <ie_blob.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MemoryDesc;
 class DnnlMemoryDesc;
@@ -105,4 +106,5 @@ public:
     static std::string dims2str(const VectorDims& dims);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

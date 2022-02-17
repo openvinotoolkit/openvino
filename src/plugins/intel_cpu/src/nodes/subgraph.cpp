@@ -14,7 +14,7 @@
 #include <mkldnn.hpp>
 #include <mkldnn_debug.h>
 #include <mkldnn_types.h>
-#include <mkldnn_extension_utils.h>
+#include <extension_utils.h>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
@@ -24,7 +24,7 @@
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
 using namespace mkldnn::impl::cpu;

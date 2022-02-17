@@ -4,8 +4,8 @@
 
 #include "blob_dump.h"
 #include "blob_factory.hpp"
-#include "mkldnn_memory.h"
-#include "mkldnn_extension_utils.h"
+#include <cpu_memory.h>
+#include <extension_utils.h>
 #include <nodes/common/cpu_memcpy.h>
 
 #include "common/memory_desc_wrapper.hpp"
@@ -15,7 +15,8 @@
 
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 // IEB file format routine
 static const unsigned char IEB_MAGIC[4] = {'I', 'E', 'B', '0'};
@@ -247,4 +248,5 @@ void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
     dump_file.close();
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

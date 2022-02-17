@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <mkldnn_selective_build.h>
+#include <selective_build.h>
 
 #include <ie_iextension.h>
 

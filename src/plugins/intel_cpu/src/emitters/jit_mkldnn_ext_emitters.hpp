@@ -6,7 +6,8 @@
 
 #include "jit_mkldnn_emitters.hpp"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class jit_relu_emitter : public jit_mkldnn_emitter {
 public:
@@ -141,4 +142,5 @@ public:
     }
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

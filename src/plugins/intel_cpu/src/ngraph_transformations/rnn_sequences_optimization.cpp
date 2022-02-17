@@ -11,10 +11,10 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/variant.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeGRUSequenceTransposes, "OptimizeGRUSequenceTransposes", 0);
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeLSTMSequenceTransposes, "OptimizeLSTMSequenceTransposes", 0);
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeRNNSequenceTransposes, "OptimizeRNNSequenceTransposes", 0);
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeSequenceTransposes, "OptimizeSequenceTransposes", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::OptimizeGRUSequenceTransposes, "OptimizeGRUSequenceTransposes", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::OptimizeLSTMSequenceTransposes, "OptimizeLSTMSequenceTransposes", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::OptimizeRNNSequenceTransposes, "OptimizeRNNSequenceTransposes", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::OptimizeSequenceTransposes, "OptimizeSequenceTransposes", 0);
 
 namespace {
     int64_t getSeqAxis(const std::shared_ptr<ngraph::Node>& sequenceOp) {
@@ -86,7 +86,7 @@ namespace {
     }
 } // namespace
 
-MKLDNNPlugin::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
+ov::intel_cpu::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
     auto gruSequenceNgraph = ngraph::pattern::wrap_type<ngraph::opset5::GRUSequence>();
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
@@ -105,7 +105,7 @@ MKLDNNPlugin::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
     this->register_matcher(m, callback);
 }
 
-MKLDNNPlugin::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
+ov::intel_cpu::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
     auto rnnSequenceNgraph = ngraph::pattern::wrap_type<ngraph::opset5::RNNSequence>();
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
@@ -124,7 +124,7 @@ MKLDNNPlugin::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
     this->register_matcher(m, callback);
 }
 
-MKLDNNPlugin::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() {
+ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() {
     auto lstmSequenceNgraph = ngraph::pattern::wrap_type<ngraph::opset1::LSTMSequence, ngraph::opset5::LSTMSequence>();
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
@@ -146,7 +146,7 @@ MKLDNNPlugin::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() {
     this->register_matcher(m, callback);
 }
 
-MKLDNNPlugin::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
+ov::intel_cpu::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
     add_matcher<OptimizeLSTMSequenceTransposes>();
     add_matcher<OptimizeRNNSequenceTransposes>();
     add_matcher<OptimizeGRUSequenceTransposes>();

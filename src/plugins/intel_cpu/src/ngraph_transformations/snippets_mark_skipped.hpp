@@ -6,7 +6,9 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 /**
  * @interface SnippetsMarkSkipped
  * @brief Mark operations that should be ignored by snippets on tokenization stage. A typical example is eltwise operations
@@ -36,4 +38,6 @@ enum class NodeFusingType : int64_t {
     FusedTerminator,
     FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithConvolutionSumActivation,
     FusedWithMatMul, FusedWithMisc, IgnoredAfterInputs};
-}  // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

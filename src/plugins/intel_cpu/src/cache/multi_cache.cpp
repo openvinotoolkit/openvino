@@ -4,6 +4,6 @@
 
 #include "multi_cache.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 std::atomic_size_t MultiCache::_typeIdCounter{0};

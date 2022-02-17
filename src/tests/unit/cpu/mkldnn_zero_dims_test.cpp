@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include "mkldnn_memory.h"
+#include <cpu_memory.h>
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/blocked_desc_creator.h"
-#include "mkldnn_extension_utils.h"
+#include <extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace testing;
 

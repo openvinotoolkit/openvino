@@ -3,14 +3,15 @@
 //
 
 #include "jit_mkldnn_emitters.hpp"
-#include "nodes/mkldnn_eltwise_node.h"
+#include <nodes/eltwise.h>
 
 using namespace mkldnn::impl::utils;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, InferenceEngine::Precision exec_prc)
     : jit_emitter(host, host_isa, node, exec_prc) {
@@ -84,4 +85,5 @@ jit_mkldnn_aux_emitter::jit_mkldnn_aux_emitter(jit_generator *host, cpu_isa_t ho
     : jit_mkldnn_emitter(host, host_isa, algKind, inpAlpha, inpBeta, exec_prc) {
 }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

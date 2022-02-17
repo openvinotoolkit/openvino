@@ -7,7 +7,8 @@
 #include "blocked_memory_desc.h"
 #include "utils/general_utils.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class CpuBlockedMemoryDesc : public BlockedMemoryDesc {
 public:
@@ -102,4 +103,5 @@ private:
 using CpuBlockedMemoryDescPtr = std::shared_ptr<CpuBlockedMemoryDesc>;
 using CpuBlockedMemoryDescCPtr = std::shared_ptr<const CpuBlockedMemoryDesc>;
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

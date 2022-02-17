@@ -10,7 +10,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace InferenceEngine;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims &dims) {
     VectorDims strides(dims.size(), 1);

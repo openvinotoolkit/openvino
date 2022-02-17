@@ -8,7 +8,8 @@
 
 #include "cpu_memory_desc.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 #define BLOCKED_DESC_FULL_MASK 0xffffffff
 #define BLOCKED_DESC_EMPTY_MASK 0x0
@@ -104,4 +105,5 @@ protected:
 using BlockedMemoryDescPtr = std::shared_ptr<BlockedMemoryDesc>;
 using BlockedMemoryDescCPtr = std::shared_ptr<const BlockedMemoryDesc>;
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

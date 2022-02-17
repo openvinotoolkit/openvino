@@ -6,7 +6,7 @@
 #include <numeric>
 
 using namespace InferenceEngine;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 namespace {
 constexpr size_t channelsPos = 1lu;

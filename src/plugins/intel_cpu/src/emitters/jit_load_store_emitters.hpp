@@ -6,14 +6,15 @@
 
 #include "jit_emitter.hpp"
 #include <cpu/x64/jit_generator.hpp>
-#include "mkldnn_node.h"
 #include "jit_bf16_emitters.hpp"
 
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 struct load_emitter_context : public emitter_context {
     load_emitter_context() : src_prc_(Precision::FP32), dst_prc_(Precision::FP32), load_num_(8),
     offset_byte_(0), is_fill_(false), fill_value_("zero") {}
@@ -152,4 +153,5 @@ private:
     std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

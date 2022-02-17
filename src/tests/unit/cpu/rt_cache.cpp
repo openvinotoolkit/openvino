@@ -10,7 +10,7 @@
 #include "cache/lru_cache.h"
 #include "cache/multi_cache.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 namespace {
 struct IntKey {

@@ -6,7 +6,8 @@
 
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 enum impl_desc_type {
     unknown = 0x00000000,
@@ -94,4 +95,6 @@ enum impl_desc_type {
 const char * impl_type_to_string(impl_desc_type type);
 impl_desc_type parse_impl_name(std::string impl_desc_name);
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

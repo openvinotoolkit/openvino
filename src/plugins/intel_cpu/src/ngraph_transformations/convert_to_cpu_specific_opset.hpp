@@ -20,7 +20,8 @@
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
@@ -43,4 +44,5 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.run_passes(nGraphFunc);
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

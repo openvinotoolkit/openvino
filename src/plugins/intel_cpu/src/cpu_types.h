@@ -9,7 +9,8 @@
 #include <vector>
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
@@ -240,4 +241,6 @@ Type TypeFromName(const std::string& type);
 std::string NameFromType(const Type type);
 
 std::string algToString(const Algorithm alg);
-} // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

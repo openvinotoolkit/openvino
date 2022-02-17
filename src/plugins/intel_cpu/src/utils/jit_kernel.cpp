@@ -11,7 +11,8 @@
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 namespace {
 
@@ -90,30 +91,30 @@ const registers<Reg8> & x8regs() {
 
 const registers<Xmm> & xmmregs() {
     static const registers<Xmm> _xmmregs {{
-        util::xmm0,  util::xmm1,  util::xmm2,  util::xmm3,
-        util::xmm4,  util::xmm5,  util::xmm6,  util::xmm7,
-        util::xmm8,  util::xmm9,  util::xmm10, util::xmm11,
-        util::xmm12, util::xmm13, util::xmm14, util::xmm15,
+        Xbyak::util::xmm0,  Xbyak::util::xmm1,  Xbyak::util::xmm2,  Xbyak::util::xmm3,
+        Xbyak::util::xmm4,  Xbyak::util::xmm5,  Xbyak::util::xmm6,  Xbyak::util::xmm7,
+        Xbyak::util::xmm8,  Xbyak::util::xmm9,  Xbyak::util::xmm10, Xbyak::util::xmm11,
+        Xbyak::util::xmm12, Xbyak::util::xmm13, Xbyak::util::xmm14, Xbyak::util::xmm15,
     }};
     return _xmmregs;
 }
 
 const registers<Ymm> & ymmregs() {
     static const registers<Ymm> _ymmregs {{
-        util::ymm0,  util::ymm1,  util::ymm2,  util::ymm3,
-        util::ymm4,  util::ymm5,  util::ymm6,  util::ymm7,
-        util::ymm8,  util::ymm9,  util::ymm10, util::ymm11,
-        util::ymm12, util::ymm13, util::ymm14, util::ymm15,
+        Xbyak::util::ymm0,  Xbyak::util::ymm1,  Xbyak::util::ymm2,  Xbyak::util::ymm3,
+        Xbyak::util::ymm4,  Xbyak::util::ymm5,  Xbyak::util::ymm6,  Xbyak::util::ymm7,
+        Xbyak::util::ymm8,  Xbyak::util::ymm9,  Xbyak::util::ymm10, Xbyak::util::ymm11,
+        Xbyak::util::ymm12, Xbyak::util::ymm13, Xbyak::util::ymm14, Xbyak::util::ymm15,
     }};
     return _ymmregs;
 }
 
 const registers<Zmm> & zmmregs() {
     static const registers<Zmm> _zmmregs {{
-        util::zmm0,  util::zmm1,  util::zmm2,  util::zmm3,
-        util::zmm4,  util::zmm5,  util::zmm6,  util::zmm7,
-        util::zmm8,  util::zmm9,  util::zmm10, util::zmm11,
-        util::zmm12, util::zmm13, util::zmm14, util::zmm15,
+        Xbyak::util::zmm0,  Xbyak::util::zmm1,  Xbyak::util::zmm2,  Xbyak::util::zmm3,
+        Xbyak::util::zmm4,  Xbyak::util::zmm5,  Xbyak::util::zmm6,  Xbyak::util::zmm7,
+        Xbyak::util::zmm8,  Xbyak::util::zmm9,  Xbyak::util::zmm10, Xbyak::util::zmm11,
+        Xbyak::util::zmm12, Xbyak::util::zmm13, Xbyak::util::zmm14, Xbyak::util::zmm15,
     }};
     return _zmmregs;
 }
@@ -140,7 +141,7 @@ cpu_isa_t get_current_isa() {
     return cpu_isa_t::sse41;
 }
 
-stack_frame::stack_frame(MKLDNNPlugin::jit_kernel & kernel, size_t size, uint32_t alignment)
+stack_frame::stack_frame(ov::intel_cpu::jit_kernel & kernel, size_t size, uint32_t alignment)
     : _kernel(kernel)
     , _size(size)
     , _alignment(alignment) {
@@ -370,4 +371,5 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16
     vblendmps(z1 | k1, z1, z2);
 }
 
-}   // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

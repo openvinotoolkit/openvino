@@ -13,7 +13,6 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src
-            $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/nodes
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
         OBJECT_FILES
             ${OBJ_LIB}

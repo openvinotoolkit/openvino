@@ -5,13 +5,14 @@
 
 #ifdef CPU_DEBUG_CAPS
 
-#include "mkldnn_node.h"
+#include <node.h>
 
 #include <string>
 #include <cstdlib>
 #include <sstream>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class Verbose {
 public:
@@ -43,7 +44,8 @@ private:
 
 // use heap allocation instead of stack to align with PERF macro (to have proper destruction order)
 #define VERBOSE(...) const auto verbose = std::unique_ptr<Verbose>(new Verbose(__VA_ARGS__));
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
 #else
 #define VERBOSE(...)
 #endif // CPU_DEBUG_CAPS

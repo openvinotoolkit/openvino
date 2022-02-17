@@ -6,7 +6,7 @@
 #include <utils/jit_kernel.hpp>
 #include <random>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace mkldnn::impl::cpu::x64;
 using namespace Xbyak;
 

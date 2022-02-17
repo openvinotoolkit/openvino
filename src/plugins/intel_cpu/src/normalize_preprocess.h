@@ -11,7 +11,8 @@
 #include <vector>
 #include <limits>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class NormalizePreprocess {
 public:
@@ -88,4 +89,5 @@ private:
     InferenceEngine::TBlob<float>::Ptr meanBuffer;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

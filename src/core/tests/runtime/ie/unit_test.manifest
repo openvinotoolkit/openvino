@@ -214,7 +214,7 @@ onnx_size_op_single
 onnx_size_op_graph_end
 onnx_size_op_graph_middle
 
-# /openvino/src/plugins/intel_cpu/mkldnn_graph.cpp:747
+# /openvino/src/plugins/intel_cpu/graph.cpp:747
 # Output blob byte size is not equal network output byte size (64!=216)." thrown in the test body.
 onnx_model_quant_conv_linear_3d
 

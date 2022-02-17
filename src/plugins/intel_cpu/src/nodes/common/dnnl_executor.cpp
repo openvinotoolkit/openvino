@@ -5,7 +5,7 @@
 #include "dnnl_executor.h"
 
 using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 DnnlExecutor::IntermReorder::IntermReorder(const mkldnn::memory::desc& descSrc,
                                            const mkldnn::memory::desc& descDst,
