@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,10 +28,10 @@ struct PreluParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
     ov::Shape negativeSlopeShape;
-    ov::runtime::Tensor negativeSlope;
+    ov::Tensor negativeSlope;
     std::string testcaseName;
 };
 
@@ -60,11 +60,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const Shape& slope_shape, const element::Type& input_type) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const Shape& slope_shape, const element::Type& input_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto SLOPE = std::make_shared<op::v0::Parameter>(input_type, slope_shape);
         const auto Prelu = std::make_shared<op::v0::PRelu>(in, SLOPE);
-        return std::make_shared<ov::Function>(NodeVector {Prelu}, ParameterVector {in, SLOPE});
+        return std::make_shared<ov::Model>(NodeVector {Prelu}, ParameterVector {in, SLOPE});
     }
 };
 

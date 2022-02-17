@@ -2,19 +2,19 @@
 
 > **NOTES**:
 > * Starting with the 2022.1 release, the Model Optimizer can convert the TensorFlow\* Object Detection API Faster and Mask RCNNs topologies differently. By default, the Model Optimizer adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the pre-processing applied to the input image (refer to the [Proposal](../../../../ops/detection/Proposal_4.md) operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Optimizer can generate IR for such models and insert operation [DetectionOutput](../../../../ops/detection/DetectionOutput_1.md) instead of `Proposal`. The `DetectionOutput` operation does not require additional model input "image_info" and moreover, for some models the produced inference results are closer to the original TensorFlow\* model. In order to trigger new behaviour the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
-> * Starting with the 2021.1 release, the Model Optimizer converts the TensorFlow\* Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the Inference Engine using dedicated reshape API. Refer to [Using Shape Inference](../../../../IE_DG/ShapeInference.md) for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
+> * Starting with the 2021.1 release, the Model Optimizer converts the TensorFlow\* Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the Inference Engine using dedicated reshape API. Refer to [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md) for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
 > * To generate IRs for TF 1 SSD topologies, the Model Optimizer creates a number of `PriorBoxClustered` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the Inference Engine using dedicated Inference Engine API. The reshaping is supported for all SSD topologies except FPNs which contain hardcoded shapes for some operations preventing from changing topology input shape.
 
 ## How to Convert a Model
 
 You can download TensorFlow\* Object Detection API models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> or <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a>.
 
-<strong>NOTE</strong>: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../Config_Model_Optimizer.md).
+<strong>NOTE</strong>: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../../Deep_Learning_Model_Optimizer_DevGuide.md).
 
-To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/tools/model_optimizer` directory and run the `mo_tf.py` script with the following required parameters:
+To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/tools/model_optimizer` directory and run the `mo` script with the following required parameters:
 
 * `--input_model <path_to_frozen.pb>` --- File with a pre-trained model (binary or text .pb file after freezing) OR `--saved_model_dir <path_to_saved_model>` for the TensorFlow\* 2 models
-* `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow\* Object Detection API zoo, you can find the configuration files in the `<INSTALL_DIR>/tools/model_optimizer/extensions/front/tf` directory. Use:
+* `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow\* Object Detection API zoo, you can find the configuration files in the `<PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf` directory. Use:
     * `ssd_v2_support.json` --- for frozen SSD topologies from the models zoo version up to 1.13.X inclusively
     * `ssd_support_api_v.1.14.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 1.14 up to 1.14.X inclusively
     * `ssd_support_api_v.1.15.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 1.15 up to 2.0
@@ -45,22 +45,28 @@ To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/t
 * `--tensorflow_object_detection_api_pipeline_config <path_to_pipeline.config>` --- A special configuration file that describes the topology hyper-parameters and structure of the TensorFlow Object Detection API model. For the models downloaded from the TensorFlow\* Object Detection API zoo, the configuration file is named `pipeline.config`. If you plan to train a model yourself, you can find templates for these files in the [models repository](https://github.com/tensorflow/models/tree/master/research/object_detection/samples/configs).
 * `--input_shape` (optional) --- A custom input image shape. Refer to [Custom Input Shape](#tf_od_custom_input_shape) for more information how the `--input_shape` parameter is handled for the TensorFlow* Object Detection API models.
 
-> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. If you convert a TensorFlow\* Object Detection API model to use with the Inference Engine sample applications, you must specify the `--reverse_input_channels` parameter. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../Converting_Model_General.md).
+> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. If you convert a TensorFlow\* Object Detection API model to use with the Inference Engine sample applications, you must specify the `--reverse_input_channels` parameter. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md).
 
 Additionally to the mandatory parameters listed above you can use optional conversion parameters if needed. A full list of parameters is available in the [Converting a TensorFlow* Model](../Convert_Model_From_TensorFlow.md) topic.
 
 For example, if you downloaded the [pre-trained SSD InceptionV2 topology](http://download.tensorflow.org/models/object_detection/ssd_inception_v2_coco_2018_01_28.tar.gz) and extracted archive to the directory `/tmp/ssd_inception_v2_coco_2018_01_28`, the sample command line to convert the model looks as follows:
 
 ```
-<INSTALL_DIR>/tools/model_optimizer/mo_tf.py --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config <INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
+mo --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
 ```
 
+## OpenVINO&; Toolkit Samples and Open Model Zoo Demos
+
+Inference Engine comes with a number of samples to demonstrate use of OpenVINO API, additionally,
+Open Model Zoo provides set of demo applications to show implementation of close to real life applications
+based on deep learning in various tasks, including Image Classifiacton, Visual Object Detection, Text Recognition,
+Speech Recognition, Natural Language Processing and others. Refer to the links below for more details.
+
+
+* [Inference Engine Samples](../../../../OV_Runtime_UG/Samples_Overview.md)
+* [Open Model Zoo Demos](@ref omz_demos)
+
 ## Important Notes About Feeding Input Images to the Samples
-
-Inference Engine comes with a number of samples to infer Object Detection API models including:
-
-* [Object Detection for SSD Sample](../../../../../samples/cpp/object_detection_sample_ssd/README.md) --- for RFCN, SSD and Faster R-CNNs
-* [Mask R-CNN Sample for TensorFlow* Object Detection API Models](@ref omz_demos_mask_rcnn_demo_cpp) --- for Mask R-CNNs
 
 There are several important notes about feeding input images to the samples:
 

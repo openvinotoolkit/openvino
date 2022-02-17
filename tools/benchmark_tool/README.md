@@ -3,12 +3,7 @@
 This topic demonstrates how to run the Benchmark Python* Tool, which performs inference using convolutional networks.
 Performance can be measured for two inference modes: latency- and throughput-oriented.
 
-> **NOTE:** This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md).
-
-> **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to 
-> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
-> deployment on various Intel® platforms.
+> **NOTE**: This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md).
 
 ## How It Works
 Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
@@ -19,7 +14,7 @@ usually, the resulting values are not very performance-portable,
 so the values from one machine or device are not necessarily optimal for another.
 From this perspective, the most portable way is experimenting only the performance hints. To learn more, refer to the section below.
 
-> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 
 ### Latency and Throughput-focused Inference Modes
 In many cases the primary performance metric is the time (in milliseconds) for an individual inference request.
@@ -65,7 +60,7 @@ Notice that the benchmark_app usually produces optimal performance for any devic
 python3 benchmark_app.py -m <model> -i <input> -d CPU
 ```
 
-But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../docs/IE_DG/Intro_to_Performance.md).
+But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Performance Optimization Guide](../../docs/optimization_guide/dldt_optimization_guide.md).
 
 Running the application with the `-h` or `--help`' option yields the following usage message:
 
@@ -173,21 +168,18 @@ To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's]
 
 This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. As an input, the `car.png` file from the `<INSTALL_DIR>/samples/scripts/` directory is used.
 
-> **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
+> **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
-1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
+1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with the model name and directory to download the model to:
    ```sh
    cd <INSTALL_DIR>/extras/open_model_zoo/tools/downloader
    ```
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
-2. Convert the model to the Inference Engine IR format. Go to the Model Optimizer directory and run the `mo.py` script with specifying the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
+2. Convert the model to the Inference Engine IR format. Run Model Optimizer with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
-   cd <INSTALL_DIR>/tools/model_optimizer
-   ```
-   ```sh
-   python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
 3. Run the tool with specifying the `<INSTALL_DIR>/samples/scripts/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 
@@ -231,6 +223,6 @@ Below are fragments of sample output for CPU and GPU devices:
    ```
 
 ## See Also
-* [Using Inference Engine Samples](../../docs/IE_DG/Samples_Overview.md)
+* [Using Inference Engine Samples](../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)

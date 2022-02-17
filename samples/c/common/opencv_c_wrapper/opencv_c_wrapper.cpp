@@ -1,13 +1,27 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "opencv_c_wrapper.h"
 
+extern "C" {
+#include "bmp_reader.h"
+}
+
 #ifndef USE_OPENCV
 
 int image_read(const char* img_path, c_mat_t* img) {
-    return -1;
+    BitMap bmp;
+    int retCode = readBmpImage(img_path, &bmp);
+
+    img->mat_data = bmp.data;
+    img->mat_data_size = bmp.width * bmp.height * 3;
+    img->mat_width = bmp.width;
+    img->mat_height = bmp.height;
+    img->mat_channels = 3;
+    img->mat_type = bmp.header.type;
+
+    return retCode;
 }
 int image_resize(const c_mat_t* src_img, c_mat_t* dst_img, const int width, const int height) {
     return -1;
@@ -16,7 +30,8 @@ int image_save(const char* img_path, c_mat_t* img) {
     return -1;
 }
 int image_free(c_mat_t* img) {
-    return -1;
+    delete img->mat_data;
+    return 0;
 }
 int image_add_rectangles(c_mat_t* img, rectangle_t rects[], int classes[], int num, int thickness) {
     return -1;

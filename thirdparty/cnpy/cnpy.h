@@ -163,7 +163,8 @@ namespace cnpy {
                 fclose(fp);
                 throw std::runtime_error("npz_save: header read error while adding to existing zip");
             }
-            fseek(fp,global_header_offset,SEEK_SET);
+            if(fseek(fp,global_header_offset,SEEK_SET) != 0)
+                throw std::runtime_error("npz_save: failed fseek");
         }
         else {
             fp = fopen(zipname.c_str(),"wb");

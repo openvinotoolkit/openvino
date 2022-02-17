@@ -12,11 +12,11 @@ Run the following commands:
 import tensorflow as tf
 from tensorflow.python.framework import graph_io
 
-sess = tf.Session()
-saver = tf.train.import_meta_graph("/path/to/model/model.meta")
+sess = tf.compat.v1.Session()
+saver = tf.compat.v1.train.import_meta_graph("/path/to/model/model.meta")
 saver.restore(sess, tf.train.latest_checkpoint('/path/to/model/'))
 
-frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, \
+frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, \
                                                       ["rating/BiasAdd"])
 graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
 ```
@@ -30,7 +30,7 @@ it has one input that is split into four `ResourceGather` layers. (Click image t
  But as the Model Optimizer does not support such data feeding, you should skip it. Cut 
 the edges incoming in `ResourceGather`s port 1:
 ```sh
-python3 mo_tf.py --input_model inference_graph.pb                    \
+ mo --input_model inference_graph.pb                    \
 --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \
 1:embedding_2/embedding_lookup,1:embedding_3/embedding_lookup        \
 --input_shape [256],[256],[256],[256]                                \
@@ -40,7 +40,7 @@ In the `input_shape` parameter, 256 specifies the `batch_size` for your model.
 
 Alternatively, you can do steps 2 and 3 in one command line:
 ```sh
-python3 mo_tf.py --input_meta_graph /path/to/model/model.meta        \
+ mo --input_meta_graph /path/to/model/model.meta        \
 --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \
 1:embedding_2/embedding_lookup,1:embedding_3/embedding_lookup        \
 --input_shape [256],[256],[256],[256] --output rating/BiasAdd        \

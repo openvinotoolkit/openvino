@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2021 Intel Corporation
+ Copyright (C) 2018-2022 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -21,7 +21,7 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=s
 
 test_data_fp32_async = get_tests \
     (cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                 'm': [os.path.join('squeezenet1.1', 'caffe_squeezenet_v1_1_FP32_batch_1_seqlen_[1]_v10.xml')],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                  'batch': [1],
                  'sample_type': ['C++', 'Python'],
                  'd': ['CPU'],
@@ -33,7 +33,7 @@ test_data_fp32_async = get_tests \
 
 test_data_fp32_sync = get_tests \
     (cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                 'm': [os.path.join('squeezenet1.1', 'caffe_squeezenet_v1_1_FP32_batch_1_seqlen_[1]_v10.xml')],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                  'batch': [1],
                  'sample_type': ['C++', 'Python'],
                  'd': ['CPU'],

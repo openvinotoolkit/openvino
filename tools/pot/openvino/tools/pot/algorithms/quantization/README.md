@@ -1,11 +1,23 @@
 # Quantization {#pot_compression_algorithms_quantization_README}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   DefaultQuantization Algorithm <pot_compression_algorithms_quantization_default_README>
+   AccuracyAwareQuantization Algorithm <pot_compression_algorithms_quantization_accuracy_aware_README>
+   TunableQuantization Algorithm <pot_compression_algorithms_quantization_tunable_quantization_README>
+
+@endsphinxdirective
+
 The primary optimization feature of the Post-training Optimization Tool (POT) is uniform quantization. In general,
 this method supports an arbitrary number of bits, greater or equal to two, which represents weights and activations.
 During the quantization process, the method inserts [FakeQuantize](@ref openvino_docs_ops_quantization_FakeQuantize_1)
 operations into the model graph automatically based on a predefined hardware target in order to produce the most
 hardware-friendly optimized model:
-![](../../../docs/images/convolution_quantization.png)
+![](../../../../../docs/images/convolution_quantization.png)
 
 After that, different quantization algorithms can tune the `FakeQuantize` parameters or remove some of them in order to
 meet the accuracy criteria. The resulting *fakequantized* models are interpreted and transformed to real low-precision
@@ -21,10 +33,6 @@ wide range of DNN models:
 *  **AccuracyAwareQuantization** enables remaining at a predefined range of accuracy drop after quantization at the cost
    of performance improvement. It may require more time for quantization. For details, see the
    [AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
-
-*  **Tree-Structured Parzen Estimator (TPE)** similarly to **AccuracyAwareQuantization** enables remaining at a predefined range of accuracy drop at the cost
-   of performance improvement, but additionally tries to provide best possible performance improvement. It requires even more time for quantization than **AccuracyAwareQuantization**,
-   but may lead to better performance improvement. For details, see the [Tree-Structured Parzen Estimator (TPE)](@ref pot_compression_optimization_tpe_README) documentation.
 
 ## Quantization Formula
 

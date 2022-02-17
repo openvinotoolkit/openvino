@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,11 +54,11 @@ struct SqueezeParams {
     Shape m_output_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
     Shape m_axes_shape;
     element::Type m_axes_type;
-    runtime::Tensor m_axes_value;
+    ov::Tensor m_axes_value;
     bool m_axes_node;
 };
 
@@ -89,7 +89,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const SqueezeParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const SqueezeParams& params) {
         const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
         std::shared_ptr<op::v0::Constant> axes_node = NULL;
         std::shared_ptr<op::v0::Squeeze> squeeze = NULL;
@@ -100,7 +100,7 @@ private:
             squeeze = std::make_shared<op::v0::Squeeze>(in);
         }
 
-        return std::make_shared<ov::Function>(squeeze, ParameterVector{in});
+        return std::make_shared<ov::Model>(squeeze, ParameterVector{in});
     }
 };
 

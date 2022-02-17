@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,8 +37,8 @@ struct IDFTParams {
     Shape m_expected_shape;
     element::Type_t m_input_type;
     element::Type_t m_expected_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
     std::shared_ptr<op::v0::Constant> m_axes;
     std::shared_ptr<op::v0::Constant> m_signal;
 };
@@ -71,18 +71,18 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(IDFTParams& p) {
+    static std::shared_ptr<Model> CreateFunction(IDFTParams& p) {
         auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
         auto idft = std::make_shared<op::v7::IDFT>(in, p.m_axes);
 
-        return std::make_shared<ov::Function>(idft, ParameterVector{in});
+        return std::make_shared<ov::Model>(idft, ParameterVector{in});
     }
 
-    static std::shared_ptr<Function> CreateFunctionWithSignal(IDFTParams& p) {
+    static std::shared_ptr<Model> CreateFunctionWithSignal(IDFTParams& p) {
         auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
         auto idft = std::make_shared<op::v7::IDFT>(in, p.m_axes, p.m_signal);
 
-        return std::make_shared<ov::Function>(idft, ParameterVector{in});
+        return std::make_shared<ov::Model>(idft, ParameterVector{in});
     }
 };
 

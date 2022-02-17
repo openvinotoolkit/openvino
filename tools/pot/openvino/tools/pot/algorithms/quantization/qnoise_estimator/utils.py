@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from ....graph.model_utils import get_nodes_by_type, models_union
@@ -22,12 +22,12 @@ def get_composite_model(model, quantized_model, quantized_suffix='_quantized'):
     composite_model = model_disjoint_union(model, quantized_model)
     fq_inputs = [
         node
-        for node in get_nodes_by_type(composite_model, ['Parameter'])
+        for node in get_nodes_by_type(composite_model, ['Parameter'], recursively=False)
         if quantized_suffix not in node.name
     ]
     q_inputs = [
         node
-        for node in get_nodes_by_type(composite_model, ['Parameter'])
+        for node in get_nodes_by_type(composite_model, ['Parameter'], recursively=False)
         if quantized_suffix in node.name
     ]
     for fp_input_node, q_input_node in zip(fq_inputs, q_inputs):

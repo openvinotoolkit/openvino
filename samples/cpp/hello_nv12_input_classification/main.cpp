@@ -1,35 +1,43 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <samples/classification_results.h>
 #include <sys/stat.h>
 
 #include <cassert>
 #include <fstream>
-#include <inference_engine.hpp>
 #include <iostream>
 #include <memory>
-#include <samples/common.hpp>
-#include <samples/slog.hpp>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 #ifdef _WIN32
-#    include <samples/os/windows/w_dirent.h>
+#    include "samples/os/windows/w_dirent.h"
 #else
 #    include <dirent.h>
 #endif
 
-using namespace InferenceEngine;
+// clang-format off
+#include "openvino/openvino.hpp"
+
+#include "samples/args_helper.hpp"
+#include "samples/common.hpp"
+#include "samples/slog.hpp"
+#include "samples/classification_results.h"
+#include "format_reader_ptr.h"
+// clang-format on
+
+constexpr auto N_TOP_RESULTS = 10;
+
+using namespace ov::preprocess;
 
 /**
- * \brief Parse image size provided as string in format WIDTHxHEIGHT
+ * @brief Parse image size provided as string in format WIDTHxHEIGHT
  * @param string of image size in WIDTHxHEIGHT format
  * @return parsed width and height
  */
-std::pair<size_t, size_t> parseImageSize(const std::string& size_string) {
+std::pair<size_t, size_t> parse_image_size(const std::string& size_string) {
     auto delimiter_pos = size_string.find("x");
     if (delimiter_pos == std::string::npos || delimiter_pos >= size_string.size() - 1 || delimiter_pos == 0) {
         std::stringstream err;
@@ -54,258 +62,94 @@ std::pair<size_t, size_t> parseImageSize(const std::string& size_string) {
     return {width, height};
 }
 
-// Comparing to samples/args_helper.hpp, this version filters files by ".yuv"
-// extension
 /**
- * @brief This function checks input args and existence of specified files in a
- * given folder
- * @param path path to a file to be checked for existence
- * @return files updated vector of verified input files
- */
-std::vector<std::string> readInputFileNames(const std::string& path) {
-    struct stat sb;
-    if (stat(path.c_str(), &sb) != 0) {
-        slog::warn << "File " << path << " cannot be opened!" << slog::endl;
-        return {};
-    }
-
-    std::vector<std::string> files;
-
-    if (S_ISDIR(sb.st_mode)) {
-        DIR* dp = opendir(path.c_str());
-        if (dp == nullptr) {
-            slog::warn << "Directory " << path << " cannot be opened!" << slog::endl;
-            return {};
-        }
-
-        for (struct dirent* ep = readdir(dp); ep != nullptr; ep = readdir(dp)) {
-            std::string fileName = ep->d_name;
-            if (fileName == "." || fileName == ".." || fileName.substr(fileName.size() - 4) != ".yuv")
-                continue;
-            files.push_back(path + "/" + ep->d_name);
-        }
-        closedir(dp);
-    } else {
-        files.push_back(path);
-    }
-
-    size_t max_files = 20;
-    if (files.size() < max_files) {
-        slog::info << "Files were added: " << files.size() << slog::endl;
-        for (std::string filePath : files) {
-            slog::info << "    " << filePath << slog::endl;
-        }
-    } else {
-        slog::info << "Files were added: " << files.size() << ". Too many to display each of them." << slog::endl;
-    }
-
-    return files;
-}
-
-using UString = std::basic_string<uint8_t>;
-
-/**
- * \brief Read image data from file
- * @param vector files paths
- * @param size of file paths vector
- * @return buffers containing the images data
- */
-std::vector<UString> readImagesDataFromFiles(const std::vector<std::string>& files, size_t size) {
-    std::vector<UString> result;
-
-    for (const auto& image_path : files) {
-        std::ifstream file(image_path, std::ios_base::ate | std::ios_base::binary);
-        if (!file.good() || !file.is_open()) {
-            std::stringstream err;
-            err << "Cannot access input image file. File path: " << image_path;
-            throw std::runtime_error(err.str());
-        }
-
-        const size_t file_size = file.tellg();
-        if (file_size < size) {
-            std::stringstream err;
-            err << "Invalid read size provided. File size: " << file_size << ", to read: " << size;
-            throw std::runtime_error(err.str());
-        }
-        file.seekg(0);
-
-        UString data(size, 0);
-        file.read(reinterpret_cast<char*>(&data[0]), size);
-        result.push_back(std::move(data));
-    }
-    return result;
-}
-
-/**
- * @brief Read input image to blob
- * @param ref to input image data
- * @param width input image
- * @param height input image
- * @return blob point to hold the NV12 input data
- */
-std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, size_t height) {
-    // read image with size converted to NV12 data size: height(NV12) = 3 / 2 *
-    // logical height
-
-    // Create tensor descriptors for Y and UV blobs
-    const InferenceEngine::TensorDesc y_plane_desc(InferenceEngine::Precision::U8,
-                                                   {1, 1, height, width},
-                                                   InferenceEngine::Layout::NHWC);
-    const InferenceEngine::TensorDesc uv_plane_desc(InferenceEngine::Precision::U8,
-                                                    {1, 2, height / 2, width / 2},
-                                                    InferenceEngine::Layout::NHWC);
-    const size_t offset = width * height;
-
-    std::vector<Blob::Ptr> blobs;
-    for (auto& buf : data) {
-        // --------------------------- Create a blob to hold the NV12 input data
-        // -------------------------------
-        auto ptr = &buf[0];
-
-        // Create blob for Y plane from raw data
-        Blob::Ptr y_blob = make_shared_blob<uint8_t>(y_plane_desc, ptr);
-        // Create blob for UV plane from raw data
-        Blob::Ptr uv_blob = make_shared_blob<uint8_t>(uv_plane_desc, ptr + offset);
-        // Create NV12Blob from Y and UV blobs
-        blobs.emplace_back(make_shared_blob<NV12Blob>(y_blob, uv_blob));
-    }
-
-    return blobs;
-}
-
-/**
- * @brief Check supported batched blob for device
- * @param IE core object
- * @param string device name
- * @return True(success) or False(fail)
- */
-bool isBatchedBlobSupported(const Core& ie, const std::string& device_name) {
-    const std::vector<std::string> supported_metrics = ie.GetMetric(device_name, METRIC_KEY(SUPPORTED_METRICS));
-
-    if (std::find(supported_metrics.begin(), supported_metrics.end(), METRIC_KEY(OPTIMIZATION_CAPABILITIES)) ==
-        supported_metrics.end()) {
-        return false;
-    }
-
-    const std::vector<std::string> optimization_caps = ie.GetMetric(device_name, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-
-    return std::find(optimization_caps.begin(), optimization_caps.end(), METRIC_VALUE(BATCHED_BLOB)) !=
-           optimization_caps.end();
-}
-
-/**
- * @brief The entry point of the Inference Engine sample application
+ * @brief The entry point of the OpenVINO Runtime sample application
  */
 int main(int argc, char* argv[]) {
     try {
-        // ------------------------------ Parsing and validation input
-        // arguments------------------------------
+        // -------- Get OpenVINO runtime version --------
+        slog::info << ov::get_openvino_version() << slog::endl;
+
+        // -------- Parsing and validation input arguments --------
         if (argc != 5) {
-            std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image(s)> <image_size> <device_name>"
+            std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <image_size> <device_name>"
                       << std::endl;
             return EXIT_FAILURE;
         }
 
-        const std::string input_model{argv[1]};
-        const std::string input_image_path{argv[2]};
-        size_t input_width = 0, input_height = 0;
-        std::tie(input_width, input_height) = parseImageSize(argv[3]);
+        const std::string model_path{argv[1]};
+        const std::string image_path{argv[2]};
+        size_t input_width = 0;
+        size_t input_height = 0;
+        std::tie(input_width, input_height) = parse_image_size(argv[3]);
         const std::string device_name{argv[4]};
         // -----------------------------------------------------------------------------------------------------
 
-        // ------------------------------ Read image names
-        // -----------------------------------------------------
-        auto image_names = readInputFileNames(input_image_path);
-
-        if (image_names.empty()) {
-            throw std::invalid_argument("images not found");
-        }
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Step 1. Initialize inference engine core
-        // ------------------------------------------------
-        Core ie;
-        // -----------------------------------------------------------------------------------------------------
-
-        // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and
-        // .bin files) or ONNX (.onnx file) format
-        CNNNetwork network = ie.ReadNetwork(input_model);
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Reshape model
-        // -------------------------------------------------
-        size_t netInputSize = isBatchedBlobSupported(ie, device_name) ? image_names.size() : 1;
-        ICNNNetwork::InputShapes inputShapes = network.getInputShapes();
-        for (auto& shape : inputShapes) {
-            auto& dims = shape.second;
-            if (dims.empty()) {
-                throw std::runtime_error("Network's input shapes have empty dimensions");
-            }
-            dims[0] = netInputSize;
-        }
-        network.reshape(inputShapes);
-        size_t batchSize = network.getBatchSize();
-        std::cout << "Batch size is " << batchSize << std::endl;
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Step 3. Configure input and output
-        // -------------------------------------------
-        // --------------------------- Prepare input blobs
-        // -----------------------------------------------------
-        if (network.getInputsInfo().empty()) {
-            std::cerr << "Network inputs info is empty" << std::endl;
-            return EXIT_FAILURE;
-        }
-        InputInfo::Ptr input_info = network.getInputsInfo().begin()->second;
-        std::string input_name = network.getInputsInfo().begin()->first;
-
-        input_info->setLayout(Layout::NCHW);
-        input_info->setPrecision(Precision::U8);
-        // set input resize algorithm to enable input autoresize
-        input_info->getPreProcess().setResizeAlgorithm(ResizeAlgorithm::RESIZE_BILINEAR);
-        // set input color format to ColorFormat::NV12 to enable automatic input
-        // color format pre-processing
-        input_info->getPreProcess().setColorFormat(ColorFormat::NV12);
-
-        // --------------------------- Prepare output blobs
-        // ----------------------------------------------------
-        if (network.getOutputsInfo().empty()) {
-            std::cerr << "Network outputs info is empty" << std::endl;
-            return EXIT_FAILURE;
-        }
-        DataPtr output_info = network.getOutputsInfo().begin()->second;
-        std::string output_name = network.getOutputsInfo().begin()->first;
-
-        output_info->setPrecision(Precision::FP32);
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Step 4. Loading a model to the device
-        // ----------------------------------------
-        ExecutableNetwork executable_network = ie.LoadNetwork(network, device_name);
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Step 5. Create an infer request
-        // ----------------------------------------------
-        InferRequest infer_request = executable_network.CreateInferRequest();
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Step 6. Prepare input
-        // --------------------------------------------------------
-        auto image_bufs = readImagesDataFromFiles(image_names, input_width * (input_height * 3 / 2));
-
-        auto inputs = readInputBlobs(image_bufs, input_width, input_height);
-
-        // If batch_size > 1 => batched blob supported => replace all inputs by a
-        // BatchedBlob
-        if (netInputSize > 1) {
-            assert(netInputSize == inputs.size());
-            std::cout << "Infer using BatchedBlob of NV12 images." << std::endl;
-            Blob::Ptr batched_input = make_shared_blob<BatchedBlob>(inputs);
-            inputs = {batched_input};
+        // -------- Read image names --------
+        FormatReader::ReaderPtr reader(image_path.c_str());
+        if (reader.get() == nullptr) {
+            std::string msg = "Image " + image_path + " cannot be read!";
+            throw std::logic_error(msg);
         }
 
-        /** Read labels from file (e.x. AlexNet.labels) **/
-        std::string labelFileName = fileNameNoExt(input_model) + ".labels";
+        size_t batch = 1;
+
+        // -----------------------------------------------------------------------------------------------------
+
+        // -------- Step 1. Initialize OpenVINO Runtime Core ---------
+        ov::Core core;
+
+        // -------- Step 2. Read a model --------
+        slog::info << "Loading model files: " << model_path << slog::endl;
+        std::shared_ptr<ov::Model> model = core.read_model(model_path);
+        printInputAndOutputsInfo(*model);
+
+        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
+
+        std::string input_tensor_name = model->input().get_any_name();
+        std::string output_tensor_name = model->output().get_any_name();
+
+        // -------- Step 3. Configure preprocessing  --------
+        PrePostProcessor ppp = PrePostProcessor(model);
+
+        // 1) Select input with 'input_tensor_name' tensor name
+        InputInfo& input_info = ppp.input(input_tensor_name);
+        // 2) Set input type
+        // - as 'u8' precision
+        // - set color format to NV12 (single plane)
+        // - static spatial dimensions for resize preprocessing operation
+        input_info.tensor()
+            .set_element_type(ov::element::u8)
+            .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
+            .set_spatial_static_shape(input_height, input_width);
+        // 3) Pre-processing steps:
+        //    a) Convert to 'float'. This is to have color conversion more accurate
+        //    b) Convert to BGR: Assumes that model accepts images in BGR format. For RGB, change it manually
+        //    c) Resize image from tensor's dimensions to model ones
+        input_info.preprocess()
+            .convert_element_type(ov::element::f32)
+            .convert_color(ColorFormat::BGR)
+            .resize(ResizeAlgorithm::RESIZE_LINEAR);
+        // 4) Set model data layout (Assuming model accepts images in NCHW layout)
+        input_info.model().set_layout("NCHW");
+
+        // 5) Apply preprocessing to an input with 'input_tensor_name' name of loaded model
+        model = ppp.build();
+
+        // -------- Step 4. Loading a model to the device --------
+        ov::CompiledModel compiled_model = core.compile_model(model, device_name);
+
+        // -------- Step 5. Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Step 6. Prepare input data  --------
+        std::shared_ptr<unsigned char> image_data = reader->getData(input_width, input_height);
+
+        ov::Tensor input_tensor{ov::element::u8, {batch, input_height * 3 / 2, input_width, 1}, image_data.get()};
+
+        // Read labels from file (e.x. AlexNet.labels)
+        std::string labelFileName = fileNameNoExt(model_path) + ".labels";
         std::vector<std::string> labels;
 
         std::ifstream inputFile;
@@ -318,37 +162,26 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        for (size_t i = 0; i < inputs.size(); i++) {
-            const auto& input = inputs[i];
-            // --------------------------- Set the input blob to the InferRequest
-            // ------------------------------
-            infer_request.SetBlob(input_name, input);
-            // -------------------------------------------------------------------------------------------------
+        // -------- Step 6. Set input tensor  --------
+        // Set the input tensor by tensor name to the InferRequest
+        infer_request.set_tensor(input_tensor_name, input_tensor);
 
-            // --------------------------- Step 7. Do inference
-            // -----------------------------------------------------
-            /* Running the request synchronously */
-            infer_request.Infer();
-            // -------------------------------------------------------------------------------------------------
+        // -------- Step 7. Do inference --------
+        // Running the request synchronously
+        infer_request.infer();
 
-            // --------------------------- Step 8. Process output
-            // ---------------------------------------------------
-            Blob::Ptr output = infer_request.GetBlob(output_name);
+        // -------- Step 8. Process output --------
+        ov::Tensor output = infer_request.get_tensor(output_tensor_name);
 
-            // Print classification results
-            const auto names_offset = image_names.begin() + netInputSize * i;
-            std::vector<std::string> names(names_offset, names_offset + netInputSize);
+        // Print classification results
+        ClassificationResult classification_result(output, {image_path}, batch, N_TOP_RESULTS, labels);
+        classification_result.show();
 
-            ClassificationResult classificationResult(output, names, netInputSize, 10, labels);
-            classificationResult.print();
-            // -------------------------------------------------------------------------------------------------
-        }
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;
+
         return EXIT_FAILURE;
     }
-    std::cout << "This sample is an API example, for any performance measurements "
-                 "please use the dedicated benchmark_app tool"
-              << std::endl;
+
     return EXIT_SUCCESS;
 }

@@ -224,6 +224,7 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     d_stream.opaque = Z_NULL;
     d_stream.avail_in = 0;
     d_stream.next_in = Z_NULL;
+    d_stream.total_in = 0;
     d_stream.total_out = 0;
     err = inflateInit2(&d_stream, -MAX_WBITS);
 
@@ -332,8 +333,8 @@ cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname) {
 
         //read in the extra field
         uint16_t extra_field_len = *(uint16_t*) &local_header[28];
-        fseek(fp,extra_field_len,SEEK_CUR); //skip past the extra field
-        
+        if (fseek(fp,extra_field_len,SEEK_CUR) != 0) //skip past the extra field
+            throw std::runtime_error("npz_load: failed fseek");
         uint16_t compr_method = *reinterpret_cast<uint16_t*>(&local_header[0]+8);
         uint32_t compr_bytes = *reinterpret_cast<uint32_t*>(&local_header[0]+18);
         uint32_t uncompr_bytes = *reinterpret_cast<uint32_t*>(&local_header[0]+22);

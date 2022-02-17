@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,21 +45,21 @@ struct DetectionOutputParams {
           refData(CreateTensor(iType, oValues)),
           testcaseName(test_name) {
               attrs.num_classes = num_classes;
-              attrs.background_label_id = background_label_id;
-              attrs.top_k = top_k;
-              attrs.variance_encoded_in_target = variance_encoded_in_target;
-              attrs.keep_top_k = keep_top_k;
-              attrs.code_type = code_type;
-              attrs.share_location = share_location;
-              attrs.nms_threshold = nms_threshold;
-              attrs.confidence_threshold = confidence_threshold;
-              attrs.clip_after_nms = clip_after_nms;
-              attrs.clip_before_nms = clip_before_nms;
-              attrs.decrease_label_id = decrease_label_id;
-              attrs.normalized = normalized;
-              attrs.input_height = input_height;
-              attrs.input_width = input_width;
-              attrs.objectness_score = objectness_score;
+              attrs_v8.background_label_id = attrs.background_label_id = background_label_id;
+              attrs_v8.top_k = attrs.top_k = top_k;
+              attrs_v8.variance_encoded_in_target = attrs.variance_encoded_in_target = variance_encoded_in_target;
+              attrs_v8.keep_top_k = attrs.keep_top_k = keep_top_k;
+              attrs_v8.code_type = attrs.code_type = code_type;
+              attrs_v8.share_location = attrs.share_location = share_location;
+              attrs_v8.nms_threshold = attrs.nms_threshold = nms_threshold;
+              attrs_v8.confidence_threshold = attrs.confidence_threshold = confidence_threshold;
+              attrs_v8.clip_after_nms = attrs.clip_after_nms = clip_after_nms;
+              attrs_v8.clip_before_nms = attrs.clip_before_nms = clip_before_nms;
+              attrs_v8.decrease_label_id = attrs.decrease_label_id = decrease_label_id;
+              attrs_v8.normalized = attrs.normalized = normalized;
+              attrs_v8.input_height = attrs.input_height = input_height;
+              attrs_v8.input_width = attrs.input_width = input_width;
+              attrs_v8.objectness_score = attrs.objectness_score = objectness_score;
 
               size_t num_loc_classes = attrs.share_location ? 1 : attrs.num_classes;
               size_t prior_box_size = attrs.normalized ? 4 : 5;
@@ -107,21 +107,21 @@ template <class IT>
           auxConfData(CreateTensor(iType, auxConfValues)),
           testcaseName(test_name) {
               attrs.num_classes = num_classes;
-              attrs.background_label_id = background_label_id;
-              attrs.top_k = top_k;
-              attrs.variance_encoded_in_target = variance_encoded_in_target;
-              attrs.keep_top_k = keep_top_k;
-              attrs.code_type = code_type;
-              attrs.share_location = share_location;
-              attrs.nms_threshold = nms_threshold;
-              attrs.confidence_threshold = confidence_threshold;
-              attrs.clip_after_nms = clip_after_nms;
-              attrs.clip_before_nms = clip_before_nms;
-              attrs.decrease_label_id = decrease_label_id;
-              attrs.normalized = normalized;
-              attrs.input_height = input_height;
-              attrs.input_width = input_width;
-              attrs.objectness_score = objectness_score;
+              attrs_v8.background_label_id = attrs.background_label_id = background_label_id;
+              attrs_v8.top_k = attrs.top_k = top_k;
+              attrs_v8.variance_encoded_in_target = attrs.variance_encoded_in_target = variance_encoded_in_target;
+              attrs_v8.keep_top_k = attrs.keep_top_k = keep_top_k;
+              attrs_v8.code_type = attrs.code_type = code_type;
+              attrs_v8.share_location = attrs.share_location = share_location;
+              attrs_v8.nms_threshold = attrs.nms_threshold = nms_threshold;
+              attrs_v8.confidence_threshold = attrs.confidence_threshold = confidence_threshold;
+              attrs_v8.clip_after_nms = attrs.clip_after_nms = clip_after_nms;
+              attrs_v8.clip_before_nms = attrs.clip_before_nms = clip_before_nms;
+              attrs_v8.decrease_label_id = attrs.decrease_label_id = decrease_label_id;
+              attrs_v8.normalized = attrs.normalized = normalized;
+              attrs_v8.input_height = attrs.input_height = input_height;
+              attrs_v8.input_width = attrs.input_width = input_width;
+              attrs_v8.objectness_score = attrs.objectness_score = objectness_score;
 
               size_t num_loc_classes = attrs.share_location ? 1 : attrs.num_classes;
               size_t prior_box_size = attrs.normalized ? 4 : 5;
@@ -135,18 +135,19 @@ template <class IT>
           }
 
     ov::op::v0::DetectionOutput::Attributes attrs;
+    ov::op::v8::DetectionOutput::Attributes attrs_v8;
     ov::PartialShape locShape;
     ov::PartialShape confShape;
     ov::PartialShape priorBoxesShape;
     ov::PartialShape auxLocShape;
     ov::PartialShape auxConfShape;
     ov::element::Type inType;
-    ov::runtime::Tensor locData;
-    ov::runtime::Tensor confData;
-    ov::runtime::Tensor priorBoxesData;
-    ov::runtime::Tensor refData;
-    ov::runtime::Tensor auxLocData;
-    ov::runtime::Tensor auxConfData;
+    ov::Tensor locData;
+    ov::Tensor confData;
+    ov::Tensor priorBoxesData;
+    ov::Tensor refData;
+    ov::Tensor auxLocData;
+    ov::Tensor auxConfData;
     std::string testcaseName;
 };
 
@@ -178,7 +179,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DetectionOutputParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const DetectionOutputParams& params) {
         const auto loc = std::make_shared<op::v0::Parameter>(params.inType, params.locShape);
         const auto conf = std::make_shared<op::v0::Parameter>(params.inType, params.confShape);
         const auto priorBoxes = std::make_shared<op::v0::Parameter>(params.inType, params.priorBoxesShape);
@@ -186,15 +187,66 @@ private:
             const auto auxConf = std::make_shared<op::v0::Parameter>(params.inType, params.auxConfShape);
             const auto auxLoc = std::make_shared<op::v0::Parameter>(params.inType, params.auxLocShape);
             const auto DetectionOutput = std::make_shared<op::v0::DetectionOutput>(loc, conf, priorBoxes, auxConf, auxLoc, params.attrs);
-            return std::make_shared<ov::Function>(NodeVector {DetectionOutput}, ParameterVector {loc, conf, priorBoxes, auxConf, auxLoc});
+            return std::make_shared<ov::Model>(NodeVector {DetectionOutput}, ParameterVector {loc, conf, priorBoxes, auxConf, auxLoc});
         } else {
             const auto DetectionOutput = std::make_shared<op::v0::DetectionOutput>(loc, conf, priorBoxes, params.attrs);
-            return std::make_shared<ov::Function>(NodeVector {DetectionOutput}, ParameterVector {loc, conf, priorBoxes});
+            return std::make_shared<ov::Model>(NodeVector {DetectionOutput}, ParameterVector {loc, conf, priorBoxes});
+        }
+    }
+};
+
+class ReferenceDetectionOutputV8LayerTest : public testing::TestWithParam<DetectionOutputParams>,
+                                          public CommonReferenceTest {
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params);
+        if ((params.auxLocShape.size() != 0) && (params.auxConfShape.size() != 0))
+            inputData = {params.locData, params.confData, params.priorBoxesData, params.auxConfData, params.auxLocData};
+        else
+            inputData = {params.locData, params.confData, params.priorBoxesData};
+        refOutData = {params.refData};
+    }
+    static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
+        auto param = obj.param;
+        std::ostringstream result;
+        result << "locShape=" << param.locShape << "_";
+        result << "confShape=" << param.confShape << "_";
+        result << "priorBoxesShape=" << param.priorBoxesShape << "_";
+        if ((param.auxLocShape.size() != 0) && (param.auxConfShape.size() != 0)) {
+            result << "auxLocShape=" << param.locShape << "_";
+            result << "auxConfShape=" << param.confShape << "_";
+        }
+        result << "iType=" << param.inType;
+        if (param.testcaseName != "")
+            result << "_" << param.testcaseName;
+        return result.str();
+    }
+
+private:
+    static std::shared_ptr<Model> CreateFunction(const DetectionOutputParams& params) {
+        const auto loc = std::make_shared<op::v0::Parameter>(params.inType, params.locShape);
+        const auto conf = std::make_shared<op::v0::Parameter>(params.inType, params.confShape);
+        const auto priorBoxes = std::make_shared<op::v0::Parameter>(params.inType, params.priorBoxesShape);
+        if ((params.auxLocShape.size() != 0) && (params.auxConfShape.size() != 0)) {
+            const auto auxConf = std::make_shared<op::v0::Parameter>(params.inType, params.auxConfShape);
+            const auto auxLoc = std::make_shared<op::v0::Parameter>(params.inType, params.auxLocShape);
+            const auto DetectionOutput =
+                std::make_shared<op::v8::DetectionOutput>(loc, conf, priorBoxes, auxConf, auxLoc, params.attrs_v8);
+            return std::make_shared<ov::Model>(NodeVector{DetectionOutput},
+                                                  ParameterVector{loc, conf, priorBoxes, auxConf, auxLoc});
+        } else {
+            const auto DetectionOutput = std::make_shared<op::v8::DetectionOutput>(loc, conf, priorBoxes, params.attrs_v8);
+            return std::make_shared<ov::Model>(NodeVector{DetectionOutput}, ParameterVector{loc, conf, priorBoxes});
         }
     }
 };
 
 TEST_P(ReferenceDetectionOutputLayerTest, CompareWithRefs) {
+    Exec();
+}
+
+TEST_P(ReferenceDetectionOutputV8LayerTest, CompareWithRefs) {
     Exec();
 }
 
@@ -516,5 +568,10 @@ std::vector<DetectionOutputParams> generateDetectionOutputCombinedParams() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput_With_Hardcoded_Refs, ReferenceDetectionOutputLayerTest,
     testing::ValuesIn(generateDetectionOutputCombinedParams()), ReferenceDetectionOutputLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput_With_Hardcoded_Refs,
+                         ReferenceDetectionOutputV8LayerTest,
+                         testing::ValuesIn(generateDetectionOutputCombinedParams()),
+                         ReferenceDetectionOutputV8LayerTest::getTestCaseName);
 
 } // namespace

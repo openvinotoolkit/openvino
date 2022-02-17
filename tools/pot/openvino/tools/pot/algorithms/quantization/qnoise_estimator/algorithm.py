@@ -1,10 +1,11 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
 
 import numpy as np
 import pandas as pd
+from openvino.tools.mo.graph.graph import rename_node
 
 from .utils import get_composite_model
 from ..utils import load_hardware_config
@@ -57,7 +58,8 @@ class QuantNoiseEstimator(Algorithm):
         fully_quantized_model = deepcopy(model)
         model = self.get_nonquantized_model(model)
         for node in mu.get_all_operation_nodes(fully_quantized_model):
-            node.name = node.name + self.q_suffix
+            rename_node(node, node.name + self.q_suffix)
+            node.fullname += self.q_suffix
 
         composite_model = get_composite_model(
             model, fully_quantized_model, quantized_suffix=self.q_suffix
@@ -75,13 +77,13 @@ class QuantNoiseEstimator(Algorithm):
             add_after_conv = nu.get_node_output(conv, 0)[0]
             if add_after_conv.type == 'Add':
                 # needs special layout for input/output stats
-                stat_calculation_layers.update({add_after_conv.name: conv.name})
-                inputs_outputs_layout[add_after_conv.name] = {
+                stat_calculation_layers.update({add_after_conv.fullname: conv.fullname})
+                inputs_outputs_layout[add_after_conv.fullname] = {
                     'layerwise_stat': SQNRStatistic(
                         self.activation_stats, self.q_suffix
                     )
                 }
-                inputs_outputs_layout[add_after_conv.name + self.q_suffix] = {}
+                inputs_outputs_layout[add_after_conv.fullname + self.q_suffix] = {}
 
         del model, fully_quantized_model
         self._engine.set_model(composite_model)
@@ -108,7 +110,7 @@ class QuantNoiseEstimator(Algorithm):
             fq_cut_node_list = fq_remover.find_fq_nodes_to_cut(fq_node)
             cut_fqs = []
             fq_names = [
-                node.name for node in mu.get_nodes_by_type(model, ['FakeQuantize'])
+                node.fullname for node in mu.get_nodes_by_type(model, ['FakeQuantize'])
             ]
             for node_name in fq_names:
                 if node_name not in cut_fqs and node_name not in fq_cut_node_list:
@@ -132,7 +134,7 @@ class QuantNoiseEstimator(Algorithm):
             if conv_input_node.type == 'FakeQuantize' and add_after_conv.type == 'Add':
                 logger.info(
                     'Calculating stats for quantized convolution {}'.format(
-                        conv_node.name
+                        conv_node.fullname
                     )
                 )
                 single_fq_layer_model = get_single_fq_model(
@@ -140,7 +142,8 @@ class QuantNoiseEstimator(Algorithm):
                 )
 
                 for node in mu.get_all_operation_nodes(single_fq_layer_model):
-                    node.name = node.name + self.q_suffix
+                    rename_node(node, node.name + self.q_suffix)
+                    node.fullname += self.q_suffix
 
                 composite_model = get_composite_model(
                     deepcopy(model), single_fq_layer_model
@@ -149,15 +152,15 @@ class QuantNoiseEstimator(Algorithm):
                 # collect convolution output residuals for original vs. quantized model
                 inputs_outputs_layout = {}
                 add_after_conv = nu.get_node_output(
-                    mu.get_node_by_name(composite_model, conv_node.name), 0
+                    mu.get_node_by_name(composite_model, conv_node.fullname), 0
                 )[0]
                 # needs special layout for input/output stats
-                inputs_outputs_layout[add_after_conv.name] = {
+                inputs_outputs_layout[add_after_conv.fullname] = {
                     'layerwise_stat': SQNRStatistic(
                         self.activation_stats, self.q_suffix
                     )
                 }
-                inputs_outputs_layout[add_after_conv.name + self.q_suffix] = {}
+                inputs_outputs_layout[add_after_conv.fullname + self.q_suffix] = {}
 
                 self._engine.set_model(composite_model)
                 _, accumulated_stats = self._engine.predict(stats_layout=inputs_outputs_layout,
@@ -165,10 +168,10 @@ class QuantNoiseEstimator(Algorithm):
                                                                 range(self._config['stat_subset_size'])))
                 qnoise_values.append(
                     self.mean_estimator(
-                        accumulated_stats[add_after_conv.name]['layerwise_stat']
+                        accumulated_stats[add_after_conv.fullname]['layerwise_stat']
                     )
                 )
-                node_names.append(conv_node.name)
+                node_names.append(conv_node.fullname)
 
         noise_data = {'noise_metric': qnoise_values, 'layer_name': node_names}
         if 'results_dump_filename' in self._config:
@@ -179,9 +182,9 @@ class QuantNoiseEstimator(Algorithm):
         cut_fqs = []
         cut_model = deepcopy(model)
         for node in mu.get_nodes_by_type(model, ['FakeQuantize']):
-            if node.name not in cut_fqs:
+            if node.fullname not in cut_fqs:
                 cut_model, cut_fq_layers, _ = self._graph_transformer.remove_fq_nodes(
-                    cut_model, [node.name]
+                    cut_model, [node.fullname]
                 )
                 cut_fqs += cut_fq_layers
         return cut_model

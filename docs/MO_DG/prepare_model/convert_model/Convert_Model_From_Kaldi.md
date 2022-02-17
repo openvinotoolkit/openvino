@@ -1,13 +1,25 @@
 # Converting a Kaldi* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi}
 
+@sphinxdirective
+
+.. _convert model kaldi:
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model
+
+@endsphinxdirective
+
 A summary of the steps for optimizing and deploying a model that was trained with Kaldi\*:
 
-1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for Kaldi\*.
+1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Kaldi\*.
 2. [Convert a Kaldi\* Model](#Convert_From_Kaldi) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
-3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md).
-4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment.
+3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
+4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [Inference Engine](../../../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment.
 
-> **NOTE:** The Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. Support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
+> **NOTE**: The Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. Support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
 
 ## Supported Topologies
 * Convolutional Neural Networks (CNN):
@@ -31,18 +43,15 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 ## Convert a Kaldi* Model <a name="Convert_From_Kaldi"></a>
 
-To convert a Kaldi\* model:
-
-1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory.
-2. Use the `mo.py` script to simply convert a model with the path to the input model `.nnet` or `.mdl` file and to an output directory where you have write permissions:
+To convert a Kaldi\* model, run Model Optimizer with the path to the input model `.nnet` or `.mdl` file and to an output directory where you have write permissions:
 ```sh
-python3 mo.py --input_model <INPUT_MODEL>.nnet --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model <INPUT_MODEL>.nnet --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Two groups of parameters are available to convert your model:
 
-* [Framework-agnostic parameters](Converting_Model_General.md): These parameters are used to convert any model trained in any supported framework.
-* [Kaldi-specific parameters](#kaldi_specific_conversion_params): Parameters used to convert only Kaldi\* models.
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
+* [Kaldi-specific parameters](#kaldi_specific_conversion_params) are used to convert only Kaldi\* models.
 
 ### Using Kaldi\*-Specific Conversion Parameters <a name="kaldi_specific_conversion_params"></a>
 
@@ -59,14 +68,15 @@ Kaldi-specific parameters:
 ### Examples of CLI Commands
 
 * To launch the Model Optimizer for the wsj_dnn5b_smbr model with the specified `.nnet` file and an output directory where you have write permissions:
-```sh
-python3 mo.py --input_model wsj_dnn5b_smbr.nnet --output_dir <OUTPUT_MODEL_DIR>
-```
+   ```sh
+   mo --input_model wsj_dnn5b_smbr.nnet --output_dir <OUTPUT_MODEL_DIR>
+   ```
 
 * To launch the Model Optimizer for the wsj_dnn5b_smbr model with existing file that contains counts for the last layer with biases and a writable output directory:
-```sh
-python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --output_dir <OUTPUT_MODEL_DIR>_
-```
+   ```sh
+   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --output_dir <OUTPUT_MODEL_DIR>
+   ```
+
   * The Model Optimizer normalizes сounts in the following way:
 	\f[
 	S = \frac{1}{\sum_{j = 0}^{|C|}C_{j}}
@@ -81,15 +91,16 @@ python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts -
   > **NOTE:** Model Optimizer will show warning if model contains counts values inside model and `--counts` option is not used.
 
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the
-`--remove_output_softmax` flag.
-```sh
-python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>_
-```
+`--remove_output_softmax` flag:
+   ```sh
+   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>_
+   ```
+
 The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
-  > **NOTE:** Model Optimizer can remove SoftMax layer only if the topology has one output.
+  > **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
  
-  > **NOTE:** For sample inference of Kaldi models, you can use the Inference Engine Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.    
+  > **NOTE**: For sample inference of Kaldi models, you can use the Inference Engine Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.    
   
  If you want to convert a model for inference on Intel® Movidius™ Myriad™, use the `--remove_memory` option. 
 It removes Memory layers from the IR. Instead of it, additional inputs and outputs appear in the IR. 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,14 +13,14 @@
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
 
-/// @brief message for images argument
+/// @brief message for input data argument
 static const char input_message[] =
     "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
-/// @brief message for assigning cnn calculation to device
+/// @brief message for assigning calculation to device
 static const char target_device_message[] =
     "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
     "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
@@ -36,12 +36,17 @@ static const char execution_target_message[] =
     "or the latest fully supported generation by the software. "
     "See the GNA Plugin's GNA_EXEC_TARGET config option description.";
 
-/// @brief message for execution target
+/// @brief message for compile target
 static const char compile_target_message[] = "Optional. Specify GNA compile target generation. "
                                              "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
                                              "By default, generation corresponds to the GNA HW available in the system "
                                              "or the latest fully supported generation by the software. "
                                              "See the GNA Plugin's GNA_COMPILE_TARGET config option description.";
+
+/// @brief message for enabling GNA log
+static const char enable_log_message[] = "Optional. Enable GNA logging, which may give additional info "
+                                         "about potential issues found in network. "
+                                         "By default logging is disabled.";
 
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
@@ -85,7 +90,8 @@ static const char quantization_bits_message[] = "Optional. Weight bits for quant
 static const char scale_factor_message[] =
     "Optional. User-specified input scale factor for quantization (use with -q user). "
     "If the network contains multiple inputs, provide scale factors by separating them with "
-    "commas.";
+    "commas. "
+    "For example: <input_name1>:<sf1>,<input_name2>:<sf2> or just <sf> to be applied to all inputs";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
@@ -98,13 +104,13 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
 static const char context_window_message_l[] =
     "Optional. Number of frames for left context windows (default is 0). "
     "Works only with context window networks."
-    " If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.";
+    " If you use the cw_l or cw_r flag, then batch size argument is ignored.";
 
 /// @brief message for right context window argument
 static const char context_window_message_r[] =
     "Optional. Number of frames for right context windows (default is 0). "
     "Works only with context window networks."
-    " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
+    " If you use the cw_r or cw_l flag, then batch size argument is ignored.";
 
 /// @brief message for output layer names
 static const char output_layer_names_message[] = "Optional. Layer names for output blobs. "
@@ -115,6 +121,11 @@ static const char output_layer_names_message[] = "Optional. Layer names for outp
 static const char input_layer_names_message[] = "Optional. Layer names for input blobs. "
                                                 "The names are separated with \",\" "
                                                 "Example: Input1,Input2 ";
+/// @brief message for inputs layer names
+static const char layout_message[] =
+    "Optional. Prompts how network layouts should be treated by application. "
+    "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
+;
 
 /// @brief message for PWL max error percent
 static const char pwl_max_error_percent_message[] = "Optional. The maximum percent of error for PWL function."
@@ -140,6 +151,9 @@ DEFINE_string(exec_target, "", execution_target_message);
 /// \brief GNA compile target <br>
 DEFINE_string(compile_target, "", compile_target_message);
 
+/// \brief GNA log level (default LOG_NONE) <br>
+DEFINE_string(log, "LOG_NONE", enable_log_message);
+
 /// \brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);
 
@@ -158,9 +172,6 @@ DEFINE_string(wg, "", write_gna_model_message);
 /// @brief Write GNA embedded model to file (model.bin)
 DEFINE_string(we, "", write_embedded_model_message);
 
-/// @brief Optional GNA embedded device generation (default GNA1 aka Sue Creek) - hide option
-DEFINE_string(we_gen, "GNA1", write_embedded_model_generation_message);
-
 /// @brief Input quantization mode (default static)
 DEFINE_string(q, "static", quantization_message);
 
@@ -170,8 +181,8 @@ DEFINE_int32(qb, 16, quantization_bits_message);
 /// @brief Scale factor for quantization
 DEFINE_string(sf, "", scale_factor_message);
 
-/// @brief Batch size (default 1)
-DEFINE_int32(bs, 1, batch_size_message);
+/// @brief Batch size (default 0)
+DEFINE_int32(bs, 0, batch_size_message);
 
 /// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
 DEFINE_int32(nthreads, 1, infer_num_threads_message);
@@ -188,35 +199,126 @@ DEFINE_string(oname, "", output_layer_names_message);
 /// @brief Input layer name
 DEFINE_string(iname, "", input_layer_names_message);
 
+/// @brief Input layer name
+DEFINE_string(layout, "", layout_message);
+
 /// @brief PWL max error percent
 DEFINE_double(pwl_me, 1.0, pwl_max_error_percent_message);
 
 /**
  * \brief This function show a help message
  */
-static void showUsage() {
+static void show_usage() {
     std::cout << std::endl;
     std::cout << "speech_sample [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
-    std::cout << "    -h                      " << help_message << std::endl;
-    std::cout << "    -i \"<path>\"             " << input_message << std::endl;
-    std::cout << "    -m \"<path>\"             " << model_message << std::endl;
-    std::cout << "    -o \"<path>\"             " << output_message << std::endl;
-    std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
-    std::cout << "    -pc                     " << performance_counter_message << std::endl;
-    std::cout << "    -q \"<mode>\"             " << quantization_message << std::endl;
-    std::cout << "    -qb \"<integer>\"         " << quantization_bits_message << std::endl;
-    std::cout << "    -sf \"<double>\"          " << scale_factor_message << std::endl;
-    std::cout << "    -bs \"<integer>\"         " << batch_size_message << std::endl;
-    std::cout << "    -r \"<path>\"             " << reference_score_message << std::endl;
-    std::cout << "    -rg \"<path>\"            " << read_gna_model_message << std::endl;
-    std::cout << "    -wg \"<path>\"            " << write_gna_model_message << std::endl;
-    std::cout << "    -we \"<path>\"            " << write_embedded_model_message << std::endl;
-    std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
-    std::cout << "    -cw_l \"<integer>\"       " << context_window_message_l << std::endl;
-    std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;
-    std::cout << "    -oname \"<string>\"       " << output_layer_names_message << std::endl;
-    std::cout << "    -iname \"<string>\"       " << input_layer_names_message << std::endl;
-    std::cout << "    -pwl_me \"<double>\"      " << pwl_max_error_percent_message << std::endl;
+    std::cout << "    -h                         " << help_message << std::endl;
+    std::cout << "    -i \"<path>\"                " << input_message << std::endl;
+    std::cout << "    -m \"<path>\"                " << model_message << std::endl;
+    std::cout << "    -o \"<path>\"                " << output_message << std::endl;
+    std::cout << "    -d \"<device>\"              " << target_device_message << std::endl;
+    std::cout << "    -pc                        " << performance_counter_message << std::endl;
+    std::cout << "    -q \"<mode>\"                " << quantization_message << std::endl;
+    std::cout << "    -qb \"<integer>\"            " << quantization_bits_message << std::endl;
+    std::cout << "    -sf \"<double>\"             " << scale_factor_message << std::endl;
+    std::cout << "    -bs \"<integer>\"            " << batch_size_message << std::endl;
+    std::cout << "    -r \"<path>\"                " << reference_score_message << std::endl;
+    std::cout << "    -rg \"<path>\"               " << read_gna_model_message << std::endl;
+    std::cout << "    -wg \"<path>\"               " << write_gna_model_message << std::endl;
+    std::cout << "    -we \"<path>\"               " << write_embedded_model_message << std::endl;
+    std::cout << "    -cw_l \"<integer>\"          " << context_window_message_l << std::endl;
+    std::cout << "    -cw_r \"<integer>\"          " << context_window_message_r << std::endl;
+    std::cout << "    -oname \"<string>\"          " << output_layer_names_message << std::endl;
+    std::cout << "    -iname \"<string>\"          " << input_layer_names_message << std::endl;
+    std::cout << "    -layout \"<string>\"         " << layout_message << std::endl;
+    std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
+    std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
+    std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
+}
+
+/**
+ * @brief Checks input arguments
+ * @param argc number of args
+ * @param argv list of input arguments
+ * @return bool status true(Success) or false(Fail)
+ */
+bool parse_and_check_command_line(int argc, char* argv[]) {
+    slog::info << "Parsing input parameters" << slog::endl;
+
+    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+    if (FLAGS_h) {
+        show_usage();
+        showAvailableDevices();
+        return false;
+    }
+    bool isDumpMode = !FLAGS_wg.empty() || !FLAGS_we.empty();
+
+    // input not required only in dump mode and if external scale factor provided
+    if (FLAGS_i.empty() && (!isDumpMode || FLAGS_q.compare("user") != 0)) {
+        show_usage();
+        if (isDumpMode) {
+            throw std::logic_error("In model dump mode either static quantization is used (-i) or user scale"
+                                   " factor need to be provided. See -q user option");
+        }
+        throw std::logic_error("Input file not set. Please use -i.");
+    }
+
+    if (FLAGS_m.empty() && FLAGS_rg.empty()) {
+        show_usage();
+        throw std::logic_error("Either IR file (-m) or GNAModel file (-rg) need to be set.");
+    }
+
+    if ((!FLAGS_m.empty() && !FLAGS_rg.empty())) {
+        throw std::logic_error("Only one of -m and -rg is allowed.");
+    }
+
+    std::vector<std::string> supportedDevices = {"CPU",
+                                                 "GPU",
+                                                 "GNA_AUTO",
+                                                 "GNA_HW",
+                                                 "GNA_HW_WITH_SW_FBACK",
+                                                 "GNA_SW_EXACT",
+                                                 "GNA_SW_FP32",
+                                                 "HETERO:GNA,CPU",
+                                                 "HETERO:GNA_HW,CPU",
+                                                 "HETERO:GNA_SW_EXACT,CPU",
+                                                 "HETERO:GNA_SW_FP32,CPU",
+                                                 "MYRIAD"};
+
+    if (std::find(supportedDevices.begin(), supportedDevices.end(), FLAGS_d) == supportedDevices.end()) {
+        throw std::logic_error("Specified device is not supported.");
+    }
+
+    uint32_t batchSize = (uint32_t)FLAGS_bs;
+    if (batchSize && ((batchSize < 1) || (batchSize > 8))) {
+        throw std::logic_error("Batch size out of range (1..8).");
+    }
+
+    /** default is a static quantization **/
+    if ((FLAGS_q.compare("static") != 0) && (FLAGS_q.compare("dynamic") != 0) && (FLAGS_q.compare("user") != 0)) {
+        throw std::logic_error("Quantization mode not supported (static, dynamic, user).");
+    }
+
+    if (FLAGS_q.compare("dynamic") == 0) {
+        throw std::logic_error("Dynamic quantization not yet supported.");
+    }
+
+    if (FLAGS_qb != 16 && FLAGS_qb != 8) {
+        throw std::logic_error("Only 8 or 16 bits supported.");
+    }
+
+    if (FLAGS_cw_r < 0) {
+        throw std::logic_error("Invalid value for 'cw_r' argument. It must be greater than or equal to 0");
+    }
+
+    if (FLAGS_cw_l < 0) {
+        throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
+    }
+
+    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 100.0) {
+        throw std::logic_error("Invalid value for 'pwl_me' argument. It must be greater than 0.0 and less than 100.0");
+    }
+
+    return true;
 }

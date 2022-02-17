@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <iterator>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -27,7 +28,7 @@ int tmain(int argc, tchar* argv[]) {
 
         // -------- Parsing and validation of input arguments --------
         if (argc != 4) {
-            slog::info << "Usage : " << argc << " <path_to_model> <path_to_image> <device_name>" << slog::endl;
+            slog::info << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << slog::endl;
             return EXIT_FAILURE;
         }
 
@@ -37,15 +38,15 @@ int tmain(int argc, tchar* argv[]) {
         const std::string device_name = TSTRING2STRING(argv[3]);
 
         // -------- Step 1. Initialize OpenVINO Runtime Core --------
-        ov::runtime::Core core;
+        ov::Core core;
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files: " << model_path << slog::endl;
-        auto model = core.read_model(model_path);
+        std::shared_ptr<ov::Model> model = core.read_model(model_path);
         printInputAndOutputsInfo(*model);
 
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
+        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
 
         // -------- Step 3. Set up input
 
@@ -53,29 +54,31 @@ int tmain(int argc, tchar* argv[]) {
         // without resize and layout conversions
         FormatReader::ReaderPtr reader(image_path.c_str());
         if (reader.get() == nullptr) {
-            slog::warn << "Image " + image_path + " cannot be read!" << slog::endl;
-            throw std::logic_error("");
+            std::stringstream ss;
+            ss << "Image " + image_path + " cannot be read!";
+            throw std::logic_error(ss.str());
         }
 
         ov::element::Type input_type = ov::element::u8;
         ov::Shape input_shape = {1, reader->height(), reader->width(), 3};
         std::shared_ptr<unsigned char> input_data = reader->getData();
 
-        // just wrap image data by ov::runtime::Tensor without allocating of new memory
-        ov::runtime::Tensor input_tensor = ov::runtime::Tensor(input_type, input_shape, input_data.get());
+        // just wrap image data by ov::Tensor without allocating of new memory
+        ov::Tensor input_tensor = ov::Tensor(input_type, input_shape, input_data.get());
 
         const ov::Shape tensor_shape = input_tensor.get_shape();
         const ov::Layout tensor_layout{"NHWC"};
 
-        // -------- Step 4. Apply preprocessing --------
+        // -------- Step 4. Configure preprocessing --------
 
-        ov::preprocess::PrePostProcessor preproc(model);
+        ov::preprocess::PrePostProcessor ppp(model);
+
         // 1) Set input tensor information:
         // - input() provides information about a single model input
         // - precision of tensor is supposed to be 'u8'
         // - layout of data is 'NHWC'
         // - set static spatial dimensions to input tensor to resize from
-        preproc.input()
+        ppp.input()
             .tensor()
             .set_element_type(ov::element::u8)
             .set_layout(tensor_layout)
@@ -84,20 +87,21 @@ int tmain(int argc, tchar* argv[]) {
         // 2) Adding explicit preprocessing steps:
         // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
         // - apply linear resize from tensor spatial dims to model spatial dims
-        preproc.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+        ppp.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
         // 4) Here we suppose model has 'NCHW' layout for input
-        preproc.input().network().set_layout("NCHW");
+        ppp.input().model().set_layout("NCHW");
         // 5) Set output tensor information:
         // - precision of tensor is supposed to be 'f32'
-        preproc.output().tensor().set_element_type(ov::element::f32);
+        ppp.output().tensor().set_element_type(ov::element::f32);
+
         // 6) Apply preprocessing modifing the original 'model'
-        model = preproc.build();
+        model = ppp.build();
 
         // -------- Step 5. Loading a model to the device --------
-        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
+        ov::CompiledModel compiled_model = core.compile_model(model, device_name);
 
         // -------- Step 6. Create an infer request --------
-        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
         // -----------------------------------------------------------------------------------------------------
 
         // -------- Step 7. Prepare input --------
@@ -107,7 +111,7 @@ int tmain(int argc, tchar* argv[]) {
         infer_request.infer();
 
         // -------- Step 9. Process output
-        const ov::runtime::Tensor& output_tensor = infer_request.get_output_tensor();
+        const ov::Tensor& output_tensor = infer_request.get_output_tensor();
 
         // Print classification results
         ClassificationResult classification_result(output_tensor, {image_path});

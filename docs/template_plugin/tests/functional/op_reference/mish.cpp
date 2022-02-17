@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ struct MishParams {
           inputShape(inputShape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
+          inputData(CreateTensor(inputShape, iType, iValues)),
           refData(CreateTensor(iType, oValues)),
           testcaseName(test_name) {}
 
@@ -29,8 +29,8 @@ struct MishParams {
     ov::PartialShape inputShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 
@@ -58,10 +58,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Mish = std::make_shared<op::v4::Mish>(in);
-        return std::make_shared<ov::Function>(NodeVector {Mish}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {Mish}, ParameterVector {in});
     }
 };
 

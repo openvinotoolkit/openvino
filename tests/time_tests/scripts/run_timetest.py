@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -58,15 +58,18 @@ def aggregate_stats(stats: dict):
 
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
-    return [str(args["executable"].resolve(strict=True)),
-            "-m", str(args["model"].resolve(strict=True)),
-            "-d", args["device"]]
+    return [
+        str(args["executable"].resolve(strict=True)),
+        "-m", str(args["model"].resolve(strict=True)),
+        "-d", args["device"],
+        "-c" if args["model_cache"] else ""
+    ]
 
 
 def run_timetest(args: dict, log=None):
     """Run provided executable several times and aggregate collected statistics"""
     if log is None:
-        log = logging.getLogger('run_timetest')
+        log = logging.getLogger("run_timetest")
 
     cmd_common = prepare_executable_cmd(args)
 
@@ -108,29 +111,33 @@ def run_timetest(args: dict, log=None):
 
 def cli_parser():
     """parse command-line arguments"""
-    parser = argparse.ArgumentParser(description='Run timetest executable')
-    parser.add_argument('executable',
+    parser = argparse.ArgumentParser(description="Run timetest executable")
+    parser.add_argument("executable",
                         type=Path,
-                        help='binary to execute')
-    parser.add_argument('-m',
+                        help="Binary to execute")
+    parser.add_argument("-m",
                         required=True,
                         dest="model",
                         type=Path,
-                        help='path to an .xml/.onnx file with a trained model or'
-                             ' to a .blob files with a trained compiled model')
-    parser.add_argument('-d',
+                        help="Path to an .xml/.onnx file with a trained model or"
+                             " to a .blob files with a trained compiled model")
+    parser.add_argument("-d",
                         required=True,
                         dest="device",
                         type=str,
-                        help='target device to infer on')
-    parser.add_argument('-niter',
+                        help="Target device to infer on")
+    parser.add_argument("-niter",
                         default=10,
                         type=check_positive_int,
-                        help='number of times to execute binary to aggregate statistics of')
-    parser.add_argument('-s',
+                        help="Number of times to execute binary to aggregate statistics of")
+    parser.add_argument("-s",
                         dest="stats_path",
                         type=Path,
-                        help='path to a file to save aggregated statistics')
+                        help="Path to a file to save aggregated statistics")
+    parser.add_argument("-c",
+                        dest="model_cache",
+                        action="store_true",
+                        help="Enable model cache usage")
 
     args = parser.parse_args()
 
@@ -159,15 +166,15 @@ if __name__ == "__main__":
 
 def test_timetest_parser():
     # Example of timetest yml file
-    raw_data_example = [{'full_run': [1, {'first_inference_latency': [2, {'load_plugin': [3]}, {
-        'create_exenetwork': [4, {'read_network': [5]}, {'load_network': [6]}]}]},
-                              {'first_inference': [7, {'fill_inputs': [8]}]}]}]
+    raw_data_example = [{"full_run": [1, {"first_inference_latency": [2, {"load_plugin": [3]}, {
+        "create_exenetwork": [4, {"read_network": [5]}, {"load_network": [6]}]}]},
+                              {"first_inference": [7, {"fill_inputs": [8]}]}]}]
 
     # Refactoring raw data from yml
     flatten_dict = {}
     parse_stats(raw_data_example, flatten_dict)
 
-    expected_result = {'full_run': 1, 'first_inference_latency': 2, 'load_plugin': 3, 'create_exenetwork': 4,
-                       'read_network': 5, 'load_network': 6, 'first_inference': 7, 'fill_inputs': 8}
+    expected_result = {"full_run": 1, "first_inference_latency": 2, "load_plugin": 3, "create_exenetwork": 4,
+                       "read_network": 5, "load_network": 6, "first_inference": 7, "fill_inputs": 8}
 
     assert flatten_dict == expected_result, "Statistics parsing is performed incorrectly!"

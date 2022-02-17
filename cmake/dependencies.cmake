@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it
-set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
+set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)
@@ -51,8 +51,8 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
     update_deps_cache(SYSTEM_PROTOC "${SYSTEM_PROTOC}" "Path to host protoc for ONNX Importer")
 endif()
 
-if(ENABLE_MYRIAD)
-    include(${IE_MAIN_SOURCE_DIR}/cmake/vpu_dependencies.cmake)
+if(ENABLE_INTEL_MYRIAD)
+    include(${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/myriad_dependencies.cmake)
 endif()
 
 ## Intel OMP package
@@ -84,10 +84,10 @@ if(THREADING STREQUAL "OMP")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     debug_message(STATUS "intel_omp=" ${OMP})
-    
+
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-    install(FILES ${source_list} 
+    install(FILES ${source_list}
             DESTINATION "runtime/3rdparty/omp/lib"
             COMPONENT omp)
 endif()
@@ -265,31 +265,19 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake)
+include(${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake)
 
-if(ENABLE_GNA)
+if(ENABLE_INTEL_GNA)
     reset_deps_cache(
-            GNA
+            GNA_EXT_DIR
             GNA_PLATFORM_DIR
             GNA_KERNEL_LIB_NAME
             GNA_LIBS_LIST
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-    if(GNA_LIBRARY_VERSION STREQUAL "GNA1")
-        RESOLVE_DEPENDENCY(GNA
-                ARCHIVE_UNIFIED "GNA/gna_20181120.zip"
-                TARGET_PATH "${TEMP}/gna"
-                SHA256 "b631d6cc5f6cca4a89a3f5dfa383066f3282fee25d633d9085c605bdd8090210")
-    else()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
-            set(GNA_VERSION "01.00.00.1401")
-            set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
-        endif()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "03.00.00.1377")
-            set(GNA_HASH "d45fb48994d8c2803a16e88e29ae48851066325b97c1c6c4a5bf4f4573d55c65")
-        endif()
+        set(GNA_VERSION "03.00.00.1455.0")
+        set(GNA_HASH "99891696269d8fa10116c96e6b7bda4362736881f0df8df8b56c751ee18e5820")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)
@@ -297,14 +285,27 @@ if(ENABLE_GNA)
         else()
             LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
         endif()
-     
-        RESOLVE_DEPENDENCY(GNA
+
+        RESOLVE_DEPENDENCY(GNA_EXT_DIR
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
                 SHA256 ${GNA_HASH})
+    update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
+    debug_message(STATUS "gna=" ${GNA_EXT_DIR})
+
+    if (WIN32)
+        set(GNA_PLATFORM_DIR win64 CACHE STRING "" FORCE)
+    elseif (UNIX)
+        set(GNA_PLATFORM_DIR linux CACHE STRING "" FORCE)
+    else ()
+        message(FATAL_ERROR "GNA not supported on this platform, only linux, and windows")
+    endif ()
+    set(GNA_LIB_DIR x64 CACHE STRING "" FORCE)
+    set(GNA_PATH ${GNA_EXT_DIR}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR} CACHE STRING "" FORCE)
+
+    if(NOT BUILD_SHARED_LIBS)
+        list(APPEND PATH_VARS "GNA_PATH")
     endif()
-    update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
-    debug_message(STATUS "gna=" ${GNA})
 endif()

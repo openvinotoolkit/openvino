@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,14 @@ namespace ReductionOpsRefTestDefinitions {
 
 struct ReductionParams {
     ReductionParams(const ngraph::helpers::ReductionType& reductType, const bool keepDims, const std::vector<int64_t>& axes,
-        const Tensor& dataTensor, const Tensor& outputTensor) : reductionType(reductType), keepDimensions(keepDims), reductionAxes(axes),
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& outputTensor) : reductionType(reductType), keepDimensions(keepDims), reductionAxes(axes),
         data(dataTensor), output(outputTensor) {}
 
     ngraph::helpers::ReductionType reductionType;
     bool keepDimensions;
     std::vector<int64_t> reductionAxes;
-    Tensor data;
-    Tensor output;
+    reference_tests::Tensor data;
+    reference_tests::Tensor output;
 };
 
 class ReferenceReductionLayerTest : public  testing::TestWithParam<ReductionParams>, public CommonReferenceTest {
@@ -49,13 +49,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Function> CreateFunction(const ReductionParams& params) {
+    static std::shared_ptr<ov::Model> CreateFunction(const ReductionParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.data.type, params.data.shape);
         const auto axes = std::make_shared<op::v0::Constant>(ov::element::i64,
                                                              ov::Shape{params.reductionAxes.size()},
                                                              params.reductionAxes);
         const auto reduction = ngraph::builder::makeReduce(data, axes, params.keepDimensions, params.reductionType);
-        return std::make_shared<ov::Function>(reduction, ov::ParameterVector{data});
+        return std::make_shared<ov::Model>(reduction, ov::ParameterVector{data});
     }
 };
 } // namespace ReductionOpsRefTestDefinitions

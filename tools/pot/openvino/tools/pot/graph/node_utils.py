@@ -1,8 +1,8 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from mo.graph.graph import Node
+from openvino.tools.mo.graph.graph import Node
 
 
 def get_node_inputs(node: Node):
@@ -23,7 +23,8 @@ def get_node_input_ports(node: Node):
     :return: list of node inputs
     """
     sources_ports = [parent.get_source() for parent in node.in_ports().values()]
-    return [port if port is not None else None for port in sources_ports]
+    return [port for port in sources_ports if port is not None]
+
 
 def get_node_input(node: Node, in_port: int):
     """
@@ -191,11 +192,8 @@ def get_quantized_input_key(quantized_node):
     Otherwise, key is tuple (fq_input name, output port number)
     """
     quantized_input = get_node_input(quantized_node, 0)
-    key = quantized_input.name
-    if len(quantized_input.out_ports()) > 1:
-        port_number = quantized_node.in_port(0).get_source().out
-        key = (quantized_input.name, port_number)
-    return key
+    quantized_key = create_node_name(quantized_input)
+    return quantized_key
 
 
 def node_with_quantized_weights(node):
@@ -266,8 +264,28 @@ def get_lstm_ends(read_value, assigns, ignore_nodes):
     return lstm_outputs
 
 
-def get_node_data_type(node):
-    if node.type != 'Const' and node.in_port(0).get_source() is not None \
-            and node.in_port(0).get_source().is_data_type_defined():
-        return node.in_port(0).get_source().get_data_type()
+def create_node_name(input_node, mode=tuple):
+    """
+    Returns key for node input.
+    If input node has one output port -> key is name of input node.
+    Otherwise, key is tuple (input name, output port number)
+    """
+    key = input_node.fullname
+    if len(input_node.out_ports()) > 1:
+        port_number = input_node.in_port(0).get_source().out
+        key = (input_node.fullname, port_number) if mode == tuple else f"{input_node.fullname}.{port_number}"
+    return key
+
+
+def get_node_data_type(node, port_id=0):
+    if node.type != 'Const' and node.in_port(port_id).get_source() is not None \
+            and node.in_port(port_id).get_source().is_data_type_defined():
+        return node.in_port(port_id).get_source().get_data_type()
     return None
+
+
+def reset_node_fullname(old_fullname, node_name):
+    return '|'.join(old_fullname.split('|')[:-1] + [node_name])
+
+def convert_to_outputs_name(node_name):
+    return node_name if isinstance(node_name, tuple) else (node_name, 0)

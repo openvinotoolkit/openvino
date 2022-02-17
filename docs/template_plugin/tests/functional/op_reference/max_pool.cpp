@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,9 +41,9 @@ struct MaxPoolParams {
     Shape m_input_shape;
     element::Type m_input_type;
     element::Type m_indices_type;
-    ov::runtime::Tensor m_input_data;
-    ov::runtime::Tensor m_expected_values;
-    ov::runtime::Tensor m_expected_indices;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_values;
+    ov::Tensor m_expected_indices;
     Strides m_strides;
     Strides m_dilations;
     Shape m_pads_begin;
@@ -79,7 +79,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const MaxPoolParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const MaxPoolParams& params) {
         const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
         const auto max_pool = std::make_shared<op::v8::MaxPool>(in,
                                                                 params.m_strides,
@@ -91,7 +91,7 @@ private:
                                                                 params.m_pad_type,
                                                                 params.m_indices_type,
                                                                 params.m_axis);
-        return std::make_shared<ov::Function>(max_pool, ParameterVector{in});
+        return std::make_shared<ov::Model>(max_pool, ParameterVector{in});
     }
 };
 

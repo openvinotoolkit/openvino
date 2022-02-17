@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
+using namespace ov;
 using namespace InferenceEngine;
 
 struct EmbeddingSegmentsSumParams {
@@ -40,11 +40,11 @@ struct EmbeddingSegmentsSumParams {
 
     ov::PartialShape _iShape;
     ov::element::Type _iType;
-    ov::runtime::Tensor _iData;
+    ov::Tensor _iData;
 
     ov::PartialShape _refShape;
     ov::element::Type _refType;
-    ov::runtime::Tensor _refData;
+    ov::Tensor _refData;
 
     std::shared_ptr<ngraph::opset1::Constant> _indices;
     std::shared_ptr<ngraph::opset1::Constant> _segmentIds;
@@ -79,7 +79,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(
+    static std::shared_ptr<Model> CreateFunction(
         const PartialShape& input_shape,
         const element::Type& input_type,
         const std::shared_ptr<ngraph::opset1::Constant> indices,
@@ -87,7 +87,7 @@ private:
         const std::shared_ptr<ngraph::opset1::Constant> num_segments,
         const std::shared_ptr<ngraph::opset1::Constant> default_index,
         const std::shared_ptr<ngraph::opset1::Constant> per_sample_weights) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
 
         if (default_index) {
             if (per_sample_weights) {
@@ -97,18 +97,18 @@ private:
                                                                                 num_segments,
                                                                                 default_index,
                                                                                 per_sample_weights);
-                return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
             } else {
                 const auto ess = std::make_shared<op::v3::EmbeddingSegmentsSum>(in,
                                                                                 indices,
                                                                                 segment_ids,
                                                                                 num_segments,
                                                                                 default_index);
-                return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
             }
         } else {
             const auto ess = std::make_shared<op::v3::EmbeddingSegmentsSum>(in, indices, segment_ids, num_segments);
-            return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
         }
     }
 };

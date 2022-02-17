@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,10 +9,8 @@ cmake_policy(SET CMP0025 NEW)
 
 project(Samples)
 
-if (CMAKE_BUILD_TYPE STREQUAL "")
-    message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
-    set(CMAKE_BUILD_TYPE "Release")
-endif()
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel")
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -119,6 +117,10 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json")
+    add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
@@ -228,6 +230,10 @@ macro(ie_add_sample)
 
     if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
         add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
+    endif()
+    if(COMMAND ov_ncc_naming_style AND NOT c_sample)
+        ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"
+                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 endmacro()
 

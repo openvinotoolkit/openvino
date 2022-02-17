@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,7 +143,7 @@ void run_matcher_with_gr(std::shared_ptr<ngraph::Function> f) {
     ngraph::pass::GraphRewrite pass;
     pass.add_matcher<ngraph::pass::DecomposeDivideMatcher>();
     pass.add_matcher<ngraph::pass::ReluReluFusionMatcher>();
-    pass.run_on_function(f);
+    pass.run_on_model(f);
     // ! [matcher_pass:graph_rewrite]
 }
 

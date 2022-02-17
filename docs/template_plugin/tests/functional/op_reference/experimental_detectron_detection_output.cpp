@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,13 +46,13 @@ struct ExperimentalDOParams {
     PartialShape imageSizeInfoShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor roisData;
-    ov::runtime::Tensor deltasData;
-    ov::runtime::Tensor scoresData;
-    ov::runtime::Tensor imageSizeInfoData;
-    ov::runtime::Tensor refBoxesData;
-    ov::runtime::Tensor refClassesData;
-    ov::runtime::Tensor refScoresData;
+    ov::Tensor roisData;
+    ov::Tensor deltasData;
+    ov::Tensor scoresData;
+    ov::Tensor imageSizeInfoData;
+    ov::Tensor refBoxesData;
+    ov::Tensor refClassesData;
+    ov::Tensor refScoresData;
     std::string testcaseName;
 };
 
@@ -79,7 +79,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ExperimentalDOParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ExperimentalDOParams& params) {
         const auto rois = std::make_shared<op::v0::Parameter>(params.inType, params.roisShape);
         const auto deltas = std::make_shared<op::v0::Parameter>(params.inType, params.deltasShape);
         const auto scores = std::make_shared<op::v0::Parameter>(params.inType, params.scoresShape);
@@ -89,7 +89,7 @@ private:
                                                                     scores,
                                                                     im_info,
                                                                     params.attrs);
-        return std::make_shared<ov::Function>(ExperimentalDO->outputs(), ParameterVector {rois, deltas, scores, im_info});
+        return std::make_shared<ov::Model>(ExperimentalDO->outputs(), ParameterVector {rois, deltas, scores, im_info});
     }
 };
 

@@ -1,7 +1,7 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "frontend_manager/frontend_manager.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "ngraph/ngraph.hpp"
 #include "tokenizer.h"
 #include <string>
@@ -37,7 +37,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       input_model = frontend->load(in_model, in_params);
     } else
       input_model = frontend->load(in_model);
-    std::shared_ptr<ov::Function> function = frontend->convert(input_model);
+    std::shared_ptr<ov::Model> function = frontend->convert(input_model);
   } catch (const std::exception&) {
     return 0;  // fail gracefully on expected exceptions
   }

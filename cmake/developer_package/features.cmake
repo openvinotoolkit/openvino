@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,10 +11,10 @@ ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT C
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
-if(UNIX)
-    ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
-else()
+if(OV_GENERATOR_MULTI_CONFIG)
     ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" OFF)
+else()
+    ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
 endif()
 
 # FIXME: ARM cross-compiler generates several "false positive" warnings regarding __builtin_memcpy buffer overflow

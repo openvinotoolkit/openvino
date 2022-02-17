@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include <ostream>
 #include <string>
+#include <vector>
 
 namespace slog {
 /**
@@ -28,6 +29,14 @@ static constexpr LogStreamEndLine endl;
 class LogStreamBoolAlpha {};
 
 static constexpr LogStreamBoolAlpha boolalpha;
+
+/**
+ * @class LogStreamFlush
+ * @brief The LogStreamFlush class implements flushing for a log stream
+ */
+class LogStreamFlush {};
+
+static constexpr LogStreamFlush flush;
 
 /**
  * @class LogStream
@@ -60,11 +69,30 @@ public:
         return *this;
     }
 
+    /**
+     * @brief Overload output stream operator to print vectors in pretty form
+     * [value1, value2, ...]
+     */
+    template <typename T>
+    LogStream& operator<<(const std::vector<T>& v) {
+        (*_log_stream) << "[ ";
+
+        for (auto&& value : v)
+            (*_log_stream) << value << " ";
+
+        (*_log_stream) << "]";
+
+        return *this;
+    }
+
     // Specializing for LogStreamEndLine to support slog::endl
     LogStream& operator<<(const LogStreamEndLine&);
 
     // Specializing for LogStreamBoolAlpha to support slog::boolalpha
     LogStream& operator<<(const LogStreamBoolAlpha&);
+
+    // Specializing for LogStreamFlush to support slog::flush
+    LogStream& operator<<(const LogStreamFlush&);
 };
 
 extern LogStream info;

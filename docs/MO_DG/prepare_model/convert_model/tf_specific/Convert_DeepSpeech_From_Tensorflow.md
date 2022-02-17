@@ -47,7 +47,7 @@ There are two specificities with the supported part of the model.
 
 The first is that the model contains an input with sequence length. So the model can be converted with 
 a fixed input length shape, thus the model is not reshapeable. 
-Refer to the [Using Shape Inference](../../../../IE_DG/ShapeInference.md).
+Refer to the [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md).
 
 The second is that the frozen model still has two variables: `previous_state_c` and `previous_state_h`, figure 
 with the frozen *.pb model is below. It means that the model keeps training these variables at each inference. 
@@ -68,11 +68,10 @@ There are certain limitations for the model conversion:
 
 To generate the IR, run the Model Optimizer with the following parameters:
 ```sh
-python3 {path_to_mo}/mo_tf.py                            \
---input_model output_graph.pb                            \
+mo                             \
+--input_model output_graph.pb  \
 --input "input_lengths->[16],input_node[1 16 19 26],previous_state_h[1 2048],previous_state_c[1 2048]"   \
---output "cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd_1,cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd,logits" \
---disable_nhwc_to_nchw
+--output "cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd_1,cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd,logits"
 ```
 
 Where:

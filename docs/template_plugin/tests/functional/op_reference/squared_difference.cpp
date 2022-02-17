@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,9 +31,9 @@ struct SquaredDifferenceParams {
     PartialShape pshape2;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inputData1;
-    runtime::Tensor inputData2;
-    runtime::Tensor refData;
+    ov::Tensor inputData1;
+    ov::Tensor inputData2;
+    ov::Tensor refData;
 };
 
 class ReferenceSquaredDifferenceLayerTest : public testing::TestWithParam<SquaredDifferenceParams>, public CommonReferenceTest {
@@ -56,7 +56,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape1,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
                                                     const PartialShape& input_shape2,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
@@ -64,7 +64,7 @@ private:
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto squared_difference = std::make_shared<op::v0::SquaredDifference>(in1, in2);
 
-        return std::make_shared<Function>(NodeVector{squared_difference}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(NodeVector{squared_difference}, ParameterVector{in1, in2});
     }
 };
 
@@ -89,7 +89,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape1,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
                                                     const PartialShape& input_shape2,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
@@ -98,7 +98,7 @@ private:
         auto squared_difference = std::make_shared<op::v0::SquaredDifference>(in1, in2);
         squared_difference = std::make_shared<op::v0::SquaredDifference>(squared_difference, squared_difference);
 
-        return std::make_shared<Function>(NodeVector{squared_difference}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(NodeVector{squared_difference}, ParameterVector{in1, in2});
     }
 };
 

@@ -1,4 +1,4 @@
-# Operation Set `opset8` Specification {#openvino_docs_ops_opset8}
+# opset8 {#openvino_docs_ops_opset8}
 
 This specification document describes the `opset8` operation set supported in OpenVINO™.
 Support for each particular operation from the list below depends on the capabilities of an inference plugin
@@ -43,7 +43,7 @@ declared in `namespace opset8`.
 * [DeformableConvolution](convolution/DeformableConvolution_8.md)
 * [DeformablePSROIPooling](detection/DeformablePSROIPooling_1.md)
 * [DepthToSpace](movement/DepthToSpace_1.md)
-* [DetectionOutput](detection/DetectionOutput_1.md)
+* [DetectionOutput](detection/DetectionOutput_8.md)
 * [DFT](signals/DFT_7.md)
 * [Divide](arithmetic/Divide_1.md)
 * [Einsum](matrix/Einsum_7.md)

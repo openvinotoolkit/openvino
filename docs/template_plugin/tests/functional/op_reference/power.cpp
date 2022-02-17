@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,9 +31,9 @@ struct PowerParams {
     PartialShape pshape2;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inputData1;
-    runtime::Tensor inputData2;
-    runtime::Tensor refData;
+    ov::Tensor inputData1;
+    ov::Tensor inputData2;
+    ov::Tensor refData;
 };
 
 class ReferencePowerLayerTest : public testing::TestWithParam<PowerParams>, public CommonReferenceTest {
@@ -56,7 +56,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape1,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
                                                     const PartialShape& input_shape2,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
@@ -64,7 +64,7 @@ private:
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto power = std::make_shared<op::v1::Power>(in1, in2);
 
-        return std::make_shared<Function>(NodeVector{power}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(NodeVector{power}, ParameterVector{in1, in2});
     }
 };
 

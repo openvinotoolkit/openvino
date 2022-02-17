@@ -21,10 +21,8 @@ Running the application with the `-h` option yields the following usage message:
 
 ```sh
 ./compile_tool -h
-Inference Engine:
-        API version ............ 2.1
-        Build .................. custom_vv/compile-tool_8b57af00330063c7f302aaac4d41805de21fc54a
-        Description ....... API
+OpenVINO Runtime version ......... 2022.1.0
+Build ........... custom_changed_compile_tool_183a1adfcd7a001974fe1c5cfa21ec859b70ca2c
 
 compile_tool [OPTIONS]
 
@@ -44,24 +42,31 @@ compile_tool [OPTIONS]
                                              Notice that quotes are required.
                                              Overwrites precision from ip and op options for specified layers.
     -il                          <value>     Optional. Specifies layout for all input layers of the network.
-    -ol                          <value>     Optional. Specifies layout for all input layers of the network.
+    -ol                          <value>     Optional. Specifies layout for all output layers of the network.
     -iol                        "<value>"    Optional. Specifies layout for input and output layers by name.
                                              Example: -iol "input:NCHW, output:NHWC".
                                              Notice that quotes are required.
                                              Overwrites layout from il and ol options for specified layers.
+    -iml                         <value>     Optional. Specifies model layout for all input layers of the network.
+    -oml                         <value>     Optional. Specifies model layout for all output layers of the network.
+    -ioml                       "<value>"    Optional. Specifies model layout for input and output tensors by name.
+                                             Example: -ionl "input:NCHW, output:NHWC".
+                                             Notice that quotes are required.
+                                             Overwrites layout from il and ol options for specified layers.
+    -ov_api_1_0                              Optional. Compile model to legacy format for usage in Inference Engine API,
+                                             by default compiles to OV 2.0 API
 
  MYRIAD-specific options:
-      -VPU_NUMBER_OF_SHAVES      <value>     Optional. Specifies number of shaves.
+    -VPU_NUMBER_OF_SHAVES        <value>     Optional. Specifies number of shaves.
                                              Should be set with "VPU_NUMBER_OF_CMX_SLICES".
                                              Overwrites value from config.
 
-      -VPU_NUMBER_OF_CMX_SLICES  <value>     Optional. Specifies number of CMX slices.
+    -VPU_NUMBER_OF_CMX_SLICES    <value>     Optional. Specifies number of CMX slices.
                                              Should be set with "VPU_NUMBER_OF_SHAVES".
                                              Overwrites value from config.
-      -VPU_TILING_CMX_LIMIT_KB   <value>     Optional. Specifies CMX limit for data tiling.
+    -VPU_TILING_CMX_LIMIT_KB     <value>     Optional. Specifies CMX limit for data tiling.
                                              Value should be equal or greater than -1.
                                              Overwrites value from config.
-
 ```
 
 Running the application with the empty list of options yields an error message.
@@ -75,11 +80,10 @@ For example, to compile a blob for inference on an Intel® Neural Compute Stick 
 ### Import a Compiled Blob File to Your Application
 
 To import a blob with the network from a generated file into your application, use the
-`InferenceEngine::Core::ImportNetwork` method:
+`ov::Core::import_model` method:
 
 ```cpp
-InferenceEngine::Core ie;
+ov::Core ie;
 std::ifstream file{"model_name.blob"};
-InferenceEngine::ExecutableNetwork = ie.ImportNetwork(file, "MYRIAD", {});
+ov::CompiledModel compiled_model = ie.import_model(file, "MYRIAD", {});
 ```
-

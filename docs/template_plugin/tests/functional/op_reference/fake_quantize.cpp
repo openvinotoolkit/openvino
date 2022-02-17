@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,8 @@ struct FakeQuantizeParams {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    runtime::Tensor m_input_data;
-    runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     std::shared_ptr<op::v0::Constant> m_input_low;
     std::shared_ptr<op::v0::Constant> m_input_high;
     std::shared_ptr<op::v0::Constant> m_output_low;
@@ -89,7 +89,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const Shape& expected_shape,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_type,
@@ -101,12 +101,12 @@ private:
                                                     const op::AutoBroadcastSpec& broadcast) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         if (broadcast == op::AutoBroadcastType::NONE) {
-            return std::make_shared<Function>(
+            return std::make_shared<Model>(
                 NodeVector{std::make_shared<op::v0::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels)},
                 ParameterVector{in});
 
         } else {
-            return std::make_shared<Function>(
+            return std::make_shared<Model>(
                 NodeVector{std::make_shared<op::v0::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels, broadcast)},
                 ParameterVector{in});
         }

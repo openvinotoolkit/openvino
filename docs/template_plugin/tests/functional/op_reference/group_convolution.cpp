@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,9 @@ struct GroupConvolutionParams {
     ov::element::Type inType;
     ov::element::Type filterType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor filterData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor filterData;
+    ov::Tensor refData;
     ov::Strides strides;
     ov::CoordinateDiff padBegin;
     ov::CoordinateDiff padEnd;
@@ -70,7 +70,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GroupConvolutionParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const GroupConvolutionParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
@@ -82,7 +82,7 @@ private:
                                                                        params.padEnd,
                                                                        params.dialations,
                                                                        auto_pad);
-        return std::make_shared<ov::Function>(NodeVector {GroupConvolution}, ParameterVector {in, filter});
+        return std::make_shared<ov::Model>(NodeVector {GroupConvolution}, ParameterVector {in, filter});
     }
 };
 

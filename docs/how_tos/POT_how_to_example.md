@@ -80,7 +80,7 @@ python3 /opt/intel/openvino_2022/extras/open_model_zoo/tools/downloader/pytorch_
 ```
 Convert the model from ONNX to the OpenVINO™ Intermediate Representation (IR):
 ```
-mo_onnx.py  \
+mo  \
     -m mobilenet-v2.onnx \  
     --input=data  \
     --mean_values=data[123.675,116.28,103.53]  \
@@ -133,8 +133,8 @@ Run Accuracy Checker on the original model:
 accuracy_check -c mobilenet-v2.yml
 ```
 
-Install the Benchmark Tool first. To learn more about Benchmark Tool refer to [Benchmark C++ Tool](https://docs.openvinotoolkit.org/latest/openvino_inference_engine_samples_benchmark_app_README.html)
- or [Benchmark Python* Tool](https://docs.openvinotoolkit.org/latest/openvino_inference_engine_tools_benchmark_tool_README.html).
+Install the Benchmark Tool first. To learn more about Benchmark Tool refer to [Benchmark C++ Tool](https://docs.openvino.ai/latest/openvino_inference_engine_samples_benchmark_app_README.html)
+ or [Benchmark Python* Tool](https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html).
 
 Run performance benchmark:
 ```

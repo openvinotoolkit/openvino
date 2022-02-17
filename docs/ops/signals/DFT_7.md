@@ -1,4 +1,4 @@
-## Discrete Fourier Transformation (DFT) <a name="DFT"></a> {#openvino_docs_ops_signals_DFT_7}
+# Discrete Fourier Transformation (DFT) {#openvino_docs_ops_signals_DFT_7}
 
 **Versioned name**: *DFT-7*
 

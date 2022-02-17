@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,12 +45,12 @@ struct ExperimentalGPParams {
     PartialShape scoresShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor imageSizeInfoData;
-    ov::runtime::Tensor anchorsData;
-    ov::runtime::Tensor deltasData;
-    ov::runtime::Tensor scoresData;
-    ov::runtime::Tensor refRoisData;
-    ov::runtime::Tensor refScoresData;
+    ov::Tensor imageSizeInfoData;
+    ov::Tensor anchorsData;
+    ov::Tensor deltasData;
+    ov::Tensor scoresData;
+    ov::Tensor refRoisData;
+    ov::Tensor refScoresData;
     std::string testcaseName;
 };
 
@@ -77,7 +77,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ExperimentalGPParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ExperimentalGPParams& params) {
         const auto im_info = std::make_shared<op::v0::Parameter>(params.inType, params.imageSizeInfoShape);
         const auto anchors = std::make_shared<op::v0::Parameter>(params.inType, params.anchorsShape);
         const auto deltas = std::make_shared<op::v0::Parameter>(params.inType, params.deltasShape);
@@ -87,7 +87,7 @@ private:
                                                                     deltas,
                                                                     scores,
                                                                     params.attrs);
-        return std::make_shared<ov::Function>(ExperimentalGP->outputs(), ParameterVector {im_info, anchors, deltas, scores});
+        return std::make_shared<ov::Model>(ExperimentalGP->outputs(), ParameterVector {im_info, anchors, deltas, scores});
     }
 };
 

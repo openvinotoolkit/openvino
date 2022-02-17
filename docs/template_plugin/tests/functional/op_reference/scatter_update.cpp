@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,11 +24,11 @@ namespace {
 // ---------------------- V3 ------------------------------
 
 struct ScatterUpdate3Params {
-    Tensor data;
-    Tensor indices;
-    Tensor updates;
-    Tensor axis;
-    Tensor expected;
+    reference_tests::Tensor data;
+    reference_tests::Tensor indices;
+    reference_tests::Tensor updates;
+    reference_tests::Tensor axis;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<ScatterUpdate3Params> {
@@ -64,7 +64,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(const ScatterUpdate3Params& params) {
+    static std::shared_ptr<ov::Model> CreateFunction(const ScatterUpdate3Params& params) {
         const auto data_shape = params.data.shape;
         const auto indices_shape = params.indices.shape;
         const auto updates_shape = params.updates.shape;
@@ -78,7 +78,7 @@ private:
         const auto updates = std::make_shared<ngraph::op::Parameter>(numeric_type, updates_shape);
         const auto axis = std::make_shared<ngraph::op::Parameter>(axis_type, axis_shape);
         const auto scatter_update = std::make_shared<op::v3::ScatterUpdate>(data, indices, updates, axis);
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector {scatter_update}, ngraph::ParameterVector {data, indices, updates, axis});
+        return std::make_shared<ov::Model>(ngraph::NodeVector {scatter_update}, ngraph::ParameterVector {data, indices, updates, axis});
     }
 };
 

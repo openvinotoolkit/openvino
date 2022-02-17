@@ -196,7 +196,7 @@ tgt_vocab_size -= 1
 **Step 4**. Convert the model to the IR:
 
 ```sh
-python3 path/to/model_optimizer/mo_tf.py
+mo
 --input_model /path/to/dump/model/frozen_GNMT_inference_graph.pb
 --input "IteratorGetNext:1{i32}[1],IteratorGetNext:0{i32}[1 50],dynamic_seq2seq/hash_table_Lookup_1:0[1]->[2],dynamic_seq2seq/hash_table_Lookup:0[1]->[1]"
 --output dynamic_seq2seq/decoder/decoder/GatherTree
@@ -274,4 +274,4 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 result_ie = exec_net.infer(input_data)
 ```
 
-For more information about Python API, refer to [Inference Engine Python API Overview](../../../../../runtime/bindings/python/docs/api_overview.md).
+For more information about Python API, refer to [Inference Engine Python API](ie_python_api/api.html).

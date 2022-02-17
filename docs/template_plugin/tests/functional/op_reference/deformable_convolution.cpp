@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,11 +87,11 @@ struct DeformableConvolutionParams {
     ov::element::Type offsetType;
     ov::element::Type outType;
     ov::element::Type maskType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor filterData;
-    ov::runtime::Tensor offsetData;
-    ov::runtime::Tensor refData;
-    ov::runtime::Tensor maskData;
+    ov::Tensor inputData;
+    ov::Tensor filterData;
+    ov::Tensor offsetData;
+    ov::Tensor refData;
+    ov::Tensor maskData;
     ov::Strides strides;
     ov::CoordinateDiff padBegin;
     ov::CoordinateDiff padEnd;
@@ -133,7 +133,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DeformableConvolutionParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const DeformableConvolutionParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
@@ -149,7 +149,7 @@ private:
                                                                        auto_pad,
                                                                        params.group,
                                                                        params.deformableGroup);
-        return std::make_shared<ov::Function>(NodeVector {DeformableConvolution}, ParameterVector {in, offset, filter});
+        return std::make_shared<ov::Model>(NodeVector {DeformableConvolution}, ParameterVector {in, offset, filter});
     }
 };
 
@@ -191,7 +191,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DeformableConvolutionParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const DeformableConvolutionParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
@@ -211,7 +211,7 @@ private:
                                                                         params.group,
                                                                         params.deformableGroup,
                                                                         params.use_bilinear_interpolation_padding);
-            return std::make_shared<ov::Function>(NodeVector {DeformableConvolutionV8}, ParameterVector {in, offset, filter, mask});
+            return std::make_shared<ov::Model>(NodeVector {DeformableConvolutionV8}, ParameterVector {in, offset, filter, mask});
         } else {
             const auto DeformableConvolutionV8 = std::make_shared<op::v8::DeformableConvolution>(in,
                                                                         offset,
@@ -224,7 +224,7 @@ private:
                                                                         params.group,
                                                                         params.deformableGroup,
                                                                         params.use_bilinear_interpolation_padding);
-            return std::make_shared<ov::Function>(NodeVector {DeformableConvolutionV8}, ParameterVector {in, offset, filter});
+            return std::make_shared<ov::Model>(NodeVector {DeformableConvolutionV8}, ParameterVector {in, offset, filter});
         }
     }
 };

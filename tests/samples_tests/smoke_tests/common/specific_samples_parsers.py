@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2021 Intel Corporation
+ Copyright (C) 2018-2022 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -48,12 +48,10 @@ def parse_hello_reshape_ssd(stdout):
                 log.error('Wrong output line: {}, while the test expects the following format: 4d shape'
                           '(Example: Resulting output shape = [1,1,200,7])'.format(line))
         elif 'element, prob' in line:
-            if re.match("^.*prob\s+=.*\d,\s+bbox\s+=\s+\(.*\d,.*\d\)-\(.*\d,.*\d\),"
-                        "\s+batch id\s+=\s+\d", line) is None:
+            if re.match("^.*prob\\s+=.*\\d,\\s+\\(.*\\d,.*\\d\)-\\(.*\\d,.*\\d\\)", line) is None:
                 is_ok = False
-                log.error('Wrong output line: {}, while the test expects the following format: 4d shape'
-                          '(Example: [33,59] element, prob = 0.963015, bbox = (189.776,110.933)-(309.288,306.952), '
-                          'batch id = 0)'.format(line))
+                log.error('Wrong output line: {}, while the test expects the following format: '
+                          'Example: [33,59] element, prob = 0.963015,    (189,110)-(309,306)'.format(line))
         elif 'was saved' in line:
             path_result = os.path.join(os.getcwd(), line.split(' ')[-1].strip())
             if not os.path.isfile(path_result):

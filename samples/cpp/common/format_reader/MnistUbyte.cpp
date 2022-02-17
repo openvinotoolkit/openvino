@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <MnistUbyte.h>
-
+// clang-format off
 #include <fstream>
 #include <iostream>
 #include <string>
+
+#include "MnistUbyte.h"
+// clang-format on
 
 using namespace FormatReader;
 
