@@ -183,7 +183,7 @@ private:
     std::vector<float> outputShift;
 
     std::vector<float> quantizationData;
-    size_t quantizationDataSize;
+    size_t quantizationDataSize = 0lu;
     MKLDNNMemoryPtr quantizationMemory;
 
     size_t cropLowSize;
